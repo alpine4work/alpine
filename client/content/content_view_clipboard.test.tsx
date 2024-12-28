@@ -550,7 +550,7 @@ test("can copy when selection is entirely in content view", () => {
         }),
     ).toEqual({
         text: "e also want to test selecting between files:",
-        html: `<p data-pm-slice="1 1 []">e also want to test selecting between files:</p><div style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"><img src="http://localhost/files/${space.id}/${file1Id}?exp=1728432335&amp;iss=app&amp;aud=edg&amp;sig=test-img1" data-cy-attached="${testDocumentFileAttachmentTargetString}" style="display: block;" width="600" height="450"></div>`,
+        html: `<p data-pm-slice="1 1 []">e also want to test selecting between files:</p><div style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"><img src="http://localhost/files/${space.id}/${file1Id}?exp=1728432335&amp;iss=app&amp;aud=edg&amp;sig=test-img1" data-cy-attached="${testDocumentFileAttachmentTargetString}" style="display: block;" width="600" height="450"></div>`,
     });
 
     expect(
@@ -564,7 +564,7 @@ test("can copy when selection is entirely in content view", () => {
         }),
     ).toEqual({
         text: "Some text afterwards for anch",
-        html: `<div style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;" data-pm-slice="1 1 []"><img src="http://localhost/files/${space.id}/${file2Id}?exp=1728432338&amp;iss=app&amp;aud=edg&amp;sig=test-img2" data-cy-attached="${testDocumentFileAttachmentTargetString}" style="display: block;" width="384" height="512"></div><p>Some text afterwards for anch</p>`,
+        html: `<div style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;" data-pm-slice="1 1 []"><img src="http://localhost/files/${space.id}/${file2Id}?exp=1728432338&amp;iss=app&amp;aud=edg&amp;sig=test-img2" data-cy-attached="${testDocumentFileAttachmentTargetString}" style="display: block;" width="384" height="512"></div><p>Some text afterwards for anch</p>`,
     });
 
     expect(
@@ -580,6 +580,6 @@ test("can copy when selection is entirely in content view", () => {
         }),
     ).toEqual({
         text: "nt to test selecting between files:\n\nSome text af",
-        html: `<p data-pm-slice="1 1 []">nt to test selecting between files:</p><div style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"><img src="http://localhost/files/${space.id}/${file1Id}?exp=1728432335&amp;iss=app&amp;aud=edg&amp;sig=test-img1" data-cy-attached="${testDocumentFileAttachmentTargetString}" style="display: block;" width="378" height="283"><img src="http://localhost/files/${space.id}/${file2Id}?exp=1728432338&amp;iss=app&amp;aud=edg&amp;sig=test-img2" data-cy-attached="${testDocumentFileAttachmentTargetString}" style="display: block;" width="212" height="283"></div><p>Some text af</p>`,
+        html: `<p data-pm-slice="1 1 []">nt to test selecting between files:</p><div style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"><img src="http://localhost/files/${space.id}/${file1Id}?exp=1728432335&amp;iss=app&amp;aud=edg&amp;sig=test-img1" data-cy-attached="${testDocumentFileAttachmentTargetString}" style="display: block;" width="379" height="284"><img src="http://localhost/files/${space.id}/${file2Id}?exp=1728432338&amp;iss=app&amp;aud=edg&amp;sig=test-img2" data-cy-attached="${testDocumentFileAttachmentTargetString}" style="display: block;" width="213" height="284"></div><p>Some text af</p>`,
     });
 });

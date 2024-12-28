@@ -141,7 +141,7 @@ import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js"
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {assertId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
@@ -1616,6 +1616,7 @@ export function DocumentContentEditor({
                                 const createCommentThread: {
                                     commentThreadId: DocumentCommentThreadId;
                                     initialCommentContent: MessageContentWithReferences;
+                                    initialCommentFileIds: ReadonlyArray<FileId>;
                                     openCommentThreadPromiseRef?: {
                                         current: Promise<void> | null;
                                     };
@@ -1647,6 +1648,10 @@ export function DocumentContentEditor({
                             className={documentContentStyles.documentContentClassName}
                             phantomSelections={phantomSelections}
                             fileAttachmentTarget={fileAttachmentTarget}
+                            commentFileAttachmentTarget={useMemo(
+                                () => ({type: "DocumentComments", documentId}),
+                                [documentId],
+                            )}
                             onEnsureFileAttachmentTarget={ensureCreateDocument}
                             openCommentThread={openCommentThread}
                             onCommentThreadPressedChange={(commentThreadId, isHovered) => {

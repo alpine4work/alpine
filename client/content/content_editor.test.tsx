@@ -19,10 +19,16 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 
 // eslint-disable-next-line testing-library/render-result-naming-convention
-const fileAttachmentTarget = markMemoIfNotRendering<FileAttachmentTarget>({
+const fileAttachmentTarget = markMemoIfNotRendering({
     type: "Document",
     documentId: generateId(),
-});
+} as const satisfies FileAttachmentTarget);
+
+// eslint-disable-next-line testing-library/render-result-naming-convention
+const commentFileAttachmentTarget = markMemoIfNotRendering({
+    type: "DocumentComments",
+    documentId: fileAttachmentTarget.documentId,
+} as const satisfies FileAttachmentTarget);
 
 function TestContentEditor() {
     const [state, setState] = useState(() =>
@@ -37,6 +43,7 @@ function TestContentEditor() {
             state={state}
             onChange={setState}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />
     );
 }
@@ -76,6 +83,7 @@ test("renders an empty document", () => {
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -99,6 +107,7 @@ test("renders an initial editor state", () => {
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -125,6 +134,7 @@ test("rerenders with a changed document", () => {
             state={ContentEditorState.create({doc: doc1, references: emptyContentReferences})}
             onChange={onTransaction}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -136,6 +146,7 @@ test("rerenders with a changed document", () => {
             state={ContentEditorState.create({doc: doc2, references: emptyContentReferences})}
             onChange={onTransaction}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -187,6 +198,7 @@ test("won't ever commit optimistic update if it doesn't match props", () => {
                 state={state}
                 onChange={useCallback(() => {}, [])}
                 fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
         );
     }

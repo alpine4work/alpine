@@ -1126,6 +1126,15 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 }
                                                             },
                                                             "optional": false
+                                                        },
+                                                        "fileIds": {
+                                                            "valueSchema": {
+                                                                "type": "Array",
+                                                                "itemSchema": {
+                                                                    "type": "Id"
+                                                                }
+                                                            },
+                                                            "optional": true
                                                         }
                                                     }
                                                 },
@@ -4304,15 +4313,12 @@ export const dynamoGeneratedSchemaDescription: {
                         }
                     },
                     "sortRangeByType": {
-                        "ChatMessageAttachmentTarget": {
+                        "ChatMessagesAttachmentTarget": {
                             "id": 0,
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {
                                 "chatId": {
                                     "type": "Id"
-                                },
-                                "messageIndex": {
-                                    "type": "Integer"
                                 }
                             },
                             "attributesSchema": {
@@ -4385,18 +4391,12 @@ export const dynamoGeneratedSchemaDescription: {
                                 }
                             }
                         },
-                        "DocumentCommentAttachmentTarget": {
+                        "DocumentCommentsAttachmentTarget": {
                             "id": 3,
                             "orderKey": "a3",
                             "sortKeyAttributeByKey": {
                                 "documentId": {
                                     "type": "Id"
-                                },
-                                "commentThreadId": {
-                                    "type": "Id"
-                                },
-                                "commentIndex": {
-                                    "type": "Integer"
                                 }
                             },
                             "attributesSchema": {
@@ -4472,15 +4472,12 @@ export const dynamoGeneratedSchemaDescription: {
                                 }
                             }
                         },
-                        "PostCommentAttachmentTarget": {
+                        "PostCommentsAttachmentTarget": {
                             "id": 5,
                             "orderKey": "a5",
                             "sortKeyAttributeByKey": {
                                 "postId": {
                                     "type": "Id"
-                                },
-                                "commentIndex": {
-                                    "type": "Integer"
                                 }
                             },
                             "attributesSchema": {
@@ -4527,15 +4524,12 @@ export const dynamoGeneratedSchemaDescription: {
                                 }
                             }
                         },
-                        "TaskCommentAttachmentTarget": {
+                        "TaskCommentsAttachmentTarget": {
                             "id": 7,
                             "orderKey": "a7",
                             "sortKeyAttributeByKey": {
                                 "taskId": {
                                     "type": "Id"
-                                },
-                                "commentIndex": {
-                                    "type": "Integer"
                                 }
                             },
                             "attributesSchema": {

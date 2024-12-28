@@ -893,13 +893,16 @@ globalStyle(`${narrowRouteLayoutDocClassName} ${dividerClassName}`, {
     marginBottom: spacing[heading1TopMargin.narrow],
 });
 
+const fileMinSizeSpacing = "20";
+export {fileMinSizeSpacing as fileMinSize};
 const fileMinSize = spacing["20"];
 export const fileMinSizeRem = parseRemLength(fileMinSize);
 
-const fileRowMaxHeight = spacing["128"];
-export const fileRowMaxHeightRem = parseRemLength(fileRowMaxHeight);
+const fileRowMaxHeightSpacing = "128";
+export {fileRowMaxHeightSpacing as fileRowMaxHeight};
+const fileRowMaxHeight = spacing[fileRowMaxHeightSpacing];
 
-const fileRowGapWidthSpacing = "2.5";
+const fileRowGapWidthSpacing = "2";
 export {fileRowGapWidthSpacing as fileRowGapWidth};
 const fileRowGapWidth = spacing[fileRowGapWidthSpacing];
 export const fileRowGapWidthRem = parseRemLength(fileRowGapWidth);
@@ -1049,7 +1052,8 @@ export const fileImageViewerClassName = style({
     },
 });
 
-export const fileChannelViewPreviewClassName = style({});
+export const alwaysShowFileBorderClassName = style({});
+export const withoutFileSelectionClassName = style({});
 
 export const fileBlankImageForSelectionClassName = style({
     position: "absolute",
@@ -1062,7 +1066,7 @@ export const fileBlankImageForSelectionClassName = style({
     // player UI.
     zIndex: "70",
     selectors: {
-        [`${fileClassName}${fileChannelViewPreviewClassName} &`]: {
+        [`${fileClassName}${withoutFileSelectionClassName} &`]: {
             display: "none",
             userSelect: "none",
         },
@@ -1129,7 +1133,7 @@ export const fileImagePreviewContentClassName = style({
             `${fileClassName}:has(${contentFileVideoPlayerStyles.containerClassName}) &`,
             // Turn off selection in channel view asides. The user shouldn't be able to
             // select anything there.
-            `${fileClassName}${fileChannelViewPreviewClassName} &`,
+            `${fileClassName}${withoutFileSelectionClassName} &`,
         ].join(", ")]: {
             userSelect: "none",
         },
@@ -1270,7 +1274,7 @@ globalStyle(`${darkColorSchemeSelector} ${fileClassName}::before`, {
 // We always want to render the border for files rendered in
 // `<ChannelViewAside>`.
 globalStyle(
-    `${lightColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearWhiteClassName}):not(${fileChannelViewPreviewClassName})::before`,
+    `${lightColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearWhiteClassName}):not(${alwaysShowFileBorderClassName})::before`,
     {boxShadow: "none"},
 );
 
@@ -1283,7 +1287,7 @@ globalStyle(
 // We always want to render the border for files rendered in
 // `<ChannelViewAside>`.
 globalStyle(
-    `${darkColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearBlackClassName}):not(${fileChannelViewPreviewClassName})::before`,
+    `${darkColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearBlackClassName}):not(${alwaysShowFileBorderClassName})::before`,
     {boxShadow: "none"},
 );
 

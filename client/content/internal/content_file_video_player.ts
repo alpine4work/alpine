@@ -113,7 +113,12 @@ export function renderContentFileVideoPlayer(
         containerHtml.appendChild(playIndicatorHtml);
         playIndicatorHtml.setAttribute(
             "class",
-            contentFileVideoPlayerStyles.playIndicatorClassName,
+            classNames(
+                contentFileVideoPlayerStyles.playIndicatorClassName,
+                layout !== null &&
+                    layout.width < 150 &&
+                    contentFileVideoPlayerStyles.smallPlayIndicatorClassName,
+            ),
         );
         playIndicatorHtml.appendChild(createSvgHtmlGenerator(playIconSvg({weight: "fill"})));
         playIndicatorHtml.appendChild(

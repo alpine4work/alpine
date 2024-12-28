@@ -1,12 +1,12 @@
 import {SpinnerGap} from "phosphor-react";
 import {useCallback, useEffect, useMemo, useRef} from "react";
 import {usePress} from "react-aria";
-import {ChannelViewFilePreview} from "~/client/content/channel_view_file_preview.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {NavigationBarContent} from "~/client/design/navigation_bar_content.js";
 import {useDynamoGeneralRealtimeQuery} from "~/client/dynamo/use_dynamo_general_realtime_query.js";
 import {getInitialChannelFilesViewFileLoadCount} from "~/client/forum/get_initial_channel_files_view_load_count.js";
+import {ChannelViewContentFileMiniPreview} from "~/client/forum/internal/channel_view_content_file_mini_preview.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
@@ -374,7 +374,7 @@ export function ChannelFilesView({
                                     {!file1 ? (
                                         <Box width="full" height="full" />
                                     ) : (
-                                        <ChannelViewFilePreview
+                                        <ChannelViewContentFileMiniPreview
                                             postId={file1.postId}
                                             file={file1.file}
                                             signedUrlSearch={file1.signedUrlSearch}
@@ -384,7 +384,7 @@ export function ChannelFilesView({
                                     {!file2 ? (
                                         <Box width="full" height="full" />
                                     ) : (
-                                        <ChannelViewFilePreview
+                                        <ChannelViewContentFileMiniPreview
                                             postId={file2.postId}
                                             file={file2.file}
                                             signedUrlSearch={file2.signedUrlSearch}
@@ -394,7 +394,7 @@ export function ChannelFilesView({
                                     {!file3 ? (
                                         <Box width="full" height="full" />
                                     ) : (
-                                        <ChannelViewFilePreview
+                                        <ChannelViewContentFileMiniPreview
                                             postId={file3.postId}
                                             file={file3.file}
                                             signedUrlSearch={file3.signedUrlSearch}

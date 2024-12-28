@@ -10,6 +10,7 @@ import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messa
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -30,6 +31,7 @@ export function PostCommentInput({
     viewRef,
     proceduresRef,
     postComments,
+    fileAttachmentTarget,
     onUpdatePostComments,
     postCommentEditing,
     replyingToPostComment,
@@ -44,6 +46,7 @@ export function PostCommentInput({
     viewRef: RefObject<VirtualizedScrollViewRef>;
     proceduresRef: Ref<PostRealtimeProcedures>;
     postComments: MessageList<PostCommentModel>;
+    fileAttachmentTarget: Memo<FileAttachmentTarget>;
     onUpdatePostComments: (
         update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
     ) => void;
@@ -230,8 +233,10 @@ export function PostCommentInput({
                 await procedures.createComment({
                     parentCommentIndex: input.parentMessageIndex,
                     content: input.content,
+                    fileIds: input.fileIds,
                 });
             }}
+            fileAttachmentTarget={fileAttachmentTarget}
             messageEditing={postCommentEditing}
             replyingToMessage={replyingToPostComment}
             onClearReplyingToMessage={onClearReplyingToPostComment}

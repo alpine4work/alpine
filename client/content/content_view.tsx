@@ -1,5 +1,6 @@
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
+import {Selection} from "prosemirror-state";
 import {EditorView, serializeForClipboard} from "prosemirror-view";
 import {CSSProperties, Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
@@ -212,6 +213,13 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
      * default this is 1.
      */
     fileLayoutScreenScale?: number;
+
+    /**
+     * Optionally add a prefix string to the beginning of the content we serialize
+     * to the user's clipboard. We only add the prefix if the selection starts at
+     * the beginning of our view's content.
+     */
+    getClipboardSerializerPrefix?: Memo<() => string | null>;
 };
 
 /**
@@ -236,6 +244,7 @@ export function ContentView<Content extends ContentWithReferences>({
     withoutBlockMaxWidth = false,
     fileLayoutScreenWidth: fileLayoutScreenWidthFromProps,
     fileLayoutScreenScale = 1,
+    getClipboardSerializerPrefix,
 }: ContentViewProps<Content>) {
     assert(
         !content.doc.type.schema.nodes.file || fileAttachmentTarget,
@@ -1287,14 +1296,33 @@ export function ContentView<Content extends ContentWithReferences>({
                     html = htmlFragment;
                 }
 
+                const prefix =
+                    getClipboardSerializerPrefix && startPos <= Selection.atStart(content.doc).from
+                        ? getClipboardSerializerPrefix()
+                        : null;
+
+                // If we have a prefix, then add it to our HTML.
+                if (prefix !== null) {
+                    if (html.firstChild instanceof Element && html.firstChild.tagName === "P") {
+                        html.firstChild.insertBefore(
+                            document.createTextNode(prefix),
+                            html.firstChild.firstChild,
+                        );
+                    } else {
+                        const prefixElement = document.createTextNode("p");
+                        prefixElement.appendChild(document.createTextNode(prefix));
+                        html.insertBefore(prefixElement, html.firstChild);
+                    }
+                }
+
                 return {
                     requiredLineBreakAroundCount: 2,
-                    text,
+                    text: prefix !== null ? prefix + text : text,
                     html,
                 };
             },
         );
-    }, [events, fileAttachmentTarget, spaceId]);
+    }, [events, fileAttachmentTarget, getClipboardSerializerPrefix, spaceId]);
 
     return (
         <>

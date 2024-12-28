@@ -1,5 +1,5 @@
 import {ArrowLeft} from "phosphor-react";
-import {useCallback, useEffect, useRef} from "react";
+import {useCallback, useEffect, useMemo, useRef} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
@@ -201,6 +201,10 @@ function ChatMessagingView({
             }}
             header={chatMessagingViewHeaderItem}
             randomSeedForShimmer={chat.id}
+            fileAttachmentTarget={useMemo(
+                () => ({type: "ChatMessages", chatId: chat.id}),
+                [chat.id],
+            )}
             getMessagesFromStart={useCallback(
                 input => getChatMessagesFromStart(context, {...input, chatId: chat.id}),
                 [chat.id, context],

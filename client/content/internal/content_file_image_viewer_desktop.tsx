@@ -53,7 +53,7 @@ export function ContentFileImageViewerDesktop({
     extraChildrenForVideo,
 }: {
     file: FileClientStoreData;
-    attachmentTarget: FileAttachmentTarget;
+    attachmentTarget: FileAttachmentTarget | "Uploader";
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     viewerSize: {width: number; height: number};
     zoomScale: number;
@@ -124,7 +124,7 @@ function ContentFileImageDesktopViewerInner({
 }: {
     file: FileClientStoreData;
     filePreviewPlaceholder: FileImagePreviewPlaceholder;
-    attachmentTarget: FileAttachmentTarget;
+    attachmentTarget: FileAttachmentTarget | "Uploader";
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     viewerSize: {width: number; height: number};
     zoomScale: number;

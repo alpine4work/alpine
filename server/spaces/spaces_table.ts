@@ -1299,7 +1299,7 @@ export async function getAccount(
     options?: {consistency?: DynamoReadConsistency},
 ): Promise<AccountModel> {
     const account = await getAccountIfExists(context, spaceId, accountId, options);
-    if (!account) throw new NotFoundError("Can not find account in space");
+    if (!account) throw new NotFoundError("Can't find account in space");
     return account;
 }
 

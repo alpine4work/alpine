@@ -1,0 +1,35 @@
+import {useCallback, useMemo} from "react";
+import {ContentFileMiniPreview} from "~/client/content/content_file_mini_preview.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {FileModel} from "~/shared/files/file_model.js";
+import {PostId} from "~/shared/id/types/id_types.js";
+
+export function ChannelViewContentFileMiniPreview({
+    postId,
+    size,
+    signedUrlSearch,
+    file,
+}: {
+    postId: PostId;
+    size: number;
+    signedUrlSearch: string;
+    file: FileModel;
+}) {
+    const navigate = useNavigate();
+    const {space} = useSpaceContext();
+
+    return (
+        <ContentFileMiniPreview
+            size={size}
+            signedUrlSearch={signedUrlSearch}
+            file={file}
+            attachmentTarget={useMemo(() => ({type: "Post", postId}), [postId])}
+            onOpenViewer={useCallback(() => {
+                navigate(`/s/${space.id}/posts/${postId}?scroll=file-${file.id}`);
+
+                return {preventDefault: true};
+            }, [file.id, navigate, postId, space.id])}
+        />
+    );
+}

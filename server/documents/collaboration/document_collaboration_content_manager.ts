@@ -43,6 +43,7 @@ import {
     ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
+    FileId,
     SpaceId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
@@ -73,6 +74,7 @@ export type DocumentCollaborationContentManagerOptimisticCommentThread = {
     readonly initialComment: {
         readonly authorId: AccountId;
         readonly content: MessageContent;
+        readonly fileIds: ReadonlyArray<FileId>;
     };
 };
 
@@ -132,6 +134,7 @@ export class DocumentCollaborationContentManager {
             readonly initialComment: {
                 readonly authorId: AccountId;
                 readonly content: MessageContent;
+                readonly fileIds: ReadonlyArray<FileId>;
             };
         }
     >();
@@ -255,6 +258,7 @@ export class DocumentCollaborationContentManager {
             createCommentThreads: ReadonlyArray<{
                 commentThreadId: DocumentCommentThreadId;
                 initialCommentContent: MessageContent;
+                initialCommentFileIds: ReadonlyArray<FileId>;
             }>;
             resolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             unresolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
@@ -368,6 +372,7 @@ export class DocumentCollaborationContentManager {
                     initialComment: {
                         authorId: context.actor.getAccountId(),
                         content: createCommentThread.initialCommentContent,
+                        fileIds: createCommentThread.initialCommentFileIds,
                     },
                 });
             }

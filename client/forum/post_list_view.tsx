@@ -84,12 +84,14 @@ import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spaci
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError} from "~/shared/error/error.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {PostId} from "~/shared/id/types/id_types.js";
@@ -699,6 +701,18 @@ function PostListView(
         }),
     });
 
+    const fileAttachmentTargetByPostId = useMemo(
+        () =>
+            new LazyMap(
+                (postId: PostId) =>
+                    ({
+                        type: "PostComments",
+                        postId,
+                    } satisfies FileAttachmentTarget as Memo<FileAttachmentTarget>),
+            ),
+        [],
+    );
+
     const idBase = useId();
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -939,6 +953,9 @@ function PostListView(
                                         <MessageView
                                             messageNoun="comment"
                                             message={item.postComment}
+                                            fileAttachmentTarget={fileAttachmentTargetByPostId.get(
+                                                item.post.id,
+                                            )}
                                             previousMessage={previousComment}
                                             isFirstMessage={item.postCommentIndex === 0}
                                             isLastMessage={isLastComment}
@@ -1191,6 +1208,7 @@ function PostListView(
                                 }
                             }}
                             postComments={item.postComments}
+                            fileAttachmentTarget={fileAttachmentTargetByPostId.get(item.post.id)}
                             onUpdatePostComments={update =>
                                 onUpdatePostComments(item.post.id, update)
                             }
@@ -1436,6 +1454,7 @@ function PostListView(
             hasAside,
             isPostView,
             spacingScale,
+            platform,
             withSafeAreaInsetTop,
             hasChannelHeader,
             postEditing,
@@ -1445,9 +1464,9 @@ function PostListView(
             onTogglePostComments,
             loadInitialPostComments,
             messageEditing,
+            fileAttachmentTargetByPostId,
             highlightPostComment,
             handleJumpToPostComment,
-            platform,
             replyingToPostCommentIndexByPostId,
             shouldBeConnectedToChannelRealtime,
             onPostRealtimeEventTransaction,
@@ -1690,6 +1709,9 @@ function PostListView(
                                 }}
                                 postCommentEditing={messageEditing}
                                 postComments={lastPostContentItem.postComments}
+                                fileAttachmentTarget={fileAttachmentTargetByPostId.get(
+                                    lastPostContentItem.post.id,
+                                )}
                                 onUpdatePostComments={update =>
                                     onUpdatePostComments(lastPostContentItem.post.id, update)
                                 }

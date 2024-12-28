@@ -1,5 +1,7 @@
+import {FileModel} from "~/shared/files/file_model.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Id} from "~/shared/id/id.js";
+import {FileId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentSchema,
     MessageContentWithReferencesSchema,
@@ -100,25 +102,34 @@ export type MessageDeletedPayload = SchemaType<typeof MessageDeletedPayloadSchem
 
 const MessageContentPayloadSchema = Schema.object({
     type: Schema.value("Content"),
+
     /**
      * If this message is a reply to another message then this will be set to the
      * index of the message we're replying to. The parent message index should
      * always be less than our message index.
      */
     parentMessageIndex: Schema.integer.nullable(),
+
     /**
      * The contents of the message.
      */
     content: MessageContentSchema,
+
     /**
      * If this message was ever updated then this is the time at which the update
      * occurred. Will be null if the message was never updated.
      */
     contentUpdatedTime: Schema.date.nullable(),
+
+    /**
+     * Files attached to the message to be rendered below the message content.
+     */
+    fileIds: Schema.array(Schema.id<FileId>()).default([]),
 });
 
 const MessageDeletedPayloadSchema = Schema.object({
     type: Schema.value("Deleted"),
+
     /**
      * The time at which this message was deleted.
      */
@@ -139,6 +150,12 @@ const MessageContentPayloadModelSchema = Schema.object({
     parentMessageIndex: Schema.integer.nullable(),
     content: MessageContentWithReferencesSchema,
     contentUpdatedTime: Schema.date.nullable(),
+    files: Schema.array(
+        Schema.object({
+            signedUrlSearch: Schema.string,
+            file: FileModel.schema,
+        }),
+    ).default([]),
 });
 
 const MessageDeletedPayloadModelSchema = Schema.object({

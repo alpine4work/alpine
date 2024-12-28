@@ -22,7 +22,7 @@ import {
 } from "~/shared/helpers/async/promise_immediate_resolver.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {FileId} from "~/shared/id/types/id_types.js";
-import {getFileFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
+import {getFileAsUploader, getFileFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
 import {nullStore} from "~/shared/store/const_store.js";
 
 export function ContentFileViewerModal({
@@ -31,7 +31,7 @@ export function ContentFileViewerModal({
     onClose,
 }: {
     fileId: FileId;
-    attachmentTarget: FileAttachmentTarget;
+    attachmentTarget: FileAttachmentTarget | "Uploader";
     onClose: () => void;
 }) {
     const context = useAppContext();
@@ -63,11 +63,17 @@ export function ContentFileViewerModal({
         if (hasFetchedFileReferenceRef.current) return;
         hasFetchedFileReferenceRef.current = true;
 
-        getFileFromAttachment(context, {
-            spaceId: space.id,
-            fileId,
-            target: attachmentTarget,
-        }).then(setFileReference, setErrorState);
+        (attachmentTarget === "Uploader"
+            ? getFileAsUploader(context, {
+                  spaceId: space.id,
+                  fileId,
+              })
+            : getFileFromAttachment(context, {
+                  spaceId: space.id,
+                  fileId,
+                  target: attachmentTarget,
+              })
+        ).then(setFileReference, setErrorState);
     }, [
         attachmentTarget,
         context,
@@ -153,7 +159,6 @@ export function ContentFileViewerModal({
             {!file || !loaderDataPromiseResolver || delayState ? null : platform === "mobile" ? (
                 <ContentFileViewerModalMobile
                     file={file}
-                    attachmentTarget={attachmentTarget}
                     ownedByElement={handoffFilePreviewState?.ownedByElement ?? null}
                     loaderDataPromise={loaderDataPromiseResolver.promise}
                     onClose={onClose}

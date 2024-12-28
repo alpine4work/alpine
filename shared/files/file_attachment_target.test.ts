@@ -10,10 +10,9 @@ import {generateId} from "~/shared/id/id.js";
 const fileAttachmentTargetByType: {
     [Key in FileAttachmentTarget["type"]]: FileAttachmentTarget & {type: Key};
 } = {
-    ChatMessage: {
-        type: "ChatMessage",
+    ChatMessages: {
+        type: "ChatMessages",
         chatId: generateId(),
-        messageIndex: 42,
     },
     ChannelDescription: {
         type: "ChannelDescription",
@@ -23,11 +22,9 @@ const fileAttachmentTargetByType: {
         type: "Document",
         documentId: generateId(),
     },
-    DocumentComment: {
-        type: "DocumentComment",
+    DocumentComments: {
+        type: "DocumentComments",
         documentId: generateId(),
-        commentThreadId: generateId(),
-        commentIndex: 42,
     },
     Post: {
         type: "Post",
@@ -38,19 +35,17 @@ const fileAttachmentTargetByType: {
         accountId: generateId(),
         draftId: generateChronologicalId(),
     },
-    PostComment: {
-        type: "PostComment",
+    PostComments: {
+        type: "PostComments",
         postId: generateId(),
-        commentIndex: 42,
     },
     TaskNotes: {
         type: "TaskNotes",
         taskId: generateId(),
     },
-    TaskComment: {
-        type: "TaskComment",
+    TaskComments: {
+        type: "TaskComments",
         taskId: generateId(),
-        commentIndex: 42,
     },
 };
 

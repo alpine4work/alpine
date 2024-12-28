@@ -79,7 +79,10 @@ import {
     createDynamoGeneralRealtimeItemSchema,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {UnknownError} from "~/shared/error/error.js";
-import {deserializeFileAttachmentTargetString} from "~/shared/files/file_attachment_target.js";
+import {
+    FileAttachmentTarget,
+    deserializeFileAttachmentTargetString,
+} from "~/shared/files/file_attachment_target.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -479,21 +482,22 @@ function SpaceLayoutRouteInner({
                 if (hasAddedContentFileViewerModal) continue;
                 hasAddedContentFileViewerModal = true;
 
-                const [fileId = "", fileAttachmentTargetString = ""] = searchParamValue.split(
-                    " ",
-                    2,
-                );
+                const [fileId = "", fileAttachmentTargetString] = searchParamValue.split(" ", 2);
 
                 if (!isId<FileId>(fileId)) continue;
 
-                let fileAttachmentTarget;
-                try {
-                    fileAttachmentTarget = deserializeFileAttachmentTargetString(
-                        fileAttachmentTargetString,
-                    );
-                } catch {
-                    // Ignore formatting errors.
-                    continue;
+                let fileAttachmentTarget: FileAttachmentTarget | "Uploader";
+                if (fileAttachmentTargetString === undefined) {
+                    fileAttachmentTarget = "Uploader";
+                } else {
+                    try {
+                        fileAttachmentTarget = deserializeFileAttachmentTargetString(
+                            fileAttachmentTargetString,
+                        );
+                    } catch {
+                        // Ignore formatting errors.
+                        continue;
+                    }
                 }
 
                 const handleClose = () => {

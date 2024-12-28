@@ -139,18 +139,21 @@ export function testMessagingRealtimeImplementation<
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             let connection1Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
@@ -193,6 +196,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content1WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     createMessageModel({
@@ -209,6 +213,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content2WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     createMessageModel({
@@ -225,6 +230,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content3WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                 ],
@@ -264,6 +270,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content2WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     createMessageModel({
@@ -280,6 +287,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content3WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                 ],
@@ -319,6 +327,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content1WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     createMessageModel({
@@ -335,6 +344,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content2WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                 ],
@@ -356,6 +366,7 @@ export function testMessagingRealtimeImplementation<
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             let connection1Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
@@ -440,6 +451,7 @@ export function testMessagingRealtimeImplementation<
                 {
                     parentMessageIndex: null,
                     content: content2,
+                    fileIds: [],
                 },
                 span,
             );
@@ -461,6 +473,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content2WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -483,6 +496,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content2WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -505,6 +519,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content2WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -519,6 +534,7 @@ export function testMessagingRealtimeImplementation<
                 {
                     parentMessageIndex: null,
                     content: content3,
+                    fileIds: [],
                 },
                 span,
             );
@@ -540,6 +556,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content3WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -562,6 +579,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content3WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -584,6 +602,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content3WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -621,6 +640,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content2WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     createMessageModel({
@@ -637,6 +657,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content3WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                 ],
@@ -664,6 +685,7 @@ export function testMessagingRealtimeImplementation<
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             let connection1Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
@@ -765,6 +787,7 @@ export function testMessagingRealtimeImplementation<
                 {
                     parentMessageIndex: null,
                     content: content2,
+                    fileIds: [],
                 },
                 span,
             );
@@ -786,6 +809,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content2WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -808,6 +832,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content2WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -823,6 +848,7 @@ export function testMessagingRealtimeImplementation<
                 {
                     parentMessageIndex: null,
                     content: content3,
+                    fileIds: [],
                 },
                 span,
             );
@@ -844,6 +870,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content3WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -866,6 +893,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content3WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -906,6 +934,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content2WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -926,6 +955,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content3WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -947,6 +977,7 @@ export function testMessagingRealtimeImplementation<
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             let connection1Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
@@ -1048,6 +1079,7 @@ export function testMessagingRealtimeImplementation<
                 {
                     parentMessageIndex: null,
                     content: content2,
+                    fileIds: [],
                 },
                 span,
             );
@@ -1069,6 +1101,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content2WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -1091,6 +1124,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content2WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -1131,6 +1165,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content2WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -1254,6 +1289,7 @@ export function testMessagingRealtimeImplementation<
                 {
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 },
                 span,
             );
@@ -1272,6 +1308,7 @@ export function testMessagingRealtimeImplementation<
                 {
                     parentMessageIndex: null,
                     content: content2,
+                    fileIds: [],
                 },
                 span,
             );
@@ -1281,6 +1318,7 @@ export function testMessagingRealtimeImplementation<
                 {
                     parentMessageIndex: null,
                     content: content3,
+                    fileIds: [],
                 },
                 span,
             );
@@ -1312,6 +1350,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content1WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -1332,6 +1371,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content2WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -1352,6 +1392,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content3WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -1477,6 +1518,7 @@ export function testMessagingRealtimeImplementation<
                 {
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 },
                 span,
             );
@@ -1500,6 +1542,7 @@ export function testMessagingRealtimeImplementation<
                 {
                     parentMessageIndex: null,
                     content: content2,
+                    fileIds: [],
                 },
                 span,
             );
@@ -1511,6 +1554,7 @@ export function testMessagingRealtimeImplementation<
                 {
                     parentMessageIndex: null,
                     content: content3,
+                    fileIds: [],
                 },
                 span,
             );
@@ -1552,6 +1596,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content1WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -1572,6 +1617,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content2WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -1592,6 +1638,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content3WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -1729,6 +1776,7 @@ export function testMessagingRealtimeImplementation<
                 {
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 },
                 span,
             );
@@ -1749,6 +1797,7 @@ export function testMessagingRealtimeImplementation<
                 {
                     parentMessageIndex: null,
                     content: content2,
+                    fileIds: [],
                 },
                 span,
             );
@@ -1758,6 +1807,7 @@ export function testMessagingRealtimeImplementation<
                 {
                     parentMessageIndex: null,
                     content: content3,
+                    fileIds: [],
                 },
                 span,
             );
@@ -1782,6 +1832,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content2WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -1802,6 +1853,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content3WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -1832,6 +1884,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content1WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -1852,6 +1905,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content2WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -1872,6 +1926,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content3WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -1896,6 +1951,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content1WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -1971,6 +2027,7 @@ export function testMessagingRealtimeImplementation<
                 {
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 },
                 span,
             );
@@ -2010,6 +2067,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content1WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                 ],
@@ -2043,6 +2101,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content1WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -2115,6 +2174,7 @@ export function testMessagingRealtimeImplementation<
                 {
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 },
                 span,
             );
@@ -2168,6 +2228,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content1WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                     updateOtherTypingState: null,
@@ -2197,6 +2258,7 @@ export function testMessagingRealtimeImplementation<
                             parentMessageIndex: null,
                             content: content1WithReferences,
                             contentUpdatedTime: null,
+                            files: [],
                         },
                     }),
                 ],
@@ -2221,18 +2283,21 @@ export function testMessagingRealtimeImplementation<
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message3 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const updatedMessage3 = await updateMessageContent(context.action(session3), {
@@ -2437,18 +2502,21 @@ export function testMessagingRealtimeImplementation<
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             let connection1Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
@@ -2669,18 +2737,21 @@ export function testMessagingRealtimeImplementation<
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             let connection1Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];

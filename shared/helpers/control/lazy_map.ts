@@ -10,8 +10,8 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
  * every time `get(key)` is called.
  *
  * It is safe to treat a lazy map as an immutable value. For the purposes of
- * React rendering or otherwise. Laziness can be thought of an implementation
- * detail for improved efficiency of an otherwise immutable map.
+ * React rendering or otherwise. Laziness can be thought of as an
+ * implementation detail for improved efficiency of an otherwise immutable map.
  *
  * This class is similar to `DefaultMap` but different in that it is immutable.
  * With `DefaultMap` you can clear keys and iterate through keys. You may not

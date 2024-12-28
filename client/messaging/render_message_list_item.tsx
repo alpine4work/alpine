@@ -13,6 +13,7 @@ import {
 } from "~/client/styles/messaging_shared_styles.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 
@@ -32,6 +33,7 @@ export function renderMessageListItem<
     messageNoun,
     messageStartOfSentenceNoun,
     messages,
+    fileAttachmentTarget,
     groupKey,
     index,
     item,
@@ -51,6 +53,7 @@ export function renderMessageListItem<
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
     messages: MessageList<Message>;
+    fileAttachmentTarget: Memo<FileAttachmentTarget>;
     groupKey: string | null;
     index: number;
     item: MessageListItem<Message>;
@@ -94,6 +97,7 @@ export function renderMessageListItem<
                         messageNoun={messageNoun}
                         messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                         message={item.message}
+                        fileAttachmentTarget={fileAttachmentTarget}
                         isFirstMessage={item.messageIndex === 0}
                         isLastMessage={isLastMessage}
                         previousMessage={previousMessage}

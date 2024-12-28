@@ -1,4 +1,4 @@
-import {Ref, RefObject, useCallback, useRef} from "react";
+import {Memo, Ref, RefObject, useCallback, useRef} from "react";
 import {flushSync} from "react-dom";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useReporter} from "~/client/design/reporter.js";
@@ -19,6 +19,7 @@ import {
     DocumentCommentRoomKey,
     DocumentCommentThreadModel,
 } from "~/shared/documents/document_model.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export function DocumentCommentInput({
@@ -27,6 +28,7 @@ export function DocumentCommentInput({
     viewRef,
     commentThread,
     comments,
+    fileAttachmentTarget,
     onUpdateCommentThread,
     messageEditing,
     replyingToComment,
@@ -45,6 +47,7 @@ export function DocumentCommentInput({
     viewRef: RefObject<VirtualizedScrollViewRef>;
     commentThread: DocumentCommentThreadModel;
     comments: MessageList<DocumentCommentModel>;
+    fileAttachmentTarget: Memo<FileAttachmentTarget>;
     onUpdateCommentThread: (
         update: (state: {
             commentThread: DocumentCommentThreadModel;
@@ -186,8 +189,10 @@ export function DocumentCommentInput({
                     commentThreadId: commentThread.id,
                     parentCommentIndex: input.parentMessageIndex,
                     content: input.content,
+                    fileIds: input.fileIds,
                 });
             }}
+            fileAttachmentTarget={fileAttachmentTarget}
             messageEditing={messageEditing}
             replyingToMessage={replyingToComment}
             onClearReplyingToMessage={onClearReplyingToComment}

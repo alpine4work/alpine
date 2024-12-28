@@ -104,6 +104,7 @@ function OverlayTriggerButton(
         fallbackPlacements,
         offset = defaultTooltipOffset,
         offsetAlong,
+        withoutButtonElementRequirement = false,
         children: actualChildren,
         onOpen: _onOpen,
         onClose: _onClose,
@@ -152,6 +153,11 @@ function OverlayTriggerButton(
          * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
          */
         offsetAlong?: Spacing | `-${Spacing}`;
+
+        /**
+         * Disable the requirement that `children` must be a `<button>` element.
+         */
+        withoutButtonElementRequirement?: boolean;
 
         /**
          * The button element which opens and closes the overlay. Must provide a ref to
@@ -266,14 +272,21 @@ function OverlayTriggerButton(
     const isWaitingForOverlayPortalElement = useIsWaitingForOverlayPortalElement(state.isExpanded);
 
     const overlayTriggerLifecycleRef = useCallback(
-        (overlayTriggerElement: HTMLButtonElement) => {
+        (overlayTriggerElement: HTMLElement) => {
             // We require an HTML `<button>` element for accessibility. Another option
             // is allowing arbitrary HTML elements that have the appropriate role and
             // tab-index.
-            assert(
-                overlayTriggerElement instanceof HTMLButtonElement,
-                "Expected the children of `<OverlayTrigger>` to render an element with a ref to an HTML `<button>` element",
-            );
+            if (withoutButtonElementRequirement) {
+                assert(
+                    overlayTriggerElement instanceof HTMLElement,
+                    "Expected the children of `<OverlayTrigger>` to render with a ref to an element",
+                );
+            } else {
+                assert(
+                    overlayTriggerElement instanceof HTMLButtonElement,
+                    "Expected the children of `<OverlayTrigger>` to render with a ref to an HTML `<button>` element",
+                );
+            }
 
             // If the overlay portal element is not ready then `overlayRef` will not have
             // mounted yet even if `state.isExpanded` is true.
@@ -289,7 +302,11 @@ function OverlayTriggerButton(
             // https://www.w3.org/TR/wai-aria-practices-1.2/#keyboard-interaction-13
             function handleKeyDown(event: KeyboardEvent) {
                 if (state.isExpanded) return;
-                if (overlayTriggerElement.disabled) return;
+                if (
+                    overlayTriggerElement instanceof HTMLButtonElement &&
+                    overlayTriggerElement.disabled
+                )
+                    return;
 
                 switch (event.key) {
                     case "ArrowDown": {
@@ -363,7 +380,13 @@ function OverlayTriggerButton(
             }
 
             function handlePointerDown(event: PointerEvent) {
-                if (overlayTriggerElement.disabled) return;
+                if (
+                    overlayTriggerElement instanceof HTMLButtonElement &&
+                    overlayTriggerElement.disabled
+                ) {
+                    return;
+                }
+
                 if (isRightClick(event)) return;
 
                 isPointerDown = true;
@@ -463,7 +486,13 @@ function OverlayTriggerButton(
                 overlayTriggerElement.removeEventListener("keydown", handleKeyDown);
             };
         },
-        [ariaHasPopup, isWaitingForOverlayPortalElement, onOpen, state.isExpanded],
+        [
+            ariaHasPopup,
+            isWaitingForOverlayPortalElement,
+            onOpen,
+            state.isExpanded,
+            withoutButtonElementRequirement,
+        ],
     );
 
     // Close the overlay if there’s a click somewhere else in the document outside

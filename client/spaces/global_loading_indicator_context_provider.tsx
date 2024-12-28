@@ -161,7 +161,9 @@ export function GlobalLoadingIndicatorChip({indicator}: {indicator: GlobalLoadin
             throw exhaustive(indicator);
     }
 
-    const progress = useStore(indicator.type === "Uploading" ? indicator.progressStore : null);
+    const progress = useStore(
+        indicator.type === "Uploading" ? indicator.progressStore ?? null : null,
+    );
 
     return (
         <Box

@@ -38,12 +38,14 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
+        fileIds: [],
     });
 
     await createPostComment(context.action(session2), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 2"),
+        fileIds: [],
     });
 
     await services.signIn(browserContext, session1);
@@ -208,6 +210,7 @@ test("clicking a reply will scroll to the comment", async ({page, context: brows
                     i + 1
                 }: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec ac varius turpis, vel lacinia lectus. Cras ultricies felis purus, a mollis leo suscipit nec. Duis in eros libero. Pellentesque sed volutpat nunc. Fusce accumsan, turpis non cursus bibendum, lorem tortor sollicitudin augue, ut efficitur lectus augue id felis. Duis vel dolor ante. Fusce dictum tempor lacus, vitae interdum nibh bibendum eget.`,
             ),
+            fileIds: [],
         });
     }
 
@@ -215,6 +218,7 @@ test("clicking a reply will scroll to the comment", async ({page, context: brows
         postId: post.id,
         parentCommentIndex: 49,
         content: createSimpleMessageContent("Test post comment content 101"),
+        fileIds: [],
     });
 
     await services.signIn(browserContext, session1);

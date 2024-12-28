@@ -1,0 +1,133 @@
+import {UploadFileInput} from "~/client/content/internal/upload_file.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {
+    FileAttachmentTarget,
+    deserializeFileAttachmentTargetString,
+} from "~/shared/files/file_attachment_target.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
+import {isId} from "~/shared/id/id.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+
+export type ExternalFileElementInfo =
+    | {
+          type: "UploadFile";
+          input: UploadFileInput;
+      }
+    | {
+          type: "AttachFile";
+          spaceId: SpaceId;
+          fileId: FileId;
+          target: FileAttachmentTarget | "Uploader";
+      };
+
+export function* iterateExternalFileElements(
+    element: Element,
+    getSpaceId: () => SpaceId,
+): IterableIterator<{element: Element; info: ExternalFileElementInfo | null}> {
+    let currentUrl: URL | undefined;
+
+    for (const fileElement of element.querySelectorAll("img, video, audio, object")) {
+        const urlString =
+            fileElement instanceof HTMLImageElement
+                ? fileElement.src || null
+                : fileElement instanceof HTMLVideoElement || fileElement instanceof HTMLAudioElement
+                ? fileElement.src ||
+                  findMapIterable(fileElement.childNodes, fileChildElement =>
+                      fileChildElement instanceof HTMLSourceElement
+                          ? fileChildElement.src
+                          : undefined,
+                  ) ||
+                  null
+                : fileElement instanceof HTMLObjectElement
+                ? fileElement.data || null
+                : null;
+
+        if (urlString === null) {
+            yield {element: fileElement, info: null};
+            continue;
+        }
+
+        currentUrl ??= new URL(window.location.href);
+
+        let url: URL;
+        try {
+            url = new URL(urlString, currentUrl);
+        } catch {
+            // Ignore any URL parsing errors.
+            continue;
+        }
+
+        // Ignore non-HTTP protocols for now. It's probably reasonable to support
+        // `data://` URLs at some point.
+        if (url.protocol !== "http:" && url.protocol !== "https:") {
+            continue;
+        }
+
+        // If:
+        //
+        // 1. The file is hosted on the same domain we're currently on; AND
+        // 2. The file matches the route `/files/:spaceId/:fileId`; AND
+        // 3. The file is in the same space that we're in right now; AND
+        // 4. The file element has a valid `data-cy-attached` attribute
+        //
+        // Then the file already exists for this space. Instead of uploading a new file
+        // to our backend instead we can create a new attachment for the file that
+        // already exists.
+        if (currentUrl.host === url.host) {
+            const pathnameMatch = url.pathname.match(/^\/files\/([^/]+)\/([^/]+)$/);
+            if (
+                pathnameMatch &&
+                isId<SpaceId>(pathnameMatch[1]!) &&
+                isId<FileId>(pathnameMatch[2]!) &&
+                pathnameMatch[1] === getSpaceId()
+            ) {
+                const spaceId = pathnameMatch[1];
+                const fileId = pathnameMatch[2];
+
+                const targetString = fileElement.getAttribute("data-cy-attached");
+                let target: FileAttachmentTarget | "Uploader" | undefined;
+
+                try {
+                    if (targetString) {
+                        target =
+                            targetString === "uploader"
+                                ? "Uploader"
+                                : deserializeFileAttachmentTargetString(targetString);
+                    }
+                } catch (error) {
+                    // This error is almost imperceivable to the user since we'll try
+                    // downloading/uploading the file as a fallback. But it might be a sign that
+                    // there's a bug somewhere in `data-cy-attached` generation so let's log it.
+                    scheduleUncaughtError(
+                        InvalidArgumentError.from(
+                            error,
+                            'Couldn\'t parse "data-cy-attached" attribute',
+                        ),
+                    );
+                }
+
+                if (target) {
+                    yield {
+                        element: fileElement,
+                        info: {
+                            type: "AttachFile",
+                            spaceId,
+                            fileId,
+                            target,
+                        },
+                    };
+                    continue;
+                }
+            }
+        }
+
+        yield {
+            element: fileElement,
+            info: {
+                type: "UploadFile",
+                input: {type: "Url", url},
+            },
+        };
+    }
+}

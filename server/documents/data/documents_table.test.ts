@@ -2919,6 +2919,7 @@ test("can't add comment mark to `fileRow` node in a document", async () => {
                 {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test comment"),
+                    initialCommentFileIds: [],
                 },
             ],
             clientId: generateId(),
@@ -2998,6 +2999,7 @@ test("can add comment mark to `file` node in a document", async () => {
             {
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test comment"),
+                initialCommentFileIds: [],
             },
         ],
         clientId: generateId(),
@@ -4141,6 +4143,7 @@ describe("Comments", () => {
                 {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -4248,6 +4251,7 @@ describe("Comments", () => {
                 {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -4276,6 +4280,7 @@ describe("Comments", () => {
                     {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 2"),
+                        initialCommentFileIds: [],
                     },
                 ],
             }),
@@ -4349,6 +4354,7 @@ describe("Comments", () => {
                     {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                        initialCommentFileIds: [],
                     },
                 ],
             }),
@@ -4560,6 +4566,7 @@ describe("Comments", () => {
                 {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -4772,6 +4779,7 @@ describe("Comments", () => {
                 {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -4925,6 +4933,7 @@ describe("Comments", () => {
                     {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 2"),
+                        initialCommentFileIds: [],
                     },
                 ],
             }),
@@ -5045,6 +5054,7 @@ describe("Comments", () => {
                 {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -5323,6 +5333,7 @@ describe("Comments", () => {
                 {
                     commentThreadId: commentThreadId1,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -5357,6 +5368,7 @@ describe("Comments", () => {
                 {
                     commentThreadId: commentThreadId2,
                     initialCommentContent: createSimpleMessageContent("Test message content 2"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -5510,6 +5522,7 @@ describe("Comments", () => {
                 {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -5602,6 +5615,7 @@ describe("Comments", () => {
             commentThreadId,
             parentCommentIndex: null,
             content: createSimpleMessageContent("Test message content 2"),
+            fileIds: [],
         });
 
         expect(
@@ -5701,6 +5715,7 @@ describe("Comments", () => {
                 {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -5802,6 +5817,7 @@ describe("Comments", () => {
             commentThreadId,
             parentCommentIndex: null,
             content: createSimpleMessageContent("Test message content 2"),
+            fileIds: [],
         });
 
         expect(
@@ -5901,6 +5917,7 @@ describe("Comments", () => {
                 {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -6024,6 +6041,7 @@ describe("Comments", () => {
                 {
                     commentThreadId: commentThreadId1,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -6058,6 +6076,7 @@ describe("Comments", () => {
                 {
                     commentThreadId: commentThreadId2,
                     initialCommentContent: createSimpleMessageContent("Test message content 2"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -6158,6 +6177,7 @@ describe("Comments", () => {
                 {
                     commentThreadId: commentThreadId1,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -6192,6 +6212,7 @@ describe("Comments", () => {
                 {
                     commentThreadId: commentThreadId2,
                     initialCommentContent: createSimpleMessageContent("Test message content 2"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -6256,6 +6277,7 @@ describe("Comments", () => {
                 {
                     commentThreadId: commentThreadId1,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -6290,6 +6312,7 @@ describe("Comments", () => {
                 {
                     commentThreadId: commentThreadId2,
                     initialCommentContent: createSimpleMessageContent("Test message content 2"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -6349,6 +6372,7 @@ describe("Comments", () => {
                 {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -6378,6 +6402,7 @@ describe("Comments", () => {
             commentThreadId,
             parentCommentIndex: 0,
             content: createSimpleMessageContent("Test message content 2"),
+            fileIds: [],
         });
 
         expect(
@@ -6405,6 +6430,7 @@ describe("Comments", () => {
             commentThreadId,
             parentCommentIndex: 0,
             content: createSimpleMessageContent("Test message content 3"),
+            fileIds: [],
         });
 
         expect(
@@ -6481,6 +6507,7 @@ describe("Comments", () => {
             commentThreadId,
             parentCommentIndex: 0,
             content: createSimpleMessageContent("Test message content 4"),
+            fileIds: [],
         });
 
         expect(
@@ -6557,6 +6584,7 @@ describe("Comments", () => {
             commentThreadId,
             parentCommentIndex: 0,
             content: createSimpleMessageContent("Test message content 5"),
+            fileIds: [],
         });
 
         expect(
@@ -6644,6 +6672,7 @@ describe("Comments", () => {
                     {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                        initialCommentFileIds: [],
                     },
                 ],
             });
@@ -6689,6 +6718,7 @@ describe("Comments", () => {
                     {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                        initialCommentFileIds: [],
                     },
                 ],
             });
@@ -6750,6 +6780,7 @@ describe("Comments", () => {
                     {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                        initialCommentFileIds: [],
                     },
                 ],
             });
@@ -6791,6 +6822,7 @@ describe("Comments", () => {
                 commentThreadId,
                 parentCommentIndex: null,
                 content: createSimpleMessageContent("Test message content 2"),
+                fileIds: [],
             });
 
             expect(
@@ -6842,6 +6874,7 @@ describe("Comments", () => {
                 commentThreadId,
                 parentCommentIndex: null,
                 content: createSimpleMessageContent("Test message content 3"),
+                fileIds: [],
             });
 
             expect(
@@ -6907,6 +6940,7 @@ describe("Comments", () => {
                 commentThreadId,
                 parentCommentIndex: null,
                 content: createSimpleMessageContent("Test message content 4"),
+                fileIds: [],
             });
 
             expect(
@@ -6992,6 +7026,7 @@ describe("Comments", () => {
                     {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                        initialCommentFileIds: [],
                     },
                 ],
             });
@@ -7033,6 +7068,7 @@ describe("Comments", () => {
                 commentThreadId,
                 parentCommentIndex: null,
                 content: createSimpleMessageContent("Test message content 2"),
+                fileIds: [],
             });
 
             expect(
@@ -7154,6 +7190,7 @@ describe("Comments", () => {
                     {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                        initialCommentFileIds: [],
                     },
                 ],
             });
@@ -7205,6 +7242,7 @@ describe("Comments", () => {
                         ]),
                     ]),
                 ),
+                fileIds: [],
             });
 
             expect(
@@ -7274,6 +7312,7 @@ describe("Comments", () => {
                     {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                        initialCommentFileIds: [],
                     },
                 ],
             });
@@ -7327,6 +7366,7 @@ describe("Comments", () => {
                         ]),
                     ]),
                 ),
+                fileIds: [],
             });
 
             expect(
@@ -7384,6 +7424,7 @@ describe("Comments", () => {
                     {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                        initialCommentFileIds: [],
                     },
                 ],
             });
@@ -7435,6 +7476,7 @@ describe("Comments", () => {
                         ]),
                     ]),
                 ),
+                fileIds: [],
             });
 
             expect(
@@ -7504,6 +7546,7 @@ describe("Comments", () => {
                     {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                        initialCommentFileIds: [],
                     },
                 ],
             });
@@ -7555,6 +7598,7 @@ describe("Comments", () => {
                         ]),
                     ]),
                 ),
+                fileIds: [],
             });
 
             expect(
@@ -7679,6 +7723,7 @@ describe("Comments", () => {
                     {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                        initialCommentFileIds: [],
                     },
                 ],
             });
@@ -7730,6 +7775,7 @@ describe("Comments", () => {
                         ]),
                     ]),
                 ),
+                fileIds: [],
             });
 
             expect(
@@ -7847,6 +7893,7 @@ describe("Comments", () => {
                     {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                        initialCommentFileIds: [],
                     },
                 ],
             });
@@ -7894,6 +7941,7 @@ describe("Comments", () => {
                         ]),
                     ]),
                 ),
+                fileIds: [],
             });
 
             expect(
@@ -8014,6 +8062,7 @@ describe("Comments", () => {
                                 ]),
                             ]),
                         ),
+                        initialCommentFileIds: [],
                     },
                 ],
             });
@@ -8073,6 +8122,7 @@ describe("Comments", () => {
                         ]),
                     ]),
                 ),
+                fileIds: [],
             });
 
             expect(
@@ -8146,6 +8196,7 @@ describe("Comments", () => {
                         ]),
                     ]),
                 ),
+                fileIds: [],
             });
 
             expect(
@@ -8223,6 +8274,7 @@ describe("Comments", () => {
                         ]),
                     ]),
                 ),
+                fileIds: [],
             });
 
             expect(
@@ -8410,6 +8462,7 @@ describe("Comments", () => {
                 {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -8480,6 +8533,7 @@ describe("Comments", () => {
                 {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -8558,6 +8612,7 @@ describe("Comments", () => {
                 {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -8649,6 +8704,7 @@ describe("Comments", () => {
                 {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    initialCommentFileIds: [],
                 },
             ],
         });
@@ -8734,6 +8790,7 @@ describe("Comments", () => {
                     {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("test1"),
+                        initialCommentFileIds: [],
                     },
                 ],
             },
@@ -11776,7 +11833,15 @@ describe("Comments", () => {
         getMissingRoomKey() {
             return encodeDocumentCommentRoomKey(generateId(), generateId());
         },
-        async createMessage(context, {roomKey, parentMessageIndex: parentCommentIndex, content}) {
+        getRoomFileAuthorizer(roomKey) {
+            const [documentId] = decodeDocumentCommentRoomKey(roomKey);
+
+            return FileDocumentAuthorizer.bind({type: "DocumentComments", documentId});
+        },
+        async createMessage(
+            context,
+            {roomKey, parentMessageIndex: parentCommentIndex, content, fileIds},
+        ) {
             const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
             const comment = await createDocumentComment(context, {
@@ -11784,6 +11849,7 @@ describe("Comments", () => {
                 commentThreadId,
                 parentCommentIndex,
                 content,
+                fileIds,
             });
 
             return {

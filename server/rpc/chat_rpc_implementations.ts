@@ -9,6 +9,7 @@ import {
     updateChatMessageContent,
 } from "~/server/chat/data/chat_table.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
+import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
@@ -50,17 +51,19 @@ export default implementRpcs(definitions, {
 
             const {spaceId, index, createdTime} = await sendChatMessage(context, input);
 
-            const [author, contentReferences] = await runAllPromises([
+            const [author, payload] = await runAllPromises([
                 getAccount(context, spaceId, context.actor.getAccountId()),
-                getContentReferencesForNode(
+                createMessagePayloadModel(
                     context,
                     spaceId,
-                    FileChatAuthorizer.bind({
-                        type: "ChatMessage",
-                        chatId: input.chatId,
-                        messageIndex: index,
-                    }),
-                    input.content,
+                    FileChatAuthorizer.bind({type: "ChatMessages", chatId: input.chatId}),
+                    {
+                        type: "Content",
+                        parentMessageIndex: input.parentMessageIndex,
+                        content: input.content,
+                        contentUpdatedTime: null,
+                        fileIds: input.fileIds,
+                    },
                 ),
             ]);
 
@@ -69,15 +72,7 @@ export default implementRpcs(definitions, {
                 index,
                 createdTime,
                 author,
-                payload: {
-                    type: "Content",
-                    parentMessageIndex: input.parentMessageIndex,
-                    content: {
-                        doc: input.content,
-                        references: contentReferences,
-                    },
-                    contentUpdatedTime: null,
-                },
+                payload,
             });
 
             return {
@@ -96,11 +91,7 @@ export default implementRpcs(definitions, {
                         getContentReferencesForNode(
                             context,
                             spaceId,
-                            FileChatAuthorizer.bind({
-                                type: "ChatMessage",
-                                chatId: input.chatId,
-                                messageIndex: input.messageIndex,
-                            }),
+                            FileChatAuthorizer.bind({type: "ChatMessages", chatId: input.chatId}),
                             input.content,
                         ),
                 ),

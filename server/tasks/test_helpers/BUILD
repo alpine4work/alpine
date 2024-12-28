@@ -13,6 +13,7 @@ ts_project(
         "//:node_modules/y-prosemirror",
         "//:node_modules/yjs",
         "//server/dynamo/test_helpers",
+        "//server/messaging/test_helpers",
         "//server/spaces/test_helpers",
         "//server/tasks/data",
         "//shared/helpers",

@@ -15,6 +15,14 @@ export function createFontStyles({
     commitMonoFontFamily: string;
 }) {
     return {
+        light: {
+            fontFamily: interFontFamily,
+            fontWeight: 300,
+            fontStyle: "normal",
+            // You must manually enable `calt` to get contextual alternatives.
+            fontFeatureSettings: '"calt" off',
+            fontSynthesis: "none",
+        },
         normal: {
             fontFamily: interFontFamily,
             fontWeight: 400,

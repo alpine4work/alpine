@@ -841,7 +841,7 @@ export const FilePostAuthorizer = FileAuthorizer.new(
             case "PostDraft":
                 await authorizePostDraftAccess(context, spaceId, target.accountId, target.draftId);
                 break;
-            case "PostComment":
+            case "PostComments":
                 await authorizePostAccess(context, target.postId, "View");
                 break;
             default:
@@ -1544,7 +1544,7 @@ const ChannelPreviewCache = new ContextCache<ChannelId, ChannelPreviewModel | nu
  * times in the same action you'll get the same result without issuing a
  * network request.
  */
-export function getChannelPreviewIfExists(
+export async function getChannelPreviewIfExists(
     context: ServerActionContext,
     id: ChannelId,
     {
@@ -1584,9 +1584,9 @@ export function getChannelPreviewIfExists(
     if (consistency === "Strong") {
         const getPromise = get();
         ChannelPreviewCache.set(context, id, getPromise);
-        return getPromise;
+        return await getPromise;
     } else {
-        return ChannelPreviewCache.get(context, id, get);
+        return await ChannelPreviewCache.get(context, id, get);
     }
 }
 
@@ -2685,10 +2685,12 @@ export async function createPostComment(
         postId,
         parentCommentIndex,
         content,
+        fileIds,
     }: {
         postId: PostId;
         parentCommentIndex: number | null;
         content: MessageContent;
+        fileIds: ReadonlyArray<FileId>;
     },
 ): Promise<{
     spaceId: SpaceId;
@@ -2696,27 +2698,27 @@ export async function createPostComment(
     createdTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
-        const postItemPromise = (async () => {
-            const postItem = await ForumRealtimeTable.getPartialItemIfExists(
-                context,
-                {
-                    partitionType: "Post",
-                    sortRangeType: "Attributes",
-                    postId,
-                },
-                {
-                    attributes: [
-                        "spaceId",
-                        "channelId",
-                        "authorId",
-                        "commentsSummary",
-                        "updateLockVersion",
-                    ],
-                },
-            );
-            if (!postItem) throw new NotFoundError("Post not found");
-            await authorizeChannelAccess(context, postItem.channelId);
+        const unauthorizedPostItemPromise = ForumRealtimeTable.getPartialItem(
+            context,
+            {
+                partitionType: "Post",
+                sortRangeType: "Attributes",
+                postId,
+            },
+            {
+                attributes: [
+                    "spaceId",
+                    "channelId",
+                    "authorId",
+                    "commentsSummary",
+                    "updateLockVersion",
+                ],
+            },
+        );
 
+        const postItemPromise = (async () => {
+            const postItem = await unauthorizedPostItemPromise;
+            await authorizeChannelAccess(context, postItem.channelId);
             return postItem;
         })();
 
@@ -2726,6 +2728,7 @@ export async function createPostComment(
 
         const [postItem] = await runAllPromises([
             postItemPromise,
+
             (async () => {
                 if (typeof parentCommentIndex !== "number") return;
 
@@ -2743,6 +2746,20 @@ export async function createPostComment(
                 );
                 if (!parentCommentItem) throw new NotFoundError("Post parent comment not found");
             })(),
+
+            // Make sure all the provided files exist.
+            unauthorizedPostItemPromise.then(postItem =>
+                runAllPromises(
+                    fileIds.map(fileId =>
+                        getFileFromAttachment(
+                            context,
+                            postItem.spaceId,
+                            fileId,
+                            FilePostAuthorizer.bind({type: "PostComments", postId}),
+                        ),
+                    ),
+                ),
+            ),
         ]);
 
         const commentIndex = postItem.commentsSummary.nextCommentIndex;
@@ -2772,6 +2789,7 @@ export async function createPostComment(
                     parentMessageIndex: parentCommentIndex,
                     content,
                     contentUpdatedTime: null,
+                    fileIds,
                 },
             }),
             // Ok for us to not tell the client about a comment summary update through our
@@ -2988,11 +3006,7 @@ async function createPostCommentModelFromItem(
         createMessagePayloadModel(
             context,
             spaceId,
-            FilePostAuthorizer.bind({
-                type: "PostComment",
-                postId: item.postId,
-                commentIndex: item.commentIndex,
-            }),
+            FilePostAuthorizer.bind({type: "PostComments", postId: item.postId}),
             item.payload,
         ),
     ]);
@@ -3930,9 +3944,8 @@ async function queryPostCommentChangeLogAssumingAuthorizedPost(
                                 context,
                                 postItem.spaceId,
                                 FilePostAuthorizer.bind({
-                                    type: "PostComment",
+                                    type: "PostComments",
                                     postId: item.postId,
-                                    commentIndex: item.commentIndex,
                                 }),
                                 item.change.content,
                             ),

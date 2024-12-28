@@ -3,6 +3,7 @@ import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {
     BrowserId,
+    FileId,
     SpaceId,
     TaskActionTransactionLeaseId,
     TaskId,
@@ -179,6 +180,7 @@ export const createTaskComment = defineRpc({
         taskId: Schema.id<TaskId>(),
         parentCommentIndex: Schema.integer.nullable(),
         content: MessageContentSchema,
+        fileIds: Schema.array(Schema.id<FileId>()).default([]),
     },
     output: {
         comment: TaskCommentModel.schema(),

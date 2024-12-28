@@ -270,7 +270,12 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             messageId: Schema.string,
         },
         sqs: {
+            queueName: IdentifierStringSchema,
             messageId: Schema.string,
+            visibilityTimeout: Schema.float,
+            waitTimeSeconds: Schema.float,
+            maxNumberOfMessages: Schema.integer,
+            messageCount: Schema.integer,
         },
         ecs: {
             cluster: Schema.string,
@@ -335,10 +340,15 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     },
     jobs: {
         type: IdentifierStringSchema,
-        batchSize: Schema.integer,
+        queueName: IdentifierStringSchema,
         delaySeconds: Schema.float,
         queueDurationMs: Schema.float,
         willRetry: Schema.boolean,
+        consumer: {
+            startFiberCount: Schema.integer,
+            endFiberCount: Schema.integer,
+            maxFiberCount: Schema.integer,
+        },
     },
     cohere: {
         textCount: Schema.integer,

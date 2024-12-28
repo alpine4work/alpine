@@ -162,7 +162,11 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(page.getByLabel("Document").locator("> *").nth(1)).toHaveRole("paragraph");
     await expect(page.getByLabel("Document").locator("> *").nth(2)).not.toHaveRole("paragraph");
     await expect(
-        page.getByLabel("Document").locator("> *").nth(2).getByTestId("ContentFile:image/jpeg"),
+        page
+            .getByLabel("Document")
+            .locator("> *")
+            .nth(2)
+            .getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeVisible();
     await expect(page.getByLabel("Document").locator("> *").nth(3)).toHaveRole("paragraph");
     await expect(page.getByLabel("Document").locator("> *").nth(4)).toHaveRole("paragraph");
@@ -328,8 +332,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
             .getByLabel("Document")
             .locator("> *")
             .nth(2)
-            .getByTestId(/^ContentFile:/),
-    ).toHaveAttribute("data-testid", "ContentFile:image/jpeg");
+            .getByTestId(/^ContentFilePreview:/),
+    ).toHaveAttribute("data-testid", "ContentFilePreview:image/jpeg");
     await expect(page.getByLabel("Document").locator("> *").nth(3)).toHaveRole("paragraph");
     await expect(page.getByLabel("Document").locator("> *").nth(4)).toHaveRole("paragraph");
     await expect(page.getByLabel("Document").locator("> *").nth(5)).toHaveRole("paragraph");
@@ -351,23 +355,23 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
             .getByLabel("Document")
             .locator("> *")
             .nth(2)
-            .getByTestId(/^ContentFile:/)
+            .getByTestId(/^ContentFilePreview:/)
             .nth(0),
-    ).toHaveAttribute("data-testid", "ContentFile:image/jpeg");
+    ).toHaveAttribute("data-testid", "ContentFilePreview:image/jpeg");
     await expect(
         page
             .getByLabel("Document")
             .locator("> *")
             .nth(2)
-            .getByTestId(/^ContentFile:/)
+            .getByTestId(/^ContentFilePreview:/)
             .nth(1),
-    ).toHaveAttribute("data-testid", "ContentFile:image/avif");
+    ).toHaveAttribute("data-testid", "ContentFilePreview:image/avif");
     await expect(
         page
             .getByLabel("Document")
             .locator("> *")
             .nth(2)
-            .getByTestId(/^ContentFile:/),
+            .getByTestId(/^ContentFilePreview:/),
     ).toHaveCount(2);
     await expect(page.getByLabel("Document").locator("> *").nth(3)).toHaveRole("paragraph");
     await expect(page.getByLabel("Document").locator("> *").nth(4)).toHaveRole("paragraph");
@@ -547,23 +551,23 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
             .getByLabel("Document")
             .locator("> *")
             .nth(2)
-            .getByTestId(/^ContentFile:/)
+            .getByTestId(/^ContentFilePreview:/)
             .nth(0),
-    ).toHaveAttribute("data-testid", "ContentFile:image/jpeg");
+    ).toHaveAttribute("data-testid", "ContentFilePreview:image/jpeg");
     await expect(
         page
             .getByLabel("Document")
             .locator("> *")
             .nth(2)
-            .getByTestId(/^ContentFile:/)
+            .getByTestId(/^ContentFilePreview:/)
             .nth(1),
-    ).toHaveAttribute("data-testid", "ContentFile:image/avif");
+    ).toHaveAttribute("data-testid", "ContentFilePreview:image/avif");
     await expect(
         page
             .getByLabel("Document")
             .locator("> *")
             .nth(2)
-            .getByTestId(/^ContentFile:/),
+            .getByTestId(/^ContentFilePreview:/),
     ).toHaveCount(2);
     await expect(page.getByLabel("Document").locator("> *").nth(3)).toHaveRole("paragraph");
     await expect(page.getByLabel("Document").locator("> *").nth(4)).toHaveRole("paragraph");
@@ -586,31 +590,31 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
             .getByLabel("Document")
             .locator("> *")
             .nth(2)
-            .getByTestId(/^ContentFile:/)
+            .getByTestId(/^ContentFilePreview:/)
             .nth(0),
-    ).toHaveAttribute("data-testid", "ContentFile:image/jpeg");
+    ).toHaveAttribute("data-testid", "ContentFilePreview:image/jpeg");
     await expect(
         page
             .getByLabel("Document")
             .locator("> *")
             .nth(2)
-            .getByTestId(/^ContentFile:/)
+            .getByTestId(/^ContentFilePreview:/)
             .nth(1),
-    ).toHaveAttribute("data-testid", "ContentFile:image/png");
+    ).toHaveAttribute("data-testid", "ContentFilePreview:image/png");
     await expect(
         page
             .getByLabel("Document")
             .locator("> *")
             .nth(2)
-            .getByTestId(/^ContentFile:/)
+            .getByTestId(/^ContentFilePreview:/)
             .nth(2),
-    ).toHaveAttribute("data-testid", "ContentFile:image/avif");
+    ).toHaveAttribute("data-testid", "ContentFilePreview:image/avif");
     await expect(
         page
             .getByLabel("Document")
             .locator("> *")
             .nth(2)
-            .getByTestId(/^ContentFile:/),
+            .getByTestId(/^ContentFilePreview:/),
     ).toHaveCount(3);
     await expect(page.getByLabel("Document").locator("> *").nth(3)).toHaveRole("paragraph");
     await expect(page.getByLabel("Document").locator("> *").nth(4)).toHaveRole("paragraph");

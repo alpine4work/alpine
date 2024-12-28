@@ -1,10 +1,11 @@
 import classNames from "classnames";
 import {animate} from "motion";
-import {ArrowRight, ArrowUp, PencilSimple, Plus, X} from "phosphor-react";
+import {ArrowRight, ArrowUp, File, Image, PencilSimple, Plus, X} from "phosphor-react";
 import {EditorView} from "prosemirror-view";
 import {
     FocusEvent,
     Key,
+    Memo,
     ReactElement,
     Ref,
     RefAttributes,
@@ -22,22 +23,32 @@ import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {ContentFileMiniPreview} from "~/client/content/content_file_mini_preview.js";
 import {
     ContentEditorMobileLinkModal,
     ContentEditorMobileLinkModalState,
 } from "~/client/content/internal/content_editor_mobile_link_modal.js";
+import {
+    ExternalFileElementInfo,
+    iterateExternalFileElements,
+} from "~/client/content/internal/iterate_external_file_elements.js";
+import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
 import {MessageInputMobileKeyboardToolbar} from "~/client/content/messaging/message_input_mobile_keyboard_toolbar.js";
+import {selectFiles} from "~/client/content/select_files.js";
 import {trimContentEnd} from "~/client/content/trim_content.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
+import {MenuButton} from "~/client/design/menu_button.js";
 import {
     mobileBottomBarKeyboardToolbarHeight,
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {
     useRegisterBottomBarFrame,
@@ -46,13 +57,20 @@ import {
 import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
+import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {parseHtml} from "~/client/helpers/parse_html.js";
+import {VideoIcon} from "~/client/icons/video_icon.js";
+import {WaveformIcon} from "~/client/icons/waveform_icon.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {getRemPxWithoutListening, useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
+import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     messageInputEditorBorderRadiusPx,
     messageInputEditorIconButtonNegativeMarginX,
@@ -70,11 +88,13 @@ import {
     messageViewRailGap,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
+    backgroundColorVar,
     contentStyles,
     messagingStyles,
     pointerEventsNoneNotInheritedClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
+import {fileClassName} from "~/shared/content/content_styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     Spacing,
@@ -85,14 +105,34 @@ import {
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {
+    getFileAudioContentTypes,
+    getFileImageContentTypes,
+    getFileVideoContentTypes,
+} from "~/shared/files/file_content_type.js";
+import {FileModel} from "~/shared/files/file_model.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {Id, generateId} from "~/shared/id/id.js";
 import {
     MessageContentWithReferences,
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
+import {
+    attachFileAsUploader,
+    attachFileFromAttachment,
+    getFileAsUploader,
+    getFileFromAttachment,
+} from "~/shared/rpc/files_rpc_definitions.js";
+
+const messageInputFilesOverflowGradientWidth = "2";
 
 export type MessageInputRef = {
     isFocused(): boolean;
@@ -101,6 +141,14 @@ export type MessageInputRef = {
     isEmpty(): boolean;
     clear(): void;
     getBoundingClientRect(): DOMRect;
+    drop(dataTransfer: DataTransfer): {finally(listener: () => void): void};
+};
+
+export type MessageInputFile = {
+    readonly key: Id;
+    readonly attachmentTarget: Memo<FileAttachmentTarget> | "Uploader";
+    readonly signedUrlSearch: string;
+    readonly file: FileModel;
 };
 
 export type MessageInputBaseProps<RoomKey extends string, Message extends MessageModel<RoomKey>> = {
@@ -109,8 +157,12 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     sendButtonVerb?: string;
     placeholder?: string;
     state: ContentEditorState<MessageContentWithReferences>;
+    files: ReadonlyArray<MessageInputFile>;
     onChange: (state: ContentEditorState<MessageContentWithReferences>) => void;
+    onAddFile: ((file: MessageInputFile) => void) | null;
+    onRemoveFile: ((fileKey: Id) => void) | null;
     onSend: () => void;
+    fileAttachmentTarget: Memo<FileAttachmentTarget> | null;
     isBottomBar?: boolean;
     isReplacingOtherBottomBar?: boolean;
     isSendBottomArrowRight?: boolean;
@@ -157,7 +209,10 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         messageNoun = "message",
         messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
         state,
+        files,
         onChange,
+        onAddFile,
+        onRemoveFile,
         onSend: onSendProp,
         isBottomBar = false,
         isReplacingOtherBottomBar = false,
@@ -165,6 +220,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         isSendButtonDisabled: isSendButtonDisabledProp,
         isSendButtonPending,
         isNativeMobileRefocusHackDisabled,
+        fileAttachmentTarget,
         messageEditingForThisInput = null,
         replyingToMessage: replyingToMessageProp,
         onClearReplyingToMessage,
@@ -185,12 +241,17 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     }: MessageInputBaseProps<RoomKey, Message>,
     ref: Ref<MessageInputRef>,
 ) {
+    const context = useAppContext();
+    const reporter = useReporter();
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const clientInfo = useClientInfo();
+    const {space} = useSpaceContext();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
+    const isMounted = useIsMounted();
+    const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
 
     const inputContainerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLDivElement>(null);
@@ -206,10 +267,155 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         [editorRef],
     );
 
-    const clear = useEvent(() => {
-        onClearReplyingToMessage?.();
-        messageEditingForThisInput?.dispatch({type: "CancelEditing"});
-        onChange(ContentEditorState.create(emptyMessageContentWithReferences));
+    const events = useEvents({
+        clear: () => {
+            onClearReplyingToMessage?.();
+            messageEditingForThisInput?.dispatch({type: "CancelEditing"});
+            onChange(ContentEditorState.create(emptyMessageContentWithReferences));
+        },
+        addFiles: (
+            spanName: string,
+            fileInfos: ReadonlyArray<ExternalFileElementInfo>,
+        ): {finally(listener: () => void): void} => {
+            // Noop if we don't have an add file callback.
+            if (!onAddFile) return Promise.resolve();
+
+            if (fileInfos.length === 0) return Promise.resolve();
+
+            const promise = context.tracer.withSpan(spanName, async context => {
+                await runAllPromises(
+                    fileInfos.map((fileInfo): Promise<void> => {
+                        const toTarget = fileAttachmentTarget;
+
+                        switch (fileInfo.type) {
+                            case "AttachFile": {
+                                const fromTarget = fileInfo.target;
+
+                                let promise: Promise<{
+                                    readonly signedUrlSearch: string;
+                                    readonly file: FileModel;
+                                }>;
+
+                                // If we're trying to attach the file to the same attachment target it's from
+                                // then we don't need to perform another attach mutation. Instead, all we need
+                                // to do is load the file (since it's not in our references).
+                                if (!toTarget || isDeepEqual(fromTarget, toTarget)) {
+                                    if (fromTarget === "Uploader") {
+                                        promise = getFileAsUploader(context, {
+                                            spaceId: fileInfo.spaceId,
+                                            fileId: fileInfo.fileId,
+                                        });
+                                    } else {
+                                        promise = getFileFromAttachment(context, {
+                                            spaceId: fileInfo.spaceId,
+                                            fileId: fileInfo.fileId,
+                                            target: fromTarget,
+                                        });
+                                    }
+                                }
+                                // Otherwise, let's attach the file to its new attachment target.
+                                else if (fromTarget === "Uploader") {
+                                    promise = attachFileAsUploader(context, {
+                                        spaceId: fileInfo.spaceId,
+                                        fileId: fileInfo.fileId,
+                                        target: toTarget,
+                                    });
+                                } else {
+                                    promise = attachFileFromAttachment(context, {
+                                        spaceId: fileInfo.spaceId,
+                                        fileId: fileInfo.fileId,
+                                        fromTarget,
+                                        toTarget,
+                                    });
+                                }
+
+                                addGlobalLoadingIndicator(promise, {type: "Uploading"});
+
+                                return promise.then(({signedUrlSearch, file}) => {
+                                    // Noop if our input was unmounted (e.g. after the message is sent we remount
+                                    // this component).
+                                    if (!isMounted()) return;
+
+                                    onAddFile({
+                                        key: generateId(),
+                                        attachmentTarget: markMemoIfNotRendering(fromTarget),
+                                        signedUrlSearch,
+                                        file,
+                                    });
+                                });
+                            }
+                            case "UploadFile": {
+                                const promise = uploadFile(context, {
+                                    spaceId: space.id,
+                                    attachmentTarget: toTarget,
+                                    input: fileInfo.input,
+                                    onAttach: ({signedUrlSearch, file}) => {
+                                        // Noop if our input was unmounted (e.g. after the message is sent we remount
+                                        // this component).
+                                        if (!isMounted()) return;
+
+                                        onAddFile({
+                                            key: generateId(),
+                                            attachmentTarget: toTarget ?? "Uploader",
+                                            signedUrlSearch,
+                                            file,
+                                        });
+                                    },
+                                });
+
+                                // While a file is uploading show an "Uploading" loading indicator with the
+                                // progress percentage. If multiple files are uploading at once then the
+                                // global loading indicator implementation is responsible for putting together
+                                // an aggregated summary.
+                                addGlobalLoadingIndicator(promise, {
+                                    type: "Uploading",
+                                    progressStore: promise.progressStore,
+                                });
+
+                                return promise;
+                            }
+                            default:
+                                throw exhaustive(fileInfo);
+                        }
+                    }),
+                );
+            });
+
+            promise.catch(error => {
+                reporter.displayError("Couldn’t upload file", error);
+            });
+
+            return promise;
+        },
+        drop: (dataTransfer: DataTransfer): {finally(listener: () => void): void} => {
+            let hasHtmlFileInfos = false;
+            const fileInfos: Array<ExternalFileElementInfo> = [];
+
+            for (const {info} of iterateExternalFileElements(
+                parseHtml(dataTransfer.getData("text/html")),
+                () => space.id,
+            )) {
+                if (!info) continue;
+
+                hasHtmlFileInfos = true;
+                fileInfos.push(info);
+            }
+
+            // Ignore files from `dataTransfer` if we had `text/html`. Since we assume
+            // `text/html` will contain links to any files included in `dataTransfer`.
+            if (!hasHtmlFileInfos) {
+                for (const item of dataTransfer.items) {
+                    if (item.kind !== "file") continue;
+
+                    fileInfos.push({
+                        type: "UploadFile",
+                        input: {type: "File", file: assertExists(item.getAsFile())},
+                    });
+                }
+            }
+
+            return events.addFiles("Message input drop files", fileInfos);
+        },
     });
 
     useImperativeHandle(
@@ -219,10 +425,11 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             focus: options => assertExists(editorRef.current).focus(options),
             blur: () => assertExists(editorRef.current).blur(),
             isEmpty: () => isContentEmpty(assertExists(editorRef.current).getState().getDoc()),
-            clear,
+            clear: events.clear,
             getBoundingClientRect: () => assertExists(inputRef.current).getBoundingClientRect(),
+            drop: events.drop,
         }),
-        [clear],
+        [events],
     );
 
     const isEditingMessage = !!messageEditingForThisInput;
@@ -270,8 +477,10 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     const isSendButtonDisabled = useMemo(
         () =>
             isSendButtonDisabledProp ||
-            (!isEditingMessage && isContentEmpty(trimContentEnd(state.getDoc()))),
-        [isEditingMessage, isSendButtonDisabledProp, state],
+            (!isEditingMessage &&
+                isContentEmpty(trimContentEnd(state.getDoc())) &&
+                files.length === 0),
+        [files.length, isEditingMessage, isSendButtonDisabledProp, state],
     );
 
     const typingIndicatorStateRef = useRef<
@@ -602,7 +811,10 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                         event.currentTarget.contains(event.target) &&
                         // Exclude tapping in the message input itself. Tapping there should do
                         // something.
-                        !editor.contains(event.target)
+                        !editor.contains(event.target) &&
+                        // Exclude clicking on files since that should open the file viewer which will
+                        // close the keyboard.
+                        !event.target.closest(`.${fileClassName}`)
                     ) {
                         event.preventDefault();
                     }
@@ -734,22 +946,131 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                         ],
                                     }}
                                 >
-                                    <IconButton
-                                        size={messageInputEditorIconButtonSize}
-                                        description="Add"
-                                        withoutTooltip={true}
-                                        // The add icon button is not focusable. That's because we don't want to
-                                        // remove focus from the message input when the send button is pressed. That
-                                        // way on mobile you can keep typing and sending messages because the software
-                                        // keyboard doesn't disappear.
-                                        //
-                                        // On desktop, hitting enter in the message input is sufficient for keyboard
-                                        // control of the message input.
-                                        isFocusable={false}
-                                        // TODO(calebmer, #files): Use to upload files
+                                    <MenuButton
+                                        withoutButtonElementRequirement={true}
+                                        actions={[
+                                            {
+                                                label: "Image",
+                                                iconSize: "4",
+                                                icon: <Image />,
+                                                onPress: () => {
+                                                    selectFiles(
+                                                        assertExists(inputContainerRef.current),
+                                                        {
+                                                            multiple: true,
+                                                            acceptContentTypes:
+                                                                getFileImageContentTypes(),
+                                                        },
+                                                    )
+                                                        .then(files => {
+                                                            if (files.length === 0) return;
+
+                                                            events.addFiles(
+                                                                "Message input insert files",
+                                                                files.map(file => ({
+                                                                    type: "UploadFile",
+                                                                    input: {type: "File", file},
+                                                                })),
+                                                            );
+                                                        })
+                                                        .catch(scheduleUncaughtError);
+                                                },
+                                            },
+                                            {
+                                                label: "Video",
+                                                iconSize: "4",
+                                                icon: <VideoIcon />,
+                                                onPress: () => {
+                                                    selectFiles(
+                                                        assertExists(inputContainerRef.current),
+                                                        {
+                                                            multiple: true,
+                                                            acceptContentTypes:
+                                                                getFileVideoContentTypes(),
+                                                        },
+                                                    )
+                                                        .then(files => {
+                                                            if (files.length === 0) return;
+
+                                                            events.addFiles(
+                                                                "Message input insert files",
+                                                                files.map(file => ({
+                                                                    type: "UploadFile",
+                                                                    input: {type: "File", file},
+                                                                })),
+                                                            );
+                                                        })
+                                                        .catch(scheduleUncaughtError);
+                                                },
+                                            },
+                                            {
+                                                label: "Audio",
+                                                iconSize: "4",
+                                                icon: <WaveformIcon />,
+                                                onPress: () => {
+                                                    selectFiles(
+                                                        assertExists(inputContainerRef.current),
+                                                        {
+                                                            multiple: true,
+                                                            acceptContentTypes:
+                                                                getFileAudioContentTypes(),
+                                                        },
+                                                    )
+                                                        .then(files => {
+                                                            if (files.length === 0) return;
+
+                                                            events.addFiles(
+                                                                "Message input insert files",
+                                                                files.map(file => ({
+                                                                    type: "UploadFile",
+                                                                    input: {type: "File", file},
+                                                                })),
+                                                            );
+                                                        })
+                                                        .catch(scheduleUncaughtError);
+                                                },
+                                            },
+                                            {
+                                                label: "File",
+                                                iconSize: "4",
+                                                icon: <File />,
+                                                onPress: () => {
+                                                    selectFiles(
+                                                        assertExists(inputContainerRef.current),
+                                                        {multiple: true},
+                                                    )
+                                                        .then(files => {
+                                                            if (files.length === 0) return;
+
+                                                            events.addFiles(
+                                                                "Message input insert files",
+                                                                files.map(file => ({
+                                                                    type: "UploadFile",
+                                                                    input: {type: "File", file},
+                                                                })),
+                                                            );
+                                                        })
+                                                        .catch(scheduleUncaughtError);
+                                                },
+                                            },
+                                        ]}
                                     >
-                                        <Plus />
-                                    </IconButton>
+                                        <IconButton
+                                            size={messageInputEditorIconButtonSize}
+                                            description="Add"
+                                            withoutTooltip={true}
+                                            // The add icon button is not focusable. That's because we don't want to
+                                            // remove focus from the message input when the add button is pressed. That
+                                            // way on mobile you can keep typing and sending messages because the software
+                                            // keyboard doesn't disappear.
+                                            //
+                                            // On desktop, hitting enter in the message input is sufficient for keyboard
+                                            // control of the message input.
+                                            isFocusable={false}
+                                        >
+                                            <Plus />
+                                        </IconButton>
+                                    </MenuButton>
                                 </Box>
                                 <FocusRing offset="border" isVisibleWhenFocusWithin={true}>
                                     <Box
@@ -825,6 +1146,12 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                 onSend();
                                             }}
                                             onArrowUp={onArrowUp}
+                                            onPasteOrDropFiles={fileInfos => {
+                                                events.addFiles(
+                                                    "Message input paste files",
+                                                    fileInfos,
+                                                );
+                                            }}
                                             // Don't render the default content editor mobile keyboard toolbar. We render
                                             // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
                                             withoutMobileKeyboardToolbar={true}
@@ -893,6 +1220,71 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 </Box>
                             </Box>
                         </Box>
+                        {files.length > 0 && (
+                            <Box
+                                style={{
+                                    paddingLeft: subtractRemLengths(
+                                        screenPaddingX[platform],
+                                        messageInputFilesOverflowGradientWidth,
+                                    ),
+                                    paddingRight: subtractRemLengths(
+                                        screenPaddingX[platform],
+                                        messageInputFilesOverflowGradientWidth,
+                                    ),
+                                }}
+                            >
+                                <Box position="relative" zIndex="0" width="full" marginTop="-2">
+                                    <Box
+                                        position="absolute"
+                                        zIndex="10"
+                                        top="0"
+                                        bottom="0"
+                                        left="0"
+                                        width={messageInputFilesOverflowGradientWidth}
+                                        style={{
+                                            background: `linear-gradient(to right, ${backgroundColorVar}, transparent)`,
+                                        }}
+                                    />
+                                    <Box
+                                        position="absolute"
+                                        zIndex="10"
+                                        top="0"
+                                        bottom="0"
+                                        right="0"
+                                        width={messageInputFilesOverflowGradientWidth}
+                                        style={{
+                                            background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
+                                        }}
+                                    />
+                                    <Box
+                                        data-scrollbar="false"
+                                        position="relative"
+                                        zIndex="0"
+                                        width="full"
+                                        overflowX="auto"
+                                    >
+                                        <Box
+                                            display="flex"
+                                            gap="2"
+                                            paddingTop="2"
+                                            paddingX={messageInputFilesOverflowGradientWidth}
+                                            paddingBottom={messageInputPaddingY}
+                                            style={{width: "fit-content"}}
+                                        >
+                                            {files.map(file => (
+                                                <MessageInputFilePreview
+                                                    key={file.key}
+                                                    signedUrlSearch={file.signedUrlSearch}
+                                                    file={file.file}
+                                                    attachmentTarget={file.attachmentTarget}
+                                                    onRemove={() => onRemoveFile?.(file.key)}
+                                                />
+                                            ))}
+                                        </Box>
+                                    </Box>
+                                </Box>
+                            </Box>
+                        )}
                     </Box>
                     {platform === "mobile" && isBottomBar && (
                         <MessageInputMobileKeyboardToolbar
@@ -1182,6 +1574,46 @@ function MessageInputReplyingToMessage<
                     </Box>
                 </Box>
             </Box>
+        </Box>
+    );
+}
+
+function MessageInputFilePreview({
+    signedUrlSearch,
+    file,
+    attachmentTarget,
+    onRemove,
+}: {
+    signedUrlSearch: string;
+    file: FileModel;
+    attachmentTarget: Memo<FileAttachmentTarget> | "Uploader";
+    onRemove: () => void;
+}) {
+    const spacingScale = useSpacingScale();
+
+    return (
+        <Box
+            position="relative"
+            zIndex="0"
+            width={contentStyles.fileMinSize}
+            height={contentStyles.fileMinSize}
+        >
+            <Box position="absolute" zIndex="20" top="-1" right="-1">
+                <IconButton
+                    size="xs"
+                    variant="quiet-elevation-10"
+                    description="Remove"
+                    onPress={onRemove}
+                >
+                    <X />
+                </IconButton>
+            </Box>
+            <ContentFileMiniPreview
+                size={convertRemLengthToPx(contentStyles.fileMinSize, spacingScale)}
+                signedUrlSearch={signedUrlSearch}
+                file={file}
+                attachmentTarget={attachmentTarget}
+            />
         </Box>
     );
 }

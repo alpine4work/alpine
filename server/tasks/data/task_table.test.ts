@@ -18478,6 +18478,7 @@ test("throws error for users that only have view access when trying to access ta
         taskId: task.id,
         parentCommentIndex: null,
         content: content1,
+        fileIds: [],
     });
 
     const collection = await TestTaskCollection.createPrivate(creatorSession);
@@ -18580,6 +18581,7 @@ test("throws error for users that only have view access when trying to create ta
         taskId: task.id,
         parentCommentIndex: null,
         content: content1,
+        fileIds: [],
     };
 
     const collection = await TestTaskCollection.createPrivate(creatorSession);
@@ -18644,41 +18646,13 @@ test("throws error for users that only have view access when trying to update ta
     const collection = await TestTaskCollection.createPublic(creatorSession);
     await task.addCollection(creatorSession, collection);
 
-    const content1 = createSimpleMessageContent("test1");
-    const taskCommentDetails = {
-        taskId: task.id,
-        parentCommentIndex: null,
-        content: content1,
-    };
-
-    const creatorTaskComment = await createTaskComment(
-        context.action(creatorSession),
-        taskCommentDetails,
-    );
-    const manageTaskComment = await createTaskComment(
-        context.action(manageSession),
-        taskCommentDetails,
-    );
-    const editorTaskComment = await createTaskComment(
-        context.action(editorSession),
-        taskCommentDetails,
-    );
-    const commenterTaskComment = await createTaskComment(
-        context.action(commenterSession),
-        taskCommentDetails,
-    );
-    const viewerTaskComment = await createTaskComment(
-        context.action(viewerSession),
-        taskCommentDetails,
-    );
-    const unauthorizedTaskComment = await createTaskComment(
-        context.action(unauthorizedSession),
-        taskCommentDetails,
-    );
-    const assigneeTaskComment = await createTaskComment(
-        context.action(assigneeSession),
-        taskCommentDetails,
-    );
+    const creatorTaskComment = await task.createComment(creatorSession, "test1");
+    const manageTaskComment = await task.createComment(manageSession, "test1");
+    const editorTaskComment = await task.createComment(editorSession, "test1");
+    const commenterTaskComment = await task.createComment(commenterSession, "test1");
+    const viewerTaskComment = await task.createComment(viewerSession, "test1");
+    const unauthorizedTaskComment = await task.createComment(unauthorizedSession, "test1");
+    const assigneeTaskComment = await task.createComment(assigneeSession, "test1");
 
     const updatedContent1 = createSimpleMessageContent("updated test1");
     const updatedCreatorTaskCommentDetails = {
@@ -18860,43 +18834,14 @@ test("throws error for users that only have view access when trying to delete ta
 
     await task.updateAssignee(creatorSession, assigneeSession);
 
-    const content1 = createSimpleMessageContent("test1");
+    const creatorTaskComment = await task.createComment(creatorSession, "test1");
 
-    const taskCommentDetails = {
-        taskId: task.id,
-        parentCommentIndex: null,
-        content: content1,
-    };
-
-    const creatorTaskComment = await createTaskComment(
-        context.action(creatorSession),
-        taskCommentDetails,
-    );
-
-    const manageTaskComment = await createTaskComment(
-        context.action(manageSession),
-        taskCommentDetails,
-    );
-    const editorTaskComment = await createTaskComment(
-        context.action(editorSession),
-        taskCommentDetails,
-    );
-    const commenterTaskComment = await createTaskComment(
-        context.action(commenterSession),
-        taskCommentDetails,
-    );
-    const viewerTaskComment = await createTaskComment(
-        context.action(viewerSession),
-        taskCommentDetails,
-    );
-    const unauthorizedTaskComment = await createTaskComment(
-        context.action(unauthorizedSession),
-        taskCommentDetails,
-    );
-    const assigneeTaskComment = await createTaskComment(
-        context.action(assigneeSession),
-        taskCommentDetails,
-    );
+    const manageTaskComment = await task.createComment(manageSession, "test1");
+    const editorTaskComment = await task.createComment(editorSession, "test1");
+    const commenterTaskComment = await task.createComment(commenterSession, "test1");
+    const viewerTaskComment = await task.createComment(viewerSession, "test1");
+    const unauthorizedTaskComment = await task.createComment(unauthorizedSession, "test1");
+    const assigneeTaskComment = await task.createComment(assigneeSession, "test1");
 
     await collection.updateAccessPolicy(creatorSession, {
         accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
@@ -18980,30 +18925,9 @@ test("throws error for users that only have view access when trying to get task 
     const collection = await TestTaskCollection.createPublic(creatorSession);
     await task.addCollection(creatorSession, collection);
 
-    const content1 = createSimpleMessageContent("test1");
-    const firstTaskCommentDetails = {
-        taskId: task.id,
-        parentCommentIndex: null,
-        content: content1,
-    };
-
-    const content2 = createSimpleMessageContent("test2");
-    const secondTaskCommentDetails = {
-        taskId: task.id,
-        parentCommentIndex: null,
-        content: content2,
-    };
-
-    const content3 = createSimpleMessageContent("test3");
-    const thirdTaskCommentDetails = {
-        taskId: task.id,
-        parentCommentIndex: null,
-        content: content3,
-    };
-
-    await createTaskComment(context.action(creatorSession), firstTaskCommentDetails);
-    await createTaskComment(context.action(creatorSession), secondTaskCommentDetails);
-    await createTaskComment(context.action(creatorSession), thirdTaskCommentDetails);
+    await task.createComment(creatorSession, "test1");
+    await task.createComment(creatorSession, "test2");
+    await task.createComment(creatorSession, "test3");
 
     await collection.updateAccessPolicy(creatorSession, {
         accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
@@ -19108,30 +19032,9 @@ test("throws error for users that only have view access when trying to get task 
     const collection = await TestTaskCollection.createPublic(creatorSession);
     await task.addCollection(creatorSession, collection);
 
-    const content1 = createSimpleMessageContent("test1");
-    const firstTaskCommentDetails = {
-        taskId: task.id,
-        parentCommentIndex: null,
-        content: content1,
-    };
-
-    const content2 = createSimpleMessageContent("test2");
-    const secondTaskCommentDetails = {
-        taskId: task.id,
-        parentCommentIndex: null,
-        content: content2,
-    };
-
-    const content3 = createSimpleMessageContent("test3");
-    const thirdTaskCommentDetails = {
-        taskId: task.id,
-        parentCommentIndex: null,
-        content: content3,
-    };
-
-    await createTaskComment(context.action(creatorSession), firstTaskCommentDetails);
-    await createTaskComment(context.action(creatorSession), secondTaskCommentDetails);
-    await createTaskComment(context.action(creatorSession), thirdTaskCommentDetails);
+    await task.createComment(creatorSession, "test1");
+    await task.createComment(creatorSession, "test2");
+    await task.createComment(creatorSession, "test3");
 
     await collection.updateAccessPolicy(creatorSession, {
         accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
@@ -19236,30 +19139,9 @@ test("throws error for users that only have view access when trying to get initi
     const collection = await TestTaskCollection.createPublic(creatorSession);
     await task.addCollection(creatorSession, collection);
 
-    const content1 = createSimpleMessageContent("test1");
-    const firstTaskCommentDetails = {
-        taskId: task.id,
-        parentCommentIndex: null,
-        content: content1,
-    };
-
-    const content2 = createSimpleMessageContent("test2");
-    const secondTaskCommentDetails = {
-        taskId: task.id,
-        parentCommentIndex: null,
-        content: content2,
-    };
-
-    const content3 = createSimpleMessageContent("test3");
-    const thirdTaskCommentDetails = {
-        taskId: task.id,
-        parentCommentIndex: null,
-        content: content3,
-    };
-
-    await createTaskComment(context.action(creatorSession), firstTaskCommentDetails);
-    await createTaskComment(context.action(creatorSession), secondTaskCommentDetails);
-    await createTaskComment(context.action(creatorSession), thirdTaskCommentDetails);
+    await task.createComment(creatorSession, "test1");
+    await task.createComment(creatorSession, "test2");
+    await task.createComment(creatorSession, "test3");
 
     await collection.updateAccessPolicy(creatorSession, {
         accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
@@ -19350,21 +19232,11 @@ test("throws error for users that only have view access when trying to get task 
     const collection = await TestTaskCollection.createPublic(creatorSession);
     await task.addCollection(creatorSession, collection);
 
-    const content1 = createSimpleMessageContent("test1");
-    const firstTaskCommentDetails = {
-        taskId: task.id,
-        parentCommentIndex: null,
-        content: content1,
-    };
+    const creatorTaskComment = await task.createComment(creatorSession, "test1");
 
-    const creatorTaskComment = await createTaskComment(
-        context.action(creatorSession),
-        firstTaskCommentDetails,
-    );
+    await task.createComment(editorSession, "test1");
 
-    await createTaskComment(context.action(editorSession), firstTaskCommentDetails);
-
-    await createTaskComment(context.action(manageSession), firstTaskCommentDetails);
+    await task.createComment(manageSession, "test1");
 
     await collection.updateAccessPolicy(creatorSession, {
         accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([

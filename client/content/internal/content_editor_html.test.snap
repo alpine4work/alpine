@@ -1954,7 +1954,7 @@ exports[`file float (left direction) 1`] = `
   >
     <div
       class="content_file"
-      data-testid="ContentFile:image/jpeg"
+      data-testid="ContentFilePreview:image/jpeg"
     >
       <img
         aria-hidden="true"
@@ -1969,7 +1969,7 @@ exports[`file float (left direction) 1`] = `
 exports[`file float (left direction): clipboard 1`] = `
 <div>
   <div
-    style="float: left; clear: both; margin-bottom: 10px; margin-right: 10px;"
+    style="float: left; clear: both; margin-bottom: 8px; margin-right: 8px;"
   >
     <img
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
@@ -1999,7 +1999,7 @@ exports[`file float (right direction) 1`] = `
   >
     <div
       class="content_file"
-      data-testid="ContentFile:image/jpeg"
+      data-testid="ContentFilePreview:image/jpeg"
     >
       <img
         aria-hidden="true"
@@ -2014,7 +2014,7 @@ exports[`file float (right direction) 1`] = `
 exports[`file float (right direction): clipboard 1`] = `
 <div>
   <div
-    style="float: right; clear: both; margin-bottom: 10px; margin-left: 10px;"
+    style="float: right; clear: both; margin-bottom: 8px; margin-left: 8px;"
   >
     <img
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
@@ -2044,7 +2044,7 @@ exports[`file row (one file) 1`] = `
   >
     <div
       class="content_file"
-      data-testid="ContentFile:image/jpeg"
+      data-testid="ContentFilePreview:image/jpeg"
     >
       <img
         aria-hidden="true"
@@ -2059,7 +2059,7 @@ exports[`file row (one file) 1`] = `
 exports[`file row (one file): clipboard 1`] = `
 <div>
   <div
-    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+    style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
   >
     <img
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
@@ -2089,7 +2089,7 @@ exports[`file row (one file, audio type) 1`] = `
   >
     <div
       class="content_file"
-      data-testid="ContentFile:audio/mp4"
+      data-testid="ContentFilePreview:audio/mp4"
     >
       <div>
         <audio
@@ -2175,7 +2175,7 @@ exports[`file row (one file, audio type) 1`] = `
 exports[`file row (one file, audio type): clipboard 1`] = `
 <div>
   <div
-    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+    style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
   >
     <audio
       controls=""
@@ -2204,7 +2204,7 @@ exports[`file row (one file, image type) 1`] = `
   >
     <div
       class="content_file"
-      data-testid="ContentFile:image/jpeg"
+      data-testid="ContentFilePreview:image/jpeg"
     >
       <img
         aria-hidden="true"
@@ -2219,7 +2219,7 @@ exports[`file row (one file, image type) 1`] = `
 exports[`file row (one file, image type): clipboard 1`] = `
 <div>
   <div
-    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+    style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
   >
     <img
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
@@ -2264,7 +2264,7 @@ exports[`file row (one file, null reference) 1`] = `
 exports[`file row (one file, null reference): clipboard 1`] = `
 <div>
   <div
-    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+    style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
   >
     <object
       height="133"
@@ -2292,7 +2292,7 @@ exports[`file row (one file, video type) 1`] = `
   >
     <div
       class="content_file"
-      data-testid="ContentFile:video/mp4"
+      data-testid="ContentFilePreview:video/mp4"
     >
       <img
         aria-hidden="true"
@@ -2388,7 +2388,7 @@ exports[`file row (one file, video type) 1`] = `
 exports[`file row (one file, video type): clipboard 1`] = `
 <div>
   <div
-    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+    style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
   >
     <video
       controls=""
@@ -2418,11 +2418,11 @@ exports[`file row (three files) 1`] = `
 >
   <div
     class="content_fileRow"
-    style="height: 193.333px; grid-template-columns: 0.333333fr 0.333333fr 0.333333fr;"
+    style="height: 194.667px; grid-template-columns: 0.333333fr 0.333333fr 0.333333fr;"
   >
     <div
       class="content_file"
-      data-testid="ContentFile:image/jpeg"
+      data-testid="ContentFilePreview:image/jpeg"
     >
       <img
         aria-hidden="true"
@@ -2432,7 +2432,7 @@ exports[`file row (three files) 1`] = `
     </div>
     <div
       class="content_file"
-      data-testid="ContentFile:image/heif"
+      data-testid="ContentFilePreview:image/heif"
     >
       <img
         aria-hidden="true"
@@ -2442,7 +2442,7 @@ exports[`file row (three files) 1`] = `
     </div>
     <div
       class="content_file"
-      data-testid="ContentFile:image/png"
+      data-testid="ContentFilePreview:image/png"
     >
       <img
         aria-hidden="true"
@@ -2457,29 +2457,29 @@ exports[`file row (three files) 1`] = `
 exports[`file row (three files): clipboard 1`] = `
 <div>
   <div
-    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+    style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
   >
     <img
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
-      height="193"
+      height="195"
       src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4nwky4vgc8ep46mzz5th8?exp=1727963706&sig=test-image"
       style="display: block;"
-      width="193"
+      width="195"
     />
     <object
       data="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4phegz57116pce7eg5j30?exp=1727963711&sig=test-image"
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
-      height="193"
+      height="195"
       style="display: block;"
       type="image/heif"
-      width="193"
+      width="195"
     />
     <img
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
-      height="193"
+      height="195"
       src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4q3yh9765742w7305p0fg?exp=1727963716&sig=test-image"
       style="display: block;"
-      width="193"
+      width="195"
     />
   </div>
 </div>
@@ -2498,11 +2498,11 @@ exports[`file row (two files) 1`] = `
 >
   <div
     class="content_fileRow"
-    style="height: 295px; grid-template-columns: 0.5fr 0.5fr;"
+    style="height: 296px; grid-template-columns: 0.5fr 0.5fr;"
   >
     <div
       class="content_file"
-      data-testid="ContentFile:image/jpeg"
+      data-testid="ContentFilePreview:image/jpeg"
     >
       <img
         aria-hidden="true"
@@ -2512,7 +2512,7 @@ exports[`file row (two files) 1`] = `
     </div>
     <div
       class="content_file"
-      data-testid="ContentFile:image/heif"
+      data-testid="ContentFilePreview:image/heif"
     >
       <img
         aria-hidden="true"
@@ -2527,22 +2527,22 @@ exports[`file row (two files) 1`] = `
 exports[`file row (two files): clipboard 1`] = `
 <div>
   <div
-    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+    style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
   >
     <img
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
-      height="295"
+      height="296"
       src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4mxds3kj518c0dygx272c?exp=1727963615&sig=test-image"
       style="display: block;"
-      width="295"
+      width="296"
     />
     <object
       data="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4myryc3289pwhcnwt7f7r?exp=1727963629&sig=test-image"
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
-      height="295"
+      height="296"
       style="display: block;"
       type="image/heif"
-      width="295"
+      width="296"
     />
   </div>
 </div>

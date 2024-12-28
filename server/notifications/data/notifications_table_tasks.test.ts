@@ -11,7 +11,6 @@ import {
     createNotificationsScenario,
     massageInboxEntriesQuery,
 } from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
-import {createTaskComment} from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
@@ -130,25 +129,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            await createTaskComment(context.action(scenario.session2), {
-                taskId: task.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("initial task comment from session 2"),
-            });
+            await task.createComment(scenario.session2, "initial task comment from session 2");
 
-            await createTaskComment(context.action(scenario.session3), {
-                taskId: task.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("initial task comment from session 3"),
-            });
+            await task.createComment(scenario.session3, "initial task comment from session 3");
 
-            const taskCommentFromSession1 = await createTaskComment(
-                context.action(scenario.session1),
-                {
-                    taskId: task.id,
-                    parentCommentIndex: null,
-                    content: createSimpleMessageContent("task comment from session 1"),
-                },
+            const taskCommentFromSession1 = await task.createComment(
+                scenario.session1,
+                "task comment from session 1",
             );
 
             await ProcessContextModule.waitForTestTasks();
@@ -190,13 +177,9 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const taskCommentFromSession2 = await createTaskComment(
-                context.action(scenario.session2),
-                {
-                    taskId: task.id,
-                    parentCommentIndex: null,
-                    content: createSimpleMessageContent("task comment from session 2"),
-                },
+            const taskCommentFromSession2 = await task.createComment(
+                scenario.session2,
+                "task comment from session 2",
             );
 
             await ProcessContextModule.waitForTestTasks();
@@ -266,13 +249,9 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const taskCommentFromSession3 = await createTaskComment(
-                context.action(scenario.session3),
-                {
-                    taskId: task.id,
-                    parentCommentIndex: null,
-                    content: createSimpleMessageContent("task comment from session 3"),
-                },
+            const taskCommentFromSession3 = await task.createComment(
+                scenario.session3,
+                "task comment from session 3",
             );
 
             await ProcessContextModule.waitForTestTasks();
@@ -365,21 +344,13 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await task.addCollection(scenario.session1, collection);
 
-            await createTaskComment(context.action(scenario.session3), {
-                taskId: task.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("task comment from session 3"),
-            });
+            await task.createComment(scenario.session3, "task comment from session 3");
 
             await ProcessContextModule.waitForTestTasks();
 
-            const taskCommentFromSession2 = await createTaskComment(
-                context.action(scenario.session2),
-                {
-                    taskId: task.id,
-                    parentCommentIndex: null,
-                    content: createSimpleMessageContent("task comment from session 2"),
-                },
+            const taskCommentFromSession2 = await task.createComment(
+                scenario.session2,
+                "task comment from session 2",
             );
 
             await ProcessContextModule.waitForTestTasks();
@@ -412,13 +383,9 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             });
 
-            const taskCommentFromSession1 = await createTaskComment(
-                context.action(scenario.session1),
-                {
-                    taskId: task.id,
-                    parentCommentIndex: null,
-                    content: createSimpleMessageContent("task comment from session 1"),
-                },
+            const taskCommentFromSession1 = await task.createComment(
+                scenario.session1,
+                "task comment from session 1",
             );
 
             await ProcessContextModule.waitForTestTasks();
@@ -540,13 +507,9 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await task.addCollection(scenario.session1, collection);
 
-            const taskCommentFromSession2 = await createTaskComment(
-                context.action(scenario.session2),
-                {
-                    taskId: task.id,
-                    parentCommentIndex: null,
-                    content: scenario.mentionAccount3MessageContent,
-                },
+            const taskCommentFromSession2 = await task.createComment(
+                scenario.session2,
+                scenario.mentionAccount3MessageContent,
             );
 
             await ProcessContextModule.waitForTestTasks();
@@ -625,13 +588,9 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            const taskCommentFromSession1 = await createTaskComment(
-                context.action(scenario.session1),
-                {
-                    taskId: task.id,
-                    parentCommentIndex: null,
-                    content: scenario.mentionAccount2MessageContent,
-                },
+            const taskCommentFromSession1 = await task.createComment(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
             );
 
             await ProcessContextModule.waitForTestTasks();
@@ -721,19 +680,11 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await task.addCollection(scenario.session1, collection);
 
-            await createTaskComment(context.action(scenario.session3), {
-                taskId: task.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("task comment from session 3"),
-            });
+            await task.createComment(scenario.session3, "task comment from session 3");
 
-            const firstTaskCommentFromSession2 = await createTaskComment(
-                context.action(scenario.session2),
-                {
-                    taskId: task.id,
-                    parentCommentIndex: null,
-                    content: createSimpleMessageContent("1st task comment from session 2"),
-                },
+            const firstTaskCommentFromSession2 = await task.createComment(
+                scenario.session2,
+                "1st task comment from session 2",
             );
 
             await ProcessContextModule.waitForTestTasks();
@@ -803,13 +754,9 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const loudTaskCommentFromSession2 = await createTaskComment(
-                context.action(scenario.session2),
-                {
-                    taskId: task.id,
-                    parentCommentIndex: null,
-                    content: scenario.mentionAccount2MessageContent,
-                },
+            const loudTaskCommentFromSession2 = await task.createComment(
+                scenario.session2,
+                scenario.mentionAccount2MessageContent,
             );
 
             await ProcessContextModule.waitForTestTasks();
@@ -889,13 +836,9 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const secondTaskCommentFromSession2 = await createTaskComment(
-                context.action(scenario.session2),
-                {
-                    taskId: task.id,
-                    parentCommentIndex: null,
-                    content: createSimpleMessageContent("2nd task comment from session 2"),
-                },
+            const secondTaskCommentFromSession2 = await task.createComment(
+                scenario.session2,
+                "2nd task comment from session 2",
             );
 
             await ProcessContextModule.waitForTestTasks();
@@ -1012,32 +955,22 @@ for (const [currentProcessingType, processingMultiple] of [
             await taskInSession.addCollection(scenario.session1, collectionInSession1);
             await taskInOtherSession.addCollection(scenario.otherSession, collectionInOtherSession);
 
-            await createTaskComment(context.action(scenario.sharedSession), {
-                taskId: taskInSession.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("task comment from shared session"),
-            });
+            await taskInSession.createComment(
+                scenario.sharedSession,
+                "task comment from shared session",
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
-            const taskCommentFromSharedSessionInOtherSession = await createTaskComment(
-                context.action(scenario.sharedSession),
-                {
-                    taskId: taskInOtherSession.id,
-                    parentCommentIndex: null,
-                    content: createSimpleMessageContent(
-                        "task comment from shared session in other session",
-                    ),
-                },
-            );
+            const taskCommentFromSharedSessionInOtherSession =
+                await taskInOtherSession.createComment(
+                    scenario.sharedSession,
+                    "task comment from shared session in other session",
+                );
 
-            const firstTaskCommentFromSession2 = await createTaskComment(
-                context.action(scenario.session2),
-                {
-                    taskId: taskInSession.id,
-                    parentCommentIndex: null,
-                    content: createSimpleMessageContent("1st task comment from session 2"),
-                },
+            const firstTaskCommentFromSession2 = await taskInSession.createComment(
+                scenario.session2,
+                "1st task comment from session 2",
             );
 
             await ProcessContextModule.waitForTestTasks();
@@ -1100,13 +1033,9 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const taskCommentFromOtherSession = await createTaskComment(
-                context.action(scenario.otherSession),
-                {
-                    taskId: taskInOtherSession.id,
-                    parentCommentIndex: null,
-                    content: createSimpleMessageContent("task comment from other session"),
-                },
+            const taskCommentFromOtherSession = await taskInOtherSession.createComment(
+                scenario.otherSession,
+                "task comment from other session",
             );
 
             await ProcessContextModule.waitForTestTasks();
@@ -1207,19 +1136,11 @@ for (const [currentProcessingType, processingMultiple] of [
             await taskInSession.addCollection(scenario.session1, collectionInSession1);
             await taskInOtherSession.addCollection(scenario.otherSession, collectionInOtherSession);
 
-            await createTaskComment(context.action(scenario.session3), {
-                taskId: taskInSession.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("1st task comment from session 3"),
-            });
+            await taskInSession.createComment(scenario.session3, "1st task comment from session 3");
 
-            const loudTaskCommentFromSession2 = await createTaskComment(
-                context.action(scenario.session2),
-                {
-                    taskId: taskInSession.id,
-                    parentCommentIndex: null,
-                    content: scenario.mentionAccount3MessageContent,
-                },
+            const loudTaskCommentFromSession2 = await taskInSession.createComment(
+                scenario.session2,
+                scenario.mentionAccount3MessageContent,
             );
 
             await ProcessContextModule.waitForTestTasks();
@@ -1266,11 +1187,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).rejects.toThrow(PermissionDeniedError);
 
-            await createTaskComment(context.action(scenario.otherSession), {
-                taskId: taskInOtherSession.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount3MessageContent,
-            });
+            await taskInOtherSession.createComment(
+                scenario.otherSession,
+                scenario.mentionAccount3MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 

@@ -30,6 +30,7 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
+        fileIds: [],
     });
 
     await services.signIn(browserContext, session1);
@@ -113,6 +114,7 @@ test("can't edit or delete a post comment that's not yours", async ({
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
+        fileIds: [],
     });
 
     await services.signIn(browserContext, session1);
@@ -169,6 +171,7 @@ test("can see a post comment edited in realtime", async ({
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
+        fileIds: [],
     });
 
     await services.signIn(browserContext1, session2);
@@ -253,6 +256,7 @@ test("can delete a post comment", async ({page, context: browserContext, isMobil
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
+        fileIds: [],
     });
 
     await services.signIn(browserContext, session1);
@@ -315,6 +319,7 @@ test("can see a post comment deleted in realtime", async ({
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
+        fileIds: [],
     });
 
     await services.signIn(browserContext1, session2);
@@ -393,6 +398,7 @@ test("will backfill an edit in realtime when comments are reopened", async ({
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
+        fileIds: [],
     });
 
     await services.signIn(browserContext1, session2);
@@ -489,6 +495,7 @@ test("will backfill a delete in realtime when comments are reopened", async ({
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
+        fileIds: [],
     });
 
     await services.signIn(browserContext1, session2);
