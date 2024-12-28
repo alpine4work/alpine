@@ -123,13 +123,6 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     }: MessageInputProps<RoomKey, Message>,
     externalRef: Ref<MessageInputRef>,
 ) {
-    useEffect(() => {
-        console.log("mount <MessageInput>");
-        return () => {
-            console.log("unmount <MessageInput>");
-        };
-    }, []);
-
     const context = useAppContext();
     const platform = usePlatform();
     const reporter = useReporter();
@@ -158,10 +151,6 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 ContentEditorState.create(emptyMessageContentWithReferences),
             files: restoreStateRef?.current?.files ?? emptyArray,
         }));
-
-    useEffect(() => {
-        console.log("newMessageKey", inputKey);
-    }, [inputKey]);
 
     const setInputState = useCallback(
         (newInputState: ContentEditorState<MessageContentWithReferences>) => {

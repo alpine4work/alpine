@@ -45,13 +45,6 @@ export function ChatView({
     initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
     initialScrollToMessageIndex: number | null;
 }) {
-    useEffect(() => {
-        console.log("mount <ChatView>");
-        return () => {
-            console.log("unmount <ChatView>");
-        };
-    }, []);
-
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
             <ChatViewTopBar withInboxBanner={withInboxBanner} chat={chat} />
@@ -195,13 +188,6 @@ function ChatMessagingView({
         if (initialScrollToMessageIndex !== null)
             messaging.jumpToMessageIndex(initialScrollToMessageIndex);
     }, [initialScrollToMessageIndex]);
-
-    useEffect(() => {
-        console.log("mount <ChatMessagingView>");
-        return () => {
-            console.log("unmount <ChatMessagingView>");
-        };
-    }, []);
 
     return (
         <MessagingView

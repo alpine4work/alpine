@@ -253,13 +253,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     const isMounted = useIsMounted();
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
 
-    useEffect(() => {
-        console.log("mount <MessageInputBase>");
-        return () => {
-            console.log("unmount <MessageInputBase>");
-        };
-    }, []);
-
     const inputContainerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLDivElement>(null);
     const inputContentRef = useRef<HTMLDivElement>(null);

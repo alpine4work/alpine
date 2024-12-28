@@ -17,7 +17,9 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
@@ -199,6 +201,10 @@ export function ContentEditorMobileCommentInputBottomBar({
                         onChange={setCommentState}
                         onSend={sendComment}
                         fileAttachmentTarget={fileAttachmentTarget}
+                        // TODO(calebmer, #files): Implement this
+                        files={emptyArray}
+                        onAddFile={noop}
+                        onRemoveFile={noop}
                     />
                 </Box>,
                 portalElement,

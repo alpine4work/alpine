@@ -42,10 +42,7 @@ import {
 import {fileClassName} from "~/shared/content/content_styles.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {
-    canonicalizeFileContentTypeIfExists,
-    normalizeContentType,
-} from "~/shared/files/file_content_type.js";
+import {canonicalizeFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -405,13 +402,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     },
     ref: Ref<MessagingViewRef>,
 ) {
-    useEffect(() => {
-        console.log("mount <MessagingView>");
-        return () => {
-            console.log("unmount <MessagingView>");
-        };
-    }, []);
-
     const spacingScale = useSpacingScale();
     const reporter = useReporter();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);

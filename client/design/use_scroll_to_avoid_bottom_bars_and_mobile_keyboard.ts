@@ -280,16 +280,6 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             wasBottomBarMounted: boolean;
             wasBottomBarUnmounted: boolean;
         }) => {
-            console.log("scroll", {
-                isAnimated,
-                oldMobileKeyboardHeight,
-                newMobileKeyboardHeight,
-                oldBottomBarHeight,
-                newBottomBarHeight,
-                wasBottomBarMounted,
-                wasBottomBarUnmounted,
-            });
-
             // Don't scroll for covered height changes that mounts/unmounts a new bar. If
             // the bottom bar is net new then we'll go from 0 to the bottom bar's height
             // when the component mounts (and vice versa on unmount). The user hasn't seen

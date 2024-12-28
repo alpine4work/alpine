@@ -493,7 +493,7 @@ test("can schedule external fibers that stop jobs from being processed", async (
 
     const actionPromiseResolver1a = createPromiseResolver();
     const actionPromiseResolver1b = createPromiseResolver();
-    void consumer.withFiber(() => {
+    void consumer.withFiber(context, () => {
         actionPromiseResolver1b.resolve();
         return actionPromiseResolver1a.promise;
     });
@@ -501,7 +501,7 @@ test("can schedule external fibers that stop jobs from being processed", async (
 
     const actionPromiseResolver2a = createPromiseResolver();
     const actionPromiseResolver2b = createPromiseResolver();
-    void consumer.withFiber(() => {
+    void consumer.withFiber(context, () => {
         actionPromiseResolver2b.resolve();
         return actionPromiseResolver2a.promise;
     });
@@ -514,7 +514,7 @@ test("can schedule external fibers that stop jobs from being processed", async (
     const actionPromiseResolver3a = createPromiseResolver();
     const actionPromiseResolver3b = createPromiseResolver();
     void consumer
-        .withFiber(() => {
+        .withFiber(context, () => {
             actionPromiseResolver3b.resolve();
             return actionPromiseResolver3a.promise;
         })
@@ -552,7 +552,7 @@ test("can schedule external fibers that stop jobs from being processed", async (
 
     const actionPromiseResolver4a = createPromiseResolver();
     const actionPromiseResolver4b = createPromiseResolver();
-    void consumer.withFiber(() => {
+    void consumer.withFiber(context, () => {
         actionPromiseResolver4b.resolve();
         return actionPromiseResolver4a.promise;
     });
@@ -560,7 +560,7 @@ test("can schedule external fibers that stop jobs from being processed", async (
 
     const actionPromiseResolver5a = createPromiseResolver();
     const actionPromiseResolver5b = createPromiseResolver();
-    void consumer.withFiber(() => {
+    void consumer.withFiber(context, () => {
         actionPromiseResolver5b.resolve();
         return actionPromiseResolver5a.promise;
     });
@@ -647,7 +647,7 @@ test("can interrupt receive message call with external fibers", async () => {
 
     const actionPromiseResolver1a = createPromiseResolver();
     const actionPromiseResolver1b = createPromiseResolver();
-    void consumer.withFiber(() => {
+    void consumer.withFiber(context, () => {
         actionPromiseResolver1b.resolve();
         return actionPromiseResolver1a.promise;
     });
