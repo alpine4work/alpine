@@ -7,7 +7,7 @@ import {
     postContentViewFooterHeight,
     postContentViewHeaderHeight,
     postContentViewInnerMarginY,
-    postContentViewMinHeightWithClosedCommentSectionPx,
+    postContentViewMinHeightPx,
     postContentViewOuterMarginBottom,
     postContentViewOuterMarginY,
 } from "~/client/styles/forum_shared_styles.js";
@@ -31,7 +31,7 @@ export function PostShimmer({
             display="flex"
             flexDirection="column"
             style={{
-                minHeight: postContentViewMinHeightWithClosedCommentSectionPx[spacingScale],
+                minHeight: postContentViewMinHeightPx[spacingScale],
                 paddingBottom: postContentViewOuterMarginBottom,
             }}
         >

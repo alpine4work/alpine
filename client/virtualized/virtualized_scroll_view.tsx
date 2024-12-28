@@ -8,6 +8,7 @@ import {
     cloneElement,
     forwardRef,
     startTransition,
+    useCallback,
     useEffect,
     useImperativeHandle,
     useMemo,
@@ -1732,7 +1733,13 @@ function VirtualizedScrollView(
 
             return {
                 getHeight: () => assertExists(scrollRef.current).clientHeight,
-                getContentHeight: () => assertExists(scrollRef.current).scrollHeight,
+                getContentHeight: () => {
+                    // Get the scroll height based exclusively on our first `<div>`. Use
+                    // `getBoundingClientRect()` so we have sub-pixel accuracy.
+                    return assertExists(
+                        scrollRef.current?.firstElementChild,
+                    ).getBoundingClientRect().height;
+                },
                 getRenderedRange: () => renderedRangeRef.current,
                 scrollToIndex,
                 scrollToKeyIfExists: (key, options) => {
@@ -1822,11 +1829,17 @@ function VirtualizedScrollView(
             <div
                 ref={useMergedRefs(
                     scrollRef,
-                    useScrollbar(
-                        scrollbarInsetTop !== undefined || scrollbarInsetBottom !== undefined
-                            ? {insetTop: scrollbarInsetTop, insetBottom: scrollbarInsetBottom}
-                            : undefined,
-                    ),
+                    useScrollbar({
+                        insetTop: scrollbarInsetTop,
+                        insetBottom: scrollbarInsetBottom,
+                        getScrollHeight: useCallback(() => {
+                            // Get the scroll height based exclusively on our first `<div>`. Use
+                            // `getBoundingClientRect()` so we have sub-pixel accuracy.
+                            return assertExists(
+                                scrollRef.current?.firstElementChild,
+                            ).getBoundingClientRect().height;
+                        }, []),
+                    }),
                     elementRefProp,
                 )}
                 className={sprinkles({

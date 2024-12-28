@@ -32,17 +32,13 @@ import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    postCommentSectionGuidelineOffset,
-    postCommentSectionGuidelineStartHeight,
     postContentViewFooterButtonHeight,
     postContentViewFooterButtonIconSize,
     postContentViewFooterHeight,
     postContentViewInnerMarginY,
-    postContentViewMinHeightWithClosedCommentSectionPx,
-    postContentViewMinHeightWithOpenCommentSectionPx,
+    postContentViewMinHeightPx,
     postContentViewOuterMarginBottom,
     postContentViewOuterMarginY,
-    postContentViewOuterOpenCommentSectionMarginBottom,
     postViewMinHeightPx,
     postViewNavigationBarSpace,
     screenPaddingXWithoutPostContentViewInnerMarginY,
@@ -213,13 +209,8 @@ export function PostContentView({
             style={{
                 minHeight: isPostView
                     ? postViewMinHeightPx[spacingScale]
-                    : postCommentsState !== "Closed" && !isPostView
-                    ? postContentViewMinHeightWithOpenCommentSectionPx[platform][spacingScale]
-                    : postContentViewMinHeightWithClosedCommentSectionPx[spacingScale],
-                paddingBottom:
-                    postCommentsState !== "Closed" && !isPostView
-                        ? postContentViewOuterOpenCommentSectionMarginBottom[platform]
-                        : postContentViewOuterMarginBottom,
+                    : postContentViewMinHeightPx[spacingScale],
+                paddingBottom: postContentViewOuterMarginBottom,
             }}
         >
             {isPostView ? (
@@ -307,20 +298,6 @@ export function PostContentView({
                 onTogglePostComments={onTogglePostComments}
                 onLoadInitialPostComments={onLoadInitialPostComments}
             />
-            {postCommentsState !== "Closed" && !isPostView && (
-                <div
-                    className={sprinkles({
-                        position: "absolute",
-                        bottom: "0",
-                        borderLeft: "grey-5",
-                        borderLeftWidth: "thick",
-                    })}
-                    style={{
-                        height: postCommentSectionGuidelineStartHeight[platform],
-                        left: `calc(${postCommentSectionGuidelineOffset[platform]} - 1px)`,
-                    }}
-                />
-            )}
         </Box>
     );
 }

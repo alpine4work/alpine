@@ -1,6 +1,4 @@
-import {messageInputPaddingY} from "~/client/styles/messaging_shared_styles.js";
 import {contentStyles, fontSizes, navigationBarStyles} from "~/client/styles/styles.js";
-import {allPlatforms} from "~/shared/design/core/platform.js";
 import {
     RemLength,
     addRemLengths,
@@ -30,7 +28,7 @@ export const postFauxInputCreateButtonMarginTop = {
 
 export const postFauxInputCreateButtonHeight = "12";
 
-export const postContentViewOuterMarginY = "5";
+export const postContentViewOuterMarginY = "6";
 
 // We also use this value as the padding X and Y padding for our post content
 // editor's `<FocusRing>`. Hence why you'll see this used as X axis spacing
@@ -50,7 +48,6 @@ export const screenPaddingXWithoutPostContentViewInnerMarginY = mapObjectValues(
 
 const fontSize75LineHeightRem = parseRemLength(fontSizes["75"].lineHeight);
 const postContentViewFooterHeightRem = parseRemLength(postContentViewFooterHeight);
-const postContentViewFooterButtonHeightRem = parseRemLength(postContentViewFooterButtonHeight);
 const postContentViewOuterMarginYRem = parseRemLength(postContentViewOuterMarginY);
 
 // Visually, we want `postContentViewOuterMarginY` of space from the bottom of
@@ -61,35 +58,7 @@ const postContentViewOuterMarginBottomRem =
 
 export const postContentViewOuterMarginBottom: RemLength = `${postContentViewOuterMarginBottomRem}rem`;
 
-const postContentViewOuterOpenCommentSectionMarginBottomRem = createObjectFromKeys(
-    allPlatforms,
-    platform =>
-        postContentViewOuterMarginBottomRem - parseRemLength(messageInputPaddingY[platform]),
-);
-export const postContentViewOuterOpenCommentSectionMarginBottom = createObjectFromKeys(
-    allPlatforms,
-    (platform): RemLength =>
-        `${postContentViewOuterOpenCommentSectionMarginBottomRem[platform]}rem`,
-);
-
 export const postContentViewFooterButtonIconSize = "4";
-
-export const postCommentSectionGuidelineOffset = mapObjectValues(
-    screenPaddingX,
-    (paddingX): RemLength =>
-        `${parseRemLength(paddingX) + parseRemLength(postContentViewFooterButtonIconSize) / 2}rem`,
-);
-
-const postCommentSectionGuidelineStartHeightRem = createObjectFromKeys(
-    allPlatforms,
-    platform =>
-        postContentViewOuterOpenCommentSectionMarginBottomRem[platform] +
-        (postContentViewFooterHeightRem - postContentViewFooterButtonHeightRem) / 2,
-);
-export const postCommentSectionGuidelineStartHeight = createObjectFromKeys(
-    allPlatforms,
-    (platform): RemLength => `${postCommentSectionGuidelineStartHeightRem[platform]}rem`,
-);
 
 // On desktop there's a bit of extra margin bottom below the navigation bar and
 // post content so that when the user edits their post the focus ring won't be
@@ -113,21 +82,7 @@ const getPostContentViewMinHeightBasePx = (spacingScale: SpacingScale) =>
     convertRemLengthToPx(postContentViewHeaderHeight, spacingScale) +
     getPostContentViewMinHeightWithoutHeaderBasePx(spacingScale);
 
-export const postContentViewMinHeightWithOpenCommentSectionPx = createObjectFromKeys(
-    allPlatforms,
-    platform =>
-        createObjectFromKeys(
-            allSpacingScales,
-            spacingScale =>
-                getPostContentViewMinHeightBasePx(spacingScale) +
-                convertRemLengthToPx(
-                    postContentViewOuterOpenCommentSectionMarginBottom[platform],
-                    spacingScale,
-                ),
-        ),
-);
-
-export const postContentViewMinHeightWithClosedCommentSectionPx = createObjectFromKeys(
+export const postContentViewMinHeightPx = createObjectFromKeys(
     allSpacingScales,
     spacingScale =>
         getPostContentViewMinHeightBasePx(spacingScale) +

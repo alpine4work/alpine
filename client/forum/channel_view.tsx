@@ -25,7 +25,7 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     channelViewAsidePostFileCount,
-    postContentViewMinHeightWithClosedCommentSectionPx,
+    postContentViewMinHeightPx,
     postListViewAsideMaxWidth,
 } from "~/client/styles/forum_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
@@ -149,9 +149,7 @@ export function ChannelView({
                     channelId,
                     limit: getInitialVirtualizedScrollViewRenderedItemCount(
                         clientInfo,
-                        postContentViewMinHeightWithClosedCommentSectionPx[
-                            getInitialAppRenderSpacingScale(clientInfo)
-                        ],
+                        postContentViewMinHeightPx[getInitialAppRenderSpacingScale(clientInfo)],
                     ),
                     beforeCursor: null,
                 });

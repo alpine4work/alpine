@@ -163,7 +163,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onDeleteMessage,
     getMessageUrl,
     roomDisplayedCreatedTime,
-    centeringMarginRight,
     fileLayoutScreenWidth,
 }: {
     messageNoun?: string;
@@ -183,7 +182,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onDeleteMessage: () => Promise<void>;
     getMessageUrl: (messageIndex: number) => URL;
     roomDisplayedCreatedTime?: Date;
-    centeringMarginRight?: Spacing;
     fileLayoutScreenWidth?: number;
 }) {
     const platform = usePlatform();
@@ -973,12 +971,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     fontSize: "50",
                     fontStyle: "truncate",
                     color: "grey-50",
-                    // The timestamp divider should be centered. For UI like `<PostListView>` we
-                    // show a guideline to help the user see that comments are a child of the post.
-                    // This guideline offsets messages to the left. To center timestamp dividers
-                    // with the post we need to apply some extra margin on the right to balance
-                    // things out.
-                    paddingRight: centeringMarginRight,
                 })}
                 style={{
                     // Use a spacing value that evaluates to a whole pixel number on all spacing
@@ -990,7 +982,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             </div>
         );
     }, [
-        centeringMarginRight,
         currentTime,
         isFirstMessage,
         locale,

@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {SpinnerGap} from "phosphor-react";
 import {
     Memo,
@@ -35,6 +36,7 @@ import {
     PostListWithChannelHeader,
 } from "~/client/forum/post_list.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
@@ -54,9 +56,7 @@ import {
 import {PostShimmer} from "~/client/shimmer/post_shimmer.js";
 import {
     channelViewHeaderMinHeight,
-    postCommentSectionGuidelineOffset,
-    postContentViewMinHeightWithClosedCommentSectionPx,
-    postContentViewMinHeightWithOpenCommentSectionPx,
+    postContentViewMinHeightPx,
     postListViewAsideFlex,
     postListViewAsideMaxWidth,
     postViewFlex,
@@ -71,6 +71,7 @@ import {
 import {
     colorSchemeVars,
     contentStyles,
+    forumStyles,
     spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
@@ -100,8 +101,6 @@ import {
     getPostCommentsFromStart,
     updatePostContent,
 } from "~/shared/rpc/forum_rpc_definitions.js";
-
-const postCommentSectionGuidelineSpace = "6";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -471,9 +470,7 @@ function PostListView(
                                 20,
                                 Math.ceil(
                                     (view.getHeight() * 2) /
-                                        postContentViewMinHeightWithClosedCommentSectionPx[
-                                            spacingScale
-                                        ],
+                                        postContentViewMinHeightPx[spacingScale],
                                 ),
                             );
 
@@ -701,6 +698,57 @@ function PostListView(
         }),
     });
 
+    // Don't render the post comment input (which should be the last item) if we are
+    // pinning the comment input to the bottom of the view.
+    const itemCount = posts.getItemCount() - (isPostView ? 1 : 0);
+
+    // NOTE(calebmer): This is a bit of a paranoid protection. Whenever the number
+    // of items in our view changes (especially when the number of items decreases)
+    // make sure `asideBufferedHeight` is clamped to the correct range. We've
+    // observed a bug where when collapsing the last post in a post list view, the
+    // post list view is still scrollable and that's because the aside buffered
+    // height has not been reset! This fixes that bug and makes sense in theory.
+    //
+    // It's a little hacky doing this in an effect that listens to `itemCount`
+    // changes. It would be a little cleaner if we had a resize callback for
+    // content height or height changes.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (viewSize?.height === undefined) return;
+        if (asideSize?.height === undefined) return;
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        itemCount;
+
+        const view = assertExists(viewRef.current);
+
+        const scrollOffset = clamp(
+            0,
+            view.getScrollOffset(),
+            Math.max(0, view.getContentHeight() - view.getHeight()),
+        );
+
+        const viewHeight = viewSize.height;
+        const asideHeight = Math.max(viewHeight, asideSize.height);
+
+        setScrollDirectionState(scrollDirectionState => {
+            const asideScrollOffset = clamp(
+                0,
+                scrollOffset - scrollDirectionState.asideBufferedHeight,
+                asideHeight - viewHeight,
+            );
+
+            const asideBufferedHeight = scrollOffset - asideScrollOffset;
+
+            if (asideBufferedHeight === scrollDirectionState.asideBufferedHeight)
+                return scrollDirectionState;
+
+            return {
+                scrollDirection: scrollDirectionState.scrollDirection,
+                asideBufferedHeight,
+            };
+        });
+    }, [asideSize?.height, itemCount, viewSize?.height]);
+
     const fileAttachmentTargetByPostId = useMemo(
         () =>
             new LazyMap(
@@ -771,11 +819,7 @@ function PostListView(
                         key: `PostContent:${item.post.id}`,
                         minHeight: isPostView
                             ? postViewMinHeightPx[spacingScale]
-                            : item.postCommentsState !== "Closed" && !isPostView
-                            ? postContentViewMinHeightWithOpenCommentSectionPx[platform][
-                                  spacingScale
-                              ]
-                            : postContentViewMinHeightWithClosedCommentSectionPx[spacingScale],
+                            : postContentViewMinHeightPx[spacingScale],
                         node: (
                             <div
                                 className={sprinkles({
@@ -823,37 +867,34 @@ function PostListView(
                                                 className={sprinkles({
                                                     height: "full",
                                                     width: "full",
+                                                    backgroundColor: "grey-5",
                                                 })}
-                                                style={{
-                                                    // Draw border with `box-shadow` so it doesn't contribute to layout.
-                                                    boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
-                                                }}
                                             />
                                         </div>
                                     )}
-                                    {(item.postCommentsState === "Closed" || isPostView) && (
+                                    <div
+                                        className={sprinkles({
+                                            position: "absolute",
+                                            left: "0",
+                                            right: "0",
+                                            bottom: "0",
+                                            height: "border",
+                                            paddingX: screenPaddingX,
+                                        })}
+                                    >
                                         <div
-                                            className={sprinkles({
-                                                position: "absolute",
-                                                left: "0",
-                                                right: "0",
-                                                bottom: "0",
-                                                height: "border",
-                                                paddingX: screenPaddingX,
-                                            })}
-                                        >
-                                            <div
-                                                className={sprinkles({
+                                            className={classNames(
+                                                sprinkles({
                                                     height: "full",
                                                     width: "full",
-                                                })}
-                                                style={{
-                                                    // Draw border with `box-shadow` so it doesn't contribute to layout.
-                                                    boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
-                                                }}
-                                            />
-                                        </div>
-                                    )}
+                                                    backgroundColor: "grey-5",
+                                                }),
+                                                item.postCommentsState !== "Closed" &&
+                                                    !isPostView &&
+                                                    forumStyles.dashedBorderClassName,
+                                            )}
+                                        />
+                                    </div>
                                     <PostContentView
                                         post={item.post}
                                         postComments={item.postComments}
@@ -969,11 +1010,6 @@ function PostListView(
                                                     ? highlightPostComment.shouldHighlightRef
                                                     : null
                                             }
-                                            centeringMarginRight={
-                                                !isPostView
-                                                    ? postCommentSectionGuidelineSpace
-                                                    : undefined
-                                            }
                                             onJumpToMessage={handleJumpToPostComment}
                                             onReplyToMessage={() => {
                                                 if (item.postComment.isOptimistic) return;
@@ -1039,28 +1075,11 @@ function PostListView(
                                                 zIndex: "0",
                                                 width: "full",
                                                 maxWidth: contentStyles.contentMaxWidth,
-                                                paddingLeft: !isPostView
-                                                    ? postCommentSectionGuidelineSpace
-                                                    : undefined,
                                             })}
                                             style={{
                                                 flex: postViewFlex,
                                             }}
                                         >
-                                            {!isPostView && (
-                                                <div
-                                                    className={sprinkles({
-                                                        position: "absolute",
-                                                        top: "0",
-                                                        bottom: "0",
-                                                        borderLeft: "grey-5",
-                                                        borderLeftWidth: "thick",
-                                                    })}
-                                                    style={{
-                                                        left: `calc(${postCommentSectionGuidelineOffset[platform]} - 1px)`,
-                                                    }}
-                                                />
-                                            )}
                                             {item.postCommentIndex === 0 && <Spacer space="6" />}
                                             {messageNode}
                                             {isPostView &&
@@ -1110,28 +1129,11 @@ function PostListView(
                                         width: "full",
                                         maxWidth: contentStyles.contentMaxWidth,
                                         overflow: "hidden",
-                                        paddingLeft: !isPostView
-                                            ? postCommentSectionGuidelineSpace
-                                            : undefined,
                                     })}
                                     style={{
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    {!isPostView && (
-                                        <div
-                                            className={sprinkles({
-                                                position: "absolute",
-                                                top: "0",
-                                                bottom: "0",
-                                                borderLeft: "grey-5",
-                                                borderLeftWidth: "thick",
-                                            })}
-                                            style={{
-                                                left: `calc(${postCommentSectionGuidelineOffset[platform]} - 1px)`,
-                                            }}
-                                        />
-                                    )}
                                     {item.postComments.getMessageCountIncludingOptimisticMessages() ===
                                         0 && <Spacer space="6" />}
                                     <MessagingTypingIndicators
@@ -1257,7 +1259,7 @@ function PostListView(
                             );
 
                             const postContentOffsetEnd =
-                                postContentPosition.offset + postContentPosition.height - 1;
+                                postContentPosition.offset + postContentPosition.height;
 
                             return (
                                 <div
@@ -1305,7 +1307,6 @@ function PostListView(
                                                 width: "full",
                                                 maxWidth: contentStyles.contentMaxWidth,
                                                 pointerEvents: "auto",
-                                                paddingLeft: postCommentSectionGuidelineSpace,
                                                 backgroundColor: "grey-0",
                                             })}
                                             style={{
@@ -1316,22 +1317,6 @@ function PostListView(
                                                 minWidth: 0,
                                             }}
                                         >
-                                            <div
-                                                className={sprinkles({
-                                                    position: "absolute",
-                                                    top: "0",
-                                                    bottom: "7",
-                                                    width: "2.5",
-                                                    borderLeft: "grey-5",
-                                                    borderLeftWidth: "thick",
-                                                    borderBottom: "grey-5",
-                                                    borderBottomWidth: "thick",
-                                                    borderBottomLeftRadius: "2",
-                                                })}
-                                                style={{
-                                                    left: `calc(${postCommentSectionGuidelineOffset[platform]} - 1px)`,
-                                                }}
-                                            />
                                             {inputNode}
                                             <div
                                                 className={sprinkles({
@@ -1542,14 +1527,8 @@ function PostListView(
                         spacing[navigationBarHeight] ??
                         (withSafeAreaInsetTop ? safeAreaOnlyScrollbarInsetTop : undefined)
                     }
-                    bufferedItemHeight={
-                        postContentViewMinHeightWithClosedCommentSectionPx[spacingScale]
-                    }
-                    itemCount={
-                        // Don't render the post comment input (which should be the last item) if we are
-                        // pinning the comment input to the bottom of the view.
-                        posts.getItemCount() - (isPostView ? 1 : 0)
-                    }
+                    bufferedItemHeight={postContentViewMinHeightPx[spacingScale]}
+                    itemCount={itemCount}
                     renderItem={renderItem}
                     // Always render the post content if we're in a single post with pinned comment
                     // input layout.
@@ -1564,7 +1543,7 @@ function PostListView(
                         scrollOffset = clamp(
                             0,
                             scrollOffset,
-                            view.getContentHeight() - view.getHeight(),
+                            Math.max(0, view.getContentHeight() - view.getHeight()),
                         );
 
                         const viewHeight = viewSize?.height ?? 0;
@@ -1673,6 +1652,41 @@ function PostListView(
                             )}
                         </>
                     }
+                    extraChildrenOutsideContentElement={({contentHeight}) => (
+                        // Our items all have a bottom border. This is good when there's less content
+                        // than room to scroll since it creates a clear shape for the last item in the
+                        // list.
+                        //
+                        // However, if there are enough items to scroll then when the user has fully
+                        // scrolled we want the last item to *not* have a border bottom since the
+                        // bottom of the screen creates that boundary. We don't need to render an extra
+                        // line in the margins.
+                        //
+                        // This div covers the bottom border of the last item but only when there's
+                        // enough content to scroll. Otherwise the bottom border needs to be visible to
+                        // visually contain the last item. To debug this it's helpful to switch the
+                        // `backgroundColor` to `red-30` or something similar.
+                        <div
+                            className={sprinkles({
+                                position: "absolute",
+                                left: "0",
+                                right: "0",
+                                top: "0",
+                            })}
+                            style={{height: `max(100%, ${contentHeight}px)`}}
+                        >
+                            <div
+                                className={sprinkles({
+                                    position: "absolute",
+                                    left: "0",
+                                    right: "0",
+                                    bottom: "0",
+                                    height: "1",
+                                    backgroundColor: "grey-0",
+                                })}
+                            />
+                        </div>
+                    )}
                 />
                 {isPostView &&
                     (() => {

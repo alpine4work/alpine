@@ -17,7 +17,7 @@ import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affin
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     channelViewAsidePostFileCount,
-    postContentViewMinHeightWithClosedCommentSectionPx,
+    postContentViewMinHeightPx,
 } from "~/client/styles/forum_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
@@ -167,9 +167,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
             channelId,
             limit: getInitialVirtualizedScrollViewRenderedItemCount(
                 clientInfo,
-                postContentViewMinHeightWithClosedCommentSectionPx[
-                    getInitialAppRenderSpacingScale(clientInfo)
-                ],
+                postContentViewMinHeightPx[getInitialAppRenderSpacingScale(clientInfo)],
             ),
             beforeCursor: null,
         }),
