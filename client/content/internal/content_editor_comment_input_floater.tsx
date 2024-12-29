@@ -46,6 +46,7 @@ import {useReporter} from "~/client/design/reporter.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {parseHtml} from "~/client/helpers/parse_html.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {VideoIcon} from "~/client/icons/video_icon.js";
@@ -310,6 +311,7 @@ function ContentEditorCommentInput({
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const {currentAccount} = useSpaceContext();
+    const isMounted = useIsMounted();
 
     const [shouldShowConfirmCloseDialog, setShouldShowConfirmCloseDialog] = useState(false);
 
@@ -478,6 +480,9 @@ function ContentEditorCommentInput({
                                             .then(files => {
                                                 if (files.length === 0) return;
 
+                                                // Make sure we didn't unmount while selecting files.
+                                                if (!isMounted()) return;
+
                                                 addFiles(
                                                     "<ContentEditorCommentInputFloater> insert files",
                                                     files.map(file => ({
@@ -504,6 +509,9 @@ function ContentEditorCommentInput({
                                         })
                                             .then(files => {
                                                 if (files.length === 0) return;
+
+                                                // Make sure we didn't unmount while selecting files.
+                                                if (!isMounted()) return;
 
                                                 addFiles(
                                                     "<ContentEditorCommentInputFloater> insert files",
@@ -532,6 +540,9 @@ function ContentEditorCommentInput({
                                             .then(files => {
                                                 if (files.length === 0) return;
 
+                                                // Make sure we didn't unmount while selecting files.
+                                                if (!isMounted()) return;
+
                                                 addFiles(
                                                     "<ContentEditorCommentInputFloater> insert files",
                                                     files.map(file => ({
@@ -557,6 +568,9 @@ function ContentEditorCommentInput({
                                         })
                                             .then(files => {
                                                 if (files.length === 0) return;
+
+                                                // Make sure we didn't unmount while selecting files.
+                                                if (!isMounted()) return;
 
                                                 addFiles(
                                                     "<ContentEditorCommentInputFloater> insert files",

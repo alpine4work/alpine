@@ -855,118 +855,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                         ],
                                     }}
                                 >
-                                    <MenuButton
-                                        withoutButtonElementRequirement={true}
-                                        // Generally since the message input is at the bottom of the screen the add
-                                        // menu opens above the input. Let's make that pattern consistent.
-                                        placement="top-start"
-                                        actions={[
-                                            {
-                                                label: "Image",
-                                                iconSize: "4",
-                                                icon: <Image />,
-                                                onPress: () => {
-                                                    selectFiles(
-                                                        assertExists(inputContainerRef.current),
-                                                        {
-                                                            multiple: true,
-                                                            acceptContentTypes:
-                                                                getFileImageContentTypes(),
-                                                        },
-                                                    )
-                                                        .then(files => {
-                                                            if (files.length === 0) return;
-
-                                                            events.addFiles(
-                                                                "<MessageInput> insert files",
-                                                                files.map(file => ({
-                                                                    type: "UploadFile",
-                                                                    input: {type: "File", file},
-                                                                })),
-                                                            );
-                                                        })
-                                                        .catch(scheduleUncaughtError);
-                                                },
-                                            },
-                                            {
-                                                label: "Video",
-                                                iconSize: "4",
-                                                icon: <VideoIcon />,
-                                                onPress: () => {
-                                                    selectFiles(
-                                                        assertExists(inputContainerRef.current),
-                                                        {
-                                                            multiple: true,
-                                                            acceptContentTypes:
-                                                                getFileVideoContentTypes(),
-                                                        },
-                                                    )
-                                                        .then(files => {
-                                                            if (files.length === 0) return;
-
-                                                            events.addFiles(
-                                                                "<MessageInput> insert files",
-                                                                files.map(file => ({
-                                                                    type: "UploadFile",
-                                                                    input: {type: "File", file},
-                                                                })),
-                                                            );
-                                                        })
-                                                        .catch(scheduleUncaughtError);
-                                                },
-                                            },
-                                            {
-                                                label: "Audio",
-                                                iconSize: "4",
-                                                icon: <WaveformIcon />,
-                                                onPress: () => {
-                                                    selectFiles(
-                                                        assertExists(inputContainerRef.current),
-                                                        {
-                                                            multiple: true,
-                                                            acceptContentTypes:
-                                                                getFileAudioContentTypes(),
-                                                        },
-                                                    )
-                                                        .then(files => {
-                                                            if (files.length === 0) return;
-
-                                                            events.addFiles(
-                                                                "<MessageInput> insert files",
-                                                                files.map(file => ({
-                                                                    type: "UploadFile",
-                                                                    input: {type: "File", file},
-                                                                })),
-                                                            );
-                                                        })
-                                                        .catch(scheduleUncaughtError);
-                                                },
-                                            },
-                                            {
-                                                label: "File",
-                                                iconSize: "4",
-                                                icon: <File />,
-                                                onPress: () => {
-                                                    selectFiles(
-                                                        assertExists(inputContainerRef.current),
-                                                        {multiple: true},
-                                                    )
-                                                        .then(files => {
-                                                            if (files.length === 0) return;
-
-                                                            events.addFiles(
-                                                                "<MessageInput> insert files",
-                                                                files.map(file => ({
-                                                                    type: "UploadFile",
-                                                                    input: {type: "File", file},
-                                                                })),
-                                                            );
-                                                        })
-                                                        .catch(scheduleUncaughtError);
-                                                },
-                                            },
-                                        ]}
-                                    >
+                                    {platform === "mobile" ? (
+                                        // On mobile, immediately open the file selector since there isn't much value
+                                        // to allowing the user to select a specific file type.
                                         <IconButton
                                             size={messageInputEditorIconButtonSize}
                                             description="Add"
@@ -979,10 +870,201 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                             // On desktop, hitting enter in the message input is sufficient for keyboard
                                             // control of the message input.
                                             isFocusable={false}
+                                            onPress={() => {
+                                                selectFiles(
+                                                    assertExists(inputContainerRef.current),
+                                                    {
+                                                        multiple: true,
+                                                        // It's important to return focus before removing the temporary input element
+                                                        // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
+                                                        // finished.
+                                                        onReturnFocus: () =>
+                                                            editorRef.current?.focus(),
+                                                    },
+                                                )
+                                                    .then(files => {
+                                                        if (files.length === 0) return;
+
+                                                        // Make sure we didn't unmount while selecting files.
+                                                        if (!isMounted()) return;
+
+                                                        events.addFiles(
+                                                            "<MessageInput> insert files",
+                                                            files.map(file => ({
+                                                                type: "UploadFile",
+                                                                input: {type: "File", file},
+                                                            })),
+                                                        );
+                                                    })
+                                                    .catch(scheduleUncaughtError);
+                                            }}
                                         >
                                             <Plus />
                                         </IconButton>
-                                    </MenuButton>
+                                    ) : (
+                                        <MenuButton
+                                            withoutButtonElementRequirement={true}
+                                            // Generally since the message input is at the bottom of the screen the add
+                                            // menu opens above the input. Let's make that pattern consistent.
+                                            placement="top-start"
+                                            actions={[
+                                                {
+                                                    label: "Image",
+                                                    iconSize: "4",
+                                                    icon: <Image />,
+                                                    onPress: () => {
+                                                        selectFiles(
+                                                            assertExists(inputContainerRef.current),
+                                                            {
+                                                                multiple: true,
+                                                                acceptContentTypes:
+                                                                    getFileImageContentTypes(),
+                                                                // It's important to return focus before removing the temporary input element
+                                                                // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
+                                                                // finished.
+                                                                onReturnFocus: () =>
+                                                                    editorRef.current?.focus(),
+                                                            },
+                                                        )
+                                                            .then(files => {
+                                                                if (files.length === 0) return;
+
+                                                                // Make sure we didn't unmount while selecting files.
+                                                                if (!isMounted()) return;
+
+                                                                events.addFiles(
+                                                                    "<MessageInput> insert files",
+                                                                    files.map(file => ({
+                                                                        type: "UploadFile",
+                                                                        input: {type: "File", file},
+                                                                    })),
+                                                                );
+                                                            })
+                                                            .catch(scheduleUncaughtError);
+                                                    },
+                                                },
+                                                {
+                                                    label: "Video",
+                                                    iconSize: "4",
+                                                    icon: <VideoIcon />,
+                                                    onPress: () => {
+                                                        selectFiles(
+                                                            assertExists(inputContainerRef.current),
+                                                            {
+                                                                multiple: true,
+                                                                acceptContentTypes:
+                                                                    getFileVideoContentTypes(),
+                                                                // It's important to return focus before removing the temporary input element
+                                                                // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
+                                                                // finished.
+                                                                onReturnFocus: () =>
+                                                                    editorRef.current?.focus(),
+                                                            },
+                                                        )
+                                                            .then(files => {
+                                                                if (files.length === 0) return;
+
+                                                                // Make sure we didn't unmount while selecting files.
+                                                                if (!isMounted()) return;
+
+                                                                events.addFiles(
+                                                                    "<MessageInput> insert files",
+                                                                    files.map(file => ({
+                                                                        type: "UploadFile",
+                                                                        input: {type: "File", file},
+                                                                    })),
+                                                                );
+                                                            })
+                                                            .catch(scheduleUncaughtError);
+                                                    },
+                                                },
+                                                {
+                                                    label: "Audio",
+                                                    iconSize: "4",
+                                                    icon: <WaveformIcon />,
+                                                    onPress: () => {
+                                                        selectFiles(
+                                                            assertExists(inputContainerRef.current),
+                                                            {
+                                                                multiple: true,
+                                                                acceptContentTypes:
+                                                                    getFileAudioContentTypes(),
+                                                                // It's important to return focus before removing the temporary input element
+                                                                // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
+                                                                // finished.
+                                                                onReturnFocus: () =>
+                                                                    editorRef.current?.focus(),
+                                                            },
+                                                        )
+                                                            .then(files => {
+                                                                if (files.length === 0) return;
+
+                                                                // Make sure we didn't unmount while selecting files.
+                                                                if (!isMounted()) return;
+
+                                                                events.addFiles(
+                                                                    "<MessageInput> insert files",
+                                                                    files.map(file => ({
+                                                                        type: "UploadFile",
+                                                                        input: {type: "File", file},
+                                                                    })),
+                                                                );
+                                                            })
+                                                            .catch(scheduleUncaughtError);
+                                                    },
+                                                },
+                                                {
+                                                    label: "File",
+                                                    iconSize: "4",
+                                                    icon: <File />,
+                                                    onPress: () => {
+                                                        selectFiles(
+                                                            assertExists(inputContainerRef.current),
+                                                            {
+                                                                multiple: true,
+                                                                // It's important to return focus before removing the temporary input element
+                                                                // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
+                                                                // finished.
+                                                                onReturnFocus: () =>
+                                                                    editorRef.current?.focus(),
+                                                            },
+                                                        )
+                                                            .then(files => {
+                                                                if (files.length === 0) return;
+
+                                                                // Make sure we didn't unmount while selecting files.
+                                                                if (!isMounted()) return;
+
+                                                                events.addFiles(
+                                                                    "<MessageInput> insert files",
+                                                                    files.map(file => ({
+                                                                        type: "UploadFile",
+                                                                        input: {type: "File", file},
+                                                                    })),
+                                                                );
+                                                            })
+                                                            .catch(scheduleUncaughtError);
+                                                    },
+                                                },
+                                            ]}
+                                        >
+                                            <IconButton
+                                                size={messageInputEditorIconButtonSize}
+                                                description="Add"
+                                                withoutTooltip={true}
+                                                // The add icon button is not focusable. That's because we don't want to
+                                                // remove focus from the message input when the add button is pressed. That
+                                                // way on mobile you can keep typing and sending messages because the software
+                                                // keyboard doesn't disappear.
+                                                //
+                                                // On desktop, hitting enter in the message input is sufficient for keyboard
+                                                // control of the message input.
+                                                isFocusable={false}
+                                            >
+                                                <Plus />
+                                            </IconButton>
+                                        </MenuButton>
+                                    )}
                                 </Box>
                                 <FocusRing offset="border" isVisibleWhenFocusWithin={true}>
                                     <Box
