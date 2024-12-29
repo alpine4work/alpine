@@ -23,17 +23,20 @@ import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
-import {ContentFileMiniPreview} from "~/client/content/content_file_mini_preview.js";
 import {
     ContentEditorMobileLinkModal,
     ContentEditorMobileLinkModalState,
 } from "~/client/content/internal/content_editor_mobile_link_modal.js";
 import {
-    ExternalFileElementInfo,
-    iterateExternalFileElements,
-} from "~/client/content/internal/iterate_external_file_elements.js";
-import {uploadFile} from "~/client/content/internal/upload_file.js";
+    FileInfo,
+    iterateFileInfosInElement,
+} from "~/client/content/internal/iterate_file_infos_in_element.js";
+import {
+    MessageInputFile,
+    addMessageInputFiles,
+} from "~/client/content/messaging/add_message_input_files.js";
 import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
+import {MessageInputFilePreview} from "~/client/content/messaging/message_input_file_preview.js";
 import {MessageInputMobileKeyboardToolbar} from "~/client/content/messaging/message_input_mobile_keyboard_toolbar.js";
 import {selectFiles} from "~/client/content/select_files.js";
 import {trimContentEnd} from "~/client/content/trim_content.js";
@@ -57,7 +60,6 @@ import {
 import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
-import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -78,6 +80,7 @@ import {
     messageInputEditorMinHeightPx,
     messageInputEditorPaddingX,
     messageInputEditorPaddingYPx,
+    messageInputFilesOverflowGradientWidth,
     messageInputMinHeightPx,
     messageInputPaddingY,
     messageViewAccountAvatarSize,
@@ -111,28 +114,16 @@ import {
     getFileImageContentTypes,
     getFileVideoContentTypes,
 } from "~/shared/files/file_content_type.js";
-import {FileModel} from "~/shared/files/file_model.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {Id, generateId} from "~/shared/id/id.js";
+import {Id} from "~/shared/id/id.js";
 import {
     MessageContentWithReferences,
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
-import {
-    attachFileAsUploader,
-    attachFileFromAttachment,
-    getFileAsUploader,
-    getFileFromAttachment,
-} from "~/shared/rpc/files_rpc_definitions.js";
-
-const messageInputFilesOverflowGradientWidth = "2";
 
 export type MessageInputRef = {
     isFocused(): boolean;
@@ -142,13 +133,6 @@ export type MessageInputRef = {
     clear(): void;
     getBoundingClientRect(): DOMRect;
     drop(dataTransfer: DataTransfer): {finally(listener: () => void): void};
-};
-
-export type MessageInputFile = {
-    readonly key: Id;
-    readonly attachmentTarget: Memo<FileAttachmentTarget> | "Uploader";
-    readonly signedUrlSearch: string;
-    readonly file: FileModel;
 };
 
 export type MessageInputBaseProps<RoomKey extends string, Message extends MessageModel<RoomKey>> = {
@@ -275,7 +259,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         },
         addFiles: (
             spanName: string,
-            fileInfos: ReadonlyArray<ExternalFileElementInfo>,
+            fileInfos: ReadonlyArray<FileInfo>,
         ): {finally(listener: () => void): void} => {
             // Noop if we don't have an add file callback.
             if (!onAddFile) return Promise.resolve();
@@ -289,102 +273,18 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             assertExists(editorRef.current).focus({preventScroll: true});
 
             const promise = context.tracer.withSpan(spanName, async context => {
-                await runAllPromises(
-                    fileInfos.map((fileInfo): Promise<void> => {
-                        const toTarget = fileAttachmentTarget;
+                await addMessageInputFiles(context, fileInfos, {
+                    spaceId: space.id,
+                    attachmentTarget: fileAttachmentTarget,
+                    addGlobalLoadingIndicator,
+                    onAddFile: file => {
+                        // Noop if our input was unmounted (e.g. after the message is sent we remount
+                        // this component).
+                        if (!isMounted()) return;
 
-                        switch (fileInfo.type) {
-                            case "AttachFile": {
-                                const fromTarget = fileInfo.target;
-
-                                let promise: Promise<{
-                                    readonly signedUrlSearch: string;
-                                    readonly file: FileModel;
-                                }>;
-
-                                // If we're trying to attach the file to the same attachment target it's from
-                                // then we don't need to perform another attach mutation. Instead, all we need
-                                // to do is load the file (since it's not in our references).
-                                if (!toTarget || isDeepEqual(fromTarget, toTarget)) {
-                                    if (fromTarget === "Uploader") {
-                                        promise = getFileAsUploader(context, {
-                                            spaceId: fileInfo.spaceId,
-                                            fileId: fileInfo.fileId,
-                                        });
-                                    } else {
-                                        promise = getFileFromAttachment(context, {
-                                            spaceId: fileInfo.spaceId,
-                                            fileId: fileInfo.fileId,
-                                            target: fromTarget,
-                                        });
-                                    }
-                                }
-                                // Otherwise, let's attach the file to its new attachment target.
-                                else if (fromTarget === "Uploader") {
-                                    promise = attachFileAsUploader(context, {
-                                        spaceId: fileInfo.spaceId,
-                                        fileId: fileInfo.fileId,
-                                        target: toTarget,
-                                    });
-                                } else {
-                                    promise = attachFileFromAttachment(context, {
-                                        spaceId: fileInfo.spaceId,
-                                        fileId: fileInfo.fileId,
-                                        fromTarget,
-                                        toTarget,
-                                    });
-                                }
-
-                                addGlobalLoadingIndicator(promise, {type: "Uploading"});
-
-                                return promise.then(({signedUrlSearch, file}) => {
-                                    // Noop if our input was unmounted (e.g. after the message is sent we remount
-                                    // this component).
-                                    if (!isMounted()) return;
-
-                                    onAddFile({
-                                        key: generateId(),
-                                        attachmentTarget: markMemoIfNotRendering(fromTarget),
-                                        signedUrlSearch,
-                                        file,
-                                    });
-                                });
-                            }
-                            case "UploadFile": {
-                                const promise = uploadFile(context, {
-                                    spaceId: space.id,
-                                    attachmentTarget: toTarget,
-                                    input: fileInfo.input,
-                                    onAttach: ({signedUrlSearch, file}) => {
-                                        // Noop if our input was unmounted (e.g. after the message is sent we remount
-                                        // this component).
-                                        if (!isMounted()) return;
-
-                                        onAddFile({
-                                            key: generateId(),
-                                            attachmentTarget: toTarget ?? "Uploader",
-                                            signedUrlSearch,
-                                            file,
-                                        });
-                                    },
-                                });
-
-                                // While a file is uploading show an "Uploading" loading indicator with the
-                                // progress percentage. If multiple files are uploading at once then the
-                                // global loading indicator implementation is responsible for putting together
-                                // an aggregated summary.
-                                addGlobalLoadingIndicator(promise, {
-                                    type: "Uploading",
-                                    progressStore: promise.progressStore,
-                                });
-
-                                return promise;
-                            }
-                            default:
-                                throw exhaustive(fileInfo);
-                        }
-                    }),
-                );
+                        onAddFile(file);
+                    },
+                });
             });
 
             promise.catch(error => {
@@ -395,9 +295,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         },
         drop: (dataTransfer: DataTransfer): {finally(listener: () => void): void} => {
             let hasHtmlFileInfos = false;
-            const fileInfos: Array<ExternalFileElementInfo> = [];
+            const fileInfos: Array<FileInfo> = [];
 
-            for (const {info} of iterateExternalFileElements(
+            for (const {info} of iterateFileInfosInElement(
                 parseHtml(dataTransfer.getData("text/html")),
                 () => space.id,
             )) {
@@ -420,7 +320,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 }
             }
 
-            return events.addFiles("Message input drop files", fileInfos);
+            return events.addFiles("<MessageInput> drop files", fileInfos);
         },
     });
 
@@ -957,6 +857,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 >
                                     <MenuButton
                                         withoutButtonElementRequirement={true}
+                                        // Generally since the message input is at the bottom of the screen the add
+                                        // menu opens above the input. Let's make that pattern consistent.
+                                        placement="top-start"
                                         actions={[
                                             {
                                                 label: "Image",
@@ -975,7 +878,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                             if (files.length === 0) return;
 
                                                             events.addFiles(
-                                                                "Message input insert files",
+                                                                "<MessageInput> insert files",
                                                                 files.map(file => ({
                                                                     type: "UploadFile",
                                                                     input: {type: "File", file},
@@ -1002,7 +905,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                             if (files.length === 0) return;
 
                                                             events.addFiles(
-                                                                "Message input insert files",
+                                                                "<MessageInput> insert files",
                                                                 files.map(file => ({
                                                                     type: "UploadFile",
                                                                     input: {type: "File", file},
@@ -1029,7 +932,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                             if (files.length === 0) return;
 
                                                             events.addFiles(
-                                                                "Message input insert files",
+                                                                "<MessageInput> insert files",
                                                                 files.map(file => ({
                                                                     type: "UploadFile",
                                                                     input: {type: "File", file},
@@ -1052,7 +955,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                             if (files.length === 0) return;
 
                                                             events.addFiles(
-                                                                "Message input insert files",
+                                                                "<MessageInput> insert files",
                                                                 files.map(file => ({
                                                                     type: "UploadFile",
                                                                     input: {type: "File", file},
@@ -1157,7 +1060,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                             onArrowUp={onArrowUp}
                                             onPasteOrDropFiles={fileInfos => {
                                                 events.addFiles(
-                                                    "Message input paste files",
+                                                    "<MessageInput> paste files",
                                                     fileInfos,
                                                 );
                                             }}
@@ -1583,49 +1486,6 @@ function MessageInputReplyingToMessage<
                     </Box>
                 </Box>
             </Box>
-        </Box>
-    );
-}
-
-function MessageInputFilePreview({
-    signedUrlSearch,
-    file,
-    attachmentTarget,
-    onRemove,
-}: {
-    signedUrlSearch: string;
-    file: FileModel;
-    attachmentTarget: Memo<FileAttachmentTarget> | "Uploader";
-    onRemove: () => void;
-}) {
-    const spacingScale = useSpacingScale();
-
-    return (
-        <Box
-            position="relative"
-            zIndex="0"
-            width={contentStyles.fileMinSize}
-            height={contentStyles.fileMinSize}
-        >
-            <Box position="absolute" zIndex="20" top="-1" right="-1">
-                <IconButton
-                    size="xs"
-                    variant="quiet-elevation-10"
-                    description="Remove"
-                    onPress={onRemove}
-                    // Not focusable so clicking on this button doesn't unfocus
-                    // the input.
-                    isFocusable={false}
-                >
-                    <X />
-                </IconButton>
-            </Box>
-            <ContentFileMiniPreview
-                size={convertRemLengthToPx(contentStyles.fileMinSize, spacingScale)}
-                signedUrlSearch={signedUrlSearch}
-                file={file}
-                attachmentTarget={attachmentTarget}
-            />
         </Box>
     );
 }

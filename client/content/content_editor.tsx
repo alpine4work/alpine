@@ -93,9 +93,9 @@ import {
     getContentEditorFileDropTargets,
 } from "~/client/content/internal/get_content_editor_file_drop_targets.js";
 import {
-    ExternalFileElementInfo,
-    iterateExternalFileElements,
-} from "~/client/content/internal/iterate_external_file_elements.js";
+    FileInfo,
+    iterateFileInfosInElement,
+} from "~/client/content/internal/iterate_file_infos_in_element.js";
 import {
     dispatchParentScrollWhenPointerDownAndOverEvent,
     parentScrollWhenPointerDownAndOverClassNames,
@@ -566,7 +566,7 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * For example `MessageContent` doesn't support files but `<MessageInput>` does
      * allow attaching files to a message.
      */
-    onPasteOrDropFiles?: (fileInfos: ReadonlyArray<ExternalFileElementInfo>) => void;
+    onPasteOrDropFiles?: (fileInfos: ReadonlyArray<FileInfo>) => void;
 } & (
     | {
           /**
@@ -1282,8 +1282,8 @@ function ContentEditor<Content extends ContentWithReferences>(
          *                                 Copy/paste                                 *
         \* ========================================================================== */
 
-        let temporaryPastedFileInfoById: Map<FileId, ExternalFileElementInfo> | undefined;
-        let temporaryPastedFileInfosForParent: Array<ExternalFileElementInfo> | undefined;
+        let temporaryPastedFileInfoById: Map<FileId, FileInfo> | undefined;
+        let temporaryPastedFileInfosForParent: Array<FileInfo> | undefined;
 
         viewProps.clipboardSerializer =
             ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
@@ -1395,7 +1395,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             // `handleDrop` also uses paste logic for parsing dropped content. So we need
             // to use `temporaryPastedFileInfoById` in `handleDrop` as well!
             if (schema.nodes.file) {
-                for (const {element: fileElement, info: fileInfo} of iterateExternalFileElements(
+                for (const {element: fileElement, info: fileInfo} of iterateFileInfosInElement(
                     element,
                     () => assertExists(spaceContextRef.current).space.id,
                 )) {
@@ -1458,7 +1458,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             // let our parent choose to handle files separately. (e.g. `<MessageInput>`
             // will attach the files to the message.)
             else {
-                for (const {element: fileElement, info: fileInfo} of iterateExternalFileElements(
+                for (const {element: fileElement, info: fileInfo} of iterateFileInfosInElement(
                     element,
                     () => assertExists(spaceContextRef.current).space.id,
                 )) {
@@ -1899,7 +1899,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             let isSync = true;
 
             handleInsertSlice({
-                asyncSpanName: "Content editor paste",
+                asyncSpanName: "<ContentEditor> paste",
                 remember: [selection],
                 slice,
                 dataTransfer: event.clipboardData,
@@ -1994,7 +1994,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             }
 
             handleInsertSlice({
-                asyncSpanName: "Content editor drop",
+                asyncSpanName: "<ContentEditor> drop",
                 remember: [
                     view.state.selection,
                     initialFileDropTarget?.action?.pos ?? $mouse.pos,
@@ -2310,7 +2310,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             );
 
             handleInsertSlice({
-                asyncSpanName: "Content editor insert files",
+                asyncSpanName: "<ContentEditor> insert files",
                 remember: [posOrSelection],
                 slice,
                 dataTransfer: null,
@@ -4113,6 +4113,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 }}
                 isFocused={isFocused}
                 setDecorationCallbacks={setDecorationCallbacks}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
             <ContentEditorFileToolbarController
                 state={unwrappedState}
@@ -4176,7 +4177,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     state={unwrappedState}
                     viewRef={viewRef}
                     onClose={() => setIsMobileCommentInputOpen(false)}
-                    fileAttachmentTarget={commentFileAttachmentTarget!}
+                    fileAttachmentTarget={assertExists(commentFileAttachmentTarget)}
                 />
             )}
             {codeBlockLanguagePickerState && (

@@ -9,22 +9,22 @@ import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
-export type ExternalFileElementInfo =
+export type FileInfo =
     | {
-          type: "UploadFile";
-          input: UploadFileInput;
+          readonly type: "UploadFile";
+          readonly input: UploadFileInput;
       }
     | {
-          type: "AttachFile";
-          spaceId: SpaceId;
-          fileId: FileId;
-          target: FileAttachmentTarget | "Uploader";
+          readonly type: "AttachFile";
+          readonly spaceId: SpaceId;
+          readonly fileId: FileId;
+          readonly target: FileAttachmentTarget | "Uploader";
       };
 
-export function* iterateExternalFileElements(
+export function* iterateFileInfosInElement(
     element: Element,
     getSpaceId: () => SpaceId,
-): IterableIterator<{element: Element; info: ExternalFileElementInfo | null}> {
+): IterableIterator<{element: Element; info: FileInfo | null}> {
     let currentUrl: URL | undefined;
 
     for (const fileElement of element.querySelectorAll("img, video, audio, object")) {

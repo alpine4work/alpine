@@ -192,6 +192,8 @@ export const messageInputMinHeightPx = createObjectFromKeys(allPlatforms, platfo
     ),
 );
 
+export const messageInputFilesOverflowGradientWidth = "2";
+
 export const messagingViewMarginBottomCalcExpression =
     "var(--safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px)";
 

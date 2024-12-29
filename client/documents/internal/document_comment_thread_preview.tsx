@@ -104,8 +104,28 @@ export function DocumentCommentThreadPreview({
         const previewRect = previewElement.getBoundingClientRect();
         const commentRect = commentElement.getBoundingClientRect();
 
-        previewElement.scrollTop =
-            commentRect.y - (previewRect.y - previewElement.scrollTop) - commentOffset;
+        const scrollTop = Math.round(
+            commentRect.y - (previewRect.y - previewElement.scrollTop) - commentOffset,
+        );
+        previewElement.scrollTop = scrollTop;
+
+        // NOTE(calebmer, 2024-12-29): I'm observing on initial app render after the
+        // server side render sometimes this element scrolls to position 0? I can't
+        // figure out what's causing this from the scroll event debugger. So add some
+        // defense in, whenever there's a scroll event on the preview element, reset us
+        // back to the expected scroll position. Ideally we'd figure out what's causing
+        // the scroll and stop it at the source, though.
+        const handleScroll = () => {
+            if (previewElement.scrollTop !== scrollTop) {
+                previewElement.scrollTop = scrollTop;
+            }
+        };
+
+        previewElement.addEventListener("scroll", handleScroll);
+
+        return () => {
+            previewElement.removeEventListener("scroll", handleScroll);
+        };
     }, [commentOffset, commentThread.id, content]);
 
     const buttonRef = useRef<HTMLDivElement>(null);

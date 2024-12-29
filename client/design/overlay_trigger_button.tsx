@@ -39,6 +39,7 @@ import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -642,54 +643,63 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
         );
         const overlayElement = overlayRef.current;
 
-        switch (initiallyFocus) {
-            case "OverlayElement": {
-                if (overlayElement.matches(focusableElementSelector)) {
-                    overlayElement.focus({preventScroll: true});
-                    break;
-                }
+        const run = () => {
+            switch (initiallyFocus) {
+                case "OverlayElement": {
+                    if (overlayElement.matches(focusableElementSelector)) {
+                        overlayElement.focus({preventScroll: true});
+                        break;
+                    }
 
-                // Intentional fallthrough to next case...
-            }
-            case "FirstFocusableElement": {
-                // NOTE(calebmer): For some reason for iOS Safari to render the text caret in
-                // a focused input we need to wait an animation frame before calling `focus()`.
-                // Otherwise we focus but don't show the cursor. This happens with the task
-                // collection filter editor.
-                if (!isMobileWebKit) {
-                    getNextFocusableElementIfExists(null, {
-                        withinElement: overlayElement,
-                    })?.focus({preventScroll: true});
-                } else {
-                    requestAnimationFrame(() => {
+                    // Intentional fallthrough to next case...
+                }
+                case "FirstFocusableElement": {
+                    // NOTE(calebmer): For some reason for iOS Safari to render the text caret in
+                    // a focused input we need to wait an animation frame before calling `focus()`.
+                    // Otherwise we focus but don't show the cursor. This happens with the task
+                    // collection filter editor.
+                    if (!isMobileWebKit) {
                         getNextFocusableElementIfExists(null, {
                             withinElement: overlayElement,
                         })?.focus({preventScroll: true});
-                    });
+                    } else {
+                        requestAnimationFrame(() => {
+                            getNextFocusableElementIfExists(null, {
+                                withinElement: overlayElement,
+                            })?.focus({preventScroll: true});
+                        });
+                    }
+                    break;
                 }
-                break;
-            }
-            case "LastFocusableElement": {
-                // NOTE(calebmer): For some reason for iOS Safari to render the text caret in
-                // a focused input we need to wait an animation frame before calling `focus()`.
-                // Otherwise we focus but don't show the cursor. This happens with the task
-                // collection filter editor.
-                if (!isMobileWebKit) {
-                    getLastFocusableElementIfExists({withinElement: overlayElement})?.focus({
-                        preventScroll: true,
-                    });
-                } else {
-                    requestAnimationFrame(() => {
+                case "LastFocusableElement": {
+                    // NOTE(calebmer): For some reason for iOS Safari to render the text caret in
+                    // a focused input we need to wait an animation frame before calling `focus()`.
+                    // Otherwise we focus but don't show the cursor. This happens with the task
+                    // collection filter editor.
+                    if (!isMobileWebKit) {
                         getLastFocusableElementIfExists({withinElement: overlayElement})?.focus({
                             preventScroll: true,
                         });
-                    });
+                    } else {
+                        requestAnimationFrame(() => {
+                            getLastFocusableElementIfExists({withinElement: overlayElement})?.focus(
+                                {
+                                    preventScroll: true,
+                                },
+                            );
+                        });
+                    }
+                    break;
                 }
-                break;
+                default:
+                    throw exhaustive(initiallyFocus);
             }
-            default:
-                throw exhaustive(initiallyFocus);
-        }
+        };
+
+        // Focus after a microtask. This allows any parent layout effects to run. Which
+        // is important since our parent component `<Overlay>`'s layout effects need to
+        // run for the `data-ownedby` attribute to be set and Popper to run its layout.
+        scheduleMicrotask(run);
     }, [initiallyFocus]);
 
     // While the overlay is open, we want to disable all other tooltips in the

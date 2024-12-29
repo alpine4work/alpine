@@ -39,14 +39,17 @@ export function useConfirmSaveAfterLosingFocus<RefElement extends HTMLElement>({
             const handleFocusOut = (event: FocusEvent) => {
                 if (isDisabled) return;
 
+                // We've observed `event.relatedTarget` sometimes be null. For example, in
+                // Chrome when `selectFiles()` moves focus to a temporary invisible
+                // `<input type="file">` element in `<ContentEditorCommentInputFloater>`s
+                // add file button.
+                const activeElement = event.relatedTarget ?? document.activeElement;
+
                 // Ignore blur events where focus is moving within the element.
                 //
                 // We need to use element ownership instead of `document.body.contains()` to
                 // handle modals.
-                if (
-                    event.relatedTarget instanceof Element &&
-                    isElementOwnedBy(element, event.relatedTarget)
-                ) {
+                if (activeElement instanceof Element && isElementOwnedBy(element, activeElement)) {
                     return;
                 }
 

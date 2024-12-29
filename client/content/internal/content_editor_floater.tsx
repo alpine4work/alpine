@@ -4,6 +4,7 @@ import {EditorState} from "prosemirror-state";
 import {DecorationSet, EditorView} from "prosemirror-view";
 import {
     Dispatch,
+    Memo,
     RefObject,
     SetStateAction,
     useCallback,
@@ -32,9 +33,11 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {overlayFadeOutAnimationDurationMs} from "~/client/styles/styles.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {Platform} from "~/shared/design/core/platform.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export function ContentEditorFloater({
@@ -45,6 +48,7 @@ export function ContentEditorFloater({
     setFloaterState,
     isFocused,
     setDecorationCallbacks,
+    commentFileAttachmentTarget,
 }: {
     platform: Platform;
     state: EditorState & {schema: ContentProsemirrorSchema};
@@ -57,6 +61,7 @@ export function ContentEditorFloater({
             ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
         >
     >;
+    commentFileAttachmentTarget: Memo<FileAttachmentTarget> | undefined;
 }) {
     switch (floaterState.type) {
         case "PointerToolbar": {
@@ -136,6 +141,7 @@ export function ContentEditorFloater({
                     state={state}
                     viewRef={viewRef}
                     range={floaterState.range}
+                    fileAttachmentTarget={assertExists(commentFileAttachmentTarget)}
                     onClose={() =>
                         setFloaterState({type: "PointerToolbar", previousState: floaterState})
                     }

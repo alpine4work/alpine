@@ -1,3 +1,4 @@
+import {getInteractionModality, setInteractionModality} from "@react-aria/interactions";
 import {
     FileContentType,
     fileAdditionalContentTypesAndExtensionsByContentType,
@@ -19,12 +20,16 @@ export function selectFiles(
     {
         multiple,
         acceptContentTypes = null,
+        onReturnFocus,
     }: {
         multiple: boolean;
         acceptContentTypes?: ReadonlyArray<FileContentType> | null;
+        onReturnFocus?: () => void;
     },
 ): Promise<Array<File>> {
     return new Promise(resolve => {
+        const originalInteractionModality = getInteractionModality();
+
         const temporaryInputElement = document.createElement("input");
         temporaryInputElement.type = "file";
         temporaryInputElement.multiple = multiple;
@@ -43,7 +48,19 @@ export function selectFiles(
 
         const resolveAndCleanup = (files: Array<File>) => {
             document.removeEventListener("focusin", handleDocumentFocusIn);
+
+            // Make sure to return the interaction modality to whatever it was when
+            // `selectFiles()` was called. The interaction modality may change to `virtual`
+            // since we call `temporaryInputElement.click()` which will render
+            // `<FocusRing>`s which we don't want.
+            setInteractionModality(originalInteractionModality);
+
+            // Give the caller an opportunity to return focus back to some element before
+            // we remove the currently focused element from the DOM.
+            onReturnFocus?.();
+
             temporaryInputElement.remove();
+
             resolve(files);
         };
 

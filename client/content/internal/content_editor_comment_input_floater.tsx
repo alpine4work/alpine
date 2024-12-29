@@ -1,7 +1,7 @@
-import {ArrowRight, Plus} from "phosphor-react";
+import {ArrowRight, File, Image, Plus} from "phosphor-react";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {Memo, RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {
     ContentEditorState,
@@ -9,19 +9,32 @@ import {
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
+import {FileInfo} from "~/client/content/internal/iterate_file_infos_in_element.js";
+import {
+    MessageInputFile,
+    addMessageInputFiles,
+} from "~/client/content/messaging/add_message_input_files.js";
+import {MessageInputFilePreview} from "~/client/content/messaging/message_input_file_preview.js";
+import {selectFiles} from "~/client/content/select_files.js";
 import {trimContentEnd, trimContentWithReferencesEnd} from "~/client/content/trim_content.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
+import {MenuButton} from "~/client/design/menu_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {VideoIcon} from "~/client/icons/video_icon.js";
+import {WaveformIcon} from "~/client/icons/waveform_icon.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     messageInputEditorBorderRadiusPx,
@@ -29,16 +42,25 @@ import {
     messageInputEditorMinHeightPx,
     messageInputEditorPaddingX,
     messageInputEditorPaddingYPx,
+    messageInputFilesOverflowGradientWidth,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
+    backgroundColorVar,
     greyElevated2ClassName,
     overlayFadeOutAnimationDurationMs,
     pointerEventsNoneNotInheritedClassName,
 } from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {spacing} from "~/shared/design/core/spacing.js";
+import {spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {
+    getFileAudioContentTypes,
+    getFileImageContentTypes,
+    getFileVideoContentTypes,
+} from "~/shared/files/file_content_type.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
@@ -53,11 +75,13 @@ export function ContentEditorCommentInputFloater({
     state,
     viewRef,
     range,
+    fileAttachmentTarget,
     onClose: _onCloseWithoutAnimation,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
     range: {from: number; to: number};
+    fileAttachmentTarget: Memo<FileAttachmentTarget>;
     onClose: () => void;
 }) {
     // We use desktop measurements for `contentEditorCommentInputFloaterMinHeight`
@@ -120,10 +144,6 @@ export function ContentEditorCommentInputFloater({
             isVisible={!isClosing}
             disableAnimation={!isClosing}
             isBlocking={true}
-            // If the comment input is in our root blocking scope then ProseMirror's
-            // `scrollIntoView()` functionality won't work since the comment input won't be
-            // a child of the document's scroll view.
-            withoutRootBlockingScope={true}
             placement="bottom"
             offset="3"
             // No fallback placements! The comment input always stays at the end of the
@@ -136,6 +156,7 @@ export function ContentEditorCommentInputFloater({
                         viewRef={viewRef}
                         isNodeRange={isNodeRange}
                         range={range}
+                        fileAttachmentTarget={fileAttachmentTarget}
                         onCloseWithoutAnimation={onCloseWithoutAnimation}
                         onCloseWithAnimation={onCloseWithAnimation}
                     />
@@ -157,6 +178,7 @@ function ContentEditorCommentInput({
     viewRef: documentViewRef,
     isNodeRange: isNodeDocumentRange,
     range: documentRange,
+    fileAttachmentTarget,
     onCloseWithoutAnimation,
     onCloseWithAnimation,
 }: {
@@ -164,21 +186,26 @@ function ContentEditorCommentInput({
     viewRef: RefObject<EditorView | null>;
     isNodeRange: boolean;
     range: {from: number; to: number};
+    fileAttachmentTarget: Memo<FileAttachmentTarget>;
     onCloseWithoutAnimation: () => void;
     onCloseWithAnimation: () => void;
 }) {
+    const context = useAppContext();
+    const reporter = useReporter();
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
-    const {currentAccount} = useSpaceContext();
+    const {currentAccount, space} = useSpaceContext();
+    const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
 
     const [commentState, setCommentState] = useState(() =>
         ContentEditorState.create(emptyMessageContentWithReferences),
     );
+    const [files, setFiles] = useState<ReadonlyArray<MessageInputFile>>(emptyArray);
     const [shouldShowConfirmCloseDialog, setShouldShowConfirmCloseDialog] = useState(false);
 
     const isSendButtonDisabled = useMemo(
-        () => isContentEmpty(trimContentEnd(commentState.getDoc())),
-        [commentState],
+        () => isContentEmpty(trimContentEnd(commentState.getDoc())) && files.length === 0,
+        [commentState, files.length],
     );
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -203,7 +230,7 @@ function ContentEditorCommentInput({
 
     const sendComment = async () => {
         const content = trimContentWithReferencesEnd(commentState.getContent());
-        if (isContentEmpty(content.doc)) return;
+        if (isContentEmpty(content.doc) && files.length === 0) return;
 
         const commentThreadId = generateId<DocumentCommentThreadId>();
         const trimmedDocumentRange = trimSpacesFromProsemirrorRange(
@@ -232,7 +259,7 @@ function ContentEditorCommentInput({
         transaction.setMeta(createCommentThreadMetaKey, {
             commentThreadId,
             initialCommentContent: content,
-            initialCommentFileIds: [],
+            initialCommentFileIds: files.map(({file}) => file.id),
             openCommentThreadPromiseRef,
         });
 
@@ -254,13 +281,37 @@ function ContentEditorCommentInput({
         onCloseWithoutAnimation();
     };
 
+    const addFiles = (
+        spanName: string,
+        fileInfos: ReadonlyArray<FileInfo>,
+    ): {finally(listener: () => void): void} => {
+        if (fileInfos.length === 0) return Promise.resolve();
+
+        const promise = context.tracer.withSpan(spanName, async context => {
+            await addMessageInputFiles(context, fileInfos, {
+                spaceId: space.id,
+                attachmentTarget: fileAttachmentTarget,
+                addGlobalLoadingIndicator,
+                onAddFile: file => {
+                    setFiles(files => [...files, file]);
+                },
+            });
+        });
+
+        promise.catch(error => {
+            reporter.displayError("Couldn’t upload file", error);
+        });
+
+        return promise;
+    };
+
     return (
         <>
             <Box
                 ref={useMergedRefs(
                     containerRef,
                     useConfirmSaveAfterLosingFocus({
-                        shouldConfirmSave: !isContentEmpty(commentState.getDoc()),
+                        shouldConfirmSave: !isSendButtonDisabled,
                         isConfirmingSave: shouldShowConfirmCloseDialog,
                         onCancelSave: onCloseWithAnimation,
                         onConfirmSave: () => setShouldShowConfirmCloseDialog(true),
@@ -304,165 +355,344 @@ function ContentEditorCommentInput({
                     }
                 }}
             >
-                <Box
-                    className={pointerEventsNoneNotInheritedClassName}
-                    position="absolute"
-                    left="0"
-                    bottom="0"
-                    zIndex="20"
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                    style={{
-                        width: messageInputEditorMinHeightPx[platform][spacingScale],
-                        height: messageInputEditorMinHeightPx[platform][spacingScale],
-                    }}
-                >
-                    <IconButton
-                        size={messageInputEditorIconButtonSize}
-                        description="Add"
-                        withoutTooltip={true}
-                        // The add icon button is not focusable. That's because we don't want to
-                        // remove focus from the message input when the add button is pressed. That
-                        // way on mobile you can keep typing and sending messages because the software
-                        // keyboard doesn't disappear.
-                        //
-                        // On desktop, hitting enter in the message input is sufficient for keyboard
-                        // control of the message input.
-                        isFocusable={false}
-                        // TODO(calebmer, #files): Use to upload files
-                    >
-                        <Plus />
-                    </IconButton>
-                </Box>
-                <FocusRing offset="border" isVisibleWhenFocusWithin={true}>
+                <Box position="relative">
                     <Box
-                        ref={useScrollbar({
-                            insetTop: messageInputEditorBorderRadiusPx[platform][spacingScale],
-                            // Don't overlap the send button which is rendered at the bottom of
-                            // the input.
-                            insetBottom: messageInputEditorMinHeightPx[platform][spacingScale],
-                        })}
-                        maxHeight="96"
-                        position="relative"
-                        overflowX="hidden"
-                        overflowY="auto"
+                        className={pointerEventsNoneNotInheritedClassName}
+                        position="absolute"
+                        left="0"
+                        bottom="0"
+                        zIndex="20"
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
                         style={{
-                            minHeight: messageInputEditorMinHeightPx[platform][spacingScale],
-                            borderTopLeftRadius:
-                                messageInputEditorBorderRadiusPx[platform][spacingScale],
-                            borderBottomLeftRadius:
-                                messageInputEditorBorderRadiusPx[platform][spacingScale],
+                            width: messageInputEditorMinHeightPx[platform][spacingScale],
+                            height: messageInputEditorMinHeightPx[platform][spacingScale],
                         }}
                     >
-                        <ContentEditor
-                            ref={editorRef}
-                            state={commentState}
-                            onChange={state => {
-                                const containerElement = assertExists(containerRef.current);
-                                const scrollParentElements: Array<{
-                                    element: Element;
-                                    scrollTop: number;
-                                }> = [];
-
+                        <MenuButton
+                            withoutButtonElementRequirement={true}
+                            // Generally since the message input is at the bottom of the screen the add
+                            // menu opens above the input. Let's make that pattern consistent.
+                            placement="top-start"
+                            actions={[
                                 {
-                                    let parentElement: Element | null = containerElement;
-                                    while (parentElement) {
-                                        const {overflowY} = getComputedStyle(parentElement);
+                                    label: "Image",
+                                    iconSize: "4",
+                                    icon: <Image />,
+                                    onPress: () => {
+                                        selectFiles(assertExists(containerRef.current), {
+                                            multiple: true,
+                                            acceptContentTypes: getFileImageContentTypes(),
+                                            // It's important to return focus before removing the temporary input element
+                                            // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
+                                            // finished.
+                                            onReturnFocus: () => editorRef.current?.focus(),
+                                        })
+                                            .then(files => {
+                                                if (files.length === 0) return;
 
-                                        if (overflowY === "auto" || overflowY === "scroll") {
-                                            scrollParentElements.push({
-                                                element: parentElement,
-                                                scrollTop: parentElement.scrollTop,
-                                            });
-                                        }
+                                                addFiles(
+                                                    "<ContentEditorCommentInputFloater> insert files",
+                                                    files.map(file => ({
+                                                        type: "UploadFile",
+                                                        input: {type: "File", file},
+                                                    })),
+                                                );
+                                            })
+                                            .catch(scheduleUncaughtError);
+                                    },
+                                },
+                                {
+                                    label: "Video",
+                                    iconSize: "4",
+                                    icon: <VideoIcon />,
+                                    onPress: () => {
+                                        selectFiles(assertExists(containerRef.current), {
+                                            multiple: true,
+                                            acceptContentTypes: getFileVideoContentTypes(),
+                                            // It's important to return focus before removing the temporary input element
+                                            // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
+                                            // finished.
+                                            onReturnFocus: () => editorRef.current?.focus(),
+                                        })
+                                            .then(files => {
+                                                if (files.length === 0) return;
 
-                                        parentElement =
-                                            parentElement.parentElement !== document.body
-                                                ? parentElement.parentElement
-                                                : null;
-                                    }
-                                }
+                                                addFiles(
+                                                    "<ContentEditorCommentInputFloater> insert files",
+                                                    files.map(file => ({
+                                                        type: "UploadFile",
+                                                        input: {type: "File", file},
+                                                    })),
+                                                );
+                                            })
+                                            .catch(scheduleUncaughtError);
+                                    },
+                                },
+                                {
+                                    label: "Audio",
+                                    iconSize: "4",
+                                    icon: <WaveformIcon />,
+                                    onPress: () => {
+                                        selectFiles(assertExists(containerRef.current), {
+                                            multiple: true,
+                                            acceptContentTypes: getFileAudioContentTypes(),
+                                            // It's important to return focus before removing the temporary input element
+                                            // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
+                                            // finished.
+                                            onReturnFocus: () => editorRef.current?.focus(),
+                                        })
+                                            .then(files => {
+                                                if (files.length === 0) return;
 
-                                setCommentState(state);
+                                                addFiles(
+                                                    "<ContentEditorCommentInputFloater> insert files",
+                                                    files.map(file => ({
+                                                        type: "UploadFile",
+                                                        input: {type: "File", file},
+                                                    })),
+                                                );
+                                            })
+                                            .catch(scheduleUncaughtError);
+                                    },
+                                },
+                                {
+                                    label: "File",
+                                    iconSize: "4",
+                                    icon: <File />,
+                                    onPress: () => {
+                                        selectFiles(assertExists(containerRef.current), {
+                                            multiple: true,
+                                            // It's important to return focus before removing the temporary input element
+                                            // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
+                                            // finished.
+                                            onReturnFocus: () => editorRef.current?.focus(),
+                                        })
+                                            .then(files => {
+                                                if (files.length === 0) return;
 
-                                // HACK(calebmer, 2024-12-11): In Chrome if we press shift-enter to add a bunch
-                                // of paragraphs until the comment input needs to scroll, then press delete to
-                                // delete those paragraphs, we observe Chrome (and only Chrome, Safari is fine)
-                                // will scroll the document parent element. Presumably in an attempt to keep
-                                // the text cursor in view.
+                                                addFiles(
+                                                    "<ContentEditorCommentInputFloater> insert files",
+                                                    files.map(file => ({
+                                                        type: "UploadFile",
+                                                        input: {type: "File", file},
+                                                    })),
+                                                );
+                                            })
+                                            .catch(scheduleUncaughtError);
+                                    },
+                                },
+                            ]}
+                        >
+                            <IconButton
+                                size={messageInputEditorIconButtonSize}
+                                description="Add"
+                                withoutTooltip={true}
+                                // The add icon button is not focusable. That's because we don't want to
+                                // remove focus from the message input when the add button is pressed. That
+                                // way on mobile you can keep typing and sending messages because the software
+                                // keyboard doesn't disappear.
                                 //
-                                // We've confirmed no JavaScript code is causing these scroll events (by
-                                // checking `register_scroll_event_debugger.ts`). So to fix this bug we record
-                                // scroll positions before updating our editor state.
-                                //
-                                // Video of the bug:
-                                // https://gist.github.com/calebmer/aa365906d8d01a7f4b30a2d5dcbac612
-                                requestAnimationFrame(() => {
-                                    for (const {element, scrollTop} of scrollParentElements) {
-                                        element.scrollTop = scrollTop;
-                                    }
-                                });
-                            }}
-                            aria-label="New comment"
-                            placeholder="Add a comment"
-                            style={{
-                                paddingLeft: messageInputEditorPaddingX[platform],
-                                paddingRight: messageInputEditorPaddingX[platform],
-                                paddingTop: messageInputEditorPaddingYPx[platform][spacingScale],
-                                paddingBottom: messageInputEditorPaddingYPx[platform][spacingScale],
-                            }}
-                            onEnterFromPhysicalKeyboard={event => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                assertExists(sendButtonRef.current).press();
-                            }}
-                            // Don't render the default content editor mobile keyboard toolbar. We render
-                            // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
-                            withoutMobileKeyboardToolbar={true}
-                            // Message input is always editable, never interactive on mobile. So you can't
-                            // click links among other things.
-                            withoutMobileDualModality={true}
-                        />
+                                // On desktop, hitting enter in the message input is sufficient for keyboard
+                                // control of the message input.
+                                isFocusable={false}
+                            >
+                                <Plus />
+                            </IconButton>
+                        </MenuButton>
                     </Box>
-                </FocusRing>
-                <Box
-                    className={pointerEventsNoneNotInheritedClassName}
-                    position="absolute"
-                    right="0"
-                    bottom="0"
-                    zIndex="20"
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                    style={{
-                        height: messageInputEditorMinHeightPx[platform][spacingScale],
-                        width: messageInputEditorMinHeightPx[platform][spacingScale],
-                    }}
-                >
-                    <IconButton
-                        ref={sendButtonRef}
-                        size={messageInputEditorIconButtonSize}
-                        variant="accent"
-                        description="Save comment"
-                        pressErrorTitle="Can’t save comment"
-                        onPress={sendComment}
-                        isDisabled={isSendButtonDisabled}
-                        // The send icon button is not focusable. That's because we don't want to
-                        // remove focus from the message input when the send button is pressed. That
-                        // way on mobile you can keep typing and sending messages because the software
-                        // keyboard doesn't disappear.
-                        //
-                        // On desktop, hitting enter in the message input is sufficient for keyboard
-                        // control of the message input.
-                        isFocusable={false}
+                    <FocusRing offset="border" isVisibleWhenFocusWithin={true}>
+                        <Box
+                            ref={useScrollbar({
+                                insetTop: messageInputEditorBorderRadiusPx[platform][spacingScale],
+                                // Don't overlap the send button which is rendered at the bottom of
+                                // the input.
+                                insetBottom: messageInputEditorMinHeightPx[platform][spacingScale],
+                            })}
+                            maxHeight="96"
+                            position="relative"
+                            overflowX="hidden"
+                            overflowY="auto"
+                            style={{
+                                minHeight: messageInputEditorMinHeightPx[platform][spacingScale],
+                                // This border radius is used by the `<FocusRing>` when the
+                                // `<FocusRing>` is visible.
+                                borderTopLeftRadius:
+                                    messageInputEditorBorderRadiusPx[platform][spacingScale],
+                                borderTopRightRadius:
+                                    messageInputEditorBorderRadiusPx[platform][spacingScale],
+                                borderBottomLeftRadius:
+                                    files.length === 0
+                                        ? messageInputEditorBorderRadiusPx[platform][spacingScale]
+                                        : undefined,
+                                borderBottomRightRadius:
+                                    files.length === 0
+                                        ? messageInputEditorBorderRadiusPx[platform][spacingScale]
+                                        : undefined,
+                            }}
+                        >
+                            <ContentEditor
+                                ref={editorRef}
+                                state={commentState}
+                                onChange={setCommentState}
+                                aria-label="New comment"
+                                placeholder="Add a comment"
+                                style={{
+                                    paddingLeft: messageInputEditorPaddingX[platform],
+                                    paddingRight: messageInputEditorPaddingX[platform],
+                                    paddingTop:
+                                        messageInputEditorPaddingYPx[platform][spacingScale],
+                                    paddingBottom:
+                                        messageInputEditorPaddingYPx[platform][spacingScale],
+                                }}
+                                onEnterFromPhysicalKeyboard={event => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    assertExists(sendButtonRef.current).press();
+                                }}
+                                onPasteOrDropFiles={fileInfos => {
+                                    addFiles(
+                                        "<ContentEditorCommentInputFloater> paste files",
+                                        fileInfos,
+                                    );
+                                }}
+                                // Don't render the default content editor mobile keyboard toolbar. We render
+                                // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
+                                withoutMobileKeyboardToolbar={true}
+                                // Message input is always editable, never interactive on mobile. So you can't
+                                // click links among other things.
+                                withoutMobileDualModality={true}
+                            />
+                        </Box>
+                    </FocusRing>
+                    <Box
+                        className={pointerEventsNoneNotInheritedClassName}
+                        position="absolute"
+                        right="0"
+                        bottom="0"
+                        zIndex="20"
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                        style={{
+                            height: messageInputEditorMinHeightPx[platform][spacingScale],
+                            width: messageInputEditorMinHeightPx[platform][spacingScale],
+                        }}
                     >
-                        <ArrowRight
-                            size={spacing["4"]}
-                            weight={!isSendButtonDisabled ? "bold" : undefined}
-                        />
-                    </IconButton>
+                        <IconButton
+                            ref={sendButtonRef}
+                            size={messageInputEditorIconButtonSize}
+                            variant="accent"
+                            description="Save comment"
+                            pressErrorTitle="Can’t save comment"
+                            onPress={sendComment}
+                            isDisabled={isSendButtonDisabled}
+                            // The send icon button is not focusable. That's because we don't want to
+                            // remove focus from the message input when the send button is pressed. That
+                            // way on mobile you can keep typing and sending messages because the software
+                            // keyboard doesn't disappear.
+                            //
+                            // On desktop, hitting enter in the message input is sufficient for keyboard
+                            // control of the message input.
+                            isFocusable={false}
+                        >
+                            <ArrowRight
+                                size={spacing["4"]}
+                                weight={!isSendButtonDisabled ? "bold" : undefined}
+                            />
+                        </IconButton>
+                    </Box>
                 </Box>
+                {files.length > 0 && (
+                    <Box
+                        pointerEvents="none"
+                        position="relative"
+                        paddingTop="4"
+                        paddingBottom="4"
+                        style={{
+                            paddingLeft: subtractRemLengths(
+                                "4",
+                                messageInputFilesOverflowGradientWidth,
+                            ),
+                            paddingRight: subtractRemLengths(
+                                "4",
+                                messageInputFilesOverflowGradientWidth,
+                            ),
+                        }}
+                    >
+                        <Box
+                            position="absolute"
+                            zIndex="10"
+                            top="0"
+                            left="0"
+                            right="0"
+                            height="border"
+                            backgroundColor="grey-5"
+                        />
+                        <Box
+                            pointerEvents="auto"
+                            position="relative"
+                            zIndex="0"
+                            width="full"
+                            marginTop="-2"
+                        >
+                            <Box
+                                position="absolute"
+                                zIndex="10"
+                                top="0"
+                                bottom="0"
+                                left="0"
+                                width={messageInputFilesOverflowGradientWidth}
+                                style={{
+                                    background: `linear-gradient(to right, ${backgroundColorVar}, transparent)`,
+                                }}
+                            />
+                            <Box
+                                position="absolute"
+                                zIndex="10"
+                                top="0"
+                                bottom="0"
+                                right="0"
+                                width={messageInputFilesOverflowGradientWidth}
+                                style={{
+                                    background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
+                                }}
+                            />
+                            <Box
+                                data-scrollbar="false"
+                                position="relative"
+                                zIndex="0"
+                                width="full"
+                                overflowX="auto"
+                            >
+                                <Box
+                                    display="flex"
+                                    gap="2"
+                                    paddingTop="2"
+                                    paddingX={messageInputFilesOverflowGradientWidth}
+                                    style={{width: "fit-content"}}
+                                >
+                                    {files.map(file => (
+                                        <MessageInputFilePreview
+                                            key={file.key}
+                                            signedUrlSearch={file.signedUrlSearch}
+                                            file={file.file}
+                                            attachmentTarget={file.attachmentTarget}
+                                            onRemove={() => {
+                                                setFiles(files =>
+                                                    files.filter(
+                                                        otherFile => otherFile.key !== file.key,
+                                                    ),
+                                                );
+                                            }}
+                                        />
+                                    ))}
+                                </Box>
+                            </Box>
+                        </Box>
+                    </Box>
+                )}
             </Box>
             {shouldShowConfirmCloseDialog && (
                 <ModalDialog
