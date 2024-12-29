@@ -1,5 +1,4 @@
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
-import {ContentReferencesWithFilesSchema} from "~/shared/content/content_references_with_files.js";
 import {ContentEditorClientId, FileId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
@@ -52,7 +51,7 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
                                 clientId: Schema.id<ContentEditorClientId>(),
                             }),
                         ),
-                        stepsContentReferences: ContentReferencesWithFilesSchema,
+                        stepsContentReferences: ContentReferencesSchema,
                     }),
                     Unavailable: Schema.object({
                         type: Schema.value("Unavailable"),

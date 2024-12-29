@@ -1,10 +1,7 @@
 import {useMemo, useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
-import {
-    ContentEditorState,
-    reduceContentReferences,
-} from "~/client/content/content_editor_state.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ContentViewWithSeeMoreToggle} from "~/client/content/content_view_with_see_more_toggle.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -238,11 +235,7 @@ function ChannelViewAsideDescriptionEditor({
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const [state, setState] = useState(() =>
-        ContentEditorState.create({
-            content: initialDescription,
-            reduceReferences: reduceContentReferences,
-            selectionAt: "end",
-        }),
+        ContentEditorState.create(initialDescription, {selectionAt: "end"}),
     );
 
     const [isSaving, setIsSaving] = useState(false);

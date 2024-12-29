@@ -1,8 +1,5 @@
 import {Memo, MutableRefObject, ReactNode, useEffect, useMemo, useReducer} from "react";
-import {
-    ContentEditorState,
-    reduceContentReferencesWithFiles,
-} from "~/client/content/content_editor_state.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {trimContentEnd} from "~/client/content/trim_content.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useReporter} from "~/client/design/reporter.js";
@@ -72,9 +69,7 @@ function reduce(state: PostEditingState, action: PostEditingAction): PostEditing
             return {
                 isEditing: true,
                 postId: action.postId,
-                contentEditorState: ContentEditorState.create({
-                    content: action.currentContent,
-                    reduceReferences: reduceContentReferencesWithFiles,
+                contentEditorState: ContentEditorState.create(action.currentContent, {
                     // Put the selection at the start of the post so the cursor is visible when we
                     // enter edit mode and we don't have to scroll.
                     selectionAt: "start",

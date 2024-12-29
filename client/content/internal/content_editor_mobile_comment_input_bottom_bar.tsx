@@ -5,7 +5,6 @@ import {createPortal} from "react-dom";
 import {
     ContentEditorState,
     createCommentThreadMetaKey,
-    reduceContentReferences,
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
 import {MessageInputFile} from "~/client/content/messaging/add_message_input_files.js";
@@ -47,10 +46,7 @@ export function ContentEditorMobileCommentInputBottomBar({
     const inputRef = useRef<MessageInputRef>(null);
 
     const [commentState, setCommentState] = useState(() =>
-        ContentEditorState.create({
-            content: emptyMessageContentWithReferences,
-            reduceReferences: reduceContentReferences,
-        }),
+        ContentEditorState.create(emptyMessageContentWithReferences),
     );
     const [files, setFiles] = useState<ReadonlyArray<MessageInputFile>>(emptyArray);
     const [shouldShowConfirmCloseDialog, setShouldShowConfirmCloseDialog] = useState(false);

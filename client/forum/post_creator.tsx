@@ -1,10 +1,7 @@
 import classNames from "classnames";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
-import {
-    ContentEditorState,
-    reduceContentReferencesWithFiles,
-} from "~/client/content/content_editor_state.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
 import {trimContentEnd} from "~/client/content/trim_content.js";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -73,12 +70,7 @@ export function PostCreator({
     const editorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
     const createButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
-    const [state, setState] = useState(() =>
-        ContentEditorState.create({
-            content: initialContent,
-            reduceReferences: reduceContentReferencesWithFiles,
-        }),
-    );
+    const [state, setState] = useState(() => ContentEditorState.create(initialContent));
 
     const [channel, setChannel] = useState(initialChannel);
 

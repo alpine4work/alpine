@@ -1,8 +1,8 @@
 import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
 import {
-    ContentReferencesWithFilesSchema,
-    emptyContentReferencesWithFiles,
-} from "~/shared/content/content_references_with_files.js";
+    ContentReferencesSchema,
+    emptyContentReferences,
+} from "~/shared/content/content_references.js";
 import {
     contentBaseProsemirrorSchemaSpec,
     createProsemirrorSchemaSpec,
@@ -72,10 +72,10 @@ export type TaskNotesContentWithReferences = SchemaType<
 
 export const TaskNotesContentWithReferencesSchema = Schema.object({
     doc: TaskNotesContentSchema,
-    references: ContentReferencesWithFilesSchema,
+    references: ContentReferencesSchema,
 });
 
 export const emptyTaskNotesContentWithReferences: TaskNotesContentWithReferences = {
     doc: emptyTaskNotesContent,
-    references: emptyContentReferencesWithFiles,
+    references: emptyContentReferences,
 };

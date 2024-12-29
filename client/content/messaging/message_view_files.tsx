@@ -2,10 +2,7 @@ import classNames from "classnames";
 import {Node} from "prosemirror-model";
 import {EditorView, serializeForClipboard} from "prosemirror-view";
 import {Memo, useMemo, useRef} from "react";
-import {
-    ContentEditorState,
-    reduceContentReferencesWithFiles,
-} from "~/client/content/content_editor_state.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {useFileClientStore} from "~/client/content/file_client_store_context.js";
 import {registerClipboardSerializer} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
@@ -33,8 +30,7 @@ import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {messageViewMarginLeft} from "~/client/styles/messaging_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
-import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {ContentReferencesWithFiles} from "~/shared/content/content_references_with_files.js";
+import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -293,7 +289,7 @@ export function MessageViewFiles({
                 if (hasEnded) break;
             }
 
-            const contentReferences: ContentReferencesWithFiles = {
+            const contentReferences: ContentReferences = {
                 ...emptyContentReferences,
                 fileById: new Map(
                     fileRows.flatMap(fileRow => fileRow.files).map(file => [file.file.id, file]),
@@ -301,11 +297,8 @@ export function MessageViewFiles({
             };
 
             const state = ContentEditorState.create({
-                content: {
-                    doc: clipboardSchema.node("doc", {}, clipboardFileRows),
-                    references: contentReferences,
-                },
-                reduceReferences: reduceContentReferencesWithFiles,
+                doc: clipboardSchema.node("doc", {}, clipboardFileRows),
+                references: contentReferences,
             })._getInternalState();
             const {schema} = state.doc.type;
 

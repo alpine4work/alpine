@@ -23,19 +23,14 @@ import {
     ContentReferences,
     ContentWithReferences,
     mergeContentReferences,
-} from "~/shared/content/content_references.js";
-import {
-    ContentReferencesWithFiles,
     mergeContentReferencesFileSignedUrlSearches,
-    mergeContentReferencesWithFiles,
-} from "~/shared/content/content_references_with_files.js";
+} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
@@ -106,10 +101,41 @@ function buildPlugins<Content extends ContentWithReferences>({
  */
 export class ContentEditorState<Content extends ContentWithReferences> {
     /**
+     * Creates a new state for our content editor.
+     *
+     * Simplified editor state creation for content with a normal
+     * `ContentReferences` object. You need to use `_create()` or
+     * `createCollaborative()` to customize the `ContentReferences` type.
+     */
+    public static create<ContentDoc extends Node>(
+        content: ContentWithReferences & {doc: ContentDoc},
+        options: {
+            /**
+             * Where should we put our selection when the user first focuses the
+             * content editor?
+             */
+            selectionAt?: "start" | "end";
+
+            /**
+             * Should the undo/redo keyboard shortcuts be disabled on this editor? When
+             * this is set to true it usually means the component rendering our content
+             * editor will managed undo/redo keyboard shortcuts.
+             */
+            disableUndoKeyboardShortcuts?: boolean;
+        } = {},
+    ): ContentEditorState<ContentWithReferences & {doc: ContentDoc}> {
+        return ContentEditorState._create({
+            ...options,
+            content,
+            reduceReferences: reduceContentReferences,
+        });
+    }
+
+    /**
      * Creates a new state for our content editor allowing the user to customize
      * the type of `ContentReferences`.
      */
-    public static create<Content extends ContentWithReferences>({
+    private static _create<Content extends ContentWithReferences>({
         content,
         reduceReferences,
         selectionAt = "start",
@@ -715,10 +741,7 @@ function contentEditorReferencesPlugin<References extends ContentReferences>(
     });
 }
 
-export function getContentEditorReferences(state: EditorState): {
-    doc: Node;
-    references: ContentReferences | ContentReferencesWithFiles;
-} {
+export function getContentEditorReferences(state: EditorState): ContentWithReferences {
     return assertExists(contentEditorReferencesPluginKey.getState(state));
 }
 
@@ -752,10 +775,8 @@ export type ContentEditorReferencesAction<References extends ContentReferences> 
     | ContentEditorReferencesSetFileSignedUrlSearchAction
     | ContentEditorReferencesUpdateDocumentCommentThreadAction;
 
-export type ContentEditorReferencesSharedAction = ContentEditorReferencesSetAccountAction;
-
-export type ContentEditorReferencesWithFilesSharedAction =
-    | ContentEditorReferencesSharedAction
+export type ContentEditorReferencesSharedAction =
+    | ContentEditorReferencesSetAccountAction
     | ContentEditorReferencesSetFileAction
     | ContentEditorReferencesSetFileSignedUrlSearchAction;
 
@@ -801,10 +822,6 @@ export function reduceContentReferences(
     switch (action.type) {
         case "Merge":
             return mergeContentReferences(references, action.references);
-        // These actions are only used with `ContentReferencesWithFiles`.
-        case "SetFile":
-        case "SetFileSignedUrlSearch":
-            return references;
         // These actions are only used with `DocumentContentReferences`.
         case "UpdateDocumentCommentThread":
             return references;
@@ -813,45 +830,20 @@ export function reduceContentReferences(
     }
 }
 
-export function reduceContentReferencesWithFiles(
-    references: ContentReferencesWithFiles,
-    action: ContentEditorReferencesAction<ContentReferencesWithFiles>,
-): ContentReferencesWithFiles {
-    switch (action.type) {
-        case "Merge":
-            return mergeContentReferencesWithFiles(references, action.references);
-        // These actions are only used with `DocumentContentReferences`.
-        case "UpdateDocumentCommentThread":
-            return references;
-        default:
-            return reduceContentReferencesWithFilesShared(references, action);
-    }
-}
-
 export function reduceContentReferencesShared<References extends ContentReferences>(
     references: References,
     action: ContentEditorReferencesSharedAction,
 ): Replace<References, ContentReferences> {
-    // If we add more types to the action union, TypeScript will error here. At
-    // which point we should convert this code to an exhaustive switch.
-    cast<"SetAccount">(action.type);
-
-    const oldAccount = references.accountById.get(action.account.id);
-    const newAccount = oldAccount ? oldAccount.merge(action.account) : action.account;
-    if (oldAccount === newAccount) return references;
-
-    const newAccountById = new Map(references.accountById);
-    newAccountById.set(newAccount.id, newAccount);
-    return {...references, accountById: newAccountById};
-}
-
-export function reduceContentReferencesWithFilesShared<
-    References extends ContentReferencesWithFiles,
->(
-    references: References,
-    action: ContentEditorReferencesWithFilesSharedAction,
-): Replace<References, ContentReferences> {
     switch (action.type) {
+        case "SetAccount": {
+            const oldAccount = references.accountById.get(action.account.id);
+            const newAccount = oldAccount ? oldAccount.merge(action.account) : action.account;
+            if (oldAccount === newAccount) return references;
+
+            const newAccountById = new Map(references.accountById);
+            newAccountById.set(newAccount.id, newAccount);
+            return {...references, accountById: newAccountById};
+        }
         case "SetFile": {
             const oldFileReference = references.fileById.get(action.file.id);
 
@@ -904,7 +896,7 @@ export function reduceContentReferencesWithFilesShared<
             return {...references, fileById: newFileById};
         }
         default:
-            return reduceContentReferencesShared(references, action);
+            throw exhaustive(action);
     }
 }
 

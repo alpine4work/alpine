@@ -7,10 +7,7 @@ import {EditorView} from "prosemirror-view";
 import {useCallback, useState} from "react";
 import {act} from "react-dom/test-utils";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
-import {
-    ContentEditorState,
-    reduceContentReferences,
-} from "~/client/content/content_editor_state.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {
@@ -36,11 +33,8 @@ const commentFileAttachmentTarget = markMemoIfNotRendering({
 function TestContentEditor() {
     const [state, setState] = useState(() =>
         ContentEditorState.create({
-            content: {
-                doc: emptyDocumentWithoutTitleContent,
-                references: emptyContentReferences,
-            },
-            reduceReferences: reduceContentReferences,
+            doc: emptyDocumentWithoutTitleContent,
+            references: emptyContentReferences,
         }),
     );
     return (
@@ -84,11 +78,8 @@ test("renders an empty document", () => {
         <ContentEditor
             aria-label="Test"
             state={ContentEditorState.create({
-                content: {
-                    doc: emptyDocumentWithoutTitleContent,
-                    references: emptyContentReferences,
-                },
-                reduceReferences: reduceContentReferences,
+                doc: emptyDocumentWithoutTitleContent,
+                references: emptyContentReferences,
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -113,10 +104,7 @@ test("renders an initial editor state", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({
-                content: {doc: content, references: emptyContentReferences},
-                reduceReferences: reduceContentReferences,
-            })}
+            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -143,10 +131,7 @@ test("rerenders with a changed document", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({
-                content: {doc: doc1, references: emptyContentReferences},
-                reduceReferences: reduceContentReferences,
-            })}
+            state={ContentEditorState.create({doc: doc1, references: emptyContentReferences})}
             onChange={onTransaction}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -158,10 +143,7 @@ test("rerenders with a changed document", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({
-                content: {doc: doc2, references: emptyContentReferences},
-                reduceReferences: reduceContentReferences,
-            })}
+            state={ContentEditorState.create({doc: doc2, references: emptyContentReferences})}
             onChange={onTransaction}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -206,11 +188,8 @@ test("won't ever commit optimistic update if it doesn't match props", () => {
     function NoopContentEditor() {
         const [state] = useState(() =>
             ContentEditorState.create({
-                content: {
-                    doc: emptyDocumentWithoutTitleContent,
-                    references: emptyContentReferences,
-                },
-                reduceReferences: reduceContentReferences,
+                doc: emptyDocumentWithoutTitleContent,
+                references: emptyContentReferences,
             }),
         );
         return (

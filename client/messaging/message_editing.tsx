@@ -1,8 +1,5 @@
 import {Memo, MutableRefObject, ReactNode, useEffect, useMemo, useReducer} from "react";
-import {
-    ContentEditorState,
-    reduceContentReferences,
-} from "~/client/content/content_editor_state.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {trimContentEnd} from "~/client/content/trim_content.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useReporter} from "~/client/design/reporter.js";
@@ -84,9 +81,7 @@ function reduce<RoomKey extends string>(
                 isEditing: true,
                 messageRoomKey: action.messageRoomKey,
                 messageIndex: action.messageIndex,
-                contentEditorState: ContentEditorState.create({
-                    content: action.messagePayload.content,
-                    reduceReferences: reduceContentReferences,
+                contentEditorState: ContentEditorState.create(action.messagePayload.content, {
                     // The user is much more likely to need to edit from the end of the message than
                     // the start. But on mobile, if the message is long, editing should start at the
                     // start of the message so the cursor is visible.

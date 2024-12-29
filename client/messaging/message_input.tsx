@@ -12,10 +12,7 @@ import {
     useState,
 } from "react";
 import {flushSync} from "react-dom";
-import {
-    ContentEditorState,
-    reduceContentReferences,
-} from "~/client/content/content_editor_state.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {useFileClientStore} from "~/client/content/file_client_store_context.js";
 import {MessageInputFile} from "~/client/content/messaging/add_message_input_files.js";
 import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
@@ -166,10 +163,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     const resetInputState = useCallback(() => {
         actuallySetInputState({
             key: generateId(),
-            state: ContentEditorState.create({
-                content: emptyMessageContentWithReferences,
-                reduceReferences: reduceContentReferences,
-            }),
+            state: ContentEditorState.create(emptyMessageContentWithReferences),
             files: emptyArray,
         });
     }, []);
