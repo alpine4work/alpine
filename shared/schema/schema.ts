@@ -3,6 +3,9 @@ import {parseISO} from "date-fns/parseISO";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyMap} from "~/shared/helpers/array/empty_map.js";
+import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -931,6 +934,10 @@ export class ArraySchema<Value> extends Schema<ReadonlyArray<Value>> {
             deserialize: value => {
                 if (!Array.isArray(value))
                     throw new SchemaDeserializationError("Expected an array");
+
+                // Optimization: Don't allocate an empty array object if we're deserializing an
+                // empty array.
+                if (value.length === 0) return emptyArray;
 
                 return value.map((item, index) => {
                     return withSchemaDeserializationStackFrame({type: "ArrayIndex", index}, () => {
@@ -2384,6 +2391,10 @@ export class SetSchema<Value> extends Schema<ReadonlySet<Value>> {
                 if (!Array.isArray(value))
                     throw new SchemaDeserializationError("Expected an array");
 
+                // Optimization: Don't allocate an empty set object if we're deserializing an
+                // empty array.
+                if (value.length === 0) return emptySet;
+
                 return new Set(value.map(item => itemSchema.deserialize(item)));
             },
             validate: validate
@@ -2523,6 +2534,10 @@ export class MapSchema<Key, Value> extends Schema<ReadonlyMap<Key, Value>> {
             deserialize: value => {
                 if (!Array.isArray(value))
                     throw new SchemaDeserializationError("Expected an array");
+
+                // Optimization: Don't allocate an empty map object if we're deserializing an
+                // empty array.
+                if (value.length === 0) return emptyMap;
 
                 return new Map(
                     value.map((item): [Key, Value] => {
