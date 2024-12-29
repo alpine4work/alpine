@@ -6,7 +6,10 @@ import {EditorView} from "prosemirror-view";
 import {useState} from "react";
 import {act} from "react-dom/test-utils";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {
+    ContentEditorState,
+    reduceContentReferences,
+} from "~/client/content/content_editor_state.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {
@@ -40,8 +43,11 @@ function TestContentEditor({
 }) {
     const [state, setState] = useState(() =>
         ContentEditorState.create({
-            doc: initialContent as DocumentWithoutTitleContent,
-            references: emptyContentReferences,
+            content: {
+                doc: initialContent as DocumentWithoutTitleContent,
+                references: emptyContentReferences,
+            },
+            reduceReferences: reduceContentReferences,
         }),
     );
     return (

@@ -1,10 +1,10 @@
 import {
-    ContentReferences,
-    ContentReferencesSchema,
-    emptyContentReferences,
-    isEmptyContentReferences,
-    mergeContentReferences,
-} from "~/shared/content/content_references.js";
+    ContentReferencesWithFiles,
+    ContentReferencesWithFilesSchema,
+    emptyContentReferencesWithFiles,
+    isEmptyContentReferencesWithFiles,
+    mergeContentReferencesWithFiles,
+} from "~/shared/content/content_references_with_files.js";
 import {
     DocumentContentSchema,
     UncheckedDocumentContentSchema,
@@ -30,7 +30,7 @@ export type DocumentContentReferences = SchemaType<typeof DocumentContentReferen
  * Documents may have content which needs data beyond what the base content
  * type needs.
  */
-export const DocumentContentReferencesSchema = ContentReferencesSchema.merge(
+export const DocumentContentReferencesSchema = ContentReferencesWithFilesSchema.merge(
     Schema.object({
         /**
          * The comment threads in our document. Deleting the text associated with a
@@ -45,7 +45,7 @@ export const DocumentContentReferencesSchema = ContentReferencesSchema.merge(
 );
 
 export const emptyDocumentContentReferences: DocumentContentReferences = {
-    ...emptyContentReferences,
+    ...emptyContentReferencesWithFiles,
     commentThreadById: new Map(),
 };
 
@@ -53,11 +53,11 @@ export function isEmptyDocumentContentReferences(references: DocumentContentRefe
     // If you add more data to `DocumentContentReferences` in the future, you'll
     // need to come back and update this function.
     assertEqualTypes<
-        Exclude<keyof DocumentContentReferences, keyof ContentReferences>,
+        Exclude<keyof DocumentContentReferences, keyof ContentReferencesWithFiles>,
         "commentThreadById"
     >();
 
-    return isEmptyContentReferences(references) && references.commentThreadById.size === 0;
+    return isEmptyContentReferencesWithFiles(references) && references.commentThreadById.size === 0;
 }
 
 export function mergeDocumentContentReferences(
@@ -69,7 +69,7 @@ export function mergeDocumentContentReferences(
     if (isEmptyDocumentContentReferences(references1)) return references2;
     if (isEmptyDocumentContentReferences(references2)) return references1;
 
-    const referencesBase = mergeContentReferences(references1, references2);
+    const referencesBase = mergeContentReferencesWithFiles(references1, references2);
 
     const commentThreadById = new Map<
         DocumentCommentThreadId,

@@ -9,7 +9,7 @@ import {
 import {
     ContentEditorReferencesAction,
     createCommentThreadMetaKey,
-    reduceContentReferencesShared,
+    reduceContentReferencesWithFilesShared,
 } from "~/client/content/content_editor_state.js";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
 import {
@@ -533,6 +533,6 @@ export function reduceDocumentContentReferences(
             };
         }
         default:
-            return reduceContentReferencesShared(references, action);
+            return reduceContentReferencesWithFilesShared(references, action);
     }
 }

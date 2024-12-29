@@ -19,6 +19,7 @@ import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.j
 import {
     ContentEditorState,
     createCommentThreadMetaKey,
+    reduceContentReferences,
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
@@ -161,7 +162,10 @@ export function ContentEditorCommentInputFloater({
     }, [range.from, range.to, state.doc, state.schema.marks.comment]);
 
     const [commentState, setCommentState] = useState(() =>
-        ContentEditorState.create(emptyMessageContentWithReferences),
+        ContentEditorState.create({
+            content: emptyMessageContentWithReferences,
+            reduceReferences: reduceContentReferences,
+        }),
     );
     const [files, setFiles] = useState<ReadonlyArray<MessageInputFile>>(emptyArray);
 

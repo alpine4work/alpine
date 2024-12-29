@@ -51,6 +51,7 @@ import {
 } from "~/shared/content/code/create_content_code_block_html_serialization_decorations_store.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {ContentReferencesWithFiles} from "~/shared/content/content_references_with_files.js";
 import {
     codeBlockWrapperClassName,
     fileClassName,
@@ -60,6 +61,7 @@ import {
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -917,7 +919,9 @@ export function ContentView<Content extends ContentWithReferences>({
                 const node = $pos.nodeAfter;
 
                 const fileId: FileId | null = node.attrs.fileId;
-                const fileReference = fileId ? content.references.fileById.get(fileId) : undefined;
+                const fileReference = fileId
+                    ? (content.references as ContentReferencesWithFiles).fileById.get(fileId)
+                    : undefined;
 
                 const actualFileStore = fileReference
                     ? fileStore.getFileStore(fileReference)
@@ -1255,7 +1259,16 @@ export function ContentView<Content extends ContentWithReferences>({
 
                 const slice = content.doc.slice(startPos, endPos, true);
 
-                const state = ContentEditorState.create(content)._getInternalState();
+                const state = ContentEditorState.create({
+                    content,
+                    reduceReferences: () => {
+                        // This function should be unreachable. We shouldn't need to define the proper
+                        // references reducer function.
+                        throw new UnimplementedError(
+                            "Shouldn't call `reduceReferences()` while serializing to clipboard",
+                        );
+                    },
+                })._getInternalState();
                 const {schema} = state.doc.type;
 
                 const view = new EditorView(null, {

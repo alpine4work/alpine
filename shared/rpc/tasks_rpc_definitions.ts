@@ -1,5 +1,6 @@
 import {ContentReferencedIdsSchema} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
+import {ContentReferencesWithFilesSchema} from "~/shared/content/content_references_with_files.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {
     BrowserId,
@@ -100,7 +101,7 @@ export const getTaskNotesContentReferences = defineRpc({
         referenceIds: ContentReferencedIdsSchema,
     },
     output: {
-        references: ContentReferencesSchema,
+        references: ContentReferencesWithFilesSchema,
     },
 });
 

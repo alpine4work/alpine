@@ -22,7 +22,10 @@ import {usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {
+    ContentEditorState,
+    reduceContentReferences,
+} from "~/client/content/content_editor_state.js";
 import {
     ContentEditorMobileLinkModal,
     ContentEditorMobileLinkModalState,
@@ -255,7 +258,12 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         clear: () => {
             onClearReplyingToMessage?.();
             messageEditingForThisInput?.dispatch({type: "CancelEditing"});
-            onChange(ContentEditorState.create(emptyMessageContentWithReferences));
+            onChange(
+                ContentEditorState.create({
+                    content: emptyMessageContentWithReferences,
+                    reduceReferences: reduceContentReferences,
+                }),
+            );
         },
         addFiles: (
             spanName: string,

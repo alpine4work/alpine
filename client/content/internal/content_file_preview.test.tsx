@@ -1,12 +1,16 @@
 import {render, screen} from "@testing-library/react";
 import {ReactNode, useState} from "react";
 import {ContentEditor} from "~/client/content/content_editor.js";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {
+    ContentEditorState,
+    reduceContentReferencesWithFiles,
+} from "~/client/content/content_editor_state.js";
 import {AppContext, AppContextProvider} from "~/client/context/app_context.js";
 import {ReactContextModule} from "~/client/context/react_context_module.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {TestSpaceContextProvider} from "~/client/spaces/space_context_provider.js";
-import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {ContentReferencesWithFiles} from "~/shared/content/content_references_with_files.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
@@ -100,7 +104,7 @@ test("will refresh signed URL when it's about to expire", async () => {
         schema.node("fileRow", {}, [schema.node("file", {fileId})]),
     ]);
 
-    const contentReferences: ContentReferences = {
+    const contentReferences: ContentReferencesWithFiles = {
         ...emptyContentReferences,
         fileById: new Map([
             [
@@ -129,8 +133,8 @@ test("will refresh signed URL when it's about to expire", async () => {
     function TestContentEditor() {
         const [state, setState] = useState(() =>
             ContentEditorState.create({
-                doc: content,
-                references: contentReferences,
+                content: {doc: content, references: contentReferences},
+                reduceReferences: reduceContentReferencesWithFiles,
             }),
         );
 

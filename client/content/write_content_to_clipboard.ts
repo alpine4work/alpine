@@ -6,6 +6,7 @@ import {ContentEditorDomParser} from "~/client/content/internal/content_editor_d
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {writeTextToClipboardFallback} from "~/client/helpers/write_text_to_clipboard.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -19,7 +20,16 @@ export async function writeContentToClipboard(
     fileAttachmentTarget: FileAttachmentTarget | null,
     slice: Slice = content.doc.slice(0),
 ) {
-    const state = ContentEditorState.create(content)._getInternalState();
+    const state = ContentEditorState.create({
+        content,
+        reduceReferences: () => {
+            // This function should be unreachable. We shouldn't need to define the proper
+            // references reducer function.
+            throw new UnimplementedError(
+                "Shouldn't call `reduceReferences()` while serializing to clipboard",
+            );
+        },
+    })._getInternalState();
     const {schema} = state.doc.type;
 
     const view = new EditorView(null, {

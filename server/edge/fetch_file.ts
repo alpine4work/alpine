@@ -1,6 +1,6 @@
 import {EdgeServiceEnv} from "~/server/edge/edge_service_env.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {getContentReferencesFileSignedUrlSearchExpirationTime} from "~/shared/content/content_references.js";
+import {getContentReferencesFileSignedUrlSearchExpirationTime} from "~/shared/content/content_references_with_files.js";
 import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {

@@ -3,7 +3,7 @@ import {AppContext} from "~/client/context/app_context.js";
 import {
     getContentReferencesFileSignedUrlSearchExpirationTime,
     mergeContentReferencesFileSignedUrlSearches,
-} from "~/shared/content/content_references.js";
+} from "~/shared/content/content_references_with_files.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {
     FileModel,
