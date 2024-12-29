@@ -77,6 +77,17 @@ js_image_layer(
 
 oci_image(
     name = "processor_image",
+    # NOTE(calebmer): What I've seen other tools that work with PDFs do is install
+    # a bunch of common fonts into their container. I'm not quite sure what the use
+    # case for this is yet (I'd hope most file types we work with have font data
+    # embedded, or else it's not a good portable file type). I wouldn't be
+    # surprised if SVGs and PDFs are allowed to reference system fonts. But such
+    # files aren't portable so hopefully users are dissuaded from creating such
+    # files.
+    #
+    # If we find a solid reason to include common system fonts in our container
+    # some code to start with from Gotenberg:
+    # https://github.com/gotenberg/gotenberg/blob/da8eeb5d8f98e689b7eaa9276c8847fb7a390994/build/Dockerfile#L67-L117
     base = "@ubuntu_libreoffice_image",
     tars = [
         "//admin/aws:www_data_directory_layer",
