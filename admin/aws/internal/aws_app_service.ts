@@ -25,9 +25,6 @@ import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 
-// TODO(calebmer, #files): Remove `fileUploadServicePublicKey` from secrets in
-// AWS after deploy. Also from edge service in Cloudflare. Also remove
-// `FileUploadServiceSecrets`.
 export class AwsAppService extends Construct {
     constructor(
         parentConstruct: Construct,

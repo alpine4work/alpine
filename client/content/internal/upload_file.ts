@@ -164,7 +164,8 @@ async function actuallyUploadFile(
                     serviceName: "EdgeService",
                     route: "/files/cors-proxy/:url",
                     method: "GET",
-                    credentials: "omit",
+                    // To use the CORS proxy you must be authenticated with Alpine to prevent abuse.
+                    credentials: "include",
                 },
                 async response => {
                     const responseContentLengthString = response.headers.get("content-length");
@@ -234,8 +235,6 @@ async function actuallyUploadFile(
                         // We test for the `https://` protocol to check if we're in development. If we
                         // ever switch our development server to use HTTPS instead of HTTP then we
                         // should also switch our development server to use HTTP/2.
-                        //
-                        // TODO(calebmer, #files): Test that streaming works in production?
                         window.location.protocol !== "https:"
                     ) {
                         body = await waitForReadableStreamUint8Array(responseBody);
