@@ -1,7 +1,20 @@
 import {ArrowRight, File, Image, Plus} from "phosphor-react";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {Memo, RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {
+    Dispatch,
+    Memo,
+    ReactNode,
+    RefObject,
+    SetStateAction,
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
+import {createPortal} from "react-dom";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {
     ContentEditorState,
@@ -9,7 +22,10 @@ import {
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
-import {FileInfo} from "~/client/content/internal/iterate_file_infos_in_element.js";
+import {
+    FileInfo,
+    iterateFileInfosInElement,
+} from "~/client/content/internal/iterate_file_infos_in_element.js";
 import {
     MessageInputFile,
     addMessageInputFiles,
@@ -25,13 +41,16 @@ import {MenuButton} from "~/client/design/menu_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {useOverlayRootBlockingPortalElement} from "~/client/design/overlay_helpers.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {parseHtml} from "~/client/helpers/parse_html.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {VideoIcon} from "~/client/icons/video_icon.js";
 import {WaveformIcon} from "~/client/icons/waveform_icon.js";
+import {useMessagingViewDropTarget} from "~/client/messaging/use_messaging_view_drop_target.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
@@ -49,9 +68,10 @@ import {
     greyElevated2ClassName,
     overlayFadeOutAnimationDurationMs,
     pointerEventsNoneNotInheritedClassName,
+    spaceLayoutStyles,
 } from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {
     getFileAudioContentTypes,
@@ -63,6 +83,8 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {
@@ -76,7 +98,7 @@ export function ContentEditorCommentInputFloater({
     viewRef,
     range,
     fileAttachmentTarget,
-    onClose: _onCloseWithoutAnimation,
+    onClose: onCloseWithoutAnimationFromProps,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
@@ -84,6 +106,11 @@ export function ContentEditorCommentInputFloater({
     fileAttachmentTarget: Memo<FileAttachmentTarget>;
     onClose: () => void;
 }) {
+    const context = useAppContext();
+    const reporter = useReporter();
+    const {space} = useSpaceContext();
+    const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
+
     // We use desktop measurements for `contentEditorCommentInputFloaterMinHeight`
     // and `contentEditorCommentInputFloaterAccountAvatarPaddingY` so assert this
     // component isn't rendered on mobile.
@@ -102,7 +129,7 @@ export function ContentEditorCommentInputFloater({
         // Return focus to the editor.
         assertExists(viewRef.current).focus();
 
-        _onCloseWithoutAnimation();
+        onCloseWithoutAnimationFromProps();
     });
 
     useEffect(() => {
@@ -132,44 +159,126 @@ export function ContentEditorCommentInputFloater({
         return false;
     }, [range.from, range.to, state.doc, state.schema.marks.comment]);
 
-    return (
-        <OverlayAnimated
-            ref={overlayRef}
-            // We don't animate in because the overlay appears in direct response to a user
-            // input (keyboard shortcut). But we do animate out because closing is less
-            // intentional.
-            //
-            // Also it looks a little better to not animate when replacing a possibly
-            // existing toolbar.
-            isVisible={!isClosing}
-            disableAnimation={!isClosing}
-            isBlocking={true}
-            placement="bottom"
-            offset="3"
-            // No fallback placements! The comment input always stays at the end of the
-            // text its commenting on.
-            fallbackPlacements={emptyArray}
-            overlay={
-                <Box>
-                    <ContentEditorCommentInput
-                        state={state}
-                        viewRef={viewRef}
-                        isNodeRange={isNodeRange}
-                        range={range}
-                        fileAttachmentTarget={fileAttachmentTarget}
-                        onCloseWithoutAnimation={onCloseWithoutAnimation}
-                        onCloseWithAnimation={onCloseWithAnimation}
-                    />
-                </Box>
+    const [commentState, setCommentState] = useState(() =>
+        ContentEditorState.create(emptyMessageContentWithReferences),
+    );
+    const [files, setFiles] = useState<ReadonlyArray<MessageInputFile>>(emptyArray);
+
+    const addFiles = (
+        spanName: string,
+        fileInfos: ReadonlyArray<FileInfo>,
+    ): {finally(listener: () => void): void} => {
+        if (fileInfos.length === 0) return Promise.resolve();
+
+        const promise = context.tracer.withSpan(spanName, async context => {
+            await addMessageInputFiles(context, fileInfos, {
+                spaceId: space.id,
+                attachmentTarget: fileAttachmentTarget,
+                addGlobalLoadingIndicator,
+                onAddFile: file => {
+                    setFiles(files => [...files, file]);
+                },
+            });
+        });
+
+        promise.catch(error => {
+            reporter.displayError("Couldn’t upload file", error);
+        });
+
+        return promise;
+    };
+
+    const {dropTargetProps, dragOverlay} = useMessagingViewDropTarget({
+        isDisabled: false,
+        onDrop: event => {
+            let hasHtmlFileInfos = false;
+            const fileInfos: Array<FileInfo> = [];
+
+            for (const {info} of iterateFileInfosInElement(
+                parseHtml(event.dataTransfer.getData("text/html")),
+                () => space.id,
+            )) {
+                if (!info) continue;
+
+                hasHtmlFileInfos = true;
+                fileInfos.push(info);
             }
+
+            // Ignore files from `dataTransfer` if we had `text/html`. Since we assume
+            // `text/html` will contain links to any files included in `dataTransfer`.
+            if (!hasHtmlFileInfos) {
+                for (const item of event.dataTransfer.items) {
+                    if (item.kind !== "file") continue;
+
+                    fileInfos.push({
+                        type: "UploadFile",
+                        input: {type: "File", file: assertExists(item.getAsFile())},
+                    });
+                }
+            }
+
+            return addFiles("<ContentEditorCommentInputFloater> drop files", fileInfos);
+        },
+    });
+
+    return (
+        <Box
+            // So putting `dropTargetProps` works here through some React magic. React
+            // bubbles events from portaled elements! This is important because our overlay
+            // will render a blocking cover over the page. So we need the `dragenter` event
+            // from the blocking cover element in order to render the drop target. Thanks
+            // to React bubbling we get that `dragenter` event on this element.
+            {...dropTargetProps}
+            width="0"
+            height="0"
         >
-            <ContentEditorCursorTracker
-                state={state}
-                viewRef={viewRef}
-                pos={isNodeRange ? range.from : range}
-                onUpdatePosition={() => overlayRef.current?.forceUpdateOverlayPosition()}
-            />
-        </OverlayAnimated>
+            <OverlayAnimated
+                ref={overlayRef}
+                // We don't animate in because the overlay appears in direct response to a user
+                // input (keyboard shortcut). But we do animate out because closing is less
+                // intentional.
+                //
+                // Also it looks a little better to not animate when replacing a possibly
+                // existing toolbar.
+                isVisible={!isClosing}
+                disableAnimation={!isClosing}
+                isBlocking={true}
+                placement="bottom"
+                offset="3"
+                // No fallback placements! The comment input always stays at the end of the
+                // text its commenting on.
+                fallbackPlacements={emptyArray}
+                overlay={
+                    <Box>
+                        {dragOverlay && (
+                            <ContentEditorCommentInputDragOverlay viewRef={viewRef}>
+                                {dragOverlay}
+                            </ContentEditorCommentInputDragOverlay>
+                        )}
+                        <ContentEditorCommentInput
+                            state={state}
+                            viewRef={viewRef}
+                            isNodeRange={isNodeRange}
+                            range={range}
+                            commentState={commentState}
+                            setCommentState={setCommentState}
+                            files={files}
+                            setFiles={setFiles}
+                            addFiles={addFiles}
+                            onCloseWithoutAnimation={onCloseWithoutAnimation}
+                            onCloseWithAnimation={onCloseWithAnimation}
+                        />
+                    </Box>
+                }
+            >
+                <ContentEditorCursorTracker
+                    state={state}
+                    viewRef={viewRef}
+                    pos={isNodeRange ? range.from : range}
+                    onUpdatePosition={() => overlayRef.current?.forceUpdateOverlayPosition()}
+                />
+            </OverlayAnimated>
+        </Box>
     );
 }
 
@@ -178,7 +287,11 @@ function ContentEditorCommentInput({
     viewRef: documentViewRef,
     isNodeRange: isNodeDocumentRange,
     range: documentRange,
-    fileAttachmentTarget,
+    commentState,
+    setCommentState,
+    files,
+    setFiles,
+    addFiles,
     onCloseWithoutAnimation,
     onCloseWithAnimation,
 }: {
@@ -186,21 +299,18 @@ function ContentEditorCommentInput({
     viewRef: RefObject<EditorView | null>;
     isNodeRange: boolean;
     range: {from: number; to: number};
-    fileAttachmentTarget: Memo<FileAttachmentTarget>;
+    commentState: ContentEditorState<MessageContentWithReferences>;
+    setCommentState: Dispatch<SetStateAction<ContentEditorState<MessageContentWithReferences>>>;
+    files: ReadonlyArray<MessageInputFile>;
+    setFiles: Dispatch<SetStateAction<ReadonlyArray<MessageInputFile>>>;
+    addFiles: (spanName: string, fileInfos: ReadonlyArray<FileInfo>) => void;
     onCloseWithoutAnimation: () => void;
     onCloseWithAnimation: () => void;
 }) {
-    const context = useAppContext();
-    const reporter = useReporter();
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
-    const {currentAccount, space} = useSpaceContext();
-    const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
+    const {currentAccount} = useSpaceContext();
 
-    const [commentState, setCommentState] = useState(() =>
-        ContentEditorState.create(emptyMessageContentWithReferences),
-    );
-    const [files, setFiles] = useState<ReadonlyArray<MessageInputFile>>(emptyArray);
     const [shouldShowConfirmCloseDialog, setShouldShowConfirmCloseDialog] = useState(false);
 
     const isSendButtonDisabled = useMemo(
@@ -279,30 +389,6 @@ function ContentEditorCommentInput({
         await openCommentThreadPromiseRef.current;
 
         onCloseWithoutAnimation();
-    };
-
-    const addFiles = (
-        spanName: string,
-        fileInfos: ReadonlyArray<FileInfo>,
-    ): {finally(listener: () => void): void} => {
-        if (fileInfos.length === 0) return Promise.resolve();
-
-        const promise = context.tracer.withSpan(spanName, async context => {
-            await addMessageInputFiles(context, fileInfos, {
-                spaceId: space.id,
-                attachmentTarget: fileAttachmentTarget,
-                addGlobalLoadingIndicator,
-                onAddFile: file => {
-                    setFiles(files => [...files, file]);
-                },
-            });
-        });
-
-        promise.catch(error => {
-            reporter.displayError("Couldn’t upload file", error);
-        });
-
-        return promise;
     };
 
     return (
@@ -712,5 +798,75 @@ function ContentEditorCommentInput({
                 />
             )}
         </>
+    );
+}
+
+function ContentEditorCommentInputDragOverlay({
+    viewRef,
+    children,
+}: {
+    viewRef: RefObject<EditorView | null>;
+    children: ReactNode;
+}) {
+    const platform = usePlatform();
+    const spacingScale = useSpacingScale();
+    const rootBlockingPortalElement = useOverlayRootBlockingPortalElement();
+
+    const [rect, setRect] = useState<{
+        top: number;
+        bottom: number;
+        left: number;
+        right: number;
+    } | null>(null);
+
+    // If the position of `view` changes we want to re-render with the new `rect`.
+    // A cheap hacky way to do this is if our component re-renders then recompute
+    // `rect`. Most of the time re-renders won't change the position of our view.
+    //
+    // eslint-disable-next-line react-compiler/react-compiler
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useLayoutEffect(() => {
+        const {top, bottom, left, right} = assertExists(
+            viewRef.current,
+        ).dom.getBoundingClientRect();
+
+        const {height: windowHeight, width: windowWidth} =
+            document.documentElement.getBoundingClientRect();
+
+        const rect = {
+            top: clamp(0, top, windowHeight),
+            bottom: windowHeight - clamp(0, bottom, windowHeight),
+            left: clamp(
+                // Never cover the space layout sidebar on desktop platforms. In some states
+                // `view` may partially overlap the space layout sidebar because the amount of
+                // space the sidebar actually takes is dynamic based on view width
+                // (see `spaceLayoutSidebarSpace`).
+                platform !== "mobile"
+                    ? convertRemLengthToPx(spaceLayoutStyles.sideBarWidth, spacingScale)
+                    : 0,
+                left,
+                windowWidth,
+            ),
+            right: windowWidth - clamp(0, right, windowWidth),
+        };
+
+        setRect(previousRect => {
+            if (isDeepEqual(previousRect, rect)) return previousRect;
+            return rect;
+        });
+    });
+
+    if (!rect) return null;
+    if (!rootBlockingPortalElement) return null;
+
+    return createPortal(
+        <Box
+            zIndex="80"
+            position="fixed"
+            style={{top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right}}
+        >
+            {children}
+        </Box>,
+        rootBlockingPortalElement,
     );
 }

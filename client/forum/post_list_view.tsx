@@ -830,13 +830,15 @@ function PostListView(
             // Comments aren't expandable on mobile (unless we're in a post view) so don't
             // allow file dropping.
             (platform === "mobile" && !isPostView),
-        getInputRef: coords => {
+        onDrop: event => {
             const view = assertExists(viewRef.current);
             const renderedRange = view.getRenderedRange();
             if (!renderedRange) return null;
 
             const offset =
-                coords.y - view.getElement().getBoundingClientRect().top + view.getScrollOffset();
+                event.clientY -
+                view.getElement().getBoundingClientRect().top +
+                view.getScrollOffset();
 
             // Find the item that contains `offset`. Written so that if `offset` is above
             // the virtualized scroll view we'll return the first index and if it's below
@@ -873,7 +875,10 @@ function PostListView(
             // open the post's comments on drop or create a new post with the file on drop.
             // We should also consider just showing a drop overlay on top of the post
             // instead of the fullscreen which might confuse the user.
-            return inputRefByPostId.get(postId).current;
+            const input = inputRefByPostId.get(postId).current;
+            if (!input) return null;
+
+            return input.drop(event.dataTransfer);
         },
     });
 

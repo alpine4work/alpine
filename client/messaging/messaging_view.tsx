@@ -12,7 +12,8 @@ import {
     useState,
 } from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
-import {MessageInputFile, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
+import {MessageInputFile} from "~/client/content/messaging/add_message_input_files.js";
+import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
@@ -681,7 +682,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
 
     const {dragOverlay, dropTargetProps} = useMessagingViewDropTarget({
         isDisabled: messageEditing.state.isEditing,
-        getInputRef: () => assertExists(inputRef.current),
+        onDrop: event => assertExists(inputRef.current).drop(event.dataTransfer),
     });
 
     return (

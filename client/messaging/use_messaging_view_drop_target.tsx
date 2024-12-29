@@ -1,8 +1,6 @@
-import {HTMLAttributes, useState} from "react";
-import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
+import {DragEvent, HTMLAttributes, useState} from "react";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {MessagingViewDragOverlay} from "~/client/messaging/internal/messaging_view_drag_overlay.js";
-import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {fileClassName} from "~/shared/content/content_styles.js";
 import {canonicalizeFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
 
@@ -14,10 +12,10 @@ import {canonicalizeFileContentTypeIfExists} from "~/shared/files/file_content_t
  */
 export function useMessagingViewDropTarget({
     isDisabled,
-    getInputRef,
+    onDrop,
 }: {
     isDisabled: boolean;
-    getInputRef: (coords: {x: number; y: number}) => MessageInputRef | null;
+    onDrop: (event: DragEvent) => {finally(listener: () => void): void} | null;
 }) {
     const [dragEnterState, setDragEnterState] = useState<{
         count: number;
@@ -43,90 +41,108 @@ export function useMessagingViewDropTarget({
             <MessagingViewDragOverlay />
         ) : null;
 
-    const dropTargetProps: HTMLAttributes<HTMLElement> = {
-        onDragStartCapture: event => {
-            if (isDisabled) return;
+    let dropTargetProps: Pick<
+        HTMLAttributes<HTMLElement>,
+        | "onDragStartCapture"
+        | "onDragEndCapture"
+        | "onDragEnter"
+        | "onDragLeave"
+        | "onDragOver"
+        | "onDrop"
+    > | null;
+    if (isDisabled) {
+        // Don't allocate an object if this hook is disabled.
+        dropTargetProps = null;
+    } else {
+        dropTargetProps = {
+            onDragStartCapture: event => {
+                if (isDisabled) return;
 
-            // We don't want dragging a file inside our messaging view to count as the user
-            // trying to drop the file back in the messaging view.
-            if (event.target instanceof HTMLElement && event.target.closest(`.${fileClassName}`)) {
-                setIsDraggingFileWithin(true);
-            }
-        },
-        onDragEndCapture: () => {
-            if (isDisabled) return;
-            setIsDraggingFileWithin(false);
-        },
-        onDragEnter: event => {
-            if (isDisabled) return;
-
-            // If this drag only has `text/plain` and `text/html` it's probably because the
-            // user is dragging some content from either their browser or another app. If
-            // the user is dragging text, we want to let the message input's
-            // `<ContentEditor>` handle dropped text.
-            const hasNonTextType = event.dataTransfer.types.some(type => {
-                if (type === "Files") return true;
-                const canonicalType = canonicalizeFileContentTypeIfExists(type);
-                return canonicalType !== "text/plain" && canonicalType !== "text/html";
-            });
-
-            setDragEnterState(dragState => {
-                if (dragState) return {...dragState, count: dragState.count + 1};
-                return {count: 1, hasNonTextType};
-            });
-        },
-        onDragLeave: () => {
-            if (isDisabled) return;
-
-            // [Safari doesn't set `event.relatedTarget`][1] whereas Chrome does. If we
-            // reliably had access to `event.relatedTarget` we'd check:
-            // `event.currentTarget.contains(event.relatedTarget)` to know whether we need
-            // to reset our drag state.
-            //
-            // Instead we look at `dragenter` event counts. Once we reach 0 that means the
-            // user has fully dragged out of the container. We got the idea for this fix
-            // from [this Gist][2].
-            //
-            // We use this method in Chrome as well (even though we could use
-            // `event.relatedTarget`) to have consistent behavior across all browsers.
-            //
-            // [1]: https://bugs.webkit.org/show_bug.cgi?id=66547
-            // [2]: https://gist.github.com/alexreardon/10c595cbb840608a2828db56df99fa79
-            setDragEnterState(dragState => {
-                if (!dragState) return dragState;
-                if (dragState.count <= 1) return null;
-                return {...dragState, count: dragState.count - 1};
-            });
-        },
-        onDragOver: event => {
-            if (isDisabled) return;
-            event.preventDefault();
-        },
-        onDrop: event => {
-            if (isDisabled) return;
-
-            event.preventDefault();
-            setDragEnterState(null);
-
-            if (!isDraggingFileWithin && dragEnterState?.hasNonTextType) {
-                const inputRef = getInputRef({x: event.clientX, y: event.clientY});
-
-                if (inputRef !== null) {
-                    const waitingForDrop = Symbol();
-                    setWaitingForDrop(waitingForDrop);
-
-                    inputRef.drop(event.dataTransfer).finally(() => {
-                        // Handle race conditions by only resetting to null if the symbol from this
-                        // callback is present in state.
-                        setWaitingForDrop(lastWaitingForDrop => {
-                            if (lastWaitingForDrop !== waitingForDrop) return lastWaitingForDrop;
-                            return null;
-                        });
-                    });
+                // We don't want dragging a file inside our messaging view to count as the user
+                // trying to drop the file back in the messaging view.
+                if (
+                    event.target instanceof HTMLElement &&
+                    event.target.closest(`.${fileClassName}`)
+                ) {
+                    setIsDraggingFileWithin(true);
                 }
-            }
-        },
-    };
+            },
+            onDragEndCapture: () => {
+                if (isDisabled) return;
+                setIsDraggingFileWithin(false);
+            },
+            onDragEnter: event => {
+                if (isDisabled) return;
+
+                // If this drag only has `text/plain` and `text/html` it's probably because the
+                // user is dragging some content from either their browser or another app. If
+                // the user is dragging text, we want to let the message input's
+                // `<ContentEditor>` handle dropped text.
+                const hasNonTextType = event.dataTransfer.types.some(type => {
+                    if (type === "Files") return true;
+                    const canonicalType = canonicalizeFileContentTypeIfExists(type);
+                    return canonicalType !== "text/plain" && canonicalType !== "text/html";
+                });
+
+                setDragEnterState(dragState => {
+                    if (dragState) return {...dragState, count: dragState.count + 1};
+                    return {count: 1, hasNonTextType};
+                });
+            },
+            onDragLeave: () => {
+                if (isDisabled) return;
+
+                // [Safari doesn't set `event.relatedTarget`][1] whereas Chrome does. If we
+                // reliably had access to `event.relatedTarget` we'd check:
+                // `event.currentTarget.contains(event.relatedTarget)` to know whether we need
+                // to reset our drag state.
+                //
+                // Instead we look at `dragenter` event counts. Once we reach 0 that means the
+                // user has fully dragged out of the container. We got the idea for this fix
+                // from [this Gist][2].
+                //
+                // We use this method in Chrome as well (even though we could use
+                // `event.relatedTarget`) to have consistent behavior across all browsers.
+                //
+                // [1]: https://bugs.webkit.org/show_bug.cgi?id=66547
+                // [2]: https://gist.github.com/alexreardon/10c595cbb840608a2828db56df99fa79
+                setDragEnterState(dragState => {
+                    if (!dragState) return dragState;
+                    if (dragState.count <= 1) return null;
+                    return {...dragState, count: dragState.count - 1};
+                });
+            },
+            onDragOver: event => {
+                if (isDisabled) return;
+                event.preventDefault();
+            },
+            onDrop: event => {
+                if (isDisabled) return;
+
+                event.preventDefault();
+                setDragEnterState(null);
+
+                if (!isDraggingFileWithin && dragEnterState?.hasNonTextType) {
+                    const promise = onDrop(event);
+
+                    if (promise !== null) {
+                        const waitingForDrop = Symbol();
+                        setWaitingForDrop(waitingForDrop);
+
+                        promise.finally(() => {
+                            // Handle race conditions by only resetting to null if the symbol from this
+                            // callback is present in state.
+                            setWaitingForDrop(lastWaitingForDrop => {
+                                if (lastWaitingForDrop !== waitingForDrop)
+                                    return lastWaitingForDrop;
+                                return null;
+                            });
+                        });
+                    }
+                }
+            },
+        };
+    }
 
     return {dragOverlay, dropTargetProps};
 }

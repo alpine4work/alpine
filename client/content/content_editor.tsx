@@ -4170,7 +4170,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     )}
                 </MobileFullScreenModal>
             )}
-            {unwrappedState.schema.marks.comment && isMobileCommentInputOpen && (
+            {schema.marks.comment && isMobileCommentInputOpen && (
                 // Needs to be rendered outside of `<ContentEditorMobileKeyboardToolbar>` so
                 // that when we go inert this is still rendered.
                 <ContentEditorMobileCommentInputBottomBar

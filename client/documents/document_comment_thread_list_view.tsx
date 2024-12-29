@@ -774,13 +774,15 @@ function DocumentCommentThreadListView(
 
     const {dragOverlay, dropTargetProps} = useMessagingViewDropTarget({
         isDisabled: messageEditing.state.isEditing,
-        getInputRef: coords => {
+        onDrop: event => {
             const view = assertExists(viewRef.current);
             const renderedRange = view.getRenderedRange();
             if (!renderedRange) return null;
 
             const offset =
-                coords.y - view.getElement().getBoundingClientRect().top + view.getScrollOffset();
+                event.clientY -
+                view.getElement().getBoundingClientRect().top +
+                view.getScrollOffset();
 
             // Find the item that contains `offset`. Written so that if `offset` is above
             // the virtualized scroll view we'll return the first index and if it's below
@@ -808,7 +810,9 @@ function DocumentCommentThreadListView(
 
             const item = tree.getItem(aboveIndex);
 
-            return assertExists(inputRefByCommentThreadId.get(item.commentThread.id).current);
+            return assertExists(inputRefByCommentThreadId.get(item.commentThread.id).current).drop(
+                event.dataTransfer,
+            );
         },
     });
 
