@@ -17,6 +17,7 @@ import {
     lightColorSchemeSelector,
     mediumSpacingScaleSelector,
     mobilePlatformSelector,
+    selectorBySpacingScale,
 } from "~/client/styles/core/styles_core.js";
 import {buttonPressedOverlayOpacity} from "~/client/styles/other/internal/button.css.js";
 import * as contentFileVideoPlayerStyles from "~/client/styles/other/internal/content_file_video_player.css.js";
@@ -87,6 +88,7 @@ import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
+import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
@@ -1448,12 +1450,97 @@ const nestedCommentBackgroundColors = {
     }),
 };
 
+// Lots of resolutions since the resolution changes as the user zooms in (on
+// Chrome at least).
+const resolutions = [1, 2, 3, 4, 5, 6] as const;
+
+const inlineBackgroundPaddingPx = createObjectFromKeys(allSpacingScales, spacingScale => {
+    const padding =
+        paragraphLineHeightPx[spacingScale] -
+        fontSizesBySpacingScale[paragraphActualFontSize][spacingScale].fontSize *
+            backgroundFontSizePercentage;
+
+    const get = (method: "floor" | "ceil", resolution: number) =>
+        Math[method]((Math.round(padding * resolution) / resolution / 2) * resolution) / resolution;
+
+    return createObjectFromKeys(resolutions, resolution => ({
+        floor: `${get("floor", resolution)}px`,
+        ceil: `${get("ceil", resolution)}px`,
+    }));
+});
+
+/**
+ * You apply these padding values as `padding-top` and `padding-bottom` of an
+ * inline variable whose background (usually a color expressed with
+ * `background-color`) you want to extend for the text's full line height.
+ * Instead of just the text box.
+ *
+ * Getting these values right is pretty delicate business.
+ *
+ * - It depends on font metrics which determine how much space a font occupies
+ *   relative to its `font-size`.
+ *
+ * - You need to be careful with subpixel rounding or else you'll get super
+ *   thin overlap between lines of text which looks wrong.
+ *
+ * - Different browsers perform text rendering differently.
+ *
+ * So we create CSS variables that we store proper padding top/bottom values in
+ * pixels. And use a combination of media queries and selectors to pick the
+ * right values.
+ */
+const inlineBackgroundPadding = createGlobalTheme(":root", {
+    top: inlineBackgroundPaddingPx.small[1].floor,
+    bottom: inlineBackgroundPaddingPx.small[1].ceil,
+});
+
+for (const spacingScale of allSpacingScales) {
+    for (const resolution of resolutions) {
+        // Handled by default variable values.
+        if (spacingScale === "small" && resolution === 1) continue;
+
+        const selector = spacingScale === "small" ? ":root" : selectorBySpacingScale[spacingScale];
+
+        if (resolution === 1) {
+            globalStyle(selector, {
+                vars: assignVars(inlineBackgroundPadding, {
+                    top: inlineBackgroundPaddingPx[spacingScale][resolution].floor,
+                    bottom: inlineBackgroundPaddingPx[spacingScale][resolution].ceil,
+                }),
+            });
+        } else {
+            globalStyle(selector, {
+                "@media": {
+                    [`(min-resolution: ${resolution}x)`]: {
+                        vars: assignVars(inlineBackgroundPadding, {
+                            top: inlineBackgroundPaddingPx[spacingScale][resolution].floor,
+                            bottom: inlineBackgroundPaddingPx[spacingScale][resolution].ceil,
+                        }),
+                    },
+                },
+            });
+        }
+    }
+}
+
+// WebKit has some other calculation for padding top/bottom on inline elements
+// we don't understand. Leading to padding top/bottom not perfectly lining up
+// in WebKit. We've hardcoded 2px as padding top/bottom values that work on my
+// iPhone for the mobile app. We should spend some time trying to figure out
+// values that work in general for WebKit eventually.
+globalStyle(`${largeSpacingScaleSelector}[data-engine=webkit]`, {
+    vars: assignVars(inlineBackgroundPadding, {
+        top: "2px",
+        bottom: "2px",
+    }),
+});
+
 globalStyle(commentClassName, {
     color: "inherit",
     backgroundColor: commentBackgroundColors.light.default,
     // Extend the comment background color to the line height.
-    paddingTop: `calc((1lh - ${backgroundFontSizePercentage}em) / 2)`,
-    paddingBottom: `calc((1lh - ${backgroundFontSizePercentage}em) / 2)`,
+    paddingTop: inlineBackgroundPadding.top,
+    paddingBottom: inlineBackgroundPadding.bottom,
 });
 
 globalStyle(`${commentClassName} ${commentClassName}`, {
@@ -1554,8 +1641,8 @@ mapObjectValues(colorByHighlightColor, (color, highlightColor) => {
 });
 
 export const phantomSelectionClassName = style({
-    paddingTop: `calc((1lh - ${backgroundFontSizePercentage}em) / 2)`,
-    paddingBottom: `calc((1lh - ${backgroundFontSizePercentage}em) / 2)`,
+    paddingTop: inlineBackgroundPadding.top,
+    paddingBottom: inlineBackgroundPadding.bottom,
 });
 
 // Syntax highlighting color philosophy:
@@ -1669,7 +1756,7 @@ ${darkColorSchemeSelector} #$containerId .${commentClassName} .${commentClassNam
     commentBackgroundColors.light.active
 }}
 #$containerId :is(.${fileRowClassName}, .${fileFloatClassName}) > .${commentClassName}:not([data-comment="$commentThreadId"]):has(.${commentClassName}[data-comment="$commentThreadId"])::after {background-color: transparent}
-${(Object.keys(colorByHighlightColor) as Array<keyof typeof highlightClassNameByColor>)
+${getObjectKeysWithKeyofType(colorByHighlightColor)
     .map(
         highlightColor => `\
 #$containerId .${commentClassName}[data-comment="$commentThreadId"] ${
@@ -1700,14 +1787,14 @@ ${darkColorSchemeSelector} #$containerId .${commentClassName}[data-comment="$com
  * produce this effect.
  */
 function extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
-    _backgroundColor: string,
-    _commentHighlightColor: string,
-    _highlightColor: string,
+    backgroundColorString: string,
+    commentHighlightColorString: string,
+    highlightColorString: string,
     opacity: number,
 ) {
-    const backgroundColor = parseRawColor(_backgroundColor);
-    const commentHighlightColor = parseRawColor(_commentHighlightColor);
-    const highlightColor = parseRawColor(_highlightColor);
+    const backgroundColor = parseRawColor(backgroundColorString);
+    const commentHighlightColor = parseRawColor(commentHighlightColorString);
+    const highlightColor = parseRawColor(highlightColorString);
 
     // Get the background color when the comment highlight is rendering on top
     // of it.

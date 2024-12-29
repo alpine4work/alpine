@@ -549,6 +549,7 @@ export default function Root() {
             data-platform={platform}
             data-spacing={spacingScale}
             data-color={getColorSchemeWithoutListeningIfBrowser()}
+            data-engine={clientInfo.renderingEngine.toLowerCase()}
         >
             <head>
                 <meta charSet="utf-8" />

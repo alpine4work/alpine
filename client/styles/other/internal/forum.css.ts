@@ -1,25 +1,18 @@
 import {style} from "@vanilla-extract/css";
 import {
     darkColorSchemeSelector,
-    largeSpacingScaleSelector,
     lightColorSchemeSelector,
-    mediumSpacingScaleSelector,
-    smallSpacingScaleSelector,
+    selectorBySpacingScale,
 } from "~/client/styles/core/styles_core.js";
 import {colorsWithShade, invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
 
 export const fullScreenContentEditorClassName = style({
     paddingBottom: `calc(${spacing["24"]} + var(--safe-area-inset-bottom, 0px))`,
 });
-
-const remPxBySelector = {
-    [smallSpacingScaleSelector]: remPxBySpacingScale.small,
-    [mediumSpacingScaleSelector]: remPxBySpacingScale.medium,
-    [largeSpacingScaleSelector]: remPxBySpacingScale.large,
-};
 
 const colorBySelector = {
     [lightColorSchemeSelector]: colorsWithShade["grey-5"],
@@ -37,15 +30,16 @@ export const dashedBorderClassName = style({
             backgroundColor: "transparent",
         },
         ...Object.fromEntries(
-            Object.entries(remPxBySelector).flatMap(([selector1, remPx]) =>
-                Object.entries(colorBySelector).map(([selector2, color]) => [
-                    `${selector1}${selector2} &`,
-                    {
-                        backgroundImage: `url("${convertSvgToDataUrl(
-                            createDashedSvg(remPx * (3 / 4), color),
-                        )}")`,
-                    },
-                ]),
+            getObjectEntriesWithKeyofType(selectorBySpacingScale).flatMap(
+                ([spacingScale, selector1]) =>
+                    Object.entries(colorBySelector).map(([selector2, color]) => [
+                        `${selector1}${selector2} &`,
+                        {
+                            backgroundImage: `url("${convertSvgToDataUrl(
+                                createDashedSvg(remPxBySpacingScale[spacingScale] * (3 / 4), color),
+                            )}")`,
+                        },
+                    ]),
             ),
         ),
     },
