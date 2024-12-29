@@ -827,8 +827,9 @@ function PostListView(
         isDisabled:
             postEditing.state.isEditing ||
             messageEditing.state.isEditing ||
-            // Comments aren't expandable on mobile so don't allow file dropping.
-            platform === "mobile",
+            // Comments aren't expandable on mobile (unless we're in a post view) so don't
+            // allow file dropping.
+            (platform === "mobile" && !isPostView),
         getInputRef: coords => {
             const view = assertExists(viewRef.current);
             const renderedRange = view.getRenderedRange();
