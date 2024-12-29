@@ -16,6 +16,7 @@ import {
     useState,
 } from "react";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
+import {useMessagingViewDropTarget} from "~/client/content/messaging/use_messaging_view_drop_target.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {
@@ -52,7 +53,6 @@ import {MessageListMessageShimmer} from "~/client/messaging/message_list_message
 import {MessageView} from "~/client/messaging/message_view.js";
 import {MessagingTypingIndicators} from "~/client/messaging/messaging_typing_indicators.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
-import {useMessagingViewDropTarget} from "~/client/messaging/use_messaging_view_drop_target.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";

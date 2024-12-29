@@ -31,6 +31,7 @@ import {
     addMessageInputFiles,
 } from "~/client/content/messaging/add_message_input_files.js";
 import {MessageInputFilePreview} from "~/client/content/messaging/message_input_file_preview.js";
+import {useMessagingViewDropTarget} from "~/client/content/messaging/use_messaging_view_drop_target.js";
 import {selectFiles} from "~/client/content/select_files.js";
 import {trimContentEnd, trimContentWithReferencesEnd} from "~/client/content/trim_content.js";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -51,7 +52,6 @@ import {parseHtml} from "~/client/helpers/parse_html.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {VideoIcon} from "~/client/icons/video_icon.js";
 import {WaveformIcon} from "~/client/icons/waveform_icon.js";
-import {useMessagingViewDropTarget} from "~/client/messaging/use_messaging_view_drop_target.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";

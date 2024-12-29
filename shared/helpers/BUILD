@@ -7,11 +7,13 @@ CORE_SRCS = [
     "control/assert.ts",
     "control/cast.ts",
     "map/get_or_set_default_map_value.ts",
+    "object/get_object_entries_with_keyof_type.ts",
+    "object/get_object_keys_with_keyof_type.ts",
     "object/map_object_values.ts",
     "object/omit_object.ts",
 ]
 
-# We have a separate `helpers_core` package with a little number of essential
+# We have a separate `helpers_core` package with a small number of essential
 # helpers that can be used by rules that are expensive to rebuild (e.g.
 # `sprinkles.css.js`) so every update to helpers doesn't cause a rebuild of
 # these rules.

@@ -1,6 +1,6 @@
 import {DragEvent, HTMLAttributes, useState} from "react";
+import {MessagingViewDragOverlay} from "~/client/content/messaging/internal/messaging_view_drag_overlay.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
-import {MessagingViewDragOverlay} from "~/client/messaging/internal/messaging_view_drag_overlay.js";
 import {fileClassName} from "~/shared/content/content_styles.js";
 import {canonicalizeFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
 

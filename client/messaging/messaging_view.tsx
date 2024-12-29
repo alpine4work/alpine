@@ -14,6 +14,7 @@ import {
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {MessageInputFile} from "~/client/content/messaging/add_message_input_files.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
+import {useMessagingViewDropTarget} from "~/client/content/messaging/use_messaging_view_drop_target.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
@@ -29,7 +30,6 @@ import {
 } from "~/client/messaging/render_message_list_item.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
-import {useMessagingViewDropTarget} from "~/client/messaging/use_messaging_view_drop_target.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {sprinkles} from "~/client/styles/styles.js";

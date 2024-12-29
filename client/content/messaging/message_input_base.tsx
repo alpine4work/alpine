@@ -36,8 +36,8 @@ import {
     addMessageInputFiles,
 } from "~/client/content/messaging/add_message_input_files.js";
 import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
+import {MessageInputMobileKeyboardToolbar} from "~/client/content/messaging/internal/message_input_mobile_keyboard_toolbar.js";
 import {MessageInputFilePreview} from "~/client/content/messaging/message_input_file_preview.js";
-import {MessageInputMobileKeyboardToolbar} from "~/client/content/messaging/message_input_mobile_keyboard_toolbar.js";
 import {selectFiles} from "~/client/content/select_files.js";
 import {trimContentEnd} from "~/client/content/trim_content.js";
 import {useAppContext} from "~/client/context/app_context.js";
