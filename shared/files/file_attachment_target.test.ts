@@ -14,10 +14,6 @@ const fileAttachmentTargetByType: {
         type: "ChatMessages",
         chatId: generateId(),
     },
-    ChannelDescription: {
-        type: "ChannelDescription",
-        channelId: generateId(),
-    },
     Document: {
         type: "Document",
         documentId: generateId(),

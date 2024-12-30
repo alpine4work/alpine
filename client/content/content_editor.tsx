@@ -1359,8 +1359,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
 
         viewProps.transformPastedDOM = element => {
-            console.log("transformPastedDOM", element.outerHTML);
-
             // File copy/pasting is tricky. In the content itself a file is represented as
             // a node with only a `FileId`. Data about the file is available on the side
             // in `ContentReferences` and often needs to be loaded from the server.
@@ -1846,12 +1844,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         }
 
         viewProps.handlePaste = (view, event, slice) => {
-            console.log(
-                "handlePaste",
-                event.clipboardData?.getData("text/html"),
-                JSON.stringify(slice.toJSON()),
-            );
-
             let selection = view.state.selection;
 
             // If the selection starts in our title, then shift the selection out of the
