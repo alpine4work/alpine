@@ -2005,7 +2005,6 @@ globalStyle(tableCellClassName, {
 
 globalStyle(tableClassName, {
     position: "relative",
-    // minWidth: spacing[160],
     margin: `${standaloneBlockMarginVar} auto`,
     width: "fit-content",
     maxWidth: "95%",
@@ -2017,7 +2016,7 @@ globalStyle(`${tableClassName} col`, {
 });
 
 globalStyle(`${tableClassName} table`, {
-    minWidth: blockMaxWidthVar,
+    // minWidth: blockMaxWidthVar,
     maxWidth: `calc(256 * ${tableUnitVar})`,
     textAlign: "left",
     borderCollapse: "collapse",
