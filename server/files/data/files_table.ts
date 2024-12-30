@@ -52,7 +52,6 @@ import {If} from "~/shared/helpers/types/if.js";
 import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
 import {
     AccountId,
-    ChannelId,
     ChatId,
     DocumentId,
     FileId,
@@ -222,15 +221,6 @@ const FilesTable = DynamoTableSchema.new({
                     }),
                 },
                 {
-                    name: "ChannelDescriptionAttachmentTarget",
-                    sortKeyAttributes: {
-                        channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
-                    },
-                    attributes: Schema.object({
-                        createdTime: Schema.date,
-                    }),
-                },
-                {
                     name: "DocumentAttachmentTarget",
                     sortKeyAttributes: {
                         documentId: DynamoKeyAttributeSchema.id<DocumentId>(),
@@ -333,15 +323,6 @@ function getFileAttachmentTargetItemKey(
                 spaceId,
                 fileId,
                 chatId: target.chatId,
-            };
-        }
-        case "ChannelDescription": {
-            return {
-                partitionType: "File",
-                sortRangeType: "ChannelDescriptionAttachmentTarget",
-                spaceId,
-                fileId,
-                channelId: target.channelId,
             };
         }
         case "Document": {
@@ -1732,7 +1713,6 @@ export class FileAuthorizerUnbound<
                 assert(tableSchema.getName() === "Chat");
                 break;
             }
-            case "Channel":
             case "Post": {
                 assert(tableSchema.getName() === "ForumRealtime");
                 break;

@@ -30,6 +30,7 @@ import {
     getTaskNotesContent,
     getTaskNotesContentAndInitialComments,
 } from "~/server/tasks/data/task_table.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -339,6 +340,8 @@ export default function TaskRoute() {
                         isConnected={webSocketState.isConnected}
                         procedures={notesClient.procedures}
                         subscribeToEvents={subscribeToCommentsEvents}
+                        // Provide the sidebar width for better layout results when previewing files.
+                        fileLayoutScreenWidth={spacing[taskDetailViewCommentSidebarWidth]}
                     />
                 </Box>
             )}

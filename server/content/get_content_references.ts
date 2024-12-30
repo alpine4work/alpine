@@ -9,11 +9,13 @@ import {
     getContentReferencedIdsForSteps,
 } from "~/shared/content/content_referenced_ids.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
+import {InternalError} from "~/shared/error/error.js";
 import {FileModel, getFileModelDataAttachReadiness} from "~/shared/files/file_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 
 export function getContentReferencesForNode(
     context: ServerContentActionContext,
@@ -23,6 +25,16 @@ export function getContentReferencesForNode(
 ): Promise<ContentReferences> {
     const referencedIds = getContentReferencedIdsForNode(content);
     return getContentReferences(context, spaceId, fileAuthorizer, referencedIds);
+}
+
+// `MessageContent` doesn't have files so you don't need a `FileAuthorizer`.
+export function getMessageContentReferencesForNode(
+    context: ServerContentActionContext,
+    spaceId: SpaceId,
+    content: MessageContent,
+): Promise<ContentReferences> {
+    const referencedIds = getContentReferencedIdsForNode(content);
+    return getContentReferences(context, spaceId, "AssertHasNoFiles", referencedIds);
 }
 
 export function getContentReferencesForSteps(
@@ -46,7 +58,7 @@ export function getContentReferencesForSteps(
 export async function getContentReferences(
     context: ServerContentActionContext,
     spaceId: SpaceId,
-    fileAuthorizer: FileAuthorizer,
+    fileAuthorizer: FileAuthorizer | "AssertHasNoFiles",
     referencedIds: ContentReferencedIds,
 ): Promise<ContentReferences> {
     // IMPORTANT: This function may be called multiple times on the same content in
@@ -65,9 +77,12 @@ export async function getContentReferences(
             }),
         ),
         runAllPromises(
-            mapIterable(referencedIds.fileIds, fileId =>
-                getContentFileReference(context, spaceId, fileId, fileAuthorizer),
-            ),
+            mapIterable(referencedIds.fileIds, fileId => {
+                if (fileAuthorizer === "AssertHasNoFiles") {
+                    throw new InternalError("Expected content to not include any referenced files");
+                }
+                return getContentFileReference(context, spaceId, fileId, fileAuthorizer);
+            }),
         ),
     ]);
 

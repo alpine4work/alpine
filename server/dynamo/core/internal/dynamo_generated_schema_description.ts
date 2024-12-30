@@ -4339,32 +4339,6 @@ export const dynamoGeneratedSchemaDescription: {
                                 }
                             }
                         },
-                        "ChannelDescriptionAttachmentTarget": {
-                            "id": 1,
-                            "orderKey": "a1",
-                            "sortKeyAttributeByKey": {
-                                "channelId": {
-                                    "type": "Id"
-                                }
-                            },
-                            "attributesSchema": {
-                                "type": "Object",
-                                "propertySchemaByKey": {
-                                    "createdTime": {
-                                        "valueSchema": {
-                                            "type": "Date"
-                                        },
-                                        "optional": false
-                                    },
-                                    "updateLockVersion": {
-                                        "valueSchema": {
-                                            "type": "Integer"
-                                        },
-                                        "optional": true
-                                    }
-                                }
-                            }
-                        },
                         "DocumentAttachmentTarget": {
                             "id": 2,
                             "orderKey": "a2",

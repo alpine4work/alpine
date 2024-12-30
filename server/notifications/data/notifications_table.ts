@@ -7,7 +7,10 @@ import {
     authorizeChatAccessForAccount,
     getChatAccountIds,
 } from "~/server/chat/data/chat_table.js";
-import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
+import {
+    getContentReferencesForNode,
+    getMessageContentReferencesForNode,
+} from "~/server/content/get_content_references.js";
 import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {
     ServerActionContextModules,
@@ -725,13 +728,9 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                     const [author, references, {chatAccountCount}, otherChatAccount] =
                         await runAllPromises([
                             getAccount(context, item.spaceId, item.latestMessage.authorId),
-                            getContentReferencesForNode(
+                            getMessageContentReferencesForNode(
                                 context,
                                 item.spaceId,
-                                FileChatAuthorizer.bind({
-                                    type: "ChatMessages",
-                                    chatId: item.chatId,
-                                }),
                                 item.latestMessage.contentSnippet,
                             ),
                             authorizeChatAccessForAccount(
@@ -781,13 +780,9 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                       item.spaceId,
                                       item.latestComment.authorId,
                                   ),
-                                  references: getContentReferencesForNode(
+                                  references: getMessageContentReferencesForNode(
                                       context,
                                       item.spaceId,
-                                      FilePostAuthorizer.bind({
-                                          type: "PostComments",
-                                          postId: item.postId,
-                                      }),
                                       item.latestComment.contentSnippet,
                                   ),
                               })
@@ -904,13 +899,9 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         getDocumentPreview(context, item.documentId),
                         getAccount(context, item.spaceId, item.firstCommentAuthorId),
                         getAccount(context, item.spaceId, item.latestComment.authorId),
-                        getContentReferencesForNode(
+                        getMessageContentReferencesForNode(
                             context,
                             item.spaceId,
-                            FileDocumentAuthorizer.bind({
-                                type: "DocumentComments",
-                                documentId: item.documentId,
-                            }),
                             item.latestComment.contentSnippet,
                         ),
                         item.otherCommentAuthorId
@@ -954,13 +945,9 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                     ] = await runAllPromises([
                         getDocumentPreview(context, item.documentId),
                         getAccount(context, item.spaceId, item.firstComment.authorId),
-                        getContentReferencesForNode(
+                        getMessageContentReferencesForNode(
                             context,
                             item.spaceId,
-                            FileDocumentAuthorizer.bind({
-                                type: "DocumentComments",
-                                documentId: item.documentId,
-                            }),
                             item.firstComment.contentSnippet,
                         ),
                         otherCommentThreadAuthorId
@@ -999,13 +986,9 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         runAllObjectPromises({
                             comment: item.latestComment,
                             author: getAccount(context, item.spaceId, item.latestComment.authorId),
-                            references: getContentReferencesForNode(
+                            references: getMessageContentReferencesForNode(
                                 context,
                                 item.spaceId,
-                                FileTaskAuthorizer.bind({
-                                    type: "TaskComments",
-                                    taskId: item.taskId,
-                                }),
                                 item.latestComment.contentSnippet,
                             ),
                         }),

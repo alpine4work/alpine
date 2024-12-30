@@ -1,5 +1,8 @@
 import {authorizeInternalAccess} from "~/server/accounts/accounts_table.js";
-import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
+import {
+    getContentReferencesForNode,
+    getMessageContentReferencesForNode,
+} from "~/server/content/get_content_references.js";
 import {
     applyMentionCountByAccountIdDifferenceFromContentUpdate,
     getMentionCountByAccountIdInContent,
@@ -822,14 +825,6 @@ type ChannelPostFilesItem = DynamoGeneralRealtimeTableItemType<
 
 type PostCommentItem = DynamoTableItemType<typeof ForumTable, "Post", "Comments">;
 
-export const FileChannelAuthorizer = FileAuthorizer.new(
-    ForumRealtimeTable,
-    "Channel",
-    // TODO(calebmer): Once documents get a read-only permission level we should
-    // update `authorizeChannelAccess()` to support `expectedAccessLevel`.
-    (context, target) => authorizeChannelAccess(context, target.channelId),
-);
-
 export const FilePostAuthorizer = FileAuthorizer.new(
     ForumRealtimeTable,
     "Post",
@@ -1262,10 +1257,9 @@ async function createChannelModelFromItem(
         name: item.name,
         description: {
             doc: item.description,
-            references: await getContentReferencesForNode(
+            references: await getMessageContentReferencesForNode(
                 context,
                 item.spaceId,
-                FileChannelAuthorizer.bind({type: "ChannelDescription", channelId: item.channelId}),
                 item.description,
             ),
         },
@@ -3940,13 +3934,9 @@ async function queryPostCommentChangeLogAssumingAuthorizedPost(
 
                             // Don't propagate `consistency` when loading content references. We
                             // accept references can have eventual consistency.
-                            references: await getContentReferencesForNode(
+                            references: await getMessageContentReferencesForNode(
                                 context,
                                 postItem.spaceId,
-                                FilePostAuthorizer.bind({
-                                    type: "PostComments",
-                                    postId: item.postId,
-                                }),
                                 item.change.content,
                             ),
                         },

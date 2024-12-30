@@ -1259,6 +1259,7 @@ function DocumentCommentThreadListView(
             {modals}
             <div
                 {...dropTargetProps}
+                data-testid="DocumentCommentThreadListView"
                 className={sprinkles({
                     flexGrow: "1",
                     width: "full",

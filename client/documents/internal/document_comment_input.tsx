@@ -175,6 +175,7 @@ export function DocumentCommentInput({
     return (
         <MessageInput
             ref={useMergedRefs(inputRef, inputRefProp ?? null)}
+            data-testid={`DocumentCommentInput:${commentThread.id}`}
             messageNoun="comment"
             isNotBottomBar={isStickyPositioned}
             messages={comments}

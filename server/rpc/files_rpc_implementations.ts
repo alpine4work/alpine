@@ -9,7 +9,7 @@ import {
     getFileFromAttachment,
     startUploadingFile,
 } from "~/server/files/data/files_table.js";
-import {FileChannelAuthorizer, FilePostAuthorizer} from "~/server/forum/data/forum_table.js";
+import {FilePostAuthorizer} from "~/server/forum/data/forum_table.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/task_table.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -20,8 +20,6 @@ export function getFileAttachmentTargetAuthorizer(target: FileAttachmentTarget):
     switch (target.type) {
         case "ChatMessages":
             return FileChatAuthorizer.bind(target);
-        case "ChannelDescription":
-            return FileChannelAuthorizer.bind(target);
         case "Document":
         case "DocumentComments":
             return FileDocumentAuthorizer.bind(target);

@@ -1,4 +1,4 @@
-import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
+import {getMessageContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
     FilePostAuthorizer,
     authorizeChannelAccess,
@@ -248,10 +248,9 @@ export default implementRpcs(definitions, {
                 input,
             );
 
-            const contentReferences = await getContentReferencesForNode(
+            const contentReferences = await getMessageContentReferencesForNode(
                 context,
                 spaceId,
-                FilePostAuthorizer.bind({type: "PostComments", postId: input.postId}),
                 input.content,
             );
 

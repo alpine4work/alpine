@@ -1,6 +1,6 @@
 import {
     getContentReferences,
-    getContentReferencesForNode,
+    getMessageContentReferencesForNode,
 } from "~/server/content/get_content_references.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
@@ -204,10 +204,9 @@ export default implementRpcs(definitions, {
                 input,
             );
 
-            const contentReferences = await getContentReferencesForNode(
+            const contentReferences = await getMessageContentReferencesForNode(
                 context,
                 spaceId,
-                FileTaskAuthorizer.bind({type: "TaskComments", taskId: input.taskId}),
                 input.content,
             );
 

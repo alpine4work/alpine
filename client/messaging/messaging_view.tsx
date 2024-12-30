@@ -31,6 +31,7 @@ import {
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {
@@ -39,6 +40,7 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
+import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {wait} from "~/shared/helpers/async/wait.js";
@@ -205,6 +207,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         elementRef,
         extraChildren,
         scrollbarInsetTop,
+        fileLayoutScreenWidth: fileLayoutScreenWidthProp,
     }: {
         /**
          * What we call messages in UI copy. Defaults to "message". For example
@@ -397,13 +400,27 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          * `scrollbarInsetTop` wins.
          */
         scrollbarInsetTop?: ScrollbarInsetDynamic;
+
+        /**
+         * Optionally override the screen width provided to `layoutContentFileRow()` in
+         * the `<ContentView>` for comment thread previews. Overriding this can lead to
+         * more scale appropriate file layouts in the preview window. Defaults to
+         * `clientInfo.screenWidth`.
+         */
+        fileLayoutScreenWidth?: RemLength;
     },
     ref: Ref<MessagingViewRef>,
 ) {
     const spacingScale = useSpacingScale();
     const reporter = useReporter();
+
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const inputRef = useRef<MessageInputRef>(null);
+
+    const fileLayoutScreenWidth =
+        fileLayoutScreenWidthProp !== undefined
+            ? convertRemLengthToPx(fileLayoutScreenWidthProp, spacingScale)
+            : undefined;
 
     const [messagesWithoutHeader, setMessages] = useState(() => {
         const messages = MessageList.new<Message>({
@@ -660,6 +677,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         roomDisplayedCreatedTime,
                         shouldAddMarginTop: index === 0,
                         shouldAddMarginBottom: index === state.getItemCount() - 1,
+                        fileLayoutScreenWidth,
                     });
                 }
             }
@@ -667,6 +685,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         [
             deleteMessage,
             fileAttachmentTarget,
+            fileLayoutScreenWidth,
             getMessageUrl,
             handleJumpToMessage,
             highlightMessage,

@@ -1,6 +1,6 @@
 import {createHash} from "crypto";
 import murmurhash from "murmurhash";
-import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
+import {getMessageContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {getMentionedAccountIdsInContent} from "~/server/content/get_mentioned_account_ids_in_content.js";
 import {
     ServerActionContext,
@@ -2373,13 +2373,9 @@ async function queryChatMessageChangeLogAssumingAuthorizedPost(
                             doc: item.change.content,
                             // Don't propagate `consistency` when loading content references. We
                             // accept references can have eventual consistency.
-                            references: await getContentReferencesForNode(
+                            references: await getMessageContentReferencesForNode(
                                 context,
                                 chatItem.spaceId,
-                                FileChatAuthorizer.bind({
-                                    type: "ChatMessages",
-                                    chatId: item.chatId,
-                                }),
                                 item.change.content,
                             ),
                         },

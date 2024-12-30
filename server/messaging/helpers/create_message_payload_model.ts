@@ -1,6 +1,6 @@
 import {
     getContentFileReference,
-    getContentReferencesForNode,
+    getMessageContentReferencesForNode,
 } from "~/server/content/get_content_references.js";
 import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
 import {FileAuthorizer} from "~/server/files/data/files_table.js";
@@ -24,7 +24,7 @@ export async function createMessagePayloadModel(
     switch (payload.type) {
         case "Content": {
             const [references, files] = await runAllPromises([
-                getContentReferencesForNode(context, spaceId, fileAuthorizer, payload.content),
+                getMessageContentReferencesForNode(context, spaceId, payload.content),
                 runAllPromises(
                     mapIterable(payload.fileIds, async fileId => {
                         const file = await getContentFileReference(

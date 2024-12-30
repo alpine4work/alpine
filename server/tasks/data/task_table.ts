@@ -2,7 +2,10 @@ import {CalendarDate} from "@internationalized/date";
 import {addHours, addMonths, differenceInMonths} from "date-fns";
 import murmurhash from "murmurhash";
 import {Step} from "prosemirror-transform";
-import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
+import {
+    getContentReferencesForNode,
+    getMessageContentReferencesForNode,
+} from "~/server/content/get_content_references.js";
 import {
     applyMentionCountByAccountIdDifferenceFromContentUpdate,
     getMentionedAccountIdsInContent,
@@ -5346,13 +5349,9 @@ async function queryTaskCommentChangeLogAssumingAuthorizedTask(
 
                             // Don't propagate `consistency` when loading content references. We
                             // accept references can have eventual consistency.
-                            references: await getContentReferencesForNode(
+                            references: await getMessageContentReferencesForNode(
                                 context,
                                 spaceId,
-                                FileTaskAuthorizer.bind({
-                                    type: "TaskComments",
-                                    taskId: item.taskId,
-                                }),
                                 item.change.content,
                             ),
                         },

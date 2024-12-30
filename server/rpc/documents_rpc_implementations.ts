@@ -1,7 +1,7 @@
 import {
     getContentFileReference,
     getContentReferences,
-    getContentReferencesForNode,
+    getMessageContentReferencesForNode,
 } from "~/server/content/get_content_references.js";
 import {
     FileDocumentAuthorizer,
@@ -222,15 +222,7 @@ export default implementRpcs(definitions, {
                 updateDocumentCommentContent(context.actor.authorizeSession(), input),
                 authorizeDocumentAccess(context.actor.authorizeSession(), input.documentId).then(
                     ({spaceId}) =>
-                        getContentReferencesForNode(
-                            context,
-                            spaceId,
-                            FileDocumentAuthorizer.bind({
-                                type: "DocumentComments",
-                                documentId: input.documentId,
-                            }),
-                            input.content,
-                        ),
+                        getMessageContentReferencesForNode(context, spaceId, input.content),
                 ),
             ]);
 

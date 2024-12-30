@@ -1616,6 +1616,7 @@ function PostListView(
             )}
             <div
                 {...dropTargetProps}
+                data-testid="PostListView"
                 ref={viewContainerRef}
                 className={sprinkles({
                     flexGrow: "1",

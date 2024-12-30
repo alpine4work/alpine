@@ -1,7 +1,10 @@
 import {differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
-import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
+import {
+    getContentReferencesForNode,
+    getMessageContentReferencesForNode,
+} from "~/server/content/get_content_references.js";
 import {
     applyMentionCountByAccountIdDifferenceFromContentUpdate,
     getMentionCountByAccountIdInContent,
@@ -5196,13 +5199,9 @@ async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThr
                             doc: item.change.content,
                             // Don't propagate `consistency` when loading content references. We
                             // accept references can have eventual consistency.
-                            references: await getContentReferencesForNode(
+                            references: await getMessageContentReferencesForNode(
                                 context,
                                 spaceId,
-                                FileDocumentAuthorizer.bind({
-                                    type: "DocumentComments",
-                                    documentId: item.documentId,
-                                }),
                                 item.change.content,
                             ),
                         },

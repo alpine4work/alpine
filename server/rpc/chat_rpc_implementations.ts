@@ -8,7 +8,7 @@ import {
     sendChatMessage,
     updateChatMessageContent,
 } from "~/server/chat/data/chat_table.js";
-import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
+import {getMessageContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
@@ -88,12 +88,7 @@ export default implementRpcs(definitions, {
                 updateChatMessageContent(context.actor.authorizeSession(), input),
                 authorizeChatAccess(context.actor.authorizeSession(), input.chatId).then(
                     ({spaceId}) =>
-                        getContentReferencesForNode(
-                            context,
-                            spaceId,
-                            FileChatAuthorizer.bind({type: "ChatMessages", chatId: input.chatId}),
-                            input.content,
-                        ),
+                        getMessageContentReferencesForNode(context, spaceId, input.content),
                 ),
             ]);
 

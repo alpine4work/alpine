@@ -5,7 +5,6 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
 import {
     AccountId,
-    ChannelId,
     ChatId,
     DocumentId,
     PostDraftId,
@@ -25,11 +24,8 @@ import {Schema} from "~/shared/schema/schema.js";
  */
 export type FileAttachmentTarget = FileAttachmentTargetByArea[keyof FileAttachmentTargetByArea];
 
-// TODO(calebmer, #files): Integration test for uploading and viewing all of
-// these attachment targets.
 export type FileAttachmentTargetByArea = {
     Chat: {readonly type: "ChatMessages"; readonly chatId: ChatId};
-    Channel: {readonly type: "ChannelDescription"; readonly channelId: ChannelId};
     Document:
         | {readonly type: "Document"; readonly documentId: DocumentId}
         | {readonly type: "DocumentComments"; readonly documentId: DocumentId};
@@ -46,10 +42,6 @@ export const FileAttachmentTargetSchema: Schema<FileAttachmentTarget> = Schema.u
     ChatMessages: Schema.object({
         type: Schema.value("ChatMessages"),
         chatId: Schema.id<ChatId>(),
-    }),
-    ChannelDescription: Schema.object({
-        type: Schema.value("ChannelDescription"),
-        channelId: Schema.id<ChannelId>(),
     }),
     Document: Schema.object({
         type: Schema.value("Document"),
@@ -106,22 +98,14 @@ function serializeFileAttachmentTargetBytes(target: FileAttachmentTarget): Uint8
 
             return bytes;
         }
-        case "ChannelDescription": {
-            const bytes = new Uint8Array(1 + idByteLength);
-            let byteOffset = 0;
-
-            bytes[byteOffset] = 2;
-            byteOffset += 1;
-
-            decodeIdInto(target.channelId, bytes, byteOffset);
-            byteOffset += idByteLength;
-
-            return bytes;
-        }
         case "Document": {
             const bytes = new Uint8Array(1 + idByteLength);
             let byteOffset = 0;
 
+            // NOTE(calebmer): We skip 2 because I used to have a `ChannelDescription` file
+            // attachment target which used 2 as the sentinel byte. But after deciding
+            // `MessageContent` wouldn't support inline files I deleted the
+            // `ChannelDescription` attachment target since it won't be used.
             bytes[byteOffset] = 3;
             byteOffset += 1;
 
@@ -223,12 +207,6 @@ function deserializeFileAttachmentTargetBytes(bytes: Uint8Array): FileAttachment
             byteOffset += idByteLength;
 
             return {type: "ChatMessages", chatId};
-        }
-        case 2: {
-            const channelId = encodeId<ChannelId>(bytes, byteOffset);
-            byteOffset += idByteLength;
-
-            return {type: "ChannelDescription", channelId};
         }
         case 3: {
             const documentId = encodeId<DocumentId>(bytes, byteOffset);
