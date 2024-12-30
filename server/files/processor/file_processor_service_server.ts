@@ -18,9 +18,6 @@ import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
-// TODO(calebmer, #files): Write about resource utilization. Maybe in a
-// technical decision log entry.
-
 export type FileProcessorServiceRoute =
     | {readonly type: "HealthCheck"}
     | {readonly type: "NotFound"}

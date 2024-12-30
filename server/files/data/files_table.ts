@@ -420,16 +420,6 @@ const maxFileTotalContentLengthForSpace = 5e9;
  * If there's an error and we don't complete one of those three steps the
  * resulting file item in DynamoDB won't be very useful.
  */
-// TODO(calebmer, #files): Build file cleanup script (maybe via
-// `MigrationService`) which runs monthly that:
-//
-// 1. Scans all files in Cloudflare R2 and makes sure there is a corresponding
-//    item in DynamoDB (can use DynamoDB queries to do this efficiently)
-//
-// 2. Scans all file items in DynamoDB to cleanup any uploads that have timed
-//    out.
-//
-// 3. Garbage collects files that are no longer referenced by any content.
 export async function startUploadingFile(
     context: ServerSessionActionContext,
     {
@@ -1852,8 +1842,6 @@ export async function getFileFromAttachment(
  * Attaching a file gives anyone with access to the `FileAttachmentTarget` the
  * ability to view the file.
  */
-// TODO(calebmer, #files): What's our story around detaching? If we don't
-// detach we should at least explain why.
 export async function attachFileAsUploader(
     context: ServerActionContext,
     spaceId: SpaceId,

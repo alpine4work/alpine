@@ -51,7 +51,7 @@ export class FilesContextModule extends FilesContextModuleBase {
         return this._tokenAgent.privateSide.dangerouslySignShortLivedUrl(
             "EdgeService",
             new URL(`https://cyberworlds.dev/files/${spaceId}/${fileId}`),
-            // Expire the signed URL after two full days, 24 hours.
+            // Expire the signed URL after one full day, 24 hours.
             //
             // When a file is about to expire the client needs to execute the RPC
             // `getFileSignedUrlFromAttachment()` and update the `<img>` element rendering
