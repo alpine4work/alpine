@@ -1,20 +1,14 @@
 import {expect, test} from "@playwright/test";
+import fs from "fs/promises";
 import {join as joinPath} from "path";
 import sharp from "sharp";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
-// TODO(calebmer, #files): Test:
-//
-// - Floating files
-// - Comments on file rows and floating files
-// - File toolbar
-// - Other file can see dropped file in realtime (also check document `/view`)
-// - Copy/paste file from another space
-// - Copy/paste file from another domain? e.g. Start a Node.js server and host
-//   a file from that?
+const modifier = process.platform === "darwin" ? "Meta" : "Control";
 
 const {context, services} = createTestServices();
 
@@ -736,4 +730,311 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await page.getByLabel("Document").dispatchEvent("dragleave");
 
     await expect(page.getByTestId(/^ContentEditorFileDropTargetIndicator:[^:]+:/)).toBeHidden();
+});
+
+test("can drop file into floating comment input", async ({
+    context: browserContext,
+    page,
+    viewport,
+    isMobile,
+}) => {
+    assert(viewport);
+
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session);
+    await document.type(session, "Hello, ");
+    const {range} = await document.type(session, "world");
+    await document.type(session, "!");
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    await page
+        .getByRole("textbox", {name: "Document"})
+        .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
+
+    await page.evaluate(`dev.contentEditor.setTextSelection(${range.from}, ${range.to})`);
+
+    if (!isMobile) {
+        // Moving the mouse should open the styling toolbar.
+        await page.mouse.move(0, 0);
+    }
+
+    await page.getByTestId("ContentEditorPointerToolbar").getByLabel("Comment").click();
+
+    const file1Contents = await fs.readFile(
+        joinPath(
+            runfilesPath,
+            "cyberworlds/server/files/processor/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
+        ),
+    );
+
+    const file1DataTransfer = await page.evaluateHandle(file1HexContents => {
+        const file1Contents = new Uint8Array(Math.ceil(file1HexContents.length / 2));
+
+        for (let i = 0; i < file1Contents.length; i++)
+            file1Contents[i] = parseInt(file1HexContents.slice(i * 2, i * 2 + 2), 16);
+
+        const dataTransfer = new DataTransfer();
+        const file = new File([file1Contents], "image.jpeg", {type: "image/jpeg"});
+        dataTransfer.items.add(file);
+
+        return dataTransfer;
+    }, file1Contents.toString("hex"));
+
+    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(
+        page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
+    ).toBeHidden();
+    await expect(
+        page.getByTestId(/^MessageView:/).getByTestId("ContentFilePreview:image/jpeg"),
+    ).toBeHidden();
+
+    await page.getByTestId("ContentEditorCommentInputFloater").dispatchEvent("dragenter", {
+        clientX: 640,
+        clientY: 360,
+        dataTransfer: file1DataTransfer,
+    });
+
+    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeVisible();
+    await expect(
+        page
+            .getByTestId("ContentEditorCommentInputFloater")
+            .getByTestId("ContentFilePreview:image/jpeg"),
+    ).toBeHidden();
+    await expect(
+        page.getByTestId(/^MessageView:/).getByTestId("ContentFilePreview:image/jpeg"),
+    ).toBeHidden();
+
+    await page.getByTestId("ContentEditorCommentInputFloater").dispatchEvent("drop", {
+        clientX: 640,
+        clientY: 360,
+        dataTransfer: file1DataTransfer,
+    });
+
+    await expect(page.getByTestId("MessagingViewDragOverlay")).toBeHidden();
+    await expect(
+        page
+            .getByTestId("ContentEditorCommentInputFloater")
+            .getByTestId("ContentFilePreview:image/jpeg"),
+    ).toBeVisible();
+    await expect(
+        page.getByTestId(/^MessageView:/).getByTestId("ContentFilePreview:image/jpeg"),
+    ).toBeHidden();
+
+    await page.getByLabel("Save comment").click();
+
+    await expect(
+        page
+            .getByTestId("ContentEditorCommentInputFloater")
+            .getByTestId("ContentFilePreview:image/jpeg"),
+    ).toBeHidden();
+    await expect(
+        page.getByTestId(/^MessageView:/).getByTestId("ContentFilePreview:image/jpeg"),
+    ).toBeHidden();
+
+    await page.getByText("world").click();
+
+    await expect(
+        page
+            .getByTestId("ContentEditorCommentInputFloater")
+            .getByTestId("ContentFilePreview:image/jpeg"),
+    ).toBeHidden();
+    await expect(
+        page.getByTestId(/^MessageView:/).getByTestId("ContentFilePreview:image/jpeg"),
+    ).toBeVisible();
+});
+
+test("can copy/paste a file within the same space", async ({
+    browser,
+    context: browserContext1,
+    page: page1,
+}) => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document1 = await TestDocument.create(session1);
+    const document2 = await TestDocument.create(session2);
+
+    await browserContext1.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await services.signIn(browserContext1, session1);
+    await page1.goto(`/s/${space.id}/documents/${document1.id}`);
+
+    const browserContext2 = await browser.newContext();
+    await browserContext2.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await services.signIn(browserContext2, session2);
+    const page2 = await browserContext2.newPage();
+    await page2.goto(`/s/${space.id}/documents/${document2.id}`);
+
+    const file1Contents = await sharp(
+        joinPath(
+            runfilesPath,
+            "cyberworlds/server/files/processor/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
+        ),
+    )
+        // When we wrote the tests we weren't rendering files at half their size. So
+        // scale the file back up so everything keeps working.
+        .resize(1000, 750)
+        .toBuffer();
+
+    const file1DataTransfer = await page1.evaluateHandle(hexContents => {
+        const contents = new Uint8Array(Math.ceil(hexContents.length / 2));
+
+        for (let i = 0; i < contents.length; i++)
+            contents[i] = parseInt(hexContents.slice(i * 2, i * 2 + 2), 16);
+
+        const dataTransfer = new DataTransfer();
+        const file = new File([contents], "image.jpeg", {type: "image/jpeg"});
+        dataTransfer.items.add(file);
+
+        return dataTransfer;
+    }, file1Contents.toString("hex"));
+
+    await expect(page1.getByTestId(/^ContentEditorFileDropTargetIndicator:/)).toBeHidden();
+    await expect(page1.getByTestId("ContentFilePreview:image/jpeg")).toBeHidden();
+
+    await page1.getByLabel("Document").dispatchEvent("dragenter", {
+        clientX: 640,
+        clientY: 360,
+        dataTransfer: file1DataTransfer,
+    });
+
+    await expect(page1.getByTestId(/^ContentEditorFileDropTargetIndicator:/)).toBeVisible();
+    await expect(page1.getByTestId("ContentFilePreview:image/jpeg")).toBeHidden();
+
+    await page1.getByLabel("Document").dispatchEvent("drop", {
+        clientX: 640,
+        clientY: 360,
+        dataTransfer: file1DataTransfer,
+    });
+
+    await expect(page1.getByTestId(/^ContentEditorFileDropTargetIndicator:/)).toBeHidden();
+    await expect(page1.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
+
+    await page1.getByTestId("ContentFilePreview:image/jpeg").dispatchEvent("contextmenu");
+    await page1.getByText("Copy image").click();
+    await expect(page1.getByText("Copy image")).toBeHidden();
+
+    const clipboardHtml = await page1.evaluate(async () => {
+        const clipboardItem = (await navigator.clipboard.read())[0]!;
+        const clipboardHtmlBlob = await clipboardItem.getType("text/html");
+        const clipboardHtml = await clipboardHtmlBlob.text();
+        return clipboardHtml;
+    });
+
+    await expect(page2.getByTestId("ContentFilePreview:image/jpeg")).toBeHidden();
+
+    await page2.evaluate(async clipboardHtml => {
+        await navigator.clipboard.write([
+            new ClipboardItem({
+                "text/html": new Blob([clipboardHtml], {type: "text/html"}),
+            }),
+        ]);
+    }, clipboardHtml);
+
+    await page2.getByLabel("Document").focus();
+    await page2.getByLabel("Document").press(`${modifier}+v`);
+
+    await expect(page2.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
+
+    await browserContext2.close();
+});
+
+test("can copy/paste a file across spaces", async ({
+    browser,
+    context: browserContext1,
+    page: page1,
+}) => {
+    const space1 = await TestSpace.create(context);
+    const space2 = await TestSpace.create(context);
+    const session1 = await space1.createSession();
+    const session2 = await space2.createSession();
+
+    const document1 = await TestDocument.create(session1);
+    const document2 = await TestDocument.create(session2);
+
+    await browserContext1.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await services.signIn(browserContext1, session1);
+    await page1.goto(`/s/${space1.id}/documents/${document1.id}`);
+
+    const browserContext2 = await browser.newContext();
+    await browserContext2.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await services.signIn(browserContext2, session2);
+    const page2 = await browserContext2.newPage();
+    await page2.goto(`/s/${space2.id}/documents/${document2.id}`);
+
+    const file1Contents = await sharp(
+        joinPath(
+            runfilesPath,
+            "cyberworlds/server/files/processor/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
+        ),
+    )
+        // When we wrote the tests we weren't rendering files at half their size. So
+        // scale the file back up so everything keeps working.
+        .resize(1000, 750)
+        .toBuffer();
+
+    const file1DataTransfer = await page1.evaluateHandle(hexContents => {
+        const contents = new Uint8Array(Math.ceil(hexContents.length / 2));
+
+        for (let i = 0; i < contents.length; i++)
+            contents[i] = parseInt(hexContents.slice(i * 2, i * 2 + 2), 16);
+
+        const dataTransfer = new DataTransfer();
+        const file = new File([contents], "image.jpeg", {type: "image/jpeg"});
+        dataTransfer.items.add(file);
+
+        return dataTransfer;
+    }, file1Contents.toString("hex"));
+
+    await expect(page1.getByTestId(/^ContentEditorFileDropTargetIndicator:/)).toBeHidden();
+    await expect(page1.getByTestId("ContentFilePreview:image/jpeg")).toBeHidden();
+
+    await page1.getByLabel("Document").dispatchEvent("dragenter", {
+        clientX: 640,
+        clientY: 360,
+        dataTransfer: file1DataTransfer,
+    });
+
+    await expect(page1.getByTestId(/^ContentEditorFileDropTargetIndicator:/)).toBeVisible();
+    await expect(page1.getByTestId("ContentFilePreview:image/jpeg")).toBeHidden();
+
+    await page1.getByLabel("Document").dispatchEvent("drop", {
+        clientX: 640,
+        clientY: 360,
+        dataTransfer: file1DataTransfer,
+    });
+
+    await expect(page1.getByTestId(/^ContentEditorFileDropTargetIndicator:/)).toBeHidden();
+    await expect(page1.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
+
+    await page1.getByTestId("ContentFilePreview:image/jpeg").dispatchEvent("contextmenu");
+    await page1.getByText("Copy image").click();
+    await expect(page1.getByText("Copy image")).toBeHidden();
+
+    const clipboardHtml = await page1.evaluate(async () => {
+        const clipboardItem = (await navigator.clipboard.read())[0]!;
+        const clipboardHtmlBlob = await clipboardItem.getType("text/html");
+        const clipboardHtml = await clipboardHtmlBlob.text();
+        return clipboardHtml;
+    });
+
+    await expect(page2.getByTestId("ContentFilePreview:image/jpeg")).toBeHidden();
+
+    await page2.evaluate(async clipboardHtml => {
+        await navigator.clipboard.write([
+            new ClipboardItem({
+                "text/html": new Blob([clipboardHtml], {type: "text/html"}),
+            }),
+        ]);
+    }, clipboardHtml);
+
+    await page2.getByLabel("Document").focus();
+    await page2.getByLabel("Document").press(`${modifier}+v`);
+
+    await expect(page2.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
+
+    await browserContext2.close();
 });
