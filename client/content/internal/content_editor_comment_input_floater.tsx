@@ -250,7 +250,7 @@ export function ContentEditorCommentInputFloater({
                 // text its commenting on.
                 fallbackPlacements={emptyArray}
                 overlay={
-                    <Box>
+                    <Box data-testid="ContentEditorCommentInputFloater">
                         {dragOverlay && (
                             <ContentEditorCommentInputDragOverlay viewRef={viewRef}>
                                 {dragOverlay}

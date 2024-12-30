@@ -532,7 +532,7 @@ test("can leave multiple comments on a document and navigate between them", asyn
         // On desktop, disambiguate between the comment input in the sidebar and in the
         // main document area.
         await page
-            .getByTestId("DocumentContentEditorMain")
+            .getByTestId("ContentEditorCommentInputFloater")
             .getByRole("textbox", {name: "New comment"})
             .fill("Test comment content 2");
     }
