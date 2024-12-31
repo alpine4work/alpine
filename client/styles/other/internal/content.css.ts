@@ -2057,6 +2057,8 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     zIndex: -10,
 });
 
+export const withTableColumnResizeCursor = style({});
+
 globalStyle(tableCellClassName, {
     border: `1px solid ${colorSchemeVars["grey-20"]}`,
     minWidth: `calc(6.25 * ${tableUnitVar})`,
@@ -2094,8 +2096,10 @@ globalStyle(`${tableClassName} td, ${tableClassName} th`, {
     position: "relative",
 });
 
+export const tableSelectedCellClassName = style({});
+
 // Add a background color to the cell that is selected.
-globalStyle(`${tableClassName} .selectedCell:after`, {
+globalStyle(`${tableClassName} ${tableSelectedCellClassName}:after`, {
     zIndex: 2,
     position: "absolute",
     content: '""',
@@ -2108,14 +2112,17 @@ globalStyle(`${tableClassName} .selectedCell:after`, {
     borderCollapse: "collapse",
 });
 
-globalStyle(`${tableClassName} .selectedCell`, {
+globalStyle(`${tableClassName} ${tableSelectedCellClassName}`, {
     background: colorSchemeVars["theme-selection"],
     border: `1px solid ${colorSchemeVars["theme-60"]}`,
     borderCollapse: "collapse",
 });
 
+export const tableColumnResizeHandleClassName = style({});
+export const tableColumnResizeDraggingClassName = style({});
+
 // Add a color to the column border while resizing.
-globalStyle(`${tableClassName} .column-resize-handle`, {
+globalStyle(`${tableClassName} ${tableColumnResizeHandleClassName}`, {
     position: "absolute",
     right: `-${spacing[0.5]}`,
     top: 0,

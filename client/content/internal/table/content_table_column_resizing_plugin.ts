@@ -32,6 +32,7 @@ import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {updateContentTableColumnsOnResize} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {contentTableCellAround} from "~/client/content/internal/table/content_table_client_util.js";
 import {getTableUnitPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {pointsAtContentTableCell} from "~/shared/content/table/content_table_shared_util.js";
 
@@ -80,7 +81,9 @@ export function contentTableColumnResizingPlugin({
         props: {
             attributes: (state): Record<string, string> => {
                 const pluginState = contentTableColumnResizingPluginKey.getState(state);
-                return pluginState && pluginState.activeHandle > -1 ? {class: "resize-cursor"} : {};
+                return pluginState && pluginState.activeHandle > -1
+                    ? {class: contentStyles.withTableColumnResizeCursor}
+                    : {};
             },
 
             handleDOMEvents: {
@@ -383,15 +386,13 @@ function handleDecorations(state: EditorState, cell: number): DecorationSet {
             const cellPos = map.map[index]!;
             const pos = start + cellPos + table.nodeAt(cellPos)!.nodeSize - 1;
             const dom = document.createElement("div");
-            dom.className = "column-resize-handle";
+            dom.className = contentStyles.tableColumnResizeHandleClassName;
             if (contentTableColumnResizingPluginKey.getState(state)?.dragging) {
                 decorations.push(
                     Decoration.node(
                         start + cellPos,
                         start + cellPos + table.nodeAt(cellPos)!.nodeSize,
-                        {
-                            class: "column-resize-dragging",
-                        },
+                        {class: contentStyles.tableColumnResizeDraggingClassName},
                     ),
                 );
             }

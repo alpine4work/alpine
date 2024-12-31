@@ -39,10 +39,11 @@ import {Decoration, DecorationSet, DecorationSource} from "prosemirror-view";
 import {contentTableEditingKey} from "~/client/content/internal/table/content_table_client_util.js";
 import {fixContentTables} from "~/client/content/internal/table/content_table_fix_tables.js";
 import {
+    contentTableKeyDownHandler,
     handleContentTableMouseDown,
     handleContentTableTripleClick,
-    contentTableKeyDownHandler,
 } from "~/client/content/internal/table/content_table_input.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {
     ContentTableCellSelection,
     normalizeContentTableCellSelection,
@@ -56,7 +57,11 @@ function drawCellSelection(state: EditorState): DecorationSource | null {
     if (!(state.selection instanceof ContentTableCellSelection)) return null;
     const cells: Array<Decoration> = [];
     state.selection.forEachCell((node, pos) => {
-        cells.push(Decoration.node(pos, pos + node.nodeSize, {class: "selectedCell"}));
+        cells.push(
+            Decoration.node(pos, pos + node.nodeSize, {
+                class: contentStyles.tableSelectedCellClassName,
+            }),
+        );
     });
     return DecorationSet.create(state.doc, cells);
 }
