@@ -16,7 +16,6 @@ import {
     largeSpacingScaleSelector,
     lightColorSchemeSelector,
     mediumSpacingScaleSelector,
-    mediumSpacingScaleSelector,
     mobilePlatformSelector,
     selectorBySpacingScale,
 } from "~/client/styles/core/styles_core.js";
@@ -79,7 +78,12 @@ import {
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
-import {tableUnitPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {
+    SpacingScale,
+    allSpacingScales,
+    remPxBySpacingScale,
+    tableUnitPxBySpacingScale,
+} from "~/shared/design/core/spacing_scale.js";
 import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
@@ -132,17 +136,12 @@ const standaloneBlockMarginSpacing = "4";
 const standaloneBlockMargin = spacing[standaloneBlockMarginSpacing];
 export {standaloneBlockMarginSpacing as standaloneBlockMargin};
 
-export const blockMaxWidthVar = createVar("block-max-width");
-const paragraphMarginVar = createVar("paragraph-margin");
-export const standaloneBlockMarginVar = createVar("standalone-block-margin");
-export const listItemOffsetVar = createVar("list-item-offset");
+const blockMaxWidthVar = createVar("block-max-width");
 export const tableUnitVar = createVar("table-unit");
+
 globalStyle(":root", {
     vars: {
         [blockMaxWidthVar]: blockMaxWidth.desktop,
-        [paragraphMarginVar]: defaultParagraphMargin,
-        [standaloneBlockMarginVar]: spacing["4"],
-        [listItemOffsetVar]: spacing["0"],
         [tableUnitVar]: `${tableUnitPxBySpacingScale.small}px`, // desktop default
     },
 });
@@ -723,7 +722,7 @@ globalStyle(`${codeBlockLineClassName}::before`, {
     position: "sticky",
     left: "0",
     marginLeft: `-${codeBlockLineOverscrollSlopX}`,
-    width: `calc(${listItemIndentation})`,
+    width: listItemIndentation,
     // Optically align code block numbers with ordered list item numbers.
     paddingRight: "0.75rem",
     textAlign: "right",
@@ -738,7 +737,7 @@ globalStyle(`${codeBlockLineClassName}::before`, {
 globalStyle(
     `${codeBlockWrapperClassName}${fileViewCodeBlockClassName} ${codeBlockLineClassName}::before`,
     {
-        width: `calc(${addRemLengths(fileViewCodeBlockMargin, listItemIndentation)})`,
+        width: addRemLengths(fileViewCodeBlockMargin, listItemIndentation),
     },
 );
 
@@ -2065,7 +2064,7 @@ globalStyle(tableCellClassName, {
 
 globalStyle(tableClassName, {
     position: "relative",
-    margin: `${standaloneBlockMarginVar} auto`,
+    margin: `${standaloneBlockMargin} auto`,
     width: "fit-content",
     maxWidth: "95%",
     overflowX: "auto",
