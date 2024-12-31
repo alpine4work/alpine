@@ -70,6 +70,7 @@ function addContentTableColumn(
     col: number,
 ): Transaction {
     // Update columnWidths array
+    // NOCOMMIT: Update this
     const columnWidths = [...(table.attrs.columnWidths || [])];
     const defaultWidth =
         columnWidths.length > 0 ? Math.max(...columnWidths.filter(w => w > 0)) || 100 : 100;
@@ -126,6 +127,7 @@ function removeContentTableColumn(
     col: number,
 ) {
     // Update columnWidths array
+    // NOCOMMIT: Update this
     const columnWidths = [...(table.attrs.columnWidths || [])];
     columnWidths.splice(col, 1);
 

@@ -196,6 +196,7 @@ function growContentTable(
     if (width > map.width) {
         changed = true;
         // First update the columnWidths array
+        // NOCOMMIT: Update this
         const newColumnWidths = [...(table.attrs.columnWidths || [])];
 
         const columnCount = table.firstChild?.childCount ?? 2;

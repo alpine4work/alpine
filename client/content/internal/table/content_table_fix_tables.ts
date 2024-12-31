@@ -109,6 +109,7 @@ function fixTable(
     }
 
     // Fix columnWidths array if needed
+    // NOCOMMIT: Update this
     const currentColumnWidths = table.attrs.columnWidths || [];
     if (currentColumnWidths.length !== maxWidth) {
         const columnCount = table.firstChild?.childCount ?? 2;

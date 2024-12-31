@@ -194,6 +194,7 @@ function handleMouseDown(
 
     const $cell = view.state.doc.resolve(pluginState.activeHandle);
     const table = $cell.node(-1);
+    // NOCOMMIT: Update this
     const width = currentColWidth(view, pluginState.activeHandle, table.attrs.columnWidths);
     view.dispatch(
         view.state.tr.setMeta(contentTableColumnResizingPluginKey, {
@@ -252,6 +253,8 @@ function currentColWidth(view: EditorView, cellPos: number, columnWidths: Array<
     }
 
     // For brand new table or empty columnWidths
+    //
+    // NOCOMMIT: Update this? Definitely seems wrong. Delete table units
     const dom = view.domAtPos(cellPos);
     const node = dom.node.childNodes[dom.offset] as HTMLElement;
     const domWidth = node.offsetWidth;
@@ -316,6 +319,8 @@ function updateColumnWidth(view: EditorView, cell: number, width: number): void 
     const tr = view.state.tr;
 
     // Get current columnWidths or initialize new array
+    //
+    // NOCOMMIT: Update this
     const columnWidths = [...(table.attrs.columnWidths || zeroes(map.width))];
     // Update the width for the specific column (width is already in rem)
     columnWidths[col] = width;

@@ -119,6 +119,7 @@ export function updateContentTableColumnsOnResize(
     let totalWidth = 0;
     let nextDOM = colgroup.firstChild as HTMLElement;
 
+    // NOCOMMIT: Update this
     const columnWidths = node.attrs.columnWidths;
     const columnCount = node.firstChild?.childCount ?? 0;
     const defaultWidth =
