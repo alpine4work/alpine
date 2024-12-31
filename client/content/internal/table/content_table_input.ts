@@ -34,6 +34,13 @@ import {keydownHandler} from "prosemirror-keymap";
 import {Fragment, ResolvedPos, Slice} from "prosemirror-model";
 import {Command, EditorState, Selection, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
+import {
+    contentTableCellAround,
+    contentTableIsInTable,
+    contentTableNextCell,
+    contentTableSelectionCell,
+    tableEditingKey,
+} from "~/client/content/internal/table/content_table_client_util.js";
 import {contentTableColumnResizingPluginKey} from "~/client/content/internal/table/content_table_column_resizing_plugin.js";
 import {contentTableCommandDeleteCellSelection} from "~/client/content/internal/table/content_table_commands.js";
 import {
@@ -42,15 +49,10 @@ import {
     contentTableInsertCells,
     contentTablePastedCells,
 } from "~/client/content/internal/table/content_table_copy_paste.js";
-import {tableEditingKey} from "~/client/content/internal/table/content_table_editing_plugin.js";
-import {contentTableCellAround} from "~/client/content/internal/table/helpers/content_table_cell_around.js";
-import {contentTableIsInTable} from "~/client/content/internal/table/helpers/content_table_is_in_table.js";
-import {contentTableNextCell} from "~/client/content/internal/table/helpers/content_table_next_cell.js";
-import {contentTableSelectionCell} from "~/client/content/internal/table/helpers/content_table_selection_cell.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
-import {contentTableInSameTable} from "~/shared/content/table/helpers/content_table_in_same_table.js";
+import {contentTableInSameTable} from "~/shared/content/table/content_table_shared_util.js";
 
 type Axis = "horiz" | "vert";
 

@@ -29,10 +29,12 @@
 
 import {Node, ResolvedPos, Slice} from "prosemirror-model";
 import {Command, EditorState, TextSelection, Transaction} from "prosemirror-state";
+import {
+    contentTableIsInTable,
+    contentTableMoveCellForward,
+    contentTableSelectionCell,
+} from "~/client/content/internal/table/content_table_client_util.js";
 import type {ContentTableInputDirection} from "~/client/content/internal/table/content_table_input.js";
-import {contentTableIsInTable} from "~/client/content/internal/table/helpers/content_table_is_in_table.js";
-import {contentTableMoveCellForward} from "~/client/content/internal/table/helpers/content_table_move_cell_forward.js";
-import {contentTableSelectionCell} from "~/client/content/internal/table/helpers/content_table_selection_cell.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap, ContentTableMapRect} from "~/shared/content/table/content_table_map.js";
 import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";

@@ -44,8 +44,10 @@ import {
 
 import {Mappable} from "prosemirror-transform";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-import {contentTableInSameTable} from "~/shared/content/table/helpers/content_table_in_same_table.js";
-import {contentTablePointsAtCell} from "~/shared/content/table/helpers/content_table_points_at_cell.js";
+import {
+    contentTableInSameTable,
+    contentTablePointsAtCell,
+} from "~/shared/content/table/content_table_shared_util.js";
 
 export type ContentTableCellSelectionJson = {
     readonly type: "cell";

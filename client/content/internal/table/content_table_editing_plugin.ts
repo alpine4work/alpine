@@ -34,8 +34,9 @@
 // transaction, the shapes of tables are normalized to be rectangular
 // and not contain overlapping cells.
 
-import {EditorState, Plugin, PluginKey} from "prosemirror-state";
+import {EditorState, Plugin} from "prosemirror-state";
 import {Decoration, DecorationSet, DecorationSource} from "prosemirror-view";
+import {tableEditingKey} from "~/client/content/internal/table/content_table_client_util.js";
 import {contentTableFixTables} from "~/client/content/internal/table/content_table_fix_tables.js";
 import {
     contentTableHandleMouseDown,
@@ -60,8 +61,6 @@ function drawCellSelection(state: EditorState): DecorationSource | null {
     return DecorationSet.create(state.doc, cells);
 }
 
-export const tableEditingKey = new PluginKey<number>("selectingCells");
-
 /**
  * Creates a [plugin](http://prosemirror.net/docs/ref/#state.Plugin)
  * that, when added to an editor, enables cell-selection, handles
@@ -73,8 +72,6 @@ export const tableEditingKey = new PluginKey<number>("selectingCells");
  * rather broadly, and other plugins, like the gap cursor or the
  * column-width dragging plugin, might want to get a turn first to
  * perform more specific behavior.
- *
- * @public
  */
 export function contentTableEditingPlugin({
     allowTableNodeSelection = false,

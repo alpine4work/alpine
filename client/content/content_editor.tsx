@@ -101,8 +101,8 @@ import {
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {ContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
+import {contentTableIsInTable} from "~/client/content/internal/table/content_table_client_util.js";
 import {contentTableHandlePaste} from "~/client/content/internal/table/content_table_input.js";
-import {contentTableIsInTable} from "~/client/content/internal/table/helpers/content_table_is_in_table.js";
 import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {selectFiles} from "~/client/content/select_files.js";

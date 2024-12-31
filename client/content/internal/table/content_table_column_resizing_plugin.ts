@@ -33,11 +33,11 @@ import {
     ContentEditorTableNodeView,
     contentEditorUpdateTableColumnsOnResize,
 } from "~/client/content/internal/table/content_editor_table_node_view.js";
-import {contentTableCellAround} from "~/client/content/internal/table/helpers/content_table_cell_around.js";
+import {contentTableCellAround} from "~/client/content/internal/table/content_table_client_util.js";
 import {getTableUnitPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
-import {contentTablePointsAtCell} from "~/shared/content/table/helpers/content_table_points_at_cell.js";
+import {contentTablePointsAtCell} from "~/shared/content/table/content_table_shared_util.js";
 
 export const contentTableColumnResizingPluginKey = new PluginKey<ResizeState>(
     "tableColumnResizing",

@@ -19,7 +19,9 @@ The files from `prosemirror-tables` map to the following files in our repository
 -   `src/schema.ts` → `shared/content/table/content_table_schema.ts`
 -   `src/tablemap.ts` → `shared/content/table/content_table_map.ts`
 -   `src/tableview.ts` → `client/content/internal/table/content_editor_table_node_view.ts`
--   `src/util.ts` → NOCOMMIT
+-   `src/util.ts` → `shared/content/table/content_table_shared_util.ts` and
+    `client/content/internal/table/content_table_client_util.ts` (depending on whether the utility
+    is needed on the server or not)
 
 We've made some modifications to the forked files to make sure they match our code base conventions.
 For example, file names are namespaced with `content_table_*` and module exports are namespaced
