@@ -1989,27 +1989,35 @@ export const mentionTextClassName = style({
     },
 });
 
+function createChildSelectors(child: "first" | "last") {
+    const selectors1 = [
+        `${listItemClassName}:${child}-child > *:${child}-child`,
+        `${listItemClassName}:${child}-child > ${checkListItemContentClassName} > *:${child}-child`,
+    ];
+
+    const selectors2 = [
+        ...selectors1,
+        `${quoteBlockClassName}:${child}-child > *:${child}-child`,
+        ...selectors1.map(selector => `${quoteBlockClassName}:${child}-child > ${selector}`),
+    ];
+
+    const selectors3 = [
+        ...selectors2,
+        `${tableWrapperClassName} td > *:${child}-child`,
+        ...selectors2.map(selector => `${tableWrapperClassName} td > ${selector}`),
+    ];
+
+    return [
+        `${docClassName} > *:${child}-child`,
+        ...selectors3.map(selector => `${docClassName} > ${selector}`),
+    ];
+}
+
 // Make sure the first child in our document never has top margin.
-const firstChildSelectors = [
-    `${docClassName} > *:first-child`,
-    `${docClassName} > ${listItemClassName}:first-child > *:first-child`,
-    `${docClassName} > ${listItemClassName}:first-child > ${checkListItemContentClassName} > *:first-child`,
-    `${docClassName} > ${quoteBlockClassName}:first-child > *:first-child`,
-    `${docClassName} > ${quoteBlockClassName}:first-child > ${listItemClassName}:first-child > *:first-child`,
-    `${docClassName} > ${quoteBlockClassName}:first-child > ${listItemClassName}:first-child > ${checkListItemContentClassName} > *:first-child`,
-];
-firstChildSelectors.forEach(selector => globalStyle(selector, {marginTop: 0}));
+createChildSelectors("first").forEach(selector => globalStyle(selector, {marginTop: 0}));
 
 // Make sure the last child in our document never has bottom margin.
-const lastChildSelectors = [
-    `${docClassName} > *:last-child`,
-    `${docClassName} > ${listItemClassName}:last-child > *:last-child`,
-    `${docClassName} > ${listItemClassName}:last-child > ${checkListItemContentClassName} > *:last-child`,
-    `${docClassName} > ${quoteBlockClassName}:last-child > *:last-child`,
-    `${docClassName} > ${quoteBlockClassName}:last-child > ${listItemClassName}:last-child > *:last-child`,
-    `${docClassName} > ${quoteBlockClassName}:last-child > ${listItemClassName}:last-child > ${checkListItemContentClassName} > *:last-child`,
-];
-lastChildSelectors.forEach(selector => globalStyle(selector, {marginBottom: 0}));
+createChildSelectors("last").forEach(selector => globalStyle(selector, {marginBottom: 0}));
 
 const blockChildSelectors = [
     `${listItemClassName} > ${paragraphClassName}`,
