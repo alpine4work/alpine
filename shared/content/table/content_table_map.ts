@@ -246,8 +246,7 @@ function findWidth(table: Node): number {
 }
 
 function computeMap(table: Node): ContentTableMap {
-    if (table.type.spec.tableRole != "table")
-        throw new RangeError("Not a table node: " + table.type.name);
+    if (table.type.name !== "table") throw new RangeError("Not a table node: " + table.type.name);
     const width = findWidth(table),
         height = table.childCount;
 

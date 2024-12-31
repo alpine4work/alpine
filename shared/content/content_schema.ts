@@ -34,11 +34,7 @@ import {
     strikeClassName,
     unorderedListItemClassName,
 } from "~/shared/content/content_styles.js";
-import {
-    contentTableCellProsemirrorNodeSpec,
-    contentTableProsemirrorNodeSpec,
-    contentTableRowProsemirrorNodeSpec,
-} from "~/shared/content/table/content_table_schema.js";
+import {contentTableProsemirrorSchemaSpec} from "~/shared/content/table/content_table_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {htmlBlockTagNames} from "~/shared/helpers/html/html_block_tag_names.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
@@ -463,9 +459,8 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                 },
             ],
         },
-        table: contentTableProsemirrorNodeSpec,
-        tableRow: contentTableRowProsemirrorNodeSpec,
-        tableCell: contentTableCellProsemirrorNodeSpec,
+
+        ...contentTableProsemirrorSchemaSpec.nodes,
     },
     marks: {
         // NOTE(calebmer, 2022-08-13): All of our marks are `inclusive` which means

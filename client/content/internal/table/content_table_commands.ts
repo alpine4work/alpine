@@ -355,7 +355,7 @@ export function deleteContentTable(
     const $pos = state.selection.$anchor;
     for (let d = $pos.depth; d > 0; d--) {
         const node = $pos.node(d);
-        if (node.type.spec.tableRole == "table") {
+        if (node.type.name === "table") {
             if (dispatch) dispatch(state.tr.delete($pos.before(d), $pos.after(d)).scrollIntoView());
             return true;
         }

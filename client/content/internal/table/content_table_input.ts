@@ -275,7 +275,7 @@ function atEndOfCell(view: EditorView, axis: Axis, dir: number): null | number {
         const parent = $head.node(d),
             index = dir < 0 ? $head.index(d) : $head.indexAfter(d);
         if (index != (dir < 0 ? 0 : parent.childCount)) return null;
-        if (parent.type.spec.tableRole == "cell") {
+        if (parent.type.name === "tableCell") {
             const cellPos = $head.before(d);
             const dirStr: "up" | "down" | "left" | "right" =
                 axis == "vert" ? (dir > 0 ? "down" : "up") : dir > 0 ? "right" : "left";

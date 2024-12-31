@@ -67,17 +67,16 @@ export function pastedContentTableCells(slice: Slice): Area | null {
     let {content, openStart, openEnd} = slice;
     while (
         content.childCount == 1 &&
-        ((openStart > 0 && openEnd > 0) || content.child(0).type.spec.tableRole == "table")
+        ((openStart > 0 && openEnd > 0) || content.child(0).type.name === "table")
     ) {
         openStart--;
         openEnd--;
         content = content.child(0).content;
     }
     const first = content.child(0);
-    const role = first.type.spec.tableRole;
-    const schema = first.type.schema,
-        rows = [];
-    if (role == "row") {
+    const schema = first.type.schema;
+    const rows = [];
+    if (first.type.name === "tableRow") {
         for (let i = 0; i < content.childCount; i++) {
             let cells = content.child(i).content;
             const left = i ? 0 : Math.max(0, openStart - 1);
@@ -89,7 +88,7 @@ export function pastedContentTableCells(slice: Slice): Area | null {
                 ).content;
             rows.push(cells);
         }
-    } else if (role == "cell") {
+    } else if (first.type.name === "tableCell") {
         rows.push(
             openStart || openEnd
                 ? fitSlice(

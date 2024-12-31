@@ -27,54 +27,57 @@
  * THE SOFTWARE.
  */
 
-import "~/shared/content/table/content_table_cell_selection.js";
-
-import {NodeSpec, NodeType, Schema as ProsemirrorSchema} from "prosemirror-model";
+import {NodeSpec, NodeType, Schema as ProsemirrorSchema, SchemaSpec} from "prosemirror-model";
 import {tableCellClassName, tableClassName} from "~/shared/content/content_styles.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-export const contentTableProsemirrorNodeSpec = {
-    name: "table",
-    content: "tableRow{2,}",
-    group: "block",
-    attrs: {
-        columnsWidth: {default: [], schema: Schema.array(Schema.float)},
-    },
-    copyable: true,
-    selectable: true,
-    isolating: true,
-    tableRole: "table",
-    parseDOM: [{tag: "table"}],
-    toDOM() {
-        return ["table", {class: tableClassName}, ["tbody", 0]] as const;
-    },
-} as const satisfies NodeSpec;
+function createProsemirrorSchemaSpec<Schema extends SchemaSpec<string, string>>(
+    schema: Schema,
+): Schema {
+    return schema;
+}
 
-export const contentTableRowProsemirrorNodeSpec = {
-    name: "tableRow",
-    content: "tableCell+",
-    tableRole: "row",
-    isolating: true,
-    selectable: true,
-    copyable: true,
-    parseDOM: [{tag: "tr"}],
-    toDOM() {
-        return ["tr", 0] as const;
+export const contentTableProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
+    nodes: {
+        table: {
+            content: "tableRow{2,}",
+            group: "block",
+            attrs: {
+                columnsWidth: {
+                    default: [],
+                    schema: Schema.array(Schema.float),
+                },
+            },
+            copyable: true,
+            selectable: true,
+            isolating: true,
+            parseDOM: [{tag: "table"}],
+            toDOM() {
+                return ["table", {class: tableClassName}, ["tbody", 0]];
+            },
+        },
+        tableRow: {
+            content: "tableCell+",
+            isolating: true,
+            selectable: true,
+            copyable: true,
+            parseDOM: [{tag: "tr"}],
+            toDOM() {
+                return ["tr", 0];
+            },
+        },
+        tableCell: {
+            content: "tableBlock+",
+            selectable: true,
+            isolating: true,
+            copyable: true,
+            parseDOM: [{tag: "td"}],
+            toDOM() {
+                return ["td", {class: tableCellClassName}, 0];
+            },
+        },
     },
-} as const satisfies NodeSpec;
-
-export const contentTableCellProsemirrorNodeSpec = {
-    name: "tableCell",
-    content: "tableBlock+",
-    tableRole: "cell",
-    selectable: true,
-    isolating: true,
-    copyable: true,
-    parseDOM: [{tag: "td"}],
-    toDOM() {
-        return ["td", {class: tableCellClassName}, 0] as const;
-    },
-} as const satisfies NodeSpec;
+});
 
 // A function to get the node types for the table.
 export function contentTableNodeTypes(

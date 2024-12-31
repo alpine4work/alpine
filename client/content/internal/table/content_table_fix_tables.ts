@@ -82,7 +82,7 @@ export function fixContentTables(
 ): Transaction | undefined {
     let tr: Transaction | undefined;
     const check = (node: Node, pos: number) => {
-        if (node.type.spec.tableRole == "table") tr = fixTable(state, node, pos, tr);
+        if (node.type.name === "table") tr = fixTable(state, node, pos, tr);
     };
     if (!oldState) state.doc.descendants(check);
     else if (oldState.doc != state.doc) changedDescendants(oldState.doc, state.doc, 0, check);

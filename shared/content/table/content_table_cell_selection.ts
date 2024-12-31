@@ -273,29 +273,26 @@ export class ContentTableCellSelection extends Selection {
         return new ContentTableCellSelection(doc.resolve(anchorCell), doc.resolve(headCell));
     }
 
-    public override getBookmark(): CellBookmark {
-        return new CellBookmark(this.$anchorCell.pos, this.$headCell.pos);
+    public override getBookmark(): ContentTableCellBookmark {
+        return new ContentTableCellBookmark(this.$anchorCell.pos, this.$headCell.pos);
     }
 }
 
 ContentTableCellSelection.prototype.visible = false;
 
-/**
- * @public
- */
-class CellBookmark {
+class ContentTableCellBookmark {
     constructor(public anchor: number, public head: number) {}
 
-    map(mapping: Mappable): CellBookmark {
-        return new CellBookmark(mapping.map(this.anchor), mapping.map(this.head));
+    map(mapping: Mappable): ContentTableCellBookmark {
+        return new ContentTableCellBookmark(mapping.map(this.anchor), mapping.map(this.head));
     }
 
     resolve(doc: Node): ContentTableCellSelection | Selection {
         const $anchorCell = doc.resolve(this.anchor),
             $headCell = doc.resolve(this.head);
         if (
-            $anchorCell.parent.type.spec.tableRole == "row" &&
-            $headCell.parent.type.spec.tableRole == "row" &&
+            $anchorCell.parent.type.name === "tableRow" &&
+            $headCell.parent.type.name === "tableRow" &&
             $anchorCell.index() < $anchorCell.parent.childCount &&
             $headCell.index() < $headCell.parent.childCount &&
             inSameContentTable($anchorCell, $headCell)
@@ -312,7 +309,7 @@ function isCellBoundarySelection({$from, $to}: TextSelection) {
     let depth = $from.depth;
     for (; depth >= 0; depth--, afterFrom++) if ($from.after(depth + 1) < $from.end(depth)) break;
     for (let d = $to.depth; d >= 0; d--, beforeTo--) if ($to.before(d + 1) > $to.start(d)) break;
-    return afterFrom == beforeTo && /row|table/.test($from.node(depth).type.spec.tableRole);
+    return afterFrom == beforeTo && /^(tableRow|table)$/.test($from.node(depth).type.name);
 }
 
 function isTextSelectionAcrossCells({$from, $to}: TextSelection) {
@@ -321,7 +318,7 @@ function isTextSelectionAcrossCells({$from, $to}: TextSelection) {
 
     for (let i = $from.depth; i > 0; i--) {
         const node = $from.node(i);
-        if (node.type.spec.tableRole === "cell") {
+        if (node.type.name === "tableCell") {
             fromCellBoundaryNode = node;
             break;
         }
@@ -329,7 +326,7 @@ function isTextSelectionAcrossCells({$from, $to}: TextSelection) {
 
     for (let i = $to.depth; i > 0; i--) {
         const node = $to.node(i);
-        if (node.type.spec.tableRole === "cell") {
+        if (node.type.name === "tableCell") {
             toCellBoundaryNode = node;
             break;
         }
@@ -346,11 +343,11 @@ export function normalizeContentTableCellSelection(
     const sel = (tr || state).selection;
     const doc = (tr || state).doc;
     let normalize: Selection | undefined;
-    let role: string | undefined;
-    if (sel instanceof NodeSelection && (role = sel.node.type.spec.tableRole)) {
-        if (role == "cell") {
+    let typeName: string | undefined;
+    if (sel instanceof NodeSelection && (typeName = sel.node.type.name)) {
+        if (typeName === "tableCell") {
             normalize = ContentTableCellSelection.create(doc, sel.from);
-        } else if (role == "row") {
+        } else if (typeName === "tableRow") {
             const $cell = doc.resolve(sel.from + 1);
             normalize = ContentTableCellSelection.rowSelection($cell, $cell);
         } else if (!allowTableNodeSelection) {

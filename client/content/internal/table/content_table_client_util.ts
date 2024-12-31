@@ -50,8 +50,7 @@ export const contentTableEditingKey = new PluginKey<number>("contentTableEditing
  */
 export function contentTableCellAround($pos: ResolvedPos): ResolvedPos | null {
     for (let d = $pos.depth - 1; d > 0; d--)
-        if ($pos.node(d).type.spec.tableRole == "row")
-            return $pos.node(0).resolve($pos.before(d + 1));
+        if ($pos.node(d).type.name === "tableRow") return $pos.node(0).resolve($pos.before(d + 1));
     return null;
 }
 
@@ -69,8 +68,8 @@ export function contentTableCellAround($pos: ResolvedPos): ResolvedPos | null {
  */
 export function contentTableCellWrapping($pos: ResolvedPos): null | Node {
     for (let d = $pos.depth; d > 0; d--) {
-        const role = $pos.node(d).type.spec.tableRole;
-        if (role === "cell") return $pos.node(d);
+        const isTableCell = $pos.node(d).type.name === "tableCell";
+        if (isTableCell) return $pos.node(d);
     }
     return null;
 }
@@ -90,8 +89,7 @@ export function contentTableCellWrapping($pos: ResolvedPos): null | Node {
  */
 export function isInContentTable(state: EditorState): boolean {
     const $head = state.selection.$head;
-    for (let d = $head.depth; d > 0; d--)
-        if ($head.node(d).type.spec.tableRole == "row") return true;
+    for (let d = $head.depth; d > 0; d--) if ($head.node(d).type.name === "tableRow") return true;
     return false;
 }
 
@@ -113,7 +111,7 @@ export function selectionContentTableCell(state: EditorState): ResolvedPos {
     const sel = state.selection as ContentTableCellSelection | NodeSelection;
     if ("$anchorCell" in sel && sel.$anchorCell) {
         return sel.$anchorCell.pos > sel.$headCell.pos ? sel.$anchorCell : sel.$headCell;
-    } else if ("node" in sel && sel.node && sel.node.type.spec.tableRole == "cell") {
+    } else if ("node" in sel && sel.node && sel.node.type.name === "tableCell") {
         return sel.$anchor;
     }
     const $cell = contentTableCellAround(sel.$head) || contentTableCellNear(sel.$head);
@@ -137,12 +135,12 @@ export function selectionContentTableCell(state: EditorState): ResolvedPos {
  */
 export function contentTableCellNear($pos: ResolvedPos): ResolvedPos | undefined {
     for (let after = $pos.nodeAfter, pos = $pos.pos; after; after = after.firstChild, pos++) {
-        const role = after.type.spec.tableRole;
-        if (role == "cell") return $pos.doc.resolve(pos);
+        const isTableCell = after.type.name === "tableCell";
+        if (isTableCell) return $pos.doc.resolve(pos);
     }
     for (let before = $pos.nodeBefore, pos = $pos.pos; before; before = before.lastChild, pos--) {
-        const role = before.type.spec.tableRole;
-        if (role == "cell") return $pos.doc.resolve(pos - before.nodeSize);
+        const isTableCell = before.type.name === "tableCell";
+        if (isTableCell) return $pos.doc.resolve(pos - before.nodeSize);
     }
 }
 

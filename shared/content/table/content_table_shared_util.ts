@@ -53,7 +53,7 @@ export interface ContentTableCellAttrs {
  * within a cell.
  */
 export function pointsAtContentTableCell($pos: ResolvedPos): boolean {
-    return $pos.parent.type.spec.tableRole == "row" && !!$pos.nodeAfter;
+    return $pos.parent.type.name === "tableRow" && !!$pos.nodeAfter;
 }
 
 /**
