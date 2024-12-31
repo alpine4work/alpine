@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 /**
  * NOTE(rohitt-gupta, 2024-11-26): Forked from `prosemirror-tables` so we can
  * remove features we don't use and customize the user experience. We intend to

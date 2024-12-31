@@ -124,10 +124,23 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..596bd075cfffe27ea97229ae6a1eb22b
 +// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
 +exports.serializeForClipboard = serializeForClipboard;
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index 52ee8840c754562f9ae4d9891f61682035b092e7..bc7a1e4ee8dcdcfa945c0053e7dd599ac63c05b3 100644
+index 52ee8840c754562f9ae4d9891f61682035b092e7..33bfa536be129ea330b4b546970d4a31b81639d5 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
-@@ -649,7 +649,7 @@ interface EditorProps<P = any> {
+@@ -543,7 +543,11 @@ declare class EditorView {
+     This method is bound to the view instance, so that it can be
+     easily passed around.
+     */
+-    dispatch(tr: Transaction): void;
++    // NOTE(calebmer): Adding `this: void` allows us to pass around
++    // `view.dispatch` like `doSomething(view.dispatch)` without
++    // `@typescript-eslint/unbound-method` warnings. It's safe since `EditorView`
++    // binds `this` in the constructor.
++    dispatch(this: void, tr: Transaction): void;
+ }
+ /**
+ The type of function [provided](https://prosemirror.net/docs/ref/#view.ViewProps.nodeViews) to
+@@ -649,7 +653,7 @@ interface EditorProps<P = any> {
      true if this drop moves from the current selection (which should
      thus be deleted).
      */
@@ -136,7 +149,7 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..bc7a1e4ee8dcdcfa945c0053e7dd599a
      /**
      Called when the view, after updating its state, tries to scroll
      the selection into view. A handler function may return false to
-@@ -674,6 +674,10 @@ interface EditorProps<P = any> {
+@@ -674,6 +678,10 @@ interface EditorProps<P = any> {
      for example to clean it up.
      */
      transformPastedHTML?: (this: P, html: string) => string;
@@ -147,7 +160,7 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..bc7a1e4ee8dcdcfa945c0053e7dd599a
      /**
      The [parser](https://prosemirror.net/docs/ref/#model.DOMParser) to use when reading content from
      the clipboard. When not given, the value of the
-@@ -831,6 +835,17 @@ interface DirectEditorProps extends EditorProps {
+@@ -831,6 +839,17 @@ interface DirectEditorProps extends EditorProps {
      the view instance as its `this` binding.
      */
      dispatchTransaction?: (tr: Transaction) => void;
