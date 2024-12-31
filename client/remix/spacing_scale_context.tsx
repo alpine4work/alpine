@@ -66,6 +66,7 @@ export function getRemPxWithoutListening(): number {
     return remPxBySpacingScale[getSpacingScaleWithoutListening()];
 }
 
+// NOCOMMIT: Delete this
 export function getTableUnitPxWithoutListening(): number {
     return tableUnitPxBySpacingScale[getSpacingScaleWithoutListening()];
 }

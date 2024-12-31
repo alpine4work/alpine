@@ -226,11 +226,11 @@ function handleMouseDown(
         if (!pluginState) return;
         if (pluginState.dragging) {
             const dragged = draggedWidth(pluginState.dragging, event, cellMinWidth);
-            displayColumnWidth(view, pluginState.activeHandle, dragged, defaultCellMinWidth);
+            displayColumnWidth(view, pluginState.activeHandle, dragged);
         }
     }
 
-    displayColumnWidth(view, pluginState.activeHandle, width, defaultCellMinWidth);
+    displayColumnWidth(view, pluginState.activeHandle, width);
 
     win.addEventListener("mouseup", finish);
     win.addEventListener("mousemove", move);
@@ -335,12 +335,7 @@ function updateColumnWidth(view: EditorView, cell: number, width: number): void 
 }
 
 // Displays the width of the column being resized
-function displayColumnWidth(
-    view: EditorView,
-    cell: number,
-    finalResizedColWidth: number,
-    defaultCellMinWidth: number,
-): void {
+function displayColumnWidth(view: EditorView, cell: number, finalResizedColWidth: number): void {
     const $cell = view.state.doc.resolve(cell);
     const table = $cell.node(-1),
         start = $cell.start(-1);
@@ -354,8 +349,6 @@ function displayColumnWidth(
     updateContentTableColumnsOnResize(
         table,
         dom.firstChild as HTMLTableColElement,
-        dom as HTMLTableElement,
-        defaultCellMinWidth,
         colNumber,
         finalResizedColWidth,
     );

@@ -136,6 +136,7 @@ const standaloneBlockMargin = spacing[standaloneBlockMarginSpacing];
 export {standaloneBlockMarginSpacing as standaloneBlockMargin};
 
 const blockMaxWidthVar = createVar("block-max-width");
+// NOCOMMIT: Delete this
 export const tableUnitVar = createVar("table-unit");
 
 globalStyle(":root", {
@@ -2069,58 +2070,37 @@ export const withTableColumnResizeCursor = style({
 });
 
 globalStyle(tableWrapperClassName, {
+    ...blockStyles,
     position: "relative",
-    margin: `${standaloneBlockMargin} auto`,
-    width: "fit-content",
-    maxWidth: "95%",
+    zIndex: "0",
     overflowX: "auto",
-});
-
-globalStyle(`${tableWrapperClassName} col`, {
-    minWidth: `calc(6.25 * ${tableUnitVar})`,
+    overscrollBehaviorX: "contain",
+    marginTop: standaloneBlockMargin,
+    marginBottom: standaloneBlockMargin,
 });
 
 globalStyle(`${tableWrapperClassName} table`, {
-    // minWidth: blockMaxWidthVar,
-    maxWidth: `calc(256 * ${tableUnitVar})`,
-    textAlign: "left",
+    position: "relative",
+    zIndex: "0",
+    minWidth: "100%",
     borderCollapse: "collapse",
     tableLayout: "fixed",
 });
 
 globalStyle(`${tableWrapperClassName} td`, {
-    border: `1px solid ${colorSchemeVars["grey-20"]}`,
-    minWidth: `calc(6.25 * ${tableUnitVar})`,
-});
-
-globalStyle(`${tableWrapperClassName} td, ${tableWrapperClassName} th`, {
-    border: `1px solid ${colorSchemeVars["grey-20"]}`,
-    padding: `${spacing[0.5]} ${spacing[1]}`,
-    verticalAlign: "top",
-    boxSizing: "border-box",
     position: "relative",
+    zIndex: "0",
+    border: `1px solid ${colorSchemeVars["grey-10"]}`,
+    padding: `${paragraphMargin} ${spacing["3"]}`,
+    verticalAlign: "top",
 });
 
 export const tableSelectedCellClassName = style({});
 
-// Add a background color to the cell that is selected.
-globalStyle(`${tableWrapperClassName} ${tableSelectedCellClassName}:after`, {
-    zIndex: 2,
-    position: "absolute",
-    content: '""',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    background: colorSchemeVars["theme-selection"],
-    pointerEvents: "none",
-    borderCollapse: "collapse",
-});
-
-globalStyle(`${tableWrapperClassName} ${tableSelectedCellClassName}`, {
-    background: colorSchemeVars["theme-selection"],
-    border: `1px solid ${colorSchemeVars["theme-60"]}`,
-    borderCollapse: "collapse",
+globalStyle(`${tableWrapperClassName} td${tableSelectedCellClassName}`, {
+    zIndex: "10",
+    backgroundColor: colorSchemeVars["theme-selection"],
+    border: `1px double ${colorSchemeVars["theme-40-const"]}`,
 });
 
 export const tableColumnResizeHandleClassName = style({});

@@ -30,29 +30,24 @@
 import {Node} from "prosemirror-model";
 import {NodeViewConstructor} from "prosemirror-view";
 import {getContentTableColumnWidths} from "~/client/content/internal/table/content_table_client_util.js";
-import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {subscribeToSpacingScaleChange} from "~/client/remix/spacing_scale_context.js";
-import {contentStyles} from "~/client/styles/styles.js";
 import {tableWrapperClassName} from "~/shared/content/content_styles.js";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 
 export function createContentEditorTableNodeView({
-    defaultCellMinWidth,
     subscribeToSelectionUpdate,
 }: {
-    defaultCellMinWidth: number; // in rem
     subscribeToSelectionUpdate: (listener: () => void) => () => void;
 }): NodeViewConstructor {
     return node => {
-        const wrapperElement = document.createElement("div");
-        wrapperElement.className = tableWrapperClassName;
-        wrapperElement.style.display = "flex";
-        wrapperElement.style.alignItems = "stretch";
-        wrapperElement.setAttribute("data-scrollbar", "false");
+        const tableWrapperElement = document.createElement("div");
+        tableWrapperElement.className = tableWrapperClassName;
+        tableWrapperElement.setAttribute("data-scrollbar", "false");
 
-        const tableElement = wrapperElement.appendChild(document.createElement("table"));
+        const tableElement = tableWrapperElement.appendChild(document.createElement("table"));
         const colgroupElement = tableElement.appendChild(document.createElement("colgroup"));
 
-        updateContentTableColumnsOnResize(node, colgroupElement, tableElement, defaultCellMinWidth);
+        updateContentTableColumnsOnResize(node, colgroupElement);
 
         const tableBodyElement = tableElement.appendChild(document.createElement("tbody"));
 
@@ -61,12 +56,7 @@ export function createContentEditorTableNodeView({
         // Subscribe to spacing scale changes. This also covers all platform changes so
         // we don't need to also subscribe to platform changes.
         const unsubscribeFromSpacingScaleChange = subscribeToSpacingScaleChange(() => {
-            updateContentTableColumnsOnResize(
-                node,
-                colgroupElement,
-                tableElement,
-                defaultCellMinWidth,
-            );
+            updateContentTableColumnsOnResize(node, colgroupElement);
         });
 
         const unsubscribeFromSelectionUpdate = subscribeToSelectionUpdate(() => {
@@ -79,18 +69,13 @@ export function createContentEditorTableNodeView({
         }
 
         return {
-            dom: wrapperElement,
+            dom: tableWrapperElement,
             contentDOM: tableBodyElement,
 
             update: newNode => {
                 if (newNode.type != node.type) return false;
                 node = newNode;
-                updateContentTableColumnsOnResize(
-                    node,
-                    colgroupElement,
-                    tableElement,
-                    defaultCellMinWidth,
-                );
+                updateContentTableColumnsOnResize(node, colgroupElement);
                 return true;
             },
             ignoreMutation: record => {
@@ -109,54 +94,47 @@ export function createContentEditorTableNodeView({
 
 export function updateContentTableColumnsOnResize(
     node: Node,
-    colgroup: HTMLTableColElement,
-    table: HTMLTableElement,
-    defaultCellMinWidth: number,
-    overrideCol?: number,
-    overrideValue?: number,
+    colgroupElement: HTMLTableColElement,
+    overrideColumnIndex?: number,
+    overrideColumnWidthPx?: number,
 ): void {
-    let totalWidth = 0;
-    let nextDOM = colgroup.firstChild as HTMLElement;
+    const tableMap = ContentTableMap.get(node);
+    const columnWidths = getContentTableColumnWidths(node);
 
-    // NOCOMMIT: Update this
-    const columnWidths = node.attrs.columnWidths;
-    const columnCount = node.firstChild?.childCount ?? 0;
-    const defaultWidth =
-        contentStyles.blockMaxWidthRem[getPlatformWithoutListening()] / columnCount;
+    const totalColumnWidth = columnWidths.reduce(
+        (totalColumnWidth, columnWidth) => totalColumnWidth + columnWidth,
+        0,
+    );
 
-    // Ensure we have enough cols in colgroup
-    for (let colIndex = 0; colIndex < columnCount; colIndex++) {
-        const width = overrideCol == colIndex ? overrideValue : columnWidths?.[colIndex];
+    let nextColElement = colgroupElement.firstElementChild as HTMLTableColElement | null;
 
-        const cssWidth = width
-            ? `${width * getTableUnitPxWithoutListening()}px`
-            : `${defaultWidth * getTableUnitPxWithoutListening()}px`;
-        totalWidth += width || defaultWidth;
+    for (let columnIndex = 0; columnIndex < tableMap.width; columnIndex++) {
+        // NOCOMMIT: Add back override support
+        // const width =
+        //     overrideColumnIndex == columnIndex
+        //         ? overrideColumnWidthPx
+        //         : columnWidths?.[columnIndex];
 
-        if (!nextDOM) {
+        const columnWidth = columnWidths[columnIndex]!;
+        const columnCssWidth = `${(columnWidth / totalColumnWidth) * 100}%`;
+
+        // Create missing `<col>` elements
+        if (!nextColElement) {
             const colElement = document.createElement("col");
-            colElement.style.width = cssWidth;
-            colgroup.appendChild(colElement);
+            colElement.style.width = columnCssWidth;
+            colgroupElement.appendChild(colElement);
         } else {
-            if (nextDOM.style.width !== cssWidth) {
-                nextDOM.style.width = cssWidth;
+            if (nextColElement.style.width !== columnCssWidth) {
+                nextColElement.style.width = columnCssWidth;
             }
-            nextDOM = nextDOM.nextSibling as HTMLElement;
+            nextColElement = nextColElement.nextElementSibling as HTMLTableColElement | null;
         }
     }
 
-    // Remove any extra cols
-    while (nextDOM) {
-        const after = nextDOM.nextSibling;
-        nextDOM.parentNode?.removeChild(nextDOM);
-        nextDOM = after as HTMLElement;
+    // Remove any extra `<col>` elements
+    while (nextColElement) {
+        const nextColElement2 = nextColElement.nextElementSibling as HTMLTableColElement | null;
+        colgroupElement.removeChild(nextColElement);
+        nextColElement = nextColElement2;
     }
-
-    // Always set fixed width
-
-    const finalWidth = Math.max(
-        totalWidth,
-        contentStyles.blockMaxWidthRem[getPlatformWithoutListening()],
-    );
-    table.style.width = `${finalWidth * getTableUnitPxWithoutListening()}px`;
 }

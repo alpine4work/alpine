@@ -1157,7 +1157,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 draggingFileRef,
             }),
             table: createContentEditorTableNodeView({
-                defaultCellMinWidth: 6.25,
                 subscribeToSelectionUpdate: listener => {
                     selectionUpdateEmitterRef.current ??= new EventEmitter();
                     return selectionUpdateEmitterRef.current.subscribe(listener);
