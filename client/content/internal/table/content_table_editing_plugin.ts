@@ -39,7 +39,7 @@ import {Decoration, DecorationSet, DecorationSource} from "prosemirror-view";
 import {contentTableEditingKey} from "~/client/content/internal/table/content_table_client_util.js";
 import {fixContentTables} from "~/client/content/internal/table/content_table_fix_tables.js";
 import {
-    contentTableKeyDownHandler,
+    handleContentTableKeyDown,
     handleContentTableMouseDown,
     handleContentTableTripleClick,
 } from "~/client/content/internal/table/content_table_input.js";
@@ -110,7 +110,7 @@ export function contentTableEditingPlugin({
                     : null;
             },
             handleTripleClick: handleContentTableTripleClick,
-            handleKeyDown: contentTableKeyDownHandler,
+            handleKeyDown: handleContentTableKeyDown,
         },
 
         appendTransaction(_, oldState, state) {

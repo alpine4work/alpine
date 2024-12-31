@@ -57,7 +57,7 @@ type Axis = "horiz" | "vert";
 
 export type ContentTableInputDirection = -1 | 1;
 
-export const contentTableKeyDownHandler = keydownHandler({
+export const handleContentTableKeyDown = keydownHandler({
     ArrowLeft: arrow("horiz", -1),
     ArrowRight: arrow("horiz", 1),
     ArrowUp: arrow("vert", -1),
