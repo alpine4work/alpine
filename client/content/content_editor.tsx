@@ -4045,15 +4045,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
             },
         );
-        process.env.NODE_ENV !== "production" &&
-            insertOtherMenuActions.push({
-                label: "Table",
-                iconSize: "4",
-                icon: <Table />,
-                onPress: () => {
-                    insertContentTable(assertExists(viewRef.current));
-                },
-            });
 
         return [
             [
