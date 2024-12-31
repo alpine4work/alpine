@@ -35,7 +35,6 @@ import {EditorState, PluginKey, Transaction} from "prosemirror-state";
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
 
 const fixTablesKey = new PluginKey<{contentTableFixTables: boolean}>("fix-tables");
 
@@ -149,7 +148,7 @@ function fixTable(
         if (add > 0) {
             const nodes: Array<Node> = [];
             for (let j = 0; j < add; j++) {
-                const cell = contentTableNodeTypes(state.schema).cell.createAndFill();
+                const cell = state.schema.nodes.tableCell!.createAndFill();
                 if (cell) nodes.push(cell);
             }
             // Always add cells at the end of the row for consistency

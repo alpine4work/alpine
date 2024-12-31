@@ -29,14 +29,10 @@
 
 import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
-import {
-    ContentEditorTableNodeView,
-    updateContentTableColumnsOnResize,
-} from "~/client/content/internal/table/content_editor_table_node_view.js";
+import {updateContentTableColumnsOnResize} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {contentTableCellAround} from "~/client/content/internal/table/content_table_client_util.js";
 import {getTableUnitPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
 import {pointsAtContentTableCell} from "~/shared/content/table/content_table_shared_util.js";
 
 export const contentTableColumnResizingPluginKey = new PluginKey<ResizeState>(
@@ -54,12 +50,6 @@ type ColumnResizingOptions = {
      */
     defaultCellMinWidth?: number;
     lastColumnResizable?: boolean;
-    /**
-     * A custom node view for the rendering table nodes. By default, the plugin
-     * uses the {@link ContentEditorTableNodeView} class. You can explicitly set this to `null` to
-     * not use a custom node view.
-     */
-    View?: typeof ContentEditorTableNodeView | null;
 };
 
 type Dragging = {startX: number; startWidth: number};
@@ -75,20 +65,12 @@ export function contentTableColumnResizingPlugin({
     handleWidth = 5,
     cellMinWidth = 6.25,
     defaultCellMinWidth = 6.25,
-    View = ContentEditorTableNodeView,
     lastColumnResizable = true,
 }: ColumnResizingOptions = {}): Plugin {
     const plugin = new Plugin<ResizeState>({
         key: contentTableColumnResizingPluginKey,
         state: {
-            init(_, state) {
-                const nodeViews = plugin.spec?.props?.nodeViews;
-                const tableName = contentTableNodeTypes(state.schema).table.name;
-                if (View && nodeViews) {
-                    nodeViews[tableName] = (node, view) => {
-                        return new View(node, defaultCellMinWidth, view);
-                    };
-                }
+            init() {
                 return new ResizeState(-1, false);
             },
             apply(tr, prev) {

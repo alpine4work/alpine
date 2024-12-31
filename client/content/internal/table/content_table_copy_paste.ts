@@ -51,7 +51,6 @@ import {
     ContentTableMapColWidths,
     ContentTableMapRect,
 } from "~/shared/content/table/content_table_map.js";
-import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 type Area = {width: number; height: number; rows: Array<Fragment>};
@@ -82,19 +81,13 @@ export function pastedContentTableCells(slice: Slice): Area | null {
             const left = i ? 0 : Math.max(0, openStart - 1);
             const right = i < content.childCount - 1 ? 0 : Math.max(0, openEnd - 1);
             if (left || right)
-                cells = fitSlice(
-                    contentTableNodeTypes(schema).row,
-                    new Slice(cells, left, right),
-                ).content;
+                cells = fitSlice(schema.nodes.tableRow!, new Slice(cells, left, right)).content;
             rows.push(cells);
         }
     } else if (first.type.name === "tableCell") {
         rows.push(
             openStart || openEnd
-                ? fitSlice(
-                      contentTableNodeTypes(schema).row,
-                      new Slice(content, openStart, openEnd),
-                  ).content
+                ? fitSlice(schema.nodes.tableRow!, new Slice(content, openStart, openEnd)).content
                 : content,
         );
     } else {
@@ -120,7 +113,7 @@ function ensureRectangular(schema: Schema, rows: Array<Fragment>): Area {
     for (let r = 0; r < widths.length; r++) {
         if (r >= rows.length) rows.push(Fragment.empty);
         if (widths[r]! < width) {
-            const empty = contentTableNodeTypes(schema).cell.createAndFill()!;
+            const empty = schema.nodes.tableCell!.createAndFill()!;
             const cells: Array<Node> = [];
             for (let i = widths[r]!; i < width; i++) {
                 cells.push(empty);
@@ -193,7 +186,6 @@ function growContentTable(
     mapFrom: number,
 ): boolean {
     const schema = tr.doc.type.schema;
-    const types = contentTableNodeTypes(schema);
     let empty;
     let changed = false;
 
@@ -231,7 +223,7 @@ function growContentTable(
             const rowNode = table.child(row);
             rowEnd += rowNode.nodeSize;
             const cells: Array<Node> = [];
-            empty = empty || types.cell.createAndFill()!;
+            empty = empty || schema.nodes.tableCell!.createAndFill()!;
             for (let i = map.width; i < width; i++) {
                 cells.push(empty);
             }
@@ -242,13 +234,13 @@ function growContentTable(
     if (height > map.height) {
         changed = true;
         const cells = [];
-        empty = empty || types.cell.createAndFill()!;
+        empty = empty || schema.nodes.tableCell!.createAndFill()!;
         // Use the final width after potential width growth
         for (let i = 0; i < width; i++) {
             cells.push(empty);
         }
 
-        const emptyRow = types.row.create(null, Fragment.from(cells));
+        const emptyRow = schema.nodes.tableRow!.create(null, Fragment.from(cells));
         const rows = [];
         for (let i = map.height; i < height; i++) rows.push(emptyRow);
         tr.insert(tr.mapping.slice(mapFrom).map(start + table.nodeSize - 2), rows);

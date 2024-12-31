@@ -37,7 +37,6 @@ import {
 import type {ContentTableInputDirection} from "~/client/content/internal/table/content_table_input.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap, ContentTableMapRect} from "~/shared/content/table/content_table_map.js";
-import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
 
 type TableRect = ContentTableMapRect & {
     tableStart: number;
@@ -84,7 +83,7 @@ function addContentTableColumn(
     // Add cells to each row
     for (let row = 0; row < map.height; row++) {
         const pos = map.positionAt(row, col, table);
-        const type = contentTableNodeTypes(table.type.schema).cell;
+        const type = table.type.schema.nodes.tableCell!;
         tr.insert(tr.mapping.map(tableStart + pos), type.createAndFill()!);
     }
 
@@ -183,12 +182,12 @@ function addContentTableRow(
 
     const cells = [];
     for (let col = 0; col < map.width; col++) {
-        const type = contentTableNodeTypes(table.type.schema).cell;
+        const type = table.type.schema.nodes.tableCell!;
         const node = type.createAndFill();
         if (node) cells.push(node);
     }
 
-    tr.insert(rowPos, contentTableNodeTypes(table.type.schema).row.create(null, cells));
+    tr.insert(rowPos, table.type.schema.nodes.tableRow!.create(null, cells));
     return tr;
 }
 
@@ -374,7 +373,7 @@ export function deleteContentTableCellSelection(
     if (!(sel instanceof ContentTableCellSelection)) return false;
     if (dispatch) {
         const tr = state.tr;
-        const baseContent = contentTableNodeTypes(state.schema).cell.createAndFill()!.content;
+        const baseContent = state.schema.nodes.tableCell!.createAndFill()!.content;
         sel.forEachCell((cell, pos) => {
             if (!cell.content.eq(baseContent))
                 tr.replace(

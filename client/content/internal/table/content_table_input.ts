@@ -51,7 +51,6 @@ import {
 } from "~/client/content/internal/table/content_table_copy_paste.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
 import {inSameContentTable} from "~/shared/content/table/content_table_shared_util.js";
 
 type Axis = "horiz" | "vert";
@@ -160,9 +159,7 @@ export function handleContentTablePaste(
             cells = {
                 width: 1,
                 height: 1,
-                rows: [
-                    Fragment.from(fitSlice(contentTableNodeTypes(view.state.schema).cell, slice)),
-                ],
+                rows: [Fragment.from(fitSlice(view.state.schema.nodes.tableCell!, slice))],
             };
         const table = sel.$anchorCell.node(-1);
         const start = sel.$anchorCell.start(-1);

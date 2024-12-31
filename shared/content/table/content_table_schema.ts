@@ -27,7 +27,7 @@
  * THE SOFTWARE.
  */
 
-import {NodeSpec, NodeType, Schema as ProsemirrorSchema, SchemaSpec} from "prosemirror-model";
+import {SchemaSpec} from "prosemirror-model";
 import {tableCellClassName, tableClassName} from "~/shared/content/content_styles.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -78,16 +78,3 @@ export const contentTableProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         },
     },
 });
-
-// A function to get the node types for the table.
-export function contentTableNodeTypes(
-    schema: ProsemirrorSchema,
-): Record<contentTableRole, NodeType> {
-    return {
-        table: schema.nodes.table as NodeType,
-        row: schema.nodes.tableRow as NodeType,
-        cell: schema.nodes.tableCell as NodeType,
-    };
-}
-export type contentTableNodes = Record<"table" | "tableRow" | "tableCell", NodeSpec>;
-export type contentTableRole = "table" | "row" | "cell";
