@@ -73,10 +73,6 @@ function buildPlugins<Content extends ContentWithReferences>({
             depth: disableUndoKeyboardShortcuts ? Number.MAX_SAFE_INTEGER : undefined,
         }),
         buildContentEditorInputRulesPlugin(schema),
-        contentTableEditingPlugin({
-            allowTableNodeSelection: true,
-        }),
-        contentTableColumnResizingPlugin(),
         buildContentEditorKeymapPlugin(schema, {disableUndoKeyboardShortcuts}),
         contentEditorFloaterStatePlugin(),
         contentEditorReferencesPlugin(references, reduceReferences),
@@ -86,6 +82,7 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorRememberPosWhileLoadingPlugin(),
         contentEditorCodeBlockPlugin(),
         sharedContentEditorTrackSelectionWithinPlugin(),
+        contentTableEditingPlugin({allowTableNodeSelection: true}),
         contentTableColumnResizingPlugin(),
     ];
 
