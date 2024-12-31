@@ -43,6 +43,21 @@ export const contentTableProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             content: "tableRow{2,}",
             group: "block",
             attrs: {
+                // The width of each column in a table. Each width represents a fraction of the
+                // available space in the table. Widths are the same in principle as the [CSS
+                // grid `fr` unit][1].
+                //
+                // For example, say we have two columns and `columnWidths` is set to `[1, 3]`.
+                // To compute the amount of space each column occupies we divide each
+                // individual width value by the total after summing up all width values. So
+                // the total of all width values here is 4 (1 + 3). So the percentage widths of
+                // our columns is 25% (1 / 4) and 75% (3 / 4).
+                //
+                // If `columnWidths` is missing a value for a column (say a table has three
+                // columns and the length of `columnWidths` is 2) then the default width of the
+                // column is 1.
+                //
+                // [1]: https://css-tricks.com/introduction-fr-css-unit/
                 columnWidths: {
                     default: [],
                     schema: Schema.array(Schema.float),

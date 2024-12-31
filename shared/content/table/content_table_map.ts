@@ -39,6 +39,7 @@
 // to or gotten from this structure by that amount.
 
 import {Node} from "prosemirror-model";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 export type ContentTableMapColWidths = Array<number>;
 
@@ -246,9 +247,10 @@ function findWidth(table: Node): number {
 }
 
 function computeMap(table: Node): ContentTableMap {
-    if (table.type.name !== "table") throw new RangeError("Not a table node: " + table.type.name);
-    const width = findWidth(table),
-        height = table.childCount;
+    assert(table.type.name === "table");
+
+    const width = findWidth(table);
+    const height = table.childCount;
 
     const map = [];
     let mapPos = 0;
