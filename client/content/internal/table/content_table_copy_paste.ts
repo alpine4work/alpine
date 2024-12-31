@@ -62,7 +62,7 @@ type Area = {width: number; height: number; rows: Array<Fragment>};
  * Get a rectangular area of cells from a slice, or null if the outer
  * nodes of the slice aren't table cells or rows.
  */
-export function contentTablePastedCells(slice: Slice): Area | null {
+export function pastedContentTableCells(slice: Slice): Area | null {
     if (!slice.size) return null;
     let {content, openStart, openEnd} = slice;
     while (
@@ -83,7 +83,7 @@ export function contentTablePastedCells(slice: Slice): Area | null {
             const left = i ? 0 : Math.max(0, openStart - 1);
             const right = i < content.childCount - 1 ? 0 : Math.max(0, openEnd - 1);
             if (left || right)
-                cells = contentTableFitSlice(
+                cells = fitSlice(
                     contentTableNodeTypes(schema).row,
                     new Slice(cells, left, right),
                 ).content;
@@ -92,7 +92,7 @@ export function contentTablePastedCells(slice: Slice): Area | null {
     } else if (role == "cell") {
         rows.push(
             openStart || openEnd
-                ? contentTableFitSlice(
+                ? fitSlice(
                       contentTableNodeTypes(schema).row,
                       new Slice(content, openStart, openEnd),
                   ).content
@@ -132,7 +132,7 @@ function ensureRectangular(schema: Schema, rows: Array<Fragment>): Area {
     return {height: rows.length, width, rows};
 }
 
-export function contentTableFitSlice(nodeType: NodeType, slice: Slice): Node {
+export function fitSlice(nodeType: NodeType, slice: Slice): Node {
     const node = nodeType.createAndFill()!;
     const tr = new Transform(node).replace(0, node.content.size, slice);
     return tr.doc;
@@ -144,7 +144,7 @@ export function contentTableFitSlice(nodeType: NodeType, slice: Slice): Node {
  *
  * @internal
  */
-export function contentTableCopyPasteClipCells(
+export function clipContentTableCells(
     {width, height, rows}: Area,
     newWidth: number,
     newHeight: number,
@@ -184,7 +184,7 @@ export function contentTableCopyPasteClipCells(
 
 // Make sure a table has at least the given width and height. Return
 // true if something was changed.
-function growTable(
+function growContentTable(
     tr: Transaction,
     map: ContentTableMap,
     table: Node,
@@ -261,10 +261,8 @@ function growTable(
 /**
  * Insert the given set of cells (as returned by `pastedCells`) into a
  * table, at the position pointed at by rect.
- *
- * @internal
  */
-export function contentTableInsertCells(
+export function insertContentTableCells(
     state: EditorState,
     dispatch: (tr: Transaction) => void,
     tableStart: number,
@@ -294,7 +292,7 @@ export function contentTableInsertCells(
     }
 
     // First grow the table if needed
-    if (growTable(tr, map, table, tableStart, right, bottom, mapFrom)) {
+    if (growContentTable(tr, map, table, tableStart, right, bottom, mapFrom)) {
         recomp();
     }
 

@@ -36,23 +36,23 @@ import {Command, EditorState, Selection, TextSelection, Transaction} from "prose
 import {EditorView} from "prosemirror-view";
 import {
     contentTableCellAround,
-    contentTableIsInTable,
-    contentTableNextCell,
-    contentTableSelectionCell,
-    tableEditingKey,
+    contentTableEditingKey,
+    isInContentTable,
+    nextContentTableCell,
+    selectionContentTableCell,
 } from "~/client/content/internal/table/content_table_client_util.js";
 import {contentTableColumnResizingPluginKey} from "~/client/content/internal/table/content_table_column_resizing_plugin.js";
-import {contentTableCommandDeleteCellSelection} from "~/client/content/internal/table/content_table_commands.js";
+import {deleteContentTableCellSelection} from "~/client/content/internal/table/content_table_commands.js";
 import {
-    contentTableCopyPasteClipCells,
-    contentTableFitSlice,
-    contentTableInsertCells,
-    contentTablePastedCells,
+    clipContentTableCells,
+    fitSlice,
+    insertContentTableCells,
+    pastedContentTableCells,
 } from "~/client/content/internal/table/content_table_copy_paste.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
-import {contentTableInSameTable} from "~/shared/content/table/content_table_shared_util.js";
+import {inSameContentTable} from "~/shared/content/table/content_table_shared_util.js";
 
 type Axis = "horiz" | "vert";
 
@@ -72,10 +72,10 @@ export const contentTableKeyDownHandler = keydownHandler({
     Tab: arrow("horiz", 1),
     "Shift-Tab": arrow("horiz", -1),
 
-    Backspace: contentTableCommandDeleteCellSelection,
-    "Mod-Backspace": contentTableCommandDeleteCellSelection,
-    Delete: contentTableCommandDeleteCellSelection,
-    "Mod-Delete": contentTableCommandDeleteCellSelection,
+    Backspace: deleteContentTableCellSelection,
+    "Mod-Backspace": deleteContentTableCellSelection,
+    Delete: deleteContentTableCellSelection,
+    "Mod-Delete": deleteContentTableCellSelection,
 });
 
 function maybeSetSelection(
@@ -106,7 +106,7 @@ function arrow(axis: Axis, dir: ContentTableInputDirection): Command {
             );
         } else {
             const $cell = state.doc.resolve(end);
-            const $next = contentTableNextCell($cell, axis, dir);
+            const $next = nextContentTableCell($cell, axis, dir);
             let newSel;
             if ($next) newSel = Selection.near($next, 1);
             else if (dir < 0) newSel = Selection.near(state.doc.resolve($cell.before(-1)), -1);
@@ -129,7 +129,7 @@ function shiftArrow(axis: Axis, dir: ContentTableInputDirection): Command {
             cellSel = new ContentTableCellSelection(state.doc.resolve(end));
         }
 
-        const $head = contentTableNextCell(cellSel.$headCell, axis, dir);
+        const $head = nextContentTableCell(cellSel.$headCell, axis, dir);
         if (!$head) return false;
         return maybeSetSelection(
             state,
@@ -139,7 +139,7 @@ function shiftArrow(axis: Axis, dir: ContentTableInputDirection): Command {
     };
 }
 
-export function contentTableHandleTripleClick(view: EditorView, pos: number): boolean {
+export function handleContentTableTripleClick(view: EditorView, pos: number): boolean {
     const doc = view.state.doc,
         $cell = contentTableCellAround(doc.resolve(pos));
     if (!$cell) return false;
@@ -147,13 +147,13 @@ export function contentTableHandleTripleClick(view: EditorView, pos: number): bo
     return true;
 }
 
-export function contentTableHandlePaste(
+export function handleContentTablePaste(
     view: EditorView,
     _: ClipboardEvent,
     slice: Slice,
 ): boolean {
-    if (!contentTableIsInTable(view.state)) return false;
-    let cells = contentTablePastedCells(slice);
+    if (!isInContentTable(view.state)) return false;
+    let cells = pastedContentTableCells(slice);
     const sel = view.state.selection;
     if (sel instanceof ContentTableCellSelection) {
         if (!cells)
@@ -161,9 +161,7 @@ export function contentTableHandlePaste(
                 width: 1,
                 height: 1,
                 rows: [
-                    Fragment.from(
-                        contentTableFitSlice(contentTableNodeTypes(view.state.schema).cell, slice),
-                    ),
+                    Fragment.from(fitSlice(contentTableNodeTypes(view.state.schema).cell, slice)),
                 ],
             };
         const table = sel.$anchorCell.node(-1);
@@ -172,17 +170,13 @@ export function contentTableHandlePaste(
             sel.$anchorCell.pos - start,
             sel.$headCell.pos - start,
         );
-        cells = contentTableCopyPasteClipCells(
-            cells,
-            rect.right - rect.left,
-            rect.bottom - rect.top,
-        );
-        contentTableInsertCells(view.state, view.dispatch, start, rect, cells);
+        cells = clipContentTableCells(cells, rect.right - rect.left, rect.bottom - rect.top);
+        insertContentTableCells(view.state, view.dispatch, start, rect, cells);
         return true;
     } else if (cells) {
-        const $cell = contentTableSelectionCell(view.state);
+        const $cell = selectionContentTableCell(view.state);
         const start = $cell.start(-1);
-        contentTableInsertCells(
+        insertContentTableCells(
             view.state,
             view.dispatch,
             start,
@@ -197,7 +191,7 @@ export function contentTableHandlePaste(
 
 // Handle mouse down event for table, responsible for creating a cell selection
 // when the user drags over a cell
-export function contentTableHandleMouseDown(view: EditorView, startEvent: MouseEvent): void {
+export function handleContentTableMouseDown(view: EditorView, startEvent: MouseEvent): void {
     if (startEvent.ctrlKey || startEvent.metaKey) return;
 
     // if the user is resizing a column, don't create a cell selection
@@ -229,15 +223,15 @@ export function contentTableHandleMouseDown(view: EditorView, startEvent: MouseE
     // the position under the mouse.
     function setCellSelection($anchor: ResolvedPos, event: MouseEvent): void {
         let $head = cellUnderMouse(view, event);
-        const starting = tableEditingKey.getState(view.state) == null;
-        if (!$head || !contentTableInSameTable($anchor, $head)) {
+        const starting = contentTableEditingKey.getState(view.state) == null;
+        if (!$head || !inSameContentTable($anchor, $head)) {
             if (starting) $head = $anchor;
             else return;
         }
         const selection = new ContentTableCellSelection($anchor, $head);
         if (starting || !view.state.selection.eq(selection)) {
             const tr = view.state.tr.setSelection(selection);
-            if (starting) tr.setMeta(tableEditingKey, $anchor.pos);
+            if (starting) tr.setMeta(contentTableEditingKey, $anchor.pos);
             view.dispatch(tr);
         }
     }
@@ -247,14 +241,14 @@ export function contentTableHandleMouseDown(view: EditorView, startEvent: MouseE
         view.root.removeEventListener("mouseup", stop);
         view.root.removeEventListener("dragstart", stop);
         view.root.removeEventListener("mousemove", move);
-        if (tableEditingKey.getState(view.state) != null)
-            view.dispatch(view.state.tr.setMeta(tableEditingKey, -1));
+        if (contentTableEditingKey.getState(view.state) != null)
+            view.dispatch(view.state.tr.setMeta(contentTableEditingKey, -1));
     }
 
     function move(_event: Event): void {
         // console.log("move", {_event});
         const event = _event as MouseEvent;
-        const anchor = tableEditingKey.getState(view.state);
+        const anchor = contentTableEditingKey.getState(view.state);
         let $anchor;
         if (anchor != null) {
             // Continuing an existing cross-cell selection

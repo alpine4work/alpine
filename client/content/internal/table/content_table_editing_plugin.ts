@@ -36,16 +36,16 @@
 
 import {EditorState, Plugin} from "prosemirror-state";
 import {Decoration, DecorationSet, DecorationSource} from "prosemirror-view";
-import {tableEditingKey} from "~/client/content/internal/table/content_table_client_util.js";
-import {contentTableFixTables} from "~/client/content/internal/table/content_table_fix_tables.js";
+import {contentTableEditingKey} from "~/client/content/internal/table/content_table_client_util.js";
+import {fixContentTables} from "~/client/content/internal/table/content_table_fix_tables.js";
 import {
-    contentTableHandleMouseDown,
-    contentTableHandleTripleClick,
+    handleContentTableMouseDown,
+    handleContentTableTripleClick,
     contentTableKeyDownHandler,
 } from "~/client/content/internal/table/content_table_input.js";
 import {
     ContentTableCellSelection,
-    contentTableCellNormalizeSelection,
+    normalizeContentTableCellSelection,
 } from "~/shared/content/table/content_table_cell_selection.js";
 
 type TableEditingOptions = {
@@ -77,7 +77,7 @@ export function contentTableEditingPlugin({
     allowTableNodeSelection = false,
 }: TableEditingOptions = {}): Plugin {
     return new Plugin({
-        key: tableEditingKey,
+        key: contentTableEditingKey,
         // This piece of state is used to remember when a mouse-drag
         // cell-selection is happening, so that it can continue even as
         // transactions (which might move its anchor cell) come in.
@@ -86,7 +86,7 @@ export function contentTableEditingPlugin({
                 return null;
             },
             apply(tr, cur) {
-                const set = tr.getMeta(tableEditingKey);
+                const set = tr.getMeta(contentTableEditingKey);
                 if (set != null) return set == -1 ? null : set;
                 if (cur == null || !tr.docChanged) return cur;
                 const {deleted, pos} = tr.mapping.mapResult(cur);
@@ -97,19 +97,21 @@ export function contentTableEditingPlugin({
         props: {
             decorations: drawCellSelection,
             handleDOMEvents: {
-                mousedown: contentTableHandleMouseDown,
+                mousedown: handleContentTableMouseDown,
             },
             createSelectionBetween(view) {
-                return tableEditingKey.getState(view.state) != null ? view.state.selection : null;
+                return contentTableEditingKey.getState(view.state) != null
+                    ? view.state.selection
+                    : null;
             },
-            handleTripleClick: contentTableHandleTripleClick,
+            handleTripleClick: handleContentTableTripleClick,
             handleKeyDown: contentTableKeyDownHandler,
         },
 
         appendTransaction(_, oldState, state) {
-            return contentTableCellNormalizeSelection(
+            return normalizeContentTableCellSelection(
                 state,
-                contentTableFixTables(state, oldState),
+                fixContentTables(state, oldState),
                 allowTableNodeSelection,
             );
         },

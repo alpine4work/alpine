@@ -76,7 +76,7 @@ function changedDescendants(
  * which will be used to avoid re-scanning unchanged parts of the
  * document.
  */
-export function contentTableFixTables(
+export function fixContentTables(
     state: EditorState,
     oldState?: EditorState,
 ): Transaction | undefined {

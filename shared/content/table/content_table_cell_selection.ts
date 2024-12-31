@@ -45,8 +45,8 @@ import {
 import {Mappable} from "prosemirror-transform";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {
-    contentTableInSameTable,
-    contentTablePointsAtCell,
+    inSameContentTable,
+    pointsAtContentTableCell,
 } from "~/shared/content/table/content_table_shared_util.js";
 
 export type ContentTableCellSelectionJson = {
@@ -96,9 +96,9 @@ export class ContentTableCellSelection extends Selection {
         const $anchorCell = doc.resolve(mapping.map(this.$anchorCell.pos));
         const $headCell = doc.resolve(mapping.map(this.$headCell.pos));
         if (
-            contentTablePointsAtCell($anchorCell) &&
-            contentTablePointsAtCell($headCell) &&
-            contentTableInSameTable($anchorCell, $headCell)
+            pointsAtContentTableCell($anchorCell) &&
+            pointsAtContentTableCell($headCell) &&
+            inSameContentTable($anchorCell, $headCell)
         ) {
             const tableChanged = this.$anchorCell.node(-1) != $anchorCell.node(-1);
             if (tableChanged && this.isRowSelection())
@@ -298,7 +298,7 @@ class CellBookmark {
             $headCell.parent.type.spec.tableRole == "row" &&
             $anchorCell.index() < $anchorCell.parent.childCount &&
             $headCell.index() < $headCell.parent.childCount &&
-            contentTableInSameTable($anchorCell, $headCell)
+            inSameContentTable($anchorCell, $headCell)
         )
             return new ContentTableCellSelection($anchorCell, $headCell);
         else return Selection.near($headCell, 1);
@@ -338,7 +338,7 @@ function isTextSelectionAcrossCells({$from, $to}: TextSelection) {
     return fromCellBoundaryNode !== toCellBoundaryNode && $to.parentOffset === 0;
 }
 
-export function contentTableCellNormalizeSelection(
+export function normalizeContentTableCellSelection(
     state: EditorState,
     tr: Transaction | undefined,
     allowTableNodeSelection: boolean,

@@ -31,16 +31,16 @@ import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {
     ContentEditorTableNodeView,
-    contentEditorUpdateTableColumnsOnResize,
+    updateContentTableColumnsOnResize,
 } from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {contentTableCellAround} from "~/client/content/internal/table/content_table_client_util.js";
 import {getTableUnitPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
-import {contentTablePointsAtCell} from "~/shared/content/table/content_table_shared_util.js";
+import {pointsAtContentTableCell} from "~/shared/content/table/content_table_shared_util.js";
 
 export const contentTableColumnResizingPluginKey = new PluginKey<ResizeState>(
-    "tableColumnResizing",
+    "contentTableColumnResizing",
 );
 
 type ColumnResizingOptions = {
@@ -71,7 +71,7 @@ type Dragging = {startX: number; startWidth: number};
 // updating the column width based on the mouse position. When the user releases
 // the mouse button, the finish function is called, which commits the column
 // width changes.
-export function contentEditorTableColumnResizingPlugin({
+export function contentTableColumnResizingPlugin({
     handleWidth = 5,
     cellMinWidth = 6.25,
     defaultCellMinWidth = 6.25,
@@ -141,7 +141,7 @@ class ResizeState {
             return new ResizeState(state.activeHandle, action.setDragging);
         if (state.activeHandle > -1 && tr.docChanged) {
             let handle = tr.mapping.map(state.activeHandle, -1);
-            if (!contentTablePointsAtCell(tr.doc.resolve(handle))) {
+            if (!pointsAtContentTableCell(tr.doc.resolve(handle))) {
                 handle = -1;
             }
             return new ResizeState(handle, state.dragging);
@@ -362,7 +362,7 @@ function displayColumnWidth(
         dom = dom.parentNode;
     }
     if (!dom) return;
-    contentEditorUpdateTableColumnsOnResize(
+    updateContentTableColumnsOnResize(
         table,
         dom.firstChild as HTMLTableColElement,
         dom as HTMLTableElement,

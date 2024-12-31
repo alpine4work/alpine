@@ -33,7 +33,7 @@ import {ResolvedPos} from "prosemirror-model";
 
 // TODO(rohitt-gupta, #tables): Remove colspan and colwidth once we fork
 // all the components from prosemirror-tables and update the schema.
-export interface ContentEditorCellAttrs {
+export interface ContentTableCellAttrs {
     colspan: number;
     rowspan: number;
     colwidth: Array<number> | null;
@@ -52,7 +52,7 @@ export interface ContentEditorCellAttrs {
  * This function is useful for determining if the current position is directly
  * within a cell.
  */
-export function contentTablePointsAtCell($pos: ResolvedPos): boolean {
+export function pointsAtContentTableCell($pos: ResolvedPos): boolean {
     return $pos.parent.type.spec.tableRole == "row" && !!$pos.nodeAfter;
 }
 
@@ -69,7 +69,7 @@ export function contentTablePointsAtCell($pos: ResolvedPos): boolean {
  * This function is useful for validating operations that depend on cell
  * relationships.
  */
-export function contentTableInSameTable($cellA: ResolvedPos, $cellB: ResolvedPos): boolean {
+export function inSameContentTable($cellA: ResolvedPos, $cellB: ResolvedPos): boolean {
     return (
         $cellA.depth == $cellB.depth &&
         $cellA.pos >= $cellB.start(-1) &&

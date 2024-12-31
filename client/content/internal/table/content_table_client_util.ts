@@ -34,7 +34,7 @@ import {EditorState, NodeSelection, PluginKey} from "prosemirror-state";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 
-export const tableEditingKey = new PluginKey<number>("selectingCells");
+export const contentTableEditingKey = new PluginKey<number>("contentTableEditing");
 
 /**
  * Retrieves the resolved position of the cell surrounding the given position.
@@ -61,7 +61,7 @@ export function contentTableCellAround($pos: ResolvedPos): ResolvedPos | null {
  * Example usage:
  *
  * ```ts
- * const wrappedCell = cellWrapping($pos);
+ * const wrappedCell = contentTableCellWrapping($pos);
  * console.log(`Wrapped cell: ${wrappedCell}`);
  * ```
  *
@@ -81,13 +81,14 @@ export function contentTableCellWrapping($pos: ResolvedPos): null | Node {
  * Example usage:
  *
  * ```ts
- * const inTable = isInTable(state);
+ * const inTable = isInContentTable(state);
  * console.log(`Is in table: ${inTable}`);
  * ```
  *
- * This function is useful for validating if operations should be performed within a table context.
+ * This function is useful for validating if operations should be performed
+ * within a table context.
  */
-export function contentTableIsInTable(state: EditorState): boolean {
+export function isInContentTable(state: EditorState): boolean {
     const $head = state.selection.$head;
     for (let d = $head.depth; d > 0; d--)
         if ($head.node(d).type.spec.tableRole == "row") return true;
@@ -95,19 +96,20 @@ export function contentTableIsInTable(state: EditorState): boolean {
 }
 
 /**
- * Retrieves the resolved position of the currently selected table cell in the editor state.
+ * Retrieves the resolved position of the currently selected table cell in the
+ * editor state.
  *
  * Example usage:
  *
  * ```ts
- * const selectedCellPos = selectionCell(editorState);
+ * const selectedCellPos = selectionContentTableCell(editorState);
  * console.log(`Selected cell position: ${selectedCellPos.pos}`);
  * ```
  *
- * This function is useful when you need to perform operations on the selected cell, such as
- * modifying its attributes or content.
+ * This function is useful when you need to perform operations on the selected
+ * cell, such as modifying its attributes or content.
  */
-export function contentTableSelectionCell(state: EditorState): ResolvedPos {
+export function selectionContentTableCell(state: EditorState): ResolvedPos {
     const sel = state.selection as ContentTableCellSelection | NodeSelection;
     if ("$anchorCell" in sel && sel.$anchorCell) {
         return sel.$anchorCell.pos > sel.$headCell.pos ? sel.$anchorCell : sel.$headCell;
@@ -127,7 +129,7 @@ export function contentTableSelectionCell(state: EditorState): ResolvedPos {
  * Example usage:
  *
  * ```ts
- * const nearestCell = cellNear($pos);
+ * const nearestCell = contentTableCellNear($pos);
  * console.log(`Nearest cell: ${nearestCell}`);
  * ```
  *
@@ -150,13 +152,13 @@ export function contentTableCellNear($pos: ResolvedPos): ResolvedPos | undefined
  * Example usage:
  *
  * ```ts
- * const nextCellPos = moveCellForward($pos);
+ * const nextCellPos = moveContentTableCellForward($pos);
  * console.log(`Next cell position: ${nextCellPos.pos}`);
  * ```
  *
  * This function is useful for navigating through cells in a table.
  */
-export function contentTableMoveCellForward($pos: ResolvedPos): ResolvedPos {
+export function moveContentTableCellForward($pos: ResolvedPos): ResolvedPos {
     return $pos.node(0).resolve($pos.pos + $pos.nodeAfter!.nodeSize);
 }
 
@@ -166,13 +168,13 @@ export function contentTableMoveCellForward($pos: ResolvedPos): ResolvedPos {
  * Example usage:
  *
  * ```ts
- * const nextCellPos = nextCell($pos, 'horiz', 1);
+ * const nextCellPos = nextContentTableCell($pos, 'horiz', 1);
  * console.log(`Next cell position: ${nextCellPos}`);
  * ```
  *
  * This function is useful for navigating through cells in a specified direction.
  */
-export function contentTableNextCell(
+export function nextContentTableCell(
     $pos: ResolvedPos,
     axis: "horiz" | "vert",
     dir: number,

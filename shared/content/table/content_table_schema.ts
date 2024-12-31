@@ -49,7 +49,7 @@ export const contentTableProsemirrorNodeSpec = {
     toDOM() {
         return ["table", {class: tableClassName}, ["tbody", 0]] as const;
     },
-};
+} as const satisfies NodeSpec;
 
 export const contentTableRowProsemirrorNodeSpec = {
     name: "tableRow",
@@ -62,7 +62,7 @@ export const contentTableRowProsemirrorNodeSpec = {
     toDOM() {
         return ["tr", 0] as const;
     },
-};
+} as const satisfies NodeSpec;
 
 export const contentTableCellProsemirrorNodeSpec = {
     name: "tableCell",
@@ -75,7 +75,7 @@ export const contentTableCellProsemirrorNodeSpec = {
     toDOM() {
         return ["td", {class: tableCellClassName}, 0] as const;
     },
-};
+} as const satisfies NodeSpec;
 
 // A function to get the node types for the table.
 export function contentTableNodeTypes(

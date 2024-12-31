@@ -59,18 +59,13 @@ export class ContentEditorTableNodeView implements NodeView {
         this.table = this.dom.appendChild(document.createElement("table"));
         this.colgroup = this.table.appendChild(document.createElement("colgroup"));
 
-        contentEditorUpdateTableColumnsOnResize(
-            node,
-            this.colgroup,
-            this.table,
-            defaultCellMinWidth,
-        );
+        updateContentTableColumnsOnResize(node, this.colgroup, this.table, defaultCellMinWidth);
         this.contentDOM = this.table.appendChild(document.createElement("tbody"));
         this.addActiveTableClass();
 
         // Subscribe to spacing scale changes
         this.unsubscribeFromSpacingScale = subscribeToSpacingScaleChange(() => {
-            contentEditorUpdateTableColumnsOnResize(
+            updateContentTableColumnsOnResize(
                 this.node,
                 this.colgroup,
                 this.table,
@@ -91,7 +86,7 @@ export class ContentEditorTableNodeView implements NodeView {
     update(node: Node): boolean {
         if (node.type != this.node.type) return false;
         this.node = node;
-        contentEditorUpdateTableColumnsOnResize(
+        updateContentTableColumnsOnResize(
             node,
             this.colgroup,
             this.table,
@@ -112,7 +107,8 @@ export class ContentEditorTableNodeView implements NodeView {
         this.unsubscribeFromSpacingScale?.();
     }
 }
-export function contentEditorUpdateTableColumnsOnResize(
+
+export function updateContentTableColumnsOnResize(
     node: Node,
     colgroup: HTMLTableColElement,
     table: HTMLTableElement,
