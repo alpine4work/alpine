@@ -56,7 +56,7 @@ function insertNode(view: EditorView, node: Node, commandIfNotEmpty?: Command) {
         insertPosOrSelection.from !== insertPosOrSelection.to
     ) {
         view.focus();
-        commandIfNotEmpty(state, view.dispatch.bind(view), view);
+        commandIfNotEmpty(state, view.dispatch, view);
         return;
     }
 

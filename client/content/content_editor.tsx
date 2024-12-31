@@ -920,11 +920,11 @@ function ContentEditor<Content extends ContentWithReferences>(
             },
             undo: () => {
                 const view = assertExists(viewRef.current);
-                undo(view.state, view.dispatch.bind(view), view);
+                undo(view.state, view.dispatch, view);
             },
             redo: () => {
                 const view = assertExists(viewRef.current);
-                redo(view.state, view.dispatch.bind(view), view);
+                redo(view.state, view.dispatch, view);
             },
             openMobileKeyboardToolbarCommentInputIfPossible: () => {
                 const view = assertExists(viewRef.current);
@@ -4061,7 +4061,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     keyboardShortcutHint: clientInfo.isAppleDevice ? "⌘+Z" : "Ctrl+Z",
                     onPress: () => {
                         const view = assertExists(viewRef.current);
-                        undo(view.state, view.dispatch.bind(view), view);
+                        undo(view.state, view.dispatch, view);
                     },
                 },
                 {
@@ -4070,7 +4070,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     keyboardShortcutHint: clientInfo.isAppleDevice ? "⌘+Y" : "Ctrl+Y",
                     onPress: () => {
                         const view = assertExists(viewRef.current);
-                        redo(view.state, view.dispatch.bind(view), view);
+                        redo(view.state, view.dispatch, view);
                     },
                 },
             ],

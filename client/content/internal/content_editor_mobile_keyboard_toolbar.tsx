@@ -620,6 +620,6 @@ function ContentEditorMobileKeyboardToolbarCommentButton({
 function fromCommand(viewRef: RefObject<EditorView | null>, command: Command): () => void {
     return () => {
         const view = assertExists(viewRef.current);
-        command(view.state, view.dispatch.bind(view), view);
+        command(view.state, view.dispatch, view);
     };
 }
