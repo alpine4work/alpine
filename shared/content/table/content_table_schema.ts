@@ -38,7 +38,6 @@ export const contentTableProsemirrorNodeSpec = {
     content: "tableRow{2,}",
     group: "block",
     attrs: {
-        isHeader: {default: true, schema: Schema.boolean},
         columnsWidth: {default: [], schema: Schema.array(Schema.float)},
     },
     copyable: true,

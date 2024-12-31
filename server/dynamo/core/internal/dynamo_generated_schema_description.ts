@@ -982,12 +982,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                         "schema": {
                                                                                                             "type": "Object",
                                                                                                             "propertySchemaByKey": {
-                                                                                                                "isHeader": {
-                                                                                                                    "valueSchema": {
-                                                                                                                        "type": "Boolean"
-                                                                                                                    },
-                                                                                                                    "optional": true
-                                                                                                                },
                                                                                                                 "columnsWidth": {
                                                                                                                     "valueSchema": {
                                                                                                                         "type": "Array",
@@ -1637,24 +1631,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
                                                                                         "reuseReferenceId": "b2c0eadd"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                }
-                                                                            }
-                                                                        },
-                                                                        "isHeader": {
-                                                                            "type": "Object",
-                                                                            "propertySchemaByKey": {
-                                                                                "type": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Value",
-                                                                                        "value": "isHeader"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "value": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Boolean"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -2343,12 +2319,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                             "schema": {
                                                                                                                                                 "type": "Object",
                                                                                                                                                 "propertySchemaByKey": {
-                                                                                                                                                    "isHeader": {
-                                                                                                                                                        "valueSchema": {
-                                                                                                                                                            "type": "Boolean"
-                                                                                                                                                        },
-                                                                                                                                                        "optional": true
-                                                                                                                                                    },
                                                                                                                                                     "columnsWidth": {
                                                                                                                                                         "valueSchema": {
                                                                                                                                                             "type": "Reference",
@@ -4894,12 +4864,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "schema": {
                                                                                         "type": "Object",
                                                                                         "propertySchemaByKey": {
-                                                                                            "isHeader": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Boolean"
-                                                                                                },
-                                                                                                "optional": true
-                                                                                            },
                                                                                             "columnsWidth": {
                                                                                                 "valueSchema": {
                                                                                                     "type": "Reference",
@@ -8922,12 +8886,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "schema": {
                                                                                         "type": "Object",
                                                                                         "propertySchemaByKey": {
-                                                                                            "isHeader": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Boolean"
-                                                                                                },
-                                                                                                "optional": true
-                                                                                            },
                                                                                             "columnsWidth": {
                                                                                                 "valueSchema": {
                                                                                                     "type": "Reference",
