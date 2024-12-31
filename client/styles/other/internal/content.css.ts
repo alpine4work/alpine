@@ -59,8 +59,7 @@ import {
     paragraphClassName,
     quoteBlockClassName,
     strikeClassName,
-    tableCellClassName,
-    tableClassName,
+    tableWrapperClassName,
     titleClassName,
     unorderedListItemClassName,
 } from "~/shared/content/content_styles.js";
@@ -2057,14 +2056,11 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     zIndex: -10,
 });
 
-export const withTableColumnResizeCursor = style({});
-
-globalStyle(tableCellClassName, {
-    border: `1px solid ${colorSchemeVars["grey-20"]}`,
-    minWidth: `calc(6.25 * ${tableUnitVar})`,
+export const withTableColumnResizeCursor = style({
+    cursor: "col-resize",
 });
 
-globalStyle(tableClassName, {
+globalStyle(tableWrapperClassName, {
     position: "relative",
     margin: `${standaloneBlockMargin} auto`,
     width: "fit-content",
@@ -2072,11 +2068,11 @@ globalStyle(tableClassName, {
     overflowX: "auto",
 });
 
-globalStyle(`${tableClassName} col`, {
+globalStyle(`${tableWrapperClassName} col`, {
     minWidth: `calc(6.25 * ${tableUnitVar})`,
 });
 
-globalStyle(`${tableClassName} table`, {
+globalStyle(`${tableWrapperClassName} table`, {
     // minWidth: blockMaxWidthVar,
     maxWidth: `calc(256 * ${tableUnitVar})`,
     textAlign: "left",
@@ -2084,11 +2080,12 @@ globalStyle(`${tableClassName} table`, {
     tableLayout: "fixed",
 });
 
-globalStyle(".resize-cursor", {
-    cursor: "col-resize",
+globalStyle(`${tableWrapperClassName} td`, {
+    border: `1px solid ${colorSchemeVars["grey-20"]}`,
+    minWidth: `calc(6.25 * ${tableUnitVar})`,
 });
 
-globalStyle(`${tableClassName} td, ${tableClassName} th`, {
+globalStyle(`${tableWrapperClassName} td, ${tableWrapperClassName} th`, {
     border: `1px solid ${colorSchemeVars["grey-20"]}`,
     padding: `${spacing[0.5]} ${spacing[1]}`,
     verticalAlign: "top",
@@ -2099,7 +2096,7 @@ globalStyle(`${tableClassName} td, ${tableClassName} th`, {
 export const tableSelectedCellClassName = style({});
 
 // Add a background color to the cell that is selected.
-globalStyle(`${tableClassName} ${tableSelectedCellClassName}:after`, {
+globalStyle(`${tableWrapperClassName} ${tableSelectedCellClassName}:after`, {
     zIndex: 2,
     position: "absolute",
     content: '""',
@@ -2112,7 +2109,7 @@ globalStyle(`${tableClassName} ${tableSelectedCellClassName}:after`, {
     borderCollapse: "collapse",
 });
 
-globalStyle(`${tableClassName} ${tableSelectedCellClassName}`, {
+globalStyle(`${tableWrapperClassName} ${tableSelectedCellClassName}`, {
     background: colorSchemeVars["theme-selection"],
     border: `1px solid ${colorSchemeVars["theme-60"]}`,
     borderCollapse: "collapse",
@@ -2122,7 +2119,7 @@ export const tableColumnResizeHandleClassName = style({});
 export const tableColumnResizeDraggingClassName = style({});
 
 // Add a color to the column border while resizing.
-globalStyle(`${tableClassName} ${tableColumnResizeHandleClassName}`, {
+globalStyle(`${tableWrapperClassName} ${tableColumnResizeHandleClassName}`, {
     position: "absolute",
     right: `-${spacing[0.5]}`,
     top: 0,

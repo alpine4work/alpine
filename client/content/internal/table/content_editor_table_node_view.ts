@@ -33,7 +33,7 @@ import {getContentTableColumnWidths} from "~/client/content/internal/table/conte
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {subscribeToSpacingScaleChange} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
-import {tableClassName} from "~/shared/content/content_styles.js";
+import {tableWrapperClassName} from "~/shared/content/content_styles.js";
 
 export function createContentEditorTableNodeView({
     defaultCellMinWidth,
@@ -43,13 +43,13 @@ export function createContentEditorTableNodeView({
     subscribeToSelectionUpdate: (listener: () => void) => () => void;
 }): NodeViewConstructor {
     return node => {
-        const containerElement = document.createElement("div");
-        containerElement.className = tableClassName;
-        containerElement.style.display = "flex";
-        containerElement.style.alignItems = "stretch";
-        containerElement.setAttribute("data-scrollbar", "false");
+        const wrapperElement = document.createElement("div");
+        wrapperElement.className = tableWrapperClassName;
+        wrapperElement.style.display = "flex";
+        wrapperElement.style.alignItems = "stretch";
+        wrapperElement.setAttribute("data-scrollbar", "false");
 
-        const tableElement = containerElement.appendChild(document.createElement("table"));
+        const tableElement = wrapperElement.appendChild(document.createElement("table"));
         const colgroupElement = tableElement.appendChild(document.createElement("colgroup"));
 
         updateContentTableColumnsOnResize(node, colgroupElement, tableElement, defaultCellMinWidth);
@@ -79,7 +79,7 @@ export function createContentEditorTableNodeView({
         }
 
         return {
-            dom: containerElement,
+            dom: wrapperElement,
             contentDOM: tableBodyElement,
 
             update: newNode => {

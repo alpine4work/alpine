@@ -28,7 +28,7 @@
  */
 
 import {SchemaSpec} from "prosemirror-model";
-import {tableCellClassName, tableClassName} from "~/shared/content/content_styles.js";
+import {tableWrapperClassName} from "~/shared/content/content_styles.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 function createProsemirrorSchemaSpec<Schema extends SchemaSpec<string, string>>(
@@ -68,7 +68,7 @@ export const contentTableProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             isolating: true,
             parseDOM: [{tag: "table"}],
             toDOM() {
-                return ["table", {class: tableClassName}, ["tbody", 0]];
+                return ["div", {class: tableWrapperClassName}, ["table", ["tbody", 0]]];
             },
         },
         tableRow: {
@@ -88,7 +88,7 @@ export const contentTableProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             copyable: true,
             parseDOM: [{tag: "td"}],
             toDOM() {
-                return ["td", {class: tableCellClassName}, 0];
+                return ["td", 0];
             },
         },
     },
