@@ -30,6 +30,7 @@
 import {Node, ResolvedPos, Slice} from "prosemirror-model";
 import {Command, EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {
+    getContentTableColumnWidths,
     isInContentTable,
     moveContentTableCellForward,
     selectionContentTableCell,
@@ -70,16 +71,10 @@ function addContentTableColumn(
     col: number,
 ): Transaction {
     // Update columnWidths array
-    // NOCOMMIT: Update this
-    const columnWidths = [...(table.attrs.columnWidths || [])];
-    const defaultWidth =
-        columnWidths.length > 0 ? Math.max(...columnWidths.filter(w => w > 0)) || 100 : 100;
-    columnWidths.splice(col, 0, defaultWidth);
+    const columnWidths = [...getContentTableColumnWidths(table)];
+    columnWidths.splice(col, 0, 1);
 
-    tr.setNodeMarkup(tableStart - 1, null, {
-        ...table.attrs,
-        columnWidths,
-    });
+    tr.setNodeAttribute(tableStart - 1, "columnWidths", columnWidths);
 
     // Add cells to each row
     for (let row = 0; row < map.height; row++) {
@@ -127,14 +122,10 @@ function removeContentTableColumn(
     col: number,
 ) {
     // Update columnWidths array
-    // NOCOMMIT: Update this
-    const columnWidths = [...(table.attrs.columnWidths || [])];
+    const columnWidths = [...getContentTableColumnWidths(table)];
     columnWidths.splice(col, 1);
 
-    tr.setNodeMarkup(tableStart - 1, null, {
-        ...table.attrs,
-        columnWidths,
-    });
+    tr.setNodeAttribute(tableStart - 1, "columnWidths", columnWidths);
 
     // Remove cells from each row
     for (let row = 0; row < map.height; row++) {
@@ -220,11 +211,7 @@ export function addRowAfter(state: EditorState, dispatch?: (tr: Transaction) => 
     return true;
 }
 
-function removeContentTableRow(
-    tr: Transaction,
-    {map, table, tableStart}: TableRect,
-    row: number,
-): void {
+function removeContentTableRow(tr: Transaction, {table, tableStart}: TableRect, row: number): void {
     let rowPos = 0;
     for (let i = 0; i < row; i++) rowPos += table.child(i).nodeSize;
     const nextRow = rowPos + table.child(row).nodeSize;
@@ -256,40 +243,6 @@ export function deleteContentTableRow(
         dispatch(tr);
     }
     return true;
-}
-
-function isEmpty(cell: Node): boolean {
-    const c = cell.content;
-    return c.childCount == 1 && c.child(0).isTextblock && c.child(0).childCount == 0;
-}
-
-function contentTableCellsOverlapRectangle(
-    {width, height, map}: ContentTableMap,
-    rect: ContentTableMapRect,
-) {
-    let indexTop = rect.top * width + rect.left,
-        indexLeft = indexTop;
-    let indexBottom = (rect.bottom - 1) * width + rect.left,
-        indexRight = indexTop + (rect.right - rect.left - 1);
-    for (let i = rect.top; i < rect.bottom; i++) {
-        if (
-            (rect.left > 0 && map[indexLeft] == map[indexLeft - 1]) ||
-            (rect.right < width && map[indexRight] == map[indexRight + 1])
-        )
-            return true;
-        indexLeft += width;
-        indexRight += width;
-    }
-    for (let i = rect.left; i < rect.right; i++) {
-        if (
-            (rect.top > 0 && map[indexTop] == map[indexTop - width]) ||
-            (rect.bottom < height && map[indexBottom] == map[indexBottom + width])
-        )
-            return true;
-        indexTop++;
-        indexBottom++;
-    }
-    return false;
 }
 
 function findNextContentTableCell(

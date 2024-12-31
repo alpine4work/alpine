@@ -43,8 +43,7 @@ import {Fragment, Node, NodeType, Schema, Slice} from "prosemirror-model";
 
 import {EditorState, Transaction} from "prosemirror-state";
 import {Transform} from "prosemirror-transform";
-import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
-import {contentStyles} from "~/client/styles/styles.js";
+import {getContentTableColumnWidths} from "~/client/content/internal/table/content_table_client_util.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {
     ContentTableMap,
@@ -178,7 +177,7 @@ export function clipContentTableCells(
 // true if something was changed.
 function growContentTable(
     tr: Transaction,
-    map: ContentTableMap,
+    tableMap: ContentTableMap,
     table: Node,
     start: number,
     width: number,
@@ -190,49 +189,33 @@ function growContentTable(
     let changed = false;
 
     // Ensure width and height are valid
-    width = Math.max(map.width, width);
-    height = Math.max(map.height, height);
+    width = Math.max(tableMap.width, width);
+    height = Math.max(tableMap.height, height);
 
-    if (width > map.width) {
+    if (width > tableMap.width) {
         changed = true;
         // First update the columnWidths array
-        // NOCOMMIT: Update this
-        const newColumnWidths = [...(table.attrs.columnWidths || [])];
+        const newColumnWidths = [...getContentTableColumnWidths(table)];
 
-        const columnCount = table.firstChild?.childCount ?? 2;
-
-        let defaultWidthVar =
-            contentStyles.blockMaxWidthRem[getPlatformWithoutListening()] / columnCount;
-
-        defaultWidthVar = Math.max(defaultWidthVar, 6.25);
-
-        const defaultWidth =
-            newColumnWidths.length > 0
-                ? Math.max(...newColumnWidths.filter(w => w > 0)) || defaultWidthVar
-                : defaultWidthVar;
-
-        for (let i = map.width; i < width; i++) {
-            newColumnWidths.push(defaultWidth);
+        for (let i = tableMap.width; i < width; i++) {
+            newColumnWidths.push(1);
         }
-        tr.setNodeMarkup(start - 1, null, {
-            ...table.attrs,
-            columnWidths: newColumnWidths,
-        });
+        tr.setNodeAttribute(start - 1, "columnWidths", newColumnWidths);
 
         // Then add cells to each row
-        for (let row = 0, rowEnd = 0; row < map.height; row++) {
+        for (let row = 0, rowEnd = 0; row < tableMap.height; row++) {
             const rowNode = table.child(row);
             rowEnd += rowNode.nodeSize;
             const cells: Array<Node> = [];
             empty = empty || schema.nodes.tableCell!.createAndFill()!;
-            for (let i = map.width; i < width; i++) {
+            for (let i = tableMap.width; i < width; i++) {
                 cells.push(empty);
             }
             tr.insert(tr.mapping.slice(mapFrom).map(rowEnd - 1 + start), cells);
         }
     }
 
-    if (height > map.height) {
+    if (height > tableMap.height) {
         changed = true;
         const cells = [];
         empty = empty || schema.nodes.tableCell!.createAndFill()!;
@@ -243,7 +226,7 @@ function growContentTable(
 
         const emptyRow = schema.nodes.tableRow!.create(null, Fragment.from(cells));
         const rows = [];
-        for (let i = map.height; i < height; i++) rows.push(emptyRow);
+        for (let i = tableMap.height; i < height; i++) rows.push(emptyRow);
         tr.insert(tr.mapping.slice(mapFrom).map(start + table.nodeSize - 2), rows);
     }
 

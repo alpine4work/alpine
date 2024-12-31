@@ -147,7 +147,6 @@ export class ContentTableCellSelection extends Selection {
         }
 
         // Get the columnWidths for selected columns
-        // NOCOMMIT: Update this
         const tableAttrs = table.attrs;
         const selectedColumnWidths = tableAttrs.columnWidths.slice(rect.left, rect.right);
 

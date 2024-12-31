@@ -32,11 +32,9 @@
 
 import {Node} from "prosemirror-model";
 import {EditorState, PluginKey, Transaction} from "prosemirror-state";
-import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
-import {contentStyles} from "~/client/styles/styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 
-const fixTablesKey = new PluginKey<{contentTableFixTables: boolean}>("fix-tables");
+const fixTablesKey = new PluginKey<{contentTableFixTables: boolean}>("fixContentTables");
 
 /**
  * Helper for iterating through the nodes in a document that changed
@@ -96,52 +94,35 @@ function fixTable(
     tablePos: number,
     tr: Transaction | undefined,
 ): Transaction | undefined {
-    const map = ContentTableMap.get(table);
-    if (!map.problems) return tr;
+    const tableMap = ContentTableMap.get(table);
+    if (!tableMap.problems) return tr;
     if (!tr) tr = state.tr;
 
     // Track which rows need cells added to match the widest row
-    const maxWidth = map.width;
+    const maxWidth = tableMap.width;
     const mustAdd: Array<number> = [];
-    for (let i = 0; i < map.height; i++) {
+    for (let i = 0; i < tableMap.height; i++) {
         const rowWidth = table.child(i).childCount;
         mustAdd.push(maxWidth - rowWidth);
     }
 
     // Fix columnWidths array if needed
-    // NOCOMMIT: Update this
     const currentColumnWidths = table.attrs.columnWidths || [];
     if (currentColumnWidths.length !== maxWidth) {
-        const columnCount = table.firstChild?.childCount ?? 2;
+        // Trim columnWidths array
+        const newColumnWidths = currentColumnWidths.slice(0, maxWidth);
 
-        let defaultWidthVar =
-            contentStyles.blockMaxWidthRem[getPlatformWithoutListening()] / columnCount;
-
-        defaultWidthVar = Math.max(defaultWidthVar, 6.25);
-
-        const newColumnWidths = [...currentColumnWidths];
-        const defaultWidth =
-            newColumnWidths.length > 0
-                ? Math.max(...newColumnWidths.filter(w => w > 0)) || defaultWidthVar
-                : defaultWidthVar;
-
-        // Extend or trim columnWidths array
+        // Extend columnWidths array
         while (newColumnWidths.length < maxWidth) {
-            newColumnWidths.push(defaultWidth);
-        }
-        if (newColumnWidths.length > maxWidth) {
-            newColumnWidths.length = maxWidth;
+            newColumnWidths.push(1);
         }
 
-        tr.setNodeMarkup(tablePos, null, {
-            ...table.attrs,
-            columnWidths: newColumnWidths,
-        });
+        tr.setNodeAttribute(tablePos, "columnWidths", newColumnWidths);
     }
 
     // Add missing cells to rows
     let pos = tablePos + 1;
-    for (let i = 0; i < map.height; i++) {
+    for (let i = 0; i < tableMap.height; i++) {
         const row = table.child(i);
         const end = pos + row.nodeSize;
         const add = mustAdd[i]!;

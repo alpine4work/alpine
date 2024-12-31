@@ -41,30 +41,11 @@
 import {Node} from "prosemirror-model";
 import {assert} from "~/shared/helpers/control/assert.js";
 
-export type ContentTableMapColWidths = Array<number>;
-
-type ContentTableMapProblem =
-    | {
-          type: "colwidth mismatch";
-          pos: number;
-          colwidth: ContentTableMapColWidths;
-      }
-    | {
-          type: "collision";
-          pos: number;
-          row: number;
-          n: number;
-      }
-    | {
-          type: "missing";
-          row: number;
-          n: number;
-      }
-    | {
-          type: "overlong_rowspan";
-          pos: number;
-          n: number;
-      };
+type ContentTableMapProblem = {
+    type: "missing";
+    row: number;
+    n: number;
+};
 
 let readFromCache: (key: Node) => ContentTableMap | undefined;
 let addToCache: (key: Node, value: ContentTableMap) => ContentTableMap;
@@ -246,6 +227,9 @@ function findWidth(table: Node): number {
     return width;
 }
 
+// NOCOMMIT: Problems unit test? I think we can delete all the problem stuff
+// entirely. Since its just missing nodes. `fixTables()` seems to already
+// ignore problems and only fix missing cells in rows which is good.
 function computeMap(table: Node): ContentTableMap {
     assert(table.type.name === "table");
 
@@ -255,51 +239,15 @@ function computeMap(table: Node): ContentTableMap {
     const map = [];
     let mapPos = 0;
     let problems: Array<ContentTableMapProblem> | null = null;
-    const colWidths: ContentTableMapColWidths = [];
     for (let i = 0, e = width * height; i < e; i++) map[i] = 0;
 
     for (let row = 0, pos = 0; row < height; row++) {
         const rowNode = table.child(row);
         pos++;
-        for (let i = 0; ; i++) {
-            while (mapPos < map.length && map[mapPos] != 0) mapPos++;
-            if (i == rowNode.childCount) break;
-            const cellNode = rowNode.child(i);
-            // NOCOMMIT: Update this
-            const {columnWidths} = table.attrs;
-
-            if (row >= height) {
-                (problems || (problems = [])).push({
-                    type: "overlong_rowspan",
-                    pos,
-                    n: 1 - 0,
-                });
-                break;
-            }
-
-            const start = mapPos;
-            const w = 0;
-            if (map[start + w] == 0) map[start + w] = pos;
-            else
-                (problems || (problems = [])).push({
-                    type: "collision",
-                    row,
-                    pos,
-                    n: 1 - w,
-                });
-            const colW = columnWidths?.[w];
-            if (colW) {
-                const widthIndex = ((start + w) % width) * 2,
-                    prev = colWidths[widthIndex];
-                if (prev == null || (prev != colW && colWidths[widthIndex + 1] == 1)) {
-                    colWidths[widthIndex] = colW;
-                    colWidths[widthIndex + 1] = 1;
-                } else if (prev == colW) {
-                    colWidths[widthIndex + 1]++;
-                }
-            }
+        for (let i = 0; i < rowNode.childCount; i++) {
+            map[mapPos] = pos;
             mapPos += 1;
-            pos += cellNode.nodeSize;
+            pos += rowNode.child(i).nodeSize;
         }
         const expectedPos = (row + 1) * width;
         let missing = 0;
@@ -309,46 +257,6 @@ function computeMap(table: Node): ContentTableMap {
     }
 
     const tableMap = new ContentTableMap(width, height, map, problems);
-    let badWidths = false;
-
-    // For columns that have defined widths, but whose widths disagree
-    // between rows, fix up the cells whose width doesn't match the
-    // computed one.
-    for (let i = 0; !badWidths && i < colWidths.length; i += 2)
-        if (colWidths[i] != null && colWidths[i + 1]! < height) badWidths = true;
-    if (badWidths) findBadColWidths(tableMap, colWidths, table);
 
     return tableMap;
-}
-/**
- * Find the cells that have colwidths that don't match the computed colwidths.
- * THis function just compared it, and returns if there are any problems in map.problems
- * It does not fix the problems, it just finds them.
- */
-function findBadColWidths(
-    map: ContentTableMap,
-    colWidths: ContentTableMapColWidths,
-    table: Node,
-): void {
-    if (!map.problems) map.problems = [];
-    const seen: Record<number, boolean> = {};
-
-    for (let i = 0; i < map.map.length; i++) {
-        const pos = map.map[i]!;
-        if (seen[pos]) continue;
-        seen[pos] = true;
-
-        const col = i % map.width;
-        const colWidth = colWidths[col * 2];
-        // NOCOMMIT: Update this
-        const tableColWidth = table.attrs.columnWidths?.[col];
-
-        if (colWidth != null && colWidth !== tableColWidth) {
-            map.problems.unshift({
-                type: "colwidth mismatch",
-                pos,
-                colwidth: [colWidth], // Single element array since colspan is always 1
-            });
-        }
-    }
 }
