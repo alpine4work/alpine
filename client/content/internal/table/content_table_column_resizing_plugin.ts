@@ -36,7 +36,7 @@ import {contentStyles} from "~/client/styles/styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {pointsAtContentTableCell} from "~/shared/content/table/content_table_shared_util.js";
 
-export const contentTableColumnResizingPluginKey = new PluginKey<ResizeState>(
+export const contentTableColumnResizingPluginKey = new PluginKey<ContentTableColumnResizeState>(
     "contentTableColumnResizing",
 );
 
@@ -68,11 +68,11 @@ export function contentTableColumnResizingPlugin({
     defaultCellMinWidth = 6.25,
     lastColumnResizable = true,
 }: ColumnResizingOptions = {}): Plugin {
-    const plugin = new Plugin<ResizeState>({
+    const plugin = new Plugin<ContentTableColumnResizeState>({
         key: contentTableColumnResizingPluginKey,
         state: {
             init() {
-                return new ResizeState(-1, false);
+                return new ContentTableColumnResizeState(-1, false);
             },
             apply(tr, prev) {
                 return prev.apply(tr);
@@ -114,22 +114,23 @@ export function contentTableColumnResizingPlugin({
     return plugin;
 }
 
-class ResizeState {
+class ContentTableColumnResizeState {
     constructor(public activeHandle: number, public dragging: Dragging | false) {}
 
     // Applies the transaction to update the resizing state
-    apply(tr: Transaction): ResizeState {
+    apply(tr: Transaction): ContentTableColumnResizeState {
         const state = this;
         const action = tr.getMeta(contentTableColumnResizingPluginKey);
-        if (action?.setHandle != null) return new ResizeState(action.setHandle, false);
+        if (action?.setHandle != null)
+            return new ContentTableColumnResizeState(action.setHandle, false);
         if (action?.setDragging !== undefined)
-            return new ResizeState(state.activeHandle, action.setDragging);
+            return new ContentTableColumnResizeState(state.activeHandle, action.setDragging);
         if (state.activeHandle > -1 && tr.docChanged) {
             let handle = tr.mapping.map(state.activeHandle, -1);
             if (!pointsAtContentTableCell(tr.doc.resolve(handle))) {
                 handle = -1;
             }
-            return new ResizeState(handle, state.dragging);
+            return new ContentTableColumnResizeState(handle, state.dragging);
         }
         return state;
     }
