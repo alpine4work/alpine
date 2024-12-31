@@ -29,6 +29,7 @@ function MenuButton(
         maxHeight,
         offset = defaultTooltipOffset,
         offsetAlong,
+        withoutButtonElementRequirement,
         children,
         onClose,
         onStateChange,
@@ -83,6 +84,11 @@ function MenuButton(
         offsetAlong?: Spacing | `-${Spacing}`;
 
         /**
+         * Disable the requirement that `children` must be a `<button>` element.
+         */
+        withoutButtonElementRequirement?: boolean;
+
+        /**
          * Should the menu close after an action is pressed? By default the menu closes
          * after an action is pressed but you may set this to true to stop that
          * behavior.
@@ -127,6 +133,7 @@ function MenuButton(
             placement={placement}
             offset={offset}
             offsetAlong={offsetAlong}
+            withoutButtonElementRequirement={withoutButtonElementRequirement}
             onClose={onClose}
             onStateChange={onStateChange}
             overlay={({onCloseWithAnimation, onCloseWithoutAnimation}) => (

@@ -40,7 +40,6 @@ import {
     channelFilesViewMaxWidth,
     channelViewAsideFileGap,
     channelViewAsideFileHeight,
-    channelViewAsideMarginTop,
     channelViewAsidePostFileColumnCount,
     channelViewAsidePostFileCount,
     channelViewAsidePostFileRowCount,
@@ -59,13 +58,14 @@ import {
 } from "~/client/styles/forum_shared_styles.js";
 import {inboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
 import {
-    messageInputAccountAvatarSize,
-    messageInputMinHeight,
-    messageViewBubbleBorderRadius,
-    messageViewBubbleMinHeight,
-    messageViewMaxWidth,
-    messageViewTimestampDividerMarginBottom,
-    messageViewTimestampDividerMarginTop,
+    messageInputEditorBorderRadiusPx,
+    messageInputEditorIconButtonNegativeMarginX,
+    messageInputEditorMinHeightPx,
+    messageInputMinHeightPx,
+    messageInputPaddingY,
+    messageViewAccountAvatarSize,
+    messageViewMarginY,
+    messageViewRailGap,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     minSearchMobileInputHeight,
@@ -156,7 +156,7 @@ const shimmerOptionsByRouteId: {
     "routes/s.$spaceId.channels.$channelId._index": {component: ChannelRouteShimmer},
     "routes/s.$spaceId.channels.$channelId.files": {component: ChannelFilesRouteShimmer},
     "routes/s.$spaceId.chat.$chatId": {
-        inboxBannerMaxWidth: messageViewMaxWidth,
+        inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: ChatRouteShimmer,
     },
     "routes/s.$spaceId.chat.new": {component: NewChatRouteShimmer},
@@ -438,7 +438,6 @@ function ChannelRouteShimmer() {
                     <Box height={navigationBarHeight} />
                     <Box
                         paddingX={screenPaddingX}
-                        paddingTop={channelViewAsideMarginTop}
                         paddingBottom={screenPaddingX}
                         display="flex"
                         flexDirection="column"
@@ -548,7 +547,7 @@ function ChannelFilesRouteShimmer() {
                         justifyContent="center"
                         alignItems={platform !== "mobile" ? "flex-start" : "center"}
                         width="full"
-                        maxWidth={messageViewMaxWidth}
+                        maxWidth={contentStyles.contentMaxWidth}
                         height="full"
                         paddingX={screenPaddingX}
                     >
@@ -606,9 +605,9 @@ function ChatRouteShimmer({withInboxBanner}: {withInboxBanner: boolean}) {
                         flexDirection={platform !== "mobile" ? "row" : "column"}
                         justifyContent={platform !== "mobile" ? "flex-start" : "center"}
                         alignItems="center"
-                        gap={platform !== "mobile" ? "2" : "1"}
+                        gap={platform !== "mobile" ? messageViewRailGap : "1"}
                         width="full"
-                        maxWidth={messageViewMaxWidth}
+                        maxWidth={contentStyles.contentMaxWidth}
                         height="full"
                         marginX="center"
                         paddingX={screenPaddingX}
@@ -621,8 +620,8 @@ function ChatRouteShimmer({withInboxBanner}: {withInboxBanner: boolean}) {
                         <Box
                             className={pulseAnimationClassName}
                             flexShrink="0"
-                            width="7"
-                            height="7"
+                            width={messageViewAccountAvatarSize}
+                            height={messageViewAccountAvatarSize}
                             backgroundColor="grey-10"
                             borderRadius="full"
                         />
@@ -662,7 +661,7 @@ function NewChatRouteShimmer() {
                         display="flex"
                         alignItems="center"
                         width="full"
-                        maxWidth={messageViewMaxWidth}
+                        maxWidth={contentStyles.contentMaxWidth}
                         height="full"
                         marginX="center"
                         paddingX={screenPaddingX}
@@ -679,11 +678,9 @@ function NewChatRouteShimmer() {
 function MessagingViewShimmer({
     messages,
     withTopAlignedMessages,
-    paddingX = screenPaddingX,
 }: {
     messages: "fill" | "few";
     withTopAlignedMessages: boolean;
-    paddingX?: Spacing | {desktop: Spacing; mobile: Spacing};
 }) {
     return (
         <>
@@ -697,11 +694,7 @@ function MessagingViewShimmer({
                 }
             >
                 {withTopAlignedMessages && messages === "few" && (
-                    <Box
-                        display="flex"
-                        justifyContent="center"
-                        paddingBottom={messageViewTimestampDividerMarginBottom}
-                    >
+                    <Box display="flex" justifyContent="center" paddingBottom={messageViewMarginY}>
                         <TextShimmer width="16" fontSize="50" />
                     </Box>
                 )}
@@ -711,140 +704,125 @@ function MessagingViewShimmer({
                             width="48"
                             heightLines={1}
                             shouldMergeWithNextMessage={true}
-                            paddingX={paddingX}
                         />
                         <MessageShimmer
                             width="64"
                             heightLines={1}
                             shouldMergeWithNextMessage={true}
                             shouldMergeWithPreviousMessage={true}
-                            paddingX={paddingX}
                         />
                         <MessageShimmer
                             width="128"
                             heightLines={1}
                             shouldMergeWithPreviousMessage={true}
-                            paddingX={paddingX}
                         />
-                        <MessageShimmer width="128" heightLines={1} paddingX={paddingX} />
-                        <MessageShimmer width="160" heightLines={2} paddingX={paddingX} />
-                        <MessageShimmer width="96" heightLines={1} paddingX={paddingX} />
+                        <MessageShimmer width="128" heightLines={1} />
+                        <MessageShimmer width="160" heightLines={2} />
+                        <MessageShimmer width="96" heightLines={1} />
                         <MessageShimmer
                             width="64"
                             heightLines={1}
                             shouldMergeWithNextMessage={true}
-                            paddingX={paddingX}
                         />
                         <MessageShimmer
                             width="32"
                             heightLines={1}
                             shouldMergeWithNextMessage={true}
                             shouldMergeWithPreviousMessage={true}
-                            paddingX={paddingX}
                         />
                         <MessageShimmer
                             width="128"
                             heightLines={1}
                             shouldMergeWithPreviousMessage={true}
-                            paddingX={paddingX}
                         />
                         <MessageShimmer
                             width="96"
                             heightLines={1}
                             shouldMergeWithNextMessage={true}
-                            paddingX={paddingX}
                         />
                         <MessageShimmer
                             width="32"
                             heightLines={1}
                             shouldMergeWithPreviousMessage={true}
-                            paddingX={paddingX}
                         />
-                        <MessageShimmer width="160" heightLines={3} paddingX={paddingX} />
+                        <MessageShimmer width="160" heightLines={3} />
                         <MessageShimmer
                             width="32"
                             heightLines={1}
                             shouldMergeWithNextMessage={true}
-                            paddingX={paddingX}
                         />
                         <MessageShimmer
                             width="96"
                             heightLines={1}
                             shouldMergeWithPreviousMessage={true}
-                            paddingX={paddingX}
                         />
                     </>
                 )}
-                <MessageShimmer width="32" heightLines={1} paddingX={paddingX} />
-                <MessageShimmer
-                    width="64"
-                    heightLines={1}
-                    shouldMergeWithNextMessage={true}
-                    paddingX={paddingX}
-                />
-                <MessageShimmer
-                    width="96"
-                    heightLines={1}
-                    shouldMergeWithPreviousMessage={true}
-                    paddingX={paddingX}
-                />
-                <MessageShimmer width="128" heightLines={1} paddingX={paddingX} />
+                <MessageShimmer width="32" heightLines={1} />
+                <MessageShimmer width="64" heightLines={1} shouldMergeWithNextMessage={true} />
+                <MessageShimmer width="96" heightLines={1} shouldMergeWithPreviousMessage={true} />
+                <MessageShimmer width="128" heightLines={1} />
             </Box>
-            <MessageInputShimmer paddingX={paddingX} />
+            <MessageInputShimmer />
             <Box flexShrink="0" height="safe-area-inset-bottom" />
         </>
     );
 }
 
-function MessageInputShimmer({
-    paddingX = screenPaddingX,
-}: {
-    paddingX?: Spacing | {desktop?: Spacing; mobile?: Spacing};
-}) {
+function MessageInputShimmer() {
     const platform = usePlatform();
+    const spacingScale = useSpacingScale();
 
     return (
         <Box
             flexShrink="0"
             backgroundColor="grey-0"
-            style={{height: messageInputMinHeight[platform]}}
+            style={{height: messageInputMinHeightPx[platform][spacingScale]}}
         >
             <Box
-                display="flex"
-                alignItems="center"
                 width="full"
-                maxWidth={messageViewMaxWidth}
+                maxWidth={contentStyles.contentMaxWidth}
                 height="full"
                 marginX="center"
-                paddingX={paddingX}
-                paddingTop={platform === "mobile" ? "2" : "0"}
-                gap="2"
+                paddingX={screenPaddingX}
+                paddingY={messageInputPaddingY}
             >
-                {platform !== "mobile" && (
+                <Box
+                    position="relative"
+                    marginX={messageInputEditorIconButtonNegativeMarginX}
+                    style={{
+                        height: messageInputEditorMinHeightPx[platform][spacingScale],
+                    }}
+                >
                     <Box
-                        className={pulseAnimationClassName}
-                        flexShrink="0"
-                        width={messageInputAccountAvatarSize}
-                        height={messageInputAccountAvatarSize}
-                        backgroundColor="grey-10"
-                        borderRadius="full"
+                        width="full"
+                        height="full"
+                        border="grey-10"
+                        style={{
+                            borderRadius: messageInputEditorBorderRadiusPx[platform][spacingScale],
+                        }}
                     />
-                )}
-                <Box
-                    className={pulseAnimationClassName}
-                    flexGrow="1"
-                    border="grey-10"
-                    borderRadius={messageViewBubbleBorderRadius}
-                    style={{height: messageViewBubbleMinHeight[platform]}}
-                />
-                <Box
-                    className={pulseAnimationClassName}
-                    flexShrink="0"
-                    width={messageInputAccountAvatarSize}
-                    height={messageInputAccountAvatarSize}
-                    backgroundColor="grey-10"
-                    borderRadius="full"
-                />
+                    <Box
+                        position="absolute"
+                        right="0"
+                        top="0"
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                        style={{
+                            width: messageInputEditorMinHeightPx[platform][spacingScale],
+                            height: messageInputEditorMinHeightPx[platform][spacingScale],
+                        }}
+                    >
+                        <Box
+                            className={pulseAnimationClassName}
+                            width={messageViewAccountAvatarSize}
+                            height={messageViewAccountAvatarSize}
+                            backgroundColor="grey-10"
+                            borderRadius="full"
+                        />
+                    </Box>
+                </Box>
             </Box>
         </Box>
     );
@@ -921,16 +899,16 @@ function DocumentRouteShimmer() {
                     }}
                 />
                 <TextShimmer width="96" ragRight="8" fontSize={titleFontSize} />
-                <Box height={contentStyles.defaultParagraphMargin} />
+                <Box height={contentStyles.paragraphMargin} />
                 <ContentParagraphShimmer1 />
                 <Box height={contentStyles.heading1TopMargin[routeLayout]} />
                 <TextShimmer
                     width="48"
                     fontSize={contentStyles.headingLevel1FontSize[routeLayout]}
                 />
-                <Box height={contentStyles.defaultParagraphMargin} />
+                <Box height={contentStyles.paragraphMargin} />
                 <ContentParagraphShimmer2 />
-                <Box height={contentStyles.defaultParagraphMargin} />
+                <Box height={contentStyles.paragraphMargin} />
                 <ContentParagraphShimmer3 />
                 {routeLayout !== "narrow" && (
                     <>
@@ -939,16 +917,16 @@ function DocumentRouteShimmer() {
                             width="64"
                             fontSize={contentStyles.headingLevel1FontSize[routeLayout]}
                         />
-                        <Box height={contentStyles.defaultParagraphMargin} />
+                        <Box height={contentStyles.paragraphMargin} />
                         <ContentParagraphShimmer1 />
                         <Box height={contentStyles.heading2TopMargin[routeLayout]} />
                         <TextShimmer
                             width="96"
                             fontSize={contentStyles.headingLevel2FontSize[routeLayout]}
                         />
-                        <Box height={contentStyles.defaultParagraphMargin} />
+                        <Box height={contentStyles.paragraphMargin} />
                         <ContentParagraphShimmer3 />
-                        <Box height={contentStyles.defaultParagraphMargin} />
+                        <Box height={contentStyles.paragraphMargin} />
                         <ContentParagraphShimmer2 />
                     </>
                 )}
@@ -1006,9 +984,9 @@ function DocumentCommentThreadRouteShimmer() {
                             border="grey-10"
                         />
                     </Box>
-                    <Box height={messageViewTimestampDividerMarginTop} />
+                    <Box height={messageViewMarginY} />
                     <Box style={{height: fontSizes["50"].lineHeight}} />
-                    <Box height={messageViewTimestampDividerMarginBottom} />
+                    <Box height={messageViewMarginY} />
                     <MessageShimmer width="32" heightLines={1} />
                     <MessageShimmer width="64" heightLines={1} shouldMergeWithNextMessage={true} />
                     <MessageShimmer
@@ -1329,7 +1307,7 @@ function PostRouteShimmer() {
                         <ContentParagraphShimmer3 />
                     </PostShimmer>
                 </Box>
-                <Box style={{height: spacing[messageViewTimestampDividerMarginTop]}} />
+                <Box style={{height: spacing[messageViewMarginY]}} />
                 <MessageShimmer width="32" heightLines={1} />
                 <MessageShimmer width="64" heightLines={1} shouldMergeWithNextMessage={true} />
                 <MessageShimmer width="96" heightLines={1} shouldMergeWithPreviousMessage={true} />
@@ -1444,6 +1422,7 @@ function SearchRouteShimmer() {
 
 function TaskDetailRouteShimmer() {
     const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const platformRouteLayout = getPlatformRouteLayout(platform, routeLayout);
 
@@ -1508,7 +1487,11 @@ function TaskDetailRouteShimmer() {
                     <Box height={taskDetailViewSectionGap} />
                     <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="12" />
                     <Box height={taskDetailNotesFieldLabelPaddingBottom} />
-                    <Box style={{height: tasksStyles.detailNotesContentEditorMinHeight}} />
+                    <Box
+                        style={{
+                            height: tasksStyles.detailNotesContentEditorMinHeight[spacingScale],
+                        }}
+                    />
                     <Box height={taskDetailViewSectionGap} />
                     <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="16" />
                     <Box
@@ -1553,7 +1536,6 @@ function TaskCommentsRouteShimmer() {
 
 export function TaskCommentsViewShimmer({withNavigationBar}: {withNavigationBar?: boolean}) {
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
 
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
@@ -1570,7 +1552,7 @@ export function TaskCommentsViewShimmer({withNavigationBar}: {withNavigationBar?
                             justifyContent="center"
                             alignItems={platform !== "mobile" ? "flex-start" : "center"}
                             width="full"
-                            maxWidth={messageViewMaxWidth}
+                            maxWidth={contentStyles.contentMaxWidth}
                             height="full"
                             paddingX={screenPaddingX}
                         >
@@ -1581,13 +1563,7 @@ export function TaskCommentsViewShimmer({withNavigationBar}: {withNavigationBar?
                 </Box>
             )}
             <Spacer space={taskCommentsHeaderNavigationBarSpacing} />
-            <MessagingViewShimmer
-                withTopAlignedMessages={true}
-                messages="few"
-                // Slightly reduce the amount of margin on messages in a desktop comment thread
-                // because we have less space in the sidebar.
-                paddingX={routeLayout !== "narrow" ? "4" : undefined}
-            />
+            <MessagingViewShimmer withTopAlignedMessages={true} messages="few" />
         </Box>
     );
 }

@@ -2,7 +2,10 @@ import {CalendarDate} from "@internationalized/date";
 import {addHours, addMonths, differenceInMonths} from "date-fns";
 import murmurhash from "murmurhash";
 import {Step} from "prosemirror-transform";
-import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
+import {
+    getContentReferencesForNode,
+    getMessageContentReferencesForNode,
+} from "~/server/content/get_content_references.js";
 import {
     applyMentionCountByAccountIdDifferenceFromContentUpdate,
     getMentionedAccountIdsInContent,
@@ -20,7 +23,7 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {FileAuthorizer} from "~/server/files/data/files_table.js";
+import {FileAuthorizer, getFileFromAttachment} from "~/server/files/data/files_table.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
@@ -94,6 +97,7 @@ import {
     AccountId,
     BrowserId,
     ContentMentionAccountId,
+    FileId,
     SpaceId,
     TaskActionTransactionId,
     TaskActionTransactionLeaseId,
@@ -875,7 +879,7 @@ export const FileTaskAuthorizer = FileAuthorizer.new(
             case "TaskNotes":
                 await authorizeTaskAccess(context, target.taskId, expectedAccessLevel);
                 break;
-            case "TaskComment":
+            case "TaskComments":
                 await authorizeTaskAccess(context, target.taskId, "Comment");
                 break;
             default:
@@ -4316,11 +4320,7 @@ async function createTaskCommentModelFromItem(
         createMessagePayloadModel(
             context,
             spaceId,
-            FileTaskAuthorizer.bind({
-                type: "TaskComment",
-                taskId: item.taskId,
-                commentIndex: item.commentIndex,
-            }),
+            FileTaskAuthorizer.bind({type: "TaskComments", taskId: item.taskId}),
             item.payload,
         ),
     ]);
@@ -4580,10 +4580,12 @@ export async function createTaskComment(
         taskId,
         parentCommentIndex,
         content,
+        fileIds,
     }: {
         taskId: TaskId;
         parentCommentIndex: number | null;
         content: MessageContent;
+        fileIds: ReadonlyArray<FileId>;
     },
 ): Promise<{
     spaceId: SpaceId;
@@ -4596,6 +4598,18 @@ export async function createTaskComment(
                 const {item, commentsSummaryItem} =
                     await authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment");
                 const spaceId = item.spaceId;
+
+                // Make sure all the provided files exist.
+                await runAllPromises(
+                    fileIds.map(fileId =>
+                        getFileFromAttachment(
+                            context,
+                            spaceId,
+                            fileId,
+                            FileTaskAuthorizer.bind({type: "TaskComments", taskId}),
+                        ),
+                    ),
+                );
 
                 return {spaceId, commentsSummaryItem};
             },
@@ -4644,6 +4658,7 @@ export async function createTaskComment(
                     parentMessageIndex: parentCommentIndex,
                     content,
                     contentUpdatedTime: null,
+                    fileIds,
                 },
             }),
             commentsSummaryItem !== null
@@ -5334,14 +5349,9 @@ async function queryTaskCommentChangeLogAssumingAuthorizedTask(
 
                             // Don't propagate `consistency` when loading content references. We
                             // accept references can have eventual consistency.
-                            references: await getContentReferencesForNode(
+                            references: await getMessageContentReferencesForNode(
                                 context,
                                 spaceId,
-                                FileTaskAuthorizer.bind({
-                                    type: "TaskComment",
-                                    taskId: item.taskId,
-                                    commentIndex: item.commentIndex,
-                                }),
                                 item.change.content,
                             ),
                         },

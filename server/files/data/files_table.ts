@@ -52,9 +52,7 @@ import {If} from "~/shared/helpers/types/if.js";
 import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
 import {
     AccountId,
-    ChannelId,
     ChatId,
-    DocumentCommentThreadId,
     DocumentId,
     FileId,
     PostDraftId,
@@ -214,19 +212,9 @@ const FilesTable = DynamoTableSchema.new({
             },
             sortRanges: [
                 {
-                    name: "ChatMessageAttachmentTarget",
+                    name: "ChatMessagesAttachmentTarget",
                     sortKeyAttributes: {
                         chatId: DynamoKeyAttributeSchema.id<ChatId>(),
-                        messageIndex: DynamoKeyAttributeSchema.integer,
-                    },
-                    attributes: Schema.object({
-                        createdTime: Schema.date,
-                    }),
-                },
-                {
-                    name: "ChannelDescriptionAttachmentTarget",
-                    sortKeyAttributes: {
-                        channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
                     },
                     attributes: Schema.object({
                         createdTime: Schema.date,
@@ -242,11 +230,9 @@ const FilesTable = DynamoTableSchema.new({
                     }),
                 },
                 {
-                    name: "DocumentCommentAttachmentTarget",
+                    name: "DocumentCommentsAttachmentTarget",
                     sortKeyAttributes: {
                         documentId: DynamoKeyAttributeSchema.id<DocumentId>(),
-                        commentThreadId: DynamoKeyAttributeSchema.id<DocumentCommentThreadId>(),
-                        commentIndex: DynamoKeyAttributeSchema.integer,
                     },
                     attributes: Schema.object({
                         createdTime: Schema.date,
@@ -272,10 +258,9 @@ const FilesTable = DynamoTableSchema.new({
                     }),
                 },
                 {
-                    name: "PostCommentAttachmentTarget",
+                    name: "PostCommentsAttachmentTarget",
                     sortKeyAttributes: {
                         postId: DynamoKeyAttributeSchema.id<PostId>(),
-                        commentIndex: DynamoKeyAttributeSchema.integer,
                     },
                     attributes: Schema.object({
                         createdTime: Schema.date,
@@ -291,10 +276,9 @@ const FilesTable = DynamoTableSchema.new({
                     }),
                 },
                 {
-                    name: "TaskCommentAttachmentTarget",
+                    name: "TaskCommentsAttachmentTarget",
                     sortKeyAttributes: {
                         taskId: DynamoKeyAttributeSchema.id<TaskId>(),
-                        commentIndex: DynamoKeyAttributeSchema.integer,
                     },
                     attributes: Schema.object({
                         createdTime: Schema.date,
@@ -332,23 +316,13 @@ function getFileAttachmentTargetItemKey(
     target: FileAttachmentTarget,
 ): FileAttachmentTargetItemKey {
     switch (target.type) {
-        case "ChatMessage": {
+        case "ChatMessages": {
             return {
                 partitionType: "File",
-                sortRangeType: "ChatMessageAttachmentTarget",
+                sortRangeType: "ChatMessagesAttachmentTarget",
                 spaceId,
                 fileId,
                 chatId: target.chatId,
-                messageIndex: target.messageIndex,
-            };
-        }
-        case "ChannelDescription": {
-            return {
-                partitionType: "File",
-                sortRangeType: "ChannelDescriptionAttachmentTarget",
-                spaceId,
-                fileId,
-                channelId: target.channelId,
             };
         }
         case "Document": {
@@ -360,15 +334,13 @@ function getFileAttachmentTargetItemKey(
                 documentId: target.documentId,
             };
         }
-        case "DocumentComment": {
+        case "DocumentComments": {
             return {
                 partitionType: "File",
-                sortRangeType: "DocumentCommentAttachmentTarget",
+                sortRangeType: "DocumentCommentsAttachmentTarget",
                 spaceId,
                 fileId,
                 documentId: target.documentId,
-                commentThreadId: target.commentThreadId,
-                commentIndex: target.commentIndex,
             };
         }
         case "Post": {
@@ -390,14 +362,13 @@ function getFileAttachmentTargetItemKey(
                 draftId: target.draftId,
             };
         }
-        case "PostComment": {
+        case "PostComments": {
             return {
                 partitionType: "File",
-                sortRangeType: "PostCommentAttachmentTarget",
+                sortRangeType: "PostCommentsAttachmentTarget",
                 spaceId,
                 fileId,
                 postId: target.postId,
-                commentIndex: target.commentIndex,
             };
         }
         case "TaskNotes": {
@@ -409,14 +380,13 @@ function getFileAttachmentTargetItemKey(
                 taskId: target.taskId,
             };
         }
-        case "TaskComment": {
+        case "TaskComments": {
             return {
                 partitionType: "File",
-                sortRangeType: "TaskCommentAttachmentTarget",
+                sortRangeType: "TaskCommentsAttachmentTarget",
                 spaceId,
                 fileId,
                 taskId: target.taskId,
-                commentIndex: target.commentIndex,
             };
         }
         default:
@@ -450,16 +420,6 @@ const maxFileTotalContentLengthForSpace = 5e9;
  * If there's an error and we don't complete one of those three steps the
  * resulting file item in DynamoDB won't be very useful.
  */
-// TODO(calebmer, #files): Build file cleanup script (maybe via
-// `MigrationService`) which runs monthly that:
-//
-// 1. Scans all files in Cloudflare R2 and makes sure there is a corresponding
-//    item in DynamoDB (can use DynamoDB queries to do this efficiently)
-//
-// 2. Scans all file items in DynamoDB to cleanup any uploads that have timed
-//    out.
-//
-// 3. Garbage collects files that are no longer referenced by any content.
 export async function startUploadingFile(
     context: ServerSessionActionContext,
     {
@@ -1743,7 +1703,6 @@ export class FileAuthorizerUnbound<
                 assert(tableSchema.getName() === "Chat");
                 break;
             }
-            case "Channel":
             case "Post": {
                 assert(tableSchema.getName() === "ForumRealtime");
                 break;
@@ -1883,8 +1842,6 @@ export async function getFileFromAttachment(
  * Attaching a file gives anyone with access to the `FileAttachmentTarget` the
  * ability to view the file.
  */
-// TODO(calebmer, #files): What's our story around detaching? If we don't
-// detach we should at least explain why.
 export async function attachFileAsUploader(
     context: ServerActionContext,
     spaceId: SpaceId,

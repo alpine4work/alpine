@@ -6792,7 +6792,7 @@ test("can get file from attachment after it's been attached", async () => {
             session2.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
 
@@ -6800,7 +6800,7 @@ test("can get file from attachment after it's been attached", async () => {
         session1.action(),
         space.id,
         fileUploader.fileId,
-        FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
     );
 
     expect(
@@ -6808,7 +6808,7 @@ test("can get file from attachment after it's been attached", async () => {
             session2.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).toEqual(
         new FileModel({
@@ -6841,7 +6841,7 @@ test("can get file from attachment if the file doesn't exist", async () => {
             session2.action(),
             space.id,
             generateChronologicalId(),
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new NotFoundError("File not found"));
 });
@@ -6868,7 +6868,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             session2.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
 
@@ -6877,7 +6877,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             session3.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 
@@ -6886,7 +6886,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             otherSession.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(
         new PermissionDeniedError("Account doesn't have access to space (and 1 other error)"),
@@ -6897,7 +6897,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             otherSpace.systemAction(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("System action doesn't have access to space"));
 
@@ -6905,7 +6905,7 @@ test("can't get file from attachment if you don't have access to the attachment 
         session1.action(),
         space.id,
         fileUploader.fileId,
-        FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
     );
 
     expect(
@@ -6913,7 +6913,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             session2.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).toEqual(
         new FileModel({
@@ -6936,7 +6936,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             session3.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 
@@ -6945,7 +6945,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             otherSession.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(
         new PermissionDeniedError("Account doesn't have access to space (and 1 other error)"),
@@ -6956,7 +6956,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             otherSpace.systemAction(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("System action doesn't have access to space"));
 });
@@ -6983,7 +6983,7 @@ test("can't attach file as uploader if not the uploader", async () => {
             session2.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
 
@@ -6992,7 +6992,7 @@ test("can't attach file as uploader if not the uploader", async () => {
             session2.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("Account didn't upload file"));
 
@@ -7001,7 +7001,7 @@ test("can't attach file as uploader if not the uploader", async () => {
             otherSession.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(
         new PermissionDeniedError("Account doesn't have access to space (and 1 other error)"),
@@ -7012,7 +7012,7 @@ test("can't attach file as uploader if not the uploader", async () => {
             otherSpace.systemAction(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("System action doesn't have access to space"));
 
@@ -7021,7 +7021,7 @@ test("can't attach file as uploader if not the uploader", async () => {
             session2.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
 });
@@ -7046,7 +7046,7 @@ test("can't attach file if you don't have view access to the target", async () =
             session2.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
 
@@ -7055,7 +7055,7 @@ test("can't attach file if you don't have view access to the target", async () =
             session3.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 
@@ -7064,7 +7064,7 @@ test("can't attach file if you don't have view access to the target", async () =
             session2.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
 });
@@ -7179,7 +7179,7 @@ test("can attach file to new target", async () => {
 
     await expect(
         attachFileFromAttachment(session1.action(), space.id, fileUploader.fileId, {
-            from: FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            from: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
             to: FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         }),
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
@@ -7188,7 +7188,7 @@ test("can attach file to new target", async () => {
         session2.action(),
         space.id,
         fileUploader.fileId,
-        FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
     );
 
     await expect(
@@ -7201,7 +7201,7 @@ test("can attach file to new target", async () => {
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
 
     await attachFileFromAttachment(session1.action(), space.id, fileUploader.fileId, {
-        from: FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        from: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         to: FilePostAuthorizer.bind({type: "Post", postId: post.id}),
     });
 
@@ -7258,7 +7258,7 @@ test("can attach file to new target as the uploader", async () => {
 
     await expect(
         attachFileFromAttachment(session2.action(), space.id, fileUploader.fileId, {
-            from: FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            from: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
             to: FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         }),
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
@@ -7267,7 +7267,7 @@ test("can attach file to new target as the uploader", async () => {
         session2.action(),
         space.id,
         fileUploader.fileId,
-        FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
     );
 
     await expect(
@@ -7280,7 +7280,7 @@ test("can attach file to new target as the uploader", async () => {
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
 
     await attachFileFromAttachment(session2.action(), space.id, fileUploader.fileId, {
-        from: FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        from: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         to: FilePostAuthorizer.bind({type: "Post", postId: post.id}),
     });
 
@@ -7337,7 +7337,7 @@ test("can't attach file to new target if you don't have edit access", async () =
 
     await expect(
         attachFileFromAttachment(session1.action(), space.id, fileUploader.fileId, {
-            from: FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            from: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
             to: FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         }),
     ).rejects.toThrow(
@@ -7346,7 +7346,7 @@ test("can't attach file to new target if you don't have edit access", async () =
 
     await expect(
         attachFileFromAttachment(session2.action(), space.id, fileUploader.fileId, {
-            from: FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            from: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
             to: FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         }),
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
@@ -7355,7 +7355,7 @@ test("can't attach file to new target if you don't have edit access", async () =
         session2.action(),
         space.id,
         fileUploader.fileId,
-        FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
     );
 
     await expect(
@@ -7369,7 +7369,7 @@ test("can't attach file to new target if you don't have edit access", async () =
 
     await expect(
         attachFileFromAttachment(session1.action(), space.id, fileUploader.fileId, {
-            from: FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            from: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
             to: FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         }),
     ).rejects.toThrow(new PermissionDeniedError("Account doesn't have edit access to post"));
@@ -7408,7 +7408,7 @@ test("can't attach file to new target you don't have access to", async () => {
             session2.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
 
@@ -7424,14 +7424,14 @@ test("can't attach file to new target you don't have access to", async () => {
             session2.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
 
     await expect(
         attachFileFromAttachment(session3.action(), space.id, fileUploader.fileId, {
             from: FilePostAuthorizer.bind({type: "Post", postId: post1.id}),
-            to: FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            to: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         }),
     ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 
@@ -7440,7 +7440,7 @@ test("can't attach file to new target you don't have access to", async () => {
             session2.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
 
@@ -7463,11 +7463,7 @@ test("can get file from attachment after it's been attached when starting upload
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        attachTargetAuthorizer: FileChatAuthorizer.bind({
-            type: "ChatMessage",
-            chatId,
-            messageIndex: 0,
-        }),
+        attachTargetAuthorizer: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
     });
 
     expect(
@@ -7475,7 +7471,7 @@ test("can get file from attachment after it's been attached when starting upload
             session2.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).toEqual(
         new FileModel({
@@ -7509,11 +7505,7 @@ test("can't get file from attachment if you don't have access to the attachment 
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        attachTargetAuthorizer: FileChatAuthorizer.bind({
-            type: "ChatMessage",
-            chatId,
-            messageIndex: 0,
-        }),
+        attachTargetAuthorizer: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
     });
 
     expect(
@@ -7521,7 +7513,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             session2.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).toEqual(
         new FileModel({
@@ -7544,7 +7536,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             session3.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 
@@ -7553,7 +7545,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             otherSession.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(
         new PermissionDeniedError("Account doesn't have access to space (and 1 other error)"),
@@ -7564,7 +7556,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             otherSpace.systemAction(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("System action doesn't have access to space"));
 });
@@ -7583,11 +7575,7 @@ test("can't attach file when uploading if you don't have view access to the targ
             spaceId: space.id,
             contentType: "image/png",
             contentLength: 100,
-            attachTargetAuthorizer: FileChatAuthorizer.bind({
-                type: "ChatMessage",
-                chatId,
-                messageIndex: 0,
-            }),
+            attachTargetAuthorizer: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         }),
     ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 });
@@ -7629,7 +7617,7 @@ test("can detach file as uploader", async () => {
             session1.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
 
@@ -7637,7 +7625,7 @@ test("can detach file as uploader", async () => {
         session2.action(),
         space.id,
         fileUploader.fileId,
-        FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
     );
 
     expect(
@@ -7645,7 +7633,7 @@ test("can detach file as uploader", async () => {
             session1.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).toEqual(
         new FileModel({
@@ -7667,7 +7655,7 @@ test("can detach file as uploader", async () => {
         session2.action(),
         space.id,
         fileUploader.fileId,
-        FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
     );
 
     await expect(
@@ -7675,7 +7663,7 @@ test("can detach file as uploader", async () => {
             session1.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
 });
@@ -7700,7 +7688,7 @@ test("can detach file as non-uploader", async () => {
             session1.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
 
@@ -7708,7 +7696,7 @@ test("can detach file as non-uploader", async () => {
         session2.action(),
         space.id,
         fileUploader.fileId,
-        FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
     );
 
     expect(
@@ -7716,7 +7704,7 @@ test("can detach file as non-uploader", async () => {
             session1.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).toEqual(
         new FileModel({
@@ -7738,7 +7726,7 @@ test("can detach file as non-uploader", async () => {
         session1.action(),
         space.id,
         fileUploader.fileId,
-        FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
     );
 
     await expect(
@@ -7746,7 +7734,7 @@ test("can detach file as non-uploader", async () => {
             session1.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
 });
@@ -7771,7 +7759,7 @@ test("can't detach file without view access", async () => {
             session1.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
 
@@ -7779,7 +7767,7 @@ test("can't detach file without view access", async () => {
         session2.action(),
         space.id,
         fileUploader.fileId,
-        FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
     );
 
     expect(
@@ -7787,7 +7775,7 @@ test("can't detach file without view access", async () => {
             session1.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).toEqual(
         new FileModel({
@@ -7810,7 +7798,7 @@ test("can't detach file without view access", async () => {
             session3.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 
@@ -7819,7 +7807,7 @@ test("can't detach file without view access", async () => {
             session1.action(),
             space.id,
             fileUploader.fileId,
-            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).toEqual(
         new FileModel({
@@ -8018,7 +8006,7 @@ test("can get all files attached to post draft", async () => {
         session2.action(),
         space.id,
         file1Uploader.fileId,
-        FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
     );
 
     expect(
@@ -8032,7 +8020,7 @@ test("can get all files attached to post draft", async () => {
     ).toEqual([file2Uploader.fileId]);
 
     await attachFileFromAttachment(session1.action(), space.id, file1Uploader.fileId, {
-        from: FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        from: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         to: FilePostAuthorizer.bind({type: "PostDraft", accountId: session1.account.id, draftId}),
     });
 

@@ -1,13 +1,11 @@
-import {getOrCreateChatForAccounts, sendChatMessage} from "~/server/chat/data/chat_table.js";
+import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {createPostComment} from "~/server/forum/data/forum_table.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {getSearchEntity} from "~/server/search/data/index/internal/get_search_entity.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {SearchEntityIdObject} from "~/shared/search/search_entity_id.js";
 
 const context = createTestContext();
@@ -198,9 +196,7 @@ const testCasesBySearchEntityType: {[Key in SearchEntityIdObject["type"]]: () =>
                 name: "Test Channel",
             });
 
-            const post = await channel.createPost(session2, {
-                content: "Test post content.",
-            });
+            const post = await channel.createPost(session2, "Test post content.");
 
             expect(
                 await getSearchEntity(
@@ -242,15 +238,9 @@ const testCasesBySearchEntityType: {[Key in SearchEntityIdObject["type"]]: () =>
                 name: "Test Channel",
             });
 
-            const post = await channel.createPost(session2, {
-                content: "Test post content.",
-            });
+            const post = await channel.createPost(session2, "Test post content.");
 
-            const comment = await createPostComment(session3.action(), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("Test post comment content."),
-            });
+            const comment = await post.createComment(session3, "Test post comment content.");
 
             expect(
                 await getSearchEntity(
@@ -287,17 +277,18 @@ const testCasesBySearchEntityType: {[Key in SearchEntityIdObject["type"]]: () =>
             const session2 = await space.createSession({name: "Josh Meredith"});
             const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
-            const chatId = await getOrCreateChatForAccounts(session1.action(), {
-                spaceId: space.id,
-                otherAccountIds: [session2.account.id],
-            });
+            const chat = await TestChat.get(session1, session2);
 
             expect(
-                await getSearchEntity(space.systemAction(), {type: "Chat", chatId}, tokenizer),
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "Chat", chatId: chat.id},
+                    tokenizer,
+                ),
             ).toEqual({
                 dependencyIds: new Set(),
                 entity: {
-                    id: `Chat:${chatId}`,
+                    id: `Chat:${chat.id}`,
                     accessPolicy: {
                         accountGrantAccountIds: new Set([session1.account.id, session2.account.id]),
                         defaultGrantType: null,
@@ -312,14 +303,14 @@ const testCasesBySearchEntityType: {[Key in SearchEntityIdObject["type"]]: () =>
                 },
             });
 
-            await sendChatMessage(session2.action(), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("Test chat message content."),
-            });
+            await chat.sendMessage(session2, "Test chat message content.");
 
             expect(
-                await getSearchEntity(space.systemAction(), {type: "Chat", chatId}, tokenizer),
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "Chat", chatId: chat.id},
+                    tokenizer,
+                ),
             ).toEqual({
                 dependencyIds: new Set(
                     [
@@ -328,7 +319,7 @@ const testCasesBySearchEntityType: {[Key in SearchEntityIdObject["type"]]: () =>
                     ].sort(defaultCompareStrings),
                 ),
                 entity: {
-                    id: `Chat:${chatId}`,
+                    id: `Chat:${chat.id}`,
                     accessPolicy: {
                         accountGrantAccountIds: new Set(
                             [session1.account.id, session2.account.id].sort(defaultCompareStrings),
@@ -358,27 +349,20 @@ const testCasesBySearchEntityType: {[Key in SearchEntityIdObject["type"]]: () =>
             const session2 = await space.createSession({name: "Josh Meredith"});
             const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
-            const chatId = await getOrCreateChatForAccounts(session1.action(), {
-                spaceId: space.id,
-                otherAccountIds: [session2.account.id],
-            });
+            const chat = await TestChat.get(session1, session2);
 
-            const message = await sendChatMessage(session2.action(), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("Test chat message content."),
-            });
+            const message = await chat.sendMessage(session2, "Test chat message content.");
 
             expect(
                 await getSearchEntity(
                     space.systemAction(),
-                    {type: "ChatMessage", chatId, messageIndex: 0},
+                    {type: "ChatMessage", chatId: chat.id, messageIndex: 0},
                     tokenizer,
                 ),
             ).toEqual({
-                dependencyIds: new Set([`Chat:${chatId}`]),
+                dependencyIds: new Set([`Chat:${chat.id}`]),
                 entity: {
-                    id: `ChatMessage:${chatId}-0`,
+                    id: `ChatMessage:${chat.id}-0`,
                     accessPolicy: {
                         accountGrantAccountIds: new Set(
                             [session1.account.id, session2.account.id].sort(defaultCompareStrings),

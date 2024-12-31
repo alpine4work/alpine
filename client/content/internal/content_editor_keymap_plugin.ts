@@ -1817,14 +1817,14 @@ export function buildContentEditorKeymapPlugin(
                                         ? nextRect.top + 1
                                         : fileRect.bottom +
                                           convertRemLengthToPx(
-                                              contentStyles.defaultParagraphMargin,
+                                              contentStyles.paragraphMargin,
                                               getSpacingScaleWithoutListening(),
                                           )
                                     : nextRect
                                     ? nextRect.bottom - 1
                                     : fileRect.top -
                                       convertRemLengthToPx(
-                                          contentStyles.defaultParagraphMargin,
+                                          contentStyles.paragraphMargin,
                                           getSpacingScaleWithoutListening(),
                                       ),
                         });
@@ -1932,14 +1932,14 @@ export function buildContentEditorKeymapPlugin(
                                         ? fileRowRect.top + 1
                                         : coords.bottom +
                                           convertRemLengthToPx(
-                                              contentStyles.defaultParagraphMargin,
+                                              contentStyles.paragraphMargin,
                                               getSpacingScaleWithoutListening(),
                                           )
                                     : fileRowRect
                                     ? fileRowRect.bottom - 1
                                     : coords.top -
                                       convertRemLengthToPx(
-                                          contentStyles.defaultParagraphMargin,
+                                          contentStyles.paragraphMargin,
                                           getSpacingScaleWithoutListening(),
                                       ),
                         };

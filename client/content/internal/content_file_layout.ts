@@ -19,6 +19,7 @@ const actuallyLayoutContentFileParent = createCachedFunction(
         screenWidth: number,
         platform: Platform,
         spacingScale: SpacingScale,
+        withoutBlockMaxWidth: boolean,
         ...files: Array<FileModelData | null>
     ) => {
         switch (node.type.name) {
@@ -27,6 +28,7 @@ const actuallyLayoutContentFileParent = createCachedFunction(
                     screenWidth,
                     platform,
                     spacingScale,
+                    withoutBlockMaxWidth,
                 });
             }
             case "fileFloat": {
@@ -37,6 +39,7 @@ const actuallyLayoutContentFileParent = createCachedFunction(
                         screenWidth,
                         platform,
                         spacingScale,
+                        withoutBlockMaxWidth,
                     }),
                 ];
             }
@@ -57,16 +60,19 @@ const actuallyLayoutContentFileParent = createCachedFunction(
  * the exact same (referentially equal) value.
  */
 export function layoutContentFileParent(
-    fileById: Map<FileId, FileModelData> | FileModelData | null | undefined,
     node: Node,
     {
         screenWidth,
         platform,
         spacingScale,
+        withoutBlockMaxWidth,
+        getFile,
     }: {
         screenWidth: number;
         platform: Platform;
         spacingScale: SpacingScale;
+        withoutBlockMaxWidth: boolean;
+        getFile: (fileId: FileId) => FileModelData | null;
     },
 ): ReadonlyArray<ContentFileLayout> {
     const files = node.content.content.map(childNode => {
@@ -76,19 +82,19 @@ export function layoutContentFileParent(
             );
         }
 
-        if (!fileById) return null;
-
         const fileId: FileId | null = childNode.attrs.fileId;
-
-        if ("contentType" in fileById) {
-            return fileById.id === fileId ? fileById : null;
-        }
-
-        if (!fileId) return null;
-        return fileById.get(fileId) ?? null;
+        if (fileId === null) return null;
+        return getFile(fileId);
     });
 
-    return actuallyLayoutContentFileParent(node, screenWidth, platform, spacingScale, ...files);
+    return actuallyLayoutContentFileParent(
+        node,
+        screenWidth,
+        platform,
+        spacingScale,
+        withoutBlockMaxWidth,
+        ...files,
+    );
 }
 
 /**
@@ -103,14 +109,19 @@ export function layoutContentFileParent(
  * (referentially equal) layout without needing to recompute layout.
  */
 export function layoutContentFile(
-    file: FileModelData | null | undefined,
     doc: Node,
     pos: number,
     node: Node,
-    options: {screenWidth: number; platform: Platform; spacingScale: SpacingScale},
+    options: {
+        screenWidth: number;
+        platform: Platform;
+        spacingScale: SpacingScale;
+        withoutBlockMaxWidth: boolean;
+        getFile: (fileId: FileId) => FileModelData | null;
+    },
 ): ContentFileLayout {
     const $pos = doc.resolve(pos);
     assert($pos.nodeAfter && $pos.nodeAfter.eq(node));
-    const layouts = layoutContentFileParent(file, $pos.parent, options);
+    const layouts = layoutContentFileParent($pos.parent, options);
     return layouts[$pos.index()]!;
 }

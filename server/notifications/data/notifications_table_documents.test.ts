@@ -153,6 +153,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     {
                         commentThreadId: commentThread1Id,
                         initialCommentContent: createSimpleMessageContent("test1"),
+                        initialCommentFileIds: [],
                         createdTime: commentThread1CreatedTime,
                     },
                 ],
@@ -233,6 +234,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     {
                         commentThreadId: commentThread2Id,
                         initialCommentContent: createSimpleMessageContent("test2"),
+                        initialCommentFileIds: [],
                         createdTime: commentThread2CreatedTime,
                     },
                 ],
@@ -313,6 +315,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     {
                         commentThreadId: commentThread3Id,
                         initialCommentContent: createSimpleMessageContent("test3"),
+                        initialCommentFileIds: [],
                         createdTime: commentThread3CreatedTime,
                     },
                 ],
@@ -393,6 +396,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     {
                         commentThreadId: commentThread4Id,
                         initialCommentContent: createSimpleMessageContent("test4"),
+                        initialCommentFileIds: [],
                         createdTime: commentThread4CreatedTime,
                     },
                 ],
@@ -473,6 +477,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     {
                         commentThreadId: commentThread5Id,
                         initialCommentContent: createSimpleMessageContent("test5"),
+                        initialCommentFileIds: [],
                         createdTime: commentThread5CreatedTime,
                     },
                 ],
@@ -600,6 +605,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     {
                         commentThreadId: commentThread1Id,
                         initialCommentContent: scenario.mentionAccount1MessageContent,
+                        initialCommentFileIds: [],
                         createdTime: commentThread1CreatedTime,
                     },
                 ],
@@ -685,6 +691,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     {
                         commentThreadId: commentThread2Id,
                         initialCommentContent: scenario.mentionAccount3MessageContent,
+                        initialCommentFileIds: [],
                         createdTime: commentThread2CreatedTime,
                     },
                 ],
@@ -847,6 +854,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("comment1"),
+                        initialCommentFileIds: [],
                         createdTime: commentThreadCreatedTime,
                     },
                 ],
@@ -912,6 +920,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 commentThreadId: commentThreadId,
                 parentCommentIndex: null,
                 content: createSimpleMessageContent("comment2"),
+                fileIds: [],
             });
 
             await ProcessContextModule.waitForTestTasks();
@@ -1000,6 +1009,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 commentThreadId: commentThreadId,
                 parentCommentIndex: null,
                 content: createSimpleMessageContent("comment3"),
+                fileIds: [],
             });
 
             await ProcessContextModule.waitForTestTasks();
@@ -1088,6 +1098,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 commentThreadId: commentThreadId,
                 parentCommentIndex: null,
                 content: createSimpleMessageContent("comment4"),
+                fileIds: [],
             });
 
             await ProcessContextModule.waitForTestTasks();
@@ -1233,6 +1244,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("comment0"),
+                        initialCommentFileIds: [],
                         createdTime: commentThreadCreatedTime,
                     },
                 ],
@@ -1263,6 +1275,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 commentThreadId,
                 parentCommentIndex: null,
                 content: createSimpleMessageContent("comment1"),
+                fileIds: [],
             });
 
             await ProcessContextModule.waitForTestTasks();
@@ -1279,6 +1292,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 commentThreadId,
                 parentCommentIndex: null,
                 content: scenario.mentionAccount2MessageContent,
+                fileIds: [],
             });
 
             const comment3 = await createDocumentComment(context.action(scenario.session3), {
@@ -1286,6 +1300,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 commentThreadId,
                 parentCommentIndex: null,
                 content: createSimpleMessageContent("comment3"),
+                fileIds: [],
             });
 
             const {unpause: unpause1} = await pause1Promise;
@@ -1475,6 +1490,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test comment 0"),
+                    initialCommentFileIds: [],
                     createdTime: commentThreadCreatedTime,
                 },
             ],
@@ -1492,6 +1508,7 @@ for (const [currentProcessingType, processingMultiple] of [
             commentThreadId,
             parentCommentIndex: null,
             content: createSimpleMessageContent("Test comment 1"),
+            fileIds: [],
         });
 
         await ProcessContextModule.waitForTestTasks();
@@ -1516,6 +1533,7 @@ for (const [currentProcessingType, processingMultiple] of [
             commentThreadId,
             parentCommentIndex: null,
             content: createSimpleMessageContent("Test comment 2"),
+            fileIds: [],
         });
 
         await ProcessContextModule.waitForTestTasks();
@@ -1540,6 +1558,7 @@ for (const [currentProcessingType, processingMultiple] of [
             commentThreadId,
             parentCommentIndex: null,
             content: createSimpleMessageContent("Test comment 3"),
+            fileIds: [],
         });
 
         await ProcessContextModule.waitForTestTasks();
@@ -1579,6 +1598,7 @@ for (const [currentProcessingType, processingMultiple] of [
             commentThreadId,
             parentCommentIndex: null,
             content: createSimpleMessageContent("Test comment 4"),
+            fileIds: [],
         });
 
         await ProcessContextModule.waitForTestTasks();
@@ -1595,6 +1615,7 @@ for (const [currentProcessingType, processingMultiple] of [
             commentThreadId,
             parentCommentIndex: null,
             content: createSimpleMessageContent("Test comment 5"),
+            fileIds: [],
         });
 
         await ProcessContextModule.waitForTestTasks();
@@ -1631,6 +1652,7 @@ for (const [currentProcessingType, processingMultiple] of [
             commentThreadId,
             parentCommentIndex: null,
             content: createSimpleMessageContent("Test comment 6"),
+            fileIds: [],
         });
 
         await ProcessContextModule.waitForTestTasks();
@@ -1655,6 +1677,7 @@ for (const [currentProcessingType, processingMultiple] of [
             commentThreadId,
             parentCommentIndex: null,
             content: createSimpleMessageContent("Test comment 7"),
+            fileIds: [],
         });
 
         await ProcessContextModule.waitForTestTasks();

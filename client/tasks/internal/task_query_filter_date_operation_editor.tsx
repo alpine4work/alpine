@@ -4,7 +4,7 @@ import {useHover} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/internal/task_query_filter_operator_editor.js";
@@ -72,7 +72,7 @@ export function TaskQueryFilterDateOperationValueEditor({
     operation: TaskQueryFilterDateOperation;
     onOperationChange: (operation: TaskQueryFilterDateOperation) => void;
 }) {
-    const routeLayout = useRouteLayout();
+    const platform = usePlatform();
 
     const absoluteDateLabel = "exact date";
     const relativeTodayDateLabel = "today";
@@ -152,13 +152,13 @@ export function TaskQueryFilterDateOperationValueEditor({
             <Box
                 height="full"
                 minWidth={
-                    routeLayout === "narrow" && operation.date.type === "Absolute" ? "0" : undefined
+                    platform === "mobile" && operation.date.type === "Absolute" ? "0" : undefined
                 }
                 flexShrink={
-                    routeLayout === "narrow" && operation.date.type === "Absolute" ? "1" : undefined
+                    platform === "mobile" && operation.date.type === "Absolute" ? "1" : undefined
                 }
                 overflow={
-                    routeLayout === "narrow" && operation.date.type === "Absolute"
+                    platform === "mobile" && operation.date.type === "Absolute"
                         ? "hidden"
                         : undefined
                 }

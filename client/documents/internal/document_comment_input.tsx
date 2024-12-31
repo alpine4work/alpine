@@ -14,12 +14,12 @@ import {getMessageListItemKey} from "~/client/messaging/render_message_list_item
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing} from "~/shared/design/core/spacing.js";
 import {
     DocumentCommentModel,
     DocumentCommentRoomKey,
     DocumentCommentThreadModel,
 } from "~/shared/documents/document_model.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export function DocumentCommentInput({
@@ -28,6 +28,7 @@ export function DocumentCommentInput({
     viewRef,
     commentThread,
     comments,
+    fileAttachmentTarget,
     onUpdateCommentThread,
     messageEditing,
     replyingToComment,
@@ -37,7 +38,6 @@ export function DocumentCommentInput({
     isConnected,
     procedures,
     subscribeToCommentThreadEvents,
-    paddingX,
     withMobileMaxHeight,
     onFocus,
     onBeforeFocusFromReplyOrEditingChange,
@@ -47,6 +47,7 @@ export function DocumentCommentInput({
     viewRef: RefObject<VirtualizedScrollViewRef>;
     commentThread: DocumentCommentThreadModel;
     comments: MessageList<DocumentCommentModel>;
+    fileAttachmentTarget: Memo<FileAttachmentTarget>;
     onUpdateCommentThread: (
         update: (state: {
             commentThread: DocumentCommentThreadModel;
@@ -64,7 +65,6 @@ export function DocumentCommentInput({
     isConnected: boolean;
     procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
-    paddingX: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     withMobileMaxHeight: boolean;
     onFocus?: () => void;
     onBeforeFocusFromReplyOrEditingChange?: () => {preventDefault: boolean} | void;
@@ -175,6 +175,7 @@ export function DocumentCommentInput({
     return (
         <MessageInput
             ref={useMergedRefs(inputRef, inputRefProp ?? null)}
+            data-testid={`DocumentCommentInput:${commentThread.id}`}
             messageNoun="comment"
             isNotBottomBar={isStickyPositioned}
             messages={comments}
@@ -189,8 +190,10 @@ export function DocumentCommentInput({
                     commentThreadId: commentThread.id,
                     parentCommentIndex: input.parentMessageIndex,
                     content: input.content,
+                    fileIds: input.fileIds,
                 });
             }}
+            fileAttachmentTarget={fileAttachmentTarget}
             messageEditing={messageEditing}
             replyingToMessage={replyingToComment}
             onClearReplyingToMessage={onClearReplyingToComment}
@@ -222,7 +225,6 @@ export function DocumentCommentInput({
                         ),
                     );
             }}
-            paddingX={paddingX}
             withMobileMaxHeight={withMobileMaxHeight}
             onFocus={onFocus}
             onBeforeFocusFromReplyOrEditingChange={onBeforeFocusFromReplyOrEditingChange}

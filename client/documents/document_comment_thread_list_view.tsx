@@ -3,6 +3,7 @@ import {
     MutableRefObject,
     ReactNode,
     Ref,
+    RefObject,
     forwardRef,
     useCallback,
     useEffect,
@@ -12,6 +13,7 @@ import {
     useState,
 } from "react";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
+import {useMessagingViewDropTarget} from "~/client/content/messaging/use_messaging_view_drop_target.js";
 import {NavigationBarResult} from "~/client/design/navigation_bar_types.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
@@ -19,7 +21,9 @@ import {DocumentCommentInput} from "~/client/documents/internal/document_comment
 import {DocumentCommentThreadHeader} from "~/client/documents/internal/document_comment_thread_header.js";
 import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client.js";
 import {SubscribeToCommentThreadEventsFunction} from "~/client/documents/use_document_content_editor_web_socket.js";
+import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value.js";
@@ -40,7 +44,7 @@ import {
     documentCommentThreadListViewMaxWidth,
 } from "~/client/styles/document_shared_styles.js";
 import {
-    messageInputMinHeight,
+    messageInputMinHeightPx,
     messagingViewMarginBottom,
     messagingViewMarginBottomCalcExpression,
 } from "~/client/styles/messaging_shared_styles.js";
@@ -59,11 +63,10 @@ import {
     RemLength,
     Spacing,
     addRemLengths,
-    parseRemLength,
+    convertRemLengthToPx,
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
@@ -75,10 +78,12 @@ import {
     decodeDocumentCommentRoomKey,
 } from "~/shared/documents/document_model.js";
 import {OutOfRangeError} from "~/shared/error/error.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
@@ -233,7 +238,6 @@ function DocumentCommentThreadListView(
         unpersistedResolutionStateByCommentThreadId: allUnpersistedResolutionStateByCommentThreadId,
         withoutCommentThreadPreview = false,
         withCommentInputMobileMaxHeight = false,
-        paddingX = screenPaddingX,
         header,
         navigationBar,
         withSafeAreaInsetTop = false,
@@ -241,7 +245,7 @@ function DocumentCommentThreadListView(
         onBeforePinnedCommentInputFocusFromReplyOrEditingChange,
         isNativeMobileTabBarHidden = false,
         backgroundSlopBottomIfPinnedCommentInput,
-        previewFileLayoutScreenWidth: originalPreviewFileLayoutScreenWidth,
+        fileLayoutScreenWidth: fileLayoutScreenWidthProp,
     }: {
         documentId: DocumentId;
         content: DocumentContentWithReferences;
@@ -278,11 +282,6 @@ function DocumentCommentThreadListView(
          * Whether we should use the mobile max height for comment inputs.
          */
         withCommentInputMobileMaxHeight?: boolean;
-
-        /**
-         * Customize the amount of margin on messages.
-         */
-        paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
 
         /**
          * A header to render as the first item in the virtualized scroll view.
@@ -347,9 +346,9 @@ function DocumentCommentThreadListView(
          * Optionally override the screen width provided to `layoutContentFileRow()` in
          * the `<ContentView>` for comment thread previews. Overriding this can lead to
          * more scale appropriate file layouts in the preview window. Defaults to
-         * `clientInfo.screenWidth`. We subtract the `paddingX` prop from this value.
+         * `clientInfo.screenWidth`.
          */
-        previewFileLayoutScreenWidth?: RemLength;
+        fileLayoutScreenWidth?: RemLength;
     },
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
@@ -357,24 +356,13 @@ function DocumentCommentThreadListView(
     const spacingScale = useSpacingScale();
     const clientInfo = useClientInfo();
 
+    const fileLayoutScreenWidth =
+        fileLayoutScreenWidthProp !== undefined
+            ? convertRemLengthToPx(fileLayoutScreenWidthProp, spacingScale)
+            : clientInfo.screenWidth;
+
     const {space} = useSpaceContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
-
-    const previewFileLayoutScreenWidthRem = useMemo(
-        () =>
-            (originalPreviewFileLayoutScreenWidth
-                ? parseRemLength(originalPreviewFileLayoutScreenWidth)
-                : clientInfo.screenWidth / remPxBySpacingScale[spacingScale]) -
-            parseRemLength(spacing[typeof paddingX === "string" ? paddingX : paddingX[platform]]) *
-                2,
-        [
-            clientInfo.screenWidth,
-            originalPreviewFileLayoutScreenWidth,
-            paddingX,
-            platform,
-            spacingScale,
-        ],
-    );
 
     const [tree, setTree] = useState(() => {
         let tree = createEmptyDocumentCommentThreadTree();
@@ -762,6 +750,72 @@ function DocumentCommentThreadListView(
             : undefined,
     });
 
+    const fileAttachmentTarget = useMemo(
+        (): FileAttachmentTarget => ({
+            type: "DocumentComments",
+            documentId,
+        }),
+        [documentId],
+    );
+
+    const inputRefByCommentThreadId = useConstant(
+        () =>
+            new LazyMap<DocumentCommentThreadId, RefObject<MessageInputRef>>(() => ({
+                current: null,
+            })),
+    );
+
+    const mergedPinnedCommentInputRef = useMergedRefs(
+        isSingleCommentThreadWithPinnedCommentInput
+            ? inputRefByCommentThreadId.get(tree.getItem(tree.getItemCount() - 1).commentThread.id)
+            : null,
+        isSingleCommentThreadWithPinnedCommentInput ? pinnedCommentInputRef ?? null : null,
+    );
+
+    const {dragOverlay, dropTargetProps} = useMessagingViewDropTarget({
+        isDisabled: messageEditing.state.isEditing,
+        onDrop: event => {
+            const view = assertExists(viewRef.current);
+            const renderedRange = view.getRenderedRange();
+            if (!renderedRange) return null;
+
+            const offset =
+                event.clientY -
+                view.getElement().getBoundingClientRect().top +
+                view.getScrollOffset();
+
+            // Find the item that contains `offset`. Written so that if `offset` is above
+            // the virtualized scroll view we'll return the first index and if it's below
+            // the virtualized scroll view we'll return the last index.
+            let aboveIndex: number | null = null;
+            for (let index = renderedRange.startIndex; index <= renderedRange.endIndex; index++) {
+                const position = view.getPositionByIndex(index);
+                aboveIndex = index;
+                if (offset < position.offset + position.height) break;
+            }
+
+            if (aboveIndex === null) return null;
+
+            if (header) {
+                if (aboveIndex === 0) {
+                    // If we're above the header then we want to call `tree.getItem(0)`. However,
+                    // first check if the tree is empty. If it's empty then return null.
+                    if (tree.getItemCount() === 0) return null;
+                } else {
+                    // Adjust index so it's relative to `tree` data structure for the rest of
+                    // this function.
+                    aboveIndex -= 1;
+                }
+            }
+
+            const item = tree.getItem(aboveIndex);
+
+            return assertExists(inputRefByCommentThreadId.get(item.commentThread.id).current).drop(
+                event.dataTransfer,
+            );
+        },
+    });
+
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             const actualIndex = index;
@@ -833,7 +887,7 @@ function DocumentCommentThreadListView(
                                             width: "full",
                                             height: documentCommentThreadListViewMarginY,
                                             maxWidth: documentCommentThreadListViewMaxWidth,
-                                            paddingX,
+                                            paddingX: screenPaddingX,
                                             display: "flex",
                                             flexDirection: "column",
                                             justifyContent: "center",
@@ -870,7 +924,7 @@ function DocumentCommentThreadListView(
                                         position: "relative",
                                         width: "full",
                                         maxWidth: documentCommentThreadListViewMaxWidth,
-                                        paddingX,
+                                        paddingX: screenPaddingX,
                                         paddingTop: index !== 0 ? "0" : paddingTop,
                                         paddingBottom: documentCommentThreadHeaderPaddingY,
                                         overflow: "hidden",
@@ -901,9 +955,7 @@ function DocumentCommentThreadListView(
                                         }
                                         contentReferences={content.references}
                                         onCommentThreadSnippetPress={onCommentThreadSnippetPress}
-                                        previewFileLayoutScreenWidthRem={
-                                            previewFileLayoutScreenWidthRem
-                                        }
+                                        fileLayoutScreenWidth={fileLayoutScreenWidth}
                                     />
                                 </div>
                             </div>
@@ -916,12 +968,13 @@ function DocumentCommentThreadListView(
                         DocumentCommentRoomKey,
                         DocumentCommentModel
                     >({
-                        platform,
+                        spacingScale,
                         messageNoun: "comment",
                         messages: item.comments,
                         groupKey: item.commentThread.id,
                         index: item.commentItemIndex,
                         item: item.commentItem,
+                        fileAttachmentTarget,
                         randomSeedForShimmer: item.commentThread.id,
                         messageEditing,
                         shouldHighlightRef:
@@ -958,7 +1011,6 @@ function DocumentCommentThreadListView(
                                 window.location.href,
                             );
                         },
-                        paddingX,
                         shouldAddMarginBottom:
                             isSingleCommentThreadWithPinnedCommentInput &&
                             // -2 instead of -1 since when
@@ -977,12 +1029,12 @@ function DocumentCommentThreadListView(
                                     ? `calc(${messagingViewMarginBottomCalcExpression} + ${backgroundSlopBottomIfPinnedCommentInput})`
                                     : messagingViewMarginBottom
                                 : undefined,
+                        fileLayoutScreenWidth,
                         render: node => (
                             <div
                                 className={sprinkles({
                                     display: "flex",
                                     justifyContent: "center",
-                                    overflow: "hidden",
                                 })}
                             >
                                 <div
@@ -1039,9 +1091,11 @@ function DocumentCommentThreadListView(
                     const inputNode = (
                         <DocumentCommentInput
                             isStickyPositioned={true}
+                            inputRef={inputRefByCommentThreadId.get(item.commentThread.id)}
                             viewRef={viewRef}
                             commentThread={item.commentThread}
                             comments={item.comments}
+                            fileAttachmentTarget={fileAttachmentTarget}
                             onUpdateCommentThread={update =>
                                 setTree(tree =>
                                     tree.updateNode(item.commentThread.id, node => {
@@ -1090,14 +1144,13 @@ function DocumentCommentThreadListView(
                             isConnected={isConnected}
                             procedures={procedures}
                             subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
-                            paddingX={paddingX}
                             withMobileMaxHeight={withCommentInputMobileMaxHeight}
                         />
                     );
 
                     return {
                         key: `DocumentCommentInput:${item.commentThread.id}`,
-                        minHeight: messageInputMinHeight[platform],
+                        minHeight: messageInputMinHeightPx[platform][spacingScale],
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({
@@ -1178,14 +1231,14 @@ function DocumentCommentThreadListView(
             withoutCommentThreadPreview,
             isSingleCommentThreadWithPinnedCommentInput,
             withSafeAreaInsetTop,
-            paddingX,
             unpersistedIsResolvedByCommentThreadId,
             contentSnippetByCommentThreadId,
             content.references,
             onCommentThreadSnippetPress,
-            previewFileLayoutScreenWidthRem,
+            fileLayoutScreenWidth,
             procedures,
-            platform,
+            spacingScale,
+            fileAttachmentTarget,
             messageEditing,
             highlightComment,
             handleJumpToComment,
@@ -1193,9 +1246,11 @@ function DocumentCommentThreadListView(
             backgroundSlopBottomIfPinnedCommentInput,
             space.id,
             replyingToCommentIndexByCommentThreadId,
+            inputRefByCommentThreadId,
             isConnected,
             subscribeToCommentThreadEvents,
             withCommentInputMobileMaxHeight,
+            platform,
         ],
     );
 
@@ -1203,6 +1258,8 @@ function DocumentCommentThreadListView(
         <>
             {modals}
             <div
+                {...dropTargetProps}
+                data-testid="DocumentCommentThreadListView"
                 className={sprinkles({
                     flexGrow: "1",
                     width: "full",
@@ -1214,6 +1271,7 @@ function DocumentCommentThreadListView(
                     flexDirection: "column",
                 })}
             >
+                {dragOverlay}
                 {withSafeAreaInsetTop && !navigationBar?.navigationBar && (
                     // Only render a safe area cover if we don't have a navigation bar. Otherwise
                     // the navigation bar acts as our safe area cover.
@@ -1269,10 +1327,11 @@ function DocumentCommentThreadListView(
                         return (
                             <DocumentCommentInput
                                 isStickyPositioned={false}
-                                inputRef={pinnedCommentInputRef}
+                                inputRef={mergedPinnedCommentInputRef}
                                 viewRef={viewRef}
                                 commentThread={item.commentThread}
                                 comments={item.comments}
+                                fileAttachmentTarget={fileAttachmentTarget}
                                 onUpdateCommentThread={update =>
                                     setTree(tree =>
                                         tree.updateNode(item.commentThread.id, node => {
@@ -1320,7 +1379,6 @@ function DocumentCommentThreadListView(
                                 isConnected={isConnected}
                                 procedures={procedures}
                                 subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
-                                paddingX={paddingX}
                                 withMobileMaxHeight={withCommentInputMobileMaxHeight}
                                 onBeforeFocusFromReplyOrEditingChange={
                                     onBeforePinnedCommentInputFocusFromReplyOrEditingChange

@@ -1,14 +1,15 @@
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {RefObject, useEffect, useMemo, useRef, useState} from "react";
+import {Memo, RefObject, useEffect, useMemo, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import {
     ContentEditorState,
     createCommentThreadMetaKey,
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
+import {MessageInputFile} from "~/client/content/messaging/add_message_input_files.js";
 import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
-import {trimContentWithReferencesEnd} from "~/client/content/trim_content_end.js";
+import {trimContentWithReferencesEnd} from "~/client/content/trim_content.js";
 import {Box} from "~/client/design/box.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";
@@ -16,6 +17,8 @@ import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_a
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
@@ -26,10 +29,12 @@ export function ContentEditorMobileCommentInputBottomBar({
     state: documentState,
     viewRef: documentViewRef,
     onClose: onCloseProp,
+    fileAttachmentTarget,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
     onClose: () => void;
+    fileAttachmentTarget: Memo<FileAttachmentTarget>;
 }) {
     const portalElement = assertExists(
         useOverlayRootPortalElement(),
@@ -43,6 +48,7 @@ export function ContentEditorMobileCommentInputBottomBar({
     const [commentState, setCommentState] = useState(() =>
         ContentEditorState.create(emptyMessageContentWithReferences),
     );
+    const [files, setFiles] = useState<ReadonlyArray<MessageInputFile>>(emptyArray);
     const [shouldShowConfirmCloseDialog, setShouldShowConfirmCloseDialog] = useState(false);
 
     const shouldFocusNextRenderRef = useRef(true);
@@ -98,7 +104,7 @@ export function ContentEditorMobileCommentInputBottomBar({
 
     const sendComment = () => {
         const content = trimContentWithReferencesEnd(commentState.getContent());
-        if (isContentEmpty(content.doc)) return;
+        if (isContentEmpty(content.doc) && files.length === 0) return;
 
         const commentThreadId = generateId<DocumentCommentThreadId>();
         const trimmedDocumentRange = trimSpacesFromProsemirrorRange(
@@ -124,6 +130,7 @@ export function ContentEditorMobileCommentInputBottomBar({
         transaction.setMeta(createCommentThreadMetaKey, {
             commentThreadId,
             initialCommentContent: content,
+            initialCommentFileIds: files.map(({file}) => file.id),
         });
 
         transaction.scrollIntoView();
@@ -194,6 +201,12 @@ export function ContentEditorMobileCommentInputBottomBar({
                         state={commentState}
                         onChange={setCommentState}
                         onSend={sendComment}
+                        fileAttachmentTarget={fileAttachmentTarget}
+                        files={files}
+                        onAddFile={file => setFiles(files => [...files, file])}
+                        onRemoveFile={fileKey =>
+                            setFiles(files => files.filter(otherFile => otherFile.key !== fileKey))
+                        }
                     />
                 </Box>,
                 portalElement,

@@ -293,13 +293,18 @@ export class JobSender implements JobSenderBase {
             span.addData({
                 jobs: {
                     type: message.job.type,
-                    batchSize: originalMessages.length,
+                    queueName,
                     // NOTE(calebmer): I put this in the `jobs` namespace instead of the `aws.sqs`
                     // namespace because in SQS this can be configured at the queue or message level
                     // but in the job framework it's always configured at the job level. An
                     // `aws.sqs` tracer would need to look at queue configuration to get the correct
                     // value whereas we should always know for a job.
                     delaySeconds: message.delaySeconds,
+                },
+                aws: {
+                    sqs: {
+                        messageCount: originalMessages.length,
+                    },
                 },
             });
 
@@ -399,8 +404,12 @@ export class JobSender implements JobSenderBase {
                 span.addData({
                     jobs: {
                         type: `Maintenance:${job.type}`,
-                        batchSize: 1,
                         delaySeconds,
+                    },
+                    aws: {
+                        sqs: {
+                            messageCount: 1,
+                        },
                     },
                 });
 

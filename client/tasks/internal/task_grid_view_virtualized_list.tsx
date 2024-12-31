@@ -50,6 +50,7 @@ import {
 } from "~/client/tasks/core/task_client_store.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {findTaskIndexInGridViewVirtualizedListIfExists} from "~/client/tasks/internal/find_task_index_in_grid_view_virtualized_list_if_exists.js";
+import {withApplyTaskGridViewUndoStackEntry} from "~/client/tasks/internal/is_task_grid_view_applying_undo_stack_entry.js";
 import {
     taskDateInputCalendarDesktopHeight,
     taskDateInputCalendarMobileHeight,
@@ -701,135 +702,157 @@ export function useTaskGridViewVirtualizedList({
             pushUndoStackEntry: TaskClientStoreUndoManager["pushUndoStackEntry"];
         },
     ) => {
-        const view = assertExists(viewRef.current);
+        return withApplyTaskGridViewUndoStackEntry(() => {
+            const view = assertExists(viewRef.current);
 
-        if (!rootQuery) return false;
+            if (!rootQuery) return false;
 
-        const target: {taskId: TaskId; column: TaskGridViewColumn} | null =
-            entry.type === "Actions"
-                ? getTaskUndoActionsGridViewTargetIfExists(
-                      store,
-                      entry.undoActions.getWithOldTimes(),
-                  )
-                : {taskId: entry.taskId, column: "Title"};
-        if (!target) return false;
+            const target: {taskId: TaskId; column: TaskGridViewColumn} | null =
+                entry.type === "Actions"
+                    ? getTaskUndoActionsGridViewTargetIfExists(
+                          store,
+                          entry.undoActions.getWithOldTimes(),
+                      )
+                    : {taskId: entry.taskId, column: "Title"};
+            if (!target) return false;
 
-        const undoManager: TaskClientStoreUndoManager = {pushUndoStackEntry};
+            const undoManager: TaskClientStoreUndoManager = {pushUndoStackEntry};
 
-        // If this function returns true then the undo stack entry was handled.
-        if (onApplyUndoStackEntry?.({type, entry, target, undoManager})) {
-            return true;
-        }
-
-        const startIndex = findTaskIndexInGridViewVirtualizedListIfExists({
-            state,
-            iterateRootExpandedTaskIds,
-            rootParentTaskId: entry.rootParentTaskId,
-            taskId: target.taskId,
-        });
-
-        // If we can't find the task in the grid view anymore then we won't undo these
-        // actions because the user won't see the result. Unless the actions we're
-        // undoing removed the task from our query. If that happened we know for sure
-        // we won't find the task in our grid view. Undoing should bring the task back
-        // to our grid view.
-        //
-        // Reasons why the task might no longer be in the grid view:
-        //
-        // - Some other user changed a field such that it was filtered out of the
-        //   grid view.
-        // - Some other user changed a field (or dragged to move the task) such that
-        //   the task left our client's loaded range.
-        // - The user collapsed the expanded task this task was a child of.
-        //
-        // However we should still be able to find the task if:
-        //
-        // - The user scrolled the virtualized list and the task was unmounted. The
-        //   task should still exist in our state so we can scroll back to the right
-        //   index.
-        // - The user loaded some new tasks. This introduces new tasks and does not
-        //   remove old ones.
-        //
-        // We feel this is a reasonable set of tradeoffs for picking which undo actions
-        // we handle.
-        if (
-            !(entry.type === "Actions" && entry.removedFromQueries.has(rootQuery)) &&
-            startIndex === null
-        ) {
-            return false;
-        }
-
-        switch (entry.type) {
-            case "Actions": {
-                rootQuery.store.commitTaskActionTransaction(
-                    context,
-                    entry.undoActions.get(store.clock),
-                    {
-                        undoManager,
-                        affinityManager,
-                        leaseId: entry.leaseId,
-                    },
-                );
-                break;
+            // If this function returns true then the undo stack entry was handled.
+            if (onApplyUndoStackEntry?.({type, entry, target, undoManager})) {
+                return true;
             }
-            case "YDoc": {
-                if (type === "Undo") {
-                    entry.yUndoManager.undo();
-                } else {
-                    entry.yUndoManager.redo();
-                }
-                break;
-            }
-            // Note undo/redo is only applicable to `<TaskDetailView>`.
-            case "Notes": {
+
+            const startIndex = findTaskIndexInGridViewVirtualizedListIfExists({
+                state,
+                iterateRootExpandedTaskIds,
+                rootParentTaskId: entry.rootParentTaskId,
+                taskId: target.taskId,
+            });
+
+            // If we can't find the task in the grid view anymore then we won't undo these
+            // actions because the user won't see the result. Unless the actions we're
+            // undoing removed the task from our query. If that happened we know for sure
+            // we won't find the task in our grid view. Undoing should bring the task back
+            // to our grid view.
+            //
+            // Reasons why the task might no longer be in the grid view:
+            //
+            // - Some other user changed a field such that it was filtered out of the
+            //   grid view.
+            // - Some other user changed a field (or dragged to move the task) such that
+            //   the task left our client's loaded range.
+            // - The user collapsed the expanded task this task was a child of.
+            //
+            // However we should still be able to find the task if:
+            //
+            // - The user scrolled the virtualized list and the task was unmounted. The
+            //   task should still exist in our state so we can scroll back to the right
+            //   index.
+            // - The user loaded some new tasks. This introduces new tasks and does not
+            //   remove old ones.
+            //
+            // We feel this is a reasonable set of tradeoffs for picking which undo actions
+            // we handle.
+            if (
+                !(entry.type === "Actions" && entry.removedFromQueries.has(rootQuery)) &&
+                startIndex === null
+            ) {
                 return false;
             }
-            default:
-                throw exhaustive(entry);
-        }
 
-        const endIndex = findTaskIndexInGridViewVirtualizedListIfExists({
-            // `stateStore` will have updated after the commit above but `state` will still
-            // be the old value.
-            state: stateStore.getSnapshot(),
-            iterateRootExpandedTaskIds,
-            rootParentTaskId: entry.rootParentTaskId,
-            taskId: target.taskId,
-        });
-
-        const focusCell = (index: number) => {
-            const startTime = Date.now();
-
-            // If the row is currently onscreen, great! We can focus immediately. However,
-            // we may be scrolling to the row. We've found the most consistent way to focus
-            // the row is to wait in a `requestAnimationFrame()` loop for the row to
-            // appear. Checking after `onRenderedRangeLayoutChange` doesn't always work
-            // since we've observed intermediate rendered range changes? This does depend
-            // on the scroll render taking less than 1s. If it takes more than 1s we have
-            // bigger problems. (Grid view rendering performance is unacceptably bad.)
-            const attempt = () => {
-                if (Date.now() - startTime > 1000) return;
-
-                const taskRow = events.getTaskRowByIndexIfExists(index);
-                if (taskRow) {
-                    // If focus is already within the cell then don't focus again.
-                    if (!taskRow.isFocusWithinCell(target.column)) {
-                        setInteractionModality("keyboard");
-                        taskRow.focusCell(target.column);
-                    }
-                } else {
-                    requestAnimationFrame(attempt);
+            switch (entry.type) {
+                case "Actions": {
+                    rootQuery.store.commitTaskActionTransaction(
+                        context,
+                        entry.undoActions.get(store.clock),
+                        {
+                            undoManager,
+                            affinityManager,
+                            leaseId: entry.leaseId,
+                        },
+                    );
+                    break;
                 }
+                case "YDoc": {
+                    if (type === "Undo") {
+                        entry.yUndoManager.undo();
+                    } else {
+                        entry.yUndoManager.redo();
+                    }
+                    break;
+                }
+                // Note undo/redo is only applicable to `<TaskDetailView>`.
+                case "Notes": {
+                    return false;
+                }
+                default:
+                    throw exhaustive(entry);
+            }
+
+            const endIndex = findTaskIndexInGridViewVirtualizedListIfExists({
+                // `stateStore` will have updated after the commit above but `state` will still
+                // be the old value.
+                state: stateStore.getSnapshot(),
+                iterateRootExpandedTaskIds,
+                rootParentTaskId: entry.rootParentTaskId,
+                taskId: target.taskId,
+            });
+
+            const focusCell = (index: number) => {
+                const startTime = Date.now();
+
+                // If the row is currently onscreen, great! We can focus immediately. However,
+                // we may be scrolling to the row. We've found the most consistent way to focus
+                // the row is to wait in a `requestAnimationFrame()` loop for the row to
+                // appear. Checking after `onRenderedRangeLayoutChange` doesn't always work
+                // since we've observed intermediate rendered range changes? This does depend
+                // on the scroll render taking less than 1s. If it takes more than 1s we have
+                // bigger problems. (Grid view rendering performance is unacceptably bad.)
+                const attempt = () => {
+                    if (Date.now() - startTime > 1000) return;
+
+                    const taskRow = events.getTaskRowByIndexIfExists(index);
+                    if (taskRow) {
+                        // If focus is already within the cell then don't focus again.
+                        if (!taskRow.isFocusWithinCell(target.column)) {
+                            setInteractionModality("keyboard");
+                            taskRow.focusCell(target.column);
+                        }
+                    } else {
+                        requestAnimationFrame(attempt);
+                    }
+                };
+
+                attempt();
             };
 
-            attempt();
-        };
-
-        if (startIndex === null) {
-            if (endIndex === null) {
-                // TODO(calebmer): We should probably show a toast or something here to let the
-                // user know something happened even if nothing on screen changed. A simple
-                // modal along the lines of "undo successful" is good.
+            if (startIndex === null) {
+                if (endIndex === null) {
+                    // TODO(calebmer): We should probably show a toast or something here to let the
+                    // user know something happened even if nothing on screen changed. A simple
+                    // modal along the lines of "undo successful" is good.
+                } else {
+                    onLayoutEffectCallbacksRef.current.push(() => {
+                        const index = endIndex + itemCountBeforeState;
+                        view.scrollToIndex(index, {withAnchor: false});
+                        focusCell(index);
+                    });
+                }
+            }
+            // If the task didn't move, scroll to it immediately. Otherwise wait for React
+            // to re-render, then scroll. Since we want to the virtualized list won't know
+            // our target task is at `endIndex` until after the React re-render.
+            //
+            // If we can't find the task after the update we scroll to the task's original
+            // position in the hope that's helpful to the user. We don't expect `endIndex`
+            // to be null outside of extreme edge cases! In order for the action's we're
+            // undoing to be applied in the first place the task had to have been in the
+            // query's loaded range. A query's loaded range never shrinks, it only grows.
+            else if (endIndex === null || startIndex === endIndex) {
+                const index = startIndex + itemCountBeforeState;
+                view.scrollToIndex(index, {withAnchor: false});
+                focusCell(index);
             } else {
                 onLayoutEffectCallbacksRef.current.push(() => {
                     const index = endIndex + itemCountBeforeState;
@@ -837,29 +860,9 @@ export function useTaskGridViewVirtualizedList({
                     focusCell(index);
                 });
             }
-        }
-        // If the task didn't move, scroll to it immediately. Otherwise wait for React
-        // to re-render, then scroll. Since we want to the virtualized list won't know
-        // our target task is at `endIndex` until after the React re-render.
-        //
-        // If we can't find the task after the update we scroll to the task's original
-        // position in the hope that's helpful to the user. We don't expect `endIndex`
-        // to be null outside of extreme edge cases! In order for the action's we're
-        // undoing to be applied in the first place the task had to have been in the
-        // query's loaded range. A query's loaded range never shrinks, it only grows.
-        else if (endIndex === null || startIndex === endIndex) {
-            const index = startIndex + itemCountBeforeState;
-            view.scrollToIndex(index, {withAnchor: false});
-            focusCell(index);
-        } else {
-            onLayoutEffectCallbacksRef.current.push(() => {
-                const index = endIndex + itemCountBeforeState;
-                view.scrollToIndex(index, {withAnchor: false});
-                focusCell(index);
-            });
-        }
 
-        return true;
+            return true;
+        });
     };
 
     const undo = () => {

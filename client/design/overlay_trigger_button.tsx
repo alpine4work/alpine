@@ -39,6 +39,7 @@ import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -104,6 +105,7 @@ function OverlayTriggerButton(
         fallbackPlacements,
         offset = defaultTooltipOffset,
         offsetAlong,
+        withoutButtonElementRequirement = false,
         children: actualChildren,
         onOpen: _onOpen,
         onClose: _onClose,
@@ -152,6 +154,11 @@ function OverlayTriggerButton(
          * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
          */
         offsetAlong?: Spacing | `-${Spacing}`;
+
+        /**
+         * Disable the requirement that `children` must be a `<button>` element.
+         */
+        withoutButtonElementRequirement?: boolean;
 
         /**
          * The button element which opens and closes the overlay. Must provide a ref to
@@ -266,14 +273,21 @@ function OverlayTriggerButton(
     const isWaitingForOverlayPortalElement = useIsWaitingForOverlayPortalElement(state.isExpanded);
 
     const overlayTriggerLifecycleRef = useCallback(
-        (overlayTriggerElement: HTMLButtonElement) => {
+        (overlayTriggerElement: HTMLElement) => {
             // We require an HTML `<button>` element for accessibility. Another option
             // is allowing arbitrary HTML elements that have the appropriate role and
             // tab-index.
-            assert(
-                overlayTriggerElement instanceof HTMLButtonElement,
-                "Expected the children of `<OverlayTrigger>` to render an element with a ref to an HTML `<button>` element",
-            );
+            if (withoutButtonElementRequirement) {
+                assert(
+                    overlayTriggerElement instanceof HTMLElement,
+                    "Expected the children of `<OverlayTrigger>` to render with a ref to an element",
+                );
+            } else {
+                assert(
+                    overlayTriggerElement instanceof HTMLButtonElement,
+                    "Expected the children of `<OverlayTrigger>` to render with a ref to an HTML `<button>` element",
+                );
+            }
 
             // If the overlay portal element is not ready then `overlayRef` will not have
             // mounted yet even if `state.isExpanded` is true.
@@ -289,7 +303,11 @@ function OverlayTriggerButton(
             // https://www.w3.org/TR/wai-aria-practices-1.2/#keyboard-interaction-13
             function handleKeyDown(event: KeyboardEvent) {
                 if (state.isExpanded) return;
-                if (overlayTriggerElement.disabled) return;
+                if (
+                    overlayTriggerElement instanceof HTMLButtonElement &&
+                    overlayTriggerElement.disabled
+                )
+                    return;
 
                 switch (event.key) {
                     case "ArrowDown": {
@@ -363,7 +381,13 @@ function OverlayTriggerButton(
             }
 
             function handlePointerDown(event: PointerEvent) {
-                if (overlayTriggerElement.disabled) return;
+                if (
+                    overlayTriggerElement instanceof HTMLButtonElement &&
+                    overlayTriggerElement.disabled
+                ) {
+                    return;
+                }
+
                 if (isRightClick(event)) return;
 
                 isPointerDown = true;
@@ -463,7 +487,13 @@ function OverlayTriggerButton(
                 overlayTriggerElement.removeEventListener("keydown", handleKeyDown);
             };
         },
-        [ariaHasPopup, isWaitingForOverlayPortalElement, onOpen, state.isExpanded],
+        [
+            ariaHasPopup,
+            isWaitingForOverlayPortalElement,
+            onOpen,
+            state.isExpanded,
+            withoutButtonElementRequirement,
+        ],
     );
 
     // Close the overlay if there’s a click somewhere else in the document outside
@@ -613,54 +643,63 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
         );
         const overlayElement = overlayRef.current;
 
-        switch (initiallyFocus) {
-            case "OverlayElement": {
-                if (overlayElement.matches(focusableElementSelector)) {
-                    overlayElement.focus({preventScroll: true});
-                    break;
-                }
+        const run = () => {
+            switch (initiallyFocus) {
+                case "OverlayElement": {
+                    if (overlayElement.matches(focusableElementSelector)) {
+                        overlayElement.focus({preventScroll: true});
+                        break;
+                    }
 
-                // Intentional fallthrough to next case...
-            }
-            case "FirstFocusableElement": {
-                // NOTE(calebmer): For some reason for iOS Safari to render the text caret in
-                // a focused input we need to wait an animation frame before calling `focus()`.
-                // Otherwise we focus but don't show the cursor. This happens with the task
-                // collection filter editor.
-                if (!isMobileWebKit) {
-                    getNextFocusableElementIfExists(null, {
-                        withinElement: overlayElement,
-                    })?.focus({preventScroll: true});
-                } else {
-                    requestAnimationFrame(() => {
+                    // Intentional fallthrough to next case...
+                }
+                case "FirstFocusableElement": {
+                    // NOTE(calebmer): For some reason for iOS Safari to render the text caret in
+                    // a focused input we need to wait an animation frame before calling `focus()`.
+                    // Otherwise we focus but don't show the cursor. This happens with the task
+                    // collection filter editor.
+                    if (!isMobileWebKit) {
                         getNextFocusableElementIfExists(null, {
                             withinElement: overlayElement,
                         })?.focus({preventScroll: true});
-                    });
+                    } else {
+                        requestAnimationFrame(() => {
+                            getNextFocusableElementIfExists(null, {
+                                withinElement: overlayElement,
+                            })?.focus({preventScroll: true});
+                        });
+                    }
+                    break;
                 }
-                break;
-            }
-            case "LastFocusableElement": {
-                // NOTE(calebmer): For some reason for iOS Safari to render the text caret in
-                // a focused input we need to wait an animation frame before calling `focus()`.
-                // Otherwise we focus but don't show the cursor. This happens with the task
-                // collection filter editor.
-                if (!isMobileWebKit) {
-                    getLastFocusableElementIfExists({withinElement: overlayElement})?.focus({
-                        preventScroll: true,
-                    });
-                } else {
-                    requestAnimationFrame(() => {
+                case "LastFocusableElement": {
+                    // NOTE(calebmer): For some reason for iOS Safari to render the text caret in
+                    // a focused input we need to wait an animation frame before calling `focus()`.
+                    // Otherwise we focus but don't show the cursor. This happens with the task
+                    // collection filter editor.
+                    if (!isMobileWebKit) {
                         getLastFocusableElementIfExists({withinElement: overlayElement})?.focus({
                             preventScroll: true,
                         });
-                    });
+                    } else {
+                        requestAnimationFrame(() => {
+                            getLastFocusableElementIfExists({withinElement: overlayElement})?.focus(
+                                {
+                                    preventScroll: true,
+                                },
+                            );
+                        });
+                    }
+                    break;
                 }
-                break;
+                default:
+                    throw exhaustive(initiallyFocus);
             }
-            default:
-                throw exhaustive(initiallyFocus);
-        }
+        };
+
+        // Focus after a microtask. This allows any parent layout effects to run. Which
+        // is important since our parent component `<Overlay>`'s layout effects need to
+        // run for the `data-ownedby` attribute to be set and Popper to run its layout.
+        scheduleMicrotask(run);
     }, [initiallyFocus]);
 
     // While the overlay is open, we want to disable all other tooltips in the

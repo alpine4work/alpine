@@ -9,7 +9,7 @@ import {
     getFileFromAttachment,
     startUploadingFile,
 } from "~/server/files/data/files_table.js";
-import {FileChannelAuthorizer, FilePostAuthorizer} from "~/server/forum/data/forum_table.js";
+import {FilePostAuthorizer} from "~/server/forum/data/forum_table.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/task_table.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -18,19 +18,17 @@ import * as definitions from "~/shared/rpc/files_rpc_definitions.js";
 
 export function getFileAttachmentTargetAuthorizer(target: FileAttachmentTarget): FileAuthorizer {
     switch (target.type) {
-        case "ChatMessage":
+        case "ChatMessages":
             return FileChatAuthorizer.bind(target);
-        case "ChannelDescription":
-            return FileChannelAuthorizer.bind(target);
         case "Document":
-        case "DocumentComment":
+        case "DocumentComments":
             return FileDocumentAuthorizer.bind(target);
         case "Post":
         case "PostDraft":
-        case "PostComment":
+        case "PostComments":
             return FilePostAuthorizer.bind(target);
         case "TaskNotes":
-        case "TaskComment":
+        case "TaskComments":
             return FileTaskAuthorizer.bind(target);
         default:
             throw exhaustive(target);
@@ -78,11 +76,22 @@ export default implementRpcs(definitions, {
         },
     },
 
-    getFileWithoutSignedUrlAsUploader: {
-        visibility: ["EdgeService"],
+    getFileAsUploader: {
+        visibility: ["AppClient"],
         execute: async (context, input) => {
             const file = await getFileAsUploader(context, input.spaceId, input.fileId);
-            return {file};
+
+            // It's ok to generate a signed URL here since `getFileFromAttachment()`
+            // authorizes that the actor has access to the file.
+            const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
+                input.spaceId,
+                input.fileId,
+            );
+
+            return {
+                signedUrlSearch: signedUrl.search,
+                file,
+            };
         },
     },
 
@@ -110,6 +119,14 @@ export default implementRpcs(definitions, {
         },
     },
 
+    getFileWithoutSignedUrlAsUploader: {
+        visibility: ["AppClient", "EdgeService"],
+        execute: async (context, input) => {
+            const file = await getFileAsUploader(context, input.spaceId, input.fileId);
+            return {file};
+        },
+    },
+
     getFileWithoutSignedUrlFromAttachment: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
@@ -123,6 +140,22 @@ export default implementRpcs(definitions, {
             return {
                 file,
             };
+        },
+    },
+
+    getFileSignedUrlAsUploader: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await getFileAsUploader(context, input.spaceId, input.fileId);
+
+            // It's ok to generate a signed URL here since `getFileFromAttachment()`
+            // authorizes that the actor has access to the file.
+            const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
+                input.spaceId,
+                input.fileId,
+            );
+
+            return {signedUrlSearch: signedUrl.search};
         },
     },
 
@@ -150,14 +183,24 @@ export default implementRpcs(definitions, {
     attachFileAsUploader: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            await attachFileAsUploader(
+            const file = await attachFileAsUploader(
                 context,
                 input.spaceId,
                 input.fileId,
                 getFileAttachmentTargetAuthorizer(input.target),
             );
 
-            return {};
+            // It's ok to generate a signed URL here since `attachFileFromAttachment()`
+            // authorizes that the actor has access to the file.
+            const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
+                input.spaceId,
+                input.fileId,
+            );
+
+            return {
+                signedUrlSearch: signedUrl.search,
+                file,
+            };
         },
     },
 

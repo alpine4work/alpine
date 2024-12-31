@@ -11,6 +11,7 @@ ts_project(
         "//server/dynamo/test_helpers",
         "//server/files/test_helpers",
         "//server/forum/data:data_testonly",
+        "//server/messaging/test_helpers",
         "//server/spaces/test_helpers",
         "//shared/forum",
         "//shared/helpers",

@@ -242,7 +242,7 @@ test("can copy when selection is partially within content view and partially out
         }),
     ).toEqual({
         text: "psum dolor sit amet, consectetur adipiscing elit.\n\nVivamus sed orci sed mauris fringilla ph",
-        html: 'psum dolor sit amet, consectetur adipiscing elit.<br><br><p data-pm-slice="0 1 []">Vivamus sed orci sed mauris fringilla ph</p>',
+        html: 'psum dolor sit amet, consectetur adipiscing elit.<p data-pm-slice="0 1 []">Vivamus sed orci sed mauris fringilla ph</p>',
     });
 
     expect(
@@ -254,7 +254,7 @@ test("can copy when selection is partially within content view and partially out
         }),
     ).toEqual({
         text: "psum dolor sit amet, consectetur adipiscing elit.\n\nVivamus sed orci sed mauris fringilla pharetra nec sed ex.\n\nSed vestibulum turpis sed elementum consectetur.\n\nNulla sit amet elit plac",
-        html: 'psum dolor sit amet, consectetur adipiscing elit.<br><br><p data-pm-slice="0 0 []">Vivamus sed orci sed mauris fringilla pharetra nec sed ex.</p><br><br>Sed vestibulum turpis sed elementum consectetur.<br><br>Nulla sit amet elit plac',
+        html: 'psum dolor sit amet, consectetur adipiscing elit.<p data-pm-slice="0 0 []">Vivamus sed orci sed mauris fringilla pharetra nec sed ex.</p>Sed vestibulum turpis sed elementum consectetur.<br><br>Nulla sit amet elit plac',
     });
 
     expect(
@@ -268,7 +268,7 @@ test("can copy when selection is partially within content view and partially out
         }),
     ).toEqual({
         text: "psum dolor sit amet, consectetur adipiscing elit.\n\nVivamus sed orci sed mauris fringilla pharetra nec sed ex.\n\nSed vestibulum turpis sed elementum consectetur.\n\nNulla sit amet elit placerat, dapibus leo vel, pellentesque velit.\n\nPellentesque vitae e",
-        html: 'psum dolor sit amet, consectetur adipiscing elit.<br><br><p data-pm-slice="0 0 []">Vivamus sed orci sed mauris fringilla pharetra nec sed ex.</p><br><br>Sed vestibulum turpis sed elementum consectetur.<br><br>Nulla sit amet elit placerat, dapibus leo vel, pellentesque velit.<br><br><p data-pm-slice="0 1 []">Pellentesque vitae e</p>',
+        html: 'psum dolor sit amet, consectetur adipiscing elit.<p data-pm-slice="0 0 []">Vivamus sed orci sed mauris fringilla pharetra nec sed ex.</p>Sed vestibulum turpis sed elementum consectetur.<br><br>Nulla sit amet elit placerat, dapibus leo vel, pellentesque velit.<p data-pm-slice="0 1 []">Pellentesque vitae e</p>',
     });
 
     expect(
@@ -280,7 +280,7 @@ test("can copy when selection is partially within content view and partially out
         }),
     ).toEqual({
         text: "psum dolor sit amet, consectetur adipiscing elit.\n\nVivamus sed orci sed mauris fringilla pharetra nec sed ex.\n\nSed vestibulum turpis sed elementum consectetur.\n\nNulla sit amet elit placerat, dapibus leo vel, pellentesque velit.\n\nPellentesque vitae erat eget ex faucibus consectetur aliquam eget ligula.\n\nDuis rut",
-        html: 'psum dolor sit amet, consectetur adipiscing elit.<br><br><p data-pm-slice="0 0 []">Vivamus sed orci sed mauris fringilla pharetra nec sed ex.</p><br><br>Sed vestibulum turpis sed elementum consectetur.<br><br>Nulla sit amet elit placerat, dapibus leo vel, pellentesque velit.<br><br><p data-pm-slice="0 0 []">Pellentesque vitae erat eget ex faucibus consectetur aliquam eget ligula.</p><br><br>Duis rut',
+        html: 'psum dolor sit amet, consectetur adipiscing elit.<p data-pm-slice="0 0 []">Vivamus sed orci sed mauris fringilla pharetra nec sed ex.</p>Sed vestibulum turpis sed elementum consectetur.<br><br>Nulla sit amet elit placerat, dapibus leo vel, pellentesque velit.<p data-pm-slice="0 0 []">Pellentesque vitae erat eget ex faucibus consectetur aliquam eget ligula.</p>Duis rut',
     });
 
     expect(
@@ -294,7 +294,7 @@ test("can copy when selection is partially within content view and partially out
         }),
     ).toEqual({
         text: "aretra nec sed ex.\n\nSed vestibulum turpis sed elementum consectetur.\n\nNulla sit amet elit placerat, dapibus leo vel, pellentesque velit.\n\nPellentesque vitae erat eget ex faucibus consectetur aliquam eget ligula.\n\nDuis rut",
-        html: '<p data-pm-slice="1 0 []">aretra nec sed ex.</p><br><br>Sed vestibulum turpis sed elementum consectetur.<br><br>Nulla sit amet elit placerat, dapibus leo vel, pellentesque velit.<br><br><p data-pm-slice="0 0 []">Pellentesque vitae erat eget ex faucibus consectetur aliquam eget ligula.</p><br><br>Duis rut',
+        html: '<p data-pm-slice="1 0 []">aretra nec sed ex.</p>Sed vestibulum turpis sed elementum consectetur.<br><br>Nulla sit amet elit placerat, dapibus leo vel, pellentesque velit.<p data-pm-slice="0 0 []">Pellentesque vitae erat eget ex faucibus consectetur aliquam eget ligula.</p>Duis rut',
     });
 
     expect(
@@ -306,7 +306,7 @@ test("can copy when selection is partially within content view and partially out
         }),
     ).toEqual({
         text: "erat, dapibus leo vel, pellentesque velit.\n\nPellentesque vitae erat eget ex faucibus consectetur aliquam eget ligula.\n\nDuis rut",
-        html: 'erat, dapibus leo vel, pellentesque velit.<br><br><p data-pm-slice="0 0 []">Pellentesque vitae erat eget ex faucibus consectetur aliquam eget ligula.</p><br><br>Duis rut',
+        html: 'erat, dapibus leo vel, pellentesque velit.<p data-pm-slice="0 0 []">Pellentesque vitae erat eget ex faucibus consectetur aliquam eget ligula.</p>Duis rut',
     });
 
     expect(
@@ -320,7 +320,7 @@ test("can copy when selection is partially within content view and partially out
         }),
     ).toEqual({
         text: "rat eget ex faucibus consectetur aliquam eget ligula.\n\nDuis rut",
-        html: '<p data-pm-slice="1 0 []">rat eget ex faucibus consectetur aliquam eget ligula.</p><br><br>Duis rut',
+        html: '<p data-pm-slice="1 0 []">rat eget ex faucibus consectetur aliquam eget ligula.</p>Duis rut',
     });
 
     expect(
@@ -336,6 +336,6 @@ test("can copy when selection is partially within content view and partially out
         }),
     ).toEqual({
         text: "aretra nec sed ex.\n\nSed vestibulum turpis sed elementum consectetur.\n\nNulla sit amet elit placerat, dapibus leo vel, pellentesque velit.\n\nPellentesque vitae e",
-        html: '<p data-pm-slice="1 0 []">aretra nec sed ex.</p><br><br>Sed vestibulum turpis sed elementum consectetur.<br><br>Nulla sit amet elit placerat, dapibus leo vel, pellentesque velit.<br><br><p data-pm-slice="0 1 []">Pellentesque vitae e</p>',
+        html: '<p data-pm-slice="1 0 []">aretra nec sed ex.</p>Sed vestibulum turpis sed elementum consectetur.<br><br>Nulla sit amet elit placerat, dapibus leo vel, pellentesque velit.<p data-pm-slice="0 1 []">Pellentesque vitae e</p>',
     });
 });

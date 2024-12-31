@@ -1,24 +1,17 @@
 import {style} from "@vanilla-extract/css";
 import {
     darkColorSchemeSelector,
-    largeSpacingScaleSelector,
     lightColorSchemeSelector,
-    mediumSpacingScaleSelector,
-    smallSpacingScaleSelector,
+    selectorBySpacingScale,
 } from "~/client/styles/core/styles_core.js";
 import {colorsWithShade, invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
 
 export const sawtoothSize = "4";
 export const sawtoothSizeRem = parseRemLength(sawtoothSize);
-
-const remPxBySelector = {
-    [smallSpacingScaleSelector]: remPxBySpacingScale.small,
-    [mediumSpacingScaleSelector]: remPxBySpacingScale.medium,
-    [largeSpacingScaleSelector]: remPxBySpacingScale.large,
-};
 
 const colorBySelector = {
     [lightColorSchemeSelector]: colorsWithShade["grey-10"],
@@ -30,12 +23,15 @@ export const sawtoothBorderClassName = style({
     height: `${sawtoothSizeRem}rem`,
     backgroundRepeat: "repeat-x",
     selectors: Object.fromEntries(
-        Object.entries(remPxBySelector).flatMap(([selector1, remPx]) =>
+        getObjectEntriesWithKeyofType(selectorBySpacingScale).flatMap(([spacingScale, selector1]) =>
             Object.entries(colorBySelector).map(([selector2, color]) => [
                 `${selector1}${selector2} &`,
                 {
                     backgroundImage: `url("${convertSvgToDataUrl(
-                        createSawtoothSvg(sawtoothSizeRem * remPx, color),
+                        createSawtoothSvg(
+                            sawtoothSizeRem * remPxBySpacingScale[spacingScale],
+                            color,
+                        ),
                     )}")`,
                 },
             ]),

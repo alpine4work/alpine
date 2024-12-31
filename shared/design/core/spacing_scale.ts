@@ -1,3 +1,5 @@
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+
 /**
  * The spacing scale for the design system.
  *
@@ -16,6 +18,13 @@
  * of the available space.
  */
 export type SpacingScale = "small" | "medium" | "large";
+
+/**
+ * All the spacing scales.
+ */
+export const allSpacingScales = ["small", "medium", "large"] as const;
+
+assertEqualTypes<(typeof allSpacingScales)[number], SpacingScale>();
 
 /**
  * The minimum width to start rendering the `medium` spacing scale (inclusive).

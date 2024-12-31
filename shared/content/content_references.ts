@@ -1,5 +1,6 @@
 import {Node} from "prosemirror-model";
 import {FileModel} from "~/shared/files/file_model.js";
+import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
@@ -33,9 +34,21 @@ export const ContentReferencesSchema = Schema.object({
      * You won't find a Remix route for this path since it's handled by
      * `EdgeService`.
      */
-    // TODO(calebmer, #files): Right now files are only allowed in document content
-    // but eventually all content will need to support files. Which is why we have
-    // it here even if that's a little premature.
+    // NOTE(calebmer, 2024-12-29): While this is in `ContentReferences`, not all
+    // content types support files. Notably `MessageContent` does not support
+    // files. Instead we attach files at the message level instead of directly
+    // within content. When I added `fileById` here I thought I was going to be
+    // adding files to `MessageContent` as well.
+    //
+    // Now, separating the `ContentReferences` type into `ContentReferences` (which
+    // doesn't have `fileById`) and, say, `ContentReferencesWithFiles` (which does
+    // have `fileById`) used by `PostContentWithReferences` and
+    // `TaskNotesContentWithReferences` adds a lot of unnecessary complexity.
+    // `fileById` here adds such a minimal amount of overhead, the excessive extra
+    // code complexity isn't worth it at the moment.
+    //
+    // (If you look at the parent commit you can see my half complete, abandoned,
+    // attempt at splitting this type in two.)
     fileById: Schema.map(
         Schema.id<FileId>(),
         Schema.object({
@@ -56,8 +69,8 @@ export type ContentWithReferences = {
 };
 
 export const emptyContentReferences: ContentReferences = {
-    accountById: new Map(),
-    fileById: new Map(),
+    accountById: emptyMap,
+    fileById: emptyMap,
 };
 
 /**

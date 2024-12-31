@@ -1,4 +1,4 @@
-import {expect, test} from "@playwright/test";
+import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
@@ -10,6 +10,18 @@ const {context, services} = createTestServices();
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space);
 const session2 = createTestSession(context, space);
+
+async function tapSendComment(page: Page) {
+    await expect(page.getByRole("button", {name: "Send comment"})).toBeEnabled();
+
+    // Make sure the keyboard toolbar isn't animating when we tap.
+    await (await page
+        .getByRole("button", {name: "Send comment"})
+        .elementHandle())!.waitForElementState("stable");
+
+    await page.getByRole("button", {name: "Send comment"}).tap();
+    await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
+}
 
 test("can reply to a comment", async ({page, context: browserContext, isMobile}) => {
     const channel = await createChannel(context.action(session1), {
@@ -26,39 +38,45 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
+        fileIds: [],
     });
 
     await createPostComment(context.action(session2), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 2"),
+        fileIds: [],
     });
 
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/posts/${post.id}`);
 
     const replyToTestId = async (testId: string) => {
-        if (!isMobile) {
-            await page.getByTestId(testId).getByRole("button", {name: "Reply"}).press("Enter");
-            return;
-        }
-
-        // Simulate a long press on mobile devices...
-
-        const message = page.getByTestId(testId).getByTestId("MessageViewBubble");
+        const message = page.getByTestId(testId).getByTestId("MessageViewContent");
         await expect(message).toBeVisible();
 
-        await expect(page.getByRole("menuitem", {name: "Reply"})).toBeHidden();
-        await message.dispatchEvent("touchstart");
-        await expect(page.getByRole("menuitem", {name: "Reply"})).toBeVisible();
-        await message.dispatchEvent("touchend");
+        if (!isMobile) {
+            await message.dispatchEvent("contextmenu");
+            await page.getByTestId("ContextMenu").getByText("Reply").click();
+        } else {
+            // Simulate a long press on mobile devices...
 
-        await page.getByRole("menuitem", {name: "Reply"}).click();
+            await expect(page.getByRole("menuitem", {name: "Reply"})).toBeHidden();
+            await message.dispatchEvent("touchstart");
+            await expect(page.getByRole("menuitem", {name: "Reply"})).toBeVisible();
+            await message.dispatchEvent("touchend");
+
+            await page.getByRole("menuitem", {name: "Reply"}).click();
+        }
     };
 
     // Existing messages aren't replying to anything.
-    await expect(page.getByTestId(`MessageView:${post.id}:0`).getByText("replied to")).toBeHidden();
-    await expect(page.getByTestId(`MessageView:${post.id}:1`).getByText("replied to")).toBeHidden();
+    await expect(
+        page.getByTestId(`MessageView:${post.id}:0`).getByTestId("MessageViewParent"),
+    ).toBeHidden();
+    await expect(
+        page.getByTestId(`MessageView:${post.id}:1`).getByTestId("MessageViewParent"),
+    ).toBeHidden();
 
     // Reply to the first comment.
     {
@@ -83,7 +101,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
         if (!isMobile) {
             await page.getByRole("textbox", {name: "New comment"}).press("Enter");
         } else {
-            await page.getByRole("button", {name: "Send comment"}).click();
+            await tapSendComment(page);
         }
 
         await expect(
@@ -93,7 +111,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
         ).toBeHidden();
 
         await expect(
-            page.getByTestId(`MessageView:${post.id}:2`).getByText("replied to"),
+            page.getByTestId(`MessageView:${post.id}:2`).getByTestId("MessageViewParent"),
         ).toBeVisible();
         await expect(
             page.getByTestId(`MessageView:${post.id}:2`).getByText("Test post comment content 3"),
@@ -151,7 +169,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
         if (!isMobile) {
             await page.getByRole("textbox", {name: "New comment"}).press("Enter");
         } else {
-            await page.getByRole("button", {name: "Send comment"}).click();
+            await tapSendComment(page);
         }
 
         await expect(
@@ -161,7 +179,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
         ).toBeHidden();
 
         await expect(
-            page.getByTestId(`MessageView:${post.id}:3`).getByText("replied to"),
+            page.getByTestId(`MessageView:${post.id}:3`).getByTestId("MessageViewParent"),
         ).toBeVisible();
         await expect(
             page.getByTestId(`MessageView:${post.id}:3`).getByText("Test post comment content 4"),
@@ -172,10 +190,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
     }
 });
 
-test("clicking a reply bubble will scroll to the comment", async ({
-    page,
-    context: browserContext,
-}) => {
+test("clicking a reply will scroll to the comment", async ({page, context: browserContext}) => {
     const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
@@ -195,6 +210,7 @@ test("clicking a reply bubble will scroll to the comment", async ({
                     i + 1
                 }: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec ac varius turpis, vel lacinia lectus. Cras ultricies felis purus, a mollis leo suscipit nec. Duis in eros libero. Pellentesque sed volutpat nunc. Fusce accumsan, turpis non cursus bibendum, lorem tortor sollicitudin augue, ut efficitur lectus augue id felis. Duis vel dolor ante. Fusce dictum tempor lacus, vitae interdum nibh bibendum eget.`,
             ),
+            fileIds: [],
         });
     }
 
@@ -202,6 +218,7 @@ test("clicking a reply bubble will scroll to the comment", async ({
         postId: post.id,
         parentCommentIndex: 49,
         content: createSimpleMessageContent("Test post comment content 101"),
+        fileIds: [],
     });
 
     await services.signIn(browserContext, session1);

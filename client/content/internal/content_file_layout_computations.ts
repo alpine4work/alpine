@@ -1,7 +1,12 @@
 import * as kiwi from "@lume/kiwi";
 import {contentStyles} from "~/client/styles/styles.js";
 import {Platform} from "~/shared/design/core/platform.js";
-import {screenPaddingXRem} from "~/shared/design/core/spacing.js";
+import {
+    RemLength,
+    convertRemLengthToPx,
+    screenPaddingXRem,
+    spacing,
+} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileModelData} from "~/shared/files/file_model.js";
 import {
@@ -73,10 +78,16 @@ export function computeContentFileRowLayout<Files extends Array<FileModelData | 
         screenWidth,
         platform,
         spacingScale,
+        withoutBlockMaxWidth = false,
+        maxHeight: rowMaxHeight = spacing[contentStyles.fileRowMaxHeight],
+        marginLeft = "0rem",
     }: {
         screenWidth: number;
         platform: Platform;
         spacingScale: SpacingScale;
+        withoutBlockMaxWidth?: boolean;
+        maxHeight?: RemLength;
+        marginLeft?: RemLength;
     },
 ): {[Key in keyof Files]: ContentFileLayout} {
     assert(files.length >= 1);
@@ -162,7 +173,11 @@ export function computeContentFileRowLayout<Files extends Array<FileModelData | 
         // start to add resize artifacts) and the file row's maximum height.
         {
             const minHeight = contentStyles.fileMinSizeRem * remPx;
-            const maxHeight = clamp(minHeight, height, contentStyles.fileRowMaxHeightRem * remPx);
+            const maxHeight = clamp(
+                minHeight,
+                height,
+                convertRemLengthToPx(rowMaxHeight, spacingScale),
+            );
 
             if (minHeight === maxHeight) {
                 solver.addConstraint(
@@ -210,10 +225,11 @@ export function computeContentFileRowLayout<Files extends Array<FileModelData | 
         );
     }
 
-    const fileRowWidth = Math.min(
-        contentStyles.blockMaxWidthRem[platform] * remPx,
-        screenWidth - screenPaddingXRem[platform] * remPx * 2,
-    );
+    const fileRowWidth =
+        Math.min(
+            !withoutBlockMaxWidth ? contentStyles.blockMaxWidthRem[platform] * remPx : Infinity,
+            screenWidth - screenPaddingXRem[platform] * remPx * 2,
+        ) - convertRemLengthToPx(marginLeft, spacingScale);
 
     // When we add up all our widths it must be less than the total `fileRowWidth`.
     // Ideally the width is exactly equal to `fileRowWidth` but that's not possible
@@ -344,10 +360,12 @@ export function computeContentFileFloatLayout(
         screenWidth,
         platform,
         spacingScale,
+        withoutBlockMaxWidth = false,
     }: {
         screenWidth: number;
         platform: Platform;
         spacingScale: SpacingScale;
+        withoutBlockMaxWidth?: boolean;
     },
 ): ContentFileLayout {
     const remPx = remPxBySpacingScale[spacingScale];
@@ -355,7 +373,7 @@ export function computeContentFileFloatLayout(
 
     const fileFloatMaxWidth = Math.round(
         Math.min(
-            contentStyles.blockMaxWidthRem[platform] * remPx,
+            !withoutBlockMaxWidth ? contentStyles.blockMaxWidthRem[platform] * remPx : Infinity,
             screenWidth - screenPaddingXRem[platform] * remPx * 2,
         ) * contentStyles.fileFloatMaxWidthPercent,
     );
@@ -416,8 +434,12 @@ export function computeContentFileFloatLayout(
     // than both the file's original height (since making a small file larger will
     // start to add resize artifacts) and the file row's maximum height.
     {
-        const minHeight = contentStyles.fileFloatMinHeightRem * remPx;
-        const maxHeight = clamp(minHeight, height, contentStyles.fileRowMaxHeightRem * remPx);
+        const minHeight = contentStyles.fileFloatMinHeightPx[spacingScale];
+        const maxHeight = clamp(
+            minHeight,
+            height,
+            contentStyles.fileFloatMaxHeightPx[spacingScale],
+        );
 
         if (minHeight === maxHeight) {
             solver.addConstraint(
@@ -479,7 +501,7 @@ export function computeContentFileFloatLayout(
     {
         let lineCount =
             (heightVariable.value() + contentStyles.fileFloatMarginYRem * remPx * 2) /
-            (contentStyles.paragraphLineHeightRem * remPx);
+            contentStyles.paragraphLineHeightPx[spacingScale];
 
         // We actually are rounding to the nearest `n + 0.7` line count (where `n` is
         // an integer) that's smaller than the original file height. We have to strike
@@ -501,7 +523,7 @@ export function computeContentFileFloatLayout(
             new kiwi.Constraint(
                 heightVariable,
                 kiwi.Operator.Eq,
-                lineCount * (contentStyles.paragraphLineHeightRem * remPx) -
+                lineCount * contentStyles.paragraphLineHeightPx[spacingScale] -
                     contentStyles.fileFloatMarginYRem * remPx * 2,
                 kiwi.Strength.medium,
             ),

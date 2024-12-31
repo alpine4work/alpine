@@ -4,12 +4,15 @@ import {
     fontSizes,
     fontStyles,
     inputPlaceholderStyles,
+    largeSpacingScaleSelector,
+    mediumSpacingScaleSelector,
 } from "~/client/styles/core/styles_core.js";
 import {
-    defaultParagraphMargin,
-    paragraphFontSize,
+    paragraphLineHeightPx,
+    paragraphMargin,
 } from "~/client/styles/other/internal/content.css.js";
-import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
 export const textCursorNotInheritedClassName = style({
@@ -176,11 +179,21 @@ export const rowTitleInputMultilineAfterClassName = style({
     },
 });
 
-export const detailNotesContentEditorMinHeight = `${
-    parseRemLength(paragraphFontSize.lineHeight) * 2 + parseRemLength(defaultParagraphMargin) * 1
-}rem`;
+export const detailNotesContentEditorMinHeight = mapObjectValues(
+    paragraphLineHeightPx,
+    (paragraphLineHeight, spacingScale) =>
+        paragraphLineHeight * 2 + convertRemLengthToPx(paragraphMargin, spacingScale) * 1,
+);
 
 export const detailNotesContentEditorClassName = style({
     height: "100%",
-    minHeight: detailNotesContentEditorMinHeight,
+    minHeight: detailNotesContentEditorMinHeight.small,
+    selectors: {
+        [`${mediumSpacingScaleSelector} &`]: {
+            minHeight: detailNotesContentEditorMinHeight.medium,
+        },
+        [`${largeSpacingScaleSelector} &`]: {
+            minHeight: detailNotesContentEditorMinHeight.large,
+        },
+    },
 });

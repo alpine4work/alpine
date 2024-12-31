@@ -3,10 +3,13 @@ import {
     RemLength,
     Spacing,
     addRemLengths,
+    convertRemLengthToPx,
     parseRemLength,
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
+import {allSpacingScales} from "~/shared/design/core/spacing_scale.js";
+import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export const taskDetailViewSectionGap = "10";
@@ -78,11 +81,13 @@ export const taskRowViewIndentation = {
 
 export const taskRowViewIndentationRem = mapObjectValues(taskRowViewIndentation, parseRemLength);
 
-export const taskRowTitleInputPaddingY: RemLength = `${
-    (parseRemLength(taskRowViewMinHeight) -
-        parseRemLength(contentStyles.paragraphFontSize.lineHeight)) /
-    2
-}rem`;
+export const taskRowTitleInputPaddingYPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        (convertRemLengthToPx(taskRowViewMinHeight, spacingScale) -
+            contentStyles.paragraphLineHeightPx[spacingScale]) /
+        2,
+);
 
 export const taskNotepadViewActiveSectionCardGap: Spacing = "3";
 

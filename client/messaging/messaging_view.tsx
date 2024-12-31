@@ -12,7 +12,9 @@ import {
     useState,
 } from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {MessageInputFile} from "~/client/content/messaging/add_message_input_files.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
+import {useMessagingViewDropTarget} from "~/client/content/messaging/use_messaging_view_drop_target.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
@@ -29,16 +31,17 @@ import {
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
-import {usePlatform} from "~/client/remix/platform_context.js";
-import {messageInputMinHeight} from "~/client/styles/messaging_shared_styles.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing, screenPaddingX} from "~/shared/design/core/spacing.js";
+import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -60,8 +63,7 @@ type MessagingViewStateItem<Message extends MessageModel> =
           readonly type: "Header";
           readonly item: DistributiveOmit<VirtualizedScrollViewItem, "key">;
       }
-    | (MessageListItem<Message> & {readonly messageIndex: number})
-    | {readonly type: "Input"};
+    | (MessageListItem<Message> & {readonly messageIndex: number});
 
 class MessagingViewState<Message extends MessageModel> {
     private readonly _header: DistributiveOmit<VirtualizedScrollViewItem, "key"> | null;
@@ -77,7 +79,7 @@ class MessagingViewState<Message extends MessageModel> {
     }
 
     public getItemCount() {
-        return this.messages.getItemCount() + (this._header ? 1 : 0) + 1;
+        return this.messages.getItemCount() + (this._header ? 1 : 0);
     }
 
     public getItem(index: number): MessagingViewStateItem<Message> {
@@ -89,10 +91,6 @@ class MessagingViewState<Message extends MessageModel> {
                 };
             }
             index -= 1;
-        }
-
-        if (index === this.messages.getItemCount()) {
-            return {type: "Input"};
         }
 
         return {
@@ -117,16 +115,9 @@ class MessagingViewState<Message extends MessageModel> {
     ): {startIndex: number; endIndex: number} | null {
         if (!range) return null;
 
-        const itemCount = this.getItemCount();
-
-        assert(0 <= range.startIndex && range.startIndex < itemCount);
-        assert(0 <= range.endIndex && range.endIndex < itemCount);
+        assert(0 <= range.startIndex && range.startIndex < this.getItemCount());
+        assert(0 <= range.endIndex && range.endIndex < this.getItemCount());
         assert(range.startIndex <= range.endIndex);
-
-        if (range.startIndex >= itemCount - 1) return null;
-
-        if (range.endIndex >= itemCount - 1)
-            range = {startIndex: range.startIndex, endIndex: itemCount - 2};
 
         if (!this._header) return range;
 
@@ -197,6 +188,8 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         header,
         randomSeedForShimmer,
         isMessageCreationDisabled,
+        fileAttachmentTarget,
+        withAttachFileBeforeCreateMessage = false,
         getMessagesFromStart,
         getMessagesFromEnd,
         backfillMessages,
@@ -213,7 +206,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         elementRef,
         extraChildren,
         scrollbarInsetTop,
-        paddingX = screenPaddingX,
+        fileLayoutScreenWidth: fileLayoutScreenWidthProp,
     }: {
         /**
          * What we call messages in UI copy. Defaults to "message". For example
@@ -270,6 +263,22 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          * they typed.
          */
         isMessageCreationDisabled?: boolean;
+
+        /**
+         * Target which files in this messaging room are attached to.
+         */
+        fileAttachmentTarget: Memo<FileAttachmentTarget> | null;
+
+        /**
+         * By default, we attach files to `fileAttachmentTarget` when the user drops
+         * the file onto the message input. However, for cases when
+         * `fileAttachmentTarget` may change while editing a message we want to instead
+         * attach files before the message is created on the server. To attach files
+         * when the message is created on the server set
+         * `withAttachFileBeforeCreateMessage` to true. Otherwise files will be
+         * attached when they're dropped on the message input.
+         */
+        withAttachFileBeforeCreateMessage?: boolean;
 
         /**
          * Load messages from the start of the list. We expect the implementation of
@@ -356,6 +365,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          */
         inputRestoreStateRef?: MutableRefObject<{
             state: ContentEditorState<MessageContentWithReferences>;
+            files: ReadonlyArray<MessageInputFile>;
             isFocused: boolean;
         } | null>;
 
@@ -391,16 +401,25 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         scrollbarInsetTop?: ScrollbarInsetDynamic;
 
         /**
-         * Customize the amount of margin on messages.
+         * Optionally override the screen width provided to `layoutContentFileRow()` in
+         * the `<ContentView>` for comment thread previews. Overriding this can lead to
+         * more scale appropriate file layouts in the preview window. Defaults to
+         * `clientInfo.screenWidth`.
          */
-        paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
+        fileLayoutScreenWidth?: RemLength;
     },
     ref: Ref<MessagingViewRef>,
 ) {
-    const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const reporter = useReporter();
+
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const inputRef = useRef<MessageInputRef>(null);
+
+    const fileLayoutScreenWidth =
+        fileLayoutScreenWidthProp !== undefined
+            ? convertRemLengthToPx(fileLayoutScreenWidthProp, spacingScale)
+            : undefined;
 
     const [messagesWithoutHeader, setMessages] = useState(() => {
         const messages = MessageList.new<Message>({
@@ -624,99 +643,17 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         key: "Header",
                     };
                 }
-
-                // The sticky `<MessageInput>` needs to be an item in our virtualized scroll
-                // view because the height of our message input changes. Unlike
-                // `useNavigationBar()` which adds a sticky navigation bar with
-                // `extraChildren` and adds a constant amount of space to the virtualized
-                // scroll view.
-                case "Input": {
-                    return {
-                        withManualLayout: true,
-                        key: "Input",
-                        minHeight: messageInputMinHeight[platform],
-                        render: ({
-                            ref,
-                            viewHeight,
-                            height,
-                            minHeight,
-                            shouldRenderWithRelativePositioning,
-                        }) => (
-                            <div
-                                ref={ref}
-                                style={{
-                                    minHeight,
-                                    ...(shouldRenderWithRelativePositioning
-                                        ? {position: "relative"}
-                                        : {
-                                              position: "sticky",
-                                              left: 0,
-                                              right: 0,
-                                              bottom: 0,
-                                              top: viewHeight - height,
-                                          }),
-                                }}
-                            >
-                                <MessageInput
-                                    ref={inputRef}
-                                    messageNoun={messageNoun}
-                                    messages={state.messages}
-                                    isMessageCreationDisabled={isMessageCreationDisabled}
-                                    onUpdateMessages={update => setMessages(update)}
-                                    createMessage={async input => {
-                                        await createMessage(input);
-                                    }}
-                                    messageEditing={messageEditing}
-                                    replyingToMessage={
-                                        replyingToMessageIndex !== null
-                                            ? state.messages.getLoadedMessageIfExists(
-                                                  replyingToMessageIndex,
-                                              )
-                                            : null
-                                    }
-                                    onClearReplyingToMessage={() => setReplyingToMessageIndex(null)}
-                                    onJumpToMessage={handleJumpToMessage}
-                                    onDeleteMessage={async messageIndex => {
-                                        await deleteMessage({messageIndex});
-                                    }}
-                                    onShowTypingIndicator={() => {
-                                        startTypingInMessageInput({})
-                                            // Don't show an error updating typing indicators to the user. We will see an
-                                            // error in our logs but the user won't see any weird behavior if the
-                                            // request fails.
-                                            .catch(error =>
-                                                reporter.logErrorWithoutDisplaying(
-                                                    "Couldn't update typing indicator",
-                                                    error,
-                                                ),
-                                            );
-                                    }}
-                                    onHideTypingIndicator={() => {
-                                        stopTypingInMessageInput({})
-                                            // Don't show an error updating typing indicators to the user. We will see an
-                                            // error in our logs but the user won't see any weird behavior if the
-                                            // request fails.
-                                            .catch(error =>
-                                                reporter.logErrorWithoutDisplaying(
-                                                    "Couldn't update typing indicator",
-                                                    error,
-                                                ),
-                                            );
-                                    }}
-                                    restoreStateRef={inputRestoreStateRef}
-                                    paddingX={paddingX}
-                                />
-                            </div>
-                        ),
-                    };
-                }
-
                 default: {
                     return renderMessageListItem({
-                        platform,
+                        spacingScale,
                         messageNoun,
                         messageStartOfSentenceNoun,
                         messages: state.messages,
+                        // `fileAttachmentTarget` must be non-null if we render a message.
+                        // `fileAttachmentTarget` will only be null if we're in the new chat screen
+                        // and accounts haven't been selected yet. In this case no messages should be
+                        // rendered.
+                        fileAttachmentTarget: assertExists(fileAttachmentTarget),
                         groupKey: null,
                         index: state.hasHeader() ? index - 1 : index,
                         item,
@@ -739,50 +676,110 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         roomDisplayedCreatedTime,
                         shouldAddMarginTop: index === 0,
                         shouldAddMarginBottom: index === state.getItemCount() - 1,
-                        paddingX,
+                        fileLayoutScreenWidth,
                     });
                 }
             }
         },
         [
-            createMessage,
             deleteMessage,
+            fileAttachmentTarget,
+            fileLayoutScreenWidth,
             getMessageUrl,
             handleJumpToMessage,
             highlightMessage,
-            inputRestoreStateRef,
-            isMessageCreationDisabled,
             messageEditing,
             messageNoun,
             messageStartOfSentenceNoun,
-            paddingX,
-            platform,
             randomSeedForShimmer,
-            replyingToMessageIndex,
-            reporter,
             roomDisplayedCreatedTime,
-            startTypingInMessageInput,
+            spacingScale,
             state,
-            stopTypingInMessageInput,
         ],
     );
+
+    const {dragOverlay, dropTargetProps} = useMessagingViewDropTarget({
+        isDisabled: messageEditing.state.isEditing,
+        onDrop: event => assertExists(inputRef.current).drop(event.dataTransfer),
+    });
 
     return (
         <>
             {modals}
-            <VirtualizedScrollView
-                ref={viewRef}
-                elementRef={elementRef}
-                renderItem={renderItem}
-                extraChildren={extraChildren}
-                initialScrollOffset={initialScrollOffset}
-                bufferedItemHeight={bufferedMessageViewHeight}
-                itemCount={state.getItemCount()}
-                alwaysRenderAdditionalItemIndexes={[state.getItemCount() - 1]}
-                onRenderedRangeChange={tryLoadingMoreData}
-                scrollbarInsetTop={scrollbarInsetTop}
-                scrollbarInsetBottomItemIndex={state.getItemCount() - 1}
-            />
+            <div
+                {...dropTargetProps}
+                data-testid="MessagingView"
+                className={sprinkles({
+                    position: "relative",
+                    flexGrow: "1",
+                    height: "full",
+                    overflow: "hidden",
+                    display: "flex",
+                    flexDirection: "column",
+                })}
+            >
+                {dragOverlay}
+                <VirtualizedScrollView
+                    ref={viewRef}
+                    elementRef={elementRef}
+                    renderItem={renderItem}
+                    extraChildren={extraChildren}
+                    initialScrollOffset={initialScrollOffset}
+                    bufferedItemHeight={bufferedMessageViewHeight}
+                    itemCount={state.getItemCount()}
+                    onRenderedRangeChange={tryLoadingMoreData}
+                    scrollbarInsetTop={scrollbarInsetTop}
+                />
+                <MessageInput
+                    ref={inputRef}
+                    data-testid="MessageInput"
+                    messageNoun={messageNoun}
+                    messages={state.messages}
+                    isMessageCreationDisabled={isMessageCreationDisabled}
+                    onUpdateMessages={update => setMessages(update)}
+                    createMessage={async input => {
+                        await createMessage(input);
+                    }}
+                    fileAttachmentTarget={fileAttachmentTarget}
+                    withAttachFileBeforeCreateMessage={withAttachFileBeforeCreateMessage}
+                    messageEditing={messageEditing}
+                    replyingToMessage={
+                        replyingToMessageIndex !== null
+                            ? state.messages.getLoadedMessageIfExists(replyingToMessageIndex)
+                            : null
+                    }
+                    onClearReplyingToMessage={() => setReplyingToMessageIndex(null)}
+                    onJumpToMessage={handleJumpToMessage}
+                    onDeleteMessage={async messageIndex => {
+                        await deleteMessage({messageIndex});
+                    }}
+                    onShowTypingIndicator={() => {
+                        startTypingInMessageInput({})
+                            // Don't show an error updating typing indicators to the user. We will see an
+                            // error in our logs but the user won't see any weird behavior if the
+                            // request fails.
+                            .catch(error =>
+                                reporter.logErrorWithoutDisplaying(
+                                    "Couldn't update typing indicator",
+                                    error,
+                                ),
+                            );
+                    }}
+                    onHideTypingIndicator={() => {
+                        stopTypingInMessageInput({})
+                            // Don't show an error updating typing indicators to the user. We will see an
+                            // error in our logs but the user won't see any weird behavior if the
+                            // request fails.
+                            .catch(error =>
+                                reporter.logErrorWithoutDisplaying(
+                                    "Couldn't update typing indicator",
+                                    error,
+                                ),
+                            );
+                    }}
+                    restoreStateRef={inputRestoreStateRef}
+                />
+            </div>
         </>
     );
 }

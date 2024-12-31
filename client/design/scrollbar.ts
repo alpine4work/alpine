@@ -94,12 +94,14 @@ export function useScrollbar<T extends HTMLElement>({
     insetTop,
     insetBottom,
     insetRight,
+    getScrollHeight,
 }: {
     inset?: ScrollbarInset;
     insetY?: ScrollbarInset;
     insetTop?: ScrollbarInsetDynamic;
     insetBottom?: ScrollbarInset;
     insetRight?: ScrollbarInset;
+    getScrollHeight?: Memo<() => number>;
 } = {}): RefCallback<T> {
     insetTop = insetTop ?? insetY ?? inset;
     insetBottom = insetBottom ?? insetY ?? inset;
@@ -112,8 +114,9 @@ export function useScrollbar<T extends HTMLElement>({
                     insetTop,
                     insetBottom,
                     insetRight,
+                    getScrollHeight,
                 }),
-            [insetBottom, insetRight, insetTop],
+            [getScrollHeight, insetBottom, insetRight, insetTop],
         ),
     );
 }
@@ -415,10 +418,12 @@ export function initializeScrollbar(
         insetTop = 0,
         insetBottom = 0,
         insetRight = 0,
+        getScrollHeight,
     }: {
         insetTop?: ScrollbarInsetDynamic;
         insetBottom?: ScrollbarInset;
         insetRight?: ScrollbarInset;
+        getScrollHeight?: () => number;
     },
 ): () => void {
     {
@@ -561,40 +566,50 @@ export function initializeScrollbar(
         // old height. So calculate `element.scrollHeight` excluding the scrollbar.
         let scrollHeight = 0;
 
-        for (const childNode of element.childNodes) {
-            if (!(childNode instanceof HTMLElement)) continue;
+        // The caller may pass in their own `getScrollHeight()` implementation to
+        // bypass our calculation. This is useful for `<VirtualizedScrollView>` which
+        // carefully computes its own scroll height. Sometimes we've observed the
+        // computation below is off by 1px (probably due to subpixel rendering) so it's
+        // useful to use `<VirtualizedScrollView>`'s calculation.
+        if (getScrollHeight !== undefined) {
+            scrollHeight = getScrollHeight();
+        } else {
+            for (const childNode of element.childNodes) {
+                if (!(childNode instanceof HTMLElement)) continue;
 
-            // Ignore our scrollbar element.
-            if (childNode === scrollbarElement) continue;
+                // Ignore our scrollbar element.
+                if (childNode === scrollbarElement) continue;
 
-            // The offset from the top of our child to the top of our scroll area
-            // `element`.
-            //
-            // If `childNode.offsetParent === element` (true if `element` has the CSS
-            // `position: relative`) then that's `childNode.offsetTop`.
-            //
-            // However, if `childNode.offsetParent !== element` we need to subtract
-            // `element.offsetTop` to get our child's offset relative to `element` instead
-            // of relative to their shared parent.
-            const childOffsetTop =
-                childNode.offsetTop - (childNode.offsetParent !== element ? element.offsetTop : 0);
+                // The offset from the top of our child to the top of our scroll area
+                // `element`.
+                //
+                // If `childNode.offsetParent === element` (true if `element` has the CSS
+                // `position: relative`) then that's `childNode.offsetTop`.
+                //
+                // However, if `childNode.offsetParent !== element` we need to subtract
+                // `element.offsetTop` to get our child's offset relative to `element` instead
+                // of relative to their shared parent.
+                const childOffsetTop =
+                    childNode.offsetTop -
+                    (childNode.offsetParent !== element ? element.offsetTop : 0);
 
-            // If the child's overflow is visible then we should use `scrollHeight` instead
-            // of `offsetHeight` since `offsetHeight` will be clipped to the overflow
-            // bounds. The overflowed content contributes to `element`'s `scrollHeight`.
-            //
-            // As of 2023-12-08, `<DocumentContentEditor>` is an example where this is
-            // necessary. The content element is the screen height but has more visible
-            // content underneath.
-            const childHeight =
-                getComputedStyle(childNode).overflowY === "visible"
-                    ? childNode.scrollHeight
-                    : childNode.offsetHeight;
+                // If the child's overflow is visible then we should use `scrollHeight` instead
+                // of `offsetHeight` since `offsetHeight` will be clipped to the overflow
+                // bounds. The overflowed content contributes to `element`'s `scrollHeight`.
+                //
+                // As of 2023-12-08, `<DocumentContentEditor>` is an example where this is
+                // necessary. The content element is the screen height but has more visible
+                // content underneath.
+                const childHeight =
+                    getComputedStyle(childNode).overflowY === "visible"
+                        ? childNode.scrollHeight
+                        : childNode.offsetHeight;
 
-            // Children can be positioned in many surprising ways between `display: flex`
-            // or `float: right` or `position: absolute`. To determine the height of our
-            // content, we look for the element with the largest bottom position.
-            scrollHeight = Math.max(scrollHeight, childOffsetTop + childHeight);
+                // Children can be positioned in many surprising ways between `display: flex`
+                // or `float: right` or `position: absolute`. To determine the height of our
+                // content, we look for the element with the largest bottom position.
+                scrollHeight = Math.max(scrollHeight, childOffsetTop + childHeight);
+            }
         }
 
         // Make sure the element's `paddingTop`/`paddingBottom` is included in the

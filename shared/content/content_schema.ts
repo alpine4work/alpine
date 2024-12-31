@@ -172,7 +172,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             // there's only a small number of nodes (e.g. `divider`) we actually want to
             // let be selectable.
             selectable: false,
-            toDOM: () => [`blockquote`, {class: quoteBlockClassName}, 0],
+            toDOM: () => ["blockquote", {class: quoteBlockClassName}, 0],
             parseDOM: [{tag: "blockquote"}],
         },
 

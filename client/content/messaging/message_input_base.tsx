@@ -1,9 +1,11 @@
+import classNames from "classnames";
 import {animate} from "motion";
-import {ArrowArcLeft, ArrowRight, ArrowUp, PencilSimple, X} from "phosphor-react";
+import {ArrowRight, ArrowUp, File, Image, PencilSimple, Plus, X} from "phosphor-react";
 import {EditorView} from "prosemirror-view";
 import {
     FocusEvent,
     Key,
+    Memo,
     ReactElement,
     Ref,
     RefAttributes,
@@ -16,25 +18,40 @@ import {
     useRef,
     useState,
 } from "react";
+import {usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
-import {ContentView} from "~/client/content/content_view.js";
 import {
     ContentEditorMobileLinkModal,
     ContentEditorMobileLinkModalState,
 } from "~/client/content/internal/content_editor_mobile_link_modal.js";
-import {MessageInputMobileKeyboardToolbar} from "~/client/content/messaging/message_input_mobile_keyboard_toolbar.js";
+import {
+    FileInfo,
+    iterateFileInfosInElement,
+} from "~/client/content/internal/iterate_file_infos_in_element.js";
+import {
+    MessageInputFile,
+    addMessageInputFiles,
+} from "~/client/content/messaging/add_message_input_files.js";
+import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
+import {MessageInputMobileKeyboardToolbar} from "~/client/content/messaging/internal/message_input_mobile_keyboard_toolbar.js";
+import {MessageInputFilePreview} from "~/client/content/messaging/message_input_file_preview.js";
+import {selectFiles} from "~/client/content/select_files.js";
+import {trimContentEnd} from "~/client/content/trim_content.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
+import {MenuButton} from "~/client/design/menu_button.js";
 import {
     mobileBottomBarKeyboardToolbarHeight,
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {
     useRegisterBottomBarFrame,
@@ -43,41 +60,65 @@ import {
 import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {parseHtml} from "~/client/helpers/parse_html.js";
+import {VideoIcon} from "~/client/icons/video_icon.js";
+import {WaveformIcon} from "~/client/icons/waveform_icon.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
+import {getRemPxWithoutListening, useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
+import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    getMessageBubbleMarginLeft,
-    messageInputAccountAvatarPaddingY,
-    messageInputAccountAvatarSize,
-    messageInputMinHeight,
+    messageInputEditorBorderRadiusPx,
+    messageInputEditorIconButtonNegativeMarginX,
+    messageInputEditorIconButtonSize,
+    messageInputEditorMinHeightPx,
+    messageInputEditorPaddingX,
+    messageInputEditorPaddingYPx,
+    messageInputFilesOverflowGradientWidth,
+    messageInputMinHeightPx,
     messageInputPaddingY,
-    messageViewBubbleBorderRadius,
-    messageViewBubbleMinHeight,
-    messageViewBubblePaddingX,
-    messageViewBubblePaddingY,
-    messageViewMaxWidth,
-    messageViewReplyPreviewBubbleOpacity,
-    messageViewReplyPreviewOpacity,
-    messageViewReplyPreviewScale,
+    messageViewAccountAvatarSize,
+    messageViewParentAccountAvatarSize,
+    messageViewParentAvatarOffsetYRem,
+    messageViewParentFontSize,
+    messageViewParentLineHeightPx,
+    messageViewRailGap,
 } from "~/client/styles/messaging_shared_styles.js";
-import {borderRadius, contentViewStyles, sprinkles} from "~/client/styles/styles.js";
+import {
+    backgroundColorVar,
+    contentStyles,
+    messagingStyles,
+    pointerEventsNoneNotInheritedClassName,
+    sprinkles,
+} from "~/client/styles/styles.js";
+import {fileClassName} from "~/shared/content/content_styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     Spacing,
     addRemLengths,
+    convertRemLengthToPx,
     parseRemLength,
     screenPaddingX,
     spacing,
+    subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {
+    getFileAudioContentTypes,
+    getFileImageContentTypes,
+    getFileVideoContentTypes,
+} from "~/shared/files/file_content_type.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {getTruncatedMessageContentForReplyPreview} from "~/shared/messaging/get_truncated_message_content_for_reply_preview.js";
+import {Id} from "~/shared/id/id.js";
 import {
     MessageContentWithReferences,
     emptyMessageContentWithReferences,
@@ -91,6 +132,7 @@ export type MessageInputRef = {
     isEmpty(): boolean;
     clear(): void;
     getBoundingClientRect(): DOMRect;
+    drop(dataTransfer: DataTransfer): {finally(listener: () => void): void};
 };
 
 export type MessageInputBaseProps<RoomKey extends string, Message extends MessageModel<RoomKey>> = {
@@ -99,8 +141,12 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     sendButtonVerb?: string;
     placeholder?: string;
     state: ContentEditorState<MessageContentWithReferences>;
+    files: ReadonlyArray<MessageInputFile>;
     onChange: (state: ContentEditorState<MessageContentWithReferences>) => void;
+    onAddFile: ((file: MessageInputFile) => void) | null;
+    onRemoveFile: ((fileKey: Id) => void) | null;
     onSend: () => void;
+    fileAttachmentTarget: Memo<FileAttachmentTarget> | null;
     isBottomBar?: boolean;
     isReplacingOtherBottomBar?: boolean;
     isSendBottomArrowRight?: boolean;
@@ -117,7 +163,6 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     onShowTypingIndicator?: () => void;
     onHideTypingIndicator?: () => void;
     "data-testid"?: string;
-    paddingX?: Spacing | {desktop: Spacing; mobile: Spacing};
     withMobileMaxHeight?: boolean;
     onFocus?: (event: FocusEvent) => void;
     onFocusCapture?: (event: FocusEvent) => void;
@@ -148,7 +193,10 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         messageNoun = "message",
         messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
         state,
+        files,
         onChange,
+        onAddFile,
+        onRemoveFile,
         onSend: onSendProp,
         isBottomBar = false,
         isReplacingOtherBottomBar = false,
@@ -156,6 +204,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         isSendButtonDisabled: isSendButtonDisabledProp,
         isSendButtonPending,
         isNativeMobileRefocusHackDisabled,
+        fileAttachmentTarget,
         messageEditingForThisInput = null,
         replyingToMessage: replyingToMessageProp,
         onClearReplyingToMessage,
@@ -163,7 +212,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         onShowTypingIndicator,
         onHideTypingIndicator,
         "data-testid": dataTestId,
-        paddingX = screenPaddingX,
         withMobileMaxHeight,
         onFocus,
         onFocusCapture,
@@ -177,12 +225,17 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     }: MessageInputBaseProps<RoomKey, Message>,
     ref: Ref<MessageInputRef>,
 ) {
+    const context = useAppContext();
+    const reporter = useReporter();
     const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const clientInfo = useClientInfo();
-    const {currentAccount} = useSpaceContext();
+    const {space} = useSpaceContext();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
+    const isMounted = useIsMounted();
+    const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
 
     const inputContainerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLDivElement>(null);
@@ -198,10 +251,77 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         [editorRef],
     );
 
-    const clear = useEvent(() => {
-        onClearReplyingToMessage?.();
-        messageEditingForThisInput?.dispatch({type: "CancelEditing"});
-        onChange(ContentEditorState.create(emptyMessageContentWithReferences));
+    const events = useEvents({
+        clear: () => {
+            onClearReplyingToMessage?.();
+            messageEditingForThisInput?.dispatch({type: "CancelEditing"});
+            onChange(ContentEditorState.create(emptyMessageContentWithReferences));
+        },
+        addFiles: (
+            spanName: string,
+            fileInfos: ReadonlyArray<FileInfo>,
+        ): {finally(listener: () => void): void} => {
+            // Noop if we don't have an add file callback.
+            if (!onAddFile) return Promise.resolve();
+
+            if (fileInfos.length === 0) return Promise.resolve();
+
+            // Make sure the input is focused when we add files. So the user can hit
+            // "Enter" after dropping a file to send the message. This also has the effect
+            // of making sure `useRegisterBottomBarFrame()` isn't disabled so when the
+            // message input size changes we scroll.
+            assertExists(editorRef.current).focus({preventScroll: true});
+
+            const promise = context.tracer.withSpan(spanName, async context => {
+                await addMessageInputFiles(context, fileInfos, {
+                    spaceId: space.id,
+                    attachmentTarget: fileAttachmentTarget,
+                    addGlobalLoadingIndicator,
+                    onAddFile: file => {
+                        // Noop if our input was unmounted (e.g. after the message is sent we remount
+                        // this component).
+                        if (!isMounted()) return;
+
+                        onAddFile(file);
+                    },
+                });
+            });
+
+            promise.catch(error => {
+                reporter.displayError("Couldn’t upload file", error);
+            });
+
+            return promise;
+        },
+        drop: (dataTransfer: DataTransfer): {finally(listener: () => void): void} => {
+            let hasHtmlFileInfos = false;
+            const fileInfos: Array<FileInfo> = [];
+
+            for (const {info} of iterateFileInfosInElement(
+                parseHtml(dataTransfer.getData("text/html")),
+                () => space.id,
+            )) {
+                if (!info) continue;
+
+                hasHtmlFileInfos = true;
+                fileInfos.push(info);
+            }
+
+            // Ignore files from `dataTransfer` if we had `text/html`. Since we assume
+            // `text/html` will contain links to any files included in `dataTransfer`.
+            if (!hasHtmlFileInfos) {
+                for (const item of dataTransfer.items) {
+                    if (item.kind !== "file") continue;
+
+                    fileInfos.push({
+                        type: "UploadFile",
+                        input: {type: "File", file: assertExists(item.getAsFile())},
+                    });
+                }
+            }
+
+            return events.addFiles("<MessageInput> drop files", fileInfos);
+        },
     });
 
     useImperativeHandle(
@@ -211,26 +331,16 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             focus: options => assertExists(editorRef.current).focus(options),
             blur: () => assertExists(editorRef.current).blur(),
             isEmpty: () => isContentEmpty(assertExists(editorRef.current).getState().getDoc()),
-            clear,
+            clear: events.clear,
             getBoundingClientRect: () => assertExists(inputRef.current).getBoundingClientRect(),
+            drop: events.drop,
         }),
-        [clear],
+        [events],
     );
 
     const isEditingMessage = !!messageEditingForThisInput;
 
-    const replyingToMessage = useMemo(() => {
-        if (isEditingMessage) return null;
-        if (!replyingToMessageProp) return null;
-
-        return {
-            message: replyingToMessageProp,
-            truncatedContent: getTruncatedMessageContentForReplyPreview({
-                message: replyingToMessageProp,
-                messageStartOfSentenceNoun,
-            }),
-        };
-    }, [isEditingMessage, replyingToMessageProp, messageStartOfSentenceNoun]);
+    const replyingToMessage = !isEditingMessage ? replyingToMessageProp : null;
 
     const onBeforeFocusFromReplyOrEditingChange = useEvent(
         onBeforeFocusFromReplyOrEditingChangeProp,
@@ -239,8 +349,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     // Focus the message input whenever the message we're replying to changes. Or
     // if we start editing the message.
     const focusKey =
-        replyingToMessage?.message.index !== undefined
-            ? `Replying:${replyingToMessage?.message.index}`
+        replyingToMessage?.index !== undefined
+            ? `Replying:${replyingToMessage?.index}`
             : isEditingMessage
             ? `Editing:${messageEditingForThisInput.state.messageIndex}`
             : null;
@@ -270,8 +380,14 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         });
     }, [focusKey, onBeforeFocusFromReplyOrEditingChange]);
 
-    const isSendButtonDisabled =
-        isSendButtonDisabledProp || (!isEditingMessage && isContentEmpty(state.getDoc()));
+    const isSendButtonDisabled = useMemo(
+        () =>
+            isSendButtonDisabledProp ||
+            (!isEditingMessage &&
+                isContentEmpty(trimContentEnd(state.getDoc())) &&
+                files.length === 0),
+        [files.length, isEditingMessage, isSendButtonDisabledProp, state],
+    );
 
     const typingIndicatorStateRef = useRef<
         {shouldBeShowing: true; timeout: Timeout} | {shouldBeShowing: false}
@@ -340,8 +456,29 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     if (isKeyboardToolbarCompletelyHidden !== isKeyboardToolbarCompletelyHiddenFromState)
         setIsKeyboardToolbarCompletelyHidden(isKeyboardToolbarCompletelyHidden);
 
+    const hasInitiallyMountedRef = useRef(false);
     const lastIsKeyboardToolbarVisibleRef = useRef(isKeyboardToolbarVisible);
-    useEffect(() => {
+
+    // On initial mount if `isKeyboardToolbarVisible` is true then make sure we set
+    // the Motion Y translation variable to the correct initial value.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
+        const inputElement = assertExists(inputRef.current);
+
+        if (isKeyboardToolbarVisible && !NativeMobileBridge) {
+            animate(
+                inputElement,
+                {
+                    y: [0, -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening()],
+                },
+                {duration: 0},
+            );
+        }
+    }, [isKeyboardToolbarVisible]);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
         if (lastIsKeyboardToolbarVisibleRef.current === isKeyboardToolbarVisible) return;
         lastIsKeyboardToolbarVisibleRef.current = isKeyboardToolbarVisible;
 
@@ -451,6 +588,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         // Register as a bottom bar when focused even in a `position: sticky` context.
         // That's because we want typing in the input to scroll the messages above the
         // input when the input is sticking to the bottom of the view.
+        //
+        // TODO(calebmer): Ideally we'd only register the bottom bar frame when the
+        // input is "stuck" to the bottom of the viewport and not before that.
         isDisabled: !isBottomBar && !isFocused,
         withMobileKeyboardToolbar: true,
         isReplacingOtherBottomBar,
@@ -495,8 +635,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     // slow animations in an iOS emulator and open the keyboard.
     const bottomBarBackgroundSlopBottom = spacing["96"];
 
-    const avatarPaddingY = messageInputAccountAvatarPaddingY[platform];
-
     return (
         <Box
             ref={inputContainerRef}
@@ -515,18 +653,19 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 data-testid={dataTestId}
                 id={id}
                 width="full"
-                backgroundColor="grey-0-glass"
+                backgroundColor="grey-0"
                 style={{
                     minHeight: !isBottomBar
-                        ? messageInputMinHeight[platform]
+                        ? messageInputMinHeightPx[platform][spacingScale]
                         : `calc(${
                               platform === "mobile"
-                                  ? addRemLengths(
-                                        messageInputMinHeight.mobile,
+                                  ? messageInputMinHeightPx[platform][spacingScale] +
+                                    convertRemLengthToPx(
                                         mobileBottomBarKeyboardToolbarHeight,
+                                        spacingScale,
                                     )
-                                  : messageInputMinHeight.desktop
-                          } + var(--window-safe-area-inset-bottom, 0px))`,
+                                  : messageInputMinHeightPx[platform][spacingScale]
+                          }px + var(--window-safe-area-inset-bottom, 0px))`,
                     paddingBottom: isBottomBar
                         ? clientInfo.isNativeMobile
                             ? `calc(${bottomBarBackgroundSlopBottom} + var(--window-safe-area-inset-bottom, 0px))`
@@ -581,7 +720,10 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                         event.currentTarget.contains(event.target) &&
                         // Exclude tapping in the message input itself. Tapping there should do
                         // something.
-                        !editor.contains(event.target)
+                        !editor.contains(event.target) &&
+                        // Exclude clicking on files since that should open the file viewer which will
+                        // close the keyboard.
+                        !event.target.closest(`.${fileClassName}`)
                     ) {
                         event.preventDefault();
                     }
@@ -594,40 +736,41 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                     <Box
                         ref={inputContentRef}
                         width="full"
-                        maxWidth={messageViewMaxWidth}
+                        maxWidth={contentStyles.contentMaxWidth}
                         marginX="center"
                     >
                         {isEditingMessage && (
                             <Box
                                 position="relative"
+                                paddingRight={screenPaddingX}
                                 paddingTop={messageInputPaddingY}
                                 color="grey-80"
                                 style={{
-                                    paddingLeft:
-                                        platform === "mobile"
-                                            ? spacing["3"]
-                                            : getMessageBubbleMarginLeft(
-                                                  typeof paddingX === "string"
-                                                      ? paddingX
-                                                      : paddingX.desktop,
-                                              ),
-                                    paddingRight: addRemLengths("2", "7", "5"),
+                                    // Align text with message input placeholder.
+                                    paddingLeft: subtractRemLengths(
+                                        addRemLengths(
+                                            screenPaddingX[platform],
+                                            messageInputEditorPaddingX[platform],
+                                        ),
+                                        "4",
+                                    ),
                                 }}
                             >
-                                <Box
-                                    paddingLeft="0.5"
-                                    display="flex"
-                                    alignItems="center"
-                                    gap="1"
-                                    fontSize="50"
-                                    fontStyle="truncate"
-                                >
+                                <Box display="flex" alignItems="center" gap="1" height="4">
                                     <PencilSimple size={spacing["3"]} />
-                                    <span>Editing message</span>
-                                    <Box paddingLeft="0.5" style={{transform: "translateY(1px)"}}>
+                                    <span
+                                        className={sprinkles({
+                                            fontSize: "50",
+                                            fontStyle: "truncate",
+                                        })}
+                                    >
+                                        Editing message
+                                    </span>
+                                    <Box paddingLeft="0.5">
                                         <IconButton
                                             size="xs"
                                             description="Cancel editing"
+                                            tooltipPlacement="top"
                                             onPress={() => {
                                                 messageEditingForThisInput.dispatch({
                                                     type: "CancelEditing",
@@ -643,208 +786,301 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 </Box>
                             </Box>
                         )}
-                        {replyingToMessage &&
-                            (() => {
-                                const height = addRemLengths(
-                                    "1.5",
-                                    contentViewStyles.truncatedHeight,
-                                    "1.5",
-                                );
-
-                                const scaledHeight = `${
-                                    Math.round(
-                                        parseRemLength(height) * messageViewReplyPreviewScale * 16,
-                                    ) / 16
-                                }rem`;
-
-                                return (
-                                    <Box
-                                        position="relative"
-                                        paddingTop={messageInputPaddingY}
-                                        paddingBottom="1"
-                                        style={{
-                                            paddingLeft:
-                                                platform === "mobile"
-                                                    ? spacing["3"]
-                                                    : getMessageBubbleMarginLeft(
-                                                          typeof paddingX === "string"
-                                                              ? paddingX
-                                                              : paddingX.desktop,
-                                                      ),
-                                            paddingRight: addRemLengths("2", "7", "5"),
-                                        }}
-                                    >
-                                        <Box
-                                            paddingLeft="1.5"
-                                            paddingBottom="1"
-                                            display="flex"
-                                            alignItems="center"
-                                            gap="1"
-                                            fontSize="50"
-                                            fontStyle="truncate"
-                                        >
-                                            <ArrowArcLeft size={spacing["3"]} />
-                                            <span>
-                                                Replying to{" "}
-                                                <span className={sprinkles({fontStyle: "bold"})}>
-                                                    <AccountShortName
-                                                        account={replyingToMessage.message.author}
-                                                    />
-                                                </span>
-                                            </span>
-                                            <Box
-                                                paddingLeft="0.5"
-                                                style={{transform: "translateY(1px)"}}
-                                            >
-                                                <IconButton
-                                                    size="xs"
-                                                    description="Cancel reply"
-                                                    onPress={onClearReplyingToMessage}
-                                                    // Not focusable so clicking on this button doesn't unfocus
-                                                    // the input.
-                                                    isFocusable={false}
-                                                >
-                                                    <X />
-                                                </IconButton>
-                                            </Box>
-                                        </Box>
-                                        <Box style={{height: scaledHeight}}>
-                                            <FocusRing>
-                                                <Box
-                                                    // This is a simulated link. When the user clicks on it our code navigates us
-                                                    // to the right message instead of relying on browser URL navigation.
-                                                    //
-                                                    // See: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/link_role
-                                                    role="link"
-                                                    tabIndex={0}
-                                                    // We don't use a pointer cursor for buttons in our product because buttons
-                                                    // they clearly appear clickable. We call this a strong affordance. A reply
-                                                    // preview is clickable and gives some affordance (different color) but it's a
-                                                    // weak affordance. So we use a pointer to make this element unambiguously
-                                                    // clickable.
-                                                    //
-                                                    // Also, this element is semantically a link which the pointer cursor was
-                                                    // originally designed for.
-                                                    //
-                                                    // See: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
-                                                    cursor="pointer"
-                                                    position="relative"
-                                                    zIndex="0"
-                                                    display="inline-block"
-                                                    maxWidth="full"
-                                                    paddingX={messageViewBubblePaddingX}
-                                                    paddingY={messageViewBubblePaddingY}
-                                                    borderRadius={messageViewBubbleBorderRadius}
-                                                    style={{
-                                                        opacity: messageViewReplyPreviewOpacity,
-                                                        transform: `scale(${messageViewReplyPreviewScale})`,
-                                                        transformOrigin: "0% 0% 0",
-                                                    }}
-                                                    onClick={() =>
-                                                        onJumpToMessage?.(replyingToMessage.message)
-                                                    }
-                                                    onKeyDown={event => {
-                                                        if (
-                                                            event.key === "Enter" ||
-                                                            event.key === " "
-                                                        ) {
-                                                            event.preventDefault();
-                                                            event.stopPropagation();
-                                                            onJumpToMessage?.(
-                                                                replyingToMessage.message,
-                                                            );
-                                                            return;
-                                                        }
-                                                    }}
-                                                >
-                                                    <Box
-                                                        position="absolute"
-                                                        inset="0"
-                                                        zIndex="-10"
-                                                        borderRadius={messageViewBubbleBorderRadius}
-                                                        backgroundColor="grey-5"
-                                                        style={{
-                                                            opacity:
-                                                                messageViewReplyPreviewBubbleOpacity,
-                                                        }}
-                                                    />
-                                                    <Box overflow="hidden" pointerEvents="none">
-                                                        <ContentView
-                                                            isInert={true}
-                                                            isTruncated={true}
-                                                            isCompact={true}
-                                                            isExtraCompact={platform === "mobile"}
-                                                            isBackgroundColorGrey5={true}
-                                                            content={
-                                                                replyingToMessage.truncatedContent
-                                                            }
-                                                        />
-                                                    </Box>
-                                                </Box>
-                                            </FocusRing>
-                                        </Box>
-                                    </Box>
-                                );
-                            })()}
+                        {replyingToMessage && (
+                            <MessageInputReplyingToMessage
+                                messageNoun={messageNoun}
+                                replyingToMessage={replyingToMessage}
+                                onJumpToMessage={onJumpToMessage}
+                                onClearReplyingToMessage={onClearReplyingToMessage}
+                                paddingX={screenPaddingX}
+                            />
+                        )}
                         <Box
-                            overflow="hidden"
-                            display="flex"
-                            paddingX={paddingX}
+                            paddingX={screenPaddingX}
                             paddingY={messageInputPaddingY}
-                            gap="2"
+                            marginX={messageInputEditorIconButtonNegativeMarginX}
                         >
-                            {platform !== "mobile" && (
-                                <Box display="flex" alignItems="flex-end">
-                                    <Box
-                                        width={messageInputAccountAvatarSize}
-                                        style={{
-                                            paddingTop: avatarPaddingY,
-                                            paddingBottom: avatarPaddingY,
-                                        }}
-                                    >
-                                        <AccountAvatar
-                                            account={currentAccount}
-                                            size={messageInputAccountAvatarSize}
-                                        />
-                                    </Box>
-                                </Box>
-                            )}
-                            <FocusRing offset="border" isVisibleWhenFocusWithin={true}>
+                            <Box
+                                position="relative"
+                                zIndex="0"
+                                style={{
+                                    minHeight:
+                                        messageInputEditorMinHeightPx[platform][spacingScale],
+                                    borderRadius:
+                                        messageInputEditorBorderRadiusPx[platform][spacingScale],
+                                }}
+                            >
                                 <Box
-                                    flexGrow="1"
-                                    overflow="hidden"
-                                    position="relative"
-                                    borderRadius={messageViewBubbleBorderRadius}
+                                    pointerEvents="none"
+                                    position="absolute"
+                                    zIndex="10"
+                                    inset="0"
+                                    border="grey-10"
+                                    style={{
+                                        borderRadius:
+                                            messageInputEditorBorderRadiusPx[platform][
+                                                spacingScale
+                                            ],
+                                        // NOTE(calebmer, #mobile-webkit-weirdness): In order for mobile WebKit to
+                                        // render the border on top of `codeBlock` node sticky elements and to render
+                                        // the native scrollbar on top of `codeBlock` node sticky elements we need to:
+                                        //
+                                        // 1. Render border in a `z-index: 10` element with
+                                        //    `-webkit-transform: translateZ(0)`. Using
+                                        //    `box-shadow: inset 0 0 0 1px grey-10` on a parent doesn't work.
+                                        // 2. Set `z-index: 0` on the scroll container (this is important!).
+                                        //
+                                        // WebKit only working in these specific conditions definitely seems to be a
+                                        // bug. Other browsers work without `-webkit-transform: translateZ(0)` for
+                                        // instance.
+                                        transform: "translateZ(0)",
+                                        WebkitTransform: "translateZ(0)",
+                                    }}
+                                />
+                                <Box
+                                    className={pointerEventsNoneNotInheritedClassName}
+                                    position="absolute"
+                                    left="0"
+                                    bottom="0"
+                                    zIndex="20"
+                                    display="flex"
+                                    justifyContent="center"
+                                    alignItems="center"
+                                    style={{
+                                        width: messageInputEditorMinHeightPx[platform][
+                                            spacingScale
+                                        ],
+                                        height: messageInputEditorMinHeightPx[platform][
+                                            spacingScale
+                                        ],
+                                    }}
                                 >
-                                    <Box
-                                        pointerEvents="none"
-                                        position="absolute"
-                                        zIndex="10"
-                                        inset="0"
-                                        border="grey-10"
-                                        borderRadius={messageViewBubbleBorderRadius}
-                                        style={{
-                                            // NOTE(calebmer, #mobile-webkit-weirdness): In order for mobile WebKit to
-                                            // render the border on top of `codeBlock` node sticky elements and to render
-                                            // the native scrollbar on top of `codeBlock` node sticky elements we need to:
+                                    {platform === "mobile" ? (
+                                        // On mobile, immediately open the file selector since there isn't much value
+                                        // to allowing the user to select a specific file type.
+                                        <IconButton
+                                            size={messageInputEditorIconButtonSize}
+                                            description="Add"
+                                            withoutTooltip={true}
+                                            // The add icon button is not focusable. That's because we don't want to
+                                            // remove focus from the message input when the add button is pressed. That
+                                            // way on mobile you can keep typing and sending messages because the software
+                                            // keyboard doesn't disappear.
                                             //
-                                            // 1. Render border in a `z-index: 10` element with
-                                            //    `-webkit-transform: translateZ(0)`. Using
-                                            //    `box-shadow: inset 0 0 0 1px grey-10` on a parent doesn't work.
-                                            // 2. Set `z-index: 0` on the scroll container (this is important!).
-                                            //
-                                            // WebKit only working in these specific conditions definitely seems to be a
-                                            // bug. Other browsers work without `-webkit-transform: translateZ(0)` for
-                                            // instance.
-                                            transform: "translateZ(0)",
-                                            WebkitTransform: "translateZ(0)",
-                                        }}
-                                    />
+                                            // On desktop, hitting enter in the message input is sufficient for keyboard
+                                            // control of the message input.
+                                            isFocusable={false}
+                                            onPress={() => {
+                                                selectFiles(
+                                                    assertExists(inputContainerRef.current),
+                                                    {
+                                                        multiple: true,
+                                                        // It's important to return focus before removing the temporary input element
+                                                        // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
+                                                        // finished.
+                                                        onReturnFocus: () =>
+                                                            editorRef.current?.focus(),
+                                                    },
+                                                )
+                                                    .then(files => {
+                                                        if (files.length === 0) return;
+
+                                                        // Make sure we didn't unmount while selecting files.
+                                                        if (!isMounted()) return;
+
+                                                        events.addFiles(
+                                                            "<MessageInput> insert files",
+                                                            files.map(file => ({
+                                                                type: "UploadFile",
+                                                                input: {type: "File", file},
+                                                            })),
+                                                        );
+                                                    })
+                                                    .catch(scheduleUncaughtError);
+                                            }}
+                                        >
+                                            <Plus />
+                                        </IconButton>
+                                    ) : (
+                                        <MenuButton
+                                            withoutButtonElementRequirement={true}
+                                            // Generally since the message input is at the bottom of the screen the add
+                                            // menu opens above the input. Let's make that pattern consistent.
+                                            placement="top-start"
+                                            actions={[
+                                                {
+                                                    label: "Image",
+                                                    iconSize: "4",
+                                                    icon: <Image />,
+                                                    onPress: () => {
+                                                        selectFiles(
+                                                            assertExists(inputContainerRef.current),
+                                                            {
+                                                                multiple: true,
+                                                                acceptContentTypes:
+                                                                    getFileImageContentTypes(),
+                                                                // It's important to return focus before removing the temporary input element
+                                                                // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
+                                                                // finished.
+                                                                onReturnFocus: () =>
+                                                                    editorRef.current?.focus(),
+                                                            },
+                                                        )
+                                                            .then(files => {
+                                                                if (files.length === 0) return;
+
+                                                                // Make sure we didn't unmount while selecting files.
+                                                                if (!isMounted()) return;
+
+                                                                events.addFiles(
+                                                                    "<MessageInput> insert files",
+                                                                    files.map(file => ({
+                                                                        type: "UploadFile",
+                                                                        input: {type: "File", file},
+                                                                    })),
+                                                                );
+                                                            })
+                                                            .catch(scheduleUncaughtError);
+                                                    },
+                                                },
+                                                {
+                                                    label: "Video",
+                                                    iconSize: "4",
+                                                    icon: <VideoIcon />,
+                                                    onPress: () => {
+                                                        selectFiles(
+                                                            assertExists(inputContainerRef.current),
+                                                            {
+                                                                multiple: true,
+                                                                acceptContentTypes:
+                                                                    getFileVideoContentTypes(),
+                                                                // It's important to return focus before removing the temporary input element
+                                                                // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
+                                                                // finished.
+                                                                onReturnFocus: () =>
+                                                                    editorRef.current?.focus(),
+                                                            },
+                                                        )
+                                                            .then(files => {
+                                                                if (files.length === 0) return;
+
+                                                                // Make sure we didn't unmount while selecting files.
+                                                                if (!isMounted()) return;
+
+                                                                events.addFiles(
+                                                                    "<MessageInput> insert files",
+                                                                    files.map(file => ({
+                                                                        type: "UploadFile",
+                                                                        input: {type: "File", file},
+                                                                    })),
+                                                                );
+                                                            })
+                                                            .catch(scheduleUncaughtError);
+                                                    },
+                                                },
+                                                {
+                                                    label: "Audio",
+                                                    iconSize: "4",
+                                                    icon: <WaveformIcon />,
+                                                    onPress: () => {
+                                                        selectFiles(
+                                                            assertExists(inputContainerRef.current),
+                                                            {
+                                                                multiple: true,
+                                                                acceptContentTypes:
+                                                                    getFileAudioContentTypes(),
+                                                                // It's important to return focus before removing the temporary input element
+                                                                // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
+                                                                // finished.
+                                                                onReturnFocus: () =>
+                                                                    editorRef.current?.focus(),
+                                                            },
+                                                        )
+                                                            .then(files => {
+                                                                if (files.length === 0) return;
+
+                                                                // Make sure we didn't unmount while selecting files.
+                                                                if (!isMounted()) return;
+
+                                                                events.addFiles(
+                                                                    "<MessageInput> insert files",
+                                                                    files.map(file => ({
+                                                                        type: "UploadFile",
+                                                                        input: {type: "File", file},
+                                                                    })),
+                                                                );
+                                                            })
+                                                            .catch(scheduleUncaughtError);
+                                                    },
+                                                },
+                                                {
+                                                    label: "File",
+                                                    iconSize: "4",
+                                                    icon: <File />,
+                                                    onPress: () => {
+                                                        selectFiles(
+                                                            assertExists(inputContainerRef.current),
+                                                            {
+                                                                multiple: true,
+                                                                // It's important to return focus before removing the temporary input element
+                                                                // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
+                                                                // finished.
+                                                                onReturnFocus: () =>
+                                                                    editorRef.current?.focus(),
+                                                            },
+                                                        )
+                                                            .then(files => {
+                                                                if (files.length === 0) return;
+
+                                                                // Make sure we didn't unmount while selecting files.
+                                                                if (!isMounted()) return;
+
+                                                                events.addFiles(
+                                                                    "<MessageInput> insert files",
+                                                                    files.map(file => ({
+                                                                        type: "UploadFile",
+                                                                        input: {type: "File", file},
+                                                                    })),
+                                                                );
+                                                            })
+                                                            .catch(scheduleUncaughtError);
+                                                    },
+                                                },
+                                            ]}
+                                        >
+                                            <IconButton
+                                                size={messageInputEditorIconButtonSize}
+                                                description="Add"
+                                                withoutTooltip={true}
+                                                // The add icon button is not focusable. That's because we don't want to
+                                                // remove focus from the message input when the add button is pressed. That
+                                                // way on mobile you can keep typing and sending messages because the software
+                                                // keyboard doesn't disappear.
+                                                //
+                                                // On desktop, hitting enter in the message input is sufficient for keyboard
+                                                // control of the message input.
+                                                isFocusable={false}
+                                            >
+                                                <Plus />
+                                            </IconButton>
+                                        </MenuButton>
+                                    )}
+                                </Box>
+                                <FocusRing offset="border" isVisibleWhenFocusWithin={true}>
                                     <Box
                                         ref={useScrollbar({
-                                            insetY: borderRadius[
-                                                messageViewBubbleBorderRadius[platform]
-                                            ],
+                                            insetTop:
+                                                messageInputEditorBorderRadiusPx[platform][
+                                                    spacingScale
+                                                ],
+                                            // Don't overlap the send button which is rendered at the bottom of
+                                            // the input.
+                                            insetBottom:
+                                                messageInputEditorMinHeightPx[platform][
+                                                    spacingScale
+                                                ],
+                                            // An additional pixel of inset right to offset the inset 1px border.
+                                            insetRight: 1,
                                         })}
                                         maxHeight={
                                             platform === "mobile" || withMobileMaxHeight
@@ -855,15 +1091,19 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                         zIndex="0"
                                         overflowX="hidden"
                                         overflowY="auto"
-                                        borderRadius={messageViewBubbleBorderRadius}
                                         style={{
-                                            minHeight: messageViewBubbleMinHeight[platform],
+                                            borderRadius:
+                                                messageInputEditorBorderRadiusPx[platform][
+                                                    spacingScale
+                                                ],
+                                            minHeight:
+                                                messageInputEditorMinHeightPx[platform][
+                                                    spacingScale
+                                                ],
                                         }}
                                     >
                                         <ContentEditor
                                             ref={editorRef}
-                                            isCompact={true}
-                                            isExtraCompact={platform === "mobile"}
                                             state={state}
                                             onChange={(state, transaction) => {
                                                 onChange(state);
@@ -878,16 +1118,34 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                     : `New ${messageNoun}`
                                             }
                                             placeholder={placeholder}
-                                            className={sprinkles({
-                                                paddingX: messageViewBubblePaddingX,
-                                                paddingY: messageViewBubblePaddingY,
-                                            })}
+                                            style={{
+                                                paddingTop:
+                                                    messageInputEditorPaddingYPx[platform][
+                                                        spacingScale
+                                                    ],
+                                                paddingBottom:
+                                                    messageInputEditorPaddingYPx[platform][
+                                                        spacingScale
+                                                    ],
+                                                paddingLeft: messageInputEditorPaddingX[platform],
+                                                paddingRight: messageInputEditorPaddingX[platform],
+                                                borderRadius:
+                                                    messageInputEditorBorderRadiusPx[platform][
+                                                        spacingScale
+                                                    ],
+                                            }}
                                             onEnterFromPhysicalKeyboard={event => {
                                                 event.preventDefault();
                                                 event.stopPropagation();
                                                 onSend();
                                             }}
                                             onArrowUp={onArrowUp}
+                                            onPasteOrDropFiles={fileInfos => {
+                                                events.addFiles(
+                                                    "<MessageInput> paste files",
+                                                    fileInfos,
+                                                );
+                                            }}
                                             // Don't render the default content editor mobile keyboard toolbar. We render
                                             // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
                                             withoutMobileKeyboardToolbar={true}
@@ -896,17 +1154,27 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                             withoutMobileDualModality={true}
                                         />
                                     </Box>
-                                </Box>
-                            </FocusRing>
-                            <Box display="flex" alignItems="flex-end">
+                                </FocusRing>
                                 <Box
-                                    width={messageInputAccountAvatarSize}
+                                    className={pointerEventsNoneNotInheritedClassName}
+                                    position="absolute"
+                                    right="0"
+                                    bottom="0"
+                                    zIndex="20"
+                                    display="flex"
+                                    justifyContent="center"
+                                    alignItems="center"
                                     style={{
-                                        paddingTop: avatarPaddingY,
-                                        paddingBottom: avatarPaddingY,
+                                        width: messageInputEditorMinHeightPx[platform][
+                                            spacingScale
+                                        ],
+                                        height: messageInputEditorMinHeightPx[platform][
+                                            spacingScale
+                                        ],
                                     }}
                                 >
                                     <IconButton
+                                        size={messageInputEditorIconButtonSize}
                                         variant="accent"
                                         description={`${sendButtonVerb} ${messageNoun}`}
                                         onPress={onSend}
@@ -946,6 +1214,71 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 </Box>
                             </Box>
                         </Box>
+                        {files.length > 0 && (
+                            <Box
+                                style={{
+                                    paddingLeft: subtractRemLengths(
+                                        screenPaddingX[platform],
+                                        messageInputFilesOverflowGradientWidth,
+                                    ),
+                                    paddingRight: subtractRemLengths(
+                                        screenPaddingX[platform],
+                                        messageInputFilesOverflowGradientWidth,
+                                    ),
+                                }}
+                            >
+                                <Box position="relative" zIndex="0" width="full" marginTop="-2">
+                                    <Box
+                                        position="absolute"
+                                        zIndex="10"
+                                        top="0"
+                                        bottom="0"
+                                        left="0"
+                                        width={messageInputFilesOverflowGradientWidth}
+                                        style={{
+                                            background: `linear-gradient(to right, ${backgroundColorVar}, transparent)`,
+                                        }}
+                                    />
+                                    <Box
+                                        position="absolute"
+                                        zIndex="10"
+                                        top="0"
+                                        bottom="0"
+                                        right="0"
+                                        width={messageInputFilesOverflowGradientWidth}
+                                        style={{
+                                            background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
+                                        }}
+                                    />
+                                    <Box
+                                        data-scrollbar="false"
+                                        position="relative"
+                                        zIndex="0"
+                                        width="full"
+                                        overflowX="auto"
+                                    >
+                                        <Box
+                                            display="flex"
+                                            gap="2"
+                                            paddingTop="2"
+                                            paddingX={messageInputFilesOverflowGradientWidth}
+                                            paddingBottom={messageInputPaddingY}
+                                            style={{width: "fit-content"}}
+                                        >
+                                            {files.map(file => (
+                                                <MessageInputFilePreview
+                                                    key={file.key}
+                                                    signedUrlSearch={file.signedUrlSearch}
+                                                    file={file.file}
+                                                    attachmentTarget={file.attachmentTarget}
+                                                    onRemove={() => onRemoveFile?.(file.key)}
+                                                />
+                                            ))}
+                                        </Box>
+                                    </Box>
+                                </Box>
+                            </Box>
+                        )}
                     </Box>
                     {platform === "mobile" && isBottomBar && (
                         <MessageInputMobileKeyboardToolbar
@@ -1057,6 +1390,184 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                     )}
                 </MobileFullScreenModal>
             )}
+        </Box>
+    );
+}
+
+function MessageInputReplyingToMessage<
+    RoomKey extends string,
+    Message extends MessageModel<RoomKey>,
+>({
+    messageNoun,
+    replyingToMessage,
+    onJumpToMessage,
+    onClearReplyingToMessage,
+    paddingX,
+}: {
+    messageNoun: string;
+    replyingToMessage: Message;
+    onJumpToMessage: ((message: Message) => void) | undefined;
+    onClearReplyingToMessage: (() => void) | undefined;
+    paddingX: Spacing | {desktop: Spacing; mobile: Spacing};
+}) {
+    const platform = usePlatform();
+    const spacingScale = useSpacingScale();
+
+    const truncatedContent = useMemo(
+        () =>
+            getTruncatedMessageContentForReplyPreview({
+                message: replyingToMessage,
+                messageNoun,
+            }),
+        [messageNoun, replyingToMessage],
+    );
+
+    const accountAvatarSizeRem = parseRemLength(messageViewAccountAvatarSize);
+    const parentMessageOffsetRem = parseRemLength(messageViewRailGap) / 2;
+    const parentAccountAvatarSizeRem = parseRemLength(messageViewParentAccountAvatarSize);
+
+    const {isPressed, pressProps} = usePress({
+        onPress: () => {
+            onJumpToMessage?.(replyingToMessage);
+        },
+    });
+
+    return (
+        <Box
+            paddingRight={paddingX}
+            style={{
+                paddingTop: addRemLengths(messageInputPaddingY[platform], "1"),
+                // Align text with message input placeholder.
+                paddingLeft: `${
+                    parseRemLength(
+                        addRemLengths(
+                            typeof paddingX !== "string" ? paddingX[platform] : paddingX,
+                            messageViewAccountAvatarSize,
+                        ),
+                    ) + parentMessageOffsetRem
+                }rem`,
+            }}
+        >
+            <Box position="relative">
+                <div
+                    className={classNames(
+                        // We render the border left/top color as a white with some opacity (which when
+                        // blended results in `grey-5`) so that when we render the context menu (right
+                        // click) `grey-5` background the border is rendered on top of the background
+                        // color.
+                        messagingStyles.parentMessageConnectorClassName,
+                        sprinkles({
+                            pointerEvents: "none",
+                            position: "absolute",
+                            borderLeftWidth: "thick",
+                            borderTopWidth: "thick",
+                            borderTopLeftRadius: "2.5",
+                        }),
+                    )}
+                    style={{
+                        top: `calc(${
+                            messageViewParentAvatarOffsetYRem + parentAccountAvatarSizeRem / 2
+                        }rem - 1px)`,
+                        bottom: `calc(-${spacing[messageInputPaddingY[platform]]} + 2px)`,
+                        left: `calc(-${
+                            accountAvatarSizeRem / 2 + parentMessageOffsetRem
+                        }rem - 1px)`,
+                        width: `calc(${
+                            accountAvatarSizeRem / 2 + parentMessageOffsetRem
+                        }rem - 2px)`,
+                    }}
+                />
+                <Box display="flex" gap="1.5">
+                    <Box
+                        {...pressProps}
+                        // This is a simulated link. When the user clicks on it our code navigates us
+                        // to the right message instead of relying on browser URL navigation.
+                        //
+                        // See: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/link_role
+                        role="link"
+                        // `inline-flex` instead of `flex` so that the clickable area doesn't extend
+                        // full width when we have a short message.
+                        display="inline-flex"
+                        gap="1.5"
+                        // We don't use a pointer cursor for buttons in our product because buttons
+                        // they clearly appear clickable. We call this a strong affordance. A reply
+                        // preview is clickable and gives some affordance (different color) but it's a
+                        // weak affordance. So we use a pointer to make this element unambiguously
+                        // clickable.
+                        //
+                        // Also, this element is semantically a link which the pointer cursor was
+                        // originally designed for.
+                        //
+                        // See: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
+                        cursor="pointer"
+                    >
+                        <Box
+                            className={sprinkles({
+                                flexShrink: "0",
+                                position: "relative",
+                                height: "0",
+                                opacity: isPressed ? "60" : "100",
+                            })}
+                            style={{
+                                top: `${messageViewParentAvatarOffsetYRem}rem`,
+                            }}
+                        >
+                            <AccountAvatar
+                                size={messageViewParentAccountAvatarSize}
+                                account={replyingToMessage.author}
+                            />
+                        </Box>
+                        <Box
+                            overflow="hidden"
+                            color="grey-80"
+                            fontSize={messageViewParentFontSize}
+                            fontStyle="normal"
+                            opacity={isPressed ? "60" : "100"}
+                            style={{
+                                minHeight: messageViewParentLineHeightPx[spacingScale],
+                                lineHeight: `${messageViewParentLineHeightPx[spacingScale]}px`,
+                                // Allow contextual alternate glyphs in regular text content.
+                                fontFeatureSettings: '"calt" on',
+                                // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
+                                // except IE.
+                                // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
+                                display: "-webkit-box",
+                                WebkitLineClamp: 3,
+                                lineClamp: 3,
+                                WebkitBoxOrient: "vertical",
+                                textOverflow: "ellipsis",
+                            }}
+                        >
+                            <AccountShortName account={replyingToMessage.author} />:{" "}
+                            {truncatedContent}
+                        </Box>
+                    </Box>
+                    <Box
+                        flexShrink="0"
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                        // Optically center the "x" button with the send button when it's placed all
+                        // the way on the right.
+                        paddingRight="0.5"
+                        style={{
+                            height: messageViewParentLineHeightPx[spacingScale],
+                        }}
+                    >
+                        <IconButton
+                            size="xs"
+                            description="Cancel reply"
+                            tooltipPlacement="top"
+                            onPress={onClearReplyingToMessage}
+                            // Not focusable so clicking on this button doesn't unfocus
+                            // the input.
+                            isFocusable={false}
+                        >
+                            <X />
+                        </IconButton>
+                    </Box>
+                </Box>
+            </Box>
         </Box>
     );
 }

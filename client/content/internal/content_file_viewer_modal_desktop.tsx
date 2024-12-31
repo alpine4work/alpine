@@ -71,7 +71,7 @@ export function ContentFileViewerModalDesktop({
     onClose,
 }: {
     file: FileClientStoreData;
-    attachmentTarget: FileAttachmentTarget;
+    attachmentTarget: FileAttachmentTarget | "Uploader";
     ownedByElement: Element | null;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     onClose: () => void;
@@ -123,10 +123,12 @@ export function ContentFileViewerModalDesktop({
         // modal so we don't need to also show a small spinner here.
         !(file.preview?.type === "Code" && file.preview.isProcessing);
 
+    const fileContentTypeName = getFileContentTypeName(file.contentType);
+
     return (
         <Modal
             ownedByElement={ownedByElement}
-            aria-label="File"
+            aria-label={fileContentTypeName}
             maxWidth="full"
             height="full"
             // More margin than `<SearchModal>` so when the two are overlapping on a narrow
@@ -196,8 +198,7 @@ export function ContentFileViewerModalDesktop({
                             gap="3"
                         >
                             <Box userSelect="text">
-                                {getFileContentTypeName(file.contentType)} -{" "}
-                                {prettyBytes(file.contentLength)}
+                                {fileContentTypeName} - {prettyBytes(file.contentLength)}
                             </Box>
                             {withProcessingIndicator && (
                                 <Box
@@ -320,7 +321,7 @@ export function ContentFileViewerModalDesktop({
 
 function ContentFileDesktopViewer(props: {
     file: FileClientStoreData;
-    attachmentTarget: FileAttachmentTarget;
+    attachmentTarget: FileAttachmentTarget | "Uploader";
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     viewerSize: {width: number; height: number};
     zoomScale: number;

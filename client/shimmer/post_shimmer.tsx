@@ -1,12 +1,13 @@
 import {ReactNode} from "react";
 import {Box} from "~/client/design/box.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {useCoordinatedShimmerAnimations} from "~/client/shimmer/use_coordinated_shimmer_animations.js";
 import {
     postContentViewFooterHeight,
     postContentViewHeaderHeight,
     postContentViewInnerMarginY,
-    postContentViewMinHeightWithClosedCommentSection,
+    postContentViewMinHeightPx,
     postContentViewOuterMarginBottom,
     postContentViewOuterMarginY,
 } from "~/client/styles/forum_shared_styles.js";
@@ -20,6 +21,8 @@ export function PostShimmer({
     children?: ReactNode;
     withoutHeader?: boolean;
 }) {
+    const spacingScale = useSpacingScale();
+
     return (
         <Box
             ref={useCoordinatedShimmerAnimations()}
@@ -28,7 +31,7 @@ export function PostShimmer({
             display="flex"
             flexDirection="column"
             style={{
-                minHeight: postContentViewMinHeightWithClosedCommentSection,
+                minHeight: postContentViewMinHeightPx[spacingScale],
                 paddingBottom: postContentViewOuterMarginBottom,
             }}
         >
@@ -37,8 +40,8 @@ export function PostShimmer({
                 left="0"
                 right="0"
                 bottom="0"
+                height="border"
                 paddingX={screenPaddingX}
-                style={{height: 1}}
             >
                 <Box
                     height="full"

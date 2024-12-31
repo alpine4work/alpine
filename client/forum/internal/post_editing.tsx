@@ -1,6 +1,6 @@
 import {Memo, MutableRefObject, ReactNode, useEffect, useMemo, useReducer} from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
-import {trimContentEnd} from "~/client/content/trim_content_end.js";
+import {trimContentEnd} from "~/client/content/trim_content.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -14,6 +14,7 @@ import {PostId} from "~/shared/id/types/id_types.js";
 export type PostEditingState =
     | {
           readonly isEditing: false;
+          readonly lastEditedPostId: PostId | null;
       }
     | ({
           readonly isEditing: true;
@@ -69,10 +70,9 @@ function reduce(state: PostEditingState, action: PostEditingAction): PostEditing
                 isEditing: true,
                 postId: action.postId,
                 contentEditorState: ContentEditorState.create(action.currentContent, {
-                    // The user is much more likely to need to edit from the end of the post than
-                    // the start. But on mobile, if the post is long, editing should start at the
-                    // start of the post so the cursor is visible.
-                    selectionAt: action.platform === "mobile" ? "start" : "end",
+                    // Put the selection at the start of the post so the cursor is visible when we
+                    // enter edit mode and we don't have to scroll.
+                    selectionAt: "start",
                 }),
                 initialContent: action.currentContent.doc,
                 isSaving: false,
@@ -88,8 +88,11 @@ function reduce(state: PostEditingState, action: PostEditingAction): PostEditing
             };
         }
         case "CancelEditing": {
+            if (!state.isEditing) return state;
+
             return {
                 isEditing: false,
+                lastEditedPostId: state.postId,
             };
         }
         case "MaybeCancelEditing": {
@@ -99,6 +102,7 @@ function reduce(state: PostEditingState, action: PostEditingAction): PostEditing
             if (state.contentEditorState.getDoc() === state.initialContent) {
                 return {
                     isEditing: false,
+                    lastEditedPostId: state.postId,
                 };
             } else {
                 return {
@@ -135,6 +139,7 @@ function reduce(state: PostEditingState, action: PostEditingAction): PostEditing
             if (action.shouldCancelEditing) {
                 return {
                     isEditing: false,
+                    lastEditedPostId: state.postId,
                 };
             } else {
                 return {
@@ -176,7 +181,7 @@ export function usePostEditing({
 
     const [state, dispatch] = useReducer<
         (state: PostEditingState, action: PostEditingAction) => PostEditingState
-    >(reduce, {isEditing: false});
+    >(reduce, {isEditing: false, lastEditedPostId: null});
 
     const onUpdatePostContent = useEvent(_onUpdatePostContent);
 

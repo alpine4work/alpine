@@ -4,6 +4,7 @@ import prettyBytes from "pretty-bytes";
 import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
 import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
+import {ContentBaseProsemirrorSchemaWithFiles} from "~/client/content/internal/content_base_schema_with_files.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {
     addContentFileAudioPlayerBehavior,
@@ -132,6 +133,7 @@ export function renderContentFilePreview({
     file,
     layout,
     screenWidth,
+    screenScale,
     platform,
     spacingScale,
     isInitialAppRender,
@@ -142,6 +144,7 @@ export function renderContentFilePreview({
     file: FileClientStoreData | undefined;
     layout: ContentFileLayout;
     screenWidth: number;
+    screenScale: number;
     platform: Platform;
     spacingScale: SpacingScale;
     isInitialAppRender: boolean;
@@ -154,7 +157,7 @@ export function renderContentFilePreview({
     assert(html instanceof HtmlElementGenerator);
 
     if (process.env.NODE_ENV !== "production" && file) {
-        html.setAttribute("data-testid", `ContentFile:${file.contentType}`);
+        html.setAttribute("data-testid", `ContentFilePreview:${file.contentType}`);
     }
 
     if (!file) {
@@ -233,6 +236,7 @@ export function renderContentFilePreview({
                     file,
                     filePreview: file.preview,
                     layout,
+                    screenScale,
                     platform,
                     isInitialAppRender,
                     withoutInteractivity,
@@ -313,13 +317,34 @@ function appendImageHtmlForSelection(containerHtml: HtmlElementGenerator, platfo
     imageHtmlForSelection.setAttribute("class", contentStyles.fileBlankImageForSelectionClassName);
 }
 
+function actuallyRenderContentFileProcessingPreview({
+    file,
+    layout,
+}: {
+    file: FileModelData;
+    layout: {width: number; height: number};
+}): HtmlElementGenerator {
+    const schema = ContentBaseProsemirrorSchemaWithFiles.get();
+    const {html} = renderProsemirrorDomOutputSpec(
+        schema.nodes.file.spec.toDOM!(schema.nodes.file.create()),
+    );
+
+    assert(html instanceof HtmlElementGenerator);
+
+    renderContentFileProcessingPreview(html, {file, layout});
+
+    return html;
+}
+
+export {actuallyRenderContentFileProcessingPreview as renderContentFileProcessingPreview};
+
 function renderContentFileProcessingPreview(
     html: HtmlElementGenerator,
     {
         file,
         layout,
     }: {
-        file: FileClientStoreData;
+        file: FileModelData;
         layout: {width: number; height: number};
     },
 ) {
@@ -368,9 +393,10 @@ function renderContentFileProcessingPreview(
             alignItems: "center",
             gap: "1.5",
             fontSize: layout.width < 150 ? "25" : "50",
+            textAlign: "center",
             // Push the loading spinner into the center with some
             // padding top.
-            paddingTop: "4",
+            paddingTop: layout.width < 150 ? "2" : "4",
         }),
     );
 
@@ -384,9 +410,13 @@ function renderContentFileProcessingPreview(
             }),
         ),
     );
-    processingHtml.appendChild(
-        new HtmlTextGenerator(`Processing ${getFileContentTypeNoun(file.contentType)}`),
-    );
+    if (file.isUploading) {
+        processingHtml.appendChild(new HtmlTextGenerator("Uploading"));
+    } else {
+        processingHtml.appendChild(
+            new HtmlTextGenerator(`Processing ${getFileContentTypeNoun(file.contentType)}`),
+        );
+    }
 }
 
 function renderContentFileProcessorErrorPreview(
@@ -533,6 +563,7 @@ function renderContentFileImagePreview(
         file,
         filePreview,
         layout,
+        screenScale,
         platform,
         isInitialAppRender,
         withoutInteractivity,
@@ -541,6 +572,7 @@ function renderContentFileImagePreview(
         file: FileClientStoreData;
         filePreview: FileImagePreview;
         layout: ContentFileLayout;
+        screenScale: number;
         platform: Platform;
         isInitialAppRender: boolean;
         withoutInteractivity: boolean;
@@ -575,6 +607,7 @@ function renderContentFileImagePreview(
         filePreviewSize: filePreview.size,
         filePreviewPlaceholder: filePreview.placeholder,
         layout,
+        screenScale,
         platform,
         isInitialAppRender,
         withoutInteractivity,
@@ -591,6 +624,7 @@ function renderContentFileImagePreviewInner(
         filePreviewSize,
         filePreviewPlaceholder,
         layout,
+        screenScale,
         platform,
         isInitialAppRender,
         withoutInteractivity,
@@ -602,6 +636,7 @@ function renderContentFileImagePreviewInner(
         filePreviewSize: FileImagePreviewSize;
         filePreviewPlaceholder: FileImagePreviewPlaceholder;
         layout: ContentFileLayout;
+        screenScale: number;
         platform: Platform;
         isInitialAppRender: boolean;
         withoutInteractivity: boolean;
@@ -665,9 +700,9 @@ function renderContentFileImagePreviewInner(
             image2xSource = imageSourceBase;
             image3xSource = imageSourceBase;
         } else {
-            const image1xWidth = getFilePreviewImageResizeWidth(layout.width);
-            const image2xWidth = getFilePreviewImageResizeWidth(layout.width * 2);
-            const image3xWidth = getFilePreviewImageResizeWidth(layout.width * 3);
+            const image1xWidth = getFilePreviewImageResizeWidth(layout.width * screenScale);
+            const image2xWidth = getFilePreviewImageResizeWidth(layout.width * 2 * screenScale);
+            const image3xWidth = getFilePreviewImageResizeWidth(layout.width * 3 * screenScale);
 
             const aspectRatio = filePreviewSize.width / filePreviewSize.height;
             const isOutsideAspectRatioRange =
@@ -1227,7 +1262,7 @@ function renderFileProcessingPreviewPlaceholder(
     const pixelGridWidth = pixelGrid[0]!.length;
     const pixelGridHeight = pixelGrid.length;
 
-    let svg = `<svg xmlns="http://www.w3.org/2000/svg" class="${className}" viewBox="0 0 ${pixelGridWidth} ${pixelGridHeight}">`;
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" class="${className}" viewBox="0 0 ${pixelGridWidth} ${pixelGridHeight}" preserveAspectRatio="xMidYMid slice">`;
 
     const blurStdDeviation = 1 / 2;
     const translateX = -blurStdDeviation * 2;
@@ -1282,7 +1317,7 @@ export function addContentFilePreviewBehavior(
         spaceId: SpaceId;
         node: Node;
         file: FileClientStoreData | undefined;
-        attachmentTarget: FileAttachmentTarget;
+        attachmentTarget: FileAttachmentTarget | "Uploader";
         isInert?: boolean;
         isInitialAppRender: boolean;
         isEditorInitialAppRender?: boolean;
@@ -1454,7 +1489,9 @@ export function addContentFilePreviewBehavior(
                 "file",
                 // Space separator was chosen since it's encoded as a `+` which looks nice in
                 // the URL.
-                `${file.id} ${serializeFileAttachmentTargetString(attachmentTarget)}`,
+                attachmentTarget === "Uploader"
+                    ? file.id
+                    : `${file.id} ${serializeFileAttachmentTargetString(attachmentTarget)}`,
             );
 
             return [
@@ -1786,7 +1823,7 @@ export async function handleCopyContentFile(
     }: {
         spaceId: SpaceId;
         file: FileClientStoreData | null;
-        attachmentTarget: FileAttachmentTarget;
+        attachmentTarget: FileAttachmentTarget | "Uploader";
     },
 ) {
     // Create a temporary schema we can use for constructing a `file` node we

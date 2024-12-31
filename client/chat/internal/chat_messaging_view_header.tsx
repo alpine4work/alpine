@@ -1,17 +1,13 @@
 import {Ref, useRef} from "react";
 import {
     getElementSafeAreaInsetBottomPx,
-    getElementSafeAreaInsetTopPx,
     getElementWindowSafeAreaInsetBottomPx,
 } from "~/client/design/safe_area_inset.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {
-    messageViewMarginY,
-    messageViewTimestampDividerMarginTop,
-} from "~/client/styles/messaging_shared_styles.js";
+import {messageViewMarginY} from "~/client/styles/messaging_shared_styles.js";
 import {addRemLengths, parseRemLength} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -21,7 +17,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 // It's ok to export this since it's a constant string.
 // eslint-disable-next-line react-refresh/only-export-components
 export const chatMessagingViewHeaderMinHeight = addRemLengths(
-    messageViewTimestampDividerMarginTop,
+    messageViewMarginY,
     messageViewMarginY,
 );
 
@@ -63,7 +59,7 @@ export function ChatMessagingViewHeader({
             (NativeMobileBridge?.tabBar.height ?? 0);
 
         const height = Math.max(
-            minHeight + getElementSafeAreaInsetTopPx(element),
+            minHeight,
             viewHeight - (originalContentHeight - keyboardSafeAreaBottom - originalHeight),
         );
 
@@ -94,16 +90,13 @@ export function ChatMessagingViewHeader({
                 // server-rendering a chat with few messages where messages jump down. A flash
                 // we choose to accept since correct implementations are annoying.
                 ...(shouldRenderWithRelativePositioning
-                    ? {
-                          position: "relative",
-                          height: `calc(${chatMessagingViewHeaderMinHeight} + var(--safe-area-inset-top, 0px))`,
-                      }
+                    ? {position: "relative", height: chatMessagingViewHeaderMinHeight}
                     : {
                           position: "absolute",
                           top: offset,
                           left: 0,
                           right: 0,
-                          height: `calc(${chatMessagingViewHeaderMinHeight} + var(--safe-area-inset-top, 0px))`,
+                          height: chatMessagingViewHeaderMinHeight,
                       }),
             }}
         />

@@ -79,7 +79,7 @@ function OverlayAnimated(
     },
     ref: Ref<OverlayRef>,
 ) {
-    const [_state, setState] = useState(initialOverlayAnimatedState);
+    const [actualState, setState] = useState(initialOverlayAnimatedState);
 
     let state: OverlayAnimatedState;
 
@@ -92,17 +92,17 @@ function OverlayAnimated(
             isVisible,
             isAnimating: false,
         };
-        state = !isDeepEqual(_state, disabledState) ? disabledState : _state;
-    } else if (isVisible !== _state.isVisible) {
+        state = !isDeepEqual(actualState, disabledState) ? disabledState : actualState;
+    } else if (isVisible !== actualState.isVisible) {
         state = {
             isVisible,
-            isAnimating: true,
+            isAnimating: isVisible ? !disableAnimationIn : !disableAnimationOut,
         };
     } else {
-        state = _state;
+        state = actualState;
     }
 
-    if (state !== _state) setState(state);
+    if (state !== actualState) setState(state);
 
     const overlayContainerRef = useRef<HTMLDivElement>(null);
     const overlayRef = useRef<HTMLElement>(null);
@@ -120,8 +120,7 @@ function OverlayAnimated(
     const isActuallyVisible = state.isVisible || state.isAnimating;
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (!state.isAnimating) return;
-        if (!state.isVisible) return;
+        if (!state.isAnimating || !state.isVisible) return;
 
         const overlayElement = assertExists(overlayRef.current);
 
@@ -137,6 +136,8 @@ function OverlayAnimated(
         };
     }, [isActuallyVisible, state.isAnimating, state.isVisible]);
 
+    const fadeOutAnimationRef = useRef<AnimationControls | null>(null);
+
     // NOTE(calebmer, #mobile-webkit-weirdness): Implement fade out animation with
     // the `motion` package. I've observed CSS class based animations randomly stop
     // working on mobile WebKit after ~3min of app use. Implementing the animation
@@ -146,8 +147,29 @@ function OverlayAnimated(
     // Adding `allowWebkitAcceleration: true` breaks the animation again.
     // Interestingly translation will work but the opacity change won't work.
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (!state.isAnimating) return;
-        if (state.isVisible) return;
+        if (!state.isAnimating || state.isVisible) {
+            if (state.isVisible) {
+                fadeOutAnimationRef.current?.cancel();
+            } else {
+                fadeOutAnimationRef.current?.finish();
+            }
+            fadeOutAnimationRef.current = null;
+            return;
+        }
+
+        if (fadeOutAnimationRef.current !== null) {
+            let isCancelled = false;
+
+            void fadeOutAnimationRef.current.finished.finally(() => {
+                if (isCancelled) return;
+                fadeOutAnimationRef.current = null;
+                setState(prevState => ({...prevState, isAnimating: false}));
+            });
+
+            return () => {
+                isCancelled = true;
+            };
+        }
 
         const overlayContainerElement = assertExists(overlayContainerRef.current);
         const overlayElement = assertExists(overlayRef.current);
@@ -196,7 +218,6 @@ function OverlayAnimated(
         }
 
         let isCancelled = false;
-        let animation: AnimationControls | undefined;
 
         // NOTE(calebmer): Without this `requestAnimationFrame()` the animation is
         // [quite choppy on iOS Safari][1]. I have no idea why adding this helps.
@@ -206,20 +227,20 @@ function OverlayAnimated(
         requestAnimationFrame(() => {
             if (isCancelled) return;
 
-            animation = animate(overlayElement, animationKeyframes, {
+            fadeOutAnimationRef.current = animate(overlayElement, animationKeyframes, {
                 duration: overlayFadeOutAnimationDurationMs / 1000,
                 easing: parseCubicBezier(overlayFadeInOutTimingFunction),
             });
 
-            void animation.finished.finally(() => {
+            void fadeOutAnimationRef.current.finished.finally(() => {
                 if (isCancelled) return;
+                fadeOutAnimationRef.current = null;
                 setState(prevState => ({...prevState, isAnimating: false}));
             });
         });
 
         return () => {
             isCancelled = true;
-            animation?.finish();
         };
     }, [state.isAnimating, state.isVisible]);
 

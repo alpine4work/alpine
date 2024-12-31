@@ -13,8 +13,11 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {useFileClientStore} from "~/client/content/file_client_store_context.js";
+import {MessageInputFile} from "~/client/content/messaging/add_message_input_files.js";
 import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
-import {trimContentWithReferencesEnd} from "~/client/content/trim_content_end.js";
+import {trimContentWithReferencesEnd} from "~/client/content/trim_content.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -26,17 +29,26 @@ import {MessageList} from "~/client/messaging/message_list.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {Spacing, screenPaddingX} from "~/shared/design/core/spacing.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {FileModel} from "~/shared/files/file_model.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
-import {generateId} from "~/shared/id/id.js";
+import {Id, generateId} from "~/shared/id/id.js";
+import {FileId} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
     MessageContentWithReferences,
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
+import {
+    attachFileAsUploader,
+    attachFileFromAttachment,
+} from "~/shared/rpc/files_rpc_definitions.js";
 
 export type MessageInputProps<RoomKey extends string, Message extends MessageModel<RoomKey>> = {
     messageNoun?: string;
@@ -49,7 +61,10 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
     createMessage: (input: {
         parentMessageIndex: number | null;
         content: MessageContent;
+        fileIds: ReadonlyArray<FileId>;
     }) => Promise<void>;
+    fileAttachmentTarget: Memo<FileAttachmentTarget> | null;
+    withAttachFileBeforeCreateMessage?: boolean;
     messageEditing: MessageEditing<RoomKey>;
     replyingToMessage: Message | null;
     onClearReplyingToMessage: () => void;
@@ -60,9 +75,9 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
     "data-testid"?: string;
     restoreStateRef?: MutableRefObject<{
         state: ContentEditorState<MessageContentWithReferences>;
+        files: ReadonlyArray<MessageInputFile>;
         isFocused: boolean;
     } | null>;
-    paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     withMobileMaxHeight?: boolean;
     onFocus?: () => void;
     onBlur?: () => void;
@@ -87,6 +102,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         isMessageCreationDisabled,
         onUpdateMessages,
         createMessage,
+        fileAttachmentTarget,
+        withAttachFileBeforeCreateMessage = false,
         messageEditing,
         replyingToMessage,
         onClearReplyingToMessage,
@@ -96,7 +113,6 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         onHideTypingIndicator,
         "data-testid": dataTestId,
         restoreStateRef,
-        paddingX = screenPaddingX,
         withMobileMaxHeight,
         onFocus,
         onBlur,
@@ -104,10 +120,12 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     }: MessageInputProps<RoomKey, Message>,
     externalRef: Ref<MessageInputRef>,
 ) {
+    const context = useAppContext();
     const platform = usePlatform();
     const reporter = useReporter();
-    const {currentAccount} = useSpaceContext();
+    const {currentAccount, space} = useSpaceContext();
     const inboxPeekContext = useInboxContext();
+    const fileStore = useFileClientStore();
 
     const inputRef = useRef<MessageInputRef>(null);
 
@@ -118,56 +136,70 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
             ? (messageEditing as MessageEditing<RoomKey> & {state: {isEditing: true}})
             : null;
 
-    const [{key: newMessageKey, state: newMessageState}, actuallySetNewMessageState] = useState(
-        () => {
-            return {
-                key: generateId(),
-                state:
-                    restoreStateRef?.current?.state ??
-                    ContentEditorState.create(emptyMessageContentWithReferences),
-            };
-        },
-    );
+    const [{key: inputKey, state: inputState, files: inputFiles}, actuallySetInputState] =
+        useState<{
+            key: Id;
+            state: ContentEditorState<MessageContentWithReferences>;
+            files: ReadonlyArray<MessageInputFile>;
+        }>(() => ({
+            key: generateId(),
+            state:
+                restoreStateRef?.current?.state ??
+                ContentEditorState.create(emptyMessageContentWithReferences),
+            files: restoreStateRef?.current?.files ?? emptyArray,
+        }));
 
-    const setNewMessageState = useCallback(
-        (newMessageState: ContentEditorState<MessageContentWithReferences>) => {
-            if (restoreStateRef) {
-                restoreStateRef.current = {
-                    state: newMessageState,
-                    isFocused: inputRef.current?.isFocused() ?? false,
-                };
-            }
-
-            actuallySetNewMessageState(oldState => ({
+    const setInputState = useCallback(
+        (newInputState: ContentEditorState<MessageContentWithReferences>) => {
+            actuallySetInputState(oldState => ({
                 key: oldState.key,
-                state: newMessageState,
+                state: newInputState,
+                files: oldState.files,
             }));
         },
-        [restoreStateRef],
+        [],
     );
 
-    const resetNewMessageState = useCallback(() => {
-        const newMessageState = ContentEditorState.create(emptyMessageContentWithReferences);
+    const resetInputState = useCallback(() => {
+        actuallySetInputState({
+            key: generateId(),
+            state: ContentEditorState.create(emptyMessageContentWithReferences),
+            files: emptyArray,
+        });
+    }, []);
 
+    const addInputFile = useCallback((file: MessageInputFile) => {
+        actuallySetInputState(oldState => ({
+            key: oldState.key,
+            state: oldState.state,
+            files: [...oldState.files, file],
+        }));
+    }, []);
+
+    const removeInputFile = useCallback((fileKey: Id) => {
+        actuallySetInputState(oldState => ({
+            key: oldState.key,
+            state: oldState.state,
+            files: oldState.files.filter(file => file.key !== fileKey),
+        }));
+    }, []);
+
+    useEffect(() => {
         if (restoreStateRef) {
             // eslint-disable-next-line react-compiler/react-compiler
             restoreStateRef.current = {
-                state: newMessageState,
+                state: inputState,
+                files: inputFiles,
                 isFocused: inputRef.current?.isFocused() ?? false,
             };
         }
-
-        actuallySetNewMessageState({
-            key: generateId(),
-            state: newMessageState,
-        });
-    }, [restoreStateRef]);
+    }, [inputFiles, inputState, restoreStateRef]);
 
     // If we're editing a message then clear any new message text so when we finish
     // editing the input is empty. Also clear reply state but we need to do that in
     // an effect since the state isn't local.
-    if (messageEditingForThisInput && !isContentEmpty(newMessageState.getDoc())) {
-        resetNewMessageState();
+    if (messageEditingForThisInput && !isContentEmpty(inputState.getDoc())) {
+        resetInputState();
     }
     useEffect(() => {
         if (messageEditingForThisInput && replyingToMessage) {
@@ -200,8 +232,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         if (isMessageCreationDisabled) return;
         if (messageEditingForThisInput) return;
 
-        const content = trimContentWithReferencesEnd(newMessageState.getContent());
-        if (isContentEmpty(content.doc)) return;
+        const inputContent = trimContentWithReferencesEnd(inputState.getContent());
+        if (isContentEmpty(inputContent.doc) && inputFiles.length === 0) return;
 
         const optimisticMessage: OptimisticMessageModel = {
             isOptimistic: true,
@@ -212,8 +244,15 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
             payload: {
                 type: "Content",
                 parentMessageIndex: replyingToMessage?.index ?? null,
-                content,
+                content: inputContent,
                 contentUpdatedTime: null,
+                files: inputFiles.map(inputFile => {
+                    const latestFile = fileStore.getFileStore(inputFile).getSnapshot();
+                    return {
+                        signedUrlSearch: latestFile.signedUrlSearch,
+                        file: new FileModel(latestFile),
+                    };
+                }),
             },
         };
 
@@ -221,9 +260,12 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         // focus the re-rendered input.
         const wasInputFocused = assertExists(inputRef.current).isFocused();
 
+        // Make sure these updates happen in one React render. These external callbacks
+        // might themselves update a store (`useSyncExternalStore()`) or call
+        // `flushSync()`.
         flushSync(() => {
             onUpdateMessages(messages => messages.addOptimisticMessage(optimisticMessage));
-            resetNewMessageState();
+            resetInputState();
             onClearReplyingToMessage();
         });
 
@@ -232,13 +274,45 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         const tryCreatingMessage = () => {
             runPromiseWithoutAwaiting(async () => {
                 try {
-                    // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
-                    // close the page if we haven't finished sending their message. It will
-                    // look ok on their machine but might not be on the server.
-                    const promise = createMessage({
-                        parentMessageIndex: replyingToMessage?.index ?? null,
-                        content: content.doc,
-                    });
+                    const promise = (async () => {
+                        // If we were configured to attach files right before creating a message
+                        // (instead of when the file was added to the message input) then run our
+                        // attach calls now.
+                        if (withAttachFileBeforeCreateMessage && fileAttachmentTarget !== null) {
+                            await runAllPromises(
+                                inputFiles.map(async inputFile => {
+                                    if (inputFile.attachmentTarget === "Uploader") {
+                                        await attachFileAsUploader(context, {
+                                            spaceId: space.id,
+                                            fileId: inputFile.file.id,
+                                            target: fileAttachmentTarget,
+                                        });
+                                    } else if (
+                                        !isDeepEqual(
+                                            fileAttachmentTarget,
+                                            inputFile.attachmentTarget,
+                                        )
+                                    ) {
+                                        await attachFileFromAttachment(context, {
+                                            spaceId: space.id,
+                                            fileId: inputFile.file.id,
+                                            fromTarget: inputFile.attachmentTarget,
+                                            toTarget: fileAttachmentTarget,
+                                        });
+                                    }
+                                }),
+                            );
+                        }
+
+                        // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
+                        // close the page if we haven't finished sending their message. It will
+                        // look ok on their machine but might not be on the server.
+                        await createMessage({
+                            parentMessageIndex: replyingToMessage?.index ?? null,
+                            content: inputContent.doc,
+                            fileIds: inputFiles.map(inputFile => inputFile.file.id),
+                        });
+                    })();
 
                     // Sending a message dismisses post comment entries and chat entries.
                     // Optimistically archive these entries so we don't need to wait for
@@ -298,7 +372,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                     // editing mode. This should reset iOS auto complete. Otherwise the last
                     // message's auto complete will still be suggested.
                     !messageEditingForThisInput
-                        ? newMessageKey
+                        ? inputKey
                         : `MessageEditing:${messageEditingForThisInput.state.messageRoomKey}:${messageEditingForThisInput.state.messageIndex}`
                 }
                 messageNoun={messageNoun}
@@ -306,12 +380,13 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 placeholder={placeholder}
                 state={
                     !messageEditingForThisInput
-                        ? newMessageState
+                        ? inputState
                         : messageEditingForThisInput.state.contentEditorState
                 }
+                files={!messageEditingForThisInput ? inputFiles : emptyArray}
                 onChange={
                     !messageEditingForThisInput
-                        ? setNewMessageState
+                        ? setInputState
                         : state => {
                               messageEditingForThisInput.dispatch({
                                   type: "ContentEditorStateChange",
@@ -319,6 +394,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                               });
                           }
                 }
+                onAddFile={!messageEditingForThisInput ? addInputFile : null}
+                onRemoveFile={!messageEditingForThisInput ? removeInputFile : null}
                 onSend={
                     !messageEditingForThisInput
                         ? sendNewMessage
@@ -333,6 +410,12 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                             messageEditingForThisInput.state.initialContent)
                 }
                 isSendButtonPending={messageEditingForThisInput?.state.isSaving}
+                // Always treat `fileAttachmentTarget` as null if we want to attach files
+                // before creating the message instead of when they're dropped on the message
+                // input.
+                fileAttachmentTarget={
+                    withAttachFileBeforeCreateMessage ? null : fileAttachmentTarget
+                }
                 messageEditingForThisInput={messageEditingForThisInput}
                 replyingToMessage={replyingToMessage}
                 onClearReplyingToMessage={onClearReplyingToMessage}
@@ -341,7 +424,6 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 onHideTypingIndicator={onHideTypingIndicator}
                 isBottomBar={!isNotBottomBar}
                 data-testid={dataTestId}
-                paddingX={paddingX}
                 withMobileMaxHeight={withMobileMaxHeight}
                 onFocus={() => {
                     if (restoreStateRef?.current) restoreStateRef.current.isFocused = true;
@@ -365,7 +447,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 onArrowUp={event => {
                     if (messageEditingForThisInput) return;
 
-                    if (isContentEmpty(newMessageState.getDoc())) {
+                    if (isContentEmpty(inputState.getDoc())) {
                         event.preventDefault();
                         event.stopPropagation();
 
@@ -378,7 +460,11 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                         )) {
                             if (
                                 message.author.id === currentAccount.id &&
-                                message.payload.type === "Content"
+                                message.payload.type === "Content" &&
+                                // Don't start editing a message that just has files. Normally we don't allow
+                                // empty message content but we do allow empty message content if the message
+                                // has files.
+                                !isContentEmpty(message.payload.content.doc)
                             ) {
                                 messageEditing.dispatch({
                                     type: "StartEditing",

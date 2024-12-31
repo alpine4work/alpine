@@ -1,7 +1,7 @@
 import GraphemeSplitter from "grapheme-splitter";
 import {Node, ResolvedPos} from "prosemirror-model";
 import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-word-boundary";
-import {ContentNodeTypeName} from "~/shared/content/content_type_names.js";
+import {ContentNodeTypeName} from "~/shared/content/content_node_type_name.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 

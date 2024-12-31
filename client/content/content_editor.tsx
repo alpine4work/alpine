@@ -93,18 +93,17 @@ import {
     getContentEditorFileDropTargets,
 } from "~/client/content/internal/get_content_editor_file_drop_targets.js";
 import {
+    FileInfo,
+    iterateFileInfosInElement,
+} from "~/client/content/internal/iterate_file_infos_in_element.js";
+import {
     dispatchParentScrollWhenPointerDownAndOverEvent,
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
-import {createProgressCompositeStore} from "~/client/content/internal/progress_store.js";
 import {ContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {contentTableHandlePaste} from "~/client/content/internal/table/content_table_input.js";
 import {contentTableIsInTable} from "~/client/content/internal/table/helpers/content_table_is_in_table.js";
-import {
-    UploadFileFromContentEditorInput,
-    uploadFileFromContentEditor,
-    uploadFileFromContentEditorProgressCompositeStoreWeights,
-} from "~/client/content/internal/upload_file_from_content_editor.js";
+import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {selectFiles} from "~/client/content/select_files.js";
 import {AppContext, useAppContextIfExists} from "~/client/context/app_context.js";
@@ -155,16 +154,13 @@ import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {commentClassName, fileClassName, linkClassName} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
-import {convertRemLengthToPx, subtractRemLengths} from "~/shared/design/core/spacing.js";
+import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
-import {UnimplementedError} from "~/shared/error/error.js";
-import {
-    FileAttachmentTarget,
-    deserializeFileAttachmentTargetString,
-} from "~/shared/files/file_attachment_target.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {
     getFileAudioContentTypes,
     getFileImageContentTypes,
@@ -189,7 +185,6 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -197,12 +192,13 @@ import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
 import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
-import {Id, generateId, isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {Id, generateId} from "~/shared/id/id.js";
+import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {getAccountsIfExist} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {
+    attachFileAsUploader,
     attachFileFromAttachment,
     getFileFromAttachment,
 } from "~/shared/rpc/files_rpc_definitions.js";
@@ -255,6 +251,7 @@ const historyPluginKey = new Lazy((): PluginKey => {
 });
 
 export type ContentEditorRef<Content extends ContentWithReferences> = {
+    getContainer(): HTMLDivElement;
     getState(): ContentEditorState<Content>;
     isFocused(): boolean;
     focus(options?: FocusOptions): void;
@@ -367,18 +364,6 @@ export {ContentEditorForwardRef as ContentEditor};
 
 export type ContentEditorProps<Content extends ContentWithReferences> = {
     /**
-     * Should this content be rendered with our compact rendering? Compact
-     * rendering reduces some margins so content can be closer together.
-     */
-    isCompact?: boolean;
-
-    /**
-     * Should this content be rendered with our extra compact render? Extra compact
-     * rendering implies `isCompact` and decreases the paragraph font size.
-     */
-    isExtraCompact?: boolean;
-
-    /**
      * The current state of our content editor.
      *
      * Mostly the content editor state is a wrapper around ProseMirror's immutable
@@ -409,6 +394,18 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * The class name we'll apply to the content editable `<div>`.
      */
     className?: string;
+
+    /**
+     * A subset of `React.CSSProperties` we'll apply to the content editable
+     * `<div>`.
+     */
+    style?: {
+        paddingTop?: RemLength | number;
+        paddingBottom?: RemLength | number;
+        paddingLeft?: RemLength | number;
+        paddingRight?: RemLength | number;
+        borderRadius?: RemLength | number;
+    };
 
     /**
      * The class name we'll apply to the `<div>` containing the content editable
@@ -449,6 +446,13 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * `fileAttachmentTarget`.
      */
     fileAttachmentTarget?: Memo<FileAttachmentTarget>;
+
+    /**
+     * If the content editor supports comments then you must pass in
+     * `FileAttachmentTarget` for its comments. This prop is used in a similar way
+     * to the `fileAttachmentTarget` prop but just for comments.
+     */
+    commentFileAttachmentTarget?: Memo<FileAttachmentTarget>;
 
     /**
      * Sometimes, we'll pass in an optimistic `fileAttachmentTarget` that hasn't
@@ -555,6 +559,16 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * keyboard shortcuts you'll need to push to our own stack when this is called.
      */
     onRedoStackEntryPushed?: () => void;
+
+    /**
+     * If the content schema used by this `<ContentEditor>` doesn't support files
+     * then we'll call this callback on a paste or drop that includes files to let
+     * the parent component handle files however it wants.
+     *
+     * For example `MessageContent` doesn't support files but `<MessageInput>` does
+     * allow attaching files to a message.
+     */
+    onPasteOrDropFiles?: (fileInfos: ReadonlyArray<FileInfo>) => void;
 } & (
     | {
           /**
@@ -610,17 +624,18 @@ function ContentEditorWrapper<Content extends ContentWithReferences>(
 }
 
 function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
-    isCompact,
-    isExtraCompact,
     state,
     placeholder,
     className,
+    style,
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
     containerClassName: customContainerClassName,
     fileAttachmentTarget,
     editorRef,
 }: ContentEditorProps<Content> & {editorRef: Ref<ContentEditorRef<Content>>}) {
+    const containerRef = useRef<HTMLDivElement>(null);
+
     useImperativeHandle(
         editorRef,
         () => {
@@ -631,6 +646,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
             };
 
             return {
+                getContainer: () => assertExists(containerRef.current),
                 getState: () => state,
                 isFocused: () => false,
                 focus: () => {
@@ -693,15 +709,15 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
 
     return (
         <div
+            ref={containerRef}
             className={classNames(contentEditorStyles.containerClassName, customContainerClassName)}
         >
             <ContentView
                 isEditorInitialAppRender={true}
-                isCompact={isCompact}
-                isExtraCompact={isExtraCompact}
                 content={state.getContent()}
                 placeholder={placeholder}
                 className={className}
+                style={style}
                 aria-label={ariaLabel}
                 aria-labelledby={ariaLabelledBy}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -734,9 +750,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         state,
         placeholder,
         className,
+        style,
         containerClassName: customContainerClassName,
-        isCompact = false,
-        isExtraCompact = false,
         withoutMobileKeyboardToolbar,
         withoutMobileDualModality,
         "aria-label": ariaLabel,
@@ -746,6 +761,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         onBlur,
         phantomSelections,
         fileAttachmentTarget,
+        commentFileAttachmentTarget,
     } = props;
 
     /* ========================================================================== *\
@@ -834,6 +850,7 @@ function ContentEditor<Content extends ContentWithReferences>(
      *                                    Refs                                    *
     \* ========================================================================== */
 
+    const containerRef = useRef<HTMLDivElement>(null);
     const viewRef = useRef<
         | (EditorView & {
               insertFiles: (posOrSelection: number | Selection, files: ReadonlyArray<File>) => void;
@@ -853,6 +870,9 @@ function ContentEditor<Content extends ContentWithReferences>(
     useImperativeHandle(
         editorRef,
         () => ({
+            getContainer: () => {
+                return assertExists(containerRef.current);
+            },
             getState: () => {
                 return propsRef.current.state;
             },
@@ -1049,15 +1069,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     // This is the base width of code block line numbers. When scrolling left, to
                     // make sure the selection is visible we should scroll past line numbers which
                     // cover up content.
-                    convertRemLengthToPx(
-                        subtractRemLengths(
-                            contentStyles.listItemIndentation,
-                            propsRef.current.isCompact || propsRef.current.isExtraCompact
-                                ? contentStyles.compactListItemOffset
-                                : "0",
-                        ),
-                        spacingScale,
-                    ),
+                    convertRemLengthToPx(contentStyles.listItemIndentation, spacingScale),
                 right: scrollMarginPx,
                 bottom: scrollMarginPx,
             };
@@ -1277,21 +1289,8 @@ function ContentEditor<Content extends ContentWithReferences>(
          *                                 Copy/paste                                 *
         \* ========================================================================== */
 
-        let temporaryPastedFileInfoById:
-            | Map<
-                  FileId,
-                  | {
-                        type: "UploadFile";
-                        input: UploadFileFromContentEditorInput;
-                    }
-                  | {
-                        type: "AttachFile";
-                        spaceId: SpaceId;
-                        fileId: FileId;
-                        target: FileAttachmentTarget;
-                    }
-              >
-            | undefined;
+        let temporaryPastedFileInfoById: Map<FileId, FileInfo> | undefined;
+        let temporaryPastedFileInfosForParent: Array<FileInfo> | undefined;
 
         viewProps.clipboardSerializer =
             ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
@@ -1367,8 +1366,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
 
         viewProps.transformPastedDOM = element => {
-            let currentUrl: URL | undefined;
-
             // File copy/pasting is tricky. In the content itself a file is represented as
             // a node with only a `FileId`. Data about the file is available on the side
             // in `ContentReferences` and often needs to be loaded from the server.
@@ -1405,134 +1402,107 @@ function ContentEditor<Content extends ContentWithReferences>(
             // `handleDrop` also uses paste logic for parsing dropped content. So we need
             // to use `temporaryPastedFileInfoById` in `handleDrop` as well!
             if (schema.nodes.file) {
-                for (const fileElement of element.querySelectorAll("img, video, audio, object")) {
-                    const urlString =
-                        fileElement instanceof HTMLImageElement
-                            ? fileElement.src || null
-                            : fileElement instanceof HTMLVideoElement ||
-                              fileElement instanceof HTMLAudioElement
-                            ? fileElement.src ||
-                              findMapIterable(fileElement.childNodes, fileChildElement =>
-                                  fileChildElement instanceof HTMLSourceElement
-                                      ? fileChildElement.src
-                                      : undefined,
-                              ) ||
-                              null
-                            : fileElement instanceof HTMLObjectElement
-                            ? fileElement.data || null
-                            : null;
-
-                    if (urlString === null) {
+                for (const {element: fileElement, info: fileInfo} of iterateFileInfosInElement(
+                    element,
+                    () => assertExists(spaceContextRef.current).space.id,
+                )) {
+                    if (fileInfo === null) {
                         const temporaryFileElement = fileElement.ownerDocument.createElement("div");
                         temporaryFileElement.setAttribute("data-cy-tmp-file", "null");
                         fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
                         continue;
                     }
 
-                    currentUrl ??= new URL(window.location.href);
-
-                    let url: URL;
-                    try {
-                        url = new URL(urlString, currentUrl);
-                    } catch {
-                        // Ignore any URL parsing errors.
-                        continue;
-                    }
-
-                    // Ignore non-HTTP protocols for now. It's probably reasonable to support
-                    // `data://` URLs at some point.
-                    if (url.protocol !== "http:" && url.protocol !== "https:") {
-                        continue;
-                    }
-
-                    // If:
-                    //
-                    // 1. The file is hosted on the same domain we're currently on; AND
-                    // 2. The file matches the route `/files/:spaceId/:fileId`; AND
-                    // 3. The file is in the same space that we're in right now; AND
-                    // 4. The file element has a valid `data-cy-attached` attribute
-                    //
-                    // Then the file already exists for this space. Instead of uploading a new file
-                    // to our backend instead we can create a new attachment for the file that
-                    // already exists.
-                    if (currentUrl.host === url.host) {
-                        const pathnameMatch = url.pathname.match(/^\/files\/([^/]+)\/([^/]+)$/);
-                        if (
-                            pathnameMatch &&
-                            isId<SpaceId>(pathnameMatch[1]!) &&
-                            isId<FileId>(pathnameMatch[2]!) &&
-                            pathnameMatch[1] === spaceContextRef.current?.space.id
-                        ) {
-                            const spaceId = pathnameMatch[1];
-                            const fileId = pathnameMatch[2];
-
-                            const targetString = fileElement.getAttribute("data-cy-attached");
-                            let target: FileAttachmentTarget | undefined;
-
-                            try {
-                                if (targetString) {
-                                    target = deserializeFileAttachmentTargetString(targetString);
-                                }
-                            } catch (error) {
-                                // This error is almost imperceivable to the user since we'll try
-                                // downloading/uploading the file as a fallback. But it might be a sign that
-                                // there's a bug somewhere in `data-cy-attached` generation so let's log it.
-                                contextRef.current?.tracer
-                                    .getRoot()
-                                    .logUncaughtException(
-                                        'Couldn\'t parse "data-cy-attached" attribute',
-                                        error,
-                                    );
-                            }
-
-                            if (target) {
-                                // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
-                                // use this map synchronously after `transformPastedDOM`.
-                                if (temporaryPastedFileInfoById === undefined) {
-                                    temporaryPastedFileInfoById = new Map();
-                                    scheduleMicrotask(() => {
-                                        temporaryPastedFileInfoById = undefined;
-                                    });
-                                }
-
-                                temporaryPastedFileInfoById.set(fileId, {
-                                    type: "AttachFile",
-                                    spaceId,
-                                    fileId,
-                                    target,
+                    switch (fileInfo.type) {
+                        case "AttachFile": {
+                            // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
+                            // use this map synchronously after `transformPastedDOM`.
+                            if (temporaryPastedFileInfoById === undefined) {
+                                temporaryPastedFileInfoById = new Map();
+                                scheduleMicrotask(() => {
+                                    temporaryPastedFileInfoById = undefined;
                                 });
-
-                                const temporaryFileElement =
-                                    fileElement.ownerDocument.createElement("div");
-                                temporaryFileElement.setAttribute("data-cy-tmp-file", fileId);
-                                fileElement.parentNode?.replaceChild(
-                                    temporaryFileElement,
-                                    fileElement,
-                                );
-                                continue;
                             }
+
+                            temporaryPastedFileInfoById.set(fileInfo.fileId, fileInfo);
+
+                            const temporaryFileElement =
+                                fileElement.ownerDocument.createElement("div");
+                            temporaryFileElement.setAttribute("data-cy-tmp-file", fileInfo.fileId);
+                            fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
+                            break;
+                        }
+                        case "UploadFile": {
+                            const fileId = generateFileIdWithSynchronizedClock();
+
+                            // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
+                            // use this map synchronously after `transformPastedDOM`.
+                            if (temporaryPastedFileInfoById === undefined) {
+                                temporaryPastedFileInfoById = new Map();
+                                scheduleMicrotask(() => {
+                                    temporaryPastedFileInfoById = undefined;
+                                });
+                            }
+
+                            temporaryPastedFileInfoById.set(fileId, fileInfo);
+
+                            const temporaryFileElement =
+                                fileElement.ownerDocument.createElement("div");
+                            temporaryFileElement.setAttribute("data-cy-tmp-file", fileId);
+                            fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
+                            break;
+                        }
+                        default:
+                            throw exhaustive(fileInfo);
+                    }
+                }
+            }
+            // If this `<ContentEditor>` doesn't support files then we completely remove
+            // file elements from pasted content. We don't want to leave whitespace where
+            // there used to be files.
+            //
+            // We'll call `onPasteOrDropFiles` later in `handlePaste` or `handleDrop` to
+            // let our parent choose to handle files separately. (e.g. `<MessageInput>`
+            // will attach the files to the message.)
+            else {
+                for (const {element: fileElement, info: fileInfo} of iterateFileInfosInElement(
+                    element,
+                    () => assertExists(spaceContextRef.current).space.id,
+                )) {
+                    if (fileInfo !== null) {
+                        // Cleanup `temporaryPastedFileInfosForParent` after a microtask. `handlePaste`
+                        // will use this array synchronously after `transformPastedDOM`.
+                        if (temporaryPastedFileInfosForParent === undefined) {
+                            temporaryPastedFileInfosForParent = [];
+                            scheduleMicrotask(() => {
+                                temporaryPastedFileInfosForParent = undefined;
+                            });
+                        }
+
+                        temporaryPastedFileInfosForParent.push(fileInfo);
+                    }
+
+                    // Remove the file element and if that empties the file's parent then remove the
+                    // file's parent as well (recursively).
+                    let element: Element | null = fileElement;
+                    while (element !== null) {
+                        const parentElement: Element | null = element.parentElement;
+                        element.remove();
+
+                        if (
+                            parentElement !== null &&
+                            !iterableSome(
+                                parentElement.childNodes,
+                                childNode =>
+                                    childNode.nodeType === globalThis.Node.ELEMENT_NODE ||
+                                    childNode.nodeType === globalThis.Node.TEXT_NODE,
+                            )
+                        ) {
+                            element = parentElement;
+                        } else {
+                            break;
                         }
                     }
-
-                    const fileId = generateFileIdWithSynchronizedClock();
-
-                    // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
-                    // use this map synchronously after `transformPastedDOM`.
-                    if (temporaryPastedFileInfoById === undefined) {
-                        temporaryPastedFileInfoById = new Map();
-                        scheduleMicrotask(() => {
-                            temporaryPastedFileInfoById = undefined;
-                        });
-                    }
-
-                    temporaryPastedFileInfoById.set(fileId, {
-                        type: "UploadFile",
-                        input: {type: "Url", url},
-                    });
-
-                    const temporaryFileElement = fileElement.ownerDocument.createElement("div");
-                    temporaryFileElement.setAttribute("data-cy-tmp-file", fileId);
-                    fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
                 }
             }
         };
@@ -1572,10 +1542,52 @@ function ContentEditor<Content extends ContentWithReferences>(
             // parse the data in `dataTransfer`. If `dataTransfer` has any files then let's
             // use `FileProcessorService` to attach the file to our content.
             if (
+                !schema.nodes.file &&
+                dataTransfer?.items &&
+                // If `transformPastedDOM` already parsed some files from HTML then ignore any
+                // files in `dataTransfer`. We assume all files were included as `<img>` or
+                // other supported tags in the HTML so any additional files in `dataTransfer`
+                // must be redundant.
+                //
+                // This case happens if you right-click to copy an image in Alpine. The
+                // resulting `dataTransfer` will have an `image/png` file and `text/html`. We
+                // should prefer the `text/html` data since it includes a link to the full
+                // resolution image whereas `image/png` will have reduced resolution.
+                (!temporaryPastedFileInfosForParent ||
+                    temporaryPastedFileInfosForParent.length === 0)
+            ) {
+                for (const item of dataTransfer.items) {
+                    if (item.kind !== "file") continue;
+
+                    // Cleanup `temporaryPastedFileInfosForParent` after a microtask. `handlePaste`
+                    // will use this map synchronously.
+                    if (temporaryPastedFileInfosForParent === undefined) {
+                        temporaryPastedFileInfosForParent = [];
+                        scheduleMicrotask(() => {
+                            temporaryPastedFileInfosForParent = undefined;
+                        });
+                    }
+
+                    temporaryPastedFileInfosForParent.push({
+                        type: "UploadFile",
+                        input: {type: "File", file: assertExists(item.getAsFile())},
+                    });
+                }
+            } else if (
                 schema.nodes.file &&
                 schema.nodes.fileRow &&
                 slice.size === 0 &&
-                dataTransfer?.items
+                dataTransfer?.items &&
+                // If `transformPastedDOM` already parsed some files from HTML then ignore any
+                // files in `dataTransfer`. We assume all files were included as `<img>` or
+                // other supported tags in the HTML so any additional files in `dataTransfer`
+                // must be redundant.
+                //
+                // NOTE(calebmer): This is to match the above behavior when there is no file in
+                // the schema. I believe checking `slice.size === 0` also has a similar effect:
+                // if there was a file in the parsed DOM then it should now be in the inserted
+                // `slice`. This may be unnecessary but including it anyway for consistency.
+                (!temporaryPastedFileInfoById || temporaryPastedFileInfoById.size === 0)
             ) {
                 const fileIds: Array<FileId> = [];
 
@@ -1731,7 +1743,13 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 });
                             }
                             // Otherwise, let's attach the file to its new attachment target.
-                            else {
+                            else if (fromTarget === "Uploader") {
+                                return attachFileAsUploader(context, {
+                                    spaceId: temporaryPastedFileInfo.spaceId,
+                                    fileId: temporaryPastedFileInfo.fileId,
+                                    target: toTarget,
+                                });
+                            } else {
                                 return attachFileFromAttachment(context, {
                                     spaceId: temporaryPastedFileInfo.spaceId,
                                     fileId: temporaryPastedFileInfo.fileId,
@@ -1746,29 +1764,32 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 file: FileModel;
                             }>();
 
-                            const [progressCompositeStore, progressStores] =
-                                createProgressCompositeStore(
-                                    uploadFileFromContentEditorProgressCompositeStoreWeights,
-                                );
+                            const actualPromise = uploadFile(context, {
+                                spaceId,
+                                // Use the `FileId` generated by the client and used in the pasted `Slice`
+                                // instead of generating a new `FileId` on the server.
+                                fileId,
+                                attachmentTarget: toTarget,
+                                input: temporaryPastedFileInfo.input,
+                                onAttach: fileReferencePromiseResolver.resolve,
+                            });
 
-                            const promise = (async () => {
-                                try {
-                                    await uploadFileFromContentEditor(context, {
-                                        spaceId,
-                                        // Use the `FileId` generated by the client and used in the pasted `Slice`
-                                        // instead of generating a new `FileId` on the server.
-                                        fileId,
-                                        attachmentTarget: toTarget,
-                                        input: temporaryPastedFileInfo.input,
-                                        progressStores,
-                                        onAttach: fileReferencePromiseResolver.resolve,
-                                    });
-                                } catch (error) {
+                            const promise = actualPromise.then(
+                                () => {
+                                    if (!fileReferencePromiseResolver.isSettled()) {
+                                        fileReferencePromiseResolver.reject(
+                                            new InternalError(
+                                                "`onAttach()` was never called by `uploadFile()`",
+                                            ),
+                                        );
+                                    }
+                                },
+                                error => {
                                     hasUploadFileError = true;
                                     fileReferencePromiseResolver.reject(error);
                                     throw error;
-                                }
-                            })();
+                                },
+                            );
 
                             promiseWaiter.waitUntil(promise);
 
@@ -1778,7 +1799,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                             // an aggregated summary.
                             addGlobalLoadingIndicatorRef.current(promise, {
                                 type: "Uploading",
-                                progressStore: progressCompositeStore,
+                                progressStore: actualPromise.progressStore,
                             });
 
                             return fileReferencePromiseResolver.promise;
@@ -1890,7 +1911,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             let isSync = true;
 
             handleInsertSlice({
-                asyncSpanName: "Content editor paste",
+                asyncSpanName: "<ContentEditor> paste",
                 remember: [selection],
                 slice,
                 dataTransfer: event.clipboardData,
@@ -1947,6 +1968,12 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             isSync = false;
 
+            // Pass any files from this paste or drop we didn't handle to our parent
+            // component.
+            if (temporaryPastedFileInfosForParent && temporaryPastedFileInfosForParent.length > 0) {
+                propsRef.current.onPasteOrDropFiles?.(temporaryPastedFileInfosForParent);
+            }
+
             // We completely override ProseMirror's paste logic and implement our own. Our
             // paste logic is derived from ProseMirror's paste logic.
             return true;
@@ -1979,7 +2006,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             }
 
             handleInsertSlice({
-                asyncSpanName: "Content editor drop",
+                asyncSpanName: "<ContentEditor> drop",
                 remember: [
                     view.state.selection,
                     initialFileDropTarget?.action?.pos ?? $mouse.pos,
@@ -2231,6 +2258,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
             });
 
+            // Pass any files from this paste or drop we didn't handle to our parent
+            // component.
+            if (temporaryPastedFileInfosForParent && temporaryPastedFileInfosForParent.length > 0) {
+                propsRef.current.onPasteOrDropFiles?.(temporaryPastedFileInfosForParent);
+            }
+
             // We completely override ProseMirror's drop logic and implement our own. Our
             // paste logic is derived from ProseMirror's drop logic.
             return true;
@@ -2289,7 +2322,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             );
 
             handleInsertSlice({
-                asyncSpanName: "Content editor insert files",
+                asyncSpanName: "<ContentEditor> insert files",
                 remember: [posOrSelection],
                 slice,
                 dataTransfer: null,
@@ -3054,16 +3087,74 @@ function ContentEditor<Content extends ContentWithReferences>(
         const classList = classNames(
             contentStyles.docClassName,
             routeLayout === "narrow" ? contentStyles.narrowRouteLayoutDocClassName : undefined,
-            isCompact || isExtraCompact ? contentStyles.compactDocClassName : undefined,
-            isExtraCompact ? contentStyles.extraCompactDocClassName : undefined,
             className,
         ).split(" ");
         viewElement.classList.add(...classList);
 
+        if (style?.paddingTop !== undefined) {
+            if (typeof style.paddingTop === "number") {
+                viewElement.style.paddingTop = `${style.paddingTop}px`;
+            } else {
+                viewElement.style.paddingTop = style.paddingTop;
+            }
+        }
+        if (style?.paddingBottom !== undefined) {
+            if (typeof style.paddingBottom === "number") {
+                viewElement.style.paddingBottom = `${style.paddingBottom}px`;
+            } else {
+                viewElement.style.paddingBottom = style.paddingBottom;
+            }
+        }
+        if (style?.paddingLeft !== undefined) {
+            if (typeof style.paddingLeft === "number") {
+                viewElement.style.paddingLeft = `${style.paddingLeft}px`;
+            } else {
+                viewElement.style.paddingLeft = style.paddingLeft;
+            }
+        }
+        if (style?.paddingRight !== undefined) {
+            if (typeof style.paddingRight === "number") {
+                viewElement.style.paddingRight = `${style.paddingRight}px`;
+            } else {
+                viewElement.style.paddingRight = style.paddingRight;
+            }
+        }
+        if (style?.borderRadius !== undefined) {
+            if (typeof style.borderRadius === "number") {
+                viewElement.style.borderRadius = `${style.borderRadius}px`;
+            } else {
+                viewElement.style.borderRadius = style.borderRadius;
+            }
+        }
+
         return () => {
             viewElement.classList.remove(...classList);
+
+            if (style?.paddingTop !== undefined) {
+                viewElement.style.removeProperty("padding-top");
+            }
+            if (style?.paddingBottom !== undefined) {
+                viewElement.style.removeProperty("padding-bottom");
+            }
+            if (style?.paddingLeft !== undefined) {
+                viewElement.style.removeProperty("padding-left");
+            }
+            if (style?.paddingRight !== undefined) {
+                viewElement.style.removeProperty("padding-right");
+            }
+            if (style?.borderRadius !== undefined) {
+                viewElement.style.removeProperty("border-radius");
+            }
         };
-    }, [className, isCompact, isExtraCompact, routeLayout]);
+    }, [
+        className,
+        routeLayout,
+        style?.borderRadius,
+        style?.paddingBottom,
+        style?.paddingLeft,
+        style?.paddingRight,
+        style?.paddingTop,
+    ]);
 
     // Keep various attributes on the editor element up to date.
     useLayoutEffect(() => {
@@ -3259,9 +3350,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 isPointerDownFromSelectableElementAndMoved
             ) {
                 if (isPointerDownFromSelectableElementAndMoved) {
-                    view.dom.classList.add(contentStyles.selectionChangeDraggingClassName);
+                    view.dom.classList.add(contentStyles.isDraggingSelectionDocClassName);
                 } else {
-                    view.dom.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                    view.dom.classList.remove(contentStyles.isDraggingSelectionDocClassName);
                 }
             }
         };
@@ -3277,9 +3368,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 isPointerDownFromSelectableElementAndMoved
             ) {
                 if (isPointerDownFromSelectableElementAndMoved) {
-                    view.dom.classList.add(contentStyles.selectionChangeDraggingClassName);
+                    view.dom.classList.add(contentStyles.isDraggingSelectionDocClassName);
                 } else {
-                    view.dom.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                    view.dom.classList.remove(contentStyles.isDraggingSelectionDocClassName);
                 }
             }
         };
@@ -3296,9 +3387,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 isPointerDownFromSelectableElementAndMoved
             ) {
                 if (isPointerDownFromSelectableElementAndMoved) {
-                    view.dom.classList.add(contentStyles.selectionChangeDraggingClassName);
+                    view.dom.classList.add(contentStyles.isDraggingSelectionDocClassName);
                 } else {
-                    view.dom.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                    view.dom.classList.remove(contentStyles.isDraggingSelectionDocClassName);
                 }
             }
         };
@@ -3629,6 +3720,11 @@ function ContentEditor<Content extends ContentWithReferences>(
         "When the ProseMirror schema supports files then the prop `fileAttachmentTarget` is required",
     );
 
+    assert(
+        !schema.marks.comment || commentFileAttachmentTarget,
+        "When the ProseMirror schema supports comments then the prop `commentFileAttachmentTarget` is required",
+    );
+
     const floaterState = state.getFloaterState();
 
     /* ========================================================================== *\
@@ -3907,6 +4003,17 @@ function ContentEditor<Content extends ContentWithReferences>(
         const insertOtherMenuActions: Array<MenuAction> = [];
         insertMenuActions.push(insertOtherMenuActions);
 
+        if (process.env.NODE_ENV !== "production") {
+            insertOtherMenuActions.push({
+                label: "Table",
+                iconSize: "4",
+                icon: <Table />,
+                onPress: () => {
+                    insertContentTable(assertExists(viewRef.current));
+                },
+            });
+        }
+
         if (schema.nodes.divider) {
             insertOtherMenuActions.push({
                 label: "Divider",
@@ -4010,6 +4117,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     return (
         <div
+            ref={containerRef}
             className={classNames(
                 contentEditorStyles.containerClassName,
                 !canPrimaryInputHover
@@ -4032,6 +4140,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 }}
                 isFocused={isFocused}
                 setDecorationCallbacks={setDecorationCallbacks}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
             <ContentEditorFileToolbarController
                 state={unwrappedState}
@@ -4088,13 +4197,14 @@ function ContentEditor<Content extends ContentWithReferences>(
                     )}
                 </MobileFullScreenModal>
             )}
-            {unwrappedState.schema.marks.comment && isMobileCommentInputOpen && (
+            {schema.marks.comment && isMobileCommentInputOpen && (
                 // Needs to be rendered outside of `<ContentEditorMobileKeyboardToolbar>` so
                 // that when we go inert this is still rendered.
                 <ContentEditorMobileCommentInputBottomBar
                     state={unwrappedState}
                     viewRef={viewRef}
                     onClose={() => setIsMobileCommentInputOpen(false)}
+                    fileAttachmentTarget={assertExists(commentFileAttachmentTarget)}
                 />
             )}
             {codeBlockLanguagePickerState && (
@@ -4189,6 +4299,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                         position="absolute"
                         left="0"
                         right="0"
+                        height="border-thick"
                         pointerEvents="none"
                         backgroundColor="theme-40-const"
                         borderRadius="full"
@@ -4196,7 +4307,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                             left: fileDropTarget.rect.left,
                             right: `calc(100% - ${fileDropTarget.rect.right}px)`,
                             top: fileDropTarget.rect.top - 1,
-                            height: 2,
                         }}
                     />
                 ) : (
@@ -4207,6 +4317,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 : undefined
                         }
                         position="absolute"
+                        width="border-thick"
                         pointerEvents="none"
                         backgroundColor="theme-40-const"
                         borderRadius="full"
@@ -4217,7 +4328,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 fileDropTarget.action.indicator === "Left"
                                     ? fileDropTarget.rect.left - 1
                                     : fileDropTarget.rect.right - 1,
-                            width: 2,
                         }}
                     />
                 ))}
@@ -4779,7 +4889,9 @@ class ContentEditorFileDragState {
         return this._dropTarget;
     }
 
-    private readonly _onDragEnter = () => {
+    private readonly _onDragEnter = (event: DragEvent) => {
+        if (!(event.target instanceof Element) || !this._view.dom.contains(event.target)) return;
+
         // We don't need to increment on our static `onDragEnter` function that
         // constructs this class because that function is called in response to a
         // `dragenter` event on our EditorView's DOM whereas this `dragenter` event is
@@ -4788,7 +4900,9 @@ class ContentEditorFileDragState {
         this._dragEnterCount++;
     };
 
-    private readonly _onDragLeave = () => {
+    private readonly _onDragLeave = (event: DragEvent) => {
+        if (!(event.target instanceof Element) || !this._view.dom.contains(event.target)) return;
+
         this._dragEnterCount--;
 
         // [Safari doesn't set `event.relatedTarget`][1] whereas Chrome does. If we

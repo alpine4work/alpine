@@ -2,7 +2,11 @@ import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {prosemirrorToYXmlFragment} from "y-prosemirror";
 import * as Y from "yjs";
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {
+    TestContext,
+    TestSessionActionContext,
+} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestCommentRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {OpensearchClientDocWithIdAndVersion} from "~/server/opensearch/opensearch_client.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
@@ -15,7 +19,10 @@ import {TaskIndexActualDoc, TaskIndexDoc} from "~/server/tasks/data/task_index_d
 import {
     TaskEssentialAttributesItem,
     commitTaskActionTransaction,
+    createTaskComment,
+    deleteTaskComment,
     getTaskItemForTest,
+    updateTaskCommentContent,
     updateTaskNotesContent,
 } from "~/server/tasks/data/task_table.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
@@ -27,7 +34,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {FileId, TaskId} from "~/shared/id/types/id_types.js";
+import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
@@ -44,7 +52,7 @@ import {
 
 const schema = TaskNotesContentProsemirrorSchema;
 
-export class TestTask {
+export class TestTask extends TestCommentRoomBase {
     public readonly context: TestContext;
     public readonly space: TestSpace;
     public readonly id: TaskId;
@@ -64,6 +72,7 @@ export class TestTask {
         createdTime: HybridLogicalTime,
         titleState: MutexValue<TaskTitle>,
     ) {
+        super();
         this.context = context;
         this.space = space;
         this.id = id;
@@ -151,6 +160,51 @@ export class TestTask {
                 shouldSkipIndexing: !space.context.isOpensearchEnabled,
                 dangerouslyEscalateToSystemContext: space.context.escalateToSystemContext,
             }),
+        });
+    }
+
+    protected override _getRoomKey() {
+        return this.id;
+    }
+
+    protected override _createMessage(
+        context: TestSessionActionContext,
+        {
+            parentMessageIndex,
+            content,
+            fileIds,
+        }: {
+            parentMessageIndex: number | null;
+            content: MessageContent;
+            fileIds: ReadonlyArray<FileId>;
+        },
+    ) {
+        return createTaskComment(context, {
+            taskId: this.id,
+            parentCommentIndex: parentMessageIndex,
+            content,
+            fileIds,
+        });
+    }
+
+    public override _updateMessageContent(
+        context: TestSessionActionContext,
+        {messageIndex, content}: {messageIndex: number; content: MessageContent},
+    ) {
+        return updateTaskCommentContent(context, {
+            taskId: this.id,
+            commentIndex: messageIndex,
+            content,
+        });
+    }
+
+    public override _deleteMessage(
+        context: TestSessionActionContext,
+        {messageIndex}: {messageIndex: number},
+    ) {
+        return deleteTaskComment(context, {
+            taskId: this.id,
+            commentIndex: messageIndex,
         });
     }
 

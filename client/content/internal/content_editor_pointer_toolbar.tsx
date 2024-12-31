@@ -146,10 +146,15 @@ export function ContentEditorPointerToolbar({
             setLocalInteractionModality("pointer");
         };
 
-        // Quality of life: If the user selects some text with their keyboard then
-        // moves their mouse then we want to show the toolbar.
         const handlePointerMove = () => {
+            // Quality of life: If the user selects some text with their keyboard then
+            // moves their mouse then we want to show the toolbar.
             setLocalInteractionModality("pointer");
+
+            // Quality of life: If the user moves their pointer then we want to show the
+            // toolbar instead of keeping it hidden. Since the user moving their pointer
+            // may indicate they're looking to make a change.
+            setHasSelectionChangedOrPointerMovedSinceMount(true);
         };
 
         viewElement.addEventListener("focus", handleFocus);
@@ -188,10 +193,44 @@ export function ContentEditorPointerToolbar({
         return () => timeout.clear();
     }, [isWaitingForTripleClickAfterDoubleClick]);
 
+    const initialSelection = useConstant(() => state.selection);
+
+    const [
+        hasSelectionChangedOrPointerMovedSinceMount,
+        setHasSelectionChangedOrPointerMovedSinceMount,
+    ] = useState(() => {
+        // If the initial selection is different from the previous floater's range then
+        // open the pointer toolbar.
+        //
+        // For example, say you hover over a link. When you double click on a word to
+        // select it then after the link's floater closes (because it uses
+        // `useOutsidePress(onClose)`) we want the toolbar to open.
+        //
+        // However, if you open the highlight selector then close it we don't want to
+        // show the pointer toolbar until your selection moves.
+        if (
+            previousState !== null &&
+            (previousState.range.from !== initialSelection.from ||
+                previousState.range.to !== initialSelection.to)
+        ) {
+            return true;
+        }
+
+        return false;
+    });
+
+    if (
+        !hasSelectionChangedOrPointerMovedSinceMount &&
+        (state.selection.from !== initialSelection.from ||
+            state.selection.to !== initialSelection.to)
+    ) {
+        setHasSelectionChangedOrPointerMovedSinceMount(true);
+    }
+
     const isContextMenuOpen = useIsContextMenuOpen();
 
-    const shouldShowIgnoringInteractionModality = useMemo(
-        () =>
+    const shouldShowIgnoringInteractionModality = useMemo(() => {
+        return (
             isFocused &&
             // Don't show while the context menu is open.
             !isContextMenuOpen &&
@@ -224,22 +263,27 @@ export function ContentEditorPointerToolbar({
             // they triple click (to select a paragraph) before showing the pointer
             // toolbar. Otherwise it looks a little glitchy to see the toolbar appear then
             // immediately jump to the beginning of the paragraph.
-            !isWaitingForTripleClickAfterDoubleClick,
-        [
-            hasPointerMovedWhileDown,
-            isContextMenuOpen,
-            isFocused,
-            isWaitingForTripleClickAfterDoubleClick,
-            state.doc,
-            state.selection,
-        ],
-    );
+            !isWaitingForTripleClickAfterDoubleClick
+        );
+    }, [
+        hasPointerMovedWhileDown,
+        isContextMenuOpen,
+        isFocused,
+        isWaitingForTripleClickAfterDoubleClick,
+        state.doc,
+        state.selection,
+    ]);
 
     const shouldShow =
         shouldShowIgnoringInteractionModality &&
         // The toolbar overlay is intended for pointer use only. You can use keyboard
         // shortcuts to accomplish everything in the toolbar.
-        localInteractionModality === "pointer";
+        localInteractionModality === "pointer" &&
+        // Don't show the toolbar until the user has interacted with the editor.
+        //
+        // This defends against the case where we had a highlight toolbar opened but
+        // then the user closed it and the regular toolbar wants to immediately open.
+        hasSelectionChangedOrPointerMovedSinceMount;
 
     useLayoutEffect(() => {
         let isPointerDown = false;
@@ -318,38 +362,6 @@ export function ContentEditorPointerToolbar({
         };
     }, [viewRef]);
 
-    const initialSelection = useConstant(() => state.selection);
-
-    const [hasSelectionChangedSinceMount, setHasSelectionChangedSinceMount] = useState(() => {
-        // If the initial selection is different from the previous floater's range then
-        // open the pointer toolbar.
-        //
-        // For example, say you hover over a link. When you double click on a word to
-        // select it then after the link's floater closes (because it uses
-        // `useOutsidePress(onClose)`) we want the toolbar to open.
-        //
-        // However, if you open the highlight selector then close it we don't want to
-        // show the pointer toolbar until your selection moves.
-        if (
-            previousState !== null &&
-            (previousState.range.from !== initialSelection.from ||
-                previousState.range.to !== initialSelection.to)
-        ) {
-            return true;
-        }
-
-        return false;
-    });
-
-    useEffect(() => {
-        if (
-            state.selection.from !== initialSelection.from ||
-            state.selection.to !== initialSelection.to
-        ) {
-            setHasSelectionChangedSinceMount(true);
-        }
-    }, [initialSelection.from, initialSelection.to, state.selection.from, state.selection.to]);
-
     // Once we should no longer show the toolbar, we still show it for a couple
     // milliseconds as it animates away.
     //
@@ -359,7 +371,7 @@ export function ContentEditorPointerToolbar({
     // NOTE(calebmer): This component was written before `<OverlayAnimated>`. It
     // has a bit of delay before the animation begins so it isn't quite feature
     // compatible but consider consolidating someday.
-    const [_showState, setShowState] = useState<
+    const [actualShowState, setShowState] = useState<
         | {
               isShowing: true;
               selectionFrom: number;
@@ -370,7 +382,7 @@ export function ContentEditorPointerToolbar({
         | {isShowing: false; animation?: undefined; extraOverlay?: undefined}
     >({isShowing: false});
 
-    let showState = _showState;
+    let showState = actualShowState;
 
     // Update our show state whenever the selection changes while the toolbar
     // is open.
@@ -380,19 +392,16 @@ export function ContentEditorPointerToolbar({
         (showState.selectionFrom !== state.selection.from ||
             showState.selectionTo !== state.selection.to)
     ) {
-        if (shouldShow) {
-            showState = showState.isShowing
-                ? {
-                      ...showState,
-                      selectionFrom: state.selection.from,
-                      selectionTo: state.selection.to,
-                      animation:
-                          showState.animation === "FadingOut" ? "FadingIn" : showState.animation,
-                      // Close the link input when the selection changes.
-                      extraOverlay: null,
-                  }
-                : showState;
-        }
+        showState = showState.isShowing
+            ? {
+                  ...showState,
+                  selectionFrom: state.selection.from,
+                  selectionTo: state.selection.to,
+                  animation: showState.animation === "FadingOut" ? "FadingIn" : showState.animation,
+                  // Close the link input when the selection changes.
+                  extraOverlay: null,
+              }
+            : showState;
     }
 
     // Close the toolbar if the position moves out of bounds.
@@ -417,18 +426,10 @@ export function ContentEditorPointerToolbar({
     }
 
     // Make sure we update our state with the new value.
-    if (showState !== _showState) setShowState(showState);
+    if (showState !== actualShowState) setShowState(showState);
 
     useEffect(() => {
-        if (
-            shouldShow &&
-            !showState.isShowing &&
-            // Don't show the toolbar until the user has interacted with the editor.
-            //
-            // This defends against the case where we had a highlight toolbar opened but
-            // then the user closed it and the regular toolbar wants to immediately open.
-            hasSelectionChangedSinceMount
-        ) {
+        if (shouldShow && !showState.isShowing) {
             const timeoutId = setTimeout(() => {
                 setShowState({
                     isShowing: true,
@@ -444,7 +445,7 @@ export function ContentEditorPointerToolbar({
             };
         }
     }, [
-        hasSelectionChangedSinceMount,
+        hasSelectionChangedOrPointerMovedSinceMount,
         shouldShow,
         showState.isShowing,
         state.selection.from,

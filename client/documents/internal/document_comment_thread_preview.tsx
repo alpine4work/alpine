@@ -6,6 +6,7 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {documentCommentThreadPreviewHeight} from "~/client/styles/document_shared_styles.js";
 import {
@@ -13,8 +14,12 @@ import {
     pressOpacityOverlayClassName,
 } from "~/client/styles/styles.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
-import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {
+    addRemLengths,
+    convertRemLengthToPx,
+    screenPaddingX,
+    spacing,
+} from "~/shared/design/core/spacing.js";
 import {
     DocumentContentReferences,
     UncheckedDocumentContentWithReferences,
@@ -36,7 +41,7 @@ export function DocumentCommentThreadPreview({
     contentReferences,
     onCommentThreadSnippetPress,
     isResolveButtonPending,
-    fileLayoutScreenWidthRem,
+    fileLayoutScreenWidth,
 }: {
     commentThread: DocumentCommentThreadModel;
     unpersistedIsResolved: boolean | null;
@@ -44,8 +49,9 @@ export function DocumentCommentThreadPreview({
     contentReferences: DocumentContentReferences;
     onCommentThreadSnippetPress: (commentThreadId: DocumentCommentThreadId) => void;
     isResolveButtonPending: boolean;
-    fileLayoutScreenWidthRem: number;
+    fileLayoutScreenWidth: number;
 }) {
+    const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const previewRef = useRef<HTMLDivElement>(null);
     const previewContentRef = useRef<HTMLDivElement>(null);
@@ -98,8 +104,28 @@ export function DocumentCommentThreadPreview({
         const previewRect = previewElement.getBoundingClientRect();
         const commentRect = commentElement.getBoundingClientRect();
 
-        previewElement.scrollTop =
-            commentRect.y - (previewRect.y - previewElement.scrollTop) - commentOffset;
+        const scrollTop = Math.round(
+            commentRect.y - (previewRect.y - previewElement.scrollTop) - commentOffset,
+        );
+        previewElement.scrollTop = scrollTop;
+
+        // NOTE(calebmer, 2024-12-29): I'm observing on initial app render after the
+        // server side render sometimes this element scrolls to position 0? I can't
+        // figure out what's causing this from the scroll event debugger. So add some
+        // defense in, whenever there's a scroll event on the preview element, reset us
+        // back to the expected scroll position. Ideally we'd figure out what's causing
+        // the scroll and stop it at the source, though.
+        const handleScroll = () => {
+            if (previewElement.scrollTop !== scrollTop) {
+                previewElement.scrollTop = scrollTop;
+            }
+        };
+
+        previewElement.addEventListener("scroll", handleScroll);
+
+        return () => {
+            previewElement.removeEventListener("scroll", handleScroll);
+        };
     }, [commentOffset, commentThread.id, content]);
 
     const buttonRef = useRef<HTMLDivElement>(null);
@@ -136,6 +162,13 @@ export function DocumentCommentThreadPreview({
     const fileAttachmentTarget = useMemo(
         (): FileAttachmentTarget => ({type: "Document", documentId: commentThread.documentId}),
         [commentThread.documentId],
+    );
+
+    const previewFileLayoutScreenWidth = useMemo(
+        () =>
+            fileLayoutScreenWidth -
+            convertRemLengthToPx(screenPaddingX[platform], spacingScale) * 2,
+        [fileLayoutScreenWidth, platform, spacingScale],
     );
 
     return (
@@ -206,8 +239,7 @@ export function DocumentCommentThreadPreview({
                                 isInert={true}
                                 shouldHighlightComment={shouldHighlightComment}
                                 fileLayoutScreenWidth={
-                                    (fileLayoutScreenWidthRem / documentCommentThreadPreviewScale) *
-                                    remPxBySpacingScale[spacingScale]
+                                    previewFileLayoutScreenWidth / documentCommentThreadPreviewScale
                                 }
                                 fileAttachmentTarget={fileAttachmentTarget}
                             />

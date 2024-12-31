@@ -12,6 +12,7 @@ ts_project(
         "//:node_modules/prosemirror-transform",
         "//server/documents/data",
         "//server/dynamo/test_helpers",
+        "//server/messaging/test_helpers",
         "//server/spaces/test_helpers",
         "//shared/documents",
         "//shared/helpers",

@@ -3,7 +3,7 @@ import {ReactNode, Ref} from "react";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {OverlayTriggerButtonRef} from "~/client/design/overlay_trigger_button.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {taskQueryFilterEditorDesktopHeight} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {TaskQueryCollectionsFilterOperationEditor} from "~/client/tasks/internal/task_query_collections_filter_operation_editor.js";
@@ -330,40 +330,38 @@ function TaskQueryFilterEditorBase({
     operation: ReactNode;
     onFilterRemove: () => void;
 }) {
-    const routeLayout = useRouteLayout();
+    const platform = usePlatform();
 
     return (
         <Box
             overflow="hidden"
-            width={routeLayout === "narrow" ? "full" : undefined}
-            height={routeLayout === "narrow" ? "9" : taskQueryFilterEditorDesktopHeight}
+            width={platform === "mobile" ? "full" : undefined}
+            height={platform === "mobile" ? "9" : taskQueryFilterEditorDesktopHeight}
             display="flex"
             alignItems="center"
             borderRadius="1"
             border="grey-10"
         >
             <Box
-                paddingLeft={routeLayout === "narrow" ? "3" : "2"}
+                paddingLeft={platform === "mobile" ? "3" : "2"}
                 paddingRight="1"
                 style={{whiteSpace: "nowrap"}}
             >
                 {name}
             </Box>
             {operation}
-            {routeLayout === "narrow" && <Box flexGrow="1" />}
+            {platform === "mobile" && <Box flexGrow="1" />}
             <Box
                 flexShrink="0"
-                paddingLeft={routeLayout === "narrow" ? "1.5" : "1"}
+                paddingLeft={platform === "mobile" ? "1.5" : "1"}
                 style={{
                     // Subtract 1px from our right padding since that's the border width. That
                     // will give us good margin on all sides of the button.
-                    paddingRight: `calc(${
-                        spacing[routeLayout === "narrow" ? "1.5" : "0.5"]
-                    } - 1px)`,
+                    paddingRight: `calc(${spacing[platform === "mobile" ? "1.5" : "0.5"]} - 1px)`,
                 }}
             >
                 <IconButton
-                    size={routeLayout === "narrow" ? "md" : "xs"}
+                    size={platform === "mobile" ? "md" : "xs"}
                     description="Remove"
                     withoutTooltip
                     borderRadius="0.5"

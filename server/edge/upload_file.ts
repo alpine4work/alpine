@@ -125,9 +125,6 @@ export async function uploadFile(
                 },
             });
 
-            // TODO(calebmer, #files): Consider transitioning objects to infrequent access
-            // after 1-3 months?
-            // https://developers.cloudflare.com/r2/buckets/object-lifecycles
             return env.FilesBucket.put(key, request.body, {
                 httpMetadata: {contentType},
             });

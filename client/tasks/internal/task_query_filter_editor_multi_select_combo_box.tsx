@@ -21,7 +21,7 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {
     colorSchemeVars,
     greyElevated2ClassName,
@@ -67,7 +67,7 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
         | {isLoading: true};
     optionCheckboxMarginTop?: Spacing;
 }) {
-    const routeLayout = useRouteLayout();
+    const platform = usePlatform();
 
     const {pressProps, isPressed} = usePress({});
     const {hoverProps, isHovered} = useHover({});
@@ -79,12 +79,12 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
             placement="bottom-start"
             // Allow flipping vertically but not horizontally on mobile. Flipping
             // horizontally on mobile can happen easily and be disruptive.
-            fallbackPlacements={routeLayout === "narrow" ? ["top-start"] : undefined}
+            fallbackPlacements={platform === "mobile" ? ["top-start"] : undefined}
             overlay={({onCloseWithoutAnimation}) => (
                 <Box
                     className={greyElevated2ClassName}
                     width="64"
-                    maxHeight={routeLayout === "narrow" ? "64" : "96"}
+                    maxHeight={platform === "mobile" ? "64" : "96"}
                     overflow="hidden"
                     borderRadius="1.5"
                     backgroundColor="grey-0"
@@ -112,7 +112,7 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
                             zIndex: "0",
                             flexShrink: "1",
                             height: "full",
-                            overflow: routeLayout === "narrow" ? "hidden" : undefined,
+                            overflow: platform === "mobile" ? "hidden" : undefined,
                         })}
                         style={{
                             paddingTop: 1,

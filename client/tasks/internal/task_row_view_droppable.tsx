@@ -59,6 +59,7 @@ const droppableHorizontalOverIndicatorClassName = sprinkles({
     position: "absolute",
     right: "5",
     bottom: "3",
+    height: "border",
     pointerEvents: "none",
     backgroundColor: {light: "theme-30", dark: "theme-60"},
 });
@@ -188,7 +189,6 @@ export function TaskRowViewDroppable({
                 <div
                     className={droppableHorizontalOverIndicatorClassName}
                     style={{
-                        height: 1,
                         left: `${screenPaddingXRem[platform] + listItemIndent * indentation}rem`,
                     }}
                 />

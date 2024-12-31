@@ -16,6 +16,18 @@ function getAvatarInPileByInitials(page: Page, initials: string) {
     return page.getByTestId(/PostContentViewFooter/).getByText(initials);
 }
 
+async function tapSendComment(page: Page) {
+    await expect(page.getByRole("button", {name: "Send comment"})).toBeEnabled();
+
+    // Make sure the keyboard toolbar isn't animating when we tap.
+    await (await page
+        .getByRole("button", {name: "Send comment"})
+        .elementHandle())!.waitForElementState("stable");
+
+    await page.getByRole("button", {name: "Send comment"}).tap();
+    await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
+}
+
 test("can open and close post comments in channel", async ({
     page,
     context: browserContext,
@@ -35,18 +47,21 @@ test("can open and close post comments in channel", async ({
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
+        fileIds: [],
     });
 
     await createPostComment(context.action(session1), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 2"),
+        fileIds: [],
     });
 
     await createPostComment(context.action(session1), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 3"),
+        fileIds: [],
     });
 
     await services.signIn(browserContext, session1);
@@ -91,18 +106,21 @@ test("comments are always open at a direct post url", async ({page, context: bro
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
+        fileIds: [],
     });
 
     await createPostComment(context.action(session1), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 2"),
+        fileIds: [],
     });
 
     await createPostComment(context.action(session1), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 3"),
+        fileIds: [],
     });
 
     await services.signIn(browserContext, session1);
@@ -154,7 +172,7 @@ test("can comment on a post", async ({page, context: browserContext, isMobile}) 
     if (!isMobile) {
         await page.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
-        await page.getByRole("button", {name: "Send comment"}).click();
+        await tapSendComment(page);
     }
     await expect(getAvatarInPileByInitials(page, "SR")).toBeVisible();
     await expect(page.getByText("0 comments")).toBeHidden();
@@ -174,7 +192,7 @@ test("can comment on a post", async ({page, context: browserContext, isMobile}) 
     if (!isMobile) {
         await page.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
-        await page.getByRole("button", {name: "Send comment"}).click();
+        await tapSendComment(page);
     }
     await expect(getAvatarInPileByInitials(page, "SR")).toBeVisible();
     await expect(page.getByText("1 comment")).toBeHidden();
@@ -225,7 +243,7 @@ test("can see comments appear in realtime", async ({
     if (!isMobile) {
         await page2.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
-        await page2.getByRole("button", {name: "Send comment"}).click();
+        await tapSendComment(page2);
     }
 
     await expect(page1.getByText("0 comments")).toBeHidden();
@@ -251,7 +269,7 @@ test("can see comments appear in realtime", async ({
     if (!isMobile) {
         await page3.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
-        await page3.getByRole("button", {name: "Send comment"}).click();
+        await tapSendComment(page3);
     }
 
     await expect(page1.getByText("1 comment")).toBeHidden();
@@ -273,7 +291,7 @@ test("can see comments appear in realtime", async ({
     if (!isMobile) {
         await page2.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
-        await page2.getByRole("button", {name: "Send comment"}).click();
+        await tapSendComment(page2);
     }
 
     await expect(page1.getByText("2 comments")).toBeHidden();
@@ -295,7 +313,7 @@ test("can see comments appear in realtime", async ({
     if (!isMobile) {
         await page1.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
-        await page1.getByRole("button", {name: "Send comment"}).click();
+        await tapSendComment(page1);
     }
 
     await expect(page1.getByText("3 comments")).toBeHidden();
@@ -357,7 +375,7 @@ test("can see new comments when opening post comments", async ({
     if (!isMobile) {
         await page2.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
-        await page2.getByRole("button", {name: "Send comment"}).click();
+        await tapSendComment(page2);
     }
 
     await expect(page1.getByText("0 comments")).toBeHidden();
@@ -400,7 +418,7 @@ test("can see new comments when opening post comments", async ({
     if (!isMobile) {
         await page3.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
-        await page3.getByRole("button", {name: "Send comment"}).click();
+        await tapSendComment(page3);
     }
 
     await expect(page1.getByText("0 comments")).toBeHidden();
@@ -421,7 +439,7 @@ test("can see new comments when opening post comments", async ({
     if (!isMobile) {
         await page2.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
-        await page2.getByRole("button", {name: "Send comment"}).click();
+        await tapSendComment(page2);
     }
 
     await expect(page1.getByText("0 comments")).toBeHidden();
@@ -456,7 +474,7 @@ test("can see new comments when opening post comments", async ({
     if (!isMobile) {
         await page1.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
-        await page1.getByRole("button", {name: "Send comment"}).click();
+        await tapSendComment(page1);
     }
 
     await expect(page1.getByText("3 comments")).toBeHidden();

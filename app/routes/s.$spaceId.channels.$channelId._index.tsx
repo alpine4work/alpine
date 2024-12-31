@@ -10,13 +10,14 @@ import {newChannelNamePlaceholder} from "~/client/forum/new_channel_name_placeho
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     channelViewAsidePostFileCount,
-    postContentViewMinHeightWithClosedCommentSection,
+    postContentViewMinHeightPx,
 } from "~/client/styles/forum_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
@@ -125,6 +126,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
         }
     }
 
+    const clientInfo = context.loader.getClientInfo();
+
     const [channelResult, postsResult] = await runAllPromises([
         getDynamoGeneralRealtimeItem
             ? runAllPromises([
@@ -163,8 +166,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
         getChannelPosts(context, {
             channelId,
             limit: getInitialVirtualizedScrollViewRenderedItemCount(
-                context.loader.getClientInfo(),
-                postContentViewMinHeightWithClosedCommentSection,
+                clientInfo,
+                postContentViewMinHeightPx[getInitialAppRenderSpacingScale(clientInfo)],
             ),
             beforeCursor: null,
         }),

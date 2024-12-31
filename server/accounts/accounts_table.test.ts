@@ -13,8 +13,6 @@ import {
     rewindAccountEmailAddressOneTimePasswordSignInStateTimeForTest,
 } from "~/server/accounts/accounts_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
-import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
@@ -30,16 +28,7 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 const appleReviewerAccountPassword = getAppleReviewerAccountPasswordForTest();
-
 const context = createTestContext();
-const space1 = createTestSpace(context);
-const space2 = createTestSpace(context);
-const space1Session1 = createTestSession(context, space1);
-const space1Session2 = createTestSession(context, space1);
-const space1Session3 = createTestSession(context, space1);
-const space2Session1 = createTestSession(context, space2);
-const space2Session2 = createTestSession(context, space2);
-const space2Session3 = createTestSession(context, space2);
 
 async function createTestAccount({
     isEmailAddressVerified = false,
@@ -312,7 +301,7 @@ test("multiple incorrect password logins will lock the account", async () => {
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 });
 
-test("multiple incorrect password logins will lock the account and even a correct password won’t work", async () => {
+test("multiple incorrect password logins will lock the account and even a correct password won't work", async () => {
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
@@ -825,98 +814,89 @@ test("generates one time passwords that are six characters long", () => {
 });
 
 test("can get accounts in the same space as us", async () => {
-    expect(
-        (
-            await getAccountIfExists(
-                context.action(space1Session1),
-                space1.id,
-                space1Session1.accountId,
-            )
-        )?.initialData.name,
-    ).toEqual(space1Session1.account.initialData.name);
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
 
     expect(
-        (
-            await getAccountIfExists(
-                context.action(space1Session1),
-                space1.id,
-                space1Session2.accountId,
-            )
-        )?.initialData.name,
-    ).toEqual(space1Session2.account.initialData.name);
+        (await getAccountIfExists(session1.action(), space.id, session1.account.id))?.initialData
+            .name,
+    ).toEqual(session1.account.initialName);
 
     expect(
-        (
-            await getAccountIfExists(
-                context.action(space1Session1),
-                space1.id,
-                space1Session3.accountId,
-            )
-        )?.initialData.name,
-    ).toEqual(space1Session3.account.initialData.name);
+        (await getAccountIfExists(session1.action(), space.id, session2.account.id))?.initialData
+            .name,
+    ).toEqual(session2.account.initialName);
+
+    expect(
+        (await getAccountIfExists(session1.action(), space.id, session3.account.id))?.initialData
+            .name,
+    ).toEqual(session3.account.initialName);
 });
 
 test("can not get accounts that don't exist", async () => {
-    expect(
-        await getAccountIfExists(context.action(space1Session1), space1.id, generateId()),
-    ).toEqual(null);
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    expect(await getAccountIfExists(session.action(), space.id, generateId())).toEqual(null);
 });
 
 test("can not get accounts in a different space than us", async () => {
+    const space1 = await TestSpace.create(context);
+    const space2 = await TestSpace.create(context);
+    const space1Session1 = await space1.createSession();
+    const [space2Session1, space2Session2, space2Session3] = await space2.createSessions(3);
+
     expect(
-        await getAccountIfExists(
-            context.action(space1Session1),
-            space1.id,
-            space2Session1.accountId,
-        ),
+        await getAccountIfExists(space1Session1.action(), space1.id, space2Session1.account.id),
     ).toEqual(null);
 
     expect(
-        await getAccountIfExists(
-            context.action(space1Session1),
-            space1.id,
-            space2Session2.accountId,
-        ),
+        await getAccountIfExists(space1Session1.action(), space1.id, space2Session2.account.id),
     ).toEqual(null);
 
     expect(
-        await getAccountIfExists(
-            context.action(space1Session1),
-            space1.id,
-            space2Session3.accountId,
-        ),
+        await getAccountIfExists(space1Session1.action(), space1.id, space2Session3.account.id),
     ).toEqual(null);
 });
 
 test("can not get accounts through a space we don't have access to", async () => {
+    const space1 = await TestSpace.create(context);
+    const space2 = await TestSpace.create(context);
+    const space1Session1 = await space1.createSession();
+    const [space2Session1, space2Session2, space2Session3] = await space2.createSessions(3);
+
     await expect(() =>
-        getAccountIfExists(context.action(space1Session1), space2.id, generateId()),
+        getAccountIfExists(space1Session1.action(), space2.id, generateId()),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(() =>
-        getAccountIfExists(context.action(space1Session1), space2.id, space2Session1.accountId),
+        getAccountIfExists(space1Session1.action(), space2.id, space2Session1.account.id),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(() =>
-        getAccountIfExists(context.action(space1Session1), space2.id, space2Session2.accountId),
+        getAccountIfExists(space1Session1.action(), space2.id, space2Session2.account.id),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(() =>
-        getAccountIfExists(context.action(space1Session1), space2.id, space2Session3.accountId),
+        getAccountIfExists(space1Session1.action(), space2.id, space2Session3.account.id),
     ).rejects.toThrow(PermissionDeniedError);
 });
 
 test("can not get accounts through a space we don't have access to even if we have access to the accounts through a different space", async () => {
+    const space1 = await TestSpace.create(context);
+    const space2 = await TestSpace.create(context);
+    const [space1Session1, space1Session2, space1Session3] = await space1.createSessions(3);
+
     await expect(() =>
-        getAccountIfExists(context.action(space1Session1), space2.id, space1Session1.accountId),
+        getAccountIfExists(space1Session1.action(), space2.id, space1Session1.account.id),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(() =>
-        getAccountIfExists(context.action(space1Session1), space2.id, space1Session2.accountId),
+        getAccountIfExists(space1Session1.action(), space2.id, space1Session2.account.id),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(() =>
-        getAccountIfExists(context.action(space1Session1), space2.id, space1Session3.accountId),
+        getAccountIfExists(space1Session1.action(), space2.id, space1Session3.account.id),
     ).rejects.toThrow(PermissionDeniedError);
 });
 

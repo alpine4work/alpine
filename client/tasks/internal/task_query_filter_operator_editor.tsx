@@ -2,7 +2,7 @@ import {useRef} from "react";
 import {mergeProps, useButton, useHover} from "react-aria";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 
 export function TaskQueryFilterOperatorEditor({
@@ -14,7 +14,7 @@ export function TaskQueryFilterOperatorEditor({
         | ReadonlyArray<{label: string; isSelected: boolean; onPress: () => void}>
         | ReadonlyArray<ReadonlyArray<{label: string; isSelected: boolean; onPress: () => void}>>;
 }) {
-    const routeLayout = useRouteLayout();
+    const platform = usePlatform();
 
     const buttonRef = useRef<HTMLButtonElement>(null);
     const {buttonProps, isPressed} = useButton({}, buttonRef);
@@ -41,7 +41,7 @@ export function TaskQueryFilterOperatorEditor({
                                 minWidth: "4",
                                 // Add more padding on mobile to make it easier for users to touch small
                                 // operation buttons.
-                                paddingX: routeLayout === "narrow" ? "2" : "1",
+                                paddingX: platform === "mobile" ? "2" : "1",
                                 display: "flex",
                                 alignItems: "center",
                                 // The hit radius for this button extends within the entire filter editor but

@@ -14,15 +14,17 @@ import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_fo
  */
 export function PrettyAbsoluteDate({
     date,
-    shouldExcludeTime,
-    shouldIncludeSeconds,
-    shouldIncludeWeekday,
+    withoutDay,
+    withoutTime,
+    withSeconds,
+    withWeekday,
     tooltipPlacement,
 }: {
     date: Date;
-    shouldExcludeTime?: boolean;
-    shouldIncludeSeconds?: boolean;
-    shouldIncludeWeekday?: boolean;
+    withoutDay?: boolean;
+    withoutTime?: boolean;
+    withSeconds?: boolean;
+    withWeekday?: boolean;
     tooltipPlacement?: OverlayPlacement;
 }) {
     const {timeZone, locale} = useClientInfo();
@@ -31,19 +33,12 @@ export function PrettyAbsoluteDate({
     const formattedDate = useMemo(
         () =>
             formatPrettyAbsoluteDateWithoutFullTimeTooltip(locale, timeZone, currentTime, date, {
-                shouldExcludeTime,
-                shouldIncludeSeconds,
-                shouldIncludeWeekday,
+                withoutDay,
+                withoutTime,
+                withSeconds,
+                withWeekday,
             }),
-        [
-            currentTime,
-            date,
-            locale,
-            shouldExcludeTime,
-            shouldIncludeSeconds,
-            shouldIncludeWeekday,
-            timeZone,
-        ],
+        [locale, timeZone, currentTime, date, withoutDay, withoutTime, withSeconds, withWeekday],
     );
 
     return (
@@ -59,14 +54,20 @@ export function PrettyAbsoluteDate({
 /**
  * The tooltip content of a `<PrettyAbsoluteDate>`.
  */
-export function PrettyAbsoluteDateTooltipContent({date}: {date: Date}) {
+export function PrettyAbsoluteDateTooltipContent({
+    date,
+    withoutWeekday = false,
+}: {
+    date: Date;
+    withoutWeekday?: boolean;
+}) {
     const {timeZone, locale} = useClientInfo();
 
     const formattedDate = useMemo(() => {
         const formatter = getIntlDateTimeFormat({
             locale,
             timeZone,
-            weekday: "long",
+            weekday: !withoutWeekday ? "long" : undefined,
             year: "numeric",
             month: "long",
             day: "numeric",
@@ -77,7 +78,7 @@ export function PrettyAbsoluteDateTooltipContent({date}: {date: Date}) {
         return formatter
             .format(date)
             .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
-    }, [date, locale, timeZone]);
+    }, [date, locale, timeZone, withoutWeekday]);
 
     return <>{formattedDate}</>;
 }

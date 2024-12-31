@@ -1,28 +1,25 @@
-import {Check, X} from "phosphor-react";
-import {useId, useMemo, useRef, useState} from "react";
+import {useMemo, useRef, useState} from "react";
 import {usePress} from "react-aria";
-import {ChannelViewFilePreview} from "~/client/content/channel_view_file_preview.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ContentViewWithSeeMoreToggle} from "~/client/content/content_view_with_see_more_toggle.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {IconButton} from "~/client/design/icon_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {DynamoGeneralRealtimeQuery} from "~/client/dynamo/dynamo_general_realtime_query.js";
+import {ChannelViewContentFileMiniPreview} from "~/client/forum/internal/channel_view_content_file_mini_preview.js";
 import {ChannelViewContributorsSection} from "~/client/forum/internal/channel_view_contributors_section.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {InlineEditorToolbar} from "~/client/messaging/inline_editor_toolbar.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     channelViewAsideFileGap,
     channelViewAsideFileHeight,
-    channelViewAsideMarginTop,
     channelViewAsidePostFileColumnCount,
     channelViewAsidePostFileCount,
     channelViewAsidePostFileRowCount,
@@ -35,13 +32,7 @@ import {
 import {colorSchemeVars, fontSizes, sprinkles} from "~/client/styles/styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {
-    addRemLengths,
-    convertRemLengthToPx,
-    parseRemLength,
-    screenPaddingX,
-    subtractRemLengths,
-} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
     ChannelContributorsModel,
@@ -57,19 +48,6 @@ import {
     MessageContentWithReferences,
     assertMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-
-const channelViewAsideEditingDescriptionOffsetTop = `${
-    parseRemLength(
-        subtractRemLengths(
-            addRemLengths(
-                fontSizes[channelViewMetadataSectionTitleFontSize].lineHeight,
-                channelViewAsideMarginTop,
-            ),
-            // Size of a `md` `<IconButton>`
-            "6",
-        ),
-    ) / 2
-}rem`;
 
 export function ChannelViewAside({
     channel,
@@ -120,7 +98,6 @@ export function ChannelViewAside({
             <Box
                 position="relative"
                 maxWidth={postListViewAsideMaxWidth}
-                paddingTop={channelViewAsideMarginTop}
                 paddingX={screenPaddingX}
                 paddingBottom={screenPaddingX}
                 display="flex"
@@ -194,7 +171,7 @@ export function ChannelViewAside({
                             }
 
                             return (
-                                <ChannelViewFilePreview
+                                <ChannelViewContentFileMiniPreview
                                     key={`${fileReference.postId}-${fileReference.file.id}`}
                                     postId={fileReference.postId}
                                     file={fileReference.file}
@@ -233,7 +210,6 @@ function ChannelViewAsideDescription({description}: {description: MessageContent
     return (
         <Box paddingTop="1">
             <ContentViewWithSeeMoreToggle
-                isCompact={true}
                 content={description}
                 contentSnippet={descriptionSnippet}
             />
@@ -255,9 +231,7 @@ function ChannelViewAsideDescriptionEditor({
     onSave: (description: MessageContent) => Promise<void>;
 }) {
     const reporter = useReporter();
-    const {isAppleDevice} = useClientInfo();
 
-    const editorId = useId();
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const [state, setState] = useState(() =>
@@ -291,39 +265,10 @@ function ChannelViewAsideDescriptionEditor({
 
     return (
         <>
-            <Box
-                position="absolute"
-                right={screenPaddingX}
-                display="flex"
-                justifyContent="flex-end"
-                style={{top: channelViewAsideEditingDescriptionOffsetTop}}
-            >
-                <IconButton
-                    description="Save"
-                    tooltipPlacement="bottom-end"
-                    keyboardShortcutHint={`${isAppleDevice ? "⌘" : "Ctrl"}+Enter`}
-                    size="md"
-                    pressErrorTitle="Couldn’t save description"
-                    onPress={save}
-                    isDisabled={isSaving}
-                    isPending={isSaving}
-                >
-                    <Check />
-                </IconButton>
-                <IconButton
-                    description="Cancel"
-                    tooltipPlacement="bottom-end"
-                    keyboardShortcutHint="Esc"
-                    size="md"
-                    onPress={onCancel}
-                    isDisabled={isSaving}
-                >
-                    <X />
-                </IconButton>
-            </Box>
             <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
                 <Box
-                    id={editorId}
+                    position="relative"
+                    zIndex="40"
                     paddingX="1.5"
                     paddingY="1"
                     marginX="-1.5"
@@ -344,7 +289,6 @@ function ChannelViewAsideDescriptionEditor({
                     <ContentEditor
                         ref={editorRef}
                         aria-label="Description"
-                        isCompact={true}
                         state={state}
                         onChange={(state, transaction) => {
                             if (isSaving && transaction.docChanged) return;
@@ -358,7 +302,7 @@ function ChannelViewAsideDescriptionEditor({
 
                             onCancel();
                         }}
-                        onModEnter={event => {
+                        onEnterFromPhysicalKeyboard={event => {
                             event.preventDefault();
                             event.stopPropagation();
 
@@ -368,6 +312,12 @@ function ChannelViewAsideDescriptionEditor({
                                 reporter.displayError("Couldn’t save description", error);
                             });
                         }}
+                    />
+                    <InlineEditorToolbar
+                        isSaving={isSaving}
+                        saveErrorTitle="Couldn’t save description"
+                        onSave={save}
+                        onCancel={onCancel}
                     />
                 </Box>
             </FocusRing>

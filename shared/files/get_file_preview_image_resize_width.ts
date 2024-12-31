@@ -1,21 +1,18 @@
-import {assert} from "~/shared/helpers/control/assert.js";
-
 let filePreviewImageResizeWidths: Set<number> | null = null;
 
 function getFilePreviewImageResizeWidths() {
     if (filePreviewImageResizeWidths === null) {
-        const baseWidths = [200, 400, 600, 800];
-        const widths = [...baseWidths];
-
-        // Add widths for 2x the device pixel ratio and 3x the device pixel ratio.
-        for (const width of baseWidths) widths.push(width * 2);
-        for (const width of baseWidths) widths.push(width * 3);
-
-        filePreviewImageResizeWidths = new Set(widths.sort((a, b) => b - a));
-
-        // 8 total sizes for us to choose from when resizing. This increases the chance
-        // of cache hits when we fetch an image.
-        assert(filePreviewImageResizeWidths.size === 8);
+        // Only 6 sizes below 1400 for us to choose from when resizing. This increases
+        // the chance of cache hits. We need to include larger sizes when rendering
+        // file previews at full screen width. For example, in document presentation
+        // mode on a large monitor.
+        //
+        // Sizes increase in increments of 200px up until 1000px and then increases in
+        // increments of 400px. We'd like to keep the total list of supported widths
+        // low to improve the likelihood of cache hits on our resize backend.
+        filePreviewImageResizeWidths ??= new Set(
+            [200, 400, 600, 800, 1000, 1400, 1800, 2200, 2600, 3000, 3400, 3800, 4200].reverse(),
+        );
     }
 
     return filePreviewImageResizeWidths;

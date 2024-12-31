@@ -15,6 +15,14 @@ export function createFontStyles({
     commitMonoFontFamily: string;
 }) {
     return {
+        light: {
+            fontFamily: interFontFamily,
+            fontWeight: 300,
+            fontStyle: "normal",
+            // You must manually enable `calt` to get contextual alternatives.
+            fontFeatureSettings: '"calt" off',
+            fontSynthesis: "none",
+        },
         normal: {
             fontFamily: interFontFamily,
             fontWeight: 400,
@@ -233,23 +241,6 @@ export const fontSizesBySpacingScale = {
             fontSize: 15,
             letterSpacing: "-0.0088em",
             lineHeight: "1rem",
-        },
-    },
-    "100-extra-compact": {
-        small: {
-            fontSize: 13,
-            letterSpacing: "-0.0032em",
-            lineHeight: "1.25rem",
-        },
-        medium: {
-            fontSize: 15,
-            letterSpacing: "-0.0088em",
-            lineHeight: "1.25rem",
-        },
-        large: {
-            fontSize: 16,
-            letterSpacing: "-0.011em",
-            lineHeight: "1.25rem",
         },
     },
     "100": {

@@ -8,6 +8,7 @@ import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {createDynamoActorContextModule} from "~/server/spaces/create_dynamo_actor_context_module.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -16,15 +17,6 @@ import {deserializeDateString, isDateString} from "~/shared/helpers/date/date_st
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
-
-// TODO(calebmer, #files): We'll need to make sure the AWS EC2 instance has a
-// bunch of popular fonts installed for SVG and PDF documents.
-//
-// Look at what Gotenberg is doing for fonts:
-// https://github.com/gotenberg/gotenberg/blob/da8eeb5d8f98e689b7eaa9276c8847fb7a390994/build/Dockerfile#L67-L117
-
-// TODO(calebmer, #files): Write about resource utilization. Maybe in a
-// technical decision log entry.
 
 export type FileProcessorServiceRoute =
     | {readonly type: "HealthCheck"}
@@ -111,7 +103,10 @@ export function createFileProcessorServiceServer(
         shutdownManager: ShutdownManager;
         tokenAgent: TokenAgent;
         temporaryDirectoryPath: string;
-        withFiber: <Value>(action: () => Promise<Value>) => Promise<Value>;
+        withFiber: <Modules extends {tracer: TracerContextModule}, Value>(
+            context: Context<Modules>,
+            action: () => Promise<Value>,
+        ) => Promise<Value>;
     },
 ) {
     const tracer = processContext.tracer.getRoot();

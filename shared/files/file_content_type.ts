@@ -1,5 +1,7 @@
 import MIMEType from "whatwg-mimetype";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
+import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 /**
@@ -85,7 +87,7 @@ export function isFileWebSafeImageContentType(
 }
 
 export function getFileImageContentTypes(): ReadonlyArray<FileImageContentType> {
-    return Object.keys(fileImageContentTypes) as ReadonlyArray<FileImageContentType>;
+    return getObjectKeysWithKeyofType(fileImageContentTypes);
 }
 
 /**
@@ -265,7 +267,7 @@ export function isFileVideoContentType(
 }
 
 export function getFileVideoContentTypes(): ReadonlyArray<FileVideoContentType> {
-    return Object.keys(fileVideoContentTypes) as ReadonlyArray<FileVideoContentType>;
+    return getObjectKeysWithKeyofType(fileVideoContentTypes);
 }
 
 /**
@@ -376,7 +378,7 @@ export function isFileWebSafeAudioContentType(
 }
 
 export function getFileAudioContentTypes(): ReadonlyArray<FileAudioContentType> {
-    return Object.keys(fileAudioContentTypes) as ReadonlyArray<FileAudioContentType>;
+    return getObjectKeysWithKeyofType(fileAudioContentTypes);
 }
 
 /**
@@ -473,11 +475,11 @@ export function getFileContentTypeContentCodeBlockLanguageIdIfExists(
     contentType: FileContentType,
 ): keyof typeof fileContentTypeByCodeBlockLanguageId | null {
     codeBlockLanguageIdByFileContentType ??= new Map(
-        Object.entries(fileContentTypeByCodeBlockLanguageId).map(
+        getObjectEntriesWithKeyofType(fileContentTypeByCodeBlockLanguageId).map(
             ([languageId, contentType]): [
                 FileContentType,
                 keyof typeof fileContentTypeByCodeBlockLanguageId,
-            ] => [contentType, languageId as keyof typeof fileContentTypeByCodeBlockLanguageId],
+            ] => [contentType, languageId],
         ),
     );
     return codeBlockLanguageIdByFileContentType.get(contentType) ?? null;
@@ -569,9 +571,9 @@ const filePreferredExtensionByContentType: {[Key in FileContentType]: string} = 
 /**
  * A set of all our `FileContentType`s.
  */
-export const fileContentTypes = new Set(
-    Object.keys(filePreferredExtensionByContentType),
-) as ReadonlySet<FileContentType>;
+export const fileContentTypes: ReadonlySet<FileContentType> = new Set(
+    getObjectKeysWithKeyofType(filePreferredExtensionByContentType),
+);
 
 export const FileContentTypeSchema = Schema.enum(fileContentTypes);
 
@@ -874,11 +876,11 @@ let fileCanonicalContentTypeByAdditionalContentType: Map<string, FileContentType
 
 function getFileCanonicalContentTypeByAdditionalContentType() {
     fileCanonicalContentTypeByAdditionalContentType ??= new Map(
-        Object.entries(fileAdditionalContentTypesAndExtensionsByContentType).flatMap(
+        getObjectEntriesWithKeyofType(fileAdditionalContentTypesAndExtensionsByContentType).flatMap(
             ([contentType, {contentTypes: additionalContentTypes = []}]) =>
                 additionalContentTypes.map((additionalContentType): [string, FileContentType] => [
                     additionalContentType,
-                    contentType as FileContentType,
+                    contentType,
                 ]),
         ),
     );
@@ -889,18 +891,13 @@ let fileContentTypeByExtension: Map<string, FileContentType> | null = null;
 
 function getFileContentTypeByExtension() {
     fileContentTypeByExtension ??= new Map([
-        ...Object.entries(filePreferredExtensionByContentType).map(
-            ([contentType, extension]): [string, FileContentType] => [
-                extension,
-                contentType as FileContentType,
-            ],
+        ...getObjectEntriesWithKeyofType(filePreferredExtensionByContentType).map(
+            ([contentType, extension]): [string, FileContentType] => [extension, contentType],
         ),
-        ...Object.entries(fileAdditionalContentTypesAndExtensionsByContentType).flatMap(
-            ([contentType, {extensions = []}]) =>
-                extensions.map((extension): [string, FileContentType] => [
-                    extension,
-                    contentType as FileContentType,
-                ]),
+        ...getObjectEntriesWithKeyofType(
+            fileAdditionalContentTypesAndExtensionsByContentType,
+        ).flatMap(([contentType, {extensions = []}]) =>
+            extensions.map((extension): [string, FileContentType] => [extension, contentType]),
         ),
     ]);
     return fileContentTypeByExtension;

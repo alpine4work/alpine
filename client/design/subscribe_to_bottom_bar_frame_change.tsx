@@ -186,9 +186,9 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
             // same height it means we'll end up emitting no events. If React remounts with
             // a different height then we'll only end up emitting one event.
             //
-            // Double microtask so microtasks scheduled by effect React mount handlers can
-            // run before we finish unmounting and we can skip sending an event if a
-            // remount doesn't change the height.
+            // Double microtask so microtasks scheduled by effect React mount handlers
+            // (like the one in this effect) can run before we finish unmounting and we can
+            // skip sending an event if a remount doesn't change the height.
             scheduleMicrotask(() => {
                 scheduleMicrotask(() => {
                     unregister?.({isUnmounting: true});

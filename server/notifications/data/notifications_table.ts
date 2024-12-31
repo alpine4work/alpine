@@ -7,7 +7,10 @@ import {
     authorizeChatAccessForAccount,
     getChatAccountIds,
 } from "~/server/chat/data/chat_table.js";
-import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
+import {
+    getContentReferencesForNode,
+    getMessageContentReferencesForNode,
+} from "~/server/content/get_content_references.js";
 import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {
     ServerActionContextModules,
@@ -725,14 +728,9 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                     const [author, references, {chatAccountCount}, otherChatAccount] =
                         await runAllPromises([
                             getAccount(context, item.spaceId, item.latestMessage.authorId),
-                            getContentReferencesForNode(
+                            getMessageContentReferencesForNode(
                                 context,
                                 item.spaceId,
-                                FileChatAuthorizer.bind({
-                                    type: "ChatMessage",
-                                    chatId: item.chatId,
-                                    messageIndex: item.latestMessage.index,
-                                }),
                                 item.latestMessage.contentSnippet,
                             ),
                             authorizeChatAccessForAccount(
@@ -782,14 +780,9 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                       item.spaceId,
                                       item.latestComment.authorId,
                                   ),
-                                  references: getContentReferencesForNode(
+                                  references: getMessageContentReferencesForNode(
                                       context,
                                       item.spaceId,
-                                      FilePostAuthorizer.bind({
-                                          type: "PostComment",
-                                          postId: item.postId,
-                                          commentIndex: item.latestComment.index,
-                                      }),
                                       item.latestComment.contentSnippet,
                                   ),
                               })
@@ -906,15 +899,9 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         getDocumentPreview(context, item.documentId),
                         getAccount(context, item.spaceId, item.firstCommentAuthorId),
                         getAccount(context, item.spaceId, item.latestComment.authorId),
-                        getContentReferencesForNode(
+                        getMessageContentReferencesForNode(
                             context,
                             item.spaceId,
-                            FileDocumentAuthorizer.bind({
-                                type: "DocumentComment",
-                                documentId: item.documentId,
-                                commentThreadId: item.commentThreadId,
-                                commentIndex: item.latestComment.index,
-                            }),
                             item.latestComment.contentSnippet,
                         ),
                         item.otherCommentAuthorId
@@ -958,23 +945,9 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                     ] = await runAllPromises([
                         getDocumentPreview(context, item.documentId),
                         getAccount(context, item.spaceId, item.firstComment.authorId),
-                        getContentReferencesForNode(
+                        getMessageContentReferencesForNode(
                             context,
                             item.spaceId,
-                            FileDocumentAuthorizer.bind({
-                                type: "DocumentComment",
-                                documentId: item.documentId,
-                                // NOTE(calebmer, 2024-09-20): `commentThreadId` didn't exist on `firstComment`
-                                // before this date. So if we have a document comment threads entry where
-                                // `commentThreadId` is null then use the first comment thread in
-                                // `item.commentThreadIds` and hope it's right. Getting this wrong shouldn't
-                                // matter since comment threads created before this date also won't have
-                                // attached files since files weren't implemented yet.
-                                commentThreadId:
-                                    item.firstComment.commentThreadId ??
-                                    assertExists(iterableFirst(item.commentThreadIds)),
-                                commentIndex: 0,
-                            }),
                             item.firstComment.contentSnippet,
                         ),
                         otherCommentThreadAuthorId
@@ -1013,14 +986,9 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         runAllObjectPromises({
                             comment: item.latestComment,
                             author: getAccount(context, item.spaceId, item.latestComment.authorId),
-                            references: getContentReferencesForNode(
+                            references: getMessageContentReferencesForNode(
                                 context,
                                 item.spaceId,
-                                FileTaskAuthorizer.bind({
-                                    type: "TaskComment",
-                                    taskId: item.taskId,
-                                    commentIndex: item.latestComment.index,
-                                }),
                                 item.latestComment.contentSnippet,
                             ),
                         }),
@@ -2849,11 +2817,7 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                 : null,
             printNotificationEventAlertContentBody(
                 context,
-                FileChatAuthorizer.bind({
-                    type: "ChatMessage",
-                    chatId: event.chatId,
-                    messageIndex: event.messageIndex,
-                }),
+                FileChatAuthorizer.bind({type: "ChatMessages", chatId: event.chatId}),
                 event,
             ),
         ]);
@@ -3032,11 +2996,7 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
             getPostAuthorAndChannelPreview(context, event.postId),
             printNotificationEventAlertContentBody(
                 context,
-                FilePostAuthorizer.bind({
-                    type: "PostComment",
-                    postId: event.postId,
-                    commentIndex: event.commentIndex,
-                }),
+                FilePostAuthorizer.bind({type: "PostComments", postId: event.postId}),
                 event,
             ),
         ]);
@@ -3411,10 +3371,8 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
             printNotificationEventAlertContentBody(
                 context,
                 FileDocumentAuthorizer.bind({
-                    type: "DocumentComment",
+                    type: "DocumentComments",
                     documentId: event.documentId,
-                    commentThreadId: event.commentThreadId,
-                    commentIndex: event.commentIndex,
                 }),
                 event,
             ),
@@ -3594,11 +3552,7 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
             getTaskOwner(context, event.taskId),
             printNotificationEventAlertContentBody(
                 context,
-                FileTaskAuthorizer.bind({
-                    type: "TaskComment",
-                    taskId: event.taskId,
-                    commentIndex: event.commentIndex,
-                }),
+                FileTaskAuthorizer.bind({type: "TaskComments", taskId: event.taskId}),
                 event,
             ),
         ]);

@@ -1,4 +1,3 @@
-import classNames from "classnames";
 import {AnimationControls, animate, spring, timeline} from "motion";
 import {
     ArrowLeft,
@@ -7,6 +6,7 @@ import {
     CaretLeft,
     CaretRight,
     CaretUp,
+    Plus,
     SpinnerGap,
     X,
 } from "phosphor-react";
@@ -28,6 +28,7 @@ import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
+import {MenuAction} from "~/client/design/menu.js";
 import {
     mobileFullScreenModalAnimationDurationLongMs,
     mobileFullScreenModalAnimationDurationMs,
@@ -53,6 +54,10 @@ import {
     DocumentContentEditorSideDecorations,
 } from "~/client/documents/internal/document_content_editor_side_decorations.js";
 import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client.js";
+import {
+    DocumentPresentationController,
+    DocumentPresentationControllerRef,
+} from "~/client/documents/internal/document_presentation_controller.js";
 import {useDocumentContentEditorPhantomSelections} from "~/client/documents/internal/use_document_content_editor_phantom_selections.js";
 import {
     SubscribeToCommentThreadEventsFunction,
@@ -70,6 +75,7 @@ import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {LecturnIcon} from "~/client/icons/lecturn_icon.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
@@ -82,14 +88,14 @@ import {
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {documentContentEditorSidebarWidth} from "~/client/styles/document_shared_styles.js";
 import {
-    messageInputAccountAvatarPaddingY,
-    messageInputAccountAvatarSize,
-    messageInputMinHeight,
+    messageInputEditorBorderRadiusPx,
+    messageInputEditorIconButtonNegativeMarginX,
+    messageInputEditorMinHeightPx,
+    messageInputEditorPaddingX,
+    messageInputEditorPaddingYPx,
+    messageInputMinHeightPx,
     messageInputPaddingY,
-    messageViewBubbleBorderRadius,
-    messageViewBubbleMinHeight,
-    messageViewBubblePaddingX,
-    messageViewBubblePaddingY,
+    messageViewAccountAvatarSize,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     colorSchemeVars,
@@ -121,22 +127,25 @@ import {
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {InternalError} from "~/shared/error/error.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {assertId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
+import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 
 const documentContentEditorMobileSidebarInsetTop = "48";
 
@@ -219,12 +228,14 @@ export function DocumentContentEditor({
     const isInitialAppRender = useIsInitialAppRender();
     const {isAppleDevice, isNativeMobile} = useClientInfo();
     const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const isMounted = useIsMounted();
     const editorRef = useRef<ContentEditorRef<DocumentContentWithReferences>>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
     const commentThreadListViewRef = useRef<DocumentCommentThreadListViewRef>(null);
+    const presentationControllerRef = useRef<DocumentPresentationControllerRef>(null);
     const editorContainerId = useId();
     const [containerResizeRef, containerSize] = useResizeObserver();
 
@@ -1518,12 +1529,33 @@ export function DocumentContentEditor({
                     onPress: () => assertExists(editorRef.current).redo(),
                 },
             ],
+            ...(platform !== "mobile" &&
+            (process.env.NODE_ENV !== "production" || spaceId === alpineCompanyKnownSpaceId)
+                ? [
+                      [
+                          cast<MenuAction>({
+                              label: "Present",
+                              icon: <LecturnIcon />,
+                              iconPlacement: "end",
+                              pressErrorTitle: "Couldn’t present document",
+                              onPress: async () => {
+                                  await assertExists(presentationControllerRef.current).present();
+                              },
+                          }),
+                      ],
+                  ]
+                : []),
         ],
         shareButton: {},
         desktopTitleMaxWidth: contentStyles.contentMaxWidth,
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
     });
+
+    const fileAttachmentTarget = useMemo(
+        (): FileAttachmentTarget => ({type: "Document", documentId}),
+        [documentId],
+    );
 
     return (
         <Box
@@ -1541,28 +1573,6 @@ export function DocumentContentEditor({
                     editorContainerRef,
                     useScrollbar({insetTop: scrollbarInsetTop}),
                     scrollViewRef,
-                    useLifecycleRef(
-                        useCallback(
-                            editorContainerElement => {
-                                // The title boundary element needs to re-evaluate on initial render. Since the
-                                // initial render will have a title element from a read-only `<ContentView>`
-                                // before we re-render into the ProseMirror `EditorView`.
-                                // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-                                isInitialAppRender;
-
-                                const titleBoundaryElement = assertExists(
-                                    editorContainerElement.querySelector(`.${titleClassName}`),
-                                );
-                                assert(titleBoundaryElement instanceof HTMLElement);
-
-                                titleBoundaryRef.current = titleBoundaryElement;
-                                return () => {
-                                    titleBoundaryRef.current = null;
-                                };
-                            },
-                            [isInitialAppRender],
-                        ),
-                    ),
                 )}
                 id={editorContainerId}
                 data-testid="DocumentContentEditorMain"
@@ -1581,7 +1591,24 @@ export function DocumentContentEditor({
                 <OverlayScopeContextProvider>
                     <Box className={contentEditorStyles.containerClassName}>
                         <ContentEditor
-                            ref={editorRef}
+                            ref={useMergedRefs(
+                                editorRef,
+                                useLifecycleRef(
+                                    useCallback(editor => {
+                                        const titleBoundaryElement = assertExists(
+                                            editor
+                                                .getContainer()
+                                                .querySelector(`.${titleClassName}`),
+                                        );
+                                        assert(titleBoundaryElement instanceof HTMLElement);
+
+                                        titleBoundaryRef.current = titleBoundaryElement;
+                                        return () => {
+                                            titleBoundaryRef.current = null;
+                                        };
+                                    }, []),
+                                ),
+                            )}
                             state={editorState}
                             onChange={(state, transaction) => {
                                 onChangeEditorState(state);
@@ -1589,6 +1616,7 @@ export function DocumentContentEditor({
                                 const createCommentThread: {
                                     commentThreadId: DocumentCommentThreadId;
                                     initialCommentContent: MessageContentWithReferences;
+                                    initialCommentFileIds: ReadonlyArray<FileId>;
                                     openCommentThreadPromiseRef?: {
                                         current: Promise<void> | null;
                                     };
@@ -1619,8 +1647,9 @@ export function DocumentContentEditor({
                             withoutMobileKeyboardToolbar={sidebarState.isOpen}
                             className={documentContentStyles.documentContentClassName}
                             phantomSelections={phantomSelections}
-                            fileAttachmentTarget={useMemo(
-                                () => ({type: "Document", documentId}),
+                            fileAttachmentTarget={fileAttachmentTarget}
+                            commentFileAttachmentTarget={useMemo(
+                                () => ({type: "DocumentComments", documentId}),
                                 [documentId],
                             )}
                             onEnsureFileAttachmentTarget={ensureCreateDocument}
@@ -1763,6 +1792,7 @@ export function DocumentContentEditor({
                             <>
                                 <Box
                                     ref={mobileFakeCommentInputRef}
+                                    data-testid="DocumentContentEditorMobileFakeCommentInput"
                                     position="absolute"
                                     zIndex="30"
                                     left="0"
@@ -1789,27 +1819,36 @@ export function DocumentContentEditor({
                                     <Box
                                         paddingX={screenPaddingX}
                                         paddingY={messageInputPaddingY}
-                                        display="flex"
-                                        gap="2"
+                                        marginX={messageInputEditorIconButtonNegativeMarginX}
                                         style={{
-                                            height: messageInputMinHeight[platform],
+                                            height: messageInputMinHeightPx[platform][spacingScale],
                                         }}
                                     >
                                         <Box
                                             ref={mobileFakeCommentInputEditorRef}
-                                            className={classNames(
-                                                contentStyles.docClassName,
-                                                platform === "mobile" &&
-                                                    contentStyles.extraCompactDocClassName,
-                                            )}
+                                            className={contentStyles.docClassName}
+                                            position="relative"
                                             flexGrow="1"
-                                            borderRadius={messageViewBubbleBorderRadius}
-                                            paddingX={messageViewBubblePaddingX}
-                                            paddingY={messageViewBubblePaddingY}
                                             // If the user has a mouse, make this feel like a text input.
                                             cursor="text"
                                             style={{
-                                                height: messageViewBubbleMinHeight[platform],
+                                                height: messageInputEditorMinHeightPx[platform][
+                                                    spacingScale
+                                                ],
+                                                paddingLeft: messageInputEditorPaddingX[platform],
+                                                paddingRight: messageInputEditorPaddingX[platform],
+                                                paddingTop:
+                                                    messageInputEditorPaddingYPx[platform][
+                                                        spacingScale
+                                                    ],
+                                                paddingBottom:
+                                                    messageInputEditorPaddingYPx[platform][
+                                                        spacingScale
+                                                    ],
+                                                borderRadius:
+                                                    messageInputEditorBorderRadiusPx[platform][
+                                                        spacingScale
+                                                    ],
                                                 boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                                             }}
                                             onPointerDown={() => {
@@ -1827,20 +1866,53 @@ export function DocumentContentEditor({
                                             >
                                                 Add a comment
                                             </Box>
-                                        </Box>
-                                        <Box flexShrink="0" display="flex" alignItems="flex-end">
                                             <Box
-                                                width={messageInputAccountAvatarSize}
+                                                position="absolute"
+                                                top="0"
+                                                left="0"
+                                                display="flex"
+                                                justifyContent="center"
+                                                alignItems="center"
                                                 style={{
-                                                    paddingTop:
-                                                        messageInputAccountAvatarPaddingY[platform],
-                                                    paddingBottom:
-                                                        messageInputAccountAvatarPaddingY[platform],
+                                                    height: messageInputEditorMinHeightPx[platform][
+                                                        spacingScale
+                                                    ],
+                                                    width: messageInputEditorMinHeightPx[platform][
+                                                        spacingScale
+                                                    ],
                                                 }}
                                             >
                                                 <Box
-                                                    width={messageInputAccountAvatarSize}
-                                                    height={messageInputAccountAvatarSize}
+                                                    width={messageViewAccountAvatarSize}
+                                                    height={messageViewAccountAvatarSize}
+                                                    color="grey-70"
+                                                    borderRadius="full"
+                                                    display="flex"
+                                                    justifyContent="center"
+                                                    alignItems="center"
+                                                >
+                                                    <Plus size={spacing["4"]} />
+                                                </Box>
+                                            </Box>
+                                            <Box
+                                                position="absolute"
+                                                top="0"
+                                                right="0"
+                                                display="flex"
+                                                justifyContent="center"
+                                                alignItems="center"
+                                                style={{
+                                                    height: messageInputEditorMinHeightPx[platform][
+                                                        spacingScale
+                                                    ],
+                                                    width: messageInputEditorMinHeightPx[platform][
+                                                        spacingScale
+                                                    ],
+                                                }}
+                                            >
+                                                <Box
+                                                    width={messageViewAccountAvatarSize}
+                                                    height={messageViewAccountAvatarSize}
                                                     backgroundColor="grey-5"
                                                     color="grey-30"
                                                     borderRadius="full"
@@ -1889,7 +1961,9 @@ export function DocumentContentEditor({
                                     >
                                         <Box
                                             style={{
-                                                height: messageInputMinHeight[platform],
+                                                height: messageInputMinHeightPx[platform][
+                                                    spacingScale
+                                                ],
                                             }}
                                         />
                                     </Box>
@@ -1935,6 +2009,13 @@ export function DocumentContentEditor({
                         />
                     ),
                 [activeCommentThreadId, editorContainerId],
+            )}
+            {platform !== "mobile" && (
+                <DocumentPresentationController
+                    ref={presentationControllerRef}
+                    editorState={editorState}
+                    fileAttachmentTarget={fileAttachmentTarget}
+                />
             )}
         </Box>
     );
@@ -2043,6 +2124,7 @@ function DocumentContentEditorSidebar({
     onClose: Memo<() => void>;
     openCommentThread: Memo<(commentThreadId: DocumentCommentThreadId) => Promise<void>>;
 }) {
+    const spacingScale = useSpacingScale();
     const reporter = useReporter();
     const {isAppleDevice, isNativeMobile} = useClientInfo();
 
@@ -2160,7 +2242,7 @@ function DocumentContentEditorSidebar({
                 </>
             )}
             {(!mobileState.isFullScreen || mobileState.animationState === "Contracting") && (
-                <Box flexShrink="0" paddingX="1.5" display="flex" alignItems="center">
+                <Box flexShrink="0" paddingX="2" display="flex" alignItems="center">
                     <IconButton
                         ref={previousCommentThreadButtonRef}
                         size={platform === "mobile" ? "md" : "xs"}
@@ -2279,14 +2361,16 @@ function DocumentContentEditorSidebar({
                                 justifyContent="center"
                                 alignItems="center"
                                 style={{
-                                    paddingBottom: addRemLengths(
-                                        messageInputMinHeight[platform],
-                                        platform === "mobile" &&
-                                            (!mobileState.isFullScreen ||
-                                                mobileState.animationState === "Expanding")
-                                            ? documentContentEditorMobileSidebarInsetTop
-                                            : "0",
-                                    ),
+                                    paddingBottom:
+                                        messageInputMinHeightPx[platform][spacingScale] +
+                                        (platform === "mobile" &&
+                                        (!mobileState.isFullScreen ||
+                                            mobileState.animationState === "Expanding")
+                                            ? convertRemLengthToPx(
+                                                  documentContentEditorMobileSidebarInsetTop,
+                                                  spacingScale,
+                                              )
+                                            : 0),
                                 }}
                             >
                                 <SpinnerGap
@@ -2323,9 +2407,6 @@ function DocumentContentEditorSidebar({
                                 // comment input to have a smaller max height so it doesn't completely fill the
                                 // bottom sheet.
                                 withCommentInputMobileMaxHeight={routeLayout === "narrow"}
-                                // Slightly reduce the amount of margin on messages in a desktop comment thread
-                                // because we have less space in the sidebar.
-                                paddingX={routeLayout !== "narrow" ? "4" : undefined}
                                 pinnedCommentInputRef={pinnedCommentInputRef}
                                 // We disable the tab bar while a comment thread is open to get more vertical
                                 // space. This changes how our component should handle safe area insets.
@@ -2342,7 +2423,7 @@ function DocumentContentEditorSidebar({
                                         : undefined
                                 }
                                 // Provide the sidebar width for better layout results when previewing files.
-                                previewFileLayoutScreenWidth={
+                                fileLayoutScreenWidth={
                                     routeLayout !== "narrow"
                                         ? spacing[documentContentEditorSidebarWidth]
                                         : undefined
@@ -2379,6 +2460,7 @@ function DocumentContentEditorSidebar({
                         platform,
                         procedures,
                         routeLayout,
+                        spacingScale,
                         subscribeToCommentThreadEvents,
                         unpersistedResolutionStateByCommentThreadId,
                     ],

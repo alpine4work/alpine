@@ -63,10 +63,16 @@ function TestContextProvider({children}: {children: ReactNode}) {
 }
 
 // eslint-disable-next-line testing-library/render-result-naming-convention
-const fileAttachmentTarget = markMemoIfNotRendering<FileAttachmentTarget>({
+const fileAttachmentTarget = markMemoIfNotRendering({
     type: "Document",
     documentId: generateId(),
-});
+} as const satisfies FileAttachmentTarget);
+
+// eslint-disable-next-line testing-library/render-result-naming-convention
+const commentFileAttachmentTarget = markMemoIfNotRendering({
+    type: "DocumentComments",
+    documentId: fileAttachmentTarget.documentId,
+} as const satisfies FileAttachmentTarget);
 
 const fileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
     [
@@ -135,6 +141,7 @@ test("will refresh signed URL when it's about to expire", async () => {
                     state={state}
                     onChange={setState}
                     fileAttachmentTarget={fileAttachmentTarget}
+                    commentFileAttachmentTarget={commentFileAttachmentTarget}
                 />
             </TestContextProvider>
         );

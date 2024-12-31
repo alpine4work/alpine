@@ -1,4 +1,5 @@
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {DurableObjectServiceName, TracerServiceName} from "~/shared/tracer/tracer_root.js";
 
@@ -41,10 +42,9 @@ let tokenServiceNameByShortName: ReadonlyMap<string, TokenServiceName> | undefin
 
 export function getTokenServiceNameByShortName() {
     tokenServiceNameByShortName ??= new Map(
-        Object.entries(tokenServiceShortNameByName).map(([tokenServiceName, shortName]) => [
-            shortName,
-            tokenServiceName as TokenServiceName,
-        ]),
+        getObjectEntriesWithKeyofType(tokenServiceShortNameByName).map(
+            ([tokenServiceName, shortName]) => [shortName, tokenServiceName],
+        ),
     );
     return tokenServiceNameByShortName;
 }

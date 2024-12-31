@@ -226,11 +226,6 @@ const specialGreyColorVars: {
     "grey-0-opacity-90": CssVarFunction;
 
     /**
-     * `grey-0` with 95% opacity.
-     */
-    "grey-0-opacity-95": CssVarFunction;
-
-    /**
      * Grey color used as the background of the `<ContentFileViewerModal>`
      * component. It's a dark grey in both light mode and dark mode with some
      * transparency.
@@ -243,7 +238,6 @@ const specialGreyColorVars: {
     "grey-0-opacity-60": `${colors["grey-0"]}${opacityHex(0.6)}`,
     "grey-0-opacity-80": `${colors["grey-0"]}${opacityHex(0.8)}`,
     "grey-0-opacity-90": `${colors["grey-0"]}${opacityHex(0.9)}`,
-    "grey-0-opacity-95": `${colors["grey-0"]}${opacityHex(0.95)}`,
     "grey-content-file-viewer-modal": `${colors["grey-70"]}cc`,
 });
 
@@ -255,7 +249,6 @@ globalStyle(darkColorSchemeSelector, {
         "grey-0-opacity-60": `${invertedColorsWithShade["grey-0"]}${opacityHex(0.6)}`,
         "grey-0-opacity-80": `${invertedColorsWithShade["grey-0"]}${opacityHex(0.8)}`,
         "grey-0-opacity-90": `${invertedColorsWithShade["grey-0"]}${opacityHex(0.9)}`,
-        "grey-0-opacity-95": `${invertedColorsWithShade["grey-0"]}${opacityHex(0.95)}`,
         "grey-content-file-viewer-modal": `${colors["grey-80"]}cc`,
     }),
 });

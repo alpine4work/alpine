@@ -1,6 +1,7 @@
 import {Memo} from "react";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
 
 export type Spacing = keyof typeof spacing;
 
@@ -83,9 +84,9 @@ export function isRemLength(string: string): string is RemLength {
 }
 
 const precomputedRemLengthNumberBySpacingRemLength = new Map<RemLength | Spacing, number>(
-    Object.entries(spacing).flatMap(([spacing, remLength]) => [
+    getObjectEntriesWithKeyofType(spacing).flatMap(([spacing, remLength]) => [
         [remLength, parseFloat(remLength.slice(0, -3))],
-        [spacing as Spacing, parseFloat(remLength.slice(0, -3))],
+        [spacing, parseFloat(remLength.slice(0, -3))],
     ]),
 );
 

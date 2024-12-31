@@ -6,14 +6,14 @@ import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_a
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
-import {clampListItemIndentation} from "~/shared/content/content_schema.js";
-import {clampHeadingLevel} from "~/shared/content/content_schema_extra.js";
 import {
     ContentBlockNodeTypeName,
     ContentInlineNodeTypeName,
     ContentMarkTypeName,
     ContentTextblockNodeTypeName,
-} from "~/shared/content/content_type_names.js";
+} from "~/shared/content/content_node_type_name.js";
+import {clampListItemIndentation} from "~/shared/content/content_schema.js";
+import {clampHeadingLevel} from "~/shared/content/content_schema_extra.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";

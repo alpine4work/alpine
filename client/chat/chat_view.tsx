@@ -1,5 +1,5 @@
 import {ArrowLeft} from "phosphor-react";
-import {useCallback, useEffect, useRef} from "react";
+import {useCallback, useEffect, useMemo, useRef} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
@@ -9,20 +9,21 @@ import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {PrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
-import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {chatViewTopBarWithInboxBannerAdjustmentY} from "~/client/styles/chat_shared_styles.js";
-import {inboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
-import {messageViewMaxWidth} from "~/client/styles/messaging_shared_styles.js";
-import {sprinkles} from "~/client/styles/styles.js";
+import {
+    messageViewAccountAvatarSize,
+    messageViewRailGap,
+} from "~/client/styles/messaging_shared_styles.js";
+import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
-import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
@@ -45,19 +46,7 @@ export function ChatView({
     initialScrollToMessageIndex: number | null;
 }) {
     return (
-        <Box
-            position="relative"
-            width="full"
-            height="full"
-            style={{
-                // @ts-expect-error: This sets the CSS variable but TypeScript doesn't
-                // like it.
-                "--safe-area-inset-top": `calc(var(--safe-area-inset-top-base, 0px) + ${addRemLengths(
-                    withInboxBanner ? inboxBannerHeight : "0",
-                    navigationBarHeight,
-                )})`,
-            }}
-        >
+        <Box width="full" height="full" display="flex" flexDirection="column">
             <ChatViewTopBar withInboxBanner={withInboxBanner} chat={chat} />
             <ChatMessagingView
                 chat={chat}
@@ -86,24 +75,17 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
     return (
         <Box
             data-testid="ChatViewTopBar"
-            zIndex="10"
-            position="absolute"
+            flexShrink="0"
             width="full"
+            paddingTop="safe-area-inset"
             display="flex"
             justifyContent="center"
             alignItems="center"
-            backgroundColor="grey-0-glass"
-            style={{
-                paddingTop: `calc(var(--safe-area-inset-top-base, 0px) + ${
-                    spacing[withInboxBanner ? inboxBannerHeight : "0"]
-                })`,
-            }}
         >
             <Box
-                position="relative"
                 height={navigationBarHeight}
                 width="full"
-                maxWidth={messageViewMaxWidth}
+                maxWidth={contentStyles.contentMaxWidth}
                 display="flex"
                 justifyContent="center"
                 alignItems="center"
@@ -132,10 +114,10 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
                     display="flex"
                     flexDirection={platform !== "mobile" ? "row" : "column"}
                     alignItems="center"
-                    gap={platform !== "mobile" ? "2" : "1"}
+                    gap={platform !== "mobile" ? messageViewRailGap : "1"}
                 >
                     <AccountAvatarPile
-                        size="7"
+                        size={messageViewAccountAvatarSize}
                         previewAccounts={otherChatAccounts.slice(0, 4)}
                         accountCount={otherChatAccounts.length}
                         getAllAccounts={() => otherChatAccounts}
@@ -219,6 +201,10 @@ function ChatMessagingView({
             }}
             header={chatMessagingViewHeaderItem}
             randomSeedForShimmer={chat.id}
+            fileAttachmentTarget={useMemo(
+                () => ({type: "ChatMessages", chatId: chat.id}),
+                [chat.id],
+            )}
             getMessagesFromStart={useCallback(
                 input => getChatMessagesFromStart(context, {...input, chatId: chat.id}),
                 [chat.id, context],
@@ -243,7 +229,6 @@ function ChatMessagingView({
                     ),
                 [chat.id, chat.spaceId],
             )}
-            scrollbarInsetTop={safeAreaOnlyScrollbarInsetTop}
         />
     );
 }

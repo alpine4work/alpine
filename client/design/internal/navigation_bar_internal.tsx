@@ -959,7 +959,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             top="0"
                             left="0"
                             right="0"
-                            backgroundColor="grey-0-glass"
+                            backgroundColor="grey-0"
                             display="flex"
                             justifyContent="center"
                             pointerEvents="auto"

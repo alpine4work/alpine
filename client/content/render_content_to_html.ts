@@ -2,7 +2,7 @@ import classNames from "classnames";
 import {DOMOutputSpec, Node} from "prosemirror-model";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
-import {FileClientStore, FileClientStoreData} from "~/client/content/file_client_store.js";
+import {FileClientStore} from "~/client/content/file_client_store.js";
 import {
     layoutContentFile,
     layoutContentFileParent,
@@ -28,7 +28,6 @@ import {
     HtmlFragmentGenerator,
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {DocumentCommentThreadId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
@@ -54,8 +53,10 @@ export function renderContentToHtmlStore(
         fileStore: FileClientStore;
         currentAccount: AccountModel | null;
         screenWidth: number;
+        screenScale: number;
         platform: Platform;
         spacingScale: SpacingScale;
+        withoutBlockMaxWidth: boolean;
         isInitialAppRender: boolean;
         withPosAttribute?: boolean;
         placeholder?: string;
@@ -63,9 +64,10 @@ export function renderContentToHtmlStore(
 ): Store<string> {
     return renderContentFragmentToHtmlGeneratorStore(content, options).map(
         fragmentHtmlGenerator => {
-            return `<div class="${
-                contentStyles.docClassName
-            }">${fragmentHtmlGenerator.generateHtml()}</div>`;
+            return `<div class="${classNames(
+                contentStyles.docClassName,
+                options.withoutBlockMaxWidth && contentStyles.withoutBlockMaxWidthDocClassName,
+            )}">${fragmentHtmlGenerator.generateHtml()}</div>`;
         },
     );
 }
@@ -90,8 +92,10 @@ export function renderContentFragmentToHtmlGeneratorStore(
         fileStore,
         currentAccount,
         screenWidth,
+        screenScale,
         platform,
         spacingScale,
+        withoutBlockMaxWidth,
         isInitialAppRender,
         withPosAttribute,
         isInert,
@@ -104,8 +108,10 @@ export function renderContentFragmentToHtmlGeneratorStore(
         fileStore: FileClientStore;
         currentAccount: AccountModel | null;
         screenWidth: number;
+        screenScale: number;
         platform: Platform;
         spacingScale: SpacingScale;
+        withoutBlockMaxWidth: boolean;
         isInitialAppRender: boolean;
         withPosAttribute?: boolean;
         isInert?: boolean;
@@ -316,28 +322,17 @@ export function renderContentFragmentToHtmlGeneratorStore(
 
                     assert(html instanceof HtmlElementGenerator);
 
-                    const fileById = new Map(
-                        filterMapIterable(
-                            node.content.content,
-                            (childNode): [FileId, FileClientStoreData] | undefined => {
-                                if (childNode.type.name !== "file") return;
-
-                                const fileId: FileId = childNode.attrs.fileId;
-
-                                const fileReference = fileId
-                                    ? content.references.fileById.get(fileId)
-                                    : undefined;
-                                if (!fileReference) return;
-
-                                return [fileId, get(fileStore.getFileStore(fileReference))];
-                            },
-                        ),
-                    );
-
-                    const layouts = layoutContentFileParent(fileById, node, {
+                    const layouts = layoutContentFileParent(node, {
                         screenWidth,
                         platform,
                         spacingScale,
+                        withoutBlockMaxWidth,
+                        getFile: fileId => {
+                            const fileReference = content.references.fileById.get(fileId);
+                            if (!fileReference) return null;
+
+                            return get(fileStore.getFileStore(fileReference));
+                        },
                     });
 
                     html.setAttribute(
@@ -365,28 +360,17 @@ export function renderContentFragmentToHtmlGeneratorStore(
                     const childNode = node.content.content[0]!;
                     assert(childNode.type.name === "file");
 
-                    const fileById = new Map(
-                        filterMapIterable(
-                            node.content.content,
-                            (childNode): [FileId, FileClientStoreData] | undefined => {
-                                if (childNode.type.name !== "file") return;
-
-                                const fileId: FileId = childNode.attrs.fileId;
-
-                                const fileReference = fileId
-                                    ? content.references.fileById.get(fileId)
-                                    : undefined;
-                                if (!fileReference) return;
-
-                                return [fileId, get(fileStore.getFileStore(fileReference))];
-                            },
-                        ),
-                    );
-
-                    const layouts = layoutContentFileParent(fileById, node, {
+                    const layouts = layoutContentFileParent(node, {
                         screenWidth,
                         platform,
                         spacingScale,
+                        withoutBlockMaxWidth,
+                        getFile: fileId => {
+                            const fileReference = content.references.fileById.get(fileId);
+                            if (!fileReference) return null;
+
+                            return get(fileStore.getFileStore(fileReference));
+                        },
                     });
 
                     html.setAttribute(
@@ -411,10 +395,19 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         ? get(fileStore.getFileStore(fileReference))
                         : undefined;
 
-                    const layout = layoutContentFile(file, content.doc, pos, node, {
+                    const layout = layoutContentFile(content.doc, pos, node, {
                         screenWidth,
                         platform,
                         spacingScale,
+                        withoutBlockMaxWidth,
+                        getFile: otherFileId => {
+                            if (otherFileId === fileId) return file ?? null;
+
+                            const otherFileReference = content.references.fileById.get(otherFileId);
+                            if (!otherFileReference) return null;
+
+                            return get(fileStore.getFileStore(otherFileReference));
+                        },
                     });
 
                     const html = renderContentFilePreview({
@@ -423,6 +416,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         file,
                         layout,
                         screenWidth,
+                        screenScale,
                         platform,
                         spacingScale,
                         isInitialAppRender,
@@ -433,22 +427,26 @@ export function renderContentFragmentToHtmlGeneratorStore(
 
                 // Add custom renderers which add the `data-placeholder` attribute when our
                 // content is empty.
-                title:
-                    placeholder && isTitleEmpty
-                        ? node => {
-                              const {html, contentHtml} = renderProsemirrorDomOutputSpec(
-                                  node.type.spec.toDOM!(node),
-                              );
-                              assert(html instanceof HtmlElementGenerator);
+                //
+                // The `title` node always renders a placeholder even if the `placeholder` prop
+                // isn't set. This behavior is used by document presentation mode. Which
+                // doesn't set a `placeholder` prop but does render "Untitled" when there's no
+                // title.
+                title: isTitleEmpty
+                    ? node => {
+                          const {html, contentHtml} = renderProsemirrorDomOutputSpec(
+                              node.type.spec.toDOM!(node),
+                          );
+                          assert(html instanceof HtmlElementGenerator);
 
-                              html.setAttribute("data-placeholder", documentFallbackTitle);
-                              // For accessibility, if the title is empty add the fallback title as an
-                              // `aria-label`. axe complains when we have an empty `<h1>`.
-                              html.setAttribute("aria-label", documentFallbackTitle);
+                          html.setAttribute("data-placeholder", documentFallbackTitle);
+                          // For accessibility, if the title is empty add the fallback title as an
+                          // `aria-label`. axe complains when we have an empty `<h1>`.
+                          html.setAttribute("aria-label", documentFallbackTitle);
 
-                              return {html, contentHtml};
-                          }
-                        : undefined,
+                          return {html, contentHtml};
+                      }
+                    : undefined,
                 paragraph:
                     placeholder && isBodyEmpty
                         ? node => {

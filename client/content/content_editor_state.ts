@@ -2,6 +2,7 @@ import {collab, getVersion, receiveTransaction, sendableSteps} from "prosemirror
 import {history, redoDepth, undoDepth} from "prosemirror-history";
 import {Node} from "prosemirror-model";
 import {Command, EditorState, Plugin, PluginKey, Selection, Transaction} from "prosemirror-state";
+import {tableEditing} from "prosemirror-tables";
 import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {ContentEditorFloaterState} from "~/client/content/internal/content_editor_floater_state.js";
@@ -86,6 +87,10 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorRememberPosWhileLoadingPlugin(),
         contentEditorCodeBlockPlugin(),
         sharedContentEditorTrackSelectionWithinPlugin(),
+        tableEditing({
+            allowTableNodeSelection: true,
+        }),
+        contentEditorTableColumnResizingPlugin(),
     ];
 
     return plugins;

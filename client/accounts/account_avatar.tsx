@@ -1,14 +1,13 @@
 import GraphemeSplitter from "grapheme-splitter";
 import {useMemo} from "react";
 import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
-import {sprinkles} from "~/client/styles/styles.js";
+import {backgroundColorVar, colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 
 const avatarClassName = sprinkles({
     flexShrink: "0",
-    backgroundColor: "grey-30-const",
     borderRadius: "full",
     display: "flex",
     justifyContent: "center",
@@ -21,7 +20,7 @@ const avatarClassName = sprinkles({
 const initialsClassName = sprinkles({
     // These are default CSS styles but make sure we don't inherit other styles
     // when in a `navigation_bar.tsx` title for instance.
-    fontSize: "75",
+    fontSize: "50",
     fontStyle: "normal",
     userSelect: "none",
 });
@@ -37,9 +36,11 @@ const Box = null;
 export function AccountAvatar({
     account,
     size,
+    backgroundBorderWidth,
 }: {
     account: AccountModel | AccountModelData;
     size: Spacing;
+    backgroundBorderWidth?: 1 | 1.5 | 2 | 3;
 }) {
     // This component is rendered in hot paths (like `<TaskRowView>`) avoid using
     // `sprinkles()` in the component's render function until we implement a
@@ -71,7 +72,18 @@ export function AccountAvatar({
     }, [accountData]);
 
     return (
-        <div className={avatarClassName} style={{width: spacing[size], height: spacing[size]}}>
+        <div
+            className={avatarClassName}
+            style={{
+                width: spacing[size],
+                height: spacing[size],
+                backgroundColor: colorSchemeVars["grey-30-const"],
+                boxShadow:
+                    backgroundBorderWidth !== undefined
+                        ? `0px 0px 0px ${backgroundBorderWidth}px ${backgroundColorVar}`
+                        : undefined,
+            }}
+        >
             <div
                 className={initialsClassName}
                 style={{transform: `scale(${parseInt(size, 10) / 8})`}}

@@ -22,10 +22,16 @@ import {generateId} from "~/shared/id/id.js";
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
 // eslint-disable-next-line testing-library/render-result-naming-convention
-const fileAttachmentTarget = markMemoIfNotRendering<FileAttachmentTarget>({
+const fileAttachmentTarget = markMemoIfNotRendering({
     type: "Document",
     documentId: generateId(),
-});
+} as const satisfies FileAttachmentTarget);
+
+// eslint-disable-next-line testing-library/render-result-naming-convention
+const commentFileAttachmentTarget = markMemoIfNotRendering({
+    type: "DocumentComments",
+    documentId: fileAttachmentTarget.documentId,
+} as const satisfies FileAttachmentTarget);
 
 function TestContentEditor({
     initialContent = emptyDocumentWithoutTitleContent,
@@ -44,6 +50,7 @@ function TestContentEditor({
             state={state}
             onChange={setState}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />
     );
 }

@@ -69,7 +69,7 @@ export function SpaceLayoutSideBar({
 
     return (
         <Box
-            zIndex="30"
+            zIndex="80"
             position="relative"
             flexShrink="0"
             style={{

@@ -14,7 +14,7 @@ import {
 import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {createTaskComment, updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
+import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -23,7 +23,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {TaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
@@ -1131,23 +1130,11 @@ test("will not allow users to view task comments they do not have access to", as
         TestTaskCollection.createPublic(creatorSession, {name: "public test session1"}),
     ]);
 
-    const privateTaskCommentDetails = {
-        taskId: privateTask.id,
-        parentCommentIndex: null,
-        content: createSimpleMessageContent("task comment1"),
-    };
-
-    const publicTaskCommentDetails = {
-        taskId: publicTask.id,
-        parentCommentIndex: null,
-        content: createSimpleMessageContent("task comment2"),
-    };
-
     await runAllPromises([
         privateTask.addCollection(creatorSession, privateCollection),
         publicTask.addCollection(creatorSession, publicCollection),
-        createTaskComment(context.action(creatorSession), privateTaskCommentDetails),
-        createTaskComment(context.action(creatorSession), publicTaskCommentDetails),
+        privateTask.createComment(creatorSession, "task comment1"),
+        publicTask.createComment(creatorSession, "task comment2"),
     ]);
 
     import.meta.jest.advanceTimersByTime(60 * 1000);
@@ -1274,23 +1261,11 @@ test("will not allow users to view task comments they do not have access to afte
         TestTaskCollection.createPublic(creatorSession, {name: "public test session1"}),
     ]);
 
-    const privateTaskCommentDetails = {
-        taskId: privateTask.id,
-        parentCommentIndex: null,
-        content: createSimpleMessageContent("task comment1"),
-    };
-
-    const publicTaskCommentDetails = {
-        taskId: publicTask.id,
-        parentCommentIndex: null,
-        content: createSimpleMessageContent("task comment2"),
-    };
-
     await runAllPromises([
         privateTask.addCollection(creatorSession, privateCollection),
         publicTask.addCollection(creatorSession, publicCollection),
-        createTaskComment(context.action(creatorSession), privateTaskCommentDetails),
-        createTaskComment(context.action(creatorSession), publicTaskCommentDetails),
+        privateTask.createComment(creatorSession, "task comment1"),
+        publicTask.createComment(creatorSession, "task comment2"),
     ]);
 
     import.meta.jest.advanceTimersByTime(60 * 1000);
@@ -1399,23 +1374,11 @@ test("will not allow users to view task comments they do not have access to when
         TestTaskCollection.createPublic(creatorSession, {name: "public test session1"}),
     ]);
 
-    const privateTaskCommentDetails = {
-        taskId: privateTask.id,
-        parentCommentIndex: null,
-        content: createSimpleMessageContent("task comment1"),
-    };
-
-    const publicTaskCommentDetails = {
-        taskId: publicTask.id,
-        parentCommentIndex: null,
-        content: createSimpleMessageContent("task comment2"),
-    };
-
     await runAllPromises([
         privateTask.addCollection(creatorSession, privateCollection),
         publicTask.addCollection(creatorSession, publicCollection),
-        createTaskComment(context.action(creatorSession), privateTaskCommentDetails),
-        createTaskComment(context.action(creatorSession), publicTaskCommentDetails),
+        privateTask.createComment(creatorSession, "task comment1"),
+        publicTask.createComment(creatorSession, "task comment2"),
     ]);
 
     import.meta.jest.advanceTimersByTime(60 * 1000);
@@ -2116,20 +2079,12 @@ describe("getSearchEntity", () => {
 
         await parentTask.addCollection(session2, privateCollection);
 
-        const comment1 = await createTaskComment(session1.action(), {
-            taskId: task1.id,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test task comment content 1."),
-        });
+        const comment1 = await task1.createComment(session1, "Test task comment content 1.");
 
         const task2 = await TestTask.create(session3, {title: "Test Task 2"});
         await task2.addCollection(session3, publicCollection);
 
-        const comment2 = await createTaskComment(session2.action(), {
-            taskId: task2.id,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test task comment content 2."),
-        });
+        const comment2 = await task2.createComment(session2, "Test task comment content 2.");
 
         await ProcessContextModule.waitForTestTasks();
 

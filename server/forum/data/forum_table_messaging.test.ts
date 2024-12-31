@@ -1,5 +1,6 @@
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
+    FilePostAuthorizer,
     backfillPostComments,
     createChannel,
     createPost,
@@ -54,14 +55,18 @@ testMessagingImplementation<PostId>(context, {
     getMissingRoomKey() {
         return generateId();
     },
+    getRoomFileAuthorizer(postId) {
+        return FilePostAuthorizer.bind({type: "PostComments", postId});
+    },
     async createMessage(
         context,
-        {roomKey: postId, parentMessageIndex: parentCommentIndex, content},
+        {roomKey: postId, parentMessageIndex: parentCommentIndex, content, fileIds},
     ) {
         const comment = await createPostComment(context, {
             postId,
             parentCommentIndex,
             content,
+            fileIds,
         });
 
         return {

@@ -87,12 +87,13 @@ export class ChatRealtimeConnection {
 
 const createMessage: CreateMessageFunction<ChatId, ChatMessageModel> = async (
     context,
-    {roomKey: chatId, parentMessageIndex, content},
+    {roomKey: chatId, parentMessageIndex, content, fileIds},
 ) => {
     const {message} = await sendChatMessage(context, {
         chatId,
         parentMessageIndex,
         content,
+        fileIds,
     });
     return message;
 };

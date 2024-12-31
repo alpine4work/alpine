@@ -16,7 +16,9 @@ import {
     largeSpacingScaleSelector,
     lightColorSchemeSelector,
     mediumSpacingScaleSelector,
+    mediumSpacingScaleSelector,
     mobilePlatformSelector,
+    selectorBySpacingScale,
 } from "~/client/styles/core/styles_core.js";
 import {buttonPressedOverlayOpacity} from "~/client/styles/other/internal/button.css.js";
 import * as contentFileVideoPlayerStyles from "~/client/styles/other/internal/content_file_video_player.css.js";
@@ -64,11 +66,14 @@ import {
     unorderedListItemClassName,
 } from "~/shared/content/content_styles.js";
 import {colors} from "~/shared/design/core/colors.js";
+import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
 import {invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {
-    RemLength,
+    Spacing,
     addRemLengths,
+    convertRemLengthToPx,
     parseRemLength,
     screenPaddingX,
     spacing,
@@ -79,6 +84,7 @@ import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
+import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
@@ -117,10 +123,14 @@ export const blockMaxWidthRem = mapObjectValues(blockMaxWidth, blockMaxWidth =>
     parseRemLength(blockMaxWidth),
 );
 
-const defaultParagraphMarginSpacing = "2";
-const defaultParagraphMargin = spacing[defaultParagraphMarginSpacing];
-export {defaultParagraphMarginSpacing as defaultParagraphMargin};
-export const defaultParagraphMarginRem = parseRemLength(defaultParagraphMargin);
+const paragraphMarginSpacing = "2";
+const paragraphMargin = spacing[paragraphMarginSpacing];
+export {paragraphMarginSpacing as paragraphMargin};
+export const paragraphMarginRem = parseRemLength(paragraphMargin);
+
+const standaloneBlockMarginSpacing = "4";
+const standaloneBlockMargin = spacing[standaloneBlockMarginSpacing];
+export {standaloneBlockMarginSpacing as standaloneBlockMargin};
 
 export const blockMaxWidthVar = createVar("block-max-width");
 const paragraphMarginVar = createVar("paragraph-margin");
@@ -156,7 +166,6 @@ globalStyle(mediumSpacingScaleSelector, {
 });
 
 export const docClassName = style({
-    minHeight: "100%",
     color: colorSchemeVars["grey-100"],
     caretColor: colorSchemeVars["grey-100"],
     // Create a new z-index stacking context.
@@ -178,34 +187,11 @@ export const docClassName = style({
 
 export const narrowRouteLayoutDocClassName = style({});
 
-export const selectionChangeDraggingClassName = style({});
+export const isDraggingSelectionDocClassName = style({});
 
-const compactListItemOffsetSpacing = "2";
-const compactListItemOffset = spacing[compactListItemOffsetSpacing];
-export {compactListItemOffsetSpacing as compactListItemOffset};
-
-export const compactDocClassName = style({
+export const withoutBlockMaxWidthDocClassName = style({
     vars: {
-        // Slightly smaller paragraph margins in messages. This makes bullet points in
-        // a message bubble look better.
-        [paragraphMarginVar]: spacing["1.5"],
-        [standaloneBlockMarginVar]: spacing["3"],
-        // Pull in list items so they're not so far from the edge of the message
-        // bubble.
-        [listItemOffsetVar]: `-${compactListItemOffset}`,
-    },
-});
-
-export const extraCompactDocClassName = style({
-    selectors: {
-        // Double selector so we override `compactDocClassName`.
-        "&&": {
-            vars: {
-                // Slightly smaller paragraph margins in messages. This makes bullet points in
-                // a message bubble look better.
-                [paragraphMarginVar]: spacing["1"],
-            },
-        },
+        [blockMaxWidthVar]: "none",
     },
 });
 
@@ -220,23 +206,41 @@ const blockStyles = {
     clear: "both",
 } as const;
 
+export const paragraphActualFontSize = "100";
+
+export const paragraphLineHeightMultiple = 1.5;
+
+export const paragraphLineHeightPx = createObjectFromKeys(allSpacingScales, spacingScale =>
+    Math.ceil(
+        fontSizesBySpacingScale[paragraphActualFontSize][spacingScale].fontSize *
+            paragraphLineHeightMultiple,
+    ),
+);
+
+export const paragraphLineHeightVar = createVar("paragraph-line-height");
+
+globalStyle(":root", {
+    vars: {
+        [paragraphLineHeightVar]: `${paragraphLineHeightPx.small}px`,
+    },
+});
+
+globalStyle(mediumSpacingScaleSelector, {
+    vars: {
+        [paragraphLineHeightVar]: `${paragraphLineHeightPx.medium}px`,
+    },
+});
+
+globalStyle(largeSpacingScaleSelector, {
+    vars: {
+        [paragraphLineHeightVar]: `${paragraphLineHeightPx.large}px`,
+    },
+});
+
 export const paragraphFontSize = {
-    ...fontSizes["100"],
-    lineHeight: "1.375rem",
+    ...fontSizes[paragraphActualFontSize],
+    lineHeight: paragraphLineHeightVar,
 } as const;
-
-export const paragraphLineHeightRem = parseRemLength(paragraphFontSize.lineHeight);
-
-export const extraCompactParagraphFontSize: {
-    fontSize: string;
-    letterSpacing: string;
-    lineHeight: RemLength;
-} = {
-    ...fontSizes["100-extra-compact"],
-    // Extra compact font size has less relative line height compared to regular
-    // font size.
-    lineHeight: "1.175rem",
-};
 
 globalStyle(paragraphClassName, {
     ...omitObject(blockStyles, ["clear"]),
@@ -244,16 +248,11 @@ globalStyle(paragraphClassName, {
     ...paragraphFontSize,
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
-    minHeight: paragraphFontSize.lineHeight,
-    marginTop: paragraphMarginVar,
-    marginBottom: paragraphMarginVar,
+    minHeight: paragraphLineHeightVar,
+    marginTop: paragraphMargin,
+    marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
-});
-
-globalStyle(`${extraCompactDocClassName} ${paragraphClassName}`, {
-    ...extraCompactParagraphFontSize,
-    minHeight: extraCompactParagraphFontSize.lineHeight,
 });
 
 // Header sizes are smaller on mobile than desktop because mobile has less
@@ -311,7 +310,7 @@ globalStyle(titleClassName, {
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
     minHeight: `calc(${fontSizes[titleFontSize.wide].lineHeight} + ${titlePaddingTop.desktopWide})`,
-    marginBottom: paragraphMarginVar,
+    marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
@@ -346,7 +345,7 @@ globalStyle(headingLevel1ClassName, {
     ...fontStyles["bold"],
     ...fontSizes[headingLevel1FontSize.wide],
     marginTop: headingMarginVars.heading1TopMargin,
-    marginBottom: paragraphMarginVar,
+    marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
@@ -363,7 +362,7 @@ globalStyle(headingLevel2ClassName, {
     ...fontStyles["bold"],
     ...fontSizes[headingLevel2FontSize.wide],
     marginTop: headingMarginVars.heading2TopMargin,
-    marginBottom: paragraphMarginVar,
+    marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
@@ -383,7 +382,7 @@ globalStyle(headingLevel3ClassName, {
     ...fontStyles["bold"],
     ...fontSizes[headingLevel3FontSize.wide],
     marginTop: headingMarginVars.heading3TopMargin,
-    marginBottom: paragraphMarginVar,
+    marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
@@ -401,15 +400,15 @@ globalStyle(`${headingLevel2ClassName} + ${headingLevel3ClassName}`, {
     marginTop: headingMarginVars.heading4TopMargin,
 });
 
-const quoteBlockIndentation = spacing["4"];
+const quoteBlockIndentation = "0.825rem";
 const quoteBlockBorderWidth = "0.1875rem";
 
 globalStyle(quoteBlockClassName, {
     ...omitObject(blockStyles, ["clear"]),
     position: "relative",
     paddingLeft: quoteBlockIndentation,
-    marginTop: standaloneBlockMarginVar,
-    marginBottom: standaloneBlockMarginVar,
+    marginTop: standaloneBlockMargin,
+    marginBottom: standaloneBlockMargin,
     color: colorSchemeVars["grey-60"],
     caretColor: colorSchemeVars["grey-60"],
 });
@@ -448,23 +447,20 @@ export {unorderedListItemBulletSizeSpacing as unorderedListItemBulletSize};
 globalStyle(listItemClassName, {
     ...omitObject(blockStyles, ["clear"]),
     position: "relative",
-    paddingLeft: `calc((${listItemIndentationVar} + 1) * ${listItemIndentation} + ${listItemOffsetVar})`,
+    paddingLeft: `calc((${listItemIndentationVar} + 1) * ${listItemIndentation})`,
 });
 
-export const unorderedListItemBulletTop = `${
-    parseRemLength(subtractRemLengths(paragraphFontSize.lineHeight, unorderedListItemBulletSize)) /
-    2
-}rem`;
-
-const extraCompactUnorderedListItemBulletTop: RemLength = `${
-    parseRemLength(
-        subtractRemLengths(extraCompactParagraphFontSize.lineHeight, unorderedListItemBulletSize),
-    ) / 2
-}rem`;
+export const unorderedListItemBulletTop = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        (paragraphLineHeightPx[spacingScale] -
+            convertRemLengthToPx(unorderedListItemBulletSize, spacingScale)) /
+        2,
+);
 
 export const unorderedListItemBulletLeft = `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
     parseRemLength(listItemIndentation) / 2 - parseRemLength(unorderedListItemBulletSize) / 2
-}rem + ${listItemOffsetVar})`;
+}rem)`;
 
 globalStyle(`${unorderedListItemClassName}::before`, {
     content: '""',
@@ -474,12 +470,16 @@ globalStyle(`${unorderedListItemClassName}::before`, {
     pointerEvents: "none",
     width: unorderedListItemBulletSize,
     height: unorderedListItemBulletSize,
-    top: unorderedListItemBulletTop,
+    top: unorderedListItemBulletTop.small,
     left: unorderedListItemBulletLeft,
 });
 
-globalStyle(`${extraCompactDocClassName} ${unorderedListItemClassName}::before`, {
-    top: extraCompactUnorderedListItemBulletTop,
+globalStyle(`${mediumSpacingScaleSelector} ${unorderedListItemClassName}::before`, {
+    top: unorderedListItemBulletTop.medium,
+});
+
+globalStyle(`${largeSpacingScaleSelector} ${unorderedListItemClassName}::before`, {
+    top: unorderedListItemBulletTop.large,
 });
 
 globalStyle(`${orderedListItemClassName}::before`, {
@@ -487,19 +487,14 @@ globalStyle(`${orderedListItemClassName}::before`, {
     position: "absolute",
     pointerEvents: "none",
     top: 0,
-    left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]} + ${listItemOffsetVar})`,
+    left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]})`,
     textAlign: "right",
     transform: "translateX(-100%)",
     ...paragraphFontSize,
     fontVariantNumeric: "tabular-nums",
 });
 
-globalStyle(`${extraCompactDocClassName} ${orderedListItemClassName}::before`, {
-    ...extraCompactParagraphFontSize,
-});
-
-const checkListItemCheckboxDesktopSize = "4";
-const checkListItemCheckboxMobileSize = "5";
+const checkListItemCheckboxSize: Record<Platform, Spacing> = {desktop: "4", mobile: "5"};
 
 globalStyle(checkListItemCheckedClassName, {
     color: colorSchemeVars["grey-60"],
@@ -508,50 +503,45 @@ globalStyle(checkListItemCheckedClassName, {
 
 export const checkListItemContentClassName = style({});
 
-// The checkbox is a little small. Add some extra hit area to make it easier
-// to click.
-export const checkListItemCheckboxContainerClassName = style({
-    position: "absolute",
+const getCheckListItemCheckboxContainerPosition = (
+    platform: Platform,
+    spacingScale: SpacingScale,
+) => ({
     top: `${
-        (parseRemLength(paragraphFontSize.lineHeight) -
-            parseRemLength(checkListItemCheckboxDesktopSize)) /
+        (paragraphLineHeightPx[spacingScale] -
+            convertRemLengthToPx(checkListItemCheckboxSize[platform], spacingScale)) /
         2
     }rem`,
     left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
         parseRemLength(listItemIndentation) / 2 -
-        (parseRemLength(checkListItemCheckboxDesktopSize) + parseRemLength("1") * 2) / 2
-    }rem + ${listItemOffsetVar})`,
+        (parseRemLength(checkListItemCheckboxSize[platform]) + parseRemLength("1") * 2) / 2
+    }rem)`,
+});
+
+// The checkbox is a little small. Add some extra hit area to make it easier
+// to click.
+export const checkListItemCheckboxContainerClassName = style({
+    position: "absolute",
+    ...getCheckListItemCheckboxContainerPosition("desktop", "small"),
     borderRadius: "100%",
     paddingLeft: spacing["1"],
     paddingRight: spacing["1"],
     cursor: "default",
     userSelect: "none",
     selectors: {
-        [`${mobilePlatformSelector} &`]: {
-            top: `${
-                (parseRemLength(paragraphFontSize.lineHeight) -
-                    parseRemLength(checkListItemCheckboxMobileSize)) /
-                2
-            }rem`,
-            left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
-                parseRemLength(listItemIndentation) / 2 -
-                (parseRemLength(checkListItemCheckboxMobileSize) + parseRemLength("1") * 2) / 2
-            }rem + ${listItemOffsetVar})`,
-        },
-        [`${desktopPlatformSelector} ${extraCompactDocClassName} &`]: {
-            top: `${
-                (parseRemLength(extraCompactParagraphFontSize.lineHeight) -
-                    parseRemLength(checkListItemCheckboxDesktopSize)) /
-                2
-            }rem`,
-        },
-        [`${mobilePlatformSelector} ${extraCompactDocClassName} &`]: {
-            top: `${
-                (parseRemLength(extraCompactParagraphFontSize.lineHeight) -
-                    parseRemLength(checkListItemCheckboxMobileSize)) /
-                2
-            }rem`,
-        },
+        [`${desktopPlatformSelector}${mediumSpacingScaleSelector} &`]:
+            getCheckListItemCheckboxContainerPosition("desktop", "medium"),
+        [`${desktopPlatformSelector}${largeSpacingScaleSelector} &`]:
+            getCheckListItemCheckboxContainerPosition("desktop", "large"),
+
+        [`${mobilePlatformSelector} &`]: getCheckListItemCheckboxContainerPosition(
+            "mobile",
+            "small",
+        ),
+        [`${mobilePlatformSelector}${mediumSpacingScaleSelector} &`]:
+            getCheckListItemCheckboxContainerPosition("mobile", "medium"),
+        [`${mobilePlatformSelector}${largeSpacingScaleSelector} &`]:
+            getCheckListItemCheckboxContainerPosition("mobile", "large"),
     },
 });
 
@@ -561,8 +551,8 @@ export const checkListItemCheckboxClassName = style({
     position: "relative",
     overflow: "hidden",
     borderRadius: "100%",
-    width: spacing[checkListItemCheckboxDesktopSize],
-    height: spacing[checkListItemCheckboxDesktopSize],
+    width: spacing[checkListItemCheckboxSize.desktop],
+    height: spacing[checkListItemCheckboxSize.desktop],
     backgroundColor: "transparent",
     color: "transparent",
     borderWidth: 1,
@@ -579,8 +569,8 @@ export const checkListItemCheckboxClassName = style({
             borderWidth: 0,
         },
         [`${mobilePlatformSelector} &`]: {
-            width: spacing[checkListItemCheckboxMobileSize],
-            height: spacing[checkListItemCheckboxMobileSize],
+            width: spacing[checkListItemCheckboxSize.mobile],
+            height: spacing[checkListItemCheckboxSize.mobile],
         },
     },
 });
@@ -610,26 +600,21 @@ export const checkListItemCheckboxIconClassName = style({
     left: "50%",
     width: spacing["2.5"],
     height: spacing["2.5"],
-    transform: `translate(-50%, -50%) scale(${parseInt(checkListItemCheckboxDesktopSize, 10) / 4})`,
+    transform: `translate(-50%, -50%) scale(${
+        parseInt(checkListItemCheckboxSize.desktop, 10) / 4
+    })`,
     pointerEvents: "none",
     selectors: {
         [`${mobilePlatformSelector} &`]: {
             transform: `translate(-50%, -50%) scale(${
-                parseInt(checkListItemCheckboxMobileSize, 10) / 4
+                parseInt(checkListItemCheckboxSize.mobile, 10) / 4
             })`,
         },
     },
 });
 
-const codeBlockToolbarHeightSpacing = "6";
-const codeBlockToolbarHeight = spacing[codeBlockToolbarHeightSpacing];
-export {codeBlockToolbarHeightSpacing as codeBlockToolbarHeight};
-
 const mobileCodeBlockToolbarMaxWidth = spacing["32"];
-const desktopCodeBlockToolbarMaxWidth = addRemLengths(
-    mobileCodeBlockToolbarMaxWidth,
-    codeBlockToolbarHeight,
-);
+const desktopCodeBlockToolbarMaxWidth = addRemLengths(mobileCodeBlockToolbarMaxWidth, "6");
 
 const codeBlockPaddingRightSpacing = "3";
 const codeBlockPaddingRight = spacing[codeBlockPaddingRightSpacing];
@@ -641,31 +626,13 @@ globalStyle(codeBlockWrapperClassName, {
     zIndex: "0",
     overflowX: "auto",
     overscrollBehaviorX: "contain",
-    marginTop: standaloneBlockMarginVar,
-    marginBottom: standaloneBlockMarginVar,
+    marginTop: standaloneBlockMargin,
+    marginBottom: standaloneBlockMargin,
     counterReset: "code-block-line-number",
     ...paragraphFontSize,
     // `fontStyles.code` needs to be second to override `letter-spacing`.
     ...fontStyles.code,
 });
-
-// If the code block toolbar is a little taller than a line of code (it is)
-// then we need to add some padding Y to our code block so the toolbar can be
-// centered relative to the first line of text when the toolbar is positioned
-// with `position: absolute; top: 0`. We can't position the toolbar with a
-// negative `top` since then it would be clipped because `overflowY` is hidden
-// (since `overflowX` is scrollable).
-const codeBlockPaddingY = `${Math.max(
-    0,
-    (parseRemLength(codeBlockToolbarHeight) - parseRemLength(paragraphFontSize.lineHeight)) / 2,
-)}rem`;
-
-const extraCompactCodeBlockPaddingY = `${Math.max(
-    0,
-    (parseRemLength(codeBlockToolbarHeight) -
-        parseRemLength(extraCompactParagraphFontSize.lineHeight)) /
-        2,
-)}rem`;
 
 globalStyle(codeBlockClassName, {
     display: "block",
@@ -677,20 +644,12 @@ globalStyle(codeBlockClassName, {
     ...paragraphFontSize,
     // `fontStyles.code` needs to be second to override `letter-spacing`.
     ...fontStyles.code,
-    paddingTop: codeBlockPaddingY,
-    paddingBottom: codeBlockPaddingY,
 });
 
 // The reason use a triple selector is to beat the CSS set by ProseMirror since
 // ProseMirror automatically sets white space to pre-wrap.
 globalStyle(`${codeBlockClassName}${codeBlockClassName}${codeBlockClassName}`, {
     whiteSpace: "pre",
-});
-
-globalStyle(`${extraCompactDocClassName} ${codeBlockClassName}`, {
-    ...extraCompactParagraphFontSize,
-    paddingTop: extraCompactCodeBlockPaddingY,
-    paddingBottom: extraCompactCodeBlockPaddingY,
 });
 
 export const filePreviewCodeBlockClassName = style({});
@@ -764,7 +723,7 @@ globalStyle(`${codeBlockLineClassName}::before`, {
     position: "sticky",
     left: "0",
     marginLeft: `-${codeBlockLineOverscrollSlopX}`,
-    width: `calc(${listItemIndentation} + ${listItemOffsetVar})`,
+    width: `calc(${listItemIndentation})`,
     // Optically align code block numbers with ordered list item numbers.
     paddingRight: "0.75rem",
     textAlign: "right",
@@ -779,10 +738,7 @@ globalStyle(`${codeBlockLineClassName}::before`, {
 globalStyle(
     `${codeBlockWrapperClassName}${fileViewCodeBlockClassName} ${codeBlockLineClassName}::before`,
     {
-        width: `calc(${addRemLengths(
-            fileViewCodeBlockMargin,
-            listItemIndentation,
-        )} + ${listItemOffsetVar})`,
+        width: `calc(${addRemLengths(fileViewCodeBlockMargin, listItemIndentation)})`,
     },
 );
 
@@ -868,10 +824,11 @@ export const codeBlockToolbarFlexClassName = style({
     position: "absolute",
     top: "0",
     right: "0",
-    height: codeBlockToolbarHeight,
+    height: paragraphLineHeightVar,
     paddingLeft: spacing["1.5"],
     display: "flex",
     alignItems: "center",
+    gap: spacing["0.5"],
     backgroundColor: backgroundColorVar,
     maxWidth: subtractRemLengths(
         desktopCodeBlockToolbarMaxWidth,
@@ -902,9 +859,9 @@ export const codeBlockToolbarOverflowGradientClassName = style({
 });
 
 export const codeBlockLanguagePickerClassName = style({
-    height: codeBlockToolbarHeight,
-    paddingLeft: spacing["1.5"],
-    paddingRight: spacing["1.5"],
+    height: paragraphLineHeightVar,
+    paddingLeft: spacing["1"],
+    paddingRight: spacing["1"],
     display: "flex",
     alignItems: "center",
     borderRadius: borderRadius["1"],
@@ -922,8 +879,8 @@ export const codeBlockLanguagePickerTextClassName = style({
 
 export const codeBlockCopyButtonClassName = style({
     flexShrink: "0",
-    width: codeBlockToolbarHeight,
-    height: codeBlockToolbarHeight,
+    width: paragraphLineHeightVar,
+    height: paragraphLineHeightVar,
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
@@ -953,13 +910,16 @@ globalStyle(`${narrowRouteLayoutDocClassName} ${dividerClassName}`, {
     marginBottom: spacing[heading1TopMargin.narrow],
 });
 
+const fileMinSizeSpacing = "20";
+export {fileMinSizeSpacing as fileMinSize};
 const fileMinSize = spacing["20"];
 export const fileMinSizeRem = parseRemLength(fileMinSize);
 
-const fileRowMaxHeight = spacing["128"];
-export const fileRowMaxHeightRem = parseRemLength(fileRowMaxHeight);
+const fileRowMaxHeightSpacing = "128";
+export {fileRowMaxHeightSpacing as fileRowMaxHeight};
+const fileRowMaxHeight = spacing[fileRowMaxHeightSpacing];
 
-const fileRowGapWidthSpacing = "2.5";
+const fileRowGapWidthSpacing = "2";
 export {fileRowGapWidthSpacing as fileRowGapWidth};
 const fileRowGapWidth = spacing[fileRowGapWidthSpacing];
 export const fileRowGapWidthRem = parseRemLength(fileRowGapWidth);
@@ -967,8 +927,8 @@ export const fileRowGapWidthRem = parseRemLength(fileRowGapWidth);
 globalStyle(fileRowClassName, {
     ...blockStyles,
     position: "relative",
-    marginTop: standaloneBlockMarginVar,
-    marginBottom: standaloneBlockMarginVar,
+    marginTop: standaloneBlockMargin,
+    marginBottom: standaloneBlockMargin,
     display: "grid",
     justifyContent: "center",
     gap: fileRowGapWidth,
@@ -999,13 +959,27 @@ export const fileFloatRightMarginXRem = parseRemLength(fileFloatRightMarginX);
 const fileFloatMarginY = spacing["1"];
 export const fileFloatMarginYRem = parseRemLength(fileFloatMarginY);
 
-export const fileFloatMinHeightParagraphLineCount = Math.ceil(
-    fileMinSizeRem / paragraphLineHeightRem,
+export const fileFloatMinHeightParagraphLineCount = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        Math.ceil(
+            (fileMinSizeRem * remPxBySpacingScale[spacingScale]) /
+                paragraphLineHeightPx[spacingScale],
+        ),
 );
-export const fileFloatMinHeightRem = fileFloatMinHeightParagraphLineCount * paragraphLineHeightRem;
+
+export const fileFloatMinHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        fileFloatMinHeightParagraphLineCount[spacingScale] * paragraphLineHeightPx[spacingScale],
+);
 
 export const fileFloatMaxHeightParagraphLineCount = 16;
-export const fileFloatMaxHeightRem = fileFloatMaxHeightParagraphLineCount * paragraphLineHeightRem;
+
+export const fileFloatMaxHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale => fileFloatMaxHeightParagraphLineCount * paragraphLineHeightPx[spacingScale],
+);
 
 globalStyle(fileFloatClassName, {
     clear: "both",
@@ -1095,7 +1069,8 @@ export const fileImageViewerClassName = style({
     },
 });
 
-export const fileChannelViewPreviewClassName = style({});
+export const alwaysShowFileBorderClassName = style({});
+export const withoutFileSelectionClassName = style({});
 
 export const fileBlankImageForSelectionClassName = style({
     position: "absolute",
@@ -1108,7 +1083,7 @@ export const fileBlankImageForSelectionClassName = style({
     // player UI.
     zIndex: "70",
     selectors: {
-        [`${fileClassName}${fileChannelViewPreviewClassName} &`]: {
+        [`${fileClassName}${withoutFileSelectionClassName} &`]: {
             display: "none",
             userSelect: "none",
         },
@@ -1175,7 +1150,7 @@ export const fileImagePreviewContentClassName = style({
             `${fileClassName}:has(${contentFileVideoPlayerStyles.containerClassName}) &`,
             // Turn off selection in channel view asides. The user shouldn't be able to
             // select anything there.
-            `${fileClassName}${fileChannelViewPreviewClassName} &`,
+            `${fileClassName}${withoutFileSelectionClassName} &`,
         ].join(", ")]: {
             userSelect: "none",
         },
@@ -1222,7 +1197,7 @@ export const fileImagePreviewPlaceholderClassName = style({
 // precedence than our CSS selector in `content_editor.css.ts` that changes the
 // cursor to `default` while the shift or alt key is pressed.
 globalStyle(
-    `${selectionChangeDraggingClassName}${selectionChangeDraggingClassName} ${fileClassName}`,
+    `${isDraggingSelectionDocClassName}${isDraggingSelectionDocClassName} ${fileClassName}`,
     {
         cursor: "inherit",
     },
@@ -1262,25 +1237,25 @@ const fileBorderColorOpacity = approximateOpacityForShiftingGreyColor(
     "0",
 );
 
-const lightFileBorderColorWithoutOpacity = Color(colors[`grey-${fileBorderColorShade}`]);
+const fileBorderColorWithoutOpacity = {
+    light: Color(colors[`grey-${fileBorderColorShade}`]),
+    dark: Color(invertedColorsWithShade[`grey-${fileBorderColorShade}`]),
+};
 
-const lightFileBorderColor = Color.rgb(
-    lightFileBorderColorWithoutOpacity.red(),
-    lightFileBorderColorWithoutOpacity.green(),
-    lightFileBorderColorWithoutOpacity.blue(),
-    fileBorderColorOpacity.light,
-).hexa();
-
-const darkFileBorderColorWithoutOpacity = Color(
-    invertedColorsWithShade[`grey-${fileBorderColorShade}`],
-);
-
-const darkFileBorderColor = Color.rgb(
-    darkFileBorderColorWithoutOpacity.red(),
-    darkFileBorderColorWithoutOpacity.green(),
-    darkFileBorderColorWithoutOpacity.blue(),
-    fileBorderColorOpacity.dark,
-).hexa();
+export const fileBorderColor = {
+    light: Color.rgb(
+        fileBorderColorWithoutOpacity.light.red(),
+        fileBorderColorWithoutOpacity.light.green(),
+        fileBorderColorWithoutOpacity.light.blue(),
+        fileBorderColorOpacity.light,
+    ).hexa(),
+    dark: Color.rgb(
+        fileBorderColorWithoutOpacity.dark.red(),
+        fileBorderColorWithoutOpacity.dark.green(),
+        fileBorderColorWithoutOpacity.dark.blue(),
+        fileBorderColorOpacity.dark,
+    ).hexa(),
+};
 
 // We add a border around images to prevent images from bleeding into the
 // background. Say you have a screenshot of a web design with an off white
@@ -1299,12 +1274,12 @@ globalStyle(`${fileClassName}:not(${fileImageViewerClassName})::before`, {
     zIndex: "40",
     position: "absolute",
     inset: "0",
-    boxShadow: `inset 0 0 0 1px ${lightFileBorderColor}`,
+    boxShadow: `inset 0 0 0 1px ${fileBorderColor.light}`,
     borderRadius: spacing[fileBorderRadius],
 });
 
 globalStyle(`${darkColorSchemeSelector} ${fileClassName}::before`, {
-    boxShadow: `inset 0 0 0 1px ${darkFileBorderColor}`,
+    boxShadow: `inset 0 0 0 1px ${fileBorderColor.dark}`,
 });
 
 // Turn off borders for files with a transparent background.
@@ -1316,7 +1291,7 @@ globalStyle(`${darkColorSchemeSelector} ${fileClassName}::before`, {
 // We always want to render the border for files rendered in
 // `<ChannelViewAside>`.
 globalStyle(
-    `${lightColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearWhiteClassName}):not(${fileChannelViewPreviewClassName})::before`,
+    `${lightColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearWhiteClassName}):not(${alwaysShowFileBorderClassName})::before`,
     {boxShadow: "none"},
 );
 
@@ -1329,7 +1304,7 @@ globalStyle(
 // We always want to render the border for files rendered in
 // `<ChannelViewAside>`.
 globalStyle(
-    `${darkColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearBlackClassName}):not(${fileChannelViewPreviewClassName})::before`,
+    `${darkColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearBlackClassName}):not(${alwaysShowFileBorderClassName})::before`,
     {boxShadow: "none"},
 );
 
@@ -1351,10 +1326,10 @@ export const pressedFileClassName = style({
         // `grey-0`. So apply a color that should change the background color to
         // `grey-5` on press.
         [`&:not(:has(${fileImagePreviewContentClassName}))::before`]: {
-            backgroundColor: lightFileBorderColor,
+            backgroundColor: fileBorderColor.light,
         },
         [`${darkColorSchemeSelector} &:not(:has(${fileImagePreviewContentClassName}))::before`]: {
-            backgroundColor: darkFileBorderColor,
+            backgroundColor: fileBorderColor.dark,
         },
     },
 });
@@ -1490,12 +1465,97 @@ const nestedCommentBackgroundColors = {
     }),
 };
 
+// Lots of resolutions since the resolution changes as the user zooms in (on
+// Chrome at least).
+const resolutions = [1, 2, 3, 4, 5, 6] as const;
+
+const inlineBackgroundPaddingPx = createObjectFromKeys(allSpacingScales, spacingScale => {
+    const padding =
+        paragraphLineHeightPx[spacingScale] -
+        fontSizesBySpacingScale[paragraphActualFontSize][spacingScale].fontSize *
+            backgroundFontSizePercentage;
+
+    const get = (method: "floor" | "ceil", resolution: number) =>
+        Math[method]((Math.round(padding * resolution) / resolution / 2) * resolution) / resolution;
+
+    return createObjectFromKeys(resolutions, resolution => ({
+        floor: `${get("floor", resolution)}px`,
+        ceil: `${get("ceil", resolution)}px`,
+    }));
+});
+
+/**
+ * You apply these padding values as `padding-top` and `padding-bottom` of an
+ * inline variable whose background (usually a color expressed with
+ * `background-color`) you want to extend for the text's full line height.
+ * Instead of just the text box.
+ *
+ * Getting these values right is pretty delicate business.
+ *
+ * - It depends on font metrics which determine how much space a font occupies
+ *   relative to its `font-size`.
+ *
+ * - You need to be careful with subpixel rounding or else you'll get super
+ *   thin overlap between lines of text which looks wrong.
+ *
+ * - Different browsers perform text rendering differently.
+ *
+ * So we create CSS variables that we store proper padding top/bottom values in
+ * pixels. And use a combination of media queries and selectors to pick the
+ * right values.
+ */
+const inlineBackgroundPadding = createGlobalTheme(":root", {
+    top: inlineBackgroundPaddingPx.small[1].floor,
+    bottom: inlineBackgroundPaddingPx.small[1].ceil,
+});
+
+for (const spacingScale of allSpacingScales) {
+    for (const resolution of resolutions) {
+        // Handled by default variable values.
+        if (spacingScale === "small" && resolution === 1) continue;
+
+        const selector = spacingScale === "small" ? ":root" : selectorBySpacingScale[spacingScale];
+
+        if (resolution === 1) {
+            globalStyle(selector, {
+                vars: assignVars(inlineBackgroundPadding, {
+                    top: inlineBackgroundPaddingPx[spacingScale][resolution].floor,
+                    bottom: inlineBackgroundPaddingPx[spacingScale][resolution].ceil,
+                }),
+            });
+        } else {
+            globalStyle(selector, {
+                "@media": {
+                    [`(min-resolution: ${resolution}x)`]: {
+                        vars: assignVars(inlineBackgroundPadding, {
+                            top: inlineBackgroundPaddingPx[spacingScale][resolution].floor,
+                            bottom: inlineBackgroundPaddingPx[spacingScale][resolution].ceil,
+                        }),
+                    },
+                },
+            });
+        }
+    }
+}
+
+// WebKit has some other calculation for padding top/bottom on inline elements
+// we don't understand. Leading to padding top/bottom not perfectly lining up
+// in WebKit. We've hardcoded 2px as padding top/bottom values that work on my
+// iPhone for the mobile app. We should spend some time trying to figure out
+// values that work in general for WebKit eventually.
+globalStyle(`${largeSpacingScaleSelector}[data-engine=webkit]`, {
+    vars: assignVars(inlineBackgroundPadding, {
+        top: "2px",
+        bottom: "2px",
+    }),
+});
+
 globalStyle(commentClassName, {
     color: "inherit",
     backgroundColor: commentBackgroundColors.light.default,
     // Extend the comment background color to the line height.
-    paddingTop: `calc((1lh - ${backgroundFontSizePercentage}em) / 2)`,
-    paddingBottom: `calc((1lh - ${backgroundFontSizePercentage}em) / 2)`,
+    paddingTop: inlineBackgroundPadding.top,
+    paddingBottom: inlineBackgroundPadding.bottom,
 });
 
 globalStyle(`${commentClassName} ${commentClassName}`, {
@@ -1596,8 +1656,8 @@ mapObjectValues(colorByHighlightColor, (color, highlightColor) => {
 });
 
 export const phantomSelectionClassName = style({
-    paddingTop: `calc((1lh - ${backgroundFontSizePercentage}em) / 2)`,
-    paddingBottom: `calc((1lh - ${backgroundFontSizePercentage}em) / 2)`,
+    paddingTop: inlineBackgroundPadding.top,
+    paddingBottom: inlineBackgroundPadding.bottom,
 });
 
 // Syntax highlighting color philosophy:
@@ -1711,7 +1771,7 @@ ${darkColorSchemeSelector} #$containerId .${commentClassName} .${commentClassNam
     commentBackgroundColors.light.active
 }}
 #$containerId :is(.${fileRowClassName}, .${fileFloatClassName}) > .${commentClassName}:not([data-comment="$commentThreadId"]):has(.${commentClassName}[data-comment="$commentThreadId"])::after {background-color: transparent}
-${(Object.keys(colorByHighlightColor) as Array<keyof typeof highlightClassNameByColor>)
+${getObjectKeysWithKeyofType(colorByHighlightColor)
     .map(
         highlightColor => `\
 #$containerId .${commentClassName}[data-comment="$commentThreadId"] ${
@@ -1742,14 +1802,14 @@ ${darkColorSchemeSelector} #$containerId .${commentClassName}[data-comment="$com
  * produce this effect.
  */
 function extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
-    _backgroundColor: string,
-    _commentHighlightColor: string,
-    _highlightColor: string,
+    backgroundColorString: string,
+    commentHighlightColorString: string,
+    highlightColorString: string,
     opacity: number,
 ) {
-    const backgroundColor = parseRawColor(_backgroundColor);
-    const commentHighlightColor = parseRawColor(_commentHighlightColor);
-    const highlightColor = parseRawColor(_highlightColor);
+    const backgroundColor = parseRawColor(backgroundColorString);
+    const commentHighlightColor = parseRawColor(commentHighlightColorString);
+    const highlightColor = parseRawColor(highlightColorString);
 
     // Get the background color when the comment highlight is rendering on top
     // of it.

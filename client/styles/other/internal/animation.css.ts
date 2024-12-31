@@ -21,6 +21,18 @@ export const pulseAnimationClassName = style({
     animation: pulseAnimation,
 });
 
+const pulseAnimationWithReducedOpacityKeyframes = keyframes({
+    "50%": {opacity: "40%"}, // 0.5 * 0.8
+    "100%": {opacity: "80%"},
+});
+
+export const pulseAnimationWithReducedOpacity = `${pulseAnimationWithReducedOpacityKeyframes} 2s cubic-bezier(0.4, 0, 0.6, 1) infinite`;
+
+export const pulseAnimationWithReducedOpacityClassName = style({
+    opacity: "80%",
+    animation: pulseAnimationWithReducedOpacity,
+});
+
 const pingAnimationKeyframes = keyframes({
     "0%": {
         opacity: 0.75,

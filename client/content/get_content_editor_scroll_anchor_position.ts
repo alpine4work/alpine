@@ -3,7 +3,6 @@ import {ContentEditorRef} from "~/client/content/content_editor.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
-import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export function getContentEditorScrollAnchorPosition<Content extends ContentWithReferences>(
@@ -60,10 +59,7 @@ export function getContentEditorScrollAnchorPosition<Content extends ContentWith
     const coords = editor.coordsAtPos(editorState.getSelection().from);
 
     const spacingScale = getSpacingScaleWithoutListening();
-    const paragraphLineHeight = convertRemLengthToPx(
-        contentStyles.paragraphFontSize.lineHeight,
-        spacingScale,
-    );
+    const paragraphLineHeight = contentStyles.paragraphLineHeightPx[spacingScale];
 
     // Add a paragraph line height in either direction as slop. We consider the
     // selection offscreen if there's less than a line of space between it and the

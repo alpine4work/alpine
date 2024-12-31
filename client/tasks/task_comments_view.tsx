@@ -12,9 +12,10 @@ import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {TaskCommentsViewShimmer} from "~/client/shimmer/route_shimmer.js";
 import {taskCommentsHeaderNavigationBarSpacing} from "~/client/styles/tasks_shared_styles.js";
 import {TaskDetailNotesContentEditorWebSocketClientProcedures} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
-import {spacing} from "~/shared/design/core/spacing.js";
+import {RemLength, spacing} from "~/shared/design/core/spacing.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {FileId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
@@ -30,7 +31,19 @@ type TaskCommentsViewInitialComments = {
     otherReferencedComments: ReadonlyArray<TaskCommentModel>;
 };
 
-type TaskCommentsViewProps = {
+export function TaskCommentsView({
+    taskId,
+    initialScrollToCommentIndex,
+    getCommentUrl,
+    initialComments: initialCommentsFromProps,
+    scrollViewRef,
+    extraChildren,
+    scrollbarInsetTop,
+    isConnected,
+    procedures,
+    subscribeToEvents,
+    fileLayoutScreenWidth,
+}: {
     taskId: TaskId;
     initialScrollToCommentIndex: number | null;
     getCommentUrl: Memo<(messageIndex: number) => URL>;
@@ -43,20 +56,8 @@ type TaskCommentsViewProps = {
     subscribeToEvents: Memo<
         (subscriber: (event: MessagingRealtimeEvent<TaskCommentModel>) => void) => () => void
     >;
-};
-
-export function TaskCommentsView({
-    taskId,
-    initialScrollToCommentIndex,
-    getCommentUrl,
-    initialComments: initialCommentsFromProps,
-    scrollViewRef,
-    extraChildren,
-    scrollbarInsetTop,
-    isConnected,
-    procedures,
-    subscribeToEvents,
-}: TaskCommentsViewProps) {
+    fileLayoutScreenWidth?: RemLength;
+}) {
     const context = useAppContext();
     const routeLayout = useRouteLayout();
     const messagingRef = useRef<MessagingViewRef>(null);
@@ -218,10 +219,15 @@ export function TaskCommentsView({
     );
 
     const createMessage = useCallback(
-        (input: {content: MessageContent; parentMessageIndex: number | null}) => {
+        (input: {
+            content: MessageContent;
+            parentMessageIndex: number | null;
+            fileIds: ReadonlyArray<FileId>;
+        }) => {
             return procedures.createComment({
                 content: input.content,
                 parentCommentIndex: input.parentMessageIndex,
+                fileIds: input.fileIds,
             });
         },
         [procedures],
@@ -246,42 +252,44 @@ export function TaskCommentsView({
         [procedures],
     );
 
+    const fileAttachmentTarget = useMemo(
+        (): FileAttachmentTarget => ({type: "TaskComments", taskId}),
+        [taskId],
+    );
+
     if (!initialComments) {
         return <TaskCommentsViewShimmer />;
     } else {
         return (
-            <>
-                <MessagingView
-                    ref={messagingRef}
-                    elementRef={scrollViewRef}
-                    extraChildren={extraChildren}
-                    scrollbarInsetTop={scrollbarInsetTop}
-                    initialScrollOffset="bottom"
-                    messageNoun="comment"
-                    initialMessagesResult={{
-                        messageCount: initialComments.commentCount,
-                        messages: initialComments.comments,
-                        otherReferencedMessages: initialComments.otherReferencedComments,
-                        lastMessageChangeTime: initialComments.lastCommentChangeTime,
-                    }}
-                    header={header}
-                    randomSeedForShimmer={taskId}
-                    getMessagesFromStart={getMessagesFromStart}
-                    getMessagesFromEnd={getMessagesFromEnd}
-                    backfillMessages={backfillMessages}
-                    createMessage={createMessage}
-                    updateMessageContent={updateMessageContent}
-                    deleteMessage={deleteMessage}
-                    startTypingInMessageInput={procedures.startTypingInCommentInput}
-                    stopTypingInMessageInput={procedures.stopTypingInCommentInput}
-                    isConnected={isConnected}
-                    subscribeToEvents={subscribeToEvents}
-                    getMessageUrl={getCommentUrl}
-                    // Slightly reduce the amount of margin on messages in a desktop comment thread
-                    // because we have less space in the sidebar.
-                    paddingX={routeLayout !== "narrow" ? "4" : undefined}
-                />
-            </>
+            <MessagingView
+                ref={messagingRef}
+                elementRef={scrollViewRef}
+                extraChildren={extraChildren}
+                scrollbarInsetTop={scrollbarInsetTop}
+                initialScrollOffset="bottom"
+                messageNoun="comment"
+                initialMessagesResult={{
+                    messageCount: initialComments.commentCount,
+                    messages: initialComments.comments,
+                    otherReferencedMessages: initialComments.otherReferencedComments,
+                    lastMessageChangeTime: initialComments.lastCommentChangeTime,
+                }}
+                header={header}
+                randomSeedForShimmer={taskId}
+                fileAttachmentTarget={fileAttachmentTarget}
+                getMessagesFromStart={getMessagesFromStart}
+                getMessagesFromEnd={getMessagesFromEnd}
+                backfillMessages={backfillMessages}
+                createMessage={createMessage}
+                updateMessageContent={updateMessageContent}
+                deleteMessage={deleteMessage}
+                startTypingInMessageInput={procedures.startTypingInCommentInput}
+                stopTypingInMessageInput={procedures.stopTypingInCommentInput}
+                isConnected={isConnected}
+                subscribeToEvents={subscribeToEvents}
+                getMessageUrl={getCommentUrl}
+                fileLayoutScreenWidth={fileLayoutScreenWidth}
+            />
         );
     }
 }

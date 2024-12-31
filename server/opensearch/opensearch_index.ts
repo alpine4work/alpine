@@ -7,6 +7,7 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
@@ -39,7 +40,7 @@ export type OpensearchIndexConfig<FlattenedKeys extends string> = {
 };
 
 const opensearchIndexStaticSettingsKeys = filterMapArray(
-    Object.entries(
+    getObjectEntriesWithKeyofType(
         cast<{
             [K in keyof OpensearchIndexConfig<string>["settings"]["index"]]: boolean;
         }>({
@@ -53,8 +54,7 @@ const opensearchIndexStaticSettingsKeys = filterMapArray(
             knn: true,
         }),
     ),
-    ([key, isStatic]) =>
-        isStatic ? (key as keyof OpensearchIndexConfig<string>["settings"]["index"]) : undefined,
+    ([key, isStatic]) => (isStatic ? key : undefined),
 );
 
 /**

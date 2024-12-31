@@ -26,7 +26,7 @@ export function DocumentCommentThreadHeader({
     contentSnippet,
     contentReferences,
     onCommentThreadSnippetPress,
-    previewFileLayoutScreenWidthRem,
+    fileLayoutScreenWidth,
 }: {
     commentThread: DocumentCommentThreadModel;
     unpersistedIsResolved: boolean | null;
@@ -36,7 +36,7 @@ export function DocumentCommentThreadHeader({
     contentSnippet: Node | null;
     contentReferences: DocumentContentReferences;
     onCommentThreadSnippetPress: (commentThreadId: DocumentCommentThreadId) => void;
-    previewFileLayoutScreenWidthRem: number;
+    fileLayoutScreenWidth: number;
 }) {
     const reporter = useReporter();
 
@@ -119,7 +119,7 @@ export function DocumentCommentThreadHeader({
                         contentReferences={contentReferences}
                         onCommentThreadSnippetPress={onCommentThreadSnippetPress}
                         isResolveButtonPending={isPending}
-                        fileLayoutScreenWidthRem={previewFileLayoutScreenWidthRem}
+                        fileLayoutScreenWidth={fileLayoutScreenWidth}
                     />
                 </>
             )}

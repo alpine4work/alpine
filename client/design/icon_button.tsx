@@ -51,6 +51,8 @@ export type IconButtonVariant =
     | "quiet-above-grey-5-background"
     | "quiet-above-grey-5-dark-background"
     | "quiet-above-content-file-viewer-modal"
+    | "quiet-elevation-10"
+    | "neutral"
     | "outline";
 
 export type IconButtonSize = "lg" | "base" | "md" | "sm" | "xs";
@@ -432,6 +434,32 @@ function IconButton(
                   };
             break;
         }
+        case "quiet-elevation-10": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed ? "grey-5" : "grey-0",
+                      color: isPressed ? "grey-80" : "grey-70",
+                  }
+                : {
+                      backgroundColor: "grey-0",
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "neutral": {
+            styles = !isDisabled
+                ? {
+                      backgroundColor: {light: "grey-90", dark: "grey-100"},
+                      color: "grey-0",
+                  }
+                : {
+                      backgroundColor: "grey-5",
+                      color: "grey-30",
+                  };
+            break;
+        }
         case "outline": {
             styles = !isDisabled
                 ? {
@@ -484,6 +512,7 @@ function IconButton(
         useDelayLoadingIndicator(isPending) && !withoutLoadingIndicator;
 
     const isOutlineVariant = variant === "outline";
+    const isBold = variant === "neutral" && !isDisabled;
 
     const willDarkenWithOverlayOnPress = !isQuietVariant && !isOutlineVariant;
 
@@ -612,6 +641,8 @@ function IconButton(
                             zIndex: "0",
                             ...styles,
                             backgroundColor: backgroundColorFromProps ?? styles.backgroundColor,
+                            boxShadow:
+                                variant === "quiet-elevation-10" ? "elevation-10" : undefined,
                         })}
                         style={{
                             // Use a box-shadow for drawing the border so it doesn't affect layout.
@@ -650,6 +681,7 @@ function IconButton(
                             value={{
                                 color: "currentColor",
                                 size: spacing[iconSize],
+                                weight: isBold ? "bold" : "regular",
                             }}
                         >
                             {shouldShowPendingSpinner ? (

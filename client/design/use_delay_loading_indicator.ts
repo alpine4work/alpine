@@ -11,7 +11,10 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
  * This hook returns true `delayLoadingIndicatorLimitMs` after `isLoading` is
  * set to true so you can delay presenting a loading indicator.
  */
-export function useDelayLoadingIndicator(isLoading: boolean): boolean {
+export function useDelayLoadingIndicator(
+    isLoading: boolean,
+    delayMs: number = delayLoadingIndicatorLimitMs,
+): boolean {
     const [originalShouldShowLoadingIndicator, setShouldShowLoadingIndicator] = useState(false);
     let shouldShowLoadingIndicator = originalShouldShowLoadingIndicator;
 
@@ -25,12 +28,12 @@ export function useDelayLoadingIndicator(isLoading: boolean): boolean {
 
         const timeout = createTimeout(() => {
             setShouldShowLoadingIndicator(true);
-        }, delayLoadingIndicatorLimitMs);
+        }, delayMs);
 
         return () => {
             timeout.clear();
         };
-    }, [isLoading]);
+    }, [delayMs, isLoading]);
 
     return shouldShowLoadingIndicator;
 }

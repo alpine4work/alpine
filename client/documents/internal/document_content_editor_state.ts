@@ -30,7 +30,11 @@ import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {DocumentCommentThreadId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {
+    DocumentCommentThreadId,
+    FileId,
+    WebSocketConnectionId,
+} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
     MessageContentWithReferences,
@@ -52,6 +56,7 @@ type DocumentContentEditorExtraState = {
     readonly pendingCreateCommentThreads: ReadonlyArray<{
         readonly commentThreadId: DocumentCommentThreadId;
         readonly initialCommentContent: MessageContent;
+        readonly initialCommentFileIds: ReadonlyArray<FileId>;
     }> | null;
 
     /**
@@ -203,6 +208,7 @@ export function reduceDocumentContentEditorState(
                     const createCommentThread: {
                         commentThreadId: DocumentCommentThreadId;
                         initialCommentContent: MessageContentWithReferences;
+                        initialCommentFileIds: ReadonlyArray<FileId>;
                     } | null = transaction.getMeta(createCommentThreadMetaKey) ?? null;
 
                     if (!createCommentThread) return;
@@ -210,6 +216,7 @@ export function reduceDocumentContentEditorState(
                     return {
                         commentThreadId: createCommentThread.commentThreadId,
                         initialCommentContent: createCommentThread.initialCommentContent.doc,
+                        initialCommentFileIds: createCommentThread.initialCommentFileIds,
                     };
                 }),
             );

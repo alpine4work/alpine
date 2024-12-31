@@ -4,7 +4,7 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/internal/task_query_filter_operator_editor.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -64,7 +64,7 @@ function TaskQueryTitleFilterOperationEditorValueEditor({
     titleQuery: string;
     onTitleQueryChange: (filter: string) => void;
 }) {
-    const routeLayout = useRouteLayout();
+    const platform = usePlatform();
 
     const inputRef = useRef<HTMLInputElement>(null);
     const {hoverProps, isHovered} = useHover({});
@@ -95,8 +95,8 @@ function TaskQueryTitleFilterOperationEditorValueEditor({
         <Box
             {...hoverProps}
             height="full"
-            maxWidth={routeLayout === "narrow" ? undefined : "48"}
-            overflow={routeLayout === "narrow" ? "hidden" : undefined}
+            maxWidth={platform === "mobile" ? undefined : "48"}
+            overflow={platform === "mobile" ? "hidden" : undefined}
             position="relative"
             zIndex="0"
         >

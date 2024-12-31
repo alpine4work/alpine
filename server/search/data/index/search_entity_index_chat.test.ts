@@ -1,4 +1,4 @@
-import {getOrCreateChatForAccounts, sendChatMessage} from "~/server/chat/data/chat_table.js";
+import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     getSearchEntityIndexesForTest,
@@ -9,7 +9,6 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
 
@@ -56,10 +55,7 @@ test("will not index chat until first message is sent", async () => {
     const session2 = await space.createSession({name: "Test 2"});
     const session3 = await space.createSession({name: "Test 3"});
 
-    const chatId = await getOrCreateChatForAccounts(session1.action(), {
-        spaceId: space.id,
-        otherAccountIds: [session2.account.id, session3.account.id],
-    });
+    const chat = await TestChat.get(session1, session2, session3);
 
     import.meta.jest.runOnlyPendingTimers();
     await ProcessContextModule.waitForTestTasks();
@@ -81,11 +77,7 @@ test("will not index chat until first message is sent", async () => {
             .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([]);
 
-    await sendChatMessage(session2.action(), {
-        chatId,
-        parentMessageIndex: null,
-        content: createSimpleMessageContent("Message 1"),
-    });
+    await chat.sendMessage(session2, "Message 1");
 
     import.meta.jest.runOnlyPendingTimers();
     await ProcessContextModule.waitForTestTasks();
@@ -105,13 +97,9 @@ test("will not index chat until first message is sent", async () => {
         ).results
             .map(result => result.id)
             .filter(resultId => !resultId.startsWith("Account:")),
-    ).toEqual([`Chat:${chatId}`]);
+    ).toEqual([`Chat:${chat.id}`]);
 
-    await sendChatMessage(session3.action(), {
-        chatId,
-        parentMessageIndex: null,
-        content: createSimpleMessageContent("Message 2"),
-    });
+    await chat.sendMessage(session3, "Message 2");
 
     import.meta.jest.runOnlyPendingTimers();
     await ProcessContextModule.waitForTestTasks();
@@ -131,13 +119,9 @@ test("will not index chat until first message is sent", async () => {
         ).results
             .map(result => result.id)
             .filter(resultId => !resultId.startsWith("Account:")),
-    ).toEqual([`Chat:${chatId}`]);
+    ).toEqual([`Chat:${chat.id}`]);
 
-    await sendChatMessage(session1.action(), {
-        chatId,
-        parentMessageIndex: null,
-        content: createSimpleMessageContent("Message 3"),
-    });
+    await chat.sendMessage(session1, "Message 3");
 
     import.meta.jest.runOnlyPendingTimers();
     await ProcessContextModule.waitForTestTasks();
@@ -157,7 +141,7 @@ test("will not index chat until first message is sent", async () => {
         ).results
             .map(result => result.id)
             .filter(resultId => !resultId.startsWith("Account:")),
-    ).toEqual([`Chat:${chatId}`]);
+    ).toEqual([`Chat:${chat.id}`]);
 });
 
 test("will not make chat searchable even if manually indexed until first message is sent", async () => {
@@ -166,10 +150,7 @@ test("will not make chat searchable even if manually indexed until first message
     const session2 = await space.createSession({name: "Test 2"});
     const session3 = await space.createSession({name: "Test 3"});
 
-    const chatId = await getOrCreateChatForAccounts(session1.action(), {
-        spaceId: space.id,
-        otherAccountIds: [session2.account.id, session3.account.id],
-    });
+    const chat = await TestChat.get(session1, session2, session3);
 
     import.meta.jest.runOnlyPendingTimers();
     await ProcessContextModule.waitForTestTasks();
@@ -198,7 +179,7 @@ test("will not make chat searchable even if manually indexed until first message
             spaceId: space.id,
             update: {
                 type: "Chat",
-                chatId,
+                chatId: chat.id,
                 updatedTraits: {type: "Any"},
             },
         },
@@ -225,11 +206,7 @@ test("will not make chat searchable even if manually indexed until first message
             .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([]);
 
-    await sendChatMessage(session2.action(), {
-        chatId,
-        parentMessageIndex: null,
-        content: createSimpleMessageContent("Message 1"),
-    });
+    await chat.sendMessage(session2, "Message 1");
 
     import.meta.jest.runOnlyPendingTimers();
     await ProcessContextModule.waitForTestTasks();
@@ -249,13 +226,9 @@ test("will not make chat searchable even if manually indexed until first message
         ).results
             .map(result => result.id)
             .filter(resultId => !resultId.startsWith("Account:")),
-    ).toEqual([`Chat:${chatId}`]);
+    ).toEqual([`Chat:${chat.id}`]);
 
-    await sendChatMessage(session3.action(), {
-        chatId,
-        parentMessageIndex: null,
-        content: createSimpleMessageContent("Message 2"),
-    });
+    await chat.sendMessage(session3, "Message 2");
 
     import.meta.jest.runOnlyPendingTimers();
     await ProcessContextModule.waitForTestTasks();
@@ -275,13 +248,9 @@ test("will not make chat searchable even if manually indexed until first message
         ).results
             .map(result => result.id)
             .filter(resultId => !resultId.startsWith("Account:")),
-    ).toEqual([`Chat:${chatId}`]);
+    ).toEqual([`Chat:${chat.id}`]);
 
-    await sendChatMessage(session1.action(), {
-        chatId,
-        parentMessageIndex: null,
-        content: createSimpleMessageContent("Message 3"),
-    });
+    await chat.sendMessage(session1, "Message 3");
 
     import.meta.jest.runOnlyPendingTimers();
     await ProcessContextModule.waitForTestTasks();
@@ -301,5 +270,5 @@ test("will not make chat searchable even if manually indexed until first message
         ).results
             .map(result => result.id)
             .filter(resultId => !resultId.startsWith("Account:")),
-    ).toEqual([`Chat:${chatId}`]);
+    ).toEqual([`Chat:${chat.id}`]);
 });
