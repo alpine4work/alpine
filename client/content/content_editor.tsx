@@ -100,7 +100,7 @@ import {
     dispatchParentScrollWhenPointerDownAndOverEvent,
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
-import {ContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
+import {createContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {isInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
 import {handleContentTablePaste} from "~/client/content/internal/table/content_table_input.js";
 import {uploadFile} from "~/client/content/internal/upload_file.js";
@@ -1156,11 +1156,13 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
                 draggingFileRef,
             }),
-            table: (node, view) =>
-                new ContentEditorTableNodeView(node, 6.25, view, listener => {
+            table: createContentEditorTableNodeView({
+                defaultCellMinWidth: 6.25,
+                subscribeToSelectionUpdate: listener => {
                     selectionUpdateEmitterRef.current ??= new EventEmitter();
                     return selectionUpdateEmitterRef.current.subscribe(listener);
-                }),
+                },
+            }),
         };
 
         // IMPORTANT: If you have a custom view in `markViews` here you should also

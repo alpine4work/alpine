@@ -28,84 +28,83 @@
  */
 
 import {Node} from "prosemirror-model";
-import {EditorView, NodeView} from "prosemirror-view";
+import {NodeViewConstructor} from "prosemirror-view";
+import {getContentTableColumnWidths} from "~/client/content/internal/table/content_table_client_util.js";
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
-import {
-    getTableUnitPxWithoutListening,
-    subscribeToSpacingScaleChange,
-} from "~/client/remix/spacing_scale_context.js";
+import {subscribeToSpacingScaleChange} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {tableClassName} from "~/shared/content/content_styles.js";
 
-export class ContentEditorTableNodeView implements NodeView {
-    public dom: HTMLDivElement;
-    public table: HTMLTableElement;
-    public colgroup: HTMLTableColElement;
-    public contentDOM: HTMLTableSectionElement;
+export function createContentEditorTableNodeView({
+    defaultCellMinWidth,
+    subscribeToSelectionUpdate,
+}: {
+    defaultCellMinWidth: number; // in rem
+    subscribeToSelectionUpdate: (listener: () => void) => () => void;
+}): NodeViewConstructor {
+    return node => {
+        const containerElement = document.createElement("div");
+        containerElement.className = tableClassName;
+        containerElement.style.display = "flex";
+        containerElement.style.alignItems = "stretch";
+        containerElement.setAttribute("data-scrollbar", "false");
 
-    private readonly unsubscribeFromSelectionUpdate: (() => void) | null = null;
-    private readonly unsubscribeFromSpacingScale: (() => void) | null = null;
-    constructor(
-        public node: Node,
-        public defaultCellMinWidth: number, // in rem
-        public view: EditorView,
-        public subscribeToSelectionUpdate?: (listener: () => void) => () => void,
-    ) {
-        this.dom = document.createElement("div");
-        this.dom.className = tableClassName;
-        this.dom.style.display = "flex";
-        this.dom.style.alignItems = "stretch";
-        this.dom.setAttribute("data-scrollbar", "false");
-        this.table = this.dom.appendChild(document.createElement("table"));
-        this.colgroup = this.table.appendChild(document.createElement("colgroup"));
+        const tableElement = containerElement.appendChild(document.createElement("table"));
+        const colgroupElement = tableElement.appendChild(document.createElement("colgroup"));
 
-        updateContentTableColumnsOnResize(node, this.colgroup, this.table, defaultCellMinWidth);
-        this.contentDOM = this.table.appendChild(document.createElement("tbody"));
-        this.addActiveTableClass();
+        updateContentTableColumnsOnResize(node, colgroupElement, tableElement, defaultCellMinWidth);
 
-        // Subscribe to spacing scale changes
-        this.unsubscribeFromSpacingScale = subscribeToSpacingScaleChange(() => {
+        const tableBodyElement = tableElement.appendChild(document.createElement("tbody"));
+
+        addActiveTableClass();
+
+        // Subscribe to spacing scale changes. This also covers all platform changes so
+        // we don't need to also subscribe to platform changes.
+        const unsubscribeFromSpacingScaleChange = subscribeToSpacingScaleChange(() => {
             updateContentTableColumnsOnResize(
-                this.node,
-                this.colgroup,
-                this.table,
-                this.defaultCellMinWidth,
+                node,
+                colgroupElement,
+                tableElement,
+                defaultCellMinWidth,
             );
         });
 
-        if (subscribeToSelectionUpdate) {
-            this.unsubscribeFromSelectionUpdate = subscribeToSelectionUpdate(() => {
-                requestAnimationFrame(() => this.addActiveTableClass());
-            });
+        const unsubscribeFromSelectionUpdate = subscribeToSelectionUpdate(() => {
+            // TODO(calebmer): Why do we need `requestAnimationFrame()` here?
+            requestAnimationFrame(addActiveTableClass);
+        });
+
+        function addActiveTableClass() {
+            console.log("addActiveTableClass");
         }
-    }
 
-    addActiveTableClass = () => {
-        console.log("addActiveTableClass");
+        return {
+            dom: containerElement,
+            contentDOM: tableBodyElement,
+
+            update: newNode => {
+                if (newNode.type != node.type) return false;
+                node = newNode;
+                updateContentTableColumnsOnResize(
+                    node,
+                    colgroupElement,
+                    tableElement,
+                    defaultCellMinWidth,
+                );
+                return true;
+            },
+            ignoreMutation: record => {
+                return (
+                    record.type == "attributes" &&
+                    (record.target == tableElement || colgroupElement.contains(record.target))
+                );
+            },
+            destroy: () => {
+                unsubscribeFromSpacingScaleChange();
+                unsubscribeFromSelectionUpdate();
+            },
+        };
     };
-    update(node: Node): boolean {
-        if (node.type != this.node.type) return false;
-        this.node = node;
-        updateContentTableColumnsOnResize(
-            node,
-            this.colgroup,
-            this.table,
-            this.defaultCellMinWidth,
-        );
-        return true;
-    }
-
-    ignoreMutation(record: MutationRecord): boolean {
-        return (
-            record.type == "attributes" &&
-            (record.target == this.table || this.colgroup.contains(record.target))
-        );
-    }
-
-    destroy() {
-        this.unsubscribeFromSelectionUpdate?.();
-        this.unsubscribeFromSpacingScale?.();
-    }
 }
 
 export function updateContentTableColumnsOnResize(
