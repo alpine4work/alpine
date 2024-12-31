@@ -1990,36 +1990,6 @@ export const mentionTextClassName = style({
     },
 });
 
-function createChildSelectors(child: "first" | "last") {
-    const selectors1 = [
-        `${listItemClassName}:${child}-child > *:${child}-child`,
-        `${listItemClassName}:${child}-child > ${checkListItemContentClassName} > *:${child}-child`,
-    ];
-
-    const selectors2 = [
-        ...selectors1,
-        `${quoteBlockClassName}:${child}-child > *:${child}-child`,
-        ...selectors1.map(selector => `${quoteBlockClassName}:${child}-child > ${selector}`),
-    ];
-
-    const selectors3 = [
-        ...selectors2,
-        `${tableWrapperClassName} td > *:${child}-child`,
-        ...selectors2.map(selector => `${tableWrapperClassName} td > ${selector}`),
-    ];
-
-    return [
-        `${docClassName} > *:${child}-child`,
-        ...selectors3.map(selector => `${docClassName} > ${selector}`),
-    ];
-}
-
-// Make sure the first child in our document never has top margin.
-createChildSelectors("first").forEach(selector => globalStyle(selector, {marginTop: 0}));
-
-// Make sure the last child in our document never has bottom margin.
-createChildSelectors("last").forEach(selector => globalStyle(selector, {marginBottom: 0}));
-
 const blockChildSelectors = [
     `${listItemClassName} > ${paragraphClassName}`,
     `${checkListItemContentClassName} > ${paragraphClassName}`,
@@ -2089,7 +2059,6 @@ globalStyle(`${tableWrapperClassName} table`, {
 
 globalStyle(`${tableWrapperClassName} td`, {
     position: "relative",
-    zIndex: "0",
     border: `1px solid ${colorSchemeVars["grey-10"]}`,
     padding: `${paragraphMargin} ${spacing["3"]}`,
     verticalAlign: "top",
@@ -2098,7 +2067,6 @@ globalStyle(`${tableWrapperClassName} td`, {
 export const tableSelectedCellClassName = style({});
 
 globalStyle(`${tableWrapperClassName} td${tableSelectedCellClassName}`, {
-    zIndex: "10",
     backgroundColor: colorSchemeVars["theme-selection"],
     border: `1px double ${colorSchemeVars["theme-40-const"]}`,
 });
@@ -2106,14 +2074,81 @@ globalStyle(`${tableWrapperClassName} td${tableSelectedCellClassName}`, {
 export const tableColumnResizeHandleClassName = style({});
 export const tableColumnResizeDraggingClassName = style({});
 
+// We want the hit area for the resize handle to be nice and wide. Specifically
+// spacing 6 which is the same value that `useTouchSlop()` targets for
+// expanding the hit range on small buttons. However, visually we want the
+// resize handle to be much smaller.
+const tableColumnResizeHandleWidthSpacing = "6";
+export {tableColumnResizeHandleWidthSpacing as tableColumnResizeHandleWidth};
+const tableColumnResizeHandleWidth = spacing[tableColumnResizeHandleWidthSpacing];
+const tableColumnResizeHandleIndicatorWidth = spacing["1"];
+
 // Add a color to the column border while resizing.
 globalStyle(`${tableWrapperClassName} ${tableColumnResizeHandleClassName}`, {
     position: "absolute",
-    right: `-${spacing[0.5]}`,
-    top: 0,
-    bottom: `-${spacing[0.5]}`,
-    width: spacing[1],
-    backgroundColor: colorSchemeVars["theme-60"],
+    zIndex: "10",
+    right: `-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem`,
+    top: -1,
+    bottom: -1,
+    width: tableColumnResizeHandleWidth,
     pointerEvents: "auto",
     cursor: "col-resize",
 });
+
+globalStyle(`${tableWrapperClassName} ${tableColumnResizeHandleClassName}::after`, {
+    content: '""',
+    position: "absolute",
+    left: `calc(50% - ${parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2}rem)`,
+    top: 0,
+    bottom: 0,
+    width: tableColumnResizeHandleIndicatorWidth,
+    backgroundColor: colorSchemeVars["theme-40-const"],
+});
+
+function createChildSelectors(child: "first" | "last") {
+    const selectors1 = (firstPseudoSelector: string = `:${child}-child`) => [
+        `${listItemClassName}${firstPseudoSelector} > *:${child}-child`,
+        `${listItemClassName}${firstPseudoSelector} > ${checkListItemContentClassName} > *:${child}-child`,
+    ];
+
+    const selectors2 = (firstPseudoSelector: string = `:${child}-child`) => [
+        ...selectors1(firstPseudoSelector),
+        `${quoteBlockClassName}${firstPseudoSelector} > *:${child}-child`,
+        ...selectors1().map(
+            selector => `${quoteBlockClassName}${firstPseudoSelector} > ${selector}`,
+        ),
+    ];
+
+    const selectors3 = [
+        ...selectors2(),
+        `${tableWrapperClassName} td > *:${child}-child`,
+        ...selectors2().map(selector => `${tableWrapperClassName} td > ${selector}`),
+    ];
+
+    // For tables, when resizing a column we may add a resize handle element to the
+    // end of the `<td>` cell. This resize handle element should not cause
+    // `marginBottom` to be rendered on the last child. So add selectors that
+    // detect when our next sibling is the resize handle element.
+    if (child === "last") {
+        selectors3.push(
+            `${tableWrapperClassName} td > *:has(+ ${tableColumnResizeHandleClassName})`,
+        );
+
+        selectors3.push(
+            ...selectors2(`:has(+ ${tableColumnResizeHandleClassName})`).map(
+                selector => `${tableWrapperClassName} td > ${selector}`,
+            ),
+        );
+    }
+
+    return [
+        `${docClassName} > *:${child}-child`,
+        ...selectors3.map(selector => `${docClassName} > ${selector}`),
+    ];
+}
+
+// Make sure the first child in our document never has top margin.
+createChildSelectors("first").forEach(selector => globalStyle(selector, {marginTop: 0}));
+
+// Make sure the last child in our document never has bottom margin.
+createChildSelectors("last").forEach(selector => globalStyle(selector, {marginBottom: 0}));

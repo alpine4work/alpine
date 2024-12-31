@@ -95,11 +95,10 @@ export function createContentEditorTableNodeView({
 export function updateContentTableColumnsOnResize(
     node: Node,
     colgroupElement: HTMLTableColElement,
-    overrideColumnIndex?: number,
-    overrideColumnWidthPx?: number,
+    overrideColumnWidths?: ReadonlyArray<number>,
 ): void {
     const tableMap = ContentTableMap.get(node);
-    const columnWidths = getContentTableColumnWidths(node);
+    const columnWidths = overrideColumnWidths ?? getContentTableColumnWidths(node);
 
     const totalColumnWidth = columnWidths.reduce(
         (totalColumnWidth, columnWidth) => totalColumnWidth + columnWidth,
@@ -109,12 +108,6 @@ export function updateContentTableColumnsOnResize(
     let nextColElement = colgroupElement.firstElementChild as HTMLTableColElement | null;
 
     for (let columnIndex = 0; columnIndex < tableMap.width; columnIndex++) {
-        // NOCOMMIT: Add back override support
-        // const width =
-        //     overrideColumnIndex == columnIndex
-        //         ? overrideColumnWidthPx
-        //         : columnWidths?.[columnIndex];
-
         const columnWidth = columnWidths[columnIndex]!;
         const columnCssWidth = `${(columnWidth / totalColumnWidth) * 100}%`;
 
