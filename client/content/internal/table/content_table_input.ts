@@ -34,7 +34,7 @@ import {keydownHandler} from "prosemirror-keymap";
 import {Fragment, ResolvedPos, Slice} from "prosemirror-model";
 import {Command, EditorState, Selection, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {contentTableColumnResizingPluginKey} from "~/client/content/internal/table/content_table_column_resize_plugin.js";
+import {contentTableColumnResizingPluginKey} from "~/client/content/internal/table/content_table_column_resizing_plugin.js";
 import {contentTableCommandDeleteCellSelection} from "~/client/content/internal/table/content_table_commands.js";
 import {
     contentTableCopyPasteClipCells,

@@ -36,7 +36,7 @@
 
 import {EditorState, Plugin, PluginKey} from "prosemirror-state";
 import {Decoration, DecorationSet, DecorationSource} from "prosemirror-view";
-import {contentTableFixTables} from "~/client/content/internal/table/content_table_fixtables.js";
+import {contentTableFixTables} from "~/client/content/internal/table/content_table_fix_tables.js";
 import {
     contentTableHandleMouseDown,
     contentTableHandleTripleClick,
