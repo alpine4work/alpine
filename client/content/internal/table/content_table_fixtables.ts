@@ -1,7 +1,8 @@
 /**
- * NOTE(rohitt-gupta, 2024-11-26): Forked from `prosemirror-tables` so we can
- * remove features we don't use and customize the user experience. We intend to
- * modify this file a lot so each modification may not be documented.
+ * NOTE(rohitt-gupta, 2024-11-26): This file has been modified to remove
+ * features we don't use and customize the user experience. You can find the
+ * original file in the `prosemirror-tables` package at:
+ * https://github.com/ProseMirror/prosemirror-tables/blob/582b4e45b70da49472eed91698e5d3ecfbfcf5eb/src/fixtables.ts
  *
  * The MIT License
  *
@@ -26,10 +27,6 @@
  * THE SOFTWARE.
  */
 
-// this file has been modified to remove features we don't use and customize the
-// user experience. You can find the original file in the `prosemirror-tables`
-// package at https://github.com/ProseMirror/prosemirror-tables/blob/master/src/fixtables.ts
-//
 // This file defines helpers for normalizing tables, making sure each row has the same width
 // and that the columnsWidth array matches the actual table structure.
 

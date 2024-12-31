@@ -1,7 +1,8 @@
 /**
- * NOTE(rohitt-gupta, 2024-11-26): Forked from `prosemirror-tables` so we can
- * remove features we don't use and customize the user experience. We intend to
- * modify this file a lot so each modification may not be documented.
+ * NOTE(rohitt-gupta, 2024-11-26): This file has been modified to remove
+ * features we don't use and customize the user experience. You can find the
+ * original file in the `prosemirror-tables` package at:
+ * https://github.com/ProseMirror/prosemirror-tables/blob/582b4e45b70da49472eed91698e5d3ecfbfcf5eb/src/tablemap.ts
  *
  * The MIT License
  *
@@ -26,10 +27,6 @@
  * THE SOFTWARE.
  */
 
-// this file has been modified to remove features we don't use and customize the
-// user experience. You can find the original file in the `prosemirror-tables`
-// package at https://github.com/ProseMirror/prosemirror-tables/blob/master/src/tablemap.ts
-//
 // Because working with row and column-spanning cells is not quite
 // trivial, this code builds up a descriptive structure for a given
 // table node. The structures are cached with the (persistent) table
@@ -40,6 +37,7 @@
 // document-relative positions. So code that uses them will typically
 // compute the start position of the table and offset positions passed
 // to or gotten from this structure by that amount.
+
 import {Node} from "prosemirror-model";
 
 export type ContentTableMapColWidths = Array<number>;
