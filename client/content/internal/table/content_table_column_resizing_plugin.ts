@@ -107,8 +107,6 @@ export function contentTableColumnResizingPlugin({
                     return handleDecorations(state, pluginState.activeHandle);
                 }
             },
-
-            nodeViews: {},
         },
     });
     return plugin;
