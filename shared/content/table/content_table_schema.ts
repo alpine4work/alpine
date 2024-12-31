@@ -43,7 +43,7 @@ export const contentTableProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             content: "tableRow{2,}",
             group: "block",
             attrs: {
-                columnsWidth: {
+                columnWidths: {
                     default: [],
                     schema: Schema.array(Schema.float),
                 },

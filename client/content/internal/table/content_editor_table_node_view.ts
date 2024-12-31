@@ -119,14 +119,14 @@ export function updateContentTableColumnsOnResize(
     let totalWidth = 0;
     let nextDOM = colgroup.firstChild as HTMLElement;
 
-    const columnsWidth = node.attrs.columnsWidth;
+    const columnWidths = node.attrs.columnWidths;
     const columnCount = node.firstChild?.childCount ?? 0;
     const defaultWidth =
         contentStyles.blockMaxWidthRem[getPlatformWithoutListening()] / columnCount;
 
     // Ensure we have enough cols in colgroup
     for (let colIndex = 0; colIndex < columnCount; colIndex++) {
-        const width = overrideCol == colIndex ? overrideValue : columnsWidth?.[colIndex];
+        const width = overrideCol == colIndex ? overrideValue : columnWidths?.[colIndex];
 
         const cssWidth = width
             ? `${width * getTableUnitPxWithoutListening()}px`

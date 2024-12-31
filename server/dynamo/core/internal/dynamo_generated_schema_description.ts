@@ -982,7 +982,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                         "schema": {
                                                                                                             "type": "Object",
                                                                                                             "propertySchemaByKey": {
-                                                                                                                "columnsWidth": {
+                                                                                                                "columnWidths": {
                                                                                                                     "valueSchema": {
                                                                                                                         "type": "Array",
                                                                                                                         "itemSchema": {
@@ -1636,13 +1636,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 }
                                                                             }
                                                                         },
-                                                                        "columnsWidth": {
+                                                                        "columnWidths": {
                                                                             "type": "Object",
                                                                             "propertySchemaByKey": {
                                                                                 "type": {
                                                                                     "valueSchema": {
                                                                                         "type": "Value",
-                                                                                        "value": "columnsWidth"
+                                                                                        "value": "columnWidths"
                                                                                     },
                                                                                     "optional": false
                                                                                 },
@@ -2319,7 +2319,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                             "schema": {
                                                                                                                                                 "type": "Object",
                                                                                                                                                 "propertySchemaByKey": {
-                                                                                                                                                    "columnsWidth": {
+                                                                                                                                                    "columnWidths": {
                                                                                                                                                         "valueSchema": {
                                                                                                                                                             "type": "Reference",
                                                                                                                                                             "reuseReferenceId": "4a5b3e6f"
@@ -4864,7 +4864,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "schema": {
                                                                                         "type": "Object",
                                                                                         "propertySchemaByKey": {
-                                                                                            "columnsWidth": {
+                                                                                            "columnWidths": {
                                                                                                 "valueSchema": {
                                                                                                     "type": "Reference",
                                                                                                     "reuseReferenceId": "4a5b3e6f"
@@ -8886,7 +8886,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "schema": {
                                                                                         "type": "Object",
                                                                                         "propertySchemaByKey": {
-                                                                                            "columnsWidth": {
+                                                                                            "columnWidths": {
                                                                                                 "valueSchema": {
                                                                                                     "type": "Reference",
                                                                                                     "reuseReferenceId": "4a5b3e6f"

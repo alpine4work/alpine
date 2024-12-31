@@ -195,8 +195,8 @@ function growContentTable(
 
     if (width > map.width) {
         changed = true;
-        // First update the columnsWidth array
-        const newColumnsWidth = [...(table.attrs.columnsWidth || [])];
+        // First update the columnWidths array
+        const newColumnWidths = [...(table.attrs.columnWidths || [])];
 
         const columnCount = table.firstChild?.childCount ?? 2;
 
@@ -206,16 +206,16 @@ function growContentTable(
         defaultWidthVar = Math.max(defaultWidthVar, 6.25);
 
         const defaultWidth =
-            newColumnsWidth.length > 0
-                ? Math.max(...newColumnsWidth.filter(w => w > 0)) || defaultWidthVar
+            newColumnWidths.length > 0
+                ? Math.max(...newColumnWidths.filter(w => w > 0)) || defaultWidthVar
                 : defaultWidthVar;
 
         for (let i = map.width; i < width; i++) {
-            newColumnsWidth.push(defaultWidth);
+            newColumnWidths.push(defaultWidth);
         }
         tr.setNodeMarkup(start - 1, null, {
             ...table.attrs,
-            columnsWidth: newColumnsWidth,
+            columnWidths: newColumnWidths,
         });
 
         // Then add cells to each row

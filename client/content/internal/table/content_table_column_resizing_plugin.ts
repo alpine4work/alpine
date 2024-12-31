@@ -195,7 +195,7 @@ function handleMouseDown(
 
     const $cell = view.state.doc.resolve(pluginState.activeHandle);
     const table = $cell.node(-1);
-    const width = currentColWidth(view, pluginState.activeHandle, table.attrs.columnsWidth);
+    const width = currentColWidth(view, pluginState.activeHandle, table.attrs.columnWidths);
     view.dispatch(
         view.state.tr.setMeta(contentTableColumnResizingPluginKey, {
             setDragging: {startX: event.clientX, startWidth: width},
@@ -239,7 +239,7 @@ function handleMouseDown(
 }
 
 // Calculates the current width of the specified column
-function currentColWidth(view: EditorView, cellPos: number, columnsWidth: Array<number>): number {
+function currentColWidth(view: EditorView, cellPos: number, columnWidths: Array<number>): number {
     // Get the column index for the current cell
     const $cell = view.state.doc.resolve(cellPos);
     const table = $cell.node(-1);
@@ -248,11 +248,11 @@ function currentColWidth(view: EditorView, cellPos: number, columnsWidth: Array<
     const col = map.colCount($cell.pos - start);
 
     // If we have a width for this column, return it
-    if (columnsWidth?.[col]) {
-        return columnsWidth[col] ?? 0;
+    if (columnWidths?.[col]) {
+        return columnWidths[col] ?? 0;
     }
 
-    // For brand new table or empty columnsWidth
+    // For brand new table or empty columnWidths
     const dom = view.domAtPos(cellPos);
     const node = dom.node.childNodes[dom.offset] as HTMLElement;
     const domWidth = node.offsetWidth;
@@ -316,15 +316,15 @@ function updateColumnWidth(view: EditorView, cell: number, width: number): void 
     const col = map.colCount($cell.pos - start);
     const tr = view.state.tr;
 
-    // Get current columnsWidth or initialize new array
-    const columnsWidth = [...(table.attrs.columnsWidth || zeroes(map.width))];
+    // Get current columnWidths or initialize new array
+    const columnWidths = [...(table.attrs.columnWidths || zeroes(map.width))];
     // Update the width for the specific column (width is already in rem)
-    columnsWidth[col] = width;
+    columnWidths[col] = width;
 
-    // Update table attributes with new columnsWidth
+    // Update table attributes with new columnWidths
     tr.setNodeMarkup($cell.before(-1), null, {
         ...table.attrs,
-        columnsWidth,
+        columnWidths,
     });
 
     if (tr.docChanged) view.dispatch(tr);

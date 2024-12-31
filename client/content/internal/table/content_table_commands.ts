@@ -69,15 +69,15 @@ function addContentTableColumn(
     {map, tableStart, table}: TableRect,
     col: number,
 ): Transaction {
-    // Update columnsWidth array
-    const columnsWidth = [...(table.attrs.columnsWidth || [])];
+    // Update columnWidths array
+    const columnWidths = [...(table.attrs.columnWidths || [])];
     const defaultWidth =
-        columnsWidth.length > 0 ? Math.max(...columnsWidth.filter(w => w > 0)) || 100 : 100;
-    columnsWidth.splice(col, 0, defaultWidth);
+        columnWidths.length > 0 ? Math.max(...columnWidths.filter(w => w > 0)) || 100 : 100;
+    columnWidths.splice(col, 0, defaultWidth);
 
     tr.setNodeMarkup(tableStart - 1, null, {
         ...table.attrs,
-        columnsWidth,
+        columnWidths,
     });
 
     // Add cells to each row
@@ -125,13 +125,13 @@ function removeContentTableColumn(
     {map, table, tableStart}: TableRect,
     col: number,
 ) {
-    // Update columnsWidth array
-    const columnsWidth = [...(table.attrs.columnsWidth || [])];
-    columnsWidth.splice(col, 1);
+    // Update columnWidths array
+    const columnWidths = [...(table.attrs.columnWidths || [])];
+    columnWidths.splice(col, 1);
 
     tr.setNodeMarkup(tableStart - 1, null, {
         ...table.attrs,
-        columnsWidth,
+        columnWidths,
     });
 
     // Remove cells from each row

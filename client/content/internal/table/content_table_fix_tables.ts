@@ -28,7 +28,7 @@
  */
 
 // This file defines helpers for normalizing tables, making sure each row has the same width
-// and that the columnsWidth array matches the actual table structure.
+// and that the columnWidths array matches the actual table structure.
 
 import {Node} from "prosemirror-model";
 import {EditorState, PluginKey, Transaction} from "prosemirror-state";
@@ -108,9 +108,9 @@ function fixTable(
         mustAdd.push(maxWidth - rowWidth);
     }
 
-    // Fix columnsWidth array if needed
-    const currentColumnsWidth = table.attrs.columnsWidth || [];
-    if (currentColumnsWidth.length !== maxWidth) {
+    // Fix columnWidths array if needed
+    const currentColumnWidths = table.attrs.columnWidths || [];
+    if (currentColumnWidths.length !== maxWidth) {
         const columnCount = table.firstChild?.childCount ?? 2;
 
         let defaultWidthVar =
@@ -118,23 +118,23 @@ function fixTable(
 
         defaultWidthVar = Math.max(defaultWidthVar, 6.25);
 
-        const newColumnsWidth = [...currentColumnsWidth];
+        const newColumnWidths = [...currentColumnWidths];
         const defaultWidth =
-            newColumnsWidth.length > 0
-                ? Math.max(...newColumnsWidth.filter(w => w > 0)) || defaultWidthVar
+            newColumnWidths.length > 0
+                ? Math.max(...newColumnWidths.filter(w => w > 0)) || defaultWidthVar
                 : defaultWidthVar;
 
-        // Extend or trim columnsWidth array
-        while (newColumnsWidth.length < maxWidth) {
-            newColumnsWidth.push(defaultWidth);
+        // Extend or trim columnWidths array
+        while (newColumnWidths.length < maxWidth) {
+            newColumnWidths.push(defaultWidth);
         }
-        if (newColumnsWidth.length > maxWidth) {
-            newColumnsWidth.length = maxWidth;
+        if (newColumnWidths.length > maxWidth) {
+            newColumnWidths.length = maxWidth;
         }
 
         tr.setNodeMarkup(tablePos, null, {
             ...table.attrs,
-            columnsWidth: newColumnsWidth,
+            columnWidths: newColumnWidths,
         });
     }
 

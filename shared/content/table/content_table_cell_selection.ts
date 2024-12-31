@@ -146,9 +146,9 @@ export class ContentTableCellSelection extends Selection {
             rows.push(table.child(row).copy(Fragment.from(rowContent)));
         }
 
-        // Get the columnsWidth for selected columns
+        // Get the columnWidths for selected columns
         const tableAttrs = table.attrs;
-        const selectedColumnsWidth = tableAttrs.columnsWidth.slice(rect.left, rect.right);
+        const selectedColumnWidths = tableAttrs.columnWidths.slice(rect.left, rect.right);
 
         // Create new table fragment with only selected columns width
         const fragment =
@@ -156,7 +156,7 @@ export class ContentTableCellSelection extends Selection {
                 ? table.type.create(
                       {
                           ...tableAttrs,
-                          columnsWidth: selectedColumnsWidth,
+                          columnWidths: selectedColumnWidths,
                       },
                       Fragment.from(rows),
                   )

@@ -263,7 +263,7 @@ function computeMap(table: Node): ContentTableMap {
             while (mapPos < map.length && map[mapPos] != 0) mapPos++;
             if (i == rowNode.childCount) break;
             const cellNode = rowNode.child(i);
-            const {columnsWidth} = table.attrs;
+            const {columnWidths} = table.attrs;
 
             if (row >= height) {
                 (problems || (problems = [])).push({
@@ -284,7 +284,7 @@ function computeMap(table: Node): ContentTableMap {
                     pos,
                     n: 1 - w,
                 });
-            const colW = columnsWidth?.[w];
+            const colW = columnWidths?.[w];
             if (colW) {
                 const widthIndex = ((start + w) % width) * 2,
                     prev = colWidths[widthIndex];
@@ -337,7 +337,7 @@ function findBadColWidths(
 
         const col = i % map.width;
         const colWidth = colWidths[col * 2];
-        const tableColWidth = table.attrs.columnsWidth?.[col];
+        const tableColWidth = table.attrs.columnWidths?.[col];
 
         if (colWidth != null && colWidth !== tableColWidth) {
             map.problems.unshift({
