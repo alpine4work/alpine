@@ -81,7 +81,6 @@ import {
     SpacingScale,
     allSpacingScales,
     remPxBySpacingScale,
-    tableUnitPxBySpacingScale,
 } from "~/shared/design/core/spacing_scale.js";
 import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -136,31 +135,16 @@ const standaloneBlockMargin = spacing[standaloneBlockMarginSpacing];
 export {standaloneBlockMarginSpacing as standaloneBlockMargin};
 
 const blockMaxWidthVar = createVar("block-max-width");
-// NOCOMMIT: Delete this
-export const tableUnitVar = createVar("table-unit");
 
 globalStyle(":root", {
     vars: {
         [blockMaxWidthVar]: blockMaxWidth.desktop,
-        [tableUnitVar]: `${tableUnitPxBySpacingScale.small}px`, // desktop default
     },
 });
 
 globalStyle(mobilePlatformSelector, {
     vars: {
         [blockMaxWidthVar]: blockMaxWidth.mobile,
-    },
-});
-
-globalStyle(largeSpacingScaleSelector, {
-    vars: {
-        [tableUnitVar]: `${tableUnitPxBySpacingScale.large}px`, // mobile
-    },
-});
-
-globalStyle(mediumSpacingScaleSelector, {
-    vars: {
-        [tableUnitVar]: `${tableUnitPxBySpacingScale.medium}px`, // extra large desktop
     },
 });
 

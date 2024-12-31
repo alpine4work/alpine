@@ -9,7 +9,6 @@ import {
     SpacingScale,
     mediumSpacingScaleMinWindowWidth,
     remPxBySpacingScale,
-    tableUnitPxBySpacingScale,
 } from "~/shared/design/core/spacing_scale.js";
 import {InternalError} from "~/shared/error/error.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
@@ -64,11 +63,6 @@ export function getSpacingScaleWithoutListening(): SpacingScale {
  */
 export function getRemPxWithoutListening(): number {
     return remPxBySpacingScale[getSpacingScaleWithoutListening()];
-}
-
-// NOCOMMIT: Delete this
-export function getTableUnitPxWithoutListening(): number {
-    return tableUnitPxBySpacingScale[getSpacingScaleWithoutListening()];
 }
 
 let sharedMediaQueryListener: {
