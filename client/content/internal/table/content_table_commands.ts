@@ -30,6 +30,7 @@
 import {Node, ResolvedPos, Slice} from "prosemirror-model";
 import {Command, EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {
+    getContentTableColumnWidths,
     isInContentTable,
     moveContentTableCellForward,
     selectionContentTableCell,
@@ -37,10 +38,6 @@ import {
 import type {ContentTableInputDirection} from "~/client/content/internal/table/content_table_input.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap, ContentTableMapRect} from "~/shared/content/table/content_table_map.js";
-import {
-    contentTableColumnDefaultWidth,
-    getContentTableColumnWidths,
-} from "~/shared/content/table/content_table_shared_util.js";
 
 type TableRect = ContentTableMapRect & {
     tableStart: number;
@@ -74,8 +71,8 @@ function addContentTableColumn(
     col: number,
 ): Transaction {
     // Update columnWidths array
-    const columnWidths = getContentTableColumnWidths(table);
-    columnWidths.splice(col, 0, contentTableColumnDefaultWidth);
+    const columnWidths = [...getContentTableColumnWidths(table)];
+    columnWidths.splice(col, 0, 1);
 
     tr.setNodeAttribute(tableStart - 1, "columnWidths", columnWidths);
 
@@ -125,7 +122,7 @@ function removeContentTableColumn(
     col: number,
 ) {
     // Update columnWidths array
-    const columnWidths = getContentTableColumnWidths(table);
+    const columnWidths = [...getContentTableColumnWidths(table)];
     columnWidths.splice(col, 1);
 
     tr.setNodeAttribute(tableStart - 1, "columnWidths", columnWidths);
