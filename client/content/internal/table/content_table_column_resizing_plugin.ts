@@ -344,8 +344,11 @@ function edgeCell(
         top: event.clientY,
     });
     if (!found) return -1;
-    const {pos} = found;
-    const $cell = contentTableCellAround(view.state.doc.resolve(pos));
+    const {pos, inside} = found;
+    // When hovering over the 1px border between rows, `pos` will point to a
+    // position in the `table` node whereas `inside` consistently points to a
+    // position between cells. Which is why we prefer `inside` when available.
+    const $cell = contentTableCellAround(view.state.doc.resolve(inside !== -1 ? inside + 1 : pos));
     if (!$cell) return -1;
     if (side == "right") return $cell.pos;
     const map = ContentTableMap.get($cell.node(-1)),
