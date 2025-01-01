@@ -96,9 +96,8 @@ export const rowTitleInputOverflowGradientLeftContainerClassName = style({
             content: '""',
             position: "absolute",
             zIndex: 20,
-            top: 0,
-            // Bottom 1px to avoid overlapping border.
-            bottom: 1,
+            top: 1, // Top 1px to avoid overlapping border.
+            bottom: 0,
             left: 0,
             width: spacing["3"],
             background: `linear-gradient(to right, ${colorSchemeVars["grey-0"]}, transparent)`,
@@ -112,9 +111,8 @@ export const rowTitleInputOverflowGradientRightContainerClassName = style({
             content: '""',
             position: "absolute",
             zIndex: 20,
-            top: 0,
-            // Bottom 1px to avoid overlapping border.
-            bottom: 1,
+            top: 1, // Top 1px to avoid overlapping border.
+            bottom: 0,
             right: 0,
             width: spacing["3"],
             background: `linear-gradient(to left, ${colorSchemeVars["grey-0"]}, transparent)`,
