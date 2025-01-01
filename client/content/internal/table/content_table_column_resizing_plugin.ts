@@ -131,7 +131,11 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
         const halfHandleWidth =
             Math.floor(
                 convertRemLengthToPx(contentStyles.tableColumnResizeHandleWidth, spacingScale) / 2,
-            ) - 1;
+            ) -
+            // Subtract 1px to avoid subpixel rendering edge cases where we think we're
+            // hovering over the resize handle but the DOM element doesn't actually cover
+            // the pixel.
+            1;
 
         const target = domCellAround(event.target as HTMLElement);
         let cell = -1;
