@@ -496,7 +496,7 @@ const getCheckListItemCheckboxContainerPosition = (
         (paragraphLineHeightPx[spacingScale] -
             convertRemLengthToPx(checkListItemCheckboxSize[platform], spacingScale)) /
         2
-    }rem`,
+    }px`,
     left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
         parseRemLength(listItemIndentation) / 2 -
         (parseRemLength(checkListItemCheckboxSize[platform]) + parseRemLength("1") * 2) / 2
