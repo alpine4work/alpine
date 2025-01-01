@@ -64,9 +64,7 @@ export function createContentEditorTableNodeView({
             requestAnimationFrame(addActiveTableClass);
         });
 
-        function addActiveTableClass() {
-            console.log("addActiveTableClass");
-        }
+        function addActiveTableClass() {}
 
         return {
             dom: tableWrapperElement,
