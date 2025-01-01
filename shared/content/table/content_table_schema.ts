@@ -72,7 +72,7 @@ export const contentTableProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             },
         },
         tableRow: {
-            content: "tableCell+",
+            content: "tableCell{2,}",
             isolating: true,
             selectable: true,
             copyable: true,
