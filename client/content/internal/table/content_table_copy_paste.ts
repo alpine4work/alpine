@@ -40,16 +40,11 @@
 // pasted cells when they are smaller than the selection.
 
 import {Fragment, Node, NodeType, Schema, Slice} from "prosemirror-model";
-
 import {EditorState, Transaction} from "prosemirror-state";
 import {Transform} from "prosemirror-transform";
 import {getContentTableColumnWidths} from "~/client/content/internal/table/content_table_client_util.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
-import {
-    ContentTableMap,
-    ContentTableMapColWidths,
-    ContentTableMapRect,
-} from "~/shared/content/table/content_table_map.js";
+import {ContentTableMap, ContentTableMapRect} from "~/shared/content/table/content_table_map.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 type Area = {width: number; height: number; rows: Array<Fragment>};
@@ -98,7 +93,7 @@ export function pastedContentTableCells(slice: Slice): Area | null {
 // Compute the width and height of a set of cells, and make sure each
 // row has the same number of cells.
 function ensureRectangular(schema: Schema, rows: Array<Fragment>): Area {
-    const widths: ContentTableMapColWidths = [];
+    const widths: Array<number> = [];
     for (let i = 0; i < rows.length; i++) {
         const row = rows[i]!;
         for (let j = row.childCount - 1; j >= 0; j--) {
@@ -198,8 +193,10 @@ function growContentTable(
         const newColumnWidths = [...getContentTableColumnWidths(table)];
 
         for (let i = tableMap.width; i < width; i++) {
+            // NOCOMMIT: Make sure column width is pasted.
             newColumnWidths.push(1);
         }
+
         tr.setNodeAttribute(start - 1, "columnWidths", newColumnWidths);
 
         // Then add cells to each row
