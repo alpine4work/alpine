@@ -39,6 +39,8 @@ import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {pointsAtContentTableCell} from "~/shared/content/table/content_table_shared_util.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
 export const contentTableColumnResizingPluginKey = new PluginKey<ContentTableColumnResizeState>(
@@ -92,17 +94,35 @@ export function contentTableColumnResizingPlugin(): Plugin {
     return plugin;
 }
 
+type ContentTableColumnResizeAction =
+    | {
+          readonly type: "SetHandle";
+          readonly handle: number;
+      }
+    | {
+          readonly type: "SetDragging";
+          readonly dragging: Dragging | false;
+      };
+
 class ContentTableColumnResizeState {
     constructor(public activeHandle: number, public dragging: Dragging | false) {}
 
     // Applies the transaction to update the resizing state
     apply(tr: Transaction): ContentTableColumnResizeState {
         const state = this;
-        const action = tr.getMeta(contentTableColumnResizingPluginKey);
-        if (action?.setHandle != null)
-            return new ContentTableColumnResizeState(action.setHandle, false);
-        if (action?.setDragging !== undefined)
-            return new ContentTableColumnResizeState(state.activeHandle, action.setDragging);
+        const action: ContentTableColumnResizeAction | undefined = tr.getMeta(
+            contentTableColumnResizingPluginKey,
+        );
+        if (action) {
+            switch (action.type) {
+                case "SetHandle":
+                    return new ContentTableColumnResizeState(action.handle, false);
+                case "SetDragging":
+                    return new ContentTableColumnResizeState(state.activeHandle, action.dragging);
+                default:
+                    throw exhaustive(action);
+            }
+        }
         if (state.activeHandle > -1 && tr.docChanged) {
             let handle = tr.mapping.map(state.activeHandle, -1);
             if (!pointsAtContentTableCell(tr.doc.resolve(handle))) {
@@ -217,9 +237,13 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
     if (!data) return false;
 
     view.dispatch(
-        view.state.tr.setMeta(contentTableColumnResizingPluginKey, {
-            setDragging: {startX: event.clientX, startColumnWidth: data.columnWidth},
-        }),
+        view.state.tr.setMeta(
+            contentTableColumnResizingPluginKey,
+            cast<ContentTableColumnResizeAction>({
+                type: "SetDragging",
+                dragging: {startX: event.clientX, startColumnWidth: data.columnWidth},
+            }),
+        ),
     );
 
     // Updates the column width as the mouse is moved while dragging
@@ -283,7 +307,13 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
         view.dispatch(
             view.state.tr
                 .setNodeAttribute(data.tablePos - 1, "columnWidths", newColumnWidths)
-                .setMeta(contentTableColumnResizingPluginKey, {setDragging: null}),
+                .setMeta(
+                    contentTableColumnResizingPluginKey,
+                    cast<ContentTableColumnResizeAction>({
+                        type: "SetDragging",
+                        dragging: false,
+                    }),
+                ),
         );
     }
 
@@ -415,7 +445,15 @@ function getDraggingColumnWidths(
 
 // Updates the active handle for resizing
 function updateHandle(view: EditorView, value: number): void {
-    view.dispatch(view.state.tr.setMeta(contentTableColumnResizingPluginKey, {setHandle: value}));
+    view.dispatch(
+        view.state.tr.setMeta(
+            contentTableColumnResizingPluginKey,
+            cast<ContentTableColumnResizeAction>({
+                type: "SetHandle",
+                handle: value,
+            }),
+        ),
+    );
 }
 
 // Handles the decorations for the column resize handle
