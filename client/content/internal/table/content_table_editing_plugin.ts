@@ -41,7 +41,6 @@ import {fixContentTables} from "~/client/content/internal/table/content_table_fi
 import {
     handleContentTableKeyDown,
     handleContentTableMouseDown,
-    handleContentTableTripleClick,
 } from "~/client/content/internal/table/content_table_input.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {
@@ -109,7 +108,6 @@ export function contentTableEditingPlugin({
                     ? view.state.selection
                     : null;
             },
-            handleTripleClick: handleContentTableTripleClick,
             handleKeyDown: handleContentTableKeyDown,
         },
 

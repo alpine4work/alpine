@@ -138,14 +138,6 @@ function shiftArrow(axis: Axis, dir: ContentTableInputDirection): Command {
     };
 }
 
-export function handleContentTableTripleClick(view: EditorView, pos: number): boolean {
-    const doc = view.state.doc,
-        $cell = contentTableCellAround(doc.resolve(pos));
-    if (!$cell) return false;
-    view.dispatch(view.state.tr.setSelection(new ContentTableCellSelection($cell)));
-    return true;
-}
-
 export function handleContentTablePaste(
     view: EditorView,
     _: ClipboardEvent,
