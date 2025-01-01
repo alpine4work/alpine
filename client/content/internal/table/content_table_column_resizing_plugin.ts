@@ -44,18 +44,6 @@ export const contentTableColumnResizingPluginKey = new PluginKey<ContentTableCol
     "contentTableColumnResizing",
 );
 
-type ColumnResizingOptions = {
-    handleWidth?: number;
-    /**
-     * Minimum width of a cell /column. The column cannot be resized smaller than this.
-     */
-    cellMinWidth?: number;
-    /**
-     * The default minWidth of a cell / column when it doesn't have an explicit width (i.e.: it has not been resized manually)
-     */
-    defaultCellMinWidth?: number;
-    lastColumnResizable?: boolean;
-};
 
 type Dragging = {startX: number; startColumnWidth: number};
 
@@ -66,9 +54,7 @@ type Dragging = {startX: number; startColumnWidth: number};
 // updating the column width based on the mouse position. When the user releases
 // the mouse button, the finish function is called, which commits the column
 // width changes.
-export function contentTableColumnResizingPlugin({
-    lastColumnResizable = true,
-}: ColumnResizingOptions = {}): Plugin {
+export function contentTableColumnResizingPlugin(): Plugin {
     const plugin = new Plugin<ContentTableColumnResizeState>({
         key: contentTableColumnResizingPluginKey,
         state: {
@@ -90,7 +76,7 @@ export function contentTableColumnResizingPlugin({
             handleDOMEvents: {
                 // Handles mouse movement to update the active column handle
                 mousemove: (view, event) => {
-                    handleMouseMove(view, event, lastColumnResizable);
+                    handleMouseMove(view, event);
                 },
                 // Handles mouse leave event to reset the active handle
                 mouseleave: view => {
@@ -136,7 +122,7 @@ class ContentTableColumnResizeState {
 }
 
 // Handles mouse movement to update the active column handle
-function handleMouseMove(view: EditorView, event: MouseEvent, lastColumnResizable: boolean): void {
+function handleMouseMove(view: EditorView, event: MouseEvent): void {
     const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
     if (!pluginState) return;
 
@@ -158,7 +144,8 @@ function handleMouseMove(view: EditorView, event: MouseEvent, lastColumnResizabl
         }
 
         if (cell != pluginState.activeHandle) {
-            if (!lastColumnResizable && cell !== -1) {
+            // NOCOMMIT: Understand this code path. Also add drag handle at the start?
+            if (!true && cell !== -1) {
                 const $cell = view.state.doc.resolve(cell);
                 const table = $cell.node(-1);
                 const map = ContentTableMap.get(table);
