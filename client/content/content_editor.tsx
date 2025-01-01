@@ -2855,31 +2855,11 @@ function ContentEditor<Content extends ContentWithReferences>(
         let fileDragState: ContentEditorFileDragState | null = null;
 
         view.dom.addEventListener("dragenter", event => {
-            // TODO(calebmer): Remove after debugging flaky test.
-            if (process.env.NODE_ENV !== "production") {
-                // eslint-disable-next-line no-console
-                console.log(`Debug flaky test: <ContentEditor> dragenter 1`);
-            }
-
             if (!fileDragState) {
                 const state = ContentEditorFileDragState.onDragEnter(event, view, {
                     getDraggingPos: () => draggingFileRef.current?.getPos() ?? null,
-                    onDropTargetChange: dropTarget => {
-                        // TODO(calebmer): Remove after debugging flaky test.
-                        if (process.env.NODE_ENV !== "production") {
-                            // eslint-disable-next-line no-console
-                            console.log(`Debug flaky test: <ContentEditor> onDropTargetChange`);
-                        }
-
-                        setFileDropTarget(dropTarget);
-                    },
+                    onDropTargetChange: setFileDropTarget,
                     onDispose: () => {
-                        // TODO(calebmer): Remove after debugging flaky test.
-                        if (process.env.NODE_ENV !== "production") {
-                            // eslint-disable-next-line no-console
-                            console.log(`Debug flaky test: <ContentEditor> onDispose`);
-                        }
-
                         if (fileDragState === state) {
                             fileDragState = null;
                         }
@@ -4853,19 +4833,7 @@ class ContentEditorFileDragState {
                 type => type === "Files" || type === "application/x.alpine.file",
             );
 
-        // TODO(calebmer): Remove after debugging flaky test.
-        if (process.env.NODE_ENV !== "production") {
-            // eslint-disable-next-line no-console
-            console.log(`Debug flaky test: <ContentEditor> dragenter 2 ${isDraggingFile}`);
-        }
-
         if (!isDraggingFile) return null;
-
-        // TODO(calebmer): Remove after debugging flaky test.
-        if (process.env.NODE_ENV !== "production") {
-            // eslint-disable-next-line no-console
-            console.log(`Debug flaky test: <ContentEditor> dragenter 3`);
-        }
 
         const state = new ContentEditorFileDragState(event.clientX, event.clientY, view, options);
 
@@ -4947,21 +4915,7 @@ class ContentEditorFileDragState {
     private _move = () => {
         const dropTarget = this._selectDropTarget();
 
-        // TODO(calebmer): Remove after debugging flaky test.
-        if (process.env.NODE_ENV !== "production") {
-            // eslint-disable-next-line no-console
-            console.log(
-                `Debug flaky test: <ContentEditor> move 1 ${JSON.stringify(dropTarget?.action)}`,
-            );
-        }
-
         if (dropTarget !== this._dropTarget) {
-            // TODO(calebmer): Remove after debugging flaky test.
-            if (process.env.NODE_ENV !== "production") {
-                // eslint-disable-next-line no-console
-                console.log(`Debug flaky test: <ContentEditor> move 2`);
-            }
-
             this._dropTarget = dropTarget;
             this._onDropTargetChange(this._dropTarget);
         }
