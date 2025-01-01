@@ -39,11 +39,11 @@ import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {pointsAtContentTableCell} from "~/shared/content/table/content_table_shared_util.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 
 export const contentTableColumnResizingPluginKey = new PluginKey<ContentTableColumnResizeState>(
     "contentTableColumnResizing",
 );
-
 
 type Dragging = {startX: number; startColumnWidth: number};
 
@@ -380,10 +380,25 @@ function getDraggingColumnWidths(
     const totalColumnWidthPx = tableElement.offsetWidth;
     const column1WidthPx = totalColumnWidthPx * (column1Width / totalColumnWidth);
 
-    // NOCOMMIT: min/max width?
-    // NOCOMMIT: Hold shift to change width in increments
-    const newColumn1Width = ((column1WidthPx + offsetPx) / totalColumnWidthPx) * totalColumnWidth;
-    const newColumn2Width = column1Width + column2Width - newColumn1Width;
+    const spacingScale = getSpacingScaleWithoutListening();
+    const columnMinWidthPx = convertRemLengthToPx(contentStyles.tableColumnMinWidth, spacingScale);
+    const columnMaxWidthPx = convertRemLengthToPx(contentStyles.tableColumnMaxWidth, spacingScale);
+    const newColumn1WidthPx = clamp(columnMinWidthPx, column1WidthPx + offsetPx, columnMaxWidthPx);
+
+    let newColumn1Width = (newColumn1WidthPx / totalColumnWidthPx) * totalColumnWidth;
+    let newColumn2Width = column1Width + column2Width - newColumn1Width;
+
+    let newColumn2WidthPx = (newColumn2Width / totalColumnWidth) * totalColumnWidthPx;
+
+    if (newColumn2WidthPx < columnMinWidthPx) {
+        newColumn2WidthPx = columnMinWidthPx;
+        newColumn2Width = (newColumn2WidthPx / totalColumnWidthPx) * totalColumnWidth;
+        newColumn1Width = column1Width + column2Width - newColumn2Width;
+    } else if (newColumn2WidthPx > columnMaxWidthPx) {
+        newColumn2WidthPx = columnMaxWidthPx;
+        newColumn2Width = (newColumn2WidthPx / totalColumnWidthPx) * totalColumnWidth;
+        newColumn1Width = column1Width + column2Width - newColumn2Width;
+    }
 
     const newColumnWidths: Array<number> = [];
 
@@ -392,6 +407,8 @@ function getDraggingColumnWidths(
         else if (columnIndex === column2Index) newColumnWidths.push(newColumn2Width);
         else newColumnWidths.push(columnWidths[columnIndex]!);
     }
+
+    console.log(newColumnWidths);
 
     return newColumnWidths;
 }

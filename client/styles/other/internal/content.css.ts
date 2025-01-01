@@ -2037,6 +2037,19 @@ globalStyle(`${tableWrapperClassName} table`, {
     tableLayout: "fixed",
 });
 
+const tableColumnMinWidthSpacing = "32";
+export {tableColumnMinWidthSpacing as tableColumnMinWidth};
+const tableColumnMinWidth = spacing[tableColumnMinWidthSpacing];
+
+const tableColumnMaxWidthSpacing = "128";
+export {tableColumnMaxWidthSpacing as tableColumnMaxWidth};
+const tableColumnMaxWidth = spacing[tableColumnMaxWidthSpacing];
+
+globalStyle(`${tableWrapperClassName} col`, {
+    minWidth: tableColumnMinWidth,
+    maxWidth: tableColumnMaxWidth,
+});
+
 globalStyle(`${tableWrapperClassName} td`, {
     position: "relative",
     border: `1px solid ${colorSchemeVars["grey-10"]}`,
