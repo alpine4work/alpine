@@ -341,7 +341,7 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
 
         updateContentTableColumnsOnResize(
             pluginState.dragging.oldTable,
-            tableElement.firstChild as HTMLTableColElement,
+            tableElement,
             newColumnWidths,
         );
     }

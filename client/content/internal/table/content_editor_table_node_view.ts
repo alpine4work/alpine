@@ -47,7 +47,7 @@ export function createContentEditorTableNodeView({
         const tableElement = tableWrapperElement.appendChild(document.createElement("table"));
         const colgroupElement = tableElement.appendChild(document.createElement("colgroup"));
 
-        updateContentTableColumnsOnResize(node, colgroupElement);
+        updateContentTableColumnsOnResize(node, tableElement);
 
         const tableBodyElement = tableElement.appendChild(document.createElement("tbody"));
 
@@ -56,7 +56,7 @@ export function createContentEditorTableNodeView({
         // Subscribe to spacing scale changes. This also covers all platform changes so
         // we don't need to also subscribe to platform changes.
         const unsubscribeFromSpacingScaleChange = subscribeToSpacingScaleChange(() => {
-            updateContentTableColumnsOnResize(node, colgroupElement);
+            updateContentTableColumnsOnResize(node, tableElement);
         });
 
         const unsubscribeFromSelectionUpdate = subscribeToSelectionUpdate(() => {
@@ -75,13 +75,13 @@ export function createContentEditorTableNodeView({
             update: newNode => {
                 if (newNode.type != node.type) return false;
                 node = newNode;
-                updateContentTableColumnsOnResize(node, colgroupElement);
+                updateContentTableColumnsOnResize(node, tableElement);
                 return true;
             },
             ignoreMutation: record => {
                 return (
                     record.type == "attributes" &&
-                    (record.target == tableElement || colgroupElement.contains(record.target))
+                    (record.target === tableElement || colgroupElement.contains(record.target))
                 );
             },
             destroy: () => {
@@ -94,7 +94,7 @@ export function createContentEditorTableNodeView({
 
 export function updateContentTableColumnsOnResize(
     node: Node,
-    colgroupElement: HTMLTableColElement,
+    tableElement: HTMLTableElement,
     overrideColumnWidths?: ReadonlyArray<number>,
 ): void {
     const tableMap = ContentTableMap.get(node);
@@ -105,20 +105,21 @@ export function updateContentTableColumnsOnResize(
         0,
     );
 
+    const colgroupElement = tableElement.firstElementChild!;
     let nextColElement = colgroupElement.firstElementChild as HTMLTableColElement | null;
 
     for (let columnIndex = 0; columnIndex < tableMap.width; columnIndex++) {
         const columnWidth = columnWidths[columnIndex]!;
-        const columnCssWidth = `${(columnWidth / totalColumnWidth) * 100}%`;
+        const columnWidthString = `${(columnWidth / totalColumnWidth) * 100}%`;
 
         // Create missing `<col>` elements
         if (!nextColElement) {
             const colElement = document.createElement("col");
-            colElement.style.width = columnCssWidth;
+            colElement.style.width = columnWidthString;
             colgroupElement.appendChild(colElement);
         } else {
-            if (nextColElement.style.width !== columnCssWidth) {
-                nextColElement.style.width = columnCssWidth;
+            if (nextColElement.style.width !== columnWidthString) {
+                nextColElement.style.width = columnWidthString;
             }
             nextColElement = nextColElement.nextElementSibling as HTMLTableColElement | null;
         }

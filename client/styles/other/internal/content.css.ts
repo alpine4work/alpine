@@ -1974,14 +1974,6 @@ export const mentionTextClassName = style({
     },
 });
 
-const blockChildSelectors = [
-    `${listItemClassName} > ${paragraphClassName}`,
-    `${checkListItemContentClassName} > ${paragraphClassName}`,
-    `${quoteBlockClassName} > ${paragraphClassName}`,
-    `${quoteBlockClassName} > ${listItemClassName}`,
-];
-blockChildSelectors.forEach(selector => globalStyle(selector, {paddingRight: 0}));
-
 export const emptyTitleClassName = style({});
 
 globalStyle(`${emptyTitleClassName} > ${titleClassName}[data-placeholder]::before`, {
@@ -2054,6 +2046,8 @@ globalStyle(`${tableWrapperClassName} col`, {
 
 globalStyle(`${tableWrapperClassName} td`, {
     position: "relative",
+    minWidth: tableColumnMinWidth,
+    maxWidth: tableColumnMaxWidth,
     border: `1px solid ${colorSchemeVars["grey-10"]}`,
     padding: `${paragraphMargin} ${spacing["3"]}`,
     verticalAlign: "top",
