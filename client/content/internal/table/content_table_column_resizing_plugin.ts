@@ -66,13 +66,6 @@ export function contentTableColumnResizingPlugin(): Plugin {
             },
         },
         props: {
-            attributes: (state): Record<string, string> => {
-                const pluginState = contentTableColumnResizingPluginKey.getState(state);
-                return pluginState && pluginState.activeHandle > -1
-                    ? {class: contentStyles.withTableColumnResizeCursor}
-                    : {};
-            },
-
             handleDOMEvents: {
                 // Handles mouse movement to update the active column handle
                 mousemove: (view, event) => {

@@ -2019,10 +2019,6 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     zIndex: -10,
 });
 
-export const withTableColumnResizeCursor = style({
-    cursor: "col-resize",
-});
-
 globalStyle(tableWrapperClassName, {
     ...blockStyles,
     position: "relative",
