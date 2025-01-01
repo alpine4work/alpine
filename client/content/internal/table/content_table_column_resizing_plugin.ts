@@ -27,6 +27,7 @@
  * THE SOFTWARE.
  */
 
+import {Node} from "prosemirror-model";
 import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {updateContentTableColumnsOnResize} from "~/client/content/internal/table/content_editor_table_node_view.js";
@@ -46,8 +47,6 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 export const contentTableColumnResizingPluginKey = new PluginKey<ContentTableColumnResizeState>(
     "contentTableColumnResizing",
 );
-
-type Dragging = {startX: number; startColumnWidth: number};
 
 // The contentTableColumnResizingPlugin sets up event handlers for mouse events
 // related to column resizing. When the user clicks and drags on a column border,
@@ -101,21 +100,101 @@ type ContentTableColumnResizeAction =
       }
     | {
           readonly type: "SetDragging";
-          readonly dragging: Dragging | null;
+          readonly dragging: ContentTableColumnResizeDraggingState | null;
       };
+
+type ContentTableColumnResizeDraggingState = {
+    readonly startX: number;
+    readonly tablePos: number;
+    readonly oldTable: Node;
+    readonly columnIndex: number;
+    readonly oldColumnWidth: number;
+    readonly oldColumnWidths: ReadonlyArray<number>;
+    readonly oldTotalColumnWidth: number;
+    readonly getTableElement: (view: EditorView) => HTMLTableElement | null;
+};
+
+function getContentTableColumnResizeDraggingState(
+    startX: number,
+    doc: Node,
+    activeHandle: number,
+): ContentTableColumnResizeDraggingState {
+    const $activeHandle = doc.resolve(activeHandle);
+    const tablePos = $activeHandle.start(-1);
+    const table = $activeHandle.node(-1);
+    const tableMap = ContentTableMap.get(table);
+    const columnWidths = getContentTableColumnWidths(table);
+    const totalColumnWidth = columnWidths.reduce(
+        (totalColumnWidth, columnWidth) => totalColumnWidth + columnWidth,
+        0,
+    );
+    const columnIndex = tableMap.colCount($activeHandle.pos - tablePos);
+    const columnWidth = columnWidths[columnIndex]!;
+
+    let tableElement: HTMLTableElement | null = null;
+
+    return {
+        startX,
+        tablePos,
+        oldTable: table,
+        columnIndex,
+        oldColumnWidth: columnWidth,
+        oldColumnWidths: columnWidths,
+        oldTotalColumnWidth: totalColumnWidth,
+        getTableElement: (view: EditorView) => {
+            if (tableElement === null) {
+                let element: globalThis.Node | null = view.domAtPos(tablePos).node;
+                while (element && element.nodeName != "TABLE") element = element.parentNode;
+
+                tableElement = element as HTMLTableElement | null;
+            }
+
+            return tableElement;
+        },
+    };
+}
 
 class ContentTableColumnResizeState {
     public readonly activeHandle: number | null;
-    public readonly dragging: Dragging | null;
+    public readonly dragging: ContentTableColumnResizeDraggingState | null;
 
-    constructor(activeHandle: number | null, dragging: Dragging | null) {
+    constructor(
+        activeHandle: number | null,
+        dragging: ContentTableColumnResizeDraggingState | null,
+    ) {
         this.activeHandle = activeHandle;
         this.dragging = dragging;
     }
 
     // Applies the transaction to update the resizing state
     apply(tr: Transaction): ContentTableColumnResizeState {
-        const state = this;
+        let state: ContentTableColumnResizeState = this;
+
+        // Update active handle position when the doc changes.
+        if (state.activeHandle !== null && tr.docChanged) {
+            let handle: number | null = tr.mapping.map(state.activeHandle, -1);
+            if (!pointsAtContentTableCell(tr.doc.resolve(handle))) {
+                handle = null;
+            }
+            state = new ContentTableColumnResizeState(handle, state.dragging);
+        }
+
+        // Update dragging state when the doc changes.
+        if (state.dragging !== null) {
+            if (state.activeHandle === null) {
+                state = new ContentTableColumnResizeState(state.activeHandle, null);
+            } else if (tr.docChanged) {
+                state = new ContentTableColumnResizeState(
+                    state.activeHandle,
+                    getContentTableColumnResizeDraggingState(
+                        state.dragging.startX,
+                        tr.doc,
+                        state.activeHandle,
+                    ),
+                );
+            }
+        }
+
         const action: ContentTableColumnResizeAction | undefined = tr.getMeta(
             contentTableColumnResizingPluginKey,
         );
@@ -129,14 +208,6 @@ class ContentTableColumnResizeState {
                 default:
                     throw exhaustive(action);
             }
-        }
-
-        if (state.activeHandle !== null && tr.docChanged) {
-            let handle: number | null = tr.mapping.map(state.activeHandle, -1);
-            if (!pointsAtContentTableCell(tr.doc.resolve(handle))) {
-                handle = null;
-            }
-            return new ContentTableColumnResizeState(handle, state.dragging);
         }
 
         return state;
@@ -214,60 +285,19 @@ function handleMouseLeave(view: EditorView): void {
 
 // Initiates the column resizing process on mouse down
 function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
-    const win = view.dom.ownerDocument.defaultView ?? window;
-
-    let pluginState = contentTableColumnResizingPluginKey.getState(view.state);
+    const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
     if (!pluginState || pluginState.activeHandle === null || pluginState.dragging) return false;
-
-    const getData = () => {
-        if (!pluginState || pluginState.activeHandle === null) return null;
-
-        const $activeHandle = view.state.doc.resolve(pluginState.activeHandle);
-        const tablePos = $activeHandle.start(-1);
-        const table = $activeHandle.node(-1);
-        const tableMap = ContentTableMap.get(table);
-        const columnWidths = getContentTableColumnWidths(table);
-        const totalColumnWidth = columnWidths.reduce(
-            (totalColumnWidth, columnWidth) => totalColumnWidth + columnWidth,
-            0,
-        );
-        const columnIndex = tableMap.colCount($activeHandle.pos - tablePos);
-        const columnWidth = columnWidths[columnIndex]!;
-
-        let tableElement: HTMLTableElement | null = null;
-        {
-            let element: globalThis.Node | null = view.domAtPos(tablePos).node;
-            while (element && element.nodeName != "TABLE") element = element.parentNode;
-
-            tableElement = element as HTMLTableElement | null;
-        }
-
-        if (!tableElement) return null;
-
-        return {
-            $activeHandle,
-            tablePos,
-            table,
-            tableMap,
-            columnWidths,
-            totalColumnWidth,
-            columnIndex,
-            columnWidth,
-            tableElement,
-        };
-    };
-
-    let lastDoc = view.state.doc;
-    let lastActiveHandle: number | null = pluginState.activeHandle;
-    let data = getData();
-    if (!data) return false;
 
     view.dispatch(
         view.state.tr.setMeta(
             contentTableColumnResizingPluginKey,
             cast<ContentTableColumnResizeAction>({
                 type: "SetDragging",
-                dragging: {startX: event.clientX, startColumnWidth: data.columnWidth},
+                dragging: getContentTableColumnResizeDraggingState(
+                    event.clientX,
+                    view.state.doc,
+                    pluginState.activeHandle,
+                ),
             }),
         ),
     );
@@ -279,60 +309,53 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
             return;
         }
 
-        pluginState = contentTableColumnResizingPluginKey.getState(view.state);
+        const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
         if (!pluginState?.dragging || pluginState.activeHandle === null) {
             finish(event);
             return;
         }
 
-        // Optimization: Instead of constantly recalculating variables like
-        // `columnWidths` and `tableElement` we only recalculate them if the document
-        // changed.
-        if (lastDoc !== view.state.doc || lastActiveHandle !== pluginState.activeHandle) {
-            lastDoc = view.state.doc;
-            lastActiveHandle = pluginState.activeHandle;
-            data = getData();
-        }
-
-        if (!data) {
+        const tableElement = pluginState.dragging.getTableElement(view);
+        if (!tableElement) {
             finish(event);
             return;
         }
 
-        const newColumnWidths = getDraggingColumnWidths(pluginState.dragging, event, data);
+        const newColumnWidths = getContentTableColumnResizeDraggingStateNewColumnWidths(
+            view,
+            event,
+            pluginState.dragging,
+        );
 
         updateContentTableColumnsOnResize(
-            data.table,
-            data.tableElement.firstChild as HTMLTableColElement,
+            pluginState.dragging.oldTable,
+            tableElement.firstChild as HTMLTableColElement,
             newColumnWidths,
         );
     }
 
     // Finalizes the resizing process when the mouse is released
     function finish(event: MouseEvent) {
-        win.removeEventListener("mouseup", finish);
-        win.removeEventListener("mousemove", move);
+        window.removeEventListener("mouseup", finish);
+        window.removeEventListener("mousemove", move);
         dragCoverElement.remove();
 
-        pluginState = contentTableColumnResizingPluginKey.getState(view.state);
+        const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
         if (!pluginState?.dragging || pluginState.activeHandle === null) return;
 
-        // Optimization: Instead of constantly recalculating variables like
-        // `columnWidths` and `tableElement` we only recalculate them if the document
-        // changed.
-        if (lastDoc !== view.state.doc || lastActiveHandle !== pluginState.activeHandle) {
-            lastDoc = view.state.doc;
-            lastActiveHandle = pluginState.activeHandle;
-            data = getData();
-        }
-
-        if (!data) return;
-
-        const newColumnWidths = getDraggingColumnWidths(pluginState.dragging, event, data);
+        const newColumnWidths = getContentTableColumnResizeDraggingStateNewColumnWidths(
+            view,
+            event,
+            pluginState.dragging,
+        );
 
         view.dispatch(
             view.state.tr
-                .setNodeAttribute(data.tablePos - 1, "columnWidths", newColumnWidths)
+                .setNodeAttribute(
+                    pluginState.dragging.tablePos - 1,
+                    "columnWidths",
+                    newColumnWidths,
+                )
                 .setMeta(
                     contentTableColumnResizingPluginKey,
                     cast<ContentTableColumnResizeAction>({
@@ -342,12 +365,6 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
                 ),
         );
     }
-
-    updateContentTableColumnsOnResize(
-        data.table,
-        data.tableElement.firstChild as HTMLTableColElement,
-        data.columnWidths,
-    );
 
     // Block the DOM with a cover element so we don't trigger hover effects and the
     // cursor always stays the same.
@@ -362,8 +379,8 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
 
     document.body.appendChild(dragCoverElement);
 
-    win.addEventListener("mouseup", finish);
-    win.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", finish);
+    window.addEventListener("mousemove", move);
     event.preventDefault();
     return true;
 }
@@ -407,61 +424,63 @@ function edgeCell(
 }
 
 // Calculates the new width of the column being dragged
-function getDraggingColumnWidths(
-    dragging: Dragging,
+function getContentTableColumnResizeDraggingStateNewColumnWidths(
+    view: EditorView,
     event: MouseEvent,
     {
-        columnWidths,
+        startX,
         columnIndex: column1Index,
-        columnWidth: column1Width,
-        totalColumnWidth,
-        tableElement,
-    }: {
-        columnWidths: ReadonlyArray<number>;
-        columnIndex: number;
-        columnWidth: number;
-        totalColumnWidth: number;
-        tableElement: HTMLTableElement;
-    },
+        oldColumnWidth: oldColumn1Width,
+        oldColumnWidths,
+        // Total column width shouldn't change during the drag.
+        oldTotalColumnWidth: totalColumnWidth,
+        getTableElement,
+    }: ContentTableColumnResizeDraggingState,
 ): ReadonlyArray<number> {
+    const tableElement = getTableElement(view);
+    if (!tableElement) return oldColumnWidths;
+
     // We need to select the next column as well, so noop if `columnIndex` is the
     // last index.
-    if (!(0 <= column1Index && column1Index <= columnWidths.length - 2)) return columnWidths;
+    if (!(0 <= column1Index && column1Index <= oldColumnWidths.length - 2)) return oldColumnWidths;
 
     const column2Index = column1Index + 1;
-    const column2Width = columnWidths[column2Index]!;
+    const oldColumn2Width = oldColumnWidths[column2Index]!;
 
-    const offsetPx = event.clientX - dragging.startX;
+    const offsetPx = event.clientX - startX;
 
     const totalColumnWidthPx = tableElement.offsetWidth;
-    const column1WidthPx = totalColumnWidthPx * (column1Width / totalColumnWidth);
+    const oldColumn1WidthPx = totalColumnWidthPx * (oldColumn1Width / totalColumnWidth);
 
     const spacingScale = getSpacingScaleWithoutListening();
     const columnMinWidthPx = convertRemLengthToPx(contentStyles.tableColumnMinWidth, spacingScale);
     const columnMaxWidthPx = convertRemLengthToPx(contentStyles.tableColumnMaxWidth, spacingScale);
-    const newColumn1WidthPx = clamp(columnMinWidthPx, column1WidthPx + offsetPx, columnMaxWidthPx);
 
+    // Make sure the new column 1 width is in our min/max bounds.
+    let newColumn1WidthPx = clamp(columnMinWidthPx, oldColumn1WidthPx + offsetPx, columnMaxWidthPx);
     let newColumn1Width = (newColumn1WidthPx / totalColumnWidthPx) * totalColumnWidth;
-    let newColumn2Width = column1Width + column2Width - newColumn1Width;
-
+    let newColumn2Width = oldColumn1Width + oldColumn2Width - newColumn1Width;
     let newColumn2WidthPx = (newColumn2Width / totalColumnWidth) * totalColumnWidthPx;
 
+    // Make sure the new column 2 width is in our min/max bounds.
     if (newColumn2WidthPx < columnMinWidthPx) {
         newColumn2WidthPx = columnMinWidthPx;
         newColumn2Width = (newColumn2WidthPx / totalColumnWidthPx) * totalColumnWidth;
-        newColumn1Width = column1Width + column2Width - newColumn2Width;
+        newColumn1Width = oldColumn1Width + oldColumn2Width - newColumn2Width;
+        newColumn1WidthPx = (newColumn1Width / totalColumnWidth) * totalColumnWidthPx;
     } else if (newColumn2WidthPx > columnMaxWidthPx) {
         newColumn2WidthPx = columnMaxWidthPx;
         newColumn2Width = (newColumn2WidthPx / totalColumnWidthPx) * totalColumnWidth;
-        newColumn1Width = column1Width + column2Width - newColumn2Width;
+        newColumn1Width = oldColumn1Width + oldColumn2Width - newColumn2Width;
+        newColumn1WidthPx = (newColumn1Width / totalColumnWidth) * totalColumnWidthPx;
     }
 
     const newColumnWidths: Array<number> = [];
 
-    for (let columnIndex = 0; columnIndex < columnWidths.length; columnIndex++) {
+    for (let columnIndex = 0; columnIndex < oldColumnWidths.length; columnIndex++) {
         if (columnIndex === column1Index) newColumnWidths.push(newColumn1Width);
         else if (columnIndex === column2Index) newColumnWidths.push(newColumn2Width);
-        else newColumnWidths.push(columnWidths[columnIndex]!);
+        else newColumnWidths.push(oldColumnWidths[columnIndex]!);
     }
 
     console.log(newColumnWidths);
