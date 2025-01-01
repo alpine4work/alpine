@@ -75,7 +75,7 @@ const testCases: Record<
                 return {
                     type: "ContentEditor",
                     dropCoords: {x: 640, y: 360},
-                    dropTarget: page.getByLabel("Document"),
+                    dropTarget: page.getByRole("textbox", {name: "Document"}),
                 };
             },
         },
@@ -203,7 +203,7 @@ const testCases: Record<
                 return {
                     type: "ContentEditor",
                     dropCoords: {x: 465, y: 86},
-                    dropTarget: page.getByLabel("Post"),
+                    dropTarget: page.getByRole("textbox", {name: "Post"}),
                 };
             },
         },
@@ -223,7 +223,7 @@ const testCases: Record<
                 return {
                     type: "ContentEditor",
                     dropCoords: {x: 640, y: 360},
-                    dropTarget: page.getByLabel("Post"),
+                    dropTarget: page.getByRole("textbox", {name: "Post"}),
                 };
             },
         },
@@ -292,7 +292,7 @@ const testCases: Record<
                 return {
                     type: "ContentEditor",
                     dropCoords: {x: 320, y: 296},
-                    dropTarget: page.getByLabel("Notes"),
+                    dropTarget: page.getByRole("textbox", {name: "Notes"}),
                 };
             },
         },
