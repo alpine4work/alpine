@@ -2022,6 +2022,7 @@ globalStyle(tableWrapperClassName, {
 });
 
 globalStyle(`${tableWrapperClassName} table`, {
+    display: "grid",
     position: "relative",
     zIndex: "0",
     width: "100%",
@@ -2029,6 +2030,17 @@ globalStyle(`${tableWrapperClassName} table`, {
     margin: "0 auto",
     borderCollapse: "collapse",
     tableLayout: "fixed",
+    padding: 1,
+    gap: 1,
+    backgroundColor: colorSchemeVars["grey-10"],
+});
+
+globalStyle(`${tableWrapperClassName} tbody`, {
+    display: "contents",
+});
+
+globalStyle(`${tableWrapperClassName} tr`, {
+    display: "contents",
 });
 
 const tableColumnMinWidthSpacing = "32";
@@ -2039,25 +2051,20 @@ const tableColumnMaxWidthSpacing = "128";
 export {tableColumnMaxWidthSpacing as tableColumnMaxWidth};
 const tableColumnMaxWidth = spacing[tableColumnMaxWidthSpacing];
 
-globalStyle(`${tableWrapperClassName} col`, {
-    minWidth: tableColumnMinWidth,
-    maxWidth: tableColumnMaxWidth,
-});
-
 globalStyle(`${tableWrapperClassName} td`, {
+    display: "block",
     position: "relative",
     minWidth: tableColumnMinWidth,
     maxWidth: tableColumnMaxWidth,
-    border: `1px solid ${colorSchemeVars["grey-10"]}`,
     padding: `${paragraphMargin} ${spacing["3"]}`,
-    verticalAlign: "top",
+    backgroundColor: backgroundColorVar,
 });
 
 export const tableSelectedCellClassName = style({});
 
 globalStyle(`${tableWrapperClassName} td${tableSelectedCellClassName}`, {
     backgroundColor: colorSchemeVars["theme-selection"],
-    border: `1px double ${colorSchemeVars["theme-40-const"]}`,
+    boxShadow: `0px 0px 0px 1px ${colorSchemeVars["theme-40-const"]}`,
 });
 
 // We want the hit area for the resize handle to be nice and wide. Specifically
@@ -2072,7 +2079,7 @@ const tableColumnResizeHandleIndicatorWidth = spacing["1"];
 export const tableColumnResizeHandleClassName = style({
     position: "absolute",
     zIndex: "10",
-    right: `-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem`,
+    right: `calc(-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem - 1px)`,
     top: -1,
     bottom: -1,
     width: tableColumnResizeHandleWidth,
@@ -2097,7 +2104,7 @@ export const tableLeftEdgeColumnResizeHandleClassName = style({
         // handle block.
         [`${tableColumnResizeHandleClassName}&`]: {
             right: "initial",
-            left: `-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem`,
+            left: `calc(-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem - 1px)`,
         },
     },
 });

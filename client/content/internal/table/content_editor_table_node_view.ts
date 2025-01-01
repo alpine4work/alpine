@@ -31,8 +31,9 @@ import {Node} from "prosemirror-model";
 import {NodeViewConstructor} from "prosemirror-view";
 import {getContentTableColumnWidths} from "~/client/content/internal/table/content_table_client_util.js";
 import {subscribeToSpacingScaleChange} from "~/client/remix/spacing_scale_context.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {tableWrapperClassName} from "~/shared/content/content_styles.js";
-import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
+import {parseRemLength} from "~/shared/design/core/spacing.js";
 
 export function createContentEditorTableNodeView({
     subscribeToSelectionUpdate,
@@ -45,7 +46,6 @@ export function createContentEditorTableNodeView({
         tableWrapperElement.setAttribute("data-scrollbar", "false");
 
         const tableElement = tableWrapperElement.appendChild(document.createElement("table"));
-        const colgroupElement = tableElement.appendChild(document.createElement("colgroup"));
 
         updateContentTableColumnsOnResize(node, tableElement);
 
@@ -79,10 +79,7 @@ export function createContentEditorTableNodeView({
                 return true;
             },
             ignoreMutation: record => {
-                return (
-                    record.type == "attributes" &&
-                    (record.target === tableElement || colgroupElement.contains(record.target))
-                );
+                return record.type == "attributes" && record.target === tableElement;
             },
             destroy: () => {
                 unsubscribeFromSpacingScaleChange();
@@ -97,38 +94,14 @@ export function updateContentTableColumnsOnResize(
     tableElement: HTMLTableElement,
     overrideColumnWidths?: ReadonlyArray<number>,
 ): void {
-    const tableMap = ContentTableMap.get(node);
     const columnWidths = overrideColumnWidths ?? getContentTableColumnWidths(node);
+    const columnMinWidthRem = parseRemLength(contentStyles.tableColumnMinWidth);
 
-    const totalColumnWidth = columnWidths.reduce(
-        (totalColumnWidth, columnWidth) => totalColumnWidth + columnWidth,
-        0,
-    );
+    tableElement.style.minWidth = `calc(${columnMinWidthRem * columnWidths.length}rem + ${
+        2 + columnWidths.length - 1
+    }px)`;
 
-    const colgroupElement = tableElement.firstElementChild!;
-    let nextColElement = colgroupElement.firstElementChild as HTMLTableColElement | null;
-
-    for (let columnIndex = 0; columnIndex < tableMap.width; columnIndex++) {
-        const columnWidth = columnWidths[columnIndex]!;
-        const columnWidthString = `${(columnWidth / totalColumnWidth) * 100}%`;
-
-        // Create missing `<col>` elements
-        if (!nextColElement) {
-            const colElement = document.createElement("col");
-            colElement.style.width = columnWidthString;
-            colgroupElement.appendChild(colElement);
-        } else {
-            if (nextColElement.style.width !== columnWidthString) {
-                nextColElement.style.width = columnWidthString;
-            }
-            nextColElement = nextColElement.nextElementSibling as HTMLTableColElement | null;
-        }
-    }
-
-    // Remove any extra `<col>` elements
-    while (nextColElement) {
-        const nextColElement2 = nextColElement.nextElementSibling as HTMLTableColElement | null;
-        colgroupElement.removeChild(nextColElement);
-        nextColElement = nextColElement2;
-    }
+    tableElement.style.gridTemplateColumns = columnWidths
+        .map(columnWidth => `minmax(${columnMinWidthRem}rem, ${columnWidth}fr)`)
+        .join(" ");
 }
