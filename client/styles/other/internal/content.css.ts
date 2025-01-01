@@ -2020,7 +2020,7 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
 });
 
 globalStyle(tableWrapperClassName, {
-    ...blockStyles,
+    ...omitObject(blockStyles, ["maxWidth"]),
     position: "relative",
     zIndex: "0",
     overflowX: "auto",
@@ -2032,7 +2032,9 @@ globalStyle(tableWrapperClassName, {
 globalStyle(`${tableWrapperClassName} table`, {
     position: "relative",
     zIndex: "0",
-    minWidth: "100%",
+    width: "100%",
+    maxWidth: blockMaxWidthVar,
+    margin: "0 auto",
     borderCollapse: "collapse",
     tableLayout: "fixed",
 });
@@ -2064,9 +2066,6 @@ globalStyle(`${tableWrapperClassName} td${tableSelectedCellClassName}`, {
     border: `1px double ${colorSchemeVars["theme-40-const"]}`,
 });
 
-export const tableColumnResizeHandleClassName = style({});
-export const tableColumnResizeDraggingClassName = style({});
-
 // We want the hit area for the resize handle to be nice and wide. Specifically
 // spacing 6 which is the same value that `useTouchSlop()` targets for
 // expanding the hit range on small buttons. However, visually we want the
@@ -2076,8 +2075,7 @@ export {tableColumnResizeHandleWidthSpacing as tableColumnResizeHandleWidth};
 const tableColumnResizeHandleWidth = spacing[tableColumnResizeHandleWidthSpacing];
 const tableColumnResizeHandleIndicatorWidth = spacing["1"];
 
-// Add a color to the column border while resizing.
-globalStyle(`${tableWrapperClassName} ${tableColumnResizeHandleClassName}`, {
+export const tableColumnResizeHandleClassName = style({
     position: "absolute",
     zIndex: "10",
     right: `-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem`,
@@ -2086,16 +2084,28 @@ globalStyle(`${tableWrapperClassName} ${tableColumnResizeHandleClassName}`, {
     width: tableColumnResizeHandleWidth,
     pointerEvents: "auto",
     cursor: "col-resize",
+    selectors: {
+        "&::after": {
+            content: '""',
+            position: "absolute",
+            left: `calc(50% - ${parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2}rem)`,
+            top: 0,
+            bottom: 0,
+            width: tableColumnResizeHandleIndicatorWidth,
+            backgroundColor: colorSchemeVars["theme-40-const"],
+        },
+    },
 });
 
-globalStyle(`${tableWrapperClassName} ${tableColumnResizeHandleClassName}::after`, {
-    content: '""',
-    position: "absolute",
-    left: `calc(50% - ${parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2}rem)`,
-    top: 0,
-    bottom: 0,
-    width: tableColumnResizeHandleIndicatorWidth,
-    backgroundColor: colorSchemeVars["theme-40-const"],
+export const tableLeftEdgeColumnResizeHandleClassName = style({
+    selectors: {
+        // Increase precedence so the styles within override the ones in our resize
+        // handle block.
+        [`${tableColumnResizeHandleClassName}&`]: {
+            right: "initial",
+            left: `-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem`,
+        },
+    },
 });
 
 function createChildSelectors(child: "first" | "last") {

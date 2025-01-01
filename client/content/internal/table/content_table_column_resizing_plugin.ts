@@ -37,9 +37,11 @@ import {
 } from "~/client/content/internal/table/content_table_client_util.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
+import {tableWrapperClassName} from "~/shared/content/content_styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {pointsAtContentTableCell} from "~/shared/content/table/content_table_shared_util.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
@@ -85,7 +87,10 @@ export function contentTableColumnResizingPlugin(): Plugin {
             decorations: state => {
                 const pluginState = contentTableColumnResizingPluginKey.getState(state);
                 if (pluginState && pluginState.activeHandle !== null) {
-                    return handleDecorations(state, pluginState.activeHandle);
+                    return handleContentTableColumnResizeStateDecorations(
+                        state,
+                        pluginState.activeHandle,
+                    );
                 }
             },
         },
@@ -108,7 +113,6 @@ type ContentTableColumnResizeDraggingState = {
     readonly tablePos: number;
     readonly oldTable: Node;
     readonly columnIndex: number;
-    readonly oldColumnWidth: number;
     readonly oldColumnWidths: ReadonlyArray<number>;
     readonly oldTotalColumnWidth: number;
     readonly getTableElement: (view: EditorView) => HTMLTableElement | null;
@@ -119,17 +123,29 @@ function getContentTableColumnResizeDraggingState(
     doc: Node,
     activeHandle: number,
 ): ContentTableColumnResizeDraggingState {
-    const $activeHandle = doc.resolve(activeHandle);
-    const tablePos = $activeHandle.start(-1);
-    const table = $activeHandle.node(-1);
-    const tableMap = ContentTableMap.get(table);
+    const $cell = doc.resolve(activeHandle);
+
+    let tablePos: number;
+    let table: Node;
+    let columnIndex: number;
+
+    if ($cell.parent.type.name === "table") {
+        tablePos = $cell.start();
+        table = $cell.node();
+        columnIndex = -1;
+    } else {
+        assert($cell.parent.type.name === "tableRow");
+
+        tablePos = $cell.start(-1);
+        table = $cell.node(-1);
+        columnIndex = ContentTableMap.get(table).colCount($cell.pos - tablePos);
+    }
+
     const columnWidths = getContentTableColumnWidths(table);
     const totalColumnWidth = columnWidths.reduce(
         (totalColumnWidth, columnWidth) => totalColumnWidth + columnWidth,
         0,
     );
-    const columnIndex = tableMap.colCount($activeHandle.pos - tablePos);
-    const columnWidth = columnWidths[columnIndex]!;
 
     let tableElement: HTMLTableElement | null = null;
 
@@ -138,7 +154,6 @@ function getContentTableColumnResizeDraggingState(
         tablePos,
         oldTable: table,
         columnIndex,
-        oldColumnWidth: columnWidth,
         oldColumnWidths: columnWidths,
         oldTotalColumnWidth: totalColumnWidth,
         getTableElement: (view: EditorView) => {
@@ -218,52 +233,49 @@ class ContentTableColumnResizeState {
 function handleMouseMove(view: EditorView, event: MouseEvent): void {
     const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
     if (!pluginState) return;
+    if (pluginState.dragging) return;
 
-    if (!pluginState.dragging) {
-        const spacingScale = getSpacingScaleWithoutListening();
-        const halfHandleWidth =
-            Math.floor(
-                convertRemLengthToPx(contentStyles.tableColumnResizeHandleWidth, spacingScale) / 2,
-            ) -
-            // Subtract 1px to avoid subpixel rendering edge cases where we think we're
-            // hovering over the resize handle but the DOM element doesn't actually cover
-            // the pixel.
-            1;
+    const spacingScale = getSpacingScaleWithoutListening();
+    const halfHandleWidth =
+        Math.floor(
+            convertRemLengthToPx(contentStyles.tableColumnResizeHandleWidth, spacingScale) / 2,
+        ) -
+        // Subtract 1px to avoid subpixel rendering edge cases where we think we're
+        // hovering over the resize handle but the DOM element doesn't actually cover
+        // the pixel.
+        1;
 
-        const target = domCellAround(event.target as HTMLElement);
-        let cell: number | null = null;
-        if (target) {
-            const {left, right} = target.getBoundingClientRect();
-            if (event.clientX - left <= halfHandleWidth)
+    const target = domCellAround(event.target as HTMLElement);
+    let cell: number | null = null;
+    if (target) {
+        const {left, right} = target.getBoundingClientRect();
+        if (event.clientX - left <= halfHandleWidth) {
+            cell = edgeCell(view, event, "left", halfHandleWidth);
+        } else if (right - event.clientX <= halfHandleWidth) {
+            cell = edgeCell(view, event, "right", halfHandleWidth);
+        }
+    } else {
+        const tableTarget = domTableAround(event.target as HTMLElement);
+        if (tableTarget) {
+            const {left, right} = tableTarget.getBoundingClientRect();
+            if (event.clientX <= left && left - event.clientX <= halfHandleWidth) {
                 cell = edgeCell(view, event, "left", halfHandleWidth);
-            else if (right - event.clientX <= halfHandleWidth)
+            } else if (event.clientX >= right && event.clientX - right <= halfHandleWidth) {
                 cell = edgeCell(view, event, "right", halfHandleWidth);
-        }
-
-        if (cell != pluginState.activeHandle) {
-            // NOCOMMIT: Understand this code path. Also add drag handle at the start?
-            if (!true && cell !== null) {
-                const $cell = view.state.doc.resolve(cell);
-                const table = $cell.node(-1);
-                const map = ContentTableMap.get(table);
-                const tableStart = $cell.start(-1);
-                const col = map.colCount($cell.pos - tableStart);
-
-                if (col == map.width - 1) {
-                    return;
-                }
             }
-
-            view.dispatch(
-                view.state.tr.setMeta(
-                    contentTableColumnResizingPluginKey,
-                    cast<ContentTableColumnResizeAction>({
-                        type: "SetHandle",
-                        handle: cell,
-                    }),
-                ),
-            );
         }
+    }
+
+    if (cell !== pluginState.activeHandle) {
+        view.dispatch(
+            view.state.tr.setMeta(
+                contentTableColumnResizingPluginKey,
+                cast<ContentTableColumnResizeAction>({
+                    type: "SetHandle",
+                    handle: cell,
+                }),
+            ),
+        );
     }
 }
 
@@ -382,6 +394,11 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
     window.addEventListener("mouseup", finish);
     window.addEventListener("mousemove", move);
     event.preventDefault();
+
+    // Unfocus the content editor while resizing a column. So the browser cursor
+    // and pointer toolbar don't render.
+    view.dom.blur();
+
     return true;
 }
 
@@ -392,6 +409,27 @@ function domCellAround(target: HTMLElement | null): HTMLElement | null {
             ? null
             : (target.parentNode as HTMLElement);
     return target;
+}
+
+// Finds the table element around the given target
+function domTableAround(target: HTMLElement | null): HTMLElement | null {
+    if (target?.classList.contains(tableWrapperClassName)) {
+        for (const childNode of target.childNodes) {
+            if (childNode.nodeName === "TABLE") {
+                return childNode as HTMLElement;
+            }
+        }
+        return null;
+    }
+
+    if (
+        target?.nodeName === "TABLE" &&
+        target.parentElement?.classList.contains(tableWrapperClassName)
+    ) {
+        return target;
+    }
+
+    return null;
 }
 
 // Determines the cell at the edge of the column being resized
@@ -420,7 +458,11 @@ function edgeCell(
     const map = ContentTableMap.get($cell.node(-1));
     const start = $cell.start(-1);
     const index = map.map.indexOf($cell.pos - start);
-    return index % map.width == 0 ? null : start + map.map[index - 1]!;
+    if (index % map.width !== 0) {
+        return start + map.map[index - 1]!;
+    } else {
+        return start + map.map[index]! - 1;
+    }
 }
 
 // Calculates the new width of the column being dragged
@@ -430,7 +472,6 @@ function getContentTableColumnResizeDraggingStateNewColumnWidths(
     {
         startX,
         columnIndex: column1Index,
-        oldColumnWidth: oldColumn1Width,
         oldColumnWidths,
         // Total column width shouldn't change during the drag.
         oldTotalColumnWidth: totalColumnWidth,
@@ -450,6 +491,8 @@ function getContentTableColumnResizeDraggingStateNewColumnWidths(
     const offsetPx = event.clientX - startX;
 
     const totalColumnWidthPx = tableElement.offsetWidth;
+
+    const oldColumn1Width = oldColumnWidths[column1Index]!;
     const oldColumn1WidthPx = totalColumnWidthPx * (oldColumn1Width / totalColumnWidth);
 
     const spacingScale = getSpacingScaleWithoutListening();
@@ -489,42 +532,49 @@ function getContentTableColumnResizeDraggingStateNewColumnWidths(
 }
 
 // Handles the decorations for the column resize handle
-function handleDecorations(state: EditorState, cell: number): DecorationSet {
+function handleContentTableColumnResizeStateDecorations(
+    state: EditorState,
+    cell: number,
+): DecorationSet {
     const decorations = [];
     const $cell = state.doc.resolve(cell);
-    const table = $cell.node(-1);
-    if (!table) {
-        return DecorationSet.empty;
-    }
 
-    const map = ContentTableMap.get(table);
-    const start = $cell.start(-1);
-    const col = map.colCount($cell.pos - start);
-    for (let row = 0; row < map.height; row++) {
-        const index = col + row * map.width;
-        // For positions that have either a different cell or the end
-        // of the table to their right, and either the top of the table or
-        // a different cell above them, add a decoration
-        if (
-            (col == map.width - 1 || map.map[index] != map.map[index + 1]) &&
-            (row == 0 || map.map[index] != map.map[index - map.width])
-        ) {
-            const cellPos = map.map[index]!;
+    if ($cell.parent.type.name === "table") {
+        const table = $cell.parent;
+        const tableMap = ContentTableMap.get(table);
+        const start = $cell.start();
+
+        for (let rowIndex = 0; rowIndex < tableMap.height; rowIndex++) {
+            const index = rowIndex * tableMap.width;
+            const cellPos = tableMap.map[index]!;
+            const pos = start + cellPos + table.nodeAt(cellPos)!.nodeSize - 1;
+            const dom = document.createElement("div");
+            dom.className = `${contentStyles.tableColumnResizeHandleClassName} ${contentStyles.tableLeftEdgeColumnResizeHandleClassName}`;
+            decorations.push(Decoration.widget(pos, dom));
+        }
+
+        return DecorationSet.create(state.doc, decorations);
+    } else {
+        assert($cell.parent.type.name === "tableRow");
+
+        const table = $cell.node(-1);
+        if (!table) {
+            return DecorationSet.empty;
+        }
+
+        const tableMap = ContentTableMap.get(table);
+        const start = $cell.start(-1);
+        const columnIndex = tableMap.colCount($cell.pos - start);
+
+        for (let rowIndex = 0; rowIndex < tableMap.height; rowIndex++) {
+            const index = columnIndex + rowIndex * tableMap.width;
+            const cellPos = tableMap.map[index]!;
             const pos = start + cellPos + table.nodeAt(cellPos)!.nodeSize - 1;
             const dom = document.createElement("div");
             dom.className = contentStyles.tableColumnResizeHandleClassName;
-            if (contentTableColumnResizingPluginKey.getState(state)?.dragging) {
-                decorations.push(
-                    Decoration.node(
-                        start + cellPos,
-                        start + cellPos + table.nodeAt(cellPos)!.nodeSize,
-                        {class: contentStyles.tableColumnResizeDraggingClassName},
-                    ),
-                );
-            }
-
             decorations.push(Decoration.widget(pos, dom));
         }
+
+        return DecorationSet.create(state.doc, decorations);
     }
-    return DecorationSet.create(state.doc, decorations);
 }
