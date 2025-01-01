@@ -180,6 +180,8 @@ export function handleContentTablePaste(
 
 // Handle mouse down event for table, responsible for creating a cell selection
 // when the user drags over a cell
+//
+// NOCOMMIT: Drag cover in this cell selection code
 export function handleContentTableMouseDown(view: EditorView, startEvent: MouseEvent): void {
     if (startEvent.ctrlKey || startEvent.metaKey) return;
 
