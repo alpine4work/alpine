@@ -29,17 +29,23 @@
 
 import {Node} from "prosemirror-model";
 import {NodeViewConstructor} from "prosemirror-view";
-import {getContentTableColumnWidths} from "~/client/content/internal/table/content_table_client_util.js";
-import {subscribeToSpacingScaleChange} from "~/client/remix/spacing_scale_context.js";
+import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
+import {
+    getSpacingScaleWithoutListening,
+    subscribeToSpacingScaleChange,
+} from "~/client/remix/spacing_scale_context.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {tableWrapperClassName} from "~/shared/content/content_styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
+import {getContentTableColumnWidths} from "~/shared/content/table/content_table_shared_util.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 
 export function createContentEditorTableNodeView({
     subscribeToSelectionUpdate,
 }: {
     subscribeToSelectionUpdate: (listener: () => void) => () => void;
 }): NodeViewConstructor {
-    return node => {
+    return (node, view) => {
         const tableWrapperElement = document.createElement("div");
         tableWrapperElement.className = tableWrapperClassName;
         tableWrapperElement.setAttribute("data-scrollbar", "false");
@@ -97,28 +103,32 @@ export function updateContentTableColumnsOnResize(
     colgroupElement: HTMLTableColElement,
     overrideColumnWidths?: ReadonlyArray<number>,
 ): void {
+    const platform = getPlatformWithoutListening();
+    const spacingScale = getSpacingScaleWithoutListening();
+
     const tableMap = ContentTableMap.get(node);
     const columnWidths = overrideColumnWidths ?? getContentTableColumnWidths(node);
-
-    const totalColumnWidth = columnWidths.reduce(
-        (totalColumnWidth, columnWidth) => totalColumnWidth + columnWidth,
-        0,
-    );
 
     let nextColElement = colgroupElement.firstElementChild as HTMLTableColElement | null;
 
     for (let columnIndex = 0; columnIndex < tableMap.width; columnIndex++) {
         const columnWidth = columnWidths[columnIndex]!;
-        const columnCssWidth = `${(columnWidth / totalColumnWidth) * 100}%`;
+
+        const columnWidthPx =
+            contentStyles.blockMaxWidthRem[platform] *
+            remPxBySpacingScale[spacingScale] *
+            columnWidth;
+
+        const columnWidthString = `${columnWidthPx}px`;
 
         // Create missing `<col>` elements
         if (!nextColElement) {
             const colElement = document.createElement("col");
-            colElement.style.width = columnCssWidth;
+            colElement.style.width = columnWidthString;
             colgroupElement.appendChild(colElement);
         } else {
-            if (nextColElement.style.width !== columnCssWidth) {
-                nextColElement.style.width = columnCssWidth;
+            if (nextColElement.style.width !== columnWidthString) {
+                nextColElement.style.width = columnWidthString;
             }
             nextColElement = nextColElement.nextElementSibling as HTMLTableColElement | null;
         }

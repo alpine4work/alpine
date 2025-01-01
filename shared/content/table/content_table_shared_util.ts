@@ -29,7 +29,8 @@
 
 // Various helper function for working with tables
 
-import {ResolvedPos} from "prosemirror-model";
+import {Node, ResolvedPos} from "prosemirror-model";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 
 // TODO(rohitt-gupta, #tables): Remove colspan and colwidth once we fork
 // all the components from prosemirror-tables and update the schema.
@@ -75,4 +76,50 @@ export function inSameContentTable($cellA: ResolvedPos, $cellB: ResolvedPos): bo
         $cellA.pos >= $cellB.start(-1) &&
         $cellA.pos <= $cellB.end(-1)
     );
+}
+
+const contentTableColumnMinWidth = 0.2;
+const contentTableColumnMaxWidth = 0.8;
+export const contentTableColumnDefaultWidth = 0.25;
+const contentTableColumnWidthIncrement = 0.05;
+
+/**
+ * Get the column widths for the table node. Column widths are stored in the
+ * `table.attrs.columnWidths` attribute but that array may be in an invalid
+ * format. This function cleans up the column widths array by running the
+ * following:
+ *
+ * - Makes sure the column widths array length matches the number of columns
+ *   in the table. Any columns missing a width get the default width
+ *   (`contentTableColumnDefaultWidth`).
+ *
+ * - Makes sure all column widths are rounded to our column width increment
+ *   (`contentTableColumnWidthIncrement`).
+ *
+ * - Clamps column widths to the min and max column width
+ *   (`contentTableColumnMinWidth` and `contentTableColumnMaxWidth`).
+ *
+ * Always creates a new column width array so you're free to mutate the
+ * returned array.
+ */
+export function getContentTableColumnWidths(table: Node): Array<number> {
+    const tableMap = ContentTableMap.get(table);
+    const {columnWidths: actualColumnWidths = []} = table.attrs;
+
+    const columnWidths: Array<number> = [];
+
+    for (let columnIndex = 0; columnIndex < tableMap.width; columnIndex++) {
+        let columnWidth = actualColumnWidths[columnIndex] ?? contentTableColumnDefaultWidth;
+
+        columnWidth =
+            Math.round(columnWidth * (1 / contentTableColumnWidthIncrement)) /
+            (1 / contentTableColumnWidthIncrement);
+
+        if (columnWidth > contentTableColumnMaxWidth) columnWidth = contentTableColumnMaxWidth;
+        else if (columnWidth < contentTableColumnMinWidth) columnWidth = contentTableColumnMinWidth;
+
+        columnWidths.push(columnWidth);
+    }
+
+    return columnWidths;
 }

@@ -30,22 +30,22 @@
 import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {updateContentTableColumnsOnResize} from "~/client/content/internal/table/content_editor_table_node_view.js";
-import {
-    contentTableCellAround,
-    getContentTableColumnWidths,
-} from "~/client/content/internal/table/content_table_client_util.js";
+import {contentTableCellAround} from "~/client/content/internal/table/content_table_client_util.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-import {pointsAtContentTableCell} from "~/shared/content/table/content_table_shared_util.js";
+import {
+    getContentTableColumnWidths,
+    pointsAtContentTableCell,
+} from "~/shared/content/table/content_table_shared_util.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 
 export const contentTableColumnResizingPluginKey = new PluginKey<ContentTableColumnResizeState>(
     "contentTableColumnResizing",
 );
 
-
-type Dragging = {startX: number; startColumnWidth: number};
+// NOCOMMIT: Can I delete or refactor this?
+type Dragging = {startX: number};
 
 // The contentTableColumnResizingPlugin sets up event handlers for mouse events
 // related to column resizing. When the user clicks and drags on a column border,
@@ -173,18 +173,15 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
     let pluginState = contentTableColumnResizingPluginKey.getState(view.state);
     if (!pluginState || pluginState.activeHandle === -1 || pluginState.dragging) return false;
 
-    const getData = () => {
+    const getState = () => {
         if (!pluginState || pluginState.activeHandle === -1) return null;
 
-        const $activeHandle = view.state.doc.resolve(pluginState.activeHandle);
+        const doc = view.state.doc;
+        const $activeHandle = doc.resolve(pluginState.activeHandle);
         const tablePos = $activeHandle.start(-1);
         const table = $activeHandle.node(-1);
         const tableMap = ContentTableMap.get(table);
         const columnWidths = getContentTableColumnWidths(table);
-        const totalColumnWidth = columnWidths.reduce(
-            (totalColumnWidth, columnWidth) => totalColumnWidth + columnWidth,
-            0,
-        );
         const columnIndex = tableMap.colCount($activeHandle.pos - tablePos);
         const columnWidth = columnWidths[columnIndex]!;
 
@@ -199,32 +196,30 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
         if (!tableElement) return null;
 
         return {
+            doc,
             $activeHandle,
             tablePos,
             table,
             tableMap,
             columnWidths,
-            totalColumnWidth,
             columnIndex,
             columnWidth,
             tableElement,
         };
     };
 
-    let lastDoc = view.state.doc;
-    let lastActiveHandle = pluginState.activeHandle;
-    let data = getData();
-    if (!data) return false;
+    let state = getState();
+    if (!state) return false;
 
     view.dispatch(
         view.state.tr.setMeta(contentTableColumnResizingPluginKey, {
-            setDragging: {startX: event.clientX, startColumnWidth: data.columnWidth},
+            setDragging: {startX: event.clientX},
         }),
     );
 
     // Updates the column width as the mouse is moved while dragging
     function move(event: MouseEvent): void {
-        if (!event.which) {
+        if (!event.which || !state) {
             finish(event);
             return;
         }
@@ -235,25 +230,19 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
             return;
         }
 
-        // Optimization: Instead of constantly recalculating variables like
-        // `columnWidths` and `tableElement` we only recalculate them if the document
-        // changed.
-        if (lastDoc !== view.state.doc || lastActiveHandle !== pluginState.activeHandle) {
-            lastDoc = view.state.doc;
-            lastActiveHandle = pluginState.activeHandle;
-            data = getData();
-        }
+        // Recalculate state if the document changed.
+        if (state.doc !== view.state.doc) state = getState();
 
-        if (!data) {
+        if (!state) {
             finish(event);
             return;
         }
 
-        const newColumnWidths = getDraggingColumnWidths(pluginState.dragging, event, data);
+        const newColumnWidths = getDraggingContentColumnWidths(pluginState.dragging, event, state);
 
         updateContentTableColumnsOnResize(
-            data.table,
-            data.tableElement.firstChild as HTMLTableColElement,
+            state.table,
+            state.tableElement.firstElementChild as HTMLTableColElement,
             newColumnWidths,
         );
     }
@@ -265,32 +254,43 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
         dragCoverElement.remove();
 
         pluginState = contentTableColumnResizingPluginKey.getState(view.state);
-        if (!pluginState?.dragging || pluginState.activeHandle === -1) return;
-
-        // Optimization: Instead of constantly recalculating variables like
-        // `columnWidths` and `tableElement` we only recalculate them if the document
-        // changed.
-        if (lastDoc !== view.state.doc || lastActiveHandle !== pluginState.activeHandle) {
-            lastDoc = view.state.doc;
-            lastActiveHandle = pluginState.activeHandle;
-            data = getData();
+        if (!pluginState?.dragging || pluginState.activeHandle === -1) {
+            view.dispatch(
+                view.state.tr.setMeta(contentTableColumnResizingPluginKey, {setDragging: null}),
+            );
+            return;
         }
 
-        if (!data) return;
+        if (!state) {
+            view.dispatch(
+                view.state.tr.setMeta(contentTableColumnResizingPluginKey, {setDragging: null}),
+            );
+            return;
+        }
 
-        const newColumnWidths = getDraggingColumnWidths(pluginState.dragging, event, data);
+        // Recalculate state if the document changed.
+        if (state.doc !== view.state.doc) state = getState();
+
+        if (!state) {
+            view.dispatch(
+                view.state.tr.setMeta(contentTableColumnResizingPluginKey, {setDragging: null}),
+            );
+            return;
+        }
+
+        const newColumnWidths = getDraggingContentColumnWidths(pluginState.dragging, event, state);
 
         view.dispatch(
             view.state.tr
-                .setNodeAttribute(data.tablePos - 1, "columnWidths", newColumnWidths)
+                .setNodeAttribute(state.tablePos - 1, "columnWidths", newColumnWidths)
                 .setMeta(contentTableColumnResizingPluginKey, {setDragging: null}),
         );
     }
 
     updateContentTableColumnsOnResize(
-        data.table,
-        data.tableElement.firstChild as HTMLTableColElement,
-        data.columnWidths,
+        state.table,
+        state.tableElement.firstElementChild as HTMLTableColElement,
+        state.columnWidths,
     );
 
     // Block the DOM with a cover element so we don't trigger hover effects and the
@@ -351,20 +351,18 @@ function edgeCell(
 }
 
 // Calculates the new width of the column being dragged
-function getDraggingColumnWidths(
+function getDraggingContentColumnWidths(
     dragging: Dragging,
     event: MouseEvent,
     {
         columnWidths,
         columnIndex: column1Index,
         columnWidth: column1Width,
-        totalColumnWidth,
         tableElement,
     }: {
         columnWidths: ReadonlyArray<number>;
         columnIndex: number;
         columnWidth: number;
-        totalColumnWidth: number;
         tableElement: HTMLTableElement;
     },
 ): ReadonlyArray<number> {
@@ -372,28 +370,29 @@ function getDraggingColumnWidths(
     // last index.
     if (!(0 <= column1Index && column1Index <= columnWidths.length - 2)) return columnWidths;
 
-    const column2Index = column1Index + 1;
-    const column2Width = columnWidths[column2Index]!;
+    // NOCOMMIT
+    // const column2Index = column1Index + 1;
+    // const column2Width = columnWidths[column2Index]!;
 
-    const offsetPx = event.clientX - dragging.startX;
+    // const offsetPx = event.clientX - dragging.startX;
 
-    const totalColumnWidthPx = tableElement.offsetWidth;
-    const column1WidthPx = totalColumnWidthPx * (column1Width / totalColumnWidth);
+    // const totalColumnWidthPx = tableElement.offsetWidth;
+    // const column1WidthPx = totalColumnWidthPx * (column1Width / totalColumnWidth);
 
-    // NOCOMMIT: min/max width?
-    // NOCOMMIT: Hold shift to change width in increments
-    const newColumn1Width = ((column1WidthPx + offsetPx) / totalColumnWidthPx) * totalColumnWidth;
-    const newColumn2Width = column1Width + column2Width - newColumn1Width;
+    // // NOCOMMIT: min/max width?
+    // // NOCOMMIT: Hold shift to change width in increments
+    // const newColumn1Width = ((column1WidthPx + offsetPx) / totalColumnWidthPx) * totalColumnWidth;
+    // const newColumn2Width = column1Width + column2Width - newColumn1Width;
 
-    const newColumnWidths: Array<number> = [];
+    // const newColumnWidths: Array<number> = [];
 
-    for (let columnIndex = 0; columnIndex < columnWidths.length; columnIndex++) {
-        if (columnIndex === column1Index) newColumnWidths.push(newColumn1Width);
-        else if (columnIndex === column2Index) newColumnWidths.push(newColumn2Width);
-        else newColumnWidths.push(columnWidths[columnIndex]!);
-    }
+    // for (let columnIndex = 0; columnIndex < columnWidths.length; columnIndex++) {
+    //     if (columnIndex === column1Index) newColumnWidths.push(newColumn1Width);
+    //     else if (columnIndex === column2Index) newColumnWidths.push(newColumn2Width);
+    //     else newColumnWidths.push(columnWidths[columnIndex]!);
+    // }
 
-    return newColumnWidths;
+    return columnWidths;
 }
 
 // Updates the active handle for resizing
