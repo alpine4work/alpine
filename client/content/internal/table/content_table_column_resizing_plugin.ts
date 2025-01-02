@@ -38,7 +38,11 @@ import {
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
-import {tableWrapperClassName} from "~/shared/content/content_styles.js";
+import {
+    tableWrapper2ClassName,
+    tableWrapper3ClassName,
+    tableWrapperClassName,
+} from "~/shared/content/content_styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {pointsAtContentTableCell} from "~/shared/content/table/content_table_shared_util.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
@@ -437,20 +441,37 @@ function getContentTableCellElementAround(target: HTMLElement | null): HTMLEleme
 
 // Finds the table element around the given target
 function getContentTableElementAround(target: HTMLElement | null): HTMLElement | null {
+    if (
+        target?.nodeName === "TABLE" &&
+        target.parentElement?.classList.contains(tableWrapper3ClassName)
+    ) {
+        return target;
+    }
+
     if (target?.classList.contains(tableWrapperClassName)) {
+        for (const childNode of target.childNodes) {
+            if (!(childNode instanceof HTMLElement)) continue;
+            if (childNode.classList.contains(tableWrapper2ClassName)) {
+                target = childNode;
+            }
+        }
+    }
+
+    if (target?.classList.contains(tableWrapper2ClassName)) {
+        for (const childNode of target.childNodes) {
+            if (!(childNode instanceof HTMLElement)) continue;
+            if (childNode.classList.contains(tableWrapper3ClassName)) {
+                target = childNode;
+            }
+        }
+    }
+
+    if (target?.classList.contains(tableWrapper3ClassName)) {
         for (const childNode of target.childNodes) {
             if (childNode.nodeName === "TABLE") {
                 return childNode as HTMLElement;
             }
         }
-        return null;
-    }
-
-    if (
-        target?.nodeName === "TABLE" &&
-        target.parentElement?.classList.contains(tableWrapperClassName)
-    ) {
-        return target;
     }
 
     return null;

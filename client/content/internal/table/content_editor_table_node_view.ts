@@ -36,7 +36,12 @@ import {
     subscribeToSpacingScaleChange,
 } from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
-import {tableWrapperClassName} from "~/shared/content/content_styles.js";
+import {
+    tableWrapper2ClassName,
+    tableWrapper3ClassName,
+    tableWrapperClassName,
+} from "~/shared/content/content_styles.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 
 export function createContentEditorTableNodeView({
@@ -47,13 +52,23 @@ export function createContentEditorTableNodeView({
     return node => {
         const tableWrapperElement = document.createElement("div");
         tableWrapperElement.className = tableWrapperClassName;
-        tableWrapperElement.setAttribute("data-scrollbar", "false");
 
-        const tableElement = tableWrapperElement.appendChild(document.createElement("table"));
+        const tableWrapper2Element = document.createElement("div");
+        tableWrapperElement.appendChild(tableWrapper2Element);
+        tableWrapper2Element.className = tableWrapper2ClassName;
+        tableWrapper2Element.setAttribute("data-scrollbar", "false");
+
+        const tableWrapper3Element = document.createElement("div");
+        tableWrapper2Element.appendChild(tableWrapper3Element);
+        tableWrapper3Element.className = tableWrapper3ClassName;
+
+        const tableElement = document.createElement("table");
+        tableWrapper3Element.appendChild(tableElement);
 
         updateContentTableColumnsOnResize(node, tableElement);
 
-        const tableBodyElement = tableElement.appendChild(document.createElement("tbody"));
+        const tableBodyElement = document.createElement("tbody");
+        tableElement.appendChild(tableBodyElement);
 
         addActiveTableClass();
 
@@ -81,7 +96,10 @@ export function createContentEditorTableNodeView({
                 return true;
             },
             ignoreMutation: record => {
-                return record.type == "attributes" && record.target === tableElement;
+                return (
+                    record.type == "attributes" &&
+                    (record.target === tableElement || record.target === tableWrapper3Element)
+                );
             },
             destroy: () => {
                 unsubscribeFromSpacingScaleChange();
@@ -102,6 +120,9 @@ export function updateContentTableColumnsOnResize(
 ): void {
     const platform = getPlatformWithoutListening();
     const spacingScale = getSpacingScaleWithoutListening();
+
+    const tableWrapper3Element = tableElement.parentElement!;
+
     const tableWidth: number = Math.max(
         1,
         overrideTableAndColumnWidths?.tableWidth ?? node.attrs.tableWidth ?? 1,
@@ -118,15 +139,34 @@ export function updateContentTableColumnsOnResize(
     // `padding` and 1px between each column added by CSS `gap`.
     const borderWidthPx = 2 + columnWidths.length - 1;
 
-    const minWidthPx = columnMinWidthPx * columnWidths.length + borderWidthPx;
-    const maxWidthPx =
+    const tableMinWidthPx = columnMinWidthPx * columnWidths.length + borderWidthPx;
+    const tableMaxWidthPx =
         contentStyles.tableColumnMaxWidthPx[spacingScale] * columnWidths.length + borderWidthPx;
 
-    tableElement.style.minWidth = `${minWidthPx}px`;
-    tableElement.style.width = `${tableWidth * 100}%`;
-    tableElement.style.maxWidth = `min(${
-        contentStyles.blockMaxWidthRem[platform] * tableWidth
-    }rem, ${maxWidthPx}px)`;
+    const tableInnerPaddingXDoubledPx =
+        convertRemLengthToPx(contentStyles.tableInnerPaddingX, spacingScale) * 2;
+
+    // 100% width includes the inner padding (because of our parent's negative margin).
+    // So the CSS `${100 * tableWidth}%` would give us the size
+    // `(blockWidthPx + tableInnerPaddingXDoubledPx) * tableWidth`. What we actually
+    // want is width to be `blockWidthPx * tableWidth + tableInnerPaddingXDoubledPx`.
+    // So subtract some pixels to get us to the right width.
+    tableWrapper3Element.style.width = `calc(${100 * tableWidth}% - ${-(
+        tableInnerPaddingXDoubledPx *
+        (1 - tableWidth)
+    )}px)`;
+
+    tableWrapper3Element.style.minWidth = `${tableInnerPaddingXDoubledPx + tableMinWidthPx}px`;
+
+    tableWrapper3Element.style.maxWidth = `${
+        tableInnerPaddingXDoubledPx +
+        Math.min(
+            contentStyles.blockMaxWidthRem[platform] *
+                tableWidth *
+                remPxBySpacingScale[spacingScale],
+            tableMaxWidthPx,
+        )
+    }px`;
 
     tableElement.style.gridTemplateColumns = columnWidths
         .map(columnWidth => `minmax(${columnMinWidthPx}px, ${columnWidth}fr)`)
@@ -135,15 +175,15 @@ export function updateContentTableColumnsOnResize(
     // While resizing we may need to make sure scroll is locked to the left/right
     // side. For example when dragging to grow the rightmost edge.
     if (overrideTableAndColumnWidths?.scrollTo !== undefined) {
-        const tableWrapperElement = tableElement.parentElement!;
+        const tableWrapper2Element = tableWrapper3Element.parentElement!;
 
         if (overrideTableAndColumnWidths.scrollTo === "left") {
-            tableWrapperElement.scrollLeft = 0;
+            tableWrapper2Element.scrollLeft = 0;
         }
 
         if (overrideTableAndColumnWidths.scrollTo === "right") {
-            tableWrapperElement.scrollLeft =
-                tableWrapperElement.scrollWidth - tableWrapperElement.clientWidth;
+            tableWrapper2Element.scrollLeft =
+                tableWrapper2Element.scrollWidth - tableWrapper2Element.clientWidth;
         }
     }
 }

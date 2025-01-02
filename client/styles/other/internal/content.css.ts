@@ -59,6 +59,8 @@ import {
     paragraphClassName,
     quoteBlockClassName,
     strikeClassName,
+    tableWrapper2ClassName,
+    tableWrapper3ClassName,
     tableWrapperClassName,
     titleClassName,
     unorderedListItemClassName,
@@ -608,6 +610,7 @@ globalStyle(codeBlockWrapperClassName, {
     position: "relative",
     zIndex: "0",
     overflowX: "auto",
+    overflowY: "hidden",
     overscrollBehaviorX: "contain",
     marginTop: standaloneBlockMargin,
     marginBottom: standaloneBlockMargin,
@@ -732,10 +735,10 @@ globalStyle(`${codeBlockLineClassName}::after`, {
     zIndex: "0",
     position: "sticky",
     // Render in margins to make sure there are no rendering artifacts.
-    right: `-${codeBlockPaddingRight}`,
+    right: 0,
     width: `${parseRemLength(codeBlockPaddingRight) * 2}rem`,
     height: paragraphFontSize.lineHeight,
-    background: `linear-gradient(to left, ${backgroundColorVar}, ${backgroundColorVar}, transparent)`,
+    background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
 });
 
 globalStyle(`${largeSpacingScaleSelector} ${codeBlockLineClassName}::after`, {
@@ -2011,14 +2014,64 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     zIndex: -10,
 });
 
+const tableInnerPaddingXSpacing = "3";
+export {tableInnerPaddingXSpacing as tableInnerPaddingX};
+const tableInnerPaddingX = spacing[tableInnerPaddingXSpacing];
+const tableInnerPaddingXDoubled = addRemLengths(tableInnerPaddingX, tableInnerPaddingX);
+
 globalStyle(tableWrapperClassName, {
-    ...omitObject(blockStyles, ["maxWidth"]),
+    ...omitObject(blockStyles, ["maxWidth", "marginLeft", "marginRight"]),
+    position: "relative",
+    zIndex: "0",
+    marginTop: standaloneBlockMargin,
+    marginBottom: standaloneBlockMargin,
+});
+
+globalStyle(`${tableWrapperClassName}::before`, {
+    content: '""',
+    pointerEvents: "none",
+    position: "absolute",
+    zIndex: "10",
+    top: 0,
+    bottom: 0,
+    left: `-${tableInnerPaddingX}`,
+    width: tableInnerPaddingX,
+    background: `linear-gradient(to right, ${backgroundColorVar}, transparent)`,
+});
+
+globalStyle(`${tableWrapperClassName}::after`, {
+    content: '""',
+    pointerEvents: "none",
+    position: "absolute",
+    zIndex: "10",
+    top: 0,
+    bottom: 0,
+    right: `-${tableInnerPaddingX}`,
+    width: tableInnerPaddingX,
+    background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
+});
+
+globalStyle(tableWrapper2ClassName, {
     position: "relative",
     zIndex: "0",
     overflowX: "auto",
+    overflowY: "hidden",
     overscrollBehaviorX: "contain",
-    marginTop: standaloneBlockMargin,
-    marginBottom: standaloneBlockMargin,
+    width: `calc(100% + ${tableInnerPaddingXDoubled})`,
+    marginLeft: `-${tableInnerPaddingX}`,
+    marginRight: `-${tableInnerPaddingX}`,
+});
+
+globalStyle(tableWrapper3ClassName, {
+    width: "100%",
+    maxWidth: addRemLengths(blockMaxWidth.desktop, tableInnerPaddingXDoubled),
+    margin: "0 auto",
+    paddingLeft: tableInnerPaddingX,
+    paddingRight: tableInnerPaddingX,
+});
+
+globalStyle(`${mobilePlatformSelector} ${tableWrapper3ClassName}`, {
+    maxWidth: addRemLengths(blockMaxWidth.mobile, tableInnerPaddingXDoubled),
 });
 
 globalStyle(`${tableWrapperClassName} table`, {
@@ -2026,8 +2079,6 @@ globalStyle(`${tableWrapperClassName} table`, {
     position: "relative",
     zIndex: "0",
     width: "100%",
-    maxWidth: blockMaxWidthVar,
-    margin: "0 auto",
     borderCollapse: "collapse",
     tableLayout: "fixed",
     padding: 1,
@@ -2077,11 +2128,13 @@ globalStyle(`${tableWrapperClassName} td${tableSelectedCellClassName}`, {
     boxShadow: `0px 0px 0px 1px ${colorSchemeVars["grey-20"]}`,
 });
 
-// We want the hit area for the resize handle to be nice and wide. Specifically
-// spacing 6 which is the same value that `useTouchSlop()` targets for
-// expanding the hit range on small buttons. However, visually we want the
-// resize handle to be much smaller.
-const tableColumnResizeHandleWidthSpacing = "6";
+// We want the hit area for the resize handle to be nice and wide. We'd like to
+// use spacing 6 which is the same value that `useTouchSlop()` uses for the hit
+// range of small buttons on desktop. However, we also want to keep all resize
+// handles in table bounds so since we have `tableInnerPaddingX` set to 3 we
+// end up with a handle width of 5 to make sure we the edge resize handles
+// don't grow beyond our inner padding.
+const tableColumnResizeHandleWidthSpacing = "5";
 export {tableColumnResizeHandleWidthSpacing as tableColumnResizeHandleWidth};
 const tableColumnResizeHandleWidth = spacing[tableColumnResizeHandleWidthSpacing];
 const tableColumnResizeHandleIndicatorWidth = spacing["1"];

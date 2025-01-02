@@ -98,4 +98,10 @@ export const fileFloatRightClassName =
 export const fileClassName = process.env.NODE_ENV !== "production" ? "content_file" : "c_f";
 
 export const tableWrapperClassName =
-    process.env.NODE_ENV !== "production" ? "content_table" : "c_tb";
+    process.env.NODE_ENV !== "production" ? "content_tableWrapper" : "c_tw";
+
+export const tableWrapper2ClassName =
+    process.env.NODE_ENV !== "production" ? "content_tableWrapper2" : "c_tw2";
+
+export const tableWrapper3ClassName =
+    process.env.NODE_ENV !== "production" ? "content_tableWrapper3" : "c_tw3";
