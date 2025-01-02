@@ -391,20 +391,30 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
         const {tableWidth: newTableWidth, columnWidths: newColumnWidths} =
             getContentTableColumnResizeDraggingStateNewColumnWidths(event, pluginState.dragging);
 
+        const transaction = view.state.tr;
+
+        if (newTableWidth === undefined) {
+            transaction.setNodeAttribute(
+                pluginState.dragging.state.tablePos - 1,
+                "columnWidths",
+                newColumnWidths,
+            );
+        } else {
+            transaction.setNodeMarkup(pluginState.dragging.state.tablePos - 1, null, {
+                ...pluginState.dragging.state.oldTable.attrs,
+                tableWidth: newTableWidth,
+                columnWidths: newColumnWidths,
+            });
+        }
+
         view.dispatch(
-            view.state.tr
-                .setNodeMarkup(pluginState.dragging.state.tablePos - 1, null, {
-                    ...pluginState.dragging.state.oldTable.attrs,
-                    tableWidth: newTableWidth,
-                    columnWidths: newColumnWidths,
-                })
-                .setMeta(
-                    contentTableColumnResizingPluginKey,
-                    cast<ContentTableColumnResizeAction>({
-                        type: "SetDragging",
-                        dragging: null,
-                    }),
-                ),
+            transaction.setMeta(
+                contentTableColumnResizingPluginKey,
+                cast<ContentTableColumnResizeAction>({
+                    type: "SetDragging",
+                    dragging: null,
+                }),
+            ),
         );
     }
 
@@ -566,20 +576,19 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         startX,
         viewWidthPx,
         oldTableWidthPx,
-        state: {oldTableWidth, columnIndex: column1Index, oldColumnWidths, oldTotalColumnWidth},
+        state: {columnIndex: column1Index, oldColumnWidths, oldTotalColumnWidth},
     }: {
         startX: number;
         viewWidthPx: number;
         oldTableWidthPx: number;
         state: {
-            oldTableWidth: number;
             columnIndex: number;
             oldColumnWidths: ReadonlyArray<number>;
             oldTotalColumnWidth: number;
         };
     },
 ): {
-    tableWidth: number;
+    tableWidth?: number;
     columnWidths: ReadonlyArray<number>;
     scrollTo?: "left" | "right";
 } {
@@ -619,13 +628,6 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
             borderWidthPx,
         maxTotalColumnWidthPx,
     );
-
-    // The `tableWidth` from our ProseMirror node may be inaccurate if we've added
-    // columns such that the min width of the table is larger than `blockWidthPx`
-    // times `tableWidth`.
-    if (Math.round(blockWidthPx * oldTableWidth) !== oldTableWidthPx) {
-        oldTableWidth = Math.max(1, oldTableWidthPx / blockWidthPx);
-    }
 
     // There are two branches to this function:
     //
@@ -671,6 +673,64 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         const newColumnWidths: Array<number | null> = [];
         let newOtherTotalColumnWidth = 0;
 
+        // Our `oldColumnWidths` array may not accurately represent what's in the DOM
+        // if some of our columns are running up against their min width. So run the
+        // same calculation used by CSS grid to determine the actual column widths.
+        let adjustedOldColumnWidths: ReadonlyArray<number>;
+        {
+            let hasNextPass = true;
+            let currentPassOldTotalColumnWidth = oldTotalColumnWidth;
+            let currentPassOldTotalColumnWidthPx = oldTotalColumnWidthPx;
+            let nextPassOldTotalColumnWidth: number;
+            let nextPassOldTotalColumnWidthPx: number;
+
+            let oldColumnWidthCalculations = oldColumnWidths.map(
+                (oldColumnWidth): {type: "px"; value: number} | {type: "fr"; value: number} => ({
+                    type: "fr",
+                    value: oldColumnWidth,
+                }),
+            );
+
+            while (hasNextPass) {
+                hasNextPass = false;
+                nextPassOldTotalColumnWidth = 0;
+                nextPassOldTotalColumnWidthPx = currentPassOldTotalColumnWidthPx;
+
+                oldColumnWidthCalculations = oldColumnWidthCalculations.map(
+                    oldColumnWidthCalculation => {
+                        if (oldColumnWidthCalculation.type === "px")
+                            return oldColumnWidthCalculation;
+
+                        const oldColumnWidthPx =
+                            (oldColumnWidthCalculation.value / currentPassOldTotalColumnWidth) *
+                            currentPassOldTotalColumnWidthPx;
+
+                        if (oldColumnWidthPx < columnMinWidthPx) {
+                            hasNextPass = true;
+                            nextPassOldTotalColumnWidthPx -= columnMinWidthPx;
+                            return {type: "px", value: columnMinWidthPx};
+                        }
+
+                        nextPassOldTotalColumnWidth += oldColumnWidthCalculation.value;
+                        return {type: "fr", value: oldColumnWidthCalculation.value};
+                    },
+                );
+
+                currentPassOldTotalColumnWidth = nextPassOldTotalColumnWidth;
+                currentPassOldTotalColumnWidthPx = nextPassOldTotalColumnWidthPx;
+            }
+
+            adjustedOldColumnWidths = oldColumnWidthCalculations.map(oldColumnWidth => {
+                const oldColumnWidthPx =
+                    oldColumnWidth.type === "px"
+                        ? oldColumnWidth.value
+                        : (oldColumnWidth.value / currentPassOldTotalColumnWidth) *
+                          currentPassOldTotalColumnWidthPx;
+
+                return (oldColumnWidthPx / oldTotalColumnWidthPx) * oldTotalColumnWidth;
+            });
+        }
+
         for (
             let otherColumnIndex = 0;
             otherColumnIndex < oldColumnWidths.length;
@@ -681,7 +741,7 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
                 continue;
             }
 
-            const oldOtherColumnWidth = oldColumnWidths[otherColumnIndex]!;
+            const oldOtherColumnWidth = adjustedOldColumnWidths[otherColumnIndex]!;
             newColumnWidths.push(oldOtherColumnWidth);
             newOtherTotalColumnWidth += oldOtherColumnWidth;
         }
@@ -704,6 +764,10 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         );
 
         newColumnWidths[columnIndex] = newColumnWidth;
+
+        // Compute the old table width on the fly since the `tableWidth` attr in
+        // ProseMirror may not accurately reflect what's in the DOM.
+        const oldTableWidth = Math.max(1, oldTableWidthPx / blockWidthPx);
 
         const newTableWidth = Math.max(
             1,
@@ -754,7 +818,6 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         }
 
         return {
-            tableWidth: oldTableWidth,
             columnWidths: newColumnWidths,
         };
     }

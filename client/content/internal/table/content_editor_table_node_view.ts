@@ -113,9 +113,9 @@ export function updateContentTableColumnsOnResize(
     node: Node,
     tableElement: HTMLTableElement,
     overrideTableAndColumnWidths?: {
-        readonly tableWidth: number;
-        readonly columnWidths: ReadonlyArray<number>;
-        readonly scrollTo?: "left" | "right";
+        tableWidth?: number;
+        columnWidths: ReadonlyArray<number>;
+        scrollTo?: "left" | "right";
     },
 ): void {
     const platform = getPlatformWithoutListening();
@@ -133,8 +133,6 @@ export function updateContentTableColumnsOnResize(
     const columnMinWidthPx =
         contentStyles.tableColumnMinWidthRem * remPxBySpacingScale[spacingScale];
 
-    // NOCOMMIT: Can I do some rounding here to avoid fractional pixels?
-
     // The width added to our table for borders. 1px on the left/right added by CSS
     // `padding` and 1px between each column added by CSS `gap`.
     const borderWidthPx = 2 + columnWidths.length - 1;
@@ -151,10 +149,10 @@ export function updateContentTableColumnsOnResize(
     // `(blockWidthPx + tableInnerPaddingXDoubledPx) * tableWidth`. What we actually
     // want is width to be `blockWidthPx * tableWidth + tableInnerPaddingXDoubledPx`.
     // So subtract some pixels to get us to the right width.
-    tableWrapper3Element.style.width = `calc(${100 * tableWidth}% - ${-(
+    tableWrapper3Element.style.width = `round(nearest, ${100 * tableWidth}% - ${-(
         tableInnerPaddingXDoubledPx *
         (1 - tableWidth)
-    )}px)`;
+    )}px, 1px)`;
 
     tableWrapper3Element.style.minWidth = `${tableInnerPaddingXDoubledPx + tableMinWidthPx}px`;
 
