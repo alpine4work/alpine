@@ -14,8 +14,8 @@ export type Spacing = keyof typeof spacing;
  * On mobile we scale everything up by 1.25x. This makes clickable areas larger
  * on mobile and helps legibility.
  *
- * The name of the spacing variable is proportional to its size. So `spacing32`
- * is four times as large as `spacing8`.
+ * The name of the spacing variable is proportional to its size. So `32`
+ * is four times as large as `8`.
  *
  * We use rems to represent our spacing scale. This allows us to easily adjust
  * the platform scale.

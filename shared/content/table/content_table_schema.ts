@@ -57,10 +57,17 @@ export const contentTableProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                 // columns and the length of `columnWidths` is 2) then the default width of the
                 // column is 1.
                 //
+                // NOCOMMIT: Document min width and max width?
+                //
                 // [1]: https://css-tricks.com/introduction-fr-css-unit/
                 columnWidths: {
                     default: [],
                     schema: Schema.array(Schema.float),
+                },
+                // NOCOMMIT: Document what this is doing
+                tableWidth: {
+                    default: 1,
+                    schema: Schema.float,
                 },
             },
             copyable: true,

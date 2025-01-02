@@ -988,7 +988,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                         "itemSchema": {
                                                                                                                             "type": "Float"
                                                                                                                         },
-                                                                                                                        "referenceId": "4a5b3e6f"
+                                                                                                                        "referenceId": "9a55f7b0"
+                                                                                                                    },
+                                                                                                                    "optional": true
+                                                                                                                },
+                                                                                                                "tableWidth": {
+                                                                                                                    "valueSchema": {
+                                                                                                                        "type": "Float"
                                                                                                                     },
                                                                                                                     "optional": true
                                                                                                                 }
@@ -1649,7 +1655,25 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "value": {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
-                                                                                        "reuseReferenceId": "4a5b3e6f"
+                                                                                        "reuseReferenceId": "9a55f7b0"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "tableWidth": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "tableWidth"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "value": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Float"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -2322,7 +2346,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                                     "columnWidths": {
                                                                                                                                                         "valueSchema": {
                                                                                                                                                             "type": "Reference",
-                                                                                                                                                            "reuseReferenceId": "4a5b3e6f"
+                                                                                                                                                            "reuseReferenceId": "9a55f7b0"
+                                                                                                                                                        },
+                                                                                                                                                        "optional": true
+                                                                                                                                                    },
+                                                                                                                                                    "tableWidth": {
+                                                                                                                                                        "valueSchema": {
+                                                                                                                                                            "type": "Float"
                                                                                                                                                         },
                                                                                                                                                         "optional": true
                                                                                                                                                     }
@@ -4867,7 +4897,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                             "columnWidths": {
                                                                                                 "valueSchema": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "4a5b3e6f"
+                                                                                                    "reuseReferenceId": "9a55f7b0"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            },
+                                                                                            "tableWidth": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Float"
                                                                                                 },
                                                                                                 "optional": true
                                                                                             }
@@ -8889,7 +8925,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                             "columnWidths": {
                                                                                                 "valueSchema": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "4a5b3e6f"
+                                                                                                    "reuseReferenceId": "9a55f7b0"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            },
+                                                                                            "tableWidth": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Float"
                                                                                                 },
                                                                                                 "optional": true
                                                                                             }

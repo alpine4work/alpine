@@ -2043,21 +2043,31 @@ globalStyle(`${tableWrapperClassName} tr`, {
     display: "contents",
 });
 
-const tableColumnMinWidthSpacing = "32";
-export {tableColumnMinWidthSpacing as tableColumnMinWidth};
-const tableColumnMinWidth = spacing[tableColumnMinWidthSpacing];
+// NOCOMMIT: Document why this value
+export const tableColumnMinWidthRem = blockMaxWidthRem.desktop * 0.2;
 
-const tableColumnMaxWidthSpacing = "128";
-export {tableColumnMaxWidthSpacing as tableColumnMaxWidth};
-const tableColumnMaxWidth = spacing[tableColumnMaxWidthSpacing];
+// NOCOMMIT: Document why this value and especially why - 3
+export const tableColumnMaxWidthPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        (blockMaxWidthRem.desktop - tableColumnMinWidthRem) * remPxBySpacingScale[spacingScale] - 3,
+);
 
 globalStyle(`${tableWrapperClassName} td`, {
     display: "block",
     position: "relative",
-    minWidth: tableColumnMinWidth,
-    maxWidth: tableColumnMaxWidth,
+    minWidth: `${tableColumnMinWidthRem}rem`,
+    maxWidth: tableColumnMaxWidthPx.small,
     padding: `${paragraphMargin} ${spacing["3"]}`,
     backgroundColor: backgroundColorVar,
+});
+
+globalStyle(`${mediumSpacingScaleSelector} ${tableWrapperClassName} td`, {
+    maxWidth: tableColumnMaxWidthPx.medium,
+});
+
+globalStyle(`${largeSpacingScaleSelector} ${tableWrapperClassName} td`, {
+    maxWidth: tableColumnMaxWidthPx.large,
 });
 
 export const tableSelectedCellClassName = style({});
