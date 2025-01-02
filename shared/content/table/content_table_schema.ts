@@ -48,8 +48,8 @@ export const contentTableProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             group: "block",
             attrs: {
                 // The width of each column in a table. Each width represents a fraction of the
-                // available space in the table. Widths are the same in principle as the [CSS
-                // grid `fr` unit][1].
+                // available space in the table. We use CSS grid to layout the table so each
+                // width is expressed with the [CSS `fr` unit][1].
                 //
                 // For example, say we have two columns and `columnWidths` is set to `[1, 3]`.
                 // To compute the amount of space each column occupies we divide each
@@ -61,14 +61,23 @@ export const contentTableProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                 // columns and the length of `columnWidths` is 2) then the default width of the
                 // column is 1.
                 //
-                // NOCOMMIT: Document min width and max width?
+                // Columns have a minimum and maximum width in pixels. So even if a column
+                // width in this array is very small or very large the actual rendered column
+                // width will still be in a reasonable bound.
                 //
                 // [1]: https://css-tricks.com/introduction-fr-css-unit/
                 columnWidths: {
                     default: [],
                     schema: Schema.array(Schema.float),
                 },
-                // NOCOMMIT: Document what this is doing
+
+                // The width of the table as a percent of the block width. So for example, if
+                // `tableWidth` is 1.2 that means the table is 20% wider than the block width.
+                //
+                // The minimum value of `tableWidth` is 1. Tables must be at least as wide as
+                // the block width. Tables still have a maximum width in pixels that's the
+                // maximum column width times the column count. A `tableWidth` value that
+                // creates a wider table than that will be ignored.
                 tableWidth: {
                     default: 1,
                     schema: Schema.float,
