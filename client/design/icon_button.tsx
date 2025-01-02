@@ -322,7 +322,11 @@ function IconButton(
         {
             ...props,
             elementType: isFocusable ? "button" : "div",
-            isDisabled: isDisabled || isPending,
+            // NOTE(calebmer): Don't disable the button while it's pending. We don't want
+            // to run the press event handler again while the button is pending but we do
+            // still want the button to be interactive (`isPressed` should be true and we
+            // shouldn't set the `disabled` HTML property).
+            isDisabled,
             "aria-label": description,
             onPress: handlePress,
         },
@@ -617,14 +621,6 @@ function IconButton(
                                 ? -1
                                 : buttonProps.tabIndex
                             : undefined,
-                        // Allow the button to maintain focus when pending. This way if a button is
-                        // used in a `useConfirmSaveAfterLosingFocus()` hook (like comment inputs in
-                        // `<DocumentContentEditor>`) and it enters a pending state we don't think the
-                        // parent element has lost focus.
-                        disabled:
-                            isPending && !isDisabled
-                                ? undefined
-                                : (buttonProps as {disabled?: boolean}).disabled,
                     },
                     <span
                         className={sprinkles({
