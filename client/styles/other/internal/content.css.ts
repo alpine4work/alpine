@@ -2063,8 +2063,8 @@ globalStyle(`${tableWrapperClassName} td`, {
 export const tableSelectedCellClassName = style({});
 
 globalStyle(`${tableWrapperClassName} td${tableSelectedCellClassName}`, {
-    backgroundColor: colorSchemeVars["theme-selection"],
-    boxShadow: `0px 0px 0px 1px ${colorSchemeVars["theme-40-const"]}`,
+    backgroundColor: colorSchemeVars["grey-5"],
+    boxShadow: `0px 0px 0px 1px ${colorSchemeVars["grey-20"]}`,
 });
 
 // We want the hit area for the resize handle to be nice and wide. Specifically
