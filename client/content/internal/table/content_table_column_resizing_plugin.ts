@@ -45,7 +45,7 @@ import {
 } from "~/shared/content/content_styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {pointsAtContentTableCell} from "~/shared/content/table/content_table_shared_util.js";
-import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx, screenPaddingXRem} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -122,6 +122,7 @@ type ContentTableColumnResizeAction =
 type ContentTableColumnResizeDraggingState = {
     readonly tablePos: number;
     readonly oldTable: Node;
+    readonly oldTableWidth: number;
     readonly columnIndex: number;
     readonly oldColumnWidths: ReadonlyArray<number>;
     readonly oldTotalColumnWidth: number;
@@ -161,6 +162,7 @@ function getContentTableColumnResizeDraggingState(
     return {
         tablePos,
         oldTable: table,
+        oldTableWidth: Math.max(1, table.attrs.tableWidth ?? 1),
         columnIndex,
         oldColumnWidths: columnWidths,
         oldTotalColumnWidth: totalColumnWidth,
@@ -542,27 +544,45 @@ function getEdgeContentTableCell(
  *
  * 4. Dragging an edge column drag handle (left or right) can change the width
  *    of the table.
+ *
+ * Some ideas for another day:
+ *
+ * - It's a little surprising that dragging in the middle of two min width
+ *   columns does nothing. That's because of our resize principle to only
+ *   change the size of columns adjacent to the drag handle. Maybe we should
+ *   consider loosening principle 3. Allowing the table to resize if it already
+ *   has a width greater than 1 seems fine. We want to keep tables with a width
+ *   of 1 as much as possible since tables with a width of 1 won't overflow on
+ *   mobile.
+ *
+ * - Allow columns to snap to the same width as other columns. This allows
+ *   users to easily build well designed tables that have consistent spacing
+ *   across multiple columns. Or add a "set width" feature that lets the user
+ *   set the column width as a percent.
  */
-function getContentTableColumnResizeDraggingStateNewColumnWidths(
-    event: MouseEvent,
+export function getContentTableColumnResizeDraggingStateNewColumnWidths(
+    event: {clientX: number},
     {
         startX,
         viewWidthPx,
         oldTableWidthPx,
-        state: {oldTable, columnIndex: column1Index, oldColumnWidths, oldTotalColumnWidth},
+        state: {oldTableWidth, columnIndex: column1Index, oldColumnWidths, oldTotalColumnWidth},
     }: {
         startX: number;
         viewWidthPx: number;
         oldTableWidthPx: number;
-        state: ContentTableColumnResizeDraggingState;
+        state: {
+            oldTableWidth: number;
+            columnIndex: number;
+            oldColumnWidths: ReadonlyArray<number>;
+            oldTotalColumnWidth: number;
+        };
     },
 ): {
     tableWidth: number;
     columnWidths: ReadonlyArray<number>;
     scrollTo?: "left" | "right";
 } {
-    const oldTableWidth: number = oldTable.attrs.tableWidth ?? 1;
-
     const offsetPx = event.clientX - startX;
 
     const platform = getPlatformWithoutListening();
@@ -570,6 +590,11 @@ function getContentTableColumnResizeDraggingStateNewColumnWidths(
     const remPx = remPxBySpacingScale[spacingScale];
     const columnMinWidthPx = contentStyles.tableColumnMinWidthRem * remPx;
     const columnMaxWidthPx = contentStyles.tableColumnMaxWidthPx[spacingScale];
+
+    const blockWidthPx = Math.min(
+        viewWidthPx - screenPaddingXRem[platform] * remPx,
+        contentStyles.blockMaxWidthRem[platform] * remPx,
+    );
 
     const borderWidthPx = 2 + oldColumnWidths.length - 1;
 
@@ -580,7 +605,7 @@ function getContentTableColumnResizeDraggingStateNewColumnWidths(
         // CSS grid computes the size of `fr` units as the share of available space.
         // The available space for columns in our table grid excludes the 1px
         // gap/padding we add for borders.
-        Math.min(viewWidthPx, contentStyles.blockMaxWidthRem[platform] * remPx) - borderWidthPx,
+        blockWidthPx - borderWidthPx,
     );
 
     const maxTotalColumnWidthPx = columnMaxWidthPx * oldColumnWidths.length;
@@ -595,8 +620,12 @@ function getContentTableColumnResizeDraggingStateNewColumnWidths(
         maxTotalColumnWidthPx,
     );
 
-    // NOCOMMIT: Chain resizing? If column already minimum width can we take from
-    // the next column?
+    // The `tableWidth` from our ProseMirror node may be inaccurate if we've added
+    // columns such that the min width of the table is larger than `blockWidthPx`
+    // times `tableWidth`.
+    if (Math.round(blockWidthPx * oldTableWidth) !== oldTableWidthPx) {
+        oldTableWidth = Math.max(1, oldTableWidthPx / blockWidthPx);
+    }
 
     // There are two branches to this function:
     //
@@ -680,15 +709,6 @@ function getContentTableColumnResizeDraggingStateNewColumnWidths(
             1,
             oldTableWidth * (newTotalColumnWidthPx / oldTotalColumnWidthPx),
         );
-
-        console.log({
-            oldTableWidth,
-            oldColumnWidth,
-            oldColumnWidths,
-            newTableWidth,
-            newColumnWidth,
-            newColumnWidths,
-        });
 
         return {
             tableWidth: newTableWidth,
