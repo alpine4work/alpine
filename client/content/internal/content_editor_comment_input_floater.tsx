@@ -854,7 +854,7 @@ function ContentEditorCommentInputDragOverlay({
                 // Never cover the space layout sidebar on desktop platforms. In some states
                 // `view` may partially overlap the space layout sidebar because the amount of
                 // space the sidebar actually takes is dynamic based on view width
-                // (see `spaceLayoutSidebarSpace`).
+                // (see `spaceLayoutStyles.sideBarSpace`).
                 platform !== "mobile"
                     ? convertRemLengthToPx(spaceLayoutStyles.sideBarWidth, spacingScale)
                     : 0,

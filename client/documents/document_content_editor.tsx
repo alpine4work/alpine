@@ -1645,7 +1645,7 @@ export function DocumentContentEditor({
                             // While the sidebar is open, don't render our document toolbar. It would be
                             // weird for it to pop up when writing a comment.
                             withoutMobileKeyboardToolbar={sidebarState.isOpen}
-                            className={documentContentStyles.documentContentClassName}
+                            className={documentContentStyles.contentClassName}
                             phantomSelections={phantomSelections}
                             fileAttachmentTarget={fileAttachmentTarget}
                             commentFileAttachmentTarget={useMemo(

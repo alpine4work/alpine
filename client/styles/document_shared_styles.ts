@@ -2,6 +2,7 @@ import {
     messageInputMinHeightPx,
     messageViewMinHeightPx,
 } from "~/client/styles/messaging_shared_styles.js";
+import {spaceLayoutStyles} from "~/client/styles/styles.js";
 import {allPlatforms} from "~/shared/design/core/platform.js";
 import {addRemLengths, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {allSpacingScales} from "~/shared/design/core/spacing_scale.js";

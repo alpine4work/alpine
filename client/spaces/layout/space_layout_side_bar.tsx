@@ -21,34 +21,6 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
-const spaceLayoutSidebarWidthRem = parseRemLength(spaceLayoutStyles.sideBarWidth);
-
-const spaceLayoutContainerWidthForMaxSidebarSpaceRem =
-    parseRemLength(contentStyles.contentMaxWidth) +
-    parseRemLength(documentContentEditorSidebarWidth) +
-    parseRemLength("48");
-
-const spaceLayoutMaxSidebarSpaceRem = spaceLayoutSidebarWidthRem;
-
-const spaceLayoutContainerWidthForMinSidebarSpaceRem =
-    spaceLayoutContainerWidthForMaxSidebarSpaceRem + spaceLayoutSidebarWidthRem;
-
-const spaceLayoutMinSidebarSpaceRem = 0;
-
-const spaceLayoutSidebarSpaceByContainerWidthRem =
-    (spaceLayoutMinSidebarSpaceRem - spaceLayoutMaxSidebarSpaceRem) /
-    (spaceLayoutContainerWidthForMinSidebarSpaceRem -
-        spaceLayoutContainerWidthForMaxSidebarSpaceRem);
-
-// On large screens we want to allocate 0 space for the sidebar. This will
-// cause content to be visually centered on the screen ignoring space from the
-// sidebar. But on smaller screens we need the sidebar to take up space in our
-// layout so we don't end up rendering content underneath the sidebar.
-//
-// This `calc()` expression calculates the amount of space to allocate the
-// sidebar based on the container width.
-export const spaceLayoutSidebarSpace = `clamp(${spaceLayoutMinSidebarSpaceRem}rem, ${spaceLayoutMaxSidebarSpaceRem}rem + (100% - ${spaceLayoutContainerWidthForMaxSidebarSpaceRem}rem) * ${spaceLayoutSidebarSpaceByContainerWidthRem}, ${spaceLayoutMaxSidebarSpaceRem}rem)`;
-
 export function SpaceLayoutSideBar({
     space,
     initialInbox,
@@ -78,7 +50,7 @@ export function SpaceLayoutSideBar({
                 // visually center content.
                 width: useIsFullWidthRoute()
                     ? spaceLayoutStyles.sideBarWidth
-                    : spaceLayoutSidebarSpace,
+                    : spaceLayoutStyles.sideBarSpace,
             }}
         >
             <Box

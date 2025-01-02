@@ -5,13 +5,11 @@ import {DocumentModel} from "~/shared/documents/document_model.js";
 
 // TODO(calebmer): Get side decorations for comments working here.
 
-const {documentContentClassName} = documentContentStyles;
-
 export function DocumentContentView({document}: {document: DocumentModel}) {
     return (
         <ContentView
             content={document.content}
-            className={documentContentClassName}
+            className={documentContentStyles.contentClassName}
             // en dash (https://graphemica.com/2013)
             // Represents no content
             placeholder={"\u2013"}
