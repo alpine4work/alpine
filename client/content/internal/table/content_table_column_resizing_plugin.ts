@@ -245,23 +245,37 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
         // the pixel.
         1;
 
-    const target = domCellAround(event.target as HTMLElement);
+    const target = getContentTableCellElementAround(event.target as HTMLElement);
     let cell: number | null = null;
     if (target) {
         const {left, right} = target.getBoundingClientRect();
         if (event.clientX - left <= halfHandleWidth) {
-            cell = edgeCell(view, event, "left", halfHandleWidth);
+            cell = getEdgeContentTableCell(view, event, "left", halfHandleWidth);
         } else if (right - event.clientX <= halfHandleWidth) {
-            cell = edgeCell(view, event, "right", halfHandleWidth);
+            cell = getEdgeContentTableCell(view, event, "right", halfHandleWidth);
         }
     } else {
-        const tableTarget = domTableAround(event.target as HTMLElement);
+        const tableTarget = getContentTableElementAround(event.target as HTMLElement);
         if (tableTarget) {
             const {left, right} = tableTarget.getBoundingClientRect();
-            if (event.clientX <= left && left - event.clientX <= halfHandleWidth) {
-                cell = edgeCell(view, event, "left", halfHandleWidth);
-            } else if (event.clientX >= right && event.clientX - right <= halfHandleWidth) {
-                cell = edgeCell(view, event, "right", halfHandleWidth);
+
+            // This case occurs when the mouse is hovering over the 1px gap between rows.
+            // Since we're not hovering over any `<td>` element in that position.
+            if (left < event.clientX && event.clientX < right) {
+                // We don't need to do anything here since if you hover over a `<td>` (showing
+                // the column resize handle) then move your mouse to the 1px row gap we'll
+                // still detect your mouse as over the resize handle decoration element which
+                // extends into the row gap space.
+            }
+            // This case occurs when the mouse is outside the table and approaching the
+            // left edge.
+            else if (left - event.clientX <= halfHandleWidth) {
+                cell = getEdgeContentTableCell(view, event, "left", halfHandleWidth);
+            }
+            // This case occurs when the mouse is outside the table and approaching the
+            // right edge.
+            else if (event.clientX - right <= halfHandleWidth) {
+                cell = getEdgeContentTableCell(view, event, "right", halfHandleWidth);
             }
         }
     }
@@ -403,7 +417,7 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
 }
 
 // Finds the table cell element around the given target
-function domCellAround(target: HTMLElement | null): HTMLElement | null {
+function getContentTableCellElementAround(target: HTMLElement | null): HTMLElement | null {
     while (target && target.nodeName != "TD" && target.nodeName != "TH")
         target = target?.classList?.contains("ProseMirror")
             ? null
@@ -412,7 +426,7 @@ function domCellAround(target: HTMLElement | null): HTMLElement | null {
 }
 
 // Finds the table element around the given target
-function domTableAround(target: HTMLElement | null): HTMLElement | null {
+function getContentTableElementAround(target: HTMLElement | null): HTMLElement | null {
     if (target?.classList.contains(tableWrapperClassName)) {
         for (const childNode of target.childNodes) {
             if (childNode.nodeName === "TABLE") {
@@ -433,7 +447,7 @@ function domTableAround(target: HTMLElement | null): HTMLElement | null {
 }
 
 // Determines the cell at the edge of the column being resized
-function edgeCell(
+function getEdgeContentTableCell(
     view: EditorView,
     event: MouseEvent,
     side: "left" | "right",
@@ -448,11 +462,8 @@ function edgeCell(
         top: event.clientY,
     });
     if (!found) return null;
-    const {pos, inside} = found;
-    // When hovering over the 1px border between rows, `pos` will point to a
-    // position in the `table` node whereas `inside` consistently points to a
-    // position between cells. Which is why we prefer `inside` when available.
-    const $cell = contentTableCellAround(view.state.doc.resolve(inside !== -1 ? inside + 1 : pos));
+    const {pos} = found;
+    const $cell = contentTableCellAround(view.state.doc.resolve(pos));
     if (!$cell) return null;
     if (side == "right") return $cell.pos;
     const map = ContentTableMap.get($cell.node(-1));
