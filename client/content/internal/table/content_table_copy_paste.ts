@@ -193,7 +193,6 @@ function growContentTable(
         const newColumnWidths = [...getContentTableColumnWidths(table)];
 
         for (let i = tableMap.width; i < width; i++) {
-            // NOCOMMIT: Make sure column width is pasted.
             newColumnWidths.push(1);
         }
 

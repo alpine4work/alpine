@@ -160,11 +160,14 @@ export function updateContentTableColumnsOnResize(
 
     tableWrapper3Element.style.maxWidth = `${
         tableInnerPaddingXDoubledPx +
-        Math.min(
-            contentStyles.blockMaxWidthRem[platform] *
-                tableWidth *
-                remPxBySpacingScale[spacingScale],
-            tableMaxWidthPx,
+        Math.max(
+            tableInnerPaddingXDoubledPx,
+            Math.min(
+                contentStyles.blockMaxWidthRem[platform] *
+                    tableWidth *
+                    remPxBySpacingScale[spacingScale],
+                tableMaxWidthPx,
+            ),
         )
     }px`;
 

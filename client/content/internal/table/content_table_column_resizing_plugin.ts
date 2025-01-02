@@ -523,20 +523,33 @@ function getEdgeContentTableCell(
     }
 }
 
-// Calculates the new width of the column being dragged
+/**
+ * Calculates the new width of the column being dragged.
+ *
+ * We implement the following UX principles for column resizing. These UX
+ * principles should lead to a consistent, easy to understand, experience for
+ * users building tables:
+ *
+ * 1. A column should only resize when a user drags the drag handle. It should
+ *    not resize when the user types content. Instead content should wrap onto
+ *    a new line as the user types.
+ *
+ * 2. Dragging a column drag handle should only change the size of the
+ *    column(s) adjacent to the drag handle.
+ *
+ * 3. Dragging an interior column drag handle shouldn’t change the width of the
+ *    table.
+ *
+ * 4. Dragging an edge column drag handle (left or right) can change the width
+ *    of the table.
+ */
 function getContentTableColumnResizeDraggingStateNewColumnWidths(
     event: MouseEvent,
     {
         startX,
         viewWidthPx,
         oldTableWidthPx,
-        state: {
-            oldTable,
-            columnIndex: column1Index,
-            oldColumnWidths,
-            // Total column width shouldn't change during the drag.
-            oldTotalColumnWidth: totalColumnWidth,
-        },
+        state: {oldTable, columnIndex: column1Index, oldColumnWidths, oldTotalColumnWidth},
     }: {
         startX: number;
         viewWidthPx: number;
@@ -600,7 +613,7 @@ function getContentTableColumnResizeDraggingStateNewColumnWidths(
         const isLeftResize = column1Index < 0;
         const columnIndex = isLeftResize ? 0 : oldColumnWidths.length - 1;
         const oldColumnWidth = oldColumnWidths[columnIndex]!;
-        const oldColumnWidthPx = oldTotalColumnWidthPx * (oldColumnWidth / totalColumnWidth);
+        const oldColumnWidthPx = oldTotalColumnWidthPx * (oldColumnWidth / oldTotalColumnWidth);
 
         let newColumnWidthPx = clamp(
             columnMinWidthPx,
@@ -668,6 +681,15 @@ function getContentTableColumnResizeDraggingStateNewColumnWidths(
             oldTableWidth * (newTotalColumnWidthPx / oldTotalColumnWidthPx),
         );
 
+        console.log({
+            oldTableWidth,
+            oldColumnWidth,
+            oldColumnWidths,
+            newTableWidth,
+            newColumnWidth,
+            newColumnWidths,
+        });
+
         return {
             tableWidth: newTableWidth,
             columnWidths: newColumnWidths as Array<number>,
@@ -678,7 +700,7 @@ function getContentTableColumnResizeDraggingStateNewColumnWidths(
         const oldColumn2Width = oldColumnWidths[column2Index]!;
 
         const oldColumn1Width = oldColumnWidths[column1Index]!;
-        const oldColumn1WidthPx = oldTotalColumnWidthPx * (oldColumn1Width / totalColumnWidth);
+        const oldColumn1WidthPx = oldTotalColumnWidthPx * (oldColumn1Width / oldTotalColumnWidth);
 
         // Make sure the new column 1 width is in our min/max bounds.
         let newColumn1WidthPx = clamp(
@@ -686,21 +708,21 @@ function getContentTableColumnResizeDraggingStateNewColumnWidths(
             oldColumn1WidthPx + offsetPx,
             columnMaxWidthPx,
         );
-        let newColumn1Width = (newColumn1WidthPx / oldTotalColumnWidthPx) * totalColumnWidth;
+        let newColumn1Width = (newColumn1WidthPx / oldTotalColumnWidthPx) * oldTotalColumnWidth;
         let newColumn2Width = oldColumn1Width + oldColumn2Width - newColumn1Width;
-        let newColumn2WidthPx = (newColumn2Width / totalColumnWidth) * oldTotalColumnWidthPx;
+        let newColumn2WidthPx = (newColumn2Width / oldTotalColumnWidth) * oldTotalColumnWidthPx;
 
         // Make sure the new column 2 width is in our min/max bounds.
         if (newColumn2WidthPx < columnMinWidthPx) {
             newColumn2WidthPx = columnMinWidthPx;
-            newColumn2Width = (newColumn2WidthPx / oldTotalColumnWidthPx) * totalColumnWidth;
+            newColumn2Width = (newColumn2WidthPx / oldTotalColumnWidthPx) * oldTotalColumnWidth;
             newColumn1Width = oldColumn1Width + oldColumn2Width - newColumn2Width;
-            newColumn1WidthPx = (newColumn1Width / totalColumnWidth) * oldTotalColumnWidthPx;
+            newColumn1WidthPx = (newColumn1Width / oldTotalColumnWidth) * oldTotalColumnWidthPx;
         } else if (newColumn2WidthPx > columnMaxWidthPx) {
             newColumn2WidthPx = columnMaxWidthPx;
-            newColumn2Width = (newColumn2WidthPx / oldTotalColumnWidthPx) * totalColumnWidth;
+            newColumn2Width = (newColumn2WidthPx / oldTotalColumnWidthPx) * oldTotalColumnWidth;
             newColumn1Width = oldColumn1Width + oldColumn2Width - newColumn2Width;
-            newColumn1WidthPx = (newColumn1Width / totalColumnWidth) * oldTotalColumnWidthPx;
+            newColumn1WidthPx = (newColumn1Width / oldTotalColumnWidth) * oldTotalColumnWidthPx;
         }
 
         const newColumnWidths: Array<number> = [];

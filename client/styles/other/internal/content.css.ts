@@ -2094,14 +2094,22 @@ globalStyle(`${tableWrapperClassName} tr`, {
     display: "contents",
 });
 
-// NOCOMMIT: Document why this value
+// The minimum column width is one fifth of the block width on desktop. Even as
+// we scale down this is still our minimum column width so we make sure content
+// in columns are legible even at small sizes.
 export const tableColumnMinWidthRem = blockMaxWidthRem.desktop * 0.2;
 
-// NOCOMMIT: Document why this value and especially why - 3
+// The maximum column width is the width of the larger column in a two column
+// table on desktop where one of the columns is the minimum width and the
+// `tableWidth` is 1 (so about four fifths of the block width on desktop).
 export const tableColumnMaxWidthPx = createObjectFromKeys(
     allSpacingScales,
     spacingScale =>
-        (blockMaxWidthRem.desktop - tableColumnMinWidthRem) * remPxBySpacingScale[spacingScale] - 3,
+        (blockMaxWidthRem.desktop - tableColumnMinWidthRem) * remPxBySpacingScale[spacingScale] -
+        // We need to subtract 3px to account for the table borders in a two column
+        // table. 2px for the left/right border and 1px for the border between the two
+        // columns.
+        3,
 );
 
 globalStyle(`${tableWrapperClassName} td`, {
