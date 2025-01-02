@@ -472,8 +472,24 @@ function getEdgeContentTableCell(
         top: event.clientY,
     });
     if (!found) return null;
-    const {pos} = found;
-    const $cell = contentTableCellAround(view.state.doc.resolve(pos));
+    const {pos, inside} = found;
+    let $pos = view.state.doc.resolve(pos);
+
+    // If `$pos` points to a `table` instead of a `tableCell` then try using the
+    // `inside` position instead. This fixes a bug where when hovering over the 1px
+    // between table rows `pos` points into the table. When changing this you need
+    // to test:
+    //
+    // 1. Hovering over the blue part of the resize handle then slowly moving down
+    //    through the row border (resize handle should be visible the entire time)
+    //
+    // 2. Hovering over the transparent part of the resize handle then slowly
+    //    moving down through the row border (resize handle should be visible the
+    //    entire time)
+    if ($pos.parent.type.name === "table" && inside !== -1)
+        $pos = view.state.doc.resolve(inside + 1);
+
+    const $cell = contentTableCellAround($pos);
     if (!$cell) return null;
     if (side == "right") return $cell.pos;
     const map = ContentTableMap.get($cell.node(-1));
