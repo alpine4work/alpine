@@ -180,8 +180,6 @@ export function handleContentTablePaste(
 
 // Handle mouse down event for table, responsible for creating a cell selection
 // when the user drags over a cell
-//
-// NOCOMMIT: Drag cover in this cell selection code
 export function handleContentTableMouseDown(view: EditorView, startEvent: MouseEvent): void {
     if (startEvent.ctrlKey || startEvent.metaKey) return;
 
@@ -219,8 +217,14 @@ export function handleContentTableMouseDown(view: EditorView, startEvent: MouseE
             if (starting) $head = $anchor;
             else return;
         }
+
         const selection = new ContentTableCellSelection($anchor, $head);
         if (starting || !view.state.selection.eq(selection)) {
+            // NOTE(calebmer): UX improvement, empty the DOM selection when we start our
+            // cell selection. If we don't have this then in some cases the DOM selection
+            // continues moving underneath our cursor as we drag.
+            if (starting) window.getSelection()?.empty();
+
             const tr = view.state.tr.setSelection(selection);
             if (starting) tr.setMeta(contentTableEditingKey, $anchor.pos);
             view.dispatch(tr);

@@ -33,6 +33,7 @@ import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {updateContentTableColumnsOnResize} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {
     contentTableCellAround,
+    contentTableEditingKey,
     getContentTableColumnWidths,
 } from "~/client/content/internal/table/content_table_client_util.js";
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
@@ -249,6 +250,9 @@ class ContentTableColumnResizeState {
 
 // Handles mouse movement to update the active column handle
 function handleMouseMove(view: EditorView, event: MouseEvent): void {
+    const isDraggingSelection = contentTableEditingKey.getState(view.state) != null;
+    if (isDraggingSelection) return;
+
     const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
     if (!pluginState) return;
     if (pluginState.dragging) return;
