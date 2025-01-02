@@ -227,9 +227,6 @@ function findWidth(table: Node): number {
     return width;
 }
 
-// NOCOMMIT: Problems unit test? I think we can delete all the problem stuff
-// entirely. Since its just missing nodes. `fixTables()` seems to already
-// ignore problems and only fix missing cells in rows which is good.
 function computeMap(table: Node): ContentTableMap {
     assert(table.type.name === "table");
 
@@ -238,8 +235,15 @@ function computeMap(table: Node): ContentTableMap {
 
     const map = [];
     let mapPos = 0;
-    let problems: Array<ContentTableMapProblem> | null = null;
     for (let i = 0, e = width * height; i < e; i++) map[i] = 0;
+
+    // TODO(calebmer): I think we can delete the problem code here entirely.
+    // `fixTable()` used to look at the problems array (in `prosemirror-tables`)
+    // but now seems to directly find missing cell issues itself. Additionally when
+    // `prosemirror-tables` had `colspan` and `rowspan` there were more problems to
+    // detect. I'm not sure if the problems array is doing anything for us here at
+    // this point.
+    let problems: Array<ContentTableMapProblem> | null = null;
 
     for (let row = 0, pos = 0; row < height; row++) {
         const rowNode = table.child(row);
