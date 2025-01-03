@@ -22,10 +22,6 @@ import {
 import {handoffContentFilePreviewState} from "~/client/content/internal/handoff_content_file_preview_state.js";
 import {transparentImageDataUrl} from "~/client/content/internal/helpers/transparent_image_data_url.js";
 import {getContentFileViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
-import {
-    addParentScrollWhenPointerDownAndOverListener,
-    removeParentScrollWhenPointerDownAndOverListener,
-} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {Reporter} from "~/client/design/reporter.js";
@@ -1513,7 +1509,7 @@ export function addContentFilePreviewBehavior(
 
     const handlePointerLeave = resetPointerState;
     const handlePointerCancel = resetPointerState;
-    const handleParentScrollWhenPointerDownAndOver = resetPointerState;
+    const handleScroll = resetPointerState;
 
     const handleDragStart = (event: DragEvent) => {
         assert(!isInert);
@@ -1602,16 +1598,49 @@ export function addContentFilePreviewBehavior(
         }
     };
 
+    const scrollEventTargets: Array<EventTarget> = [window];
+
     if (!isInert) {
         element.addEventListener("pointerdown", handlePointerDown);
         element.addEventListener("pointerup", handlePointerUp);
         element.addEventListener("pointerleave", handlePointerLeave);
         element.addEventListener("pointercancel", handlePointerCancel);
         element.addEventListener("dragstart", handleDragStart);
-        addParentScrollWhenPointerDownAndOverListener(
-            element,
-            handleParentScrollWhenPointerDownAndOver,
-        );
+
+        // Search for all scrollable parent elements so we can attach a scroll handler
+        // that resets our press.
+        //
+        // We don't use `addParentScrollWhenPointerDownAndOverListener()` like other
+        // node views in `<ContentEditor>` because content file previews are rendered
+        // outside of `<ContentEditor>` and `<ContentView>`. For example,
+        // `<MessageViewFiles>` and `<ContentFileMiniPreview>`.
+        // `addParentScrollWhenPointerDownAndOverListener()` only works if the element
+        // is inside a `<ContentEditor>` or `<ContentView>` which listen to scroll
+        // events for their children.
+        {
+            let parentElement = element.parentElement;
+            while (parentElement) {
+                const {overflowX, overflowY} = getComputedStyle(parentElement);
+
+                if (
+                    overflowX === "auto" ||
+                    overflowX === "scroll" ||
+                    overflowY === "auto" ||
+                    overflowY === "scroll"
+                ) {
+                    scrollEventTargets.push(parentElement);
+                }
+
+                parentElement =
+                    parentElement.parentElement !== document.body
+                        ? parentElement.parentElement
+                        : null;
+            }
+        }
+
+        for (const scrollEventTarget of scrollEventTargets) {
+            scrollEventTarget.addEventListener("scroll", handleScroll, true);
+        }
     }
 
     /* ========================================================================== *\
@@ -1752,10 +1781,10 @@ export function addContentFilePreviewBehavior(
             element.removeEventListener("pointercancel", handlePointerCancel);
             element.removeEventListener("dragstart", handleDragStart);
             element.removeEventListener("contextmenu", handleContextMenu);
-            removeParentScrollWhenPointerDownAndOverListener(
-                element,
-                handleParentScrollWhenPointerDownAndOver,
-            );
+
+            for (const scrollEventTarget of scrollEventTargets) {
+                scrollEventTarget.removeEventListener("scroll", handleScroll, true);
+            }
         }
 
         resetPointerState();

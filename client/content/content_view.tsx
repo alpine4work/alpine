@@ -982,7 +982,7 @@ export function ContentView<Content extends ContentWithReferences>({
         fileStore,
     ]);
 
-    // Watch all parent elements of our content editor for scroll events. When a
+    // Watch all parent elements of our content view for scroll events. When a
     // scroll event occurs we want to call
     // `dispatchParentScrollWhenPointerDownAndOverEvent()` on any pressable
     // elements.
