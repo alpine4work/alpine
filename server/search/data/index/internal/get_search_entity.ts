@@ -34,6 +34,7 @@ import {
     getTaskCommentPayload,
     getTaskNotesContentWithoutReferences,
 } from "~/server/tasks/data/task_table.js";
+import {AccessLevel, AccessPolicy, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
@@ -74,11 +75,6 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
-import {
-    TaskCollectionAccessLevel,
-    TaskCollectionAccessPolicy,
-    hasTaskCollectionAccessLevel,
-} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 
 const searchEntityMajorContributorCutOff = 0.2;
@@ -146,7 +142,7 @@ interface TaskModelForAuthorization {
  */
 interface TaskCollectionModelForAuthorization {
     isDeleted(): boolean;
-    getAccessPolicy(): TaskCollectionAccessPolicy;
+    getAccessPolicy(): AccessPolicy;
 }
 
 /**
@@ -1059,18 +1055,18 @@ function getTaskSearchEntityAccessPolicy({
     task: TaskModelForAuthorization;
     referencedTaskById: ReadonlyMap<TaskId, TaskModelForAuthorization>;
     referencedCollectionById: ReadonlyMap<TaskCollectionId, TaskCollectionModelForAuthorization>;
-    expectedAccessLevel: TaskCollectionAccessLevel;
+    expectedAccessLevel: AccessLevel;
 }): SearchEntityIndexAccessPolicy {
     let defaultGrantType: SearchEntityIndexDefaultGrantType | null = null;
     let accountGrantAccountIds = new Set<AccountId>();
 
     const trackTaskDependencies = (task: TaskModelForAuthorization) => {
-        if (hasTaskCollectionAccessLevel("Edit", expectedAccessLevel)) {
+        if (hasAccessLevel("Edit", expectedAccessLevel)) {
             accountGrantAccountIds.add(task.getCreator().accountId);
         }
 
         const assignee = task.getAssignee();
-        if (assignee && hasTaskCollectionAccessLevel("Edit", expectedAccessLevel)) {
+        if (assignee && hasAccessLevel("Edit", expectedAccessLevel)) {
             accountGrantAccountIds.add(assignee.assignee.accountId);
         }
 
@@ -1085,7 +1081,7 @@ function getTaskSearchEntityAccessPolicy({
 
             if (
                 accessPolicy.defaultGrant !== null &&
-                hasTaskCollectionAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
+                hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
             ) {
                 if (defaultGrantType === null) {
                     defaultGrantType = accessPolicy.defaultGrant.type;
@@ -1098,7 +1094,7 @@ function getTaskSearchEntityAccessPolicy({
             }
 
             for (const [accountId, grant] of accessPolicy.accountGrantById) {
-                if (hasTaskCollectionAccessLevel(grant.level, expectedAccessLevel)) {
+                if (hasAccessLevel(grant.level, expectedAccessLevel)) {
                     accountGrantAccountIds.add(accountId);
                 }
             }

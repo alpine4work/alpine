@@ -50,6 +50,12 @@ import {
     withSendTaskIndexSearchEntityJobIfNeeded,
 } from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc, isTaskIndexDocDeleted} from "~/server/tasks/data/task_index_doc.js";
+import {
+    AccessLevel,
+    AccessPolicy,
+    AccessPolicyRegister,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -125,12 +131,6 @@ import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {printTaskCollectionSearchResultBodyTextSnippet} from "~/shared/tasks/print_task_collection_search_result_body_text_snippet.js";
-import {
-    TaskCollectionAccessLevel,
-    TaskCollectionAccessPolicy,
-    TaskCollectionAccessPolicyRegister,
-    hasTaskCollectionAccessLevel,
-} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {
@@ -441,7 +441,7 @@ const TaskTable = DynamoTableSchema.new({
                          * Who is allowed to access the collection and with what permission
                          * level.
                          */
-                        accessPolicy: TaskCollectionAccessPolicyRegister.schema,
+                        accessPolicy: AccessPolicyRegister.schema,
 
                         /**
                          * The total number of tasks in the collection. Open and closed. Not
@@ -1993,8 +1993,8 @@ class TaskActionTransactionCommitState {
     }
 
     public evaluateCollectionAccessPolicy(
-        accessPolicy: TaskCollectionAccessPolicy,
-        expectedAccessLevel: TaskCollectionAccessLevel,
+        accessPolicy: AccessPolicy,
+        expectedAccessLevel: AccessLevel,
     ) {
         return evaluateTaskCollectionAccessPolicy(
             this._context,
@@ -2007,7 +2007,7 @@ class TaskActionTransactionCommitState {
 
     public async authorizeCollectionAccess(
         collectionId: TaskCollectionId,
-        expectedAccessLevel: TaskCollectionAccessLevel,
+        expectedAccessLevel: AccessLevel,
     ) {
         const collectionItem = await this.getCollectionItem(collectionId);
 
@@ -2033,7 +2033,7 @@ class TaskActionTransactionCommitState {
 
     public async authorizeCollectionAccessAllowingDeletedCollections(
         collectionId: TaskCollectionId,
-        expectedAccessLevel: TaskCollectionAccessLevel,
+        expectedAccessLevel: AccessLevel,
     ) {
         const collectionItem = await this.getCollectionItem(collectionId);
 
@@ -2059,7 +2059,7 @@ class TaskActionTransactionCommitState {
 
     public async authorizeTaskItemAccess(
         taskItem: TaskEssentialAttributesItem,
-        expectedAccessLevel: TaskCollectionAccessLevel,
+        expectedAccessLevel: AccessLevel,
     ) {
         // If we are using a lease and the lease is valid for this task, skip
         // authorization. The lease allows us to take otherwise disallowed actions.
@@ -2088,7 +2088,7 @@ class TaskActionTransactionCommitState {
 
     public async authorizeTaskItemAccessAllowingDeletedTasks(
         taskItem: TaskEssentialAttributesItem,
-        expectedAccessLevel: TaskCollectionAccessLevel,
+        expectedAccessLevel: AccessLevel,
     ) {
         // If we are using a lease and the lease is valid for this task, skip
         // authorization. The lease allows us to take otherwise disallowed actions.
@@ -2905,7 +2905,7 @@ async function actuallyCommitTaskActionTransaction(
                             rawUndeletedTime: null,
                             name: new LabelStringRegister(collectionAction.name, action.time),
                             color: new TaskCollectionColorRegister(null, action.time),
-                            accessPolicy: new TaskCollectionAccessPolicyRegister(
+                            accessPolicy: new AccessPolicyRegister(
                                 collectionAction.accessPolicy,
                                 action.time,
                             ),
@@ -3033,11 +3033,10 @@ async function actuallyCommitTaskActionTransaction(
                                 if (
                                     iterableEvery(
                                         collectionAction.accessPolicy.accountGrantById.values(),
-                                        grant =>
-                                            !hasTaskCollectionAccessLevel(grant.level, "Manage"),
+                                        grant => !hasAccessLevel(grant.level, "Manage"),
                                     ) &&
                                     (collectionAction.accessPolicy.defaultGrant?.type !== "Space" ||
-                                        !hasTaskCollectionAccessLevel(
+                                        !hasAccessLevel(
                                             collectionAction.accessPolicy.defaultGrant.level,
                                             "Manage",
                                         ))
@@ -3618,8 +3617,8 @@ async function evaluateTaskCollectionAccessPolicy(
     }>,
     accountId: AccountId,
     spaceId: SpaceId,
-    accessPolicy: TaskCollectionAccessPolicy,
-    expectedAccessLevel: TaskCollectionAccessLevel,
+    accessPolicy: AccessPolicy,
+    expectedAccessLevel: AccessLevel,
 ): Promise<boolean> {
     if (accessPolicy.defaultGrant) {
         // If we ever add other default grant types then TypeScript will error here
@@ -3628,14 +3627,14 @@ async function evaluateTaskCollectionAccessPolicy(
 
         if (
             (await isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId)) &&
-            hasTaskCollectionAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
+            hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
         ) {
             return true;
         }
     }
 
     const accountGrant = accessPolicy.accountGrantById.get(accountId);
-    if (accountGrant && hasTaskCollectionAccessLevel(accountGrant.level, expectedAccessLevel)) {
+    if (accountGrant && hasAccessLevel(accountGrant.level, expectedAccessLevel)) {
         return true;
     }
 
@@ -3651,7 +3650,7 @@ async function isTaskCollectionItemAccessAuthorized(
     }>,
     accountId: AccountId,
     collectionItem: TaskCollectionEssentialAttributesItemBase,
-    expectedAccessLevel: TaskCollectionAccessLevel,
+    expectedAccessLevel: AccessLevel,
 ) {
     const isAuthorized = await isTaskCollectionItemAccessAuthorizedAllowingDeletedTasks(
         context,
@@ -3664,7 +3663,7 @@ async function isTaskCollectionItemAccessAuthorized(
     // deleted then you don't have edit access anymore but you can still view the
     // collection.
     if (isTaskCollectionItemDeleted(collectionItem) && isAuthorized) {
-        return hasTaskCollectionAccessLevel("View", expectedAccessLevel);
+        return hasAccessLevel("View", expectedAccessLevel);
     }
 
     return isAuthorized;
@@ -3679,7 +3678,7 @@ async function isTaskCollectionItemAccessAuthorizedAllowingDeletedTasks(
     }>,
     accountId: AccountId,
     collectionItem: TaskCollectionEssentialAttributesItemBase,
-    expectedAccessLevel: TaskCollectionAccessLevel,
+    expectedAccessLevel: AccessLevel,
 ) {
     // Check that the account has access to the space the collection is in.
     if (
@@ -3713,7 +3712,7 @@ async function isTaskCollectionItemAccessAuthorizedAllowingDeletedTasks(
 export async function authorizeTaskCollectionAccess(
     context: ServerSessionActionContext,
     collectionId: TaskCollectionId,
-    expectedAccessLevel: TaskCollectionAccessLevel,
+    expectedAccessLevel: AccessLevel,
     loaders: {
         getCollectionIndexDocIfExists: (
             taskId: TaskCollectionId,
@@ -3784,7 +3783,7 @@ export function isTaskCollectionIndexDocAccessAuthorized(
     }>,
     accountId: AccountId,
     collectionIndexDoc: TaskCollectionIndexDoc,
-    expectedAccessLevel: TaskCollectionAccessLevel,
+    expectedAccessLevel: AccessLevel,
 ): Promise<boolean> {
     return isTaskCollectionItemAccessAuthorized(
         context,
@@ -3803,7 +3802,7 @@ async function isTaskItemAccessAuthorized(
     }>,
     accountId: AccountId,
     taskItem: TaskEssentialAttributesItemBase,
-    expectedAccessLevel: TaskCollectionAccessLevel,
+    expectedAccessLevel: AccessLevel,
     loaders: {
         getTaskItem: (taskId: TaskId) => Promise<TaskEssentialAttributesItemBase>;
         getCollectionItem: (
@@ -3822,7 +3821,7 @@ async function isTaskItemAccessAuthorized(
     // If you were authorized to view, edit, whatever, but the task is deleted then
     // you don't have edit access anymore but you can still view the task.
     if (taskItem.deletedTime && isAuthorized) {
-        return hasTaskCollectionAccessLevel("View", expectedAccessLevel);
+        return hasAccessLevel("View", expectedAccessLevel);
     }
 
     return isAuthorized;
@@ -3837,7 +3836,7 @@ async function isTaskItemAccessAuthorizedAllowingDeletedTasks(
     }>,
     accountId: AccountId,
     taskItem: TaskEssentialAttributesItemBase,
-    expectedAccessLevel: TaskCollectionAccessLevel,
+    expectedAccessLevel: AccessLevel,
     loaders: {
         getTaskItem: (taskId: TaskId) => Promise<TaskEssentialAttributesItemBase>;
         getCollectionItem: (
@@ -3851,10 +3850,7 @@ async function isTaskItemAccessAuthorizedAllowingDeletedTasks(
     }
 
     // The task creator has edit access level on their own task.
-    if (
-        accountId === taskItem.creatorId &&
-        hasTaskCollectionAccessLevel("Edit", expectedAccessLevel)
-    ) {
+    if (accountId === taskItem.creatorId && hasAccessLevel("Edit", expectedAccessLevel)) {
         return true;
     }
 
@@ -3862,7 +3858,7 @@ async function isTaskItemAccessAuthorizedAllowingDeletedTasks(
     if (
         taskItem.assigneeId.value &&
         accountId === taskItem.assigneeId.value &&
-        hasTaskCollectionAccessLevel("Edit", expectedAccessLevel)
+        hasAccessLevel("Edit", expectedAccessLevel)
     ) {
         return true;
     }
@@ -3925,7 +3921,7 @@ async function isTaskItemAccessAuthorizedAllowingDeletedTasks(
 async function isTaskAccessAuthorized(
     context: ServerSessionActionContext,
     taskId: TaskId,
-    expectedAccessLevel: TaskCollectionAccessLevel,
+    expectedAccessLevel: AccessLevel,
     loaders: {
         getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined;
         getCollectionIndexDocIfExists: (
@@ -3964,7 +3960,7 @@ async function isTaskAccessAuthorized(
 export async function authorizeTaskAccess(
     context: ServerActionContext,
     taskId: TaskId,
-    expectedAccessLevel: TaskCollectionAccessLevel,
+    expectedAccessLevel: AccessLevel,
     loaders: {
         getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined;
         getCollectionIndexDocIfExists: (
@@ -4008,7 +4004,7 @@ export async function authorizeTaskAccess(
 async function authorizeTaskAccessAndGetCommentsSummaryItem(
     context: ServerActionContext,
     taskId: TaskId,
-    expectedAccessLevel: TaskCollectionAccessLevel,
+    expectedAccessLevel: AccessLevel,
     consistency?: DynamoReadConsistency,
 ): Promise<{
     item: TaskEssentialAttributesItem;
@@ -4103,7 +4099,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
 async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
     context: ServerActionContext,
     taskId: TaskId,
-    expectedAccessLevel: TaskCollectionAccessLevel,
+    expectedAccessLevel: AccessLevel,
     process: (options: {
         spaceId: SpaceId;
         createdTime: HybridLogicalTime;
@@ -4223,7 +4219,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
 async function authorizeTaskItemAccess(
     context: ServerSessionActionContext,
     taskItem: TaskEssentialAttributesItem,
-    expectedAccessLevel: TaskCollectionAccessLevel,
+    expectedAccessLevel: AccessLevel,
     loaders: {
         getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined;
         getCollectionIndexDocIfExists: (
@@ -5376,11 +5372,11 @@ async function queryTaskCommentChangeLogAssumingAuthorizedTask(
 
 function getTaskItemPermissionDeniedErrorDisplayMessage(
     taskItem: TaskEssentialAttributesItemBase,
-    expectedAccessLevel: TaskCollectionAccessLevel,
+    expectedAccessLevel: AccessLevel,
 ) {
     // If the user can't view a deleted task it's because they don't have view
     // access. If a task is deleted, you can still view it but you can't edit it.
-    if (taskItem.deletedTime && hasTaskCollectionAccessLevel(expectedAccessLevel, "Edit")) {
+    if (taskItem.deletedTime && hasAccessLevel(expectedAccessLevel, "Edit")) {
         // TODO(calebmer): In the future we should have some kind of task trash
         // feature. When we add trash we should direct the user to restore tasks from
         // their trash in the "hint" part of the error message.
@@ -5392,14 +5388,14 @@ function getTaskItemPermissionDeniedErrorDisplayMessage(
 
 function getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
     collectionItem: TaskCollectionEssentialAttributesItemBase,
-    expectedAccessLevel: TaskCollectionAccessLevel,
+    expectedAccessLevel: AccessLevel,
 ) {
     // If the user can't view a deleted collection it's because they don't have
     // view access. If a task is deleted, you can still view it but you can't
     // edit it.
     if (
         isTaskCollectionItemDeleted(collectionItem) &&
-        hasTaskCollectionAccessLevel(expectedAccessLevel, "Edit")
+        hasAccessLevel(expectedAccessLevel, "Edit")
     ) {
         // TODO(calebmer): In the future we should have some kind of task trash
         // feature. When we add trash we should direct the user to restore tasks from
@@ -5448,7 +5444,7 @@ export function isTaskIndexDocAccessAuthorized(
     }>,
     accountId: AccountId,
     taskIndexDoc: TaskIndexDoc,
-    expectedAccessLevel: TaskCollectionAccessLevel,
+    expectedAccessLevel: AccessLevel,
     loaders: {
         getTaskIndexDoc: (taskId: TaskId) => Promise<TaskIndexDoc>;
         getCollectionIndexDoc: (taskId: TaskCollectionId) => Promise<TaskCollectionIndexDoc>;

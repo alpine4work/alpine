@@ -69,6 +69,7 @@ ts_project(
         "//server/search/data/table",
         "//server/spaces",
         "//server/tasks/router",
+        "//shared/access",
         "//shared/context",
         "//shared/crdt",
         "//shared/design",

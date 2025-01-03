@@ -17,6 +17,7 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {AccessLevel} from "~/shared/access/access_policy.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -24,7 +25,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchEntityId} from "~/shared/search/search_entity_id.js";
-import {TaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 
 beforeEach(() => {
@@ -1143,7 +1143,7 @@ test("will not allow users to view task comments they do not have access to", as
     await privateTask.updateAssignee(creatorSession, assigneeSession);
 
     await privateCollection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
             [manageSession.account.id, {level: "Manage"}],
             [editorSession.account.id, {level: "Edit"}],
@@ -1281,7 +1281,7 @@ test("will not allow users to view task comments they do not have access to afte
     ];
 
     await privateCollection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
@@ -1330,7 +1330,7 @@ test("will not allow users to view task comments they do not have access to afte
     ]);
 
     await privateCollection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
             [commenterSession.account.id, {level: "View"}],
             [viewerSession.account.id, {level: "Comment"}],
@@ -1394,7 +1394,7 @@ test("will not allow users to view task comments they do not have access to when
     ];
 
     await privateCollection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
         ]),
         defaultGrant: {type: "Space", level: "View"},
@@ -1432,7 +1432,7 @@ test("will not allow users to view task comments they do not have access to when
     ]);
 
     await privateCollection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
         ]),
         defaultGrant: {type: "Space", level: "Comment"},

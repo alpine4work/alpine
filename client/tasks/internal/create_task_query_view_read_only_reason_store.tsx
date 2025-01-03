@@ -7,11 +7,11 @@ import {
     getTaskCollectionEntryAccess,
 } from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {createTaskQueryCollectionsFilterCollectionResultsStore} from "~/client/tasks/internal/create_task_query_collections_filter_collection_results_store.js";
+import {hasAccessLevel} from "~/shared/access/access_policy.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
-import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 
@@ -68,7 +68,7 @@ export function createTaskQueryViewReadOnlyReasonStore({
                     if (lowestAccess.type === "PermissionDenied") break;
                     if (lowestAccess.type === "Deleted") break;
 
-                    if (!hasTaskCollectionAccessLevel(access.level, lowestAccess.level)) {
+                    if (!hasAccessLevel(access.level, lowestAccess.level)) {
                         lowestAccess = access;
                     }
                     break;
@@ -99,7 +99,7 @@ export function createTaskQueryViewReadOnlyReasonStore({
                 };
             }
             case "PermissionGranted": {
-                if (hasTaskCollectionAccessLevel(access.level, "Edit")) return null;
+                if (hasAccessLevel(access.level, "Edit")) return null;
 
                 // TODO(calebmer): If the user removed their own access by removing a
                 // collection or changing the assignee, we should hint to them that they're

@@ -92,6 +92,7 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
+import {hasAccessLevel} from "~/shared/access/access_policy.js";
 import {Context} from "~/shared/context/context.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
@@ -108,7 +109,6 @@ import {
     emptyTaskTitleModel,
     taskFallbackTitle,
 } from "~/shared/tasks/model/task_title_model.js";
-import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
@@ -176,7 +176,7 @@ export function TaskDetailView({
                             };
                         }
                         case "PermissionGranted": {
-                            if (hasTaskCollectionAccessLevel(access.level, "Edit")) return null;
+                            if (hasAccessLevel(access.level, "Edit")) return null;
 
                             // TODO(calebmer): If the user removed their own access by removing a
                             // collection or changing the assignee, we should hint to them that they're

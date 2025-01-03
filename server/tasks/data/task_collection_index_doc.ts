@@ -16,6 +16,7 @@ import {
     HybridLogicalTimeType,
     SortableHybridLogicalTimeType,
 } from "~/server/tasks/data/internal/hybrid_logical_time_type.js";
+import {AccessPolicyRegister, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
@@ -23,10 +24,6 @@ import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_inter
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
-import {
-    TaskCollectionAccessPolicyRegister,
-    TaskCollectionAccessPolicySchema,
-} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 
 const TaskCollectionNameType = createCrdtRegisterOpensearchType(
@@ -77,9 +74,9 @@ const TaskCollectionColorType = createCrdtRegisterOpensearchType(
         .nullable(),
 );
 
-const TaskCollectionAccessPolicyType = createCrdtRegisterOpensearchType(
-    TaskCollectionAccessPolicyRegister,
-    new OpensearchIndexIgnoredObjectType(TaskCollectionAccessPolicySchema),
+const AccessPolicyType = createCrdtRegisterOpensearchType(
+    AccessPolicyRegister,
+    new OpensearchIndexIgnoredObjectType(AccessPolicySchema),
 );
 
 /**
@@ -129,7 +126,7 @@ export const TaskCollectionIndexDocType = OpensearchIndexObjectType.new({
 
         name: TaskCollectionNameType,
         color: TaskCollectionColorType,
-        accessPolicy: TaskCollectionAccessPolicyType,
+        accessPolicy: AccessPolicyType,
     },
     computed: {
         fields: {

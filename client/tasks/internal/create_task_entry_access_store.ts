@@ -5,19 +5,16 @@ import {
     TaskClientStoreTaskEntry,
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
+import {AccessLevel, maxAccessLevel} from "~/shared/access/access_policy.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
-import {
-    TaskCollectionAccessLevel,
-    maxTaskCollectionAccessLevel,
-} from "~/shared/tasks/task_collection_access_policy.js";
 
 export type TaskAccess =
     | {readonly type: "Deleted"}
-    | {readonly type: "PermissionGranted"; readonly level: TaskCollectionAccessLevel}
+    | {readonly type: "PermissionGranted"; readonly level: AccessLevel}
     | {readonly type: "PermissionDenied"};
 
 // Used to intern `TaskAccess` objects. Since there are only a small number of
@@ -89,7 +86,7 @@ export function computeTaskEntryAccess(
             return {type: "PermissionGranted", level: "Edit"};
         }
 
-        const accessLevels: Array<TaskCollectionAccessLevel> = [];
+        const accessLevels: Array<AccessLevel> = [];
 
         // We inherit the highest access level of our collections.
         for (const {collectionId} of taskEntry.task.getCollections().getArray()) {
@@ -123,7 +120,7 @@ export function computeTaskEntryAccess(
 
         return {
             type: "PermissionGranted",
-            level: accessLevels.slice(1).reduce(maxTaskCollectionAccessLevel, accessLevels[0]!),
+            level: accessLevels.slice(1).reduce(maxAccessLevel, accessLevels[0]!),
         };
     };
 
@@ -171,7 +168,7 @@ function computeTaskCollectionEntryAccess(
 
     const accessPolicy = collectionEntry.collection.getAccessPolicy();
 
-    const accessLevels: Array<TaskCollectionAccessLevel> = [];
+    const accessLevels: Array<AccessLevel> = [];
 
     if (accessPolicy.defaultGrant) {
         // If we ever add other default grant types then TypeScript will error here
@@ -192,6 +189,6 @@ function computeTaskCollectionEntryAccess(
 
     return {
         type: "PermissionGranted",
-        level: accessLevels.slice(1).reduce(maxTaskCollectionAccessLevel, accessLevels[0]!),
+        level: accessLevels.slice(1).reduce(maxAccessLevel, accessLevels[0]!),
     };
 }

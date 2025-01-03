@@ -25,6 +25,7 @@ import {
     TaskRealtimeTaskSubscriptionCallbacks,
 } from "~/server/tasks/realtime/task_realtime_task_subscription.js";
 import {TaskRealtimeUpdateEventBuilderBase} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
+import {AccessLevel} from "~/shared/access/access_policy.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -39,7 +40,6 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {TaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
@@ -556,7 +556,7 @@ export class TaskRealtimeServer {
         context: ServerSessionActionContext,
         spaceId: SpaceId,
         taskId: TaskId,
-        expectedAccessLevel: TaskCollectionAccessLevel,
+        expectedAccessLevel: AccessLevel,
     ) {
         await runAllPromises([
             // Authorize space access in parallel...
@@ -582,7 +582,7 @@ export class TaskRealtimeServer {
         context: ServerSessionActionContext,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
-        expectedAccessLevel: TaskCollectionAccessLevel,
+        expectedAccessLevel: AccessLevel,
     ) {
         await runAllPromises([
             // Authorize space access in parallel...

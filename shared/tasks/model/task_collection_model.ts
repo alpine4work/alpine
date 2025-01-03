@@ -1,3 +1,4 @@
+import {AccessPolicyRegister} from "~/shared/access/access_policy.js";
 import {InternalError} from "~/shared/error/error.js";
 import {
     HybridLogicalClock,
@@ -12,7 +13,6 @@ import {TaskCollectionCreateAction} from "~/shared/tasks/actions/task_collection
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {applyTaskCollectionActionToCollectionModelData} from "~/shared/tasks/model/apply_task_collection_action_to_collection_model_data.js";
 import {mergeTaskCollectionModelData} from "~/shared/tasks/model/merge_task_collection_model_data.js";
-import {TaskCollectionAccessPolicyRegister} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 
 export type TaskCollectionModelData = SchemaType<typeof TaskCollectionModelDataSchema>;
@@ -28,7 +28,7 @@ const TaskCollectionModelDataSchema = Schema.object({
 
     name: LabelStringRegister.schema,
     color: TaskCollectionColorRegister.schema,
-    accessPolicy: TaskCollectionAccessPolicyRegister.schema,
+    accessPolicy: AccessPolicyRegister.schema,
 });
 
 // Doesn't use the `Model` class since `rawData` contains "raw" properties
@@ -63,7 +63,7 @@ export class TaskCollectionModel {
             undeletedTime: null,
             name: new LabelStringRegister(action.name, actionTime),
             color: new TaskCollectionColorRegister(null, actionTime),
-            accessPolicy: new TaskCollectionAccessPolicyRegister(action.accessPolicy, actionTime),
+            accessPolicy: new AccessPolicyRegister(action.accessPolicy, actionTime),
         });
     }
 

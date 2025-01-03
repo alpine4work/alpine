@@ -10,14 +10,11 @@ import {
     getTaskCollectionItemForTest,
 } from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
-import {
-    TaskCollectionAccessLevel,
-    TaskCollectionAccessPolicy,
-} from "~/shared/tasks/task_collection_access_policy.js";
 
 let testTaskCollectionCount = 1;
 
@@ -67,7 +64,7 @@ export class TestTaskCollection {
                     creatorId: session.account.id,
                     name,
                     accessPolicy: {
-                        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+                        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
                             [session.account.id, {level: "Manage"}],
                             ...otherGrantedAccounts.map(
                                 account =>
@@ -174,10 +171,7 @@ export class TestTaskCollection {
         ]);
     }
 
-    public async updateAccessPolicy(
-        session: TestSpaceSession,
-        accessPolicy: TaskCollectionAccessPolicy,
-    ) {
+    public async updateAccessPolicy(session: TestSpaceSession, accessPolicy: AccessPolicy) {
         await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
             {
                 type: "UpdateCollection",
@@ -207,7 +201,7 @@ export class TestTaskCollection {
                 collectionAction: {
                     type: "UpdateAccessPolicy",
                     accessPolicy: {
-                        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+                        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
                             [session.account.id, {level: "Manage"}],
                             ...otherGrantedAccounts.map(
                                 account =>

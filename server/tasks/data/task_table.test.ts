@@ -43,6 +43,7 @@ import {
 } from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {AccessLevel} from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {
@@ -73,7 +74,6 @@ import {
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
-import {TaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {
@@ -228,7 +228,7 @@ describe("old style", () => {
     async function createPublicTask(
         session: TestSessionItem,
         spaceId: SpaceId,
-        level: TaskCollectionAccessLevel = "Edit",
+        level: AccessLevel = "Edit",
     ) {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
@@ -18484,7 +18484,7 @@ test("throws error for users that only have view access when trying to access ta
     const collection = await TestTaskCollection.createPrivate(creatorSession);
 
     await collection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
             [manageSession.account.id, {level: "Manage"}],
             [editorSession.account.id, {level: "Edit"}],
@@ -18588,7 +18588,7 @@ test("throws error for users that only have view access when trying to create ta
     await task.addCollection(creatorSession, collection);
 
     await collection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
             [manageSession.account.id, {level: "Manage"}],
             [editorSession.account.id, {level: "Edit"}],
@@ -18723,7 +18723,7 @@ test("throws error for users that only have view access when trying to update ta
     ).resolves.not.toBeNull();
 
     await collection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
             [manageSession.account.id, {level: "Manage"}],
             [editorSession.account.id, {level: "Edit"}],
@@ -18844,7 +18844,7 @@ test("throws error for users that only have view access when trying to delete ta
     const assigneeTaskComment = await task.createComment(assigneeSession, "test1");
 
     await collection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
             [manageSession.account.id, {level: "Manage"}],
             [editorSession.account.id, {level: "Edit"}],
@@ -18930,7 +18930,7 @@ test("throws error for users that only have view access when trying to get task 
     await task.createComment(creatorSession, "test3");
 
     await collection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
             [manageSession.account.id, {level: "Manage"}],
             [editorSession.account.id, {level: "Edit"}],
@@ -19037,7 +19037,7 @@ test("throws error for users that only have view access when trying to get task 
     await task.createComment(creatorSession, "test3");
 
     await collection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
             [manageSession.account.id, {level: "Manage"}],
             [editorSession.account.id, {level: "Edit"}],
@@ -19144,7 +19144,7 @@ test("throws error for users that only have view access when trying to get initi
     await task.createComment(creatorSession, "test3");
 
     await collection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
             [manageSession.account.id, {level: "Manage"}],
             [editorSession.account.id, {level: "Edit"}],
@@ -19239,7 +19239,7 @@ test("throws error for users that only have view access when trying to get task 
     await task.createComment(manageSession, "test1");
 
     await collection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
             [manageSession.account.id, {level: "Manage"}],
             [editorSession.account.id, {level: "Edit"}],
@@ -19385,7 +19385,7 @@ test("throws error for users without proper access trying to get the Task Owner"
     await task.addCollection(creatorSession, collection);
 
     await collection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
             [manageSession.account.id, {level: "Manage"}],
             [editorSession.account.id, {level: "Edit"}],
