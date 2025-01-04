@@ -4851,6 +4851,7 @@ class ContentEditorFileDragState {
                 event.dataTransfer.types,
                 type => type === "Files" || type === "application/x.alpine.file",
             );
+
         if (!isDraggingFile) return null;
 
         const state = new ContentEditorFileDragState(event.clientX, event.clientY, view, options);

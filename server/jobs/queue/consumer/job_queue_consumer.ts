@@ -211,8 +211,8 @@ export class JobQueueConsumer<
         }
 
         assert(
-            queueUrl.endsWith(`/${this._sqsQueueName}`),
-            quote`Expected queue URL ${queueUrl} to end with ${this._sqsQueueName}`,
+            queueUrl.includes(this._sqsQueueName),
+            quote`Expected queue URL ${queueUrl} to include ${this._sqsQueueName}`,
         );
 
         this._queueUrl = queueUrl;
