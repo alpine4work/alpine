@@ -17,6 +17,7 @@ import {
 } from "~/client/content/internal/content_editor_keymap_plugin.js";
 import {contentTableColumnResizingPlugin} from "~/client/content/internal/table/content_table_column_resizing_plugin.js";
 import {contentTableEditingPlugin} from "~/client/content/internal/table/content_table_editing_plugin.js";
+import {contentTableGripPlugin} from "~/client/content/internal/table/content_table_grip_plugin.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {
@@ -72,6 +73,9 @@ function buildPlugins<Content extends ContentWithReferences>({
             // out-of-sync with our rendering component.
             depth: disableUndoKeyboardShortcuts ? Number.MAX_SAFE_INTEGER : undefined,
         }),
+        contentTableEditingPlugin({allowTableNodeSelection: true}),
+        contentTableColumnResizingPlugin(),
+        contentTableGripPlugin({isEditable: true}),
         buildContentEditorInputRulesPlugin(schema),
         buildContentEditorKeymapPlugin(schema, {disableUndoKeyboardShortcuts}),
         contentEditorFloaterStatePlugin(),
@@ -82,8 +86,6 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorRememberPosWhileLoadingPlugin(),
         contentEditorCodeBlockPlugin(),
         sharedContentEditorTrackSelectionWithinPlugin(),
-        contentTableEditingPlugin({allowTableNodeSelection: true}),
-        contentTableColumnResizingPlugin(),
     ];
 
     return plugins;

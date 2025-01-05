@@ -2060,6 +2060,8 @@ globalStyle(tableWrapper2ClassName, {
     width: `calc(100% + ${tableInnerPaddingXDoubled})`,
     marginLeft: `-${tableInnerPaddingX}`,
     marginRight: `-${tableInnerPaddingX}`,
+    paddingTop: spacing[8],
+    paddingBottom: spacing[8],
 });
 
 globalStyle(tableWrapper3ClassName, {
@@ -2227,3 +2229,185 @@ createChildSelectors("first").forEach(selector => globalStyle(selector, {marginT
 
 // Make sure the last child in our document never has bottom margin.
 createChildSelectors("last").forEach(selector => globalStyle(selector, {marginBottom: 0}));
+
+// Style for button
+globalStyle(`${tableWrapperClassName} button`, {
+    backgroundColor: colorSchemeVars["theme-selection"],
+    border: `1px solid ${colorSchemeVars["theme-60"]}`,
+    padding: `${spacing[0.5]} ${spacing[1]}`,
+    cursor: "pointer",
+});
+
+export const addNewRowButtonClassName = style({
+    height: spacing[3],
+});
+
+export const addNewColumnButtonClassName = style({
+    width: spacing[3],
+});
+
+export const selectTableButtonClassName = style({
+    backgroundColor: colorSchemeVars["theme-selection"],
+    position: "absolute",
+    // Adjust positioning to be outside the table
+    top: "12px",
+    left: "12px",
+    zIndex: "10",
+
+    // Match grip styling
+    width: spacing[3],
+    height: spacing[3],
+    padding: "4px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+
+    // Match grip styling
+    borderTopLeftRadius: borderRadius["0.5"],
+    cursor: "pointer",
+    opacity: "0",
+    transition: "opacity 0.2s",
+});
+
+export const selectRowButtonClassName = style({
+    backgroundColor: colorSchemeVars["theme-selection"],
+    border: "none",
+    padding: "4px 8px",
+    cursor: "pointer",
+    opacity: "0",
+    transition: "opacity 0.2s",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: colorSchemeVars["grey-70"],
+});
+
+export const gripColumnClassName = style({
+    width: "calc(100% + 1px)",
+    borderLeft: `1px solid rgba(0, 0, 0, 0.2)`,
+    height: spacing[4],
+    left: 0,
+    marginLeft: "-1px",
+    top: `-${spacing[4]}`,
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    cursor: "pointer",
+    display: "flex",
+    justifyContent: "center",
+    position: "absolute",
+    zIndex: 11,
+});
+
+globalStyle(`${darkColorSchemeSelector} .${gripColumnClassName}`, {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(255, 255, 255, 0.2)",
+});
+
+globalStyle(`.${gripColumnClassName}:hover`, {
+    backgroundColor: "rgba(0, 0, 0, 0.1)",
+});
+
+globalStyle(`.${gripColumnClassName}:hover::before`, {
+    content: "''",
+    width: spacing[2.5],
+    borderBottom: `2px dotted rgba(0, 0, 0, 0.6)`,
+});
+
+globalStyle(`${darkColorSchemeSelector} .${gripColumnClassName}:hover`, {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+});
+
+globalStyle(`${darkColorSchemeSelector} .${gripColumnClassName}:hover::before`, {
+    borderColor: "rgba(255, 255, 255, 0.6)",
+});
+
+globalStyle(`.${gripColumnClassName}.first`, {
+    borderColor: "transparent",
+    borderTopLeftRadius: borderRadius["0.5"],
+});
+
+globalStyle(`.${gripColumnClassName}.last`, {
+    borderTopRightRadius: borderRadius["0.5"],
+});
+
+globalStyle(`.${gripColumnClassName}.selected`, {
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    borderColor: "rgba(0, 0, 0, 0.3)",
+    boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+});
+
+globalStyle(`.${gripColumnClassName}.selected::before`, {
+    content: "''",
+    width: spacing[2.5],
+    borderBottom: "2px dotted",
+});
+
+globalStyle(`${darkColorSchemeSelector} .${gripColumnClassName}.selected`, {
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    borderColor: "rgba(255, 255, 255, 0.3)",
+});
+
+export const gripRowClassName = style({
+    height: "calc(100% + 1px)",
+    borderTop: `1px solid rgba(0, 0, 0, 0.2)`,
+    left: `-${spacing[4]}`,
+    width: spacing[4],
+    top: 0,
+    marginTop: "-1px",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    cursor: "pointer",
+    display: "flex",
+    justifyContent: "center",
+    position: "absolute",
+    zIndex: 11,
+});
+
+globalStyle(`${darkColorSchemeSelector} .${gripRowClassName}`, {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(255, 255, 255, 0.2)",
+});
+
+globalStyle(`.${gripRowClassName}:hover`, {
+    backgroundColor: "rgba(0, 0, 0, 0.1)",
+});
+
+globalStyle(`.${gripRowClassName}:hover::before`, {
+    content: "''",
+    height: spacing[2.5],
+    borderLeft: `2px dotted rgba(0, 0, 0, 0.6)`,
+});
+
+globalStyle(`${darkColorSchemeSelector} .${gripRowClassName}:hover`, {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+});
+
+globalStyle(`${darkColorSchemeSelector} .${gripRowClassName}:hover::before`, {
+    borderColor: "rgba(255, 255, 255, 0.6)",
+});
+
+globalStyle(`.${gripRowClassName}.first`, {
+    borderColor: "transparent",
+    borderTopLeftRadius: borderRadius["0.5"],
+});
+
+globalStyle(`.${gripRowClassName}.last`, {
+    borderBottomLeftRadius: borderRadius["0.5"],
+});
+
+globalStyle(`.${gripRowClassName}.selected`, {
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    borderColor: "rgba(0, 0, 0, 0.3)",
+    boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+});
+
+globalStyle(`.${gripRowClassName}.selected::before`, {
+    content: "''",
+    height: spacing[2.5],
+    borderLeft: "2px dotted",
+});
+
+globalStyle(`${darkColorSchemeSelector} .${gripRowClassName}.selected`, {
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    borderColor: "rgba(255, 255, 255, 0.3)",
+});

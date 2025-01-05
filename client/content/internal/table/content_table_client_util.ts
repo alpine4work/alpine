@@ -30,7 +30,7 @@
 // Various helper function for working with tables
 
 import {Node, ResolvedPos} from "prosemirror-model";
-import {EditorState, NodeSelection, PluginKey} from "prosemirror-state";
+import {EditorState, NodeSelection, PluginKey, Selection, Transaction} from "prosemirror-state";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 
@@ -216,3 +216,224 @@ export function getContentTableColumnWidths(table: Node): ReadonlyArray<number> 
 
     return columnWidths;
 }
+
+export const isColumnSelected = (columnIndex: number) => (selection: Selection) => {
+    if (isCellSelection(selection)) {
+        const map = ContentTableMap.get(selection.$anchorCell.node(-1));
+
+        return isRectSelected({
+            left: columnIndex,
+            right: columnIndex + 1,
+            top: 0,
+            bottom: map.height,
+        })(selection);
+    }
+
+    return false;
+};
+
+export const getCellsInRow = (rowIndex: number | Array<number>) => (selection: Selection) => {
+    const table = findTable(selection);
+
+    if (table) {
+        const map = ContentTableMap.get(table.node);
+        const indexes = Array.isArray(rowIndex) ? rowIndex : Array.from([rowIndex]);
+
+        return indexes.reduce((acc, index) => {
+            if (index >= 0 && index <= map.height - 1) {
+                const cells = map.cellsInRect({
+                    left: 0,
+                    right: map.width,
+                    top: index,
+                    bottom: index + 1,
+                });
+
+                return acc.concat(
+                    cells.map(nodePos => {
+                        const node = table.node.nodeAt(nodePos);
+                        const pos = nodePos + table.start;
+                        return {pos, start: pos + 1, node};
+                    }),
+                );
+            }
+
+            return acc;
+        }, [] as Array<{pos: number; start: number; node: Node | null | undefined}>);
+    }
+
+    return null;
+};
+export const getCellsInColumn = (columnIndex: number | Array<number>) => (selection: Selection) => {
+    const table = findTable(selection);
+    console.log("getCellsInColumn", table);
+    if (table) {
+        const map = ContentTableMap.get(table.node);
+        const indexes = Array.isArray(columnIndex) ? columnIndex : Array.from([columnIndex]);
+
+        return indexes.reduce((acc, index) => {
+            if (index >= 0 && index <= map.width - 1) {
+                const cells = map.cellsInRect({
+                    left: index,
+                    right: index + 1,
+                    top: 0,
+                    bottom: map.height,
+                });
+
+                return acc.concat(
+                    cells.map(nodePos => {
+                        const node = table.node.nodeAt(nodePos);
+                        const pos = nodePos + table.start;
+
+                        return {pos, start: pos + 1, node};
+                    }),
+                );
+            }
+
+            return acc;
+        }, [] as Array<{pos: number; start: number; node: Node | null | undefined}>);
+    }
+    return null;
+};
+
+export const findTable = (selection: Selection) =>
+    findParentNode(node => node.type.name === "table")(selection);
+
+export function findParentNode(predicate: Predicate) {
+    return (selection: Selection) => findParentNodeClosestToPos(selection.$from, predicate);
+}
+export type Predicate = (node: Node) => boolean;
+
+export function findParentNodeClosestToPos(
+    $pos: ResolvedPos,
+    predicate: Predicate,
+):
+    | {
+          pos: number;
+          start: number;
+          depth: number;
+          node: Node;
+      }
+    | undefined {
+    for (let i = $pos.depth; i > 0; i -= 1) {
+        const node = $pos.node(i);
+
+        if (predicate(node)) {
+            return {
+                pos: i > 0 ? $pos.before(i) : 0,
+                start: $pos.start(i),
+                depth: i,
+                node,
+            };
+        }
+    }
+}
+
+export const isRowSelected = (rowIndex: number) => (selection: Selection) => {
+    if (isCellSelection(selection)) {
+        const map = ContentTableMap.get(selection.$anchorCell.node(-1));
+
+        return isRectSelected({
+            left: 0,
+            right: map.width,
+            top: rowIndex,
+            bottom: rowIndex + 1,
+        })(selection);
+    }
+
+    return false;
+};
+
+export const isCellSelection = (selection: Selection): selection is ContentTableCellSelection =>
+    selection instanceof ContentTableCellSelection;
+
+export const isRectSelected = (rect: Rect) => (selection: ContentTableCellSelection) => {
+    const map = ContentTableMap.get(selection.$anchorCell.node(-1));
+    const start = selection.$anchorCell.start(-1);
+    const cells = map.cellsInRect(rect);
+    const selectedCells = map.cellsInRect(
+        map.rectBetween(selection.$anchorCell.pos - start, selection.$headCell.pos - start),
+    );
+
+    for (let i = 0, count = cells.length; i < count; i += 1) {
+        if (selectedCells.indexOf(cells[i]!) === -1) {
+            return false;
+        }
+    }
+
+    return true;
+};
+
+/**
+ * @public
+ */
+interface Rect {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+}
+
+const select = (type: "row" | "column") => (index: number) => (tr: Transaction) => {
+    const table = findTable(tr.selection);
+    const isRowSelection = type === "row";
+
+    if (table) {
+        const map = ContentTableMap.get(table.node);
+
+        // Check if the index is valid
+        if (index >= 0 && index < (isRowSelection ? map.height : map.width)) {
+            const left = isRowSelection ? 0 : index;
+            const top = isRowSelection ? index : 0;
+            const right = isRowSelection ? map.width : index + 1;
+            const bottom = isRowSelection ? index + 1 : map.height;
+
+            const cellsInFirstRow = map.cellsInRect({
+                left,
+                top,
+                right: isRowSelection ? right : left + 1,
+                bottom: isRowSelection ? top + 1 : bottom,
+            });
+
+            const cellsInLastRow =
+                bottom - top === 1
+                    ? cellsInFirstRow
+                    : map.cellsInRect({
+                          left: isRowSelection ? left : right - 1,
+                          top: isRowSelection ? bottom - 1 : top,
+                          right,
+                          bottom,
+                      });
+
+            const head = table.start + cellsInFirstRow[0]!;
+            const anchor = table.start + cellsInLastRow[cellsInLastRow.length - 1]!;
+            const $head = tr.doc.resolve(head);
+            const $anchor = tr.doc.resolve(anchor);
+
+            return tr.setSelection(new ContentTableCellSelection($anchor, $head));
+        }
+    }
+    return tr;
+};
+
+export const selectColumn = select("column");
+
+export const selectRow = select("row");
+
+export const selectTable = (tr: Transaction) => {
+    const table = findTable(tr.selection);
+
+    if (table) {
+        const {map} = ContentTableMap.get(table.node);
+
+        if (map && map.length) {
+            const head = table.start + map[0]!;
+            const anchor = table.start + map[map.length - 1]!;
+            const $head = tr.doc.resolve(head);
+            const $anchor = tr.doc.resolve(anchor);
+
+            return tr.setSelection(new ContentTableCellSelection($anchor, $head));
+        }
+    }
+
+    return tr;
+};
