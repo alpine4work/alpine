@@ -2411,3 +2411,39 @@ globalStyle(`${darkColorSchemeSelector} .${gripRowClassName}.selected`, {
     backgroundColor: "rgba(255, 255, 255, 0.3)",
     borderColor: "rgba(255, 255, 255, 0.3)",
 });
+
+export const tableAddColumnGripClassName = style({
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    right: "-24px", // Position it outside the table on the right
+    left: "auto", // Reset any left positioning
+    width: "24px", // Same width as column grip
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colorSchemeVars["grey-10"],
+    borderLeft: `1px solid ${colorSchemeVars["grey-20"]}`,
+    borderRight: `1px solid ${colorSchemeVars["grey-20"]}`,
+    fontSize: "16px",
+    color: colorSchemeVars["grey-60"],
+    ":hover": {
+        backgroundColor: colorSchemeVars["grey-20"],
+        color: colorSchemeVars["grey-100"],
+    },
+});
+
+export const tableAddColumnButtonClassName = style({
+    width: "16px",
+    height: "16px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "16px",
+    color: colorSchemeVars["grey-60"],
+    cursor: "pointer",
+    ":hover": {
+        color: colorSchemeVars["grey-100"],
+    },
+});

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import {Plugin, PluginKey} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {
@@ -8,6 +9,7 @@ import {
     selectColumn,
     selectRow,
 } from "~/client/content/internal/table/content_table_client_util.js";
+import {addContentTableColumnAfter} from "~/client/content/internal/table/content_table_commands.js";
 import {contentStyles} from "~/client/styles/styles.js";
 
 export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plugin => {
@@ -98,6 +100,50 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                             }),
                         );
                     });
+
+                    // Add column button after last column
+                    if (colCells.length > 0) {
+                        const lastCell = colCells[colCells.length - 1];
+                        if (lastCell) {
+                            // Calculate position after all columns
+                            const lastCellNode = state.doc.nodeAt(lastCell.pos);
+                            const addButtonPos = lastCell.pos + (lastCellNode?.nodeSize || 0);
+
+                            decorations.push(
+                                Decoration.widget(addButtonPos, () => {
+                                    const addColumnGrip = document.createElement("div");
+                                    addColumnGrip.className =
+                                        contentStyles.tableAddColumnGripClassName;
+                                    addColumnGrip.style.right = "-24px"; // Position it outside the table
+                                    addColumnGrip.style.left = "auto"; // Reset any left positioning
+                                    addColumnGrip.innerHTML = "+";
+                                    addColumnGrip.title = "Add column";
+
+                                    // Move the click handler to the grip itself
+                                    addColumnGrip.addEventListener("mousedown", event => {
+                                        event.preventDefault();
+                                        event.stopImmediatePropagation();
+                                        if (view) {
+                                            // Add column at the very end
+                                            addContentTableColumnAfter(view.state, view.dispatch);
+                                            // After adding, select the new last column
+                                            const newColCells = getCellsInRow(0)(
+                                                view.state.selection,
+                                            );
+                                            if (newColCells) {
+                                                const lastColumnIndex = newColCells.length - 1;
+                                                view.dispatch(
+                                                    selectColumn(lastColumnIndex)(view.state.tr),
+                                                );
+                                            }
+                                        }
+                                    });
+
+                                    return addColumnGrip;
+                                }),
+                            );
+                        }
+                    }
                 }
 
                 return DecorationSet.create(doc, decorations);

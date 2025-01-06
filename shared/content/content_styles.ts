@@ -105,3 +105,9 @@ export const tableWrapper2ClassName =
 
 export const tableWrapper3ClassName =
     process.env.NODE_ENV !== "production" ? "content_tableWrapper3" : "c_tw3";
+
+export const tableAddColumnGripClassName =
+    process.env.NODE_ENV !== "production" ? "content_tableAddColumnGrip" : "c_tacg";
+
+export const tableAddColumnButtonClassName =
+    process.env.NODE_ENV !== "production" ? "content_tableAddColumnButton" : "c_tacb";
