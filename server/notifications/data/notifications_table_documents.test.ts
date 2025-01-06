@@ -1,10 +1,10 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {AddMarkStep, ReplaceStep} from "prosemirror-transform";
 import {
-    createDocument,
     createDocumentComment,
     updateDocumentContent,
 } from "~/server/documents/data/documents_table.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     getInboxEntries,
@@ -106,13 +106,8 @@ for (const [currentProcessingType, processingMultiple] of [
                 scenario.session3.account.id,
             );
 
-            const document1 = await createDocument(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-            });
-
-            const document2 = await createDocument(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-            });
+            const document1 = await TestDocument.create(scenario.session1, {access: "public"});
+            const document2 = await TestDocument.create(scenario.session2, {access: "public"});
 
             await updateDocumentContent(context.action(scenario.session1), {
                 id: document1.id,
@@ -568,9 +563,7 @@ for (const [currentProcessingType, processingMultiple] of [
         test("mentioning a user in the initial comment thread creates a comment thread entry", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const document = await createDocument(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-            });
+            const document = await TestDocument.create(scenario.session1, {access: "public"});
 
             await updateDocumentContent(context.action(scenario.session1), {
                 id: document.id,
@@ -816,9 +809,7 @@ for (const [currentProcessingType, processingMultiple] of [
         test("replying creates an inbox entry for subscribers", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const document = await createDocument(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-            });
+            const document = await TestDocument.create(scenario.session1, {access: "public"});
 
             await updateDocumentContent(context.action(scenario.session1), {
                 id: document.id,
@@ -1205,9 +1196,7 @@ for (const [currentProcessingType, processingMultiple] of [
         test("comment notification events processed out of order result in the same latest comment", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const document = await createDocument(context.action(scenario.session3), {
-                spaceId: scenario.space.id,
-            });
+            const document = await TestDocument.create(scenario.session3, {access: "public"});
 
             await updateDocumentContent(context.action(scenario.session3), {
                 id: document.id,
@@ -1450,9 +1439,7 @@ for (const [currentProcessingType, processingMultiple] of [
         const session1 = await space.createSession({hasInternalAccess: true});
         const session2 = await space.createSession();
 
-        const document = await createDocument(session1.action(), {
-            spaceId: space.id,
-        });
+        const document = await TestDocument.create(session1, {access: "public"});
 
         await updateDocumentContent(session1.action(), {
             id: document.id,
