@@ -1,5 +1,6 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
+import {TestAccessPolicy} from "~/server/access/test_access_policy.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {OpensearchGetDocWithoutSourceCommand} from "~/server/opensearch/opensearch_client.js";
@@ -602,11 +603,11 @@ test(
             TestTask.create(session1, {title: "test"}),
             TestTask.create(session1, {title: "test"}),
             TestTask.create(session1, {title: "test"}),
-            TestTaskCollection.createPrivate(session1, {name: "test"}),
-            TestTaskCollection.createPublic(session1, {name: "test buzqux"}),
-            TestTaskCollection.createPrivate(session1, {
+            TestTaskCollection.create(session1, {name: "test"}),
+            TestTaskCollection.create(session1, {name: "test buzqux", access: "public"}),
+            TestTaskCollection.create(session1, {
                 name: "test",
-                otherGrantedAccounts: [session3.account],
+                access: TestAccessPolicy.private.with(session3),
             }),
         ]);
 
@@ -738,7 +739,7 @@ test(
             `TaskCollection:${sharedCollection.id}`,
         ]);
 
-        await sharedCollection.setPublicAccessPolicy(session1);
+        await sharedCollection.updateAccess(session1, "public");
 
         import.meta.jest.advanceTimersByTime(60 * 1000);
         await ProcessContextModule.waitForTestTasks();
@@ -800,9 +801,7 @@ test(
             `TaskCollection:${sharedCollection.id}`,
         ]);
 
-        await sharedCollection.setPrivateAccessPolicy(session1, {
-            otherGrantedAccounts: [session3.account],
-        });
+        await sharedCollection.updateAccess(session1, TestAccessPolicy.private.with(session3));
 
         import.meta.jest.advanceTimersByTime(60 * 1000);
         await ProcessContextModule.waitForTestTasks();
@@ -1126,8 +1125,8 @@ test("will not allow users to view task comments they do not have access to", as
     const [privateTask, publicTask, privateCollection, publicCollection] = await runAllPromises([
         TestTask.create(creatorSession, {title: "test1"}),
         TestTask.create(creatorSession, {title: "test2"}),
-        TestTaskCollection.createPrivate(creatorSession, {name: "private test session1"}),
-        TestTaskCollection.createPublic(creatorSession, {name: "public test session1"}),
+        TestTaskCollection.create(creatorSession, {name: "private test session1"}),
+        TestTaskCollection.create(creatorSession, {name: "public test session1", access: "public"}),
     ]);
 
     await runAllPromises([
@@ -1142,7 +1141,7 @@ test("will not allow users to view task comments they do not have access to", as
 
     await privateTask.updateAssignee(creatorSession, assigneeSession);
 
-    await privateCollection.updateAccessPolicy(creatorSession, {
+    await privateCollection.updateAccess(creatorSession, {
         accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
             [manageSession.account.id, {level: "Manage"}],
@@ -1257,8 +1256,8 @@ test("will not allow users to view task comments they do not have access to afte
     const [privateTask, publicTask, privateCollection, publicCollection] = await runAllPromises([
         TestTask.create(creatorSession, {title: "test1"}),
         TestTask.create(creatorSession, {title: "test2"}),
-        TestTaskCollection.createPrivate(creatorSession, {name: "private test session1"}),
-        TestTaskCollection.createPublic(creatorSession, {name: "public test session1"}),
+        TestTaskCollection.create(creatorSession, {name: "private test session1"}),
+        TestTaskCollection.create(creatorSession, {name: "public test session1", access: "public"}),
     ]);
 
     await runAllPromises([
@@ -1280,7 +1279,7 @@ test("will not allow users to view task comments they do not have access to afte
         `TaskComment:${publicTask.id}-0`,
     ];
 
-    await privateCollection.updateAccessPolicy(creatorSession, {
+    await privateCollection.updateAccess(creatorSession, {
         accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
             [commenterSession.account.id, {level: "Comment"}],
@@ -1329,7 +1328,7 @@ test("will not allow users to view task comments they do not have access to afte
         `TaskComment:${publicTask.id}-0`,
     ]);
 
-    await privateCollection.updateAccessPolicy(creatorSession, {
+    await privateCollection.updateAccess(creatorSession, {
         accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
             [commenterSession.account.id, {level: "View"}],
@@ -1370,8 +1369,8 @@ test("will not allow users to view task comments they do not have access to when
     const [privateTask, publicTask, privateCollection, publicCollection] = await runAllPromises([
         TestTask.create(creatorSession, {title: "test1"}),
         TestTask.create(creatorSession, {title: "test2"}),
-        TestTaskCollection.createPrivate(creatorSession, {name: "private test session1"}),
-        TestTaskCollection.createPublic(creatorSession, {name: "public test session1"}),
+        TestTaskCollection.create(creatorSession, {name: "private test session1"}),
+        TestTaskCollection.create(creatorSession, {name: "public test session1", access: "public"}),
     ]);
 
     await runAllPromises([
@@ -1393,7 +1392,7 @@ test("will not allow users to view task comments they do not have access to when
         `TaskComment:${publicTask.id}-0`,
     ];
 
-    await privateCollection.updateAccessPolicy(creatorSession, {
+    await privateCollection.updateAccess(creatorSession, {
         accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
         ]),
@@ -1431,7 +1430,7 @@ test("will not allow users to view task comments they do not have access to when
         `TaskComment:${publicTask.id}-0`,
     ]);
 
-    await privateCollection.updateAccessPolicy(creatorSession, {
+    await privateCollection.updateAccess(creatorSession, {
         accountGrantById: new Map<AccountId, {level: AccessLevel}>([
             [creatorSession.account.id, {level: "Manage"}],
         ]),
@@ -1779,12 +1778,12 @@ test("can get affinitive collections for an account", async () => {
 
     const [collection1, collection2, collection3, collection4, collection5, collection6] =
         await runAllPromises([
-            TestTaskCollection.createPrivate(session1),
-            TestTaskCollection.createPrivate(session1),
-            TestTaskCollection.createPublic(session1),
-            TestTaskCollection.createPrivate(session2),
-            TestTaskCollection.createPublic(session2),
-            TestTaskCollection.createPublic(session2),
+            TestTaskCollection.create(session1),
+            TestTaskCollection.create(session1),
+            TestTaskCollection.create(session1, {access: "public"}),
+            TestTaskCollection.create(session2),
+            TestTaskCollection.create(session2, {access: "public"}),
+            TestTaskCollection.create(session2, {access: "public"}),
         ]);
 
     for (let i = 0; i < 1; i++) {
@@ -1850,7 +1849,7 @@ test("can get affinitive collections for an account", async () => {
         ).map(({collection}) => collection.id),
     ).toEqual([collection6.id, collection5.id, collection2.id, collection3.id, collection1.id]);
 
-    await collection5.setPrivateAccessPolicy(session2);
+    await collection5.updateAccess(session2, "private");
 
     expect(
         (
@@ -1867,7 +1866,7 @@ test("can get affinitive collections for an account", async () => {
         ).map(({collection}) => collection.id),
     ).toEqual([collection6.id, collection2.id, collection3.id, collection1.id]);
 
-    await collection4.setPublicAccessPolicy(session2);
+    await collection4.updateAccess(session2, "public");
 
     expect(
         (
@@ -1898,11 +1897,11 @@ describe("getSearchEntity", () => {
         const session3 = await space.createSession();
         const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
-        const privateCollection = await TestTaskCollection.createPrivate(session1, {
-            otherGrantedAccounts: [session2],
+        const privateCollection = await TestTaskCollection.create(session1, {
+            access: TestAccessPolicy.private.with(session2),
         });
 
-        const publicCollection = await TestTaskCollection.createPublic(session1);
+        const publicCollection = await TestTaskCollection.create(session1, {access: "public"});
 
         const task1 = await TestTask.create(session2, {title: "Test Task 1"});
 
@@ -1997,13 +1996,14 @@ describe("getSearchEntity", () => {
         const session3 = await space.createSession();
         const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
-        const privateCollection = await TestTaskCollection.createPrivate(session1, {
+        const privateCollection = await TestTaskCollection.create(session1, {
             name: "Private Test Task Collection",
-            otherGrantedAccounts: [session2],
+            access: TestAccessPolicy.private.with(session2),
         });
 
-        const publicCollection = await TestTaskCollection.createPublic(session3, {
+        const publicCollection = await TestTaskCollection.create(session3, {
             name: "Public Test Task Collection",
+            access: "public",
         });
 
         await publicCollection.updateColor(session3, "purple");
@@ -2066,11 +2066,11 @@ describe("getSearchEntity", () => {
         const session3 = await space.createSession();
         const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
-        const privateCollection = await TestTaskCollection.createPrivate(session1, {
-            otherGrantedAccounts: [session2],
+        const privateCollection = await TestTaskCollection.create(session1, {
+            access: TestAccessPolicy.private.with(session2),
         });
 
-        const publicCollection = await TestTaskCollection.createPublic(session1);
+        const publicCollection = await TestTaskCollection.create(session1, {access: "public"});
 
         const task1 = await TestTask.create(session2, {title: "Test Task 1"});
 

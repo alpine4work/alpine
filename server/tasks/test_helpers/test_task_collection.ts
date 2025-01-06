@@ -1,7 +1,9 @@
+import {
+    TestAccessPolicyOption,
+    buildTestAccessPolicyOption,
+} from "~/server/access/test_access_policy.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
-import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {
@@ -10,11 +12,10 @@ import {
     getTaskCollectionItemForTest,
 } from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 
 let testTaskCollectionCount = 1;
 
@@ -40,14 +41,14 @@ export class TestTaskCollection {
         return `Test Collection ${testTaskCollectionCount++}`;
     }
 
-    public static async createPrivate(
+    public static async create(
         session: TestSpaceSession,
         {
             name = TestTaskCollection.getNewName(),
-            otherGrantedAccounts = [],
+            access = "private",
         }: {
             name?: string;
-            otherGrantedAccounts?: ReadonlyArray<TestSession | TestAccount>;
+            access?: TestAccessPolicyOption;
         } = {},
     ) {
         const id = generateId<TaskCollectionId>();
@@ -63,49 +64,7 @@ export class TestTaskCollection {
                     type: "Create",
                     creatorId: session.account.id,
                     name,
-                    accessPolicy: {
-                        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
-                            [session.account.id, {level: "Manage"}],
-                            ...otherGrantedAccounts.map(
-                                account =>
-                                    [
-                                        account instanceof TestSession
-                                            ? account.account.id
-                                            : account.id,
-                                        {level: "Edit"},
-                                    ] as const,
-                            ),
-                        ]),
-                        defaultGrant: null,
-                    },
-                },
-            },
-        ]);
-
-        return new TestTaskCollection(session.context, session.space, id, time);
-    }
-
-    public static async createPublic(
-        session: TestSpaceSession,
-        {name = TestTaskCollection.getNewName()}: {name?: string} = {},
-    ) {
-        const id = generateId<TaskCollectionId>();
-
-        const time = testClock.nowLogical();
-
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
-            {
-                type: "UpdateCollection",
-                time,
-                collectionId: id,
-                collectionAction: {
-                    type: "Create",
-                    creatorId: session.account.id,
-                    name,
-                    accessPolicy: {
-                        accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
-                    },
+                    accessPolicy: buildTestAccessPolicyOption(access, session.account.id),
                 },
             },
         ]);
@@ -171,7 +130,7 @@ export class TestTaskCollection {
         ]);
     }
 
-    public async updateAccessPolicy(session: TestSpaceSession, accessPolicy: AccessPolicy) {
+    public async updateAccess(session: TestSpaceSession, access: TestAccessPolicyOption) {
         await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
             {
                 type: "UpdateCollection",
@@ -179,59 +138,7 @@ export class TestTaskCollection {
                 collectionId: this.id,
                 collectionAction: {
                     type: "UpdateAccessPolicy",
-                    accessPolicy,
-                },
-            },
-        ]);
-    }
-
-    public async setPrivateAccessPolicy(
-        session: TestSpaceSession,
-        {
-            otherGrantedAccounts = [],
-        }: {
-            otherGrantedAccounts?: ReadonlyArray<TestSession | TestAccount>;
-        } = {},
-    ) {
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
-            {
-                type: "UpdateCollection",
-                time: testClock.nowLogical(),
-                collectionId: this.id,
-                collectionAction: {
-                    type: "UpdateAccessPolicy",
-                    accessPolicy: {
-                        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
-                            [session.account.id, {level: "Manage"}],
-                            ...otherGrantedAccounts.map(
-                                account =>
-                                    [
-                                        account instanceof TestSession
-                                            ? account.account.id
-                                            : account.id,
-                                        {level: "Edit"},
-                                    ] as const,
-                            ),
-                        ]),
-                        defaultGrant: null,
-                    },
-                },
-            },
-        ]);
-    }
-
-    public async setPublicAccessPolicy(session: TestSpaceSession) {
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
-            {
-                type: "UpdateCollection",
-                time: testClock.nowLogical(),
-                collectionId: this.id,
-                collectionAction: {
-                    type: "UpdateAccessPolicy",
-                    accessPolicy: {
-                        accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
-                    },
+                    accessPolicy: buildTestAccessPolicyOption(access, session.account.id),
                 },
             },
         ]);

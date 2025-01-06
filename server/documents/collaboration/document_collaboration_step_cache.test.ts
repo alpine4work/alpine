@@ -9,10 +9,7 @@ import {
 } from "~/server/documents/data/documents_table.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {
-    emptyDocumentContent,
-    DocumentContentProsemirrorSchema as schema,
-} from "~/shared/documents/document_content_schema.js";
+import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
 
@@ -30,10 +27,7 @@ function massageSteps(steps: Array<{step: Step}>) {
 }
 
 test("fails when the end version is greater than the last end version to be passed in", async () => {
-    const {id} = await createDocument(context.action(session), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const {id} = await createDocument(context.action(session), {spaceId: space.id});
 
     await updateDocumentContent(context.action(session), {
         id,
@@ -65,10 +59,7 @@ test("fails when the end version is greater than the last end version to be pass
 });
 
 test("gets the correct steps", async () => {
-    const {id} = await createDocument(context.action(session), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const {id} = await createDocument(context.action(session), {spaceId: space.id});
 
     await updateDocumentContent(context.action(session), {
         id,
@@ -129,10 +120,7 @@ test("gets the correct steps", async () => {
 });
 
 test("gets the correct steps in the fewest database reads", async () => {
-    const {id} = await createDocument(context.action(session), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const {id} = await createDocument(context.action(session), {spaceId: space.id});
 
     await updateDocumentContent(context.action(session), {
         id,
@@ -235,10 +223,7 @@ test("gets the correct steps in the fewest database reads", async () => {
 });
 
 test("gets the correct steps in the fewest database reads even when reading in parallel", async () => {
-    const {id} = await createDocument(context.action(session), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const {id} = await createDocument(context.action(session), {spaceId: space.id});
 
     await updateDocumentContent(context.action(session), {
         id,

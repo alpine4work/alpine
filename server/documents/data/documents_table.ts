@@ -1,6 +1,7 @@
 import {differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
+import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {
     getContentReferencesForNode,
     getMessageContentReferencesForNode,
@@ -35,7 +36,9 @@ import {
     authorizeSpaceAccess,
     getAccount,
     isAccountMemberOfSpace,
+    isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
+import {AccessLevel, AccessPolicy, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
@@ -45,8 +48,11 @@ import {
     DocumentContent,
     DocumentContentSchema,
     DocumentContentStepSchema,
-    UncheckedDocumentContentSchema,
-    emptyDocumentContent,
+    DocumentWithOptionalTitleContentProsemirrorSchema,
+    DocumentWithOptionalTitleContentSchema,
+    assertDocumentWithOptionalTitleContent,
+    createEmptyDocumentContent,
+    dangerousLegacyDefaultDocumentAccessPolicy,
     isDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {
@@ -65,11 +71,13 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
@@ -82,6 +90,7 @@ import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/paralle
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {
     assertId,
@@ -134,8 +143,7 @@ const DocumentCommentThreadAttributesSchema = Schema.object({
      */
     fallbackContentSnippet: Schema.object({
         version: Schema.integer,
-        // Unchecked since our snippet may not include a document title node.
-        node: UncheckedDocumentContentSchema,
+        node: DocumentWithOptionalTitleContentSchema,
     })
         .nullable()
         .default(null),
@@ -316,6 +324,18 @@ const DocumentsTable = DynamoTableSchema.new({
                          * the snapshot and apply any new steps to get the title.
                          */
                         titleWithoutFallback: Schema.string,
+
+                        /**
+                         * The access policy for the document. Declares who can access the document and
+                         * what they can do with the document.
+                         *
+                         * This is a copy of `content.attrs.accessPolicy` which canonically stores the
+                         * current access policy. We have a copy here so the access policy is easily
+                         * accessible and you don't need to load the document snapshot to use it.
+                         */
+                        accessPolicy: AccessPolicySchema.default(
+                            dangerousLegacyDefaultDocumentAccessPolicy,
+                        ),
 
                         /**
                          * Information about the last time we sent an `IndexSearchEntity` job for this
@@ -658,9 +678,8 @@ type DocumentCommentItem = DynamoTableItemType<
 export const FileDocumentAuthorizer = FileAuthorizer.new(
     DocumentsTable,
     "Document",
-    // TODO(calebmer): Once documents get a read-only permission level we should
-    // update `authorizeDocumentAccess()` to support `expectedAccessLevel`.
-    (context, target) => authorizeDocumentAccess(context, target.documentId),
+    (context, target, spaceId, expectedAccessLevel) =>
+        authorizeDocumentAccess(context, target.documentId, expectedAccessLevel),
 );
 
 /**
@@ -747,7 +766,7 @@ export async function createDocument(
     {
         id = generateId<DocumentId>(),
         spaceId,
-        content = emptyDocumentContent,
+        content = createEmptyDocumentContent(context.actor.getAccountId()),
     }: {
         id?: DocumentId;
         spaceId: SpaceId;
@@ -759,6 +778,22 @@ export async function createDocument(
     version: number;
 }> {
     await authorizeSpaceAccess(context, spaceId);
+
+    const accessPolicy: AccessPolicy = content.attrs.accessPolicy;
+
+    if (
+        !(await evaluateAccessPolicy(
+            context,
+            spaceId,
+            context.actor.getAccountId(),
+            accessPolicy,
+            "Manage",
+        ))
+    ) {
+        throw new InvalidArgumentError(
+            'Account actor must have "Manage" access level on documents they create',
+        );
+    }
 
     const createdTime = new Date();
     const version = 0;
@@ -775,6 +810,7 @@ export async function createDocument(
             creatorId: context.actor.getAccountId(),
             version,
             titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
+            accessPolicy,
             lastIndexSearchEntityJob: {
                 sendTime: createdTime,
                 updatedTraits,
@@ -820,51 +856,6 @@ export async function createDocument(
     };
 }
 
-const DocumentAttributesItemContextCache = new ContextCache<
-    DocumentId,
-    DocumentAttributesItem | null
->();
-
-function getDocumentItemIfExistsWithCache(
-    context: ServerActionContext,
-    id: DocumentId,
-    {
-        consistency = "Eventual",
-        allowsEventualReadConsistency = false,
-    }: {
-        consistency?: DynamoReadConsistency;
-        allowsEventualReadConsistency?: boolean;
-    } = {},
-): Promise<DocumentAttributesItem | null> {
-    const get = async () => {
-        const item = await DocumentsTable.getItemIfExists(
-            context,
-            {
-                partitionType: "Document",
-                documentId: id,
-                sortRangeType: "Attributes",
-            },
-            {consistency, allowsEventualReadConsistency},
-        );
-
-        if (!item) return null;
-
-        await authorizeSpaceAccess(context, item.spaceId);
-
-        return item;
-    };
-
-    // We can't use a cached value when reading with strong consistency but we can
-    // save the read value to the cache for later.
-    if (consistency === "Strong") {
-        const getPromise = get();
-        DocumentAttributesItemContextCache.set(context, id, getPromise);
-        return getPromise;
-    } else {
-        return DocumentAttributesItemContextCache.get(context, id, get);
-    }
-}
-
 /**
  * Get a preview of the document with the provided id.
  *
@@ -873,17 +864,22 @@ function getDocumentItemIfExistsWithCache(
  * The result is cached. If you call this for the same `DocumentId` multiple
  * times in the same action you'll get the same result without issuing a
  * network request.
+ *
+ * This function is somewhat strongly consistent. If null is returned that
+ * means the document does not exist with strong consistency. (Since we retry
+ * reading null results with strong consistency.)
  */
 export async function getDocumentPreviewIfExists(
     context: ServerActionContext,
     id: DocumentId,
-    options?: {
-        consistency?: DynamoReadConsistency;
-        allowsEventualReadConsistency?: boolean;
-    },
+    options?: {consistency?: DynamoReadConsistency},
 ): Promise<DocumentPreviewModel | null> {
-    const item = await getDocumentItemIfExistsWithCache(context, id, options);
+    const item = await getDocumentItemForAuthorizationIfExists(context, id, options);
     if (!item) return null;
+
+    if (!(await isDocumentItemAccessAuthorized(context, item, "View"))) {
+        throw createDocumentPermissionDeniedError(id, "View");
+    }
 
     return new DocumentPreviewModel({
         id,
@@ -925,24 +921,142 @@ export async function getDocumentPreview(
 export async function authorizeDocumentAccess(
     context: ServerActionContext,
     documentId: DocumentId,
+    expectedAccessLevel: AccessLevel,
 ): Promise<{spaceId: SpaceId; creatorId: AccountId | null}> {
-    let item = await getDocumentItemIfExistsWithCache(
+    const {spaceId, creatorId, hasAccess} = await isDocumentAccessAuthorized(
         context,
         documentId,
-        // It's ok to call this function when expecting strong read consistency.
-        // Authorization is mostly strongly consistent since we retry with strong
-        // consistency if our eventually consistent read fails.
-        {allowsEventualReadConsistency: true},
+        expectedAccessLevel,
     );
+    if (!hasAccess) throw createDocumentPermissionDeniedError(documentId, expectedAccessLevel);
 
-    // If we couldn't find the document with eventual consistency, try again with
-    // strong consistency in case it was just created.
-    if (!item) {
-        item = await getDocumentItemIfExistsWithCache(context, documentId, {consistency: "Strong"});
+    return {spaceId, creatorId};
+}
+
+function createDocumentPermissionDeniedError(
+    documentId: DocumentId,
+    expectedAccessLevel: AccessLevel,
+) {
+    throw new PermissionDeniedError(
+        quote`Actor does not have ${expectedAccessLevel} access level to document`,
+        {
+            displayMessage: errorDisplayMessage`You aren’t allowed to access this document. Ask someone with access share it with you.`,
+        },
+    );
+}
+
+async function isDocumentAccessAuthorized(
+    context: ServerActionContext,
+    documentId: DocumentId,
+    expectedAccessLevel: AccessLevel,
+) {
+    const documentItem = await getDocumentItemForAuthorization(context, documentId);
+
+    return {
+        spaceId: documentItem.spaceId,
+        creatorId: documentItem.creatorId,
+        hasAccess: await isDocumentItemAccessAuthorized(context, documentItem, expectedAccessLevel),
+    };
+}
+
+async function isDocumentItemAccessAuthorized(
+    context: ServerActionContext,
+    documentItem: {spaceId: SpaceId; accessPolicy: AccessPolicy},
+    expectedAccessLevel: AccessLevel,
+): Promise<boolean> {
+    // System actors can read all documents in the space they have access to.
+    if (context.actor.type === "System") {
+        return context.actor.getSpaceId() === documentItem.spaceId;
     }
 
+    // Check that the account has access to the space the document is in.
+    if (
+        !(await isAccountMemberOfSpaceWithoutAuthorization(
+            context,
+            documentItem.spaceId,
+            context.actor.getAccountId(),
+        ))
+    ) {
+        return false;
+    }
+
+    // Evaluate the document access policy.
+    return evaluateAccessPolicy(
+        context,
+        documentItem.spaceId,
+        context.actor.getAccountId(),
+        documentItem.accessPolicy,
+        expectedAccessLevel,
+    );
+}
+
+const DocumentItemAuthorizationCache = new ContextCache<
+    DocumentId,
+    DocumentAttributesItem | null
+>();
+
+async function getDocumentItemForAuthorization(
+    context: ServerActionContext,
+    documentId: DocumentId,
+): Promise<DocumentAttributesItem> {
+    const item = await getDocumentItemForAuthorizationIfExists(context, documentId);
     if (!item) throw new NotFoundError("Document not found");
-    return {spaceId: item.spaceId, creatorId: item.creatorId};
+    return item;
+}
+
+async function getDocumentItemForAuthorizationIfExists(
+    context: ServerActionContext,
+    documentId: DocumentId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+): Promise<DocumentAttributesItem | null> {
+    // If strong consistency was explicitly requested then we always want to read
+    // the document regardless of what's in the cache so we get the most up-to-date
+    // data.
+    if (consistency === "Strong") {
+        const itemPromise = DocumentsTable.getItemIfExists(
+            context,
+            {
+                partitionType: "Document",
+                sortRangeType: "Attributes",
+                documentId,
+            },
+            {consistency: "Strong"},
+        );
+
+        DocumentItemAuthorizationCache.set(context, documentId, itemPromise);
+
+        return itemPromise;
+    }
+
+    return DocumentItemAuthorizationCache.get(context, documentId, async () => {
+        const item = await DocumentsTable.getItemIfExists(
+            context,
+            {
+                partitionType: "Document",
+                sortRangeType: "Attributes",
+                documentId,
+            },
+            // It's ok to call this function when expecting strong read consistency.
+            // Authorization is mostly strongly consistent since we retry with strong
+            // consistency if our eventually consistent read fails.
+            {allowsEventualReadConsistency: true},
+        );
+
+        if (item) return item;
+
+        return DocumentsTable.getItemIfExists(
+            context,
+            {
+                partitionType: "Document",
+                sortRangeType: "Attributes",
+                documentId,
+            },
+            // If we couldn't find the document, maybe it was just created. Try reading
+            // again with strong read consistency. We don't want to throw an authorization
+            // error if the document actually exists.
+            {consistency: "Strong"},
+        );
+    });
 }
 
 type InternalDocument = {
@@ -957,10 +1071,10 @@ export const getInternalDocumentTestCounter = new TestCounter();
 
 async function getInternalDocumentIfExists(
     context: ServerActionContext,
-    id: DocumentId,
+    documentId: DocumentId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<InternalDocument | null> {
-    getInternalDocumentTestCounter.incrementForTest(id);
+    getInternalDocumentTestCounter.incrementForTest(documentId);
 
     let attributes: DocumentAttributesItem | null = null;
     let stepTransactionsAfterSnapshot: Array<DocumentStepTransactionAfterSnapshotItem> = [];
@@ -969,7 +1083,7 @@ async function getInternalDocumentIfExists(
     for await (const item of DocumentsTable.query(context, {
         partitionKey: {
             partitionType: "Document",
-            documentId: id,
+            documentId,
         },
         startSortKey: {
             sortRangeType: "Attributes",
@@ -992,7 +1106,7 @@ async function getInternalDocumentIfExists(
                 // `authorizeDocumentAccess()` is called afterwards (e.g. when reading content
                 // references) the document preview is already available and can be used to
                 // authorize.
-                DocumentAttributesItemContextCache.set(context, id, item);
+                DocumentItemAuthorizationCache.set(context, documentId, item);
                 break;
             case "StepTransactionsAfterSnapshot":
                 stepTransactionsAfterSnapshot.push(item);
@@ -1013,7 +1127,10 @@ async function getInternalDocumentIfExists(
         return null;
     }
 
-    await authorizeSpaceAccess(context, attributes.spaceId);
+    // Must have view access level to read the document.
+    if (!(await isDocumentItemAccessAuthorized(context, attributes, "View"))) {
+        throw createDocumentPermissionDeniedError(documentId, "View");
+    }
 
     if (!maybeSnapshot)
         throw new DataLossError("Document with attributes should also have a snapshot");
@@ -1133,7 +1250,7 @@ async function getDocumentAndCommentThreadsIfExists(
     context: ServerContentActionContext,
     {
         documentId,
-        commentThreadIds: _requestedCommentThreadIds,
+        commentThreadIds: requestedCommentThreadIdsPromise,
         spaceIdPromiseResolver,
     }: {
         documentId: DocumentId;
@@ -1151,7 +1268,7 @@ async function getDocumentAndCommentThreadsIfExists(
     commentThreads: Array<DocumentCommentThreadModel>;
 } | null> {
     try {
-        let _attributes: DocumentAttributesItem | null = null;
+        let maybeAttributes: DocumentAttributesItem | null = null;
         let stepTransactionsAfterSnapshot: Array<DocumentStepTransactionAfterSnapshotItem> = [];
         let maybeSnapshot: DocumentSnapshotItem | null = null;
         const staleReferencedCommentThreadById = new Map<
@@ -1175,14 +1292,14 @@ async function getDocumentAndCommentThreadsIfExists(
         })) {
             switch (item.sortRangeType) {
                 case "Attributes":
-                    _attributes = item;
+                    maybeAttributes = item;
                     spaceIdPromiseResolver?.resolve(item.spaceId);
 
                     // Save the document attributes item to our context cache so if
                     // `authorizeDocumentAccess()` is called afterwards (e.g. when reading content
                     // references) the document preview is already available and can be used to
                     // authorize.
-                    DocumentAttributesItemContextCache.set(context, documentId, item);
+                    DocumentItemAuthorizationCache.set(context, documentId, item);
                     break;
                 case "StepTransactionsAfterSnapshot":
                     stepTransactionsAfterSnapshot.push(item);
@@ -1198,7 +1315,7 @@ async function getDocumentAndCommentThreadsIfExists(
             }
         }
 
-        if (_attributes === null) {
+        if (maybeAttributes === null) {
             assert(
                 !maybeSnapshot &&
                     stepTransactionsAfterSnapshot.length === 0 &&
@@ -1207,9 +1324,12 @@ async function getDocumentAndCommentThreadsIfExists(
             );
             return null;
         }
-        const attributes = _attributes;
+        const attributes = maybeAttributes;
 
-        await authorizeSpaceAccess(context, attributes.spaceId);
+        // Must have the comment access level to read a document with its comments.
+        if (!(await isDocumentItemAccessAuthorized(context, attributes, "Comment"))) {
+            throw createDocumentPermissionDeniedError(documentId, "Comment");
+        }
 
         if (!maybeSnapshot)
             throw new DataLossError("Document with attributes should also have a snapshot");
@@ -1301,7 +1421,7 @@ async function getDocumentAndCommentThreadsIfExists(
                 commentThreadById => new Map(filterIterable(commentThreadById, isNonNullable)),
             ),
             (async () => {
-                const requestedCommentThreadIds = await _requestedCommentThreadIds;
+                const requestedCommentThreadIds = await requestedCommentThreadIdsPromise;
 
                 // All the requested comment threads that aren't part of the referenced comment
                 // thread set we're already loading.
@@ -1437,7 +1557,7 @@ export async function getDocumentCommentThread(
     },
 ): Promise<DocumentCommentThreadModel> {
     const [{spaceId}, commentThreadItem] = await runAllPromises([
-        authorizeDocumentAccess(context, documentId),
+        authorizeDocumentAccess(context, documentId, "Comment"),
         getDocumentCommentThreadItem(context, {documentId, commentThreadId}),
     ]);
 
@@ -1475,9 +1595,11 @@ async function createDocumentCommentThreadModelFromItem(
     const firstCommentAuthorId = iterableFirst(item.commentsSummary.commentCountByAuthorId.keys());
 
     const fallbackContentSnippetNode = item.fallbackContentSnippet
-        ? stripDocumentContentCommentMarks(item.fallbackContentSnippet.node, {
-              exceptCommentThreadIds: new Set([item.commentThreadId]),
-          })
+        ? assertDocumentWithOptionalTitleContent(
+              stripDocumentContentCommentMarks(item.fallbackContentSnippet.node, {
+                  exceptCommentThreadIds: new Set([item.commentThreadId]),
+              }),
+          )
         : null;
 
     const [firstCommentAuthor, fallbackContentSnippetReferences] = await runAllPromises([
@@ -1569,7 +1691,7 @@ export async function batchGetDocumentCommentThreadReferencesIfExists(
     commentThreadById: Map<DocumentCommentThreadId, DocumentCommentThreadReference>;
     resolvedCommentThreadIds: Set<DocumentCommentThreadId>;
 }> {
-    const {spaceId} = await authorizeDocumentAccess(context, documentId);
+    const {spaceId} = await authorizeDocumentAccess(context, documentId, "Comment");
 
     const resolvedCommentThreadIds = new Set<DocumentCommentThreadId>();
 
@@ -1611,7 +1733,7 @@ export async function confirmDocumentResolvedCommentThreadIdsWithStrongReadConsi
         commentThreadIds: Iterable<DocumentCommentThreadId>;
     },
 ): Promise<Array<DocumentCommentThreadId>> {
-    await authorizeDocumentAccess(context, documentId);
+    await authorizeDocumentAccess(context, documentId, "Comment");
 
     const confirmedCommentThreadIds = await runAllPromises(
         mapIterable(commentThreadIds, async commentThreadId => {
@@ -1668,6 +1790,7 @@ export class DocumentContentCacheForUpdate {
         readonly stepCountByAccountId: DocumentStepCountByAccountId;
         readonly version: number;
         readonly content: DocumentContent;
+        readonly accessPolicy: AccessPolicy;
 
         /**
          * Steps after the snapshot the content was loaded at.
@@ -1712,6 +1835,7 @@ export class DocumentContentCacheForUpdate {
                     stepCountByAccountId: internalDocument.attributes.stepCountByAccountId,
                     version: internalDocument.version,
                     content: internalDocument.content,
+                    accessPolicy: internalDocument.content.attrs.accessPolicy,
                     stepsAfterInitialSnapshot: new PushOnlyArray(
                         flatMapIterable(
                             internalDocument.stepTransactionsAfterSnapshot,
@@ -1839,6 +1963,7 @@ export class DocumentContentCacheForUpdate {
                 stepCountByAccountId: entry.stepCountByAccountId,
                 version: entry.version,
                 content: entry.content,
+                accessPolicy: entry.content.attrs.accessPolicy,
                 // Create a slice of `stepsAfterInitialSnapshot` so that when we mutate the
                 // array from within this function, other code with a reference to the array
                 // won't see the new values.
@@ -2175,10 +2300,11 @@ export const updateDocumentContentBeforeExecuteTransactionTestCheckpoint = new T
 export async function updateDocumentContent(
     context: ServerContentSessionActionContext,
     {
-        id,
+        id: documentId,
         version: clientVersion,
         steps: clientSteps,
         clientId,
+        intentionallyUpdateAccessPolicy,
         createCommentThreads = [],
         resolveCommentThreadIds = [],
         unresolveCommentThreadIds = [],
@@ -2188,6 +2314,7 @@ export async function updateDocumentContent(
         version: number;
         steps: ReadonlyArray<Step>;
         clientId: ContentEditorClientId;
+        intentionallyUpdateAccessPolicy?: AccessPolicy;
         createCommentThreads?: ReadonlyArray<{
             commentThreadId: DocumentCommentThreadId;
             initialCommentContent: MessageContent;
@@ -2341,13 +2468,16 @@ export async function updateDocumentContent(
             }
         }
 
-        const internalDocument = await cache.getAndCacheDocument(context, id);
+        const internalDocument = await cache.getAndCacheDocument(context, documentId);
         if (!internalDocument)
             throw new NotFoundError("Can not update document that doesn't exist");
 
-        // Double check that we can update the document. Another user with access may
-        // have cached the document.
-        await authorizeSpaceAccess(context, internalDocument.spaceId);
+        // Make sure we have edit access to the document before continuing. Another
+        // user with access may have cached the document so it's important we check
+        // permissions here.
+        if (!(await isDocumentItemAccessAuthorized(context, internalDocument, "Edit"))) {
+            throw createDocumentPermissionDeniedError(documentId, "Edit");
+        }
 
         const [{newContent, steps, invertedSteps, conflictingSteps}] = await runAllPromises([
             getCollaborativelyUpdateContentResult(context, {
@@ -2383,7 +2513,7 @@ export async function updateDocumentContent(
                         const otherSteps = await getDocumentStepsBetweenValidatedVersionRange(
                             context,
                             {
-                                id,
+                                id: documentId,
                                 startVersion: clientVersion,
                                 endVersion:
                                     internalDocument.version -
@@ -2402,7 +2532,10 @@ export async function updateDocumentContent(
                             context,
                             internalDocument.spaceId,
                             fileId,
-                            FileDocumentAuthorizer.bind({type: "DocumentComments", documentId: id}),
+                            FileDocumentAuthorizer.bind({
+                                type: "DocumentComments",
+                                documentId: documentId,
+                            }),
                         ),
                     ),
                 ),
@@ -2410,6 +2543,47 @@ export async function updateDocumentContent(
         ]);
 
         assert(isDocumentContent(newContent));
+
+        const hasAccessPolicyChanged = !isDeepEqual(
+            internalDocument.content.attrs.accessPolicy,
+            newContent.attrs.accessPolicy,
+        );
+
+        // We don't allow the access policy to be updated unless
+        // `intentionallyUpdateAccessPolicy` is defined. This is a protection which
+        // prevents the access policy from being updated accidentally by ProseMirror.
+        // It would be absolutely horrible if while editing a document ProseMirror
+        // accidentally clears the `accessPolicy` attr causing it to reset to the
+        // default which is public to everyone in the space.
+        //
+        // By forcing developers to set `intentionallyUpdateAccessPolicy` we
+        // know this update intended to update the access policy.
+        if (!intentionallyUpdateAccessPolicy && hasAccessPolicyChanged) {
+            throw new PermissionDeniedError(
+                "Can't update the document's access policy unless `intentionallyUpdateAccessPolicy` is provided",
+            );
+        }
+
+        // `intentionallyUpdateAccessPolicy` must exactly match the access policy we
+        // update the document to. This is a protection to prevent ProseMirror from
+        // accidentally updating the access policy in a way the developer didn't
+        // intend.
+        if (
+            intentionallyUpdateAccessPolicy &&
+            !isDeepEqual(intentionallyUpdateAccessPolicy, newContent.attrs.accessPolicy)
+        ) {
+            throw new PermissionDeniedError(
+                "The document's new access policy doesn't match `intentionallyUpdateAccessPolicy`",
+            );
+        }
+
+        // Must have the `Manage` permission level to update the access policy.
+        if (
+            (hasAccessPolicyChanged || intentionallyUpdateAccessPolicy) &&
+            !(await isDocumentItemAccessAuthorized(context, internalDocument, "Manage"))
+        ) {
+            throw createDocumentPermissionDeniedError(documentId, "Manage");
+        }
 
         const commentThreadItemPromiseById = new Map<
             DocumentCommentThreadId,
@@ -2480,7 +2654,7 @@ export async function updateDocumentContent(
                             commentThreadId,
                             () =>
                                 getDocumentCommentThreadItemIfExists(context, {
-                                    documentId: id,
+                                    documentId: documentId,
                                     commentThreadId,
                                     // Unresolved comments are likely to be referenced.
                                     shouldTryArchiveFirst: false,
@@ -2501,7 +2675,13 @@ export async function updateDocumentContent(
                                 ...commentThreadItem,
                                 fallbackContentSnippet: {
                                     version: internalDocument.version,
-                                    node: contentSnippet,
+                                    // Convert from `DocumentContent` to `DocumentWithOptionalTitleContent`. This
+                                    // should also drop the `accessPolicy` attr on `doc`.
+                                    node: assertDocumentWithOptionalTitleContent(
+                                        DocumentWithOptionalTitleContentProsemirrorSchema.nodeFromJSON(
+                                            contentSnippet.toJSON(),
+                                        ),
+                                    ),
                                 },
                             };
 
@@ -2546,7 +2726,7 @@ export async function updateDocumentContent(
         // This checkpoint allows us to write a test against our transaction's
         // condition.
         await updateDocumentContentBeforeExecuteTransactionTestCheckpoint.waitForTest({
-            id,
+            id: documentId,
             clientId,
         });
 
@@ -2625,12 +2805,13 @@ export async function updateDocumentContent(
                     {
                         partitionType: "Document",
                         sortRangeType: "Attributes",
-                        documentId: id,
+                        documentId: documentId,
                         createdTime: internalDocument.createdTime,
                         spaceId: internalDocument.spaceId,
                         creatorId: internalDocument.creatorId,
                         version: internalDocument.version + steps.length,
                         titleWithoutFallback: newTitleWithoutFallback,
+                        accessPolicy: newContent.attrs.accessPolicy,
                         lastIndexSearchEntityJob: newLastIndexSearchEntityJob,
                         stepCountByAccountId: newStepCountByAccountId,
                     },
@@ -2663,7 +2844,7 @@ export async function updateDocumentContent(
                                         spaceId: internalDocument.spaceId,
                                         update: {
                                             type: "Document",
-                                            documentId: id,
+                                            documentId: documentId,
                                             updatedTraits: {type: "Some", traits: updatedTraits},
                                         },
                                     },
@@ -2677,7 +2858,7 @@ export async function updateDocumentContent(
                 ),
                 DocumentsTable.transactionCreateOrReplaceItem({
                     partitionType: "Document",
-                    documentId: id,
+                    documentId: documentId,
                     sortRangeType: "StepTransactionsAfterSnapshot",
                     startVersion: internalDocument.version,
                     steps,
@@ -2709,7 +2890,7 @@ export async function updateDocumentContent(
                     // Assume the new comment thread is referenced. The snapshot update process will
                     // move it if it's not.
                     sortRangeType: "ReferencedCommentThread",
-                    documentId: id,
+                    documentId: documentId,
                     commentThreadId: createCommentThread.commentThreadId,
                     createdTime,
                     fallbackContentSnippet: null,
@@ -2729,14 +2910,14 @@ export async function updateDocumentContent(
                 DocumentsTable.transactionDoesNotExistConditionCheck({
                     partitionType: "Document",
                     sortRangeType: "ArchivedCommentThread",
-                    documentId: id,
+                    documentId: documentId,
                     commentThreadId: createCommentThread.commentThreadId,
                 }),
                 DocumentsTable.transactionCreateOrReplaceItem(
                     {
                         partitionType: "DocumentCommentThread",
                         sortRangeType: "Comments",
-                        documentId: id,
+                        documentId: documentId,
                         commentThreadId: createCommentThread.commentThreadId,
                         commentIndex: 0,
                         authorId: context.actor.getAccountId(),
@@ -2764,7 +2945,7 @@ export async function updateDocumentContent(
                                     type: "CreateDocumentComment",
                                     id: generateId(),
                                     spaceId: internalDocument.spaceId,
-                                    documentId: id,
+                                    documentId: documentId,
                                     commentThreadId: createCommentThread.commentThreadId,
                                     commentIndex: 0,
                                     createdTime: createCommentThread.createdTime ?? currentTime,
@@ -2782,7 +2963,7 @@ export async function updateDocumentContent(
                                 spaceId: internalDocument.spaceId,
                                 update: {
                                     type: "DocumentComment",
-                                    documentId: id,
+                                    documentId: documentId,
                                     commentThreadId: createCommentThread.commentThreadId,
                                     commentIndex: 0,
                                     updatedTraits: {type: "Any"},
@@ -2844,7 +3025,7 @@ export async function updateDocumentContent(
                         commentThreadId,
                         () =>
                             getDocumentCommentThreadItem(context, {
-                                documentId: id,
+                                documentId: documentId,
                                 commentThreadId,
                                 // Unresolved comments are likely to be referenced.
                                 shouldTryArchiveFirst: false,
@@ -2900,7 +3081,7 @@ export async function updateDocumentContent(
                         commentThreadId,
                         () =>
                             getDocumentCommentThreadItem(context, {
-                                documentId: id,
+                                documentId: documentId,
                                 commentThreadId,
                                 // Unresolved comments are likely to be referenced.
                                 shouldTryArchiveFirst: true,
@@ -3006,7 +3187,7 @@ export async function updateDocumentContent(
     if (oldVersion < lastVersionToTriggerSnapshot) {
         context.process.waitUntil(
             updateDocumentSnapshotAfterUpdatingContent(context, {
-                id,
+                id: documentId,
                 newVersion,
                 newContent,
             }),
@@ -3330,22 +3511,19 @@ export async function getDocumentContentSteps(
         endVersion: number;
     },
 ) {
-    const document = await DocumentsTable.getPartialItemIfExists(
-        context,
-        {partitionType: "Document", documentId: id, sortRangeType: "Attributes"},
-        {attributes: ["spaceId", "version"]},
-    );
+    const documentItem = await getDocumentItemForAuthorizationIfExists(context, id);
+    if (!documentItem) throw new NotFoundError("Document does not exist");
 
-    if (!document) throw new NotFoundError("Document does not exist");
-
-    await authorizeSpaceAccess(context, document.spaceId);
+    if (!(await isDocumentItemAccessAuthorized(context, documentItem, "View"))) {
+        throw createDocumentPermissionDeniedError(id, "View");
+    }
 
     if (startVersion < 0) throw new InvalidArgumentError("Start version is less than zero");
     if (startVersion > endVersion)
         throw new InvalidArgumentError("End version is greater than start version");
     if (startVersion === endVersion)
         throw new InvalidArgumentError("Start version is equal to end version");
-    if (endVersion > document.version)
+    if (endVersion > documentItem.version)
         throw new FailedPreconditionError(
             "End version is greater than the last version in the document",
         );
@@ -3884,7 +4062,7 @@ export async function createDocumentComment(
     return context.dynamo.retryTransaction(async context => {
         const [spaceId, commentThreadItem, parentCommentItem] = await runAllPromises([
             (async () => {
-                const {spaceId} = await authorizeDocumentAccess(context, documentId);
+                const {spaceId} = await authorizeDocumentAccess(context, documentId, "Comment");
 
                 // Make sure all the provided files exist.
                 await runAllPromises(
@@ -4124,7 +4302,7 @@ async function getDocumentCommentItem(
     },
 ) {
     const [{spaceId}, , commentItem] = await runAllPromises([
-        authorizeDocumentAccess(context, documentId),
+        authorizeDocumentAccess(context, documentId, "Comment"),
 
         // Throws an error if the comment thread item doesn't exist.
         getDocumentCommentThreadItem(context, {
@@ -4202,7 +4380,7 @@ export function updateDocumentCommentContent(
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [{spaceId}, commentThreadItem, commentItem] = await runAllPromises([
-            authorizeDocumentAccess(context, documentId),
+            authorizeDocumentAccess(context, documentId, "Comment"),
 
             getDocumentCommentThreadItem(context, {
                 documentId,
@@ -4317,7 +4495,7 @@ export function deleteDocumentComment(
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
         const [{spaceId}, commentThreadItem, commentItem] = await runAllPromises([
-            authorizeDocumentAccess(context, documentId),
+            authorizeDocumentAccess(context, documentId, "Comment"),
 
             getDocumentCommentThreadItem(context, {
                 documentId,
@@ -4427,7 +4605,7 @@ export async function getDocumentCommentThreadAndInitialCommentsIfExists(
     initialComments: Array<DocumentCommentModel>;
     initialOtherReferencedComments: Array<DocumentCommentModel>;
 }> {
-    const documentAuthorizationPromise = authorizeDocumentAccess(context, documentId);
+    const documentAuthorizationPromise = authorizeDocumentAccess(context, documentId, "Comment");
 
     const [, commentThread, {comments, otherReferencedComments}] = await runAllPromises([
         documentAuthorizationPromise,
@@ -4644,7 +4822,7 @@ export async function getDocumentCommentsFromStart(
     otherReferencedComments: Array<DocumentCommentModel>;
     lastCommentChangeTime: Date | null;
 }> {
-    const documentAuthorizationPromise = authorizeDocumentAccess(context, documentId);
+    const documentAuthorizationPromise = authorizeDocumentAccess(context, documentId, "Comment");
 
     const [, commentThreadItem, {comments, otherReferencedComments}] = await runAllPromises([
         documentAuthorizationPromise,
@@ -4828,7 +5006,7 @@ export async function getDocumentCommentsFromEnd(
     otherReferencedComments: Array<DocumentCommentModel>;
     lastCommentChangeTime: Date | null;
 }> {
-    const documentAuthorizationPromise = authorizeDocumentAccess(context, documentId);
+    const documentAuthorizationPromise = authorizeDocumentAccess(context, documentId, "Comment");
 
     const [, commentThreadItem, {comments, otherReferencedComments}] = await runAllPromises([
         documentAuthorizationPromise,
@@ -5041,7 +5219,7 @@ export async function backfillDocumentComments(
     newOtherReferencedComments: Array<DocumentCommentModel>;
     commentChangesResult: DocumentCommentChangesResult;
 }> {
-    const documentAuthorizationPromise = authorizeDocumentAccess(context, documentId);
+    const documentAuthorizationPromise = authorizeDocumentAccess(context, documentId, "Comment");
 
     const commentThreadItemPromise = getDocumentCommentThreadItem(context, {
         documentId,
@@ -5246,7 +5424,7 @@ export async function getDocumentCommentThreadNotificationSubscribers(
     accountIds: Set<AccountId | ContentMentionAccountId>;
 }> {
     const [{creatorId}, commentThreadItem] = await runAllPromises([
-        authorizeDocumentAccess(context, documentId),
+        authorizeDocumentAccess(context, documentId, "Comment"),
         getDocumentCommentThreadItem(context, {
             documentId,
             commentThreadId,
@@ -5288,7 +5466,7 @@ export async function getResolvedDocumentCommentThreadRanges(
     ranges: ReadonlyArray<AddMarksAfterRemoveAllStepRange>;
 }> {
     let [, commentThreadItem] = await runAllPromises([
-        authorizeDocumentAccess(context, documentId),
+        authorizeDocumentAccess(context, documentId, "Comment"),
         getDocumentCommentThreadItem(context, {
             documentId,
             commentThreadId,

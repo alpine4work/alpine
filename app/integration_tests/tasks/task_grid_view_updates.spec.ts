@@ -17,7 +17,7 @@ const {context, services} = createTestServices();
 test("can update title", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session, {access: "public"});
     const task = await TestTask.create(session, {title: "test"});
     await task.addCollection(session, collection);
 
@@ -79,7 +79,7 @@ test("can update title", async ({page, context: browserContext}) => {
 test("can delete", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session, {access: "public"});
     const task = await TestTask.create(session, {title: "test"});
     await task.addCollection(session, collection);
 
@@ -125,7 +125,7 @@ test("can delete when title input is focused with backspace", async ({
 }) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session, {access: "public"});
     const task = await TestTask.create(session, {title: "test"});
     await task.addCollection(session, collection);
 
@@ -206,7 +206,7 @@ test("can delete when title cell is focused with backspace", async ({
 }) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session, {access: "public"});
     const task = await TestTask.create(session, {title: "test"});
     await task.addCollection(session, collection);
 
@@ -252,7 +252,7 @@ test("can delete when title input is focused with backspace (with children)", as
 }) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session, {access: "public"});
     const task = await TestTask.create(session, {title: "test"});
     await task.addCollection(session, collection);
 
@@ -345,7 +345,7 @@ test("can delete when title cell is focused with backspace (with children)", asy
 }) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session, {access: "public"});
     const task = await TestTask.create(session, {title: "test"});
     await task.addCollection(session, collection);
 
@@ -438,7 +438,7 @@ test("can update assignee", async ({page, context: browserContext}) => {
         space.createSession({name: "Test1"}),
         space.createSession({name: "Test2"}),
     ]);
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1, {access: "public"});
     const task = await TestTask.create(session1, {title: "test"});
     await task.addCollection(session1, collection);
 
@@ -531,7 +531,7 @@ test("can update assignee", async ({page, context: browserContext}) => {
 test("can update priority", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session, {access: "public"});
     const task = await TestTask.create(session, {title: "test"});
     await task.addCollection(session, collection);
 
@@ -624,7 +624,7 @@ test("can update priority", async ({page, context: browserContext}) => {
 test("can update due date", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session, {access: "public"});
     const task = await TestTask.create(session, {title: "test"});
     await task.addCollection(session, collection);
 
@@ -703,7 +703,7 @@ test("can update due date", async ({page, context: browserContext}) => {
 test("can change status", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "Testerson"});
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session, {access: "public"});
     const task = await TestTask.create(session, {title: "test"});
     await task.addCollection(session, collection);
 
@@ -812,7 +812,7 @@ test("can change status", async ({page, context: browserContext}) => {
 test("can update collections", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
-    const collection = await TestTaskCollection.createPublic(session, {name: "test1"});
+    const collection = await TestTaskCollection.create(session, {name: "test1", access: "public"});
     const task = await TestTask.create(session, {title: "test"});
     await task.addCollection(session, collection);
 

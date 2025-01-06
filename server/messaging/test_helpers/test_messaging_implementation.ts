@@ -511,7 +511,7 @@ export function testMessagingImplementation<RoomKey extends string>(
         ).toEqual(omitObject(expected, ["author"]));
     }
 
-    async function expectGetMessageNotToBeNull(
+    async function expectGetMessageAndGetMessagePayloadNotToBeNull(
         context: ServerContentSessionActionContext,
         {roomKey, messageIndex}: {roomKey: RoomKey; messageIndex: number},
     ) {
@@ -534,7 +534,7 @@ export function testMessagingImplementation<RoomKey extends string>(
         ).not.toBeNull();
     }
 
-    async function expectGetMessageToThrow(
+    async function expectGetMessageAndGetMessagePayloadToThrow(
         context: ServerContentSessionActionContext,
         {roomKey, messageIndex}: {roomKey: RoomKey; messageIndex: number},
         expected: any,
@@ -942,7 +942,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 }),
             ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
 
-            await expectGetMessageToThrow(
+            await expectGetMessageAndGetMessagePayloadToThrow(
                 context.action(session1),
                 {roomKey: room.key, messageIndex: 0},
                 NotFoundError,
@@ -961,7 +961,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 }),
             ).rejects.toThrow(new PermissionDeniedError("File not found"));
 
-            await expectGetMessageToThrow(
+            await expectGetMessageAndGetMessagePayloadToThrow(
                 context.action(session1),
                 {roomKey: room.key, messageIndex: 0},
                 NotFoundError,
@@ -990,7 +990,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 }),
             ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
 
-            await expectGetMessageToThrow(
+            await expectGetMessageAndGetMessagePayloadToThrow(
                 context.action(session1),
                 {roomKey: room1.key, messageIndex: 0},
                 NotFoundError,
@@ -1011,7 +1011,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 }),
             ).rejects.toThrow(new PermissionDeniedError("File not found"));
 
-            await expectGetMessageToThrow(
+            await expectGetMessageAndGetMessagePayloadToThrow(
                 context.action(session1),
                 {roomKey: room.key, messageIndex: 0},
                 NotFoundError,
@@ -1028,7 +1028,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 fileIds: [],
             });
 
-            await expectGetMessageToThrow(
+            await expectGetMessageAndGetMessagePayloadToThrow(
                 context.action(session1),
                 {roomKey: room.key, messageIndex: 42},
                 NotFoundError,
@@ -1045,7 +1045,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 fileIds: [],
             });
 
-            await expectGetMessageToThrow(
+            await expectGetMessageAndGetMessagePayloadToThrow(
                 context.action(otherSpaceSession),
                 {
                     roomKey: room.key,
@@ -1066,22 +1066,22 @@ export function testMessagingImplementation<RoomKey extends string>(
                     fileIds: [],
                 });
 
-                await expectGetMessageNotToBeNull(context.action(session1), {
+                await expectGetMessageAndGetMessagePayloadNotToBeNull(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
                 });
 
-                await expectGetMessageNotToBeNull(context.action(session2), {
+                await expectGetMessageAndGetMessagePayloadNotToBeNull(context.action(session2), {
                     roomKey: room.key,
                     messageIndex: message.index,
                 });
 
-                await expectGetMessageNotToBeNull(context.action(session3), {
+                await expectGetMessageAndGetMessagePayloadNotToBeNull(context.action(session3), {
                     roomKey: room.key,
                     messageIndex: message.index,
                 });
 
-                await expectGetMessageToThrow(
+                await expectGetMessageAndGetMessagePayloadToThrow(
                     context.action(session4),
                     {
                         roomKey: room.key,
@@ -1444,6 +1444,59 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         if (createPrivateRoom !== "Unimplemented") {
+            test("can update message in private room from account with access", async () => {
+                const room = await createPrivateRoom(context.action(session1), space.id);
+
+                const message = await createMessage(context.action(session2), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: content1,
+                    fileIds: [],
+                });
+
+                await expectGetMessage(
+                    context.action(session1),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    },
+                    {
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session2.accountId,
+                        ),
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                );
+
+                await updateMessageContent(context.action(session2), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    content: content2,
+                });
+
+                await expectGetMessage(
+                    context.action(session1),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    },
+                    {
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session2.accountId,
+                        ),
+                        parentMessageIndex: null,
+                        content: content2,
+                        hasContentUpdated: true,
+                    },
+                );
+            });
+
             test("can't update message in private room from account without access", async () => {
                 const room = await createPrivateRoom(context.action(session1), space.id);
 
@@ -1741,8 +1794,58 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         if (createPrivateRoom !== "Unimplemented") {
+            test("can delete message in private room from account with access", async () => {
+                const room = await createPrivateRoom(context.action(session1), space.id);
+
+                const message = await createMessage(context.action(session2), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: content1,
+                    fileIds: [],
+                });
+
+                await expectGetMessage(
+                    context.action(session1),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    },
+                    {
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session2.accountId,
+                        ),
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                );
+
+                await deleteMessage(context.action(session2), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                });
+
+                await expectGetMessage(
+                    context.action(session1),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    },
+                    {
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session2.accountId,
+                        ),
+                        isDeleted: true,
+                    },
+                );
+            });
+
             test("can't delete message in private room from account without access", async () => {
-                const room = await createRoom(context.action(session1), space.id);
+                const room = await createPrivateRoom(context.action(session1), space.id);
 
                 const message = await createMessage(context.action(session1), {
                     roomKey: room.key,

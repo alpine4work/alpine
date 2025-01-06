@@ -23,10 +23,7 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {
-    emptyDocumentContent,
-    DocumentContentProsemirrorSchema as schema,
-} from "~/shared/documents/document_content_schema.js";
+import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 
@@ -53,10 +50,7 @@ afterEach(() => {
 test(
     "snapshot updates after many steps committed individually",
     async () => {
-        const {id: documentId} = await createDocument(context.action(session), {
-            spaceId: space.id,
-            content: emptyDocumentContent,
-        });
+        const {id: documentId} = await createDocument(context.action(session), {spaceId: space.id});
 
         let text = "";
 
@@ -170,10 +164,7 @@ test(
 test(
     "snapshot updates after many steps committed at once",
     async () => {
-        const {id: documentId} = await createDocument(context.action(session), {
-            spaceId: space.id,
-            content: emptyDocumentContent,
-        });
+        const {id: documentId} = await createDocument(context.action(session), {spaceId: space.id});
 
         let text = "";
 
@@ -246,10 +237,7 @@ test(
 test(
     "can read document while in the middle of updating a snapshot",
     async () => {
-        const {id: documentId} = await createDocument(context.action(session), {
-            spaceId: space.id,
-            content: emptyDocumentContent,
-        });
+        const {id: documentId} = await createDocument(context.action(session), {spaceId: space.id});
 
         let text = "";
 
@@ -319,10 +307,7 @@ test(
 test(
     "can update document at a version before the document snapshot",
     async () => {
-        const {id: documentId} = await createDocument(context.action(session), {
-            spaceId: space.id,
-            content: emptyDocumentContent,
-        });
+        const {id: documentId} = await createDocument(context.action(session), {spaceId: space.id});
 
         let text = "";
 

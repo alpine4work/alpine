@@ -169,7 +169,7 @@ test("can't read affinitive items for the wrong space", async () => {
     const documents = await runAllPromises(
         createArrayWithLength(documentCount, index =>
             mutexes[index % mutexes.length]!.withLock(() =>
-                TestDocument.create(session, {title: `Document ${index + 1}`}),
+                TestDocument.create(session, {title: `Document ${index + 1}`, access: "public"}),
             ),
         ),
     );
@@ -177,7 +177,10 @@ test("can't read affinitive items for the wrong space", async () => {
     const otherDocuments = await runAllPromises(
         createArrayWithLength(documentCount, index =>
             mutexes[index % mutexes.length]!.withLock(() =>
-                TestDocument.create(otherSession, {title: `Document ${index + 1}`}),
+                TestDocument.create(otherSession, {
+                    title: `Document ${index + 1}`,
+                    access: "public",
+                }),
             ),
         ),
     );
@@ -300,7 +303,10 @@ test(
         const documents = await runAllPromises(
             createArrayWithLength(documentCount, index =>
                 mutexes[index % mutexes.length]!.withLock(() =>
-                    TestDocument.create(session, {title: `Document ${index + 1}`}),
+                    TestDocument.create(session, {
+                        title: `Document ${index + 1}`,
+                        access: "public",
+                    }),
                 ),
             ),
         );
@@ -505,7 +511,10 @@ test(
         const documents = await runAllPromises(
             createArrayWithLength(documentCount, index =>
                 mutexes[index % mutexes.length]!.withLock(() =>
-                    TestDocument.create(session, {title: `Document ${index + 1}`}),
+                    TestDocument.create(session, {
+                        title: `Document ${index + 1}`,
+                        access: "public",
+                    }),
                 ),
             ),
         );
@@ -710,7 +719,10 @@ test(
         const documents = await runAllPromises(
             createArrayWithLength(documentCount, index =>
                 mutexes[index % mutexes.length]!.withLock(() =>
-                    TestDocument.create(session, {title: `Document ${index + 1}`}),
+                    TestDocument.create(session, {
+                        title: `Document ${index + 1}`,
+                        access: "public",
+                    }),
                 ),
             ),
         );

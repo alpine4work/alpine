@@ -1,3 +1,4 @@
+import {AccessLevelSchema} from "~/shared/access/access_policy.js";
 import {ContentReferencedIdsSchema} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {DocumentContentReferencedIdsSchema} from "~/shared/documents/document_content_referenced_ids.js";
@@ -29,6 +30,7 @@ export const authorizeDocumentAccess = defineRpc({
     name: "authorizeDocumentAccess",
     input: {
         documentId: Schema.id<DocumentId>(),
+        expectedAccessLevel: AccessLevelSchema,
     },
     output: {},
 });

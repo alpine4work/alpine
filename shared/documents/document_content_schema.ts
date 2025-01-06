@@ -1,6 +1,7 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
 import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
+import {AccessPolicy, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {
     ContentSchemaListItemIndentSchema,
     clampListItemIndentation,
@@ -23,14 +24,18 @@ import {
     titleClassName,
 } from "~/shared/content/content_styles.js";
 import {HighlightColor, isHighlightColor} from "~/shared/design/core/highlight_color.js";
+import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {
+        // Importantly, we don't include the `accessPolicy` attr in the `doc` here like
+        // we do in `DocumentContent`. Since this schema only represents the document
+        // visually.
         ...contentBaseProsemirrorSchemaSpec.nodes,
         ...contentStructuralProsemirrorNodeSpecs,
         // Allow comments on files.
@@ -238,24 +243,44 @@ export function isDocumentWithoutTitleContent(node: Node): node is DocumentWitho
     );
 }
 
+export function assertDocumentWithoutTitleContent(node: Node): DocumentWithoutTitleContent {
+    assert(isDocumentWithoutTitleContent(node));
+    return node;
+}
+
 export const DocumentWithoutTitleContentProsemirrorSchema = new ProsemirrorSchema(
     documentWithoutTitleContentProsemirrorSchemaSpec,
 );
 
-const documentWithoutTitleSchemas = createSchemaForProsemirrorSchema(
+const documentWithoutTitleContentSchemas = createSchemaForProsemirrorSchema(
     DocumentWithoutTitleContentProsemirrorSchema,
 );
 
 export const DocumentWithoutTitleContentSchema =
-    documentWithoutTitleSchemas.TopNodeType as Schema<any> as Schema<DocumentWithoutTitleContent>;
+    documentWithoutTitleContentSchemas.TopNodeType as Schema<any> as Schema<DocumentWithoutTitleContent>;
 
-export const DocumentWithoutTitleContentStepSchema = documentWithoutTitleSchemas.createStepSchema();
+export const DocumentWithoutTitleContentStepSchema =
+    documentWithoutTitleContentSchemas.createStepSchema();
 
 export const emptyDocumentWithoutTitleContent = DocumentWithoutTitleContentProsemirrorSchema.node(
     "doc",
     {},
     [DocumentWithoutTitleContentProsemirrorSchema.node("paragraph")],
 ) as DocumentWithoutTitleContent;
+
+/**
+ * The access policy all documents used before 2025-01-03 when we added private
+ * documents. Going forward, when a document is created it has a private access
+ * policy. But all documents created before 2025-01-03 are public to the space.
+ *
+ * IMPORTANT: Only use this as a default for legacy documents! It can be
+ * catastrophic if you treat a private document as public to the space which is
+ * why we label this variable as "dangerous".
+ */
+export const dangerousLegacyDefaultDocumentAccessPolicy: AccessPolicy = {
+    accountGrantById: emptyMap,
+    defaultGrant: {type: "Space", level: "Manage"},
+};
 
 const documentContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {
@@ -266,6 +291,34 @@ const documentContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
          */
         doc: {
             content: `title ${documentWithoutTitleContentProsemirrorSchemaSpec.nodes.doc.content}`,
+            attrs: {
+                /**
+                 * Defines who is allowed to access the document in a space and what access
+                 * level they have. This property is incredibly security critical! We must take
+                 * so much care to make sure only accounts with the `Manage` permission level are
+                 * allowed to change the policy.
+                 *
+                 * The access policy, while public information, shouldn't be included in
+                 * copy/paste or cmd+a (to select all) followed by delete. It must only be changed
+                 * through the the sharing dialog.
+                 *
+                 * We include the access policy in document content so it's updated in realtime
+                 * for free. If one user changes the access policy it'll be through a ProseMirror
+                 * step which will be distributed to all users in realtime. The tradeoff is we need
+                 * to be more careful about how it's updated. We need to make sure ProseMirror
+                 * methods don't accidentally modify the access policy.
+                 */
+                accessPolicy: {
+                    schema: AccessPolicySchema,
+
+                    // NOTE(calebmer, 2025-01-03): Before this date, documents did not have an
+                    // access policy. All accounts in a space were allowed to edit a document. Going
+                    // forward, all documents will be created with a private access policy and must
+                    // be explicitly shared. This default is to cover all documents created before
+                    // this date. Also default public makes sense for test documents.
+                    default: dangerousLegacyDefaultDocumentAccessPolicy,
+                },
+            },
         },
 
         /**
@@ -300,9 +353,14 @@ export function assertDocumentContent(node: Node): DocumentContent {
     return node;
 }
 
-export function createSimpleDocumentContent(text: string): DocumentContent {
+export function createSimpleDocumentContent(creatorId: AccountId, text: string): DocumentContent {
+    const accessPolicy: AccessPolicy = {
+        accountGrantById: new Map([[creatorId, {level: "Manage"}]]),
+        defaultGrant: null,
+    };
+
     return assertDocumentContent(
-        DocumentContentProsemirrorSchema.node("doc", {}, [
+        DocumentContentProsemirrorSchema.node("doc", {accessPolicy}, [
             DocumentContentProsemirrorSchema.node("title", {}, []),
             DocumentContentProsemirrorSchema.node("paragraph", {}, [
                 DocumentContentProsemirrorSchema.text(text),
@@ -325,7 +383,65 @@ export const UncheckedDocumentContentSchema =
 
 export const DocumentContentStepSchema = documentSchemas.createStepSchema();
 
-export const emptyDocumentContent = DocumentContentProsemirrorSchema.node("doc", {}, [
-    DocumentContentProsemirrorSchema.node("title"),
-    DocumentContentProsemirrorSchema.node("paragraph"),
-]) as DocumentContent;
+export function createEmptyDocumentContent(creatorId: AccountId) {
+    const accessPolicy: AccessPolicy = {
+        accountGrantById: new Map([[creatorId, {level: "Manage"}]]),
+        defaultGrant: null,
+    };
+
+    return DocumentContentProsemirrorSchema.node("doc", {accessPolicy}, [
+        DocumentContentProsemirrorSchema.node("title"),
+        DocumentContentProsemirrorSchema.node("paragraph"),
+    ]) as DocumentContent;
+}
+
+const documentWithOptionalTitleContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
+    nodes: {
+        ...documentContentProsemirrorSchemaSpec.nodes,
+
+        // Importantly, we remove the `accessPolicy` attr from the `doc` here. Since
+        // this schema only represents the document visually (similar to
+        // `DocumentWithoutTitleContent`), we don't need to include access permissions
+        // for the document.
+        doc: {
+            content: `title? ${documentWithoutTitleContentProsemirrorSchemaSpec.nodes.doc.content}`,
+        },
+    },
+    marks: {
+        ...documentContentProsemirrorSchemaSpec.marks,
+    },
+});
+
+export type DocumentWithOptionalTitleContent = Node & {
+    readonly _DocumentWithOptionalTitleContent: never;
+};
+
+export function isDocumentWithOptionalTitleContent(
+    node: Node,
+): node is DocumentWithOptionalTitleContent {
+    return (
+        node.type.schema === DocumentWithOptionalTitleContentProsemirrorSchema &&
+        node.type.name === "doc"
+    );
+}
+
+export function assertDocumentWithOptionalTitleContent(
+    node: Node,
+): DocumentWithOptionalTitleContent {
+    assert(isDocumentWithOptionalTitleContent(node));
+    return node;
+}
+
+export const DocumentWithOptionalTitleContentProsemirrorSchema = new ProsemirrorSchema(
+    documentWithOptionalTitleContentProsemirrorSchemaSpec,
+);
+
+const documentWithOptionalTitleContentSchemas = createSchemaForProsemirrorSchema(
+    DocumentWithOptionalTitleContentProsemirrorSchema,
+);
+
+export const DocumentWithOptionalTitleContentSchema =
+    documentWithOptionalTitleContentSchemas.TopNodeType as Schema<any> as Schema<DocumentWithOptionalTitleContent>;
+
+export const DocumentWithOptionalTitleContentStepSchema =
+    documentWithOptionalTitleContentSchemas.createStepSchema();

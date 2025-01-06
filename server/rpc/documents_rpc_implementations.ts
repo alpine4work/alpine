@@ -25,7 +25,6 @@ import {
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
-import {emptyDocumentContent} from "~/shared/documents/document_content_schema.js";
 import {DocumentCommentModel} from "~/shared/documents/document_model.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -36,7 +35,11 @@ export default implementRpcs(definitions, {
     authorizeDocumentAccess: {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, input) => {
-            await authorizeDocumentAccess(context.actor.authorizeSession(), input.documentId);
+            await authorizeDocumentAccess(
+                context.actor.authorizeSession(),
+                input.documentId,
+                input.expectedAccessLevel,
+            );
             return {};
         },
     },
@@ -47,7 +50,6 @@ export default implementRpcs(definitions, {
             const {id, createdTime} = await createDocument(context.actor.authorizeSession(), {
                 id: input.documentId,
                 spaceId: input.spaceId,
-                content: emptyDocumentContent,
             });
             return {documentId: id, createdTime};
         },
@@ -106,7 +108,7 @@ export default implementRpcs(definitions, {
     getDocumentContentReferences: {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, {documentId, referencedIds}) => {
-            const {spaceId} = await authorizeDocumentAccess(context, documentId);
+            const {spaceId} = await authorizeDocumentAccess(context, documentId, "View");
 
             const [references, {commentThreadById, resolvedCommentThreadIds}] =
                 await runAllPromises([
@@ -220,9 +222,12 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             const [{contentUpdatedTime}, contentReferences] = await runAllPromises([
                 updateDocumentCommentContent(context.actor.authorizeSession(), input),
-                authorizeDocumentAccess(context.actor.authorizeSession(), input.documentId).then(
-                    ({spaceId}) =>
-                        getMessageContentReferencesForNode(context, spaceId, input.content),
+                authorizeDocumentAccess(
+                    context.actor.authorizeSession(),
+                    input.documentId,
+                    "Comment",
+                ).then(({spaceId}) =>
+                    getMessageContentReferencesForNode(context, spaceId, input.content),
                 ),
             ]);
 

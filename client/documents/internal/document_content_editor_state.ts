@@ -20,7 +20,7 @@ import {
 } from "~/shared/documents/document_content_references.js";
 import {
     DocumentContent,
-    emptyDocumentContent,
+    createEmptyDocumentContent,
     isDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {DocumentModel} from "~/shared/documents/document_model.js";
@@ -31,6 +31,7 @@ import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {
+    AccountId,
     DocumentCommentThreadId,
     FileId,
     WebSocketConnectionId,
@@ -113,12 +114,13 @@ type DocumentContentEditorExtraState = {
 };
 
 export function getInitialDocumentContentEditorState(
+    currentAccountId: AccountId,
     initialDocument: DocumentModel | null,
 ): DocumentContentEditorState {
     return getInitialCollaborativeContentEditorState({
         initialVersion: initialDocument?.version ?? 0,
         initialContent: initialDocument?.content ?? {
-            doc: emptyDocumentContent,
+            doc: createEmptyDocumentContent(currentAccountId),
             references: emptyDocumentContentReferences,
         },
         reduceReferences: reduceDocumentContentReferences,

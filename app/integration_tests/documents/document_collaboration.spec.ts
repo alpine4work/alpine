@@ -3,7 +3,6 @@ import {createTestServices} from "~/app/integration_tests/helpers/create_test_se
 import {createDocument} from "~/server/documents/data/documents_table.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {emptyDocumentContent} from "~/shared/documents/document_content_schema.js";
 import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -28,10 +27,7 @@ test("can write collaboratively in a document", async ({
 }) => {
     assert(viewport);
 
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     const canPrimaryInputHover = await page1.evaluate(
         () => !window.matchMedia("(hover: none)").matches,
@@ -149,10 +145,7 @@ test("can write collaboratively at the same time in a document", async ({
 }) => {
     assert(viewport);
 
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     const canPrimaryInputHover = await page1.evaluate(
         () => !window.matchMedia("(hover: none)").matches,

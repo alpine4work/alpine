@@ -27,10 +27,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {
-    DocumentContentProsemirrorSchema,
-    emptyDocumentContent,
-} from "~/shared/documents/document_content_schema.js";
+import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {DocumentPreviewModel} from "~/shared/documents/document_model.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -111,12 +108,10 @@ for (const [currentProcessingType, processingMultiple] of [
 
             const document1 = await createDocument(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
-                content: emptyDocumentContent,
             });
 
             const document2 = await createDocument(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
-                content: emptyDocumentContent,
             });
 
             await updateDocumentContent(context.action(scenario.session1), {
@@ -575,7 +570,6 @@ for (const [currentProcessingType, processingMultiple] of [
 
             const document = await createDocument(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
-                content: emptyDocumentContent,
             });
 
             await updateDocumentContent(context.action(scenario.session1), {
@@ -824,7 +818,6 @@ for (const [currentProcessingType, processingMultiple] of [
 
             const document = await createDocument(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
-                content: emptyDocumentContent,
             });
 
             await updateDocumentContent(context.action(scenario.session1), {
@@ -1214,7 +1207,6 @@ for (const [currentProcessingType, processingMultiple] of [
 
             const document = await createDocument(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
-                content: emptyDocumentContent,
             });
 
             await updateDocumentContent(context.action(scenario.session3), {
@@ -1460,7 +1452,6 @@ for (const [currentProcessingType, processingMultiple] of [
 
         const document = await createDocument(session1.action(), {
             spaceId: space.id,
-            content: emptyDocumentContent,
         });
 
         await updateDocumentContent(session1.action(), {

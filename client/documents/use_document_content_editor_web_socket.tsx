@@ -112,15 +112,13 @@ export function useDocumentContentEditorWebSocket(
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
     ensureCreateDocument: () => Promise<void>;
 } {
-    const {
-        space: {id: spaceId},
-    } = useSpaceContext();
+    const {currentAccount, space} = useSpaceContext();
     const initialDocument = input instanceof DocumentModel ? input : input.initialDocument;
     const documentId = input instanceof DocumentModel ? input.id : input.documentId;
 
     assert(
         !initialDocument ||
-            (initialDocument.spaceId === spaceId && initialDocument.id === documentId),
+            (initialDocument.spaceId === space.id && initialDocument.id === documentId),
     );
 
     const context = useAppContext();
@@ -142,7 +140,9 @@ export function useDocumentContentEditorWebSocket(
             if (!initialDocument) {
                 return {
                     type: "NotExists",
-                    state: new ValueStore(getInitialDocumentContentEditorState(null)),
+                    state: new ValueStore(
+                        getInitialDocumentContentEditorState(currentAccount.id, null),
+                    ),
                     pendingProcedures: [],
                 };
             } else {
@@ -153,7 +153,10 @@ export function useDocumentContentEditorWebSocket(
                         addGlobalLoadingIndicator: (promise, indicator) =>
                             addGlobalLoadingIndicatorRef.current(promise, indicator),
                         documentId: initialDocument.id,
-                        initialState: getInitialDocumentContentEditorState(initialDocument),
+                        initialState: getInitialDocumentContentEditorState(
+                            currentAccount.id,
+                            initialDocument,
+                        ),
                     }),
                 };
             }
@@ -173,7 +176,10 @@ export function useDocumentContentEditorWebSocket(
                 addGlobalLoadingIndicator: (promise, indicator) =>
                     addGlobalLoadingIndicatorRef.current(promise, indicator),
                 documentId: initialDocument.id,
-                initialState: getInitialDocumentContentEditorState(initialDocument),
+                initialState: getInitialDocumentContentEditorState(
+                    currentAccount.id,
+                    initialDocument,
+                ),
             }),
         });
     }
@@ -202,7 +208,7 @@ export function useDocumentContentEditorWebSocket(
         if (clientState.type === "Exists") return;
         if (createDocumentPromiseRef.current) return;
 
-        const promise = createDocument(context, {spaceId, documentId}).then(
+        const promise = createDocument(context, {spaceId: space.id, documentId}).then(
             () => {
                 const client = new DocumentContentEditorWebSocketClient({
                     getContext: () => contextRef.current,
@@ -277,7 +283,7 @@ export function useDocumentContentEditorWebSocket(
     );
 
     return {
-        spaceId,
+        spaceId: space.id,
         isConnected: webSocketState?.isConnected ?? false,
         editorState: state.editorState,
         onChangeEditorState: useCallback(

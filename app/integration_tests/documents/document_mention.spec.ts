@@ -3,7 +3,6 @@ import {createTestServices} from "~/app/integration_tests/helpers/create_test_se
 import {createDocument} from "~/server/documents/data/documents_table.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {emptyDocumentContent} from "~/shared/documents/document_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 const {context, services} = createTestServices();
@@ -20,10 +19,7 @@ test("can search for an account in mention menu", async ({
 }) => {
     assert(viewport);
 
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     const canPrimaryInputHover = await page.evaluate(
         () => !window.matchMedia("(hover: none)").matches,
@@ -80,10 +76,7 @@ test("can see a mention added by another user", async ({
 }) => {
     assert(viewport);
 
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     const canPrimaryInputHover = await page1.evaluate(
         () => !window.matchMedia("(hover: none)").matches,

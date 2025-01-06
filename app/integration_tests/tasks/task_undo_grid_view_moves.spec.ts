@@ -36,7 +36,7 @@ test.beforeAll(async () => {
     session1 = await space.createSession();
     session2 = await space.createSession();
 
-    collection = await TestTaskCollection.createPublic(session1);
+    collection = await TestTaskCollection.create(session1, {access: "public"});
 
     // Used to control parallelism. We run 3 action transactions in parallel
     // at once.

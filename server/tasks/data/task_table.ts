@@ -2,6 +2,7 @@ import {CalendarDate} from "@internationalized/date";
 import {addHours, addMonths, differenceInMonths} from "date-fns";
 import murmurhash from "murmurhash";
 import {Step} from "prosemirror-transform";
+import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {
     getContentReferencesForNode,
     getMessageContentReferencesForNode,
@@ -1992,14 +1993,11 @@ class TaskActionTransactionCommitState {
         this._actorNotepadItemTransactionEntry = notepadItem;
     }
 
-    public evaluateCollectionAccessPolicy(
-        accessPolicy: AccessPolicy,
-        expectedAccessLevel: AccessLevel,
-    ) {
-        return evaluateTaskCollectionAccessPolicy(
+    public evaluateAccessPolicy(accessPolicy: AccessPolicy, expectedAccessLevel: AccessLevel) {
+        return evaluateAccessPolicy(
             this._context,
-            this._context.actor.getAccountId(),
             this._spaceId,
+            this._context.actor.getAccountId(),
             accessPolicy,
             expectedAccessLevel,
         );
@@ -2915,7 +2913,7 @@ async function actuallyCommitTaskActionTransaction(
                         };
 
                         if (
-                            !(await state.evaluateCollectionAccessPolicy(
+                            !(await state.evaluateAccessPolicy(
                                 newCollectionItem.accessPolicy.value,
                                 "Manage",
                             ))
@@ -3602,45 +3600,6 @@ async function getTaskCollectionItemForAuthorization(
     });
 }
 
-/**
- * Evaluates whether the `AccountId` has access to the task collection item at
- * the provided access level.
- *
- * Returns true if the account has access.
- */
-async function evaluateTaskCollectionAccessPolicy(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-    }>,
-    accountId: AccountId,
-    spaceId: SpaceId,
-    accessPolicy: AccessPolicy,
-    expectedAccessLevel: AccessLevel,
-): Promise<boolean> {
-    if (accessPolicy.defaultGrant) {
-        // If we ever add other default grant types then TypeScript will error here
-        // forcing us to update this code.
-        cast<"Space">(accessPolicy.defaultGrant.type);
-
-        if (
-            (await isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId)) &&
-            hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
-        ) {
-            return true;
-        }
-    }
-
-    const accountGrant = accessPolicy.accountGrantById.get(accountId);
-    if (accountGrant && hasAccessLevel(accountGrant.level, expectedAccessLevel)) {
-        return true;
-    }
-
-    return false;
-}
-
 async function isTaskCollectionItemAccessAuthorized(
     context: Context<{
         process: ProcessContextModule;
@@ -3691,10 +3650,10 @@ async function isTaskCollectionItemAccessAuthorizedAllowingDeletedTasks(
         return false;
     }
 
-    return evaluateTaskCollectionAccessPolicy(
+    return evaluateAccessPolicy(
         context,
-        accountId,
         collectionItem.spaceId,
+        accountId,
         collectionItem.accessPolicy.value,
         expectedAccessLevel,
     );
@@ -3809,7 +3768,7 @@ async function isTaskItemAccessAuthorized(
             taskId: TaskCollectionId,
         ) => Promise<TaskCollectionEssentialAttributesItemBase>;
     },
-) {
+): Promise<boolean> {
     const isAuthorized = await isTaskItemAccessAuthorizedAllowingDeletedTasks(
         context,
         accountId,
@@ -3872,10 +3831,10 @@ async function isTaskItemAccessAuthorizedAllowingDeletedTasks(
             // Deleted collections don't grant any access.
             if (isTaskCollectionItemDeleted(collectionItem)) return null;
 
-            const hasAccess = await evaluateTaskCollectionAccessPolicy(
+            const hasAccess = await evaluateAccessPolicy(
                 context,
-                accountId,
                 collectionItem.spaceId,
+                accountId,
                 collectionItem.accessPolicy.value,
                 expectedAccessLevel,
             );
@@ -3933,6 +3892,7 @@ async function isTaskAccessAuthorized(
 
     return {
         spaceId: taskItem.spaceId,
+        createdTime: taskItem.createdTime,
         hasAccess: await isTaskItemAccessAuthorized(
             context,
             context.actor.getAccountId(),
@@ -3944,7 +3904,6 @@ async function isTaskAccessAuthorized(
                     getTaskCollectionItemForAuthorization(context, collectionId, loaders),
             },
         ),
-        createdTime: taskItem.createdTime,
     };
 }
 

@@ -5,6 +5,7 @@ ts_project(
     name = "rpc",
     visibility = ["//visibility:public"],
     deps = [
+        "//shared/access",
         "//shared/accounts",
         "//shared/alpha",
         "//shared/chat",

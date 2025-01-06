@@ -7,7 +7,7 @@ import {
 } from "~/shared/content/content_references.js";
 import {
     DocumentContentSchema,
-    UncheckedDocumentContentSchema,
+    DocumentWithOptionalTitleContentSchema,
 } from "~/shared/documents/document_content_schema.js";
 import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
@@ -109,11 +109,11 @@ export const DocumentContentWithReferencesSchema = Schema.object({
     references: DocumentContentReferencesSchema,
 });
 
-export type UncheckedDocumentContentWithReferences = SchemaType<
-    typeof UncheckedDocumentContentWithReferencesSchema
+export type DocumentWithOptionalTitleContentWithReferences = SchemaType<
+    typeof DocumentWithOptionalTitleContentWithReferencesSchema
 >;
 
-export const UncheckedDocumentContentWithReferencesSchema = Schema.object({
-    doc: UncheckedDocumentContentSchema,
+export const DocumentWithOptionalTitleContentWithReferencesSchema = Schema.object({
+    doc: DocumentWithOptionalTitleContentSchema,
     references: DocumentContentReferencesSchema,
 });

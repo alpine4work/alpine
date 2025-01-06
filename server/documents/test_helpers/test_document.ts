@@ -1,6 +1,10 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
 import {
+    TestAccessPolicyOption,
+    buildTestAccessPolicyOption,
+} from "~/server/access/test_access_policy.js";
+import {
     DocumentContentCacheForUpdate,
     createDocument,
     updateDocumentContent,
@@ -9,6 +13,7 @@ import {TestDocumentCommentThread} from "~/server/documents/test_helpers/test_do
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
@@ -31,6 +36,7 @@ export class TestDocument {
     public readonly space: TestSpace;
     public readonly id: DocumentId;
     public readonly createdTime: Date;
+    public readonly initialAccessPolicy: AccessPolicy;
 
     // NOTE(calebmer): A cool capability would be to allow testers to create
     // multiple `TestDocumentClient`s that have their own state so you can make
@@ -45,6 +51,7 @@ export class TestDocument {
         space: TestSpace,
         id: DocumentId,
         createdTime: Date,
+        initialAccessPolicy: AccessPolicy,
         state: MutexValue<{
             lastVersion: number;
             lastUpdatePos: number;
@@ -54,6 +61,7 @@ export class TestDocument {
         this.space = space;
         this.id = id;
         this.createdTime = createdTime;
+        this.initialAccessPolicy = initialAccessPolicy;
         this._state = state;
     }
 
@@ -65,6 +73,7 @@ export class TestDocument {
             | {
                   title?: string;
                   body?: string;
+                  access?: TestAccessPolicyOption;
                   content?: undefined;
               }
             | {
@@ -77,17 +86,30 @@ export class TestDocument {
         const content = options.content
             ? options.content
             : assertDocumentContent(
-                  schema.node("doc", {}, [
-                      schema.node("title", {}, options.title ? [schema.text(options.title)] : []),
-                      ...(options.body
-                          ? options.body
-                                .trimEnd()
-                                .split("\n")
-                                .map(bodyLine =>
-                                    schema.node("paragraph", {}, [schema.text(bodyLine)]),
-                                )
-                          : [schema.node("paragraph", {}, [])]),
-                  ]),
+                  schema.node(
+                      "doc",
+                      {
+                          accessPolicy: buildTestAccessPolicyOption(
+                              options.access ?? "private",
+                              session.account.id,
+                          ),
+                      },
+                      [
+                          schema.node(
+                              "title",
+                              {},
+                              options.title ? [schema.text(options.title)] : [],
+                          ),
+                          ...(options.body
+                              ? options.body
+                                    .trimEnd()
+                                    .split("\n")
+                                    .map(bodyLine =>
+                                        schema.node("paragraph", {}, [schema.text(bodyLine)]),
+                                    )
+                              : [schema.node("paragraph", {}, [])]),
+                      ],
+                  ),
               );
 
         const document = await createDocument(session.action(), {
@@ -101,6 +123,7 @@ export class TestDocument {
             session.space,
             document.id,
             document.createdTime,
+            content.attrs.accessPolicy,
             new MutexValue({
                 lastVersion: document.version,
                 lastUpdatePos: content.nodeSize - 3,
@@ -207,7 +230,7 @@ export class TestDocument {
     public createCommentThread(
         session: TestSpaceSession,
         range: {isNode?: false; from: number; to: number} | {isNode: true; pos: number},
-        content: string | MessageContent,
+        content: string | MessageContent = TestDocumentCommentThread.createDefaultMessageContent(),
     ) {
         return TestDocumentCommentThread._create(this, session, range, content);
     }

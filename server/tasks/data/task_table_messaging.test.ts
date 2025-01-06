@@ -37,7 +37,7 @@ testMessagingImplementation<TaskId>(processContext, {
         ]);
 
         const session = await space.createSession(account);
-        const taskCollection = await TestTaskCollection.createPublic(session);
+        const taskCollection = await TestTaskCollection.create(session, {access: "public"});
 
         const task = await TestTask.create(session);
         await task.addCollection(session, taskCollection);
@@ -60,9 +60,9 @@ testMessagingImplementation<TaskId>(processContext, {
 
         const session = await space.createSession(account);
 
-        const taskCollection = await TestTaskCollection.createPrivate(session);
+        const taskCollection = await TestTaskCollection.create(session);
 
-        await taskCollection.updateAccessPolicy(session, {
+        await taskCollection.updateAccess(session, {
             accountGrantById: new Map<AccountId, {level: AccessLevel}>([
                 ...sessions.map(innerSession => {
                     return [innerSession.account.id, {level: "Comment"}] as const;

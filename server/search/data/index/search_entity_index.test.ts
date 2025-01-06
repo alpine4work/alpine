@@ -1,5 +1,6 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
+import {TestAccessPolicy} from "~/server/access/test_access_policy.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {
@@ -1506,18 +1507,21 @@ test("search by keywords only sees entities the account has access to", async ()
     const session2 = await space.createSession();
     const otherSession = await otherSpace.createSession();
 
-    const document = await TestDocument.create(session1, {title: "test"});
-    const otherDocument = await TestDocument.create(otherSession, {title: "test"});
+    const document = await TestDocument.create(session1, {title: "test", access: "public"});
+    const otherDocument = await TestDocument.create(otherSession, {
+        title: "test",
+        access: "public",
+    });
     const task1 = await TestTask.create(session1, {title: "test"});
     const task2 = await TestTask.create(session2, {title: "test"});
     const task3 = await TestTask.create(session2, {title: "test"});
     const task4 = await TestTask.create(session2, {title: "test"});
     const task5 = await TestTask.create(session2, {title: "test"});
-    const collection1 = await TestTaskCollection.createPublic(session2, {name: "test"});
-    const collection2 = await TestTaskCollection.createPrivate(session2, {name: "test"});
-    const collection3 = await TestTaskCollection.createPrivate(session2, {
+    const collection1 = await TestTaskCollection.create(session2, {name: "test", access: "public"});
+    const collection2 = await TestTaskCollection.create(session2, {name: "test"});
+    const collection3 = await TestTaskCollection.create(session2, {
         name: "test",
-        otherGrantedAccounts: [session1],
+        access: TestAccessPolicy.private.with(session1),
     });
 
     await task3.addCollection(session2, collection1);
@@ -1620,17 +1624,20 @@ test("search by semantics only sees entities the account has access to", async (
 
     const testBody = createArrayWithLength(100, () => "test").join(" ");
 
-    const document = await TestDocument.create(session1, {body: testBody});
-    const otherDocument = await TestDocument.create(otherSession, {body: testBody});
+    const document = await TestDocument.create(session1, {body: testBody, access: "public"});
+    const otherDocument = await TestDocument.create(otherSession, {
+        body: testBody,
+        access: "public",
+    });
     const task1 = await TestTask.create(session1);
     const task2 = await TestTask.create(session2);
     const task3 = await TestTask.create(session2);
     const task4 = await TestTask.create(session2);
     const task5 = await TestTask.create(session2);
-    const collection1 = await TestTaskCollection.createPublic(session2);
-    const collection2 = await TestTaskCollection.createPrivate(session2);
-    const collection3 = await TestTaskCollection.createPrivate(session2, {
-        otherGrantedAccounts: [session1],
+    const collection1 = await TestTaskCollection.create(session2, {access: "public"});
+    const collection2 = await TestTaskCollection.create(session2);
+    const collection3 = await TestTaskCollection.create(session2, {
+        access: TestAccessPolicy.private.with(session1),
     });
 
     for (const taskId of [task1.id, task2.id, task3.id, task4.id, task5.id]) {
@@ -1757,18 +1764,21 @@ test("get search entities only sees entities the account has access to", async (
     const session2 = await space.createSession();
     const otherSession = await otherSpace.createSession();
 
-    const document = await TestDocument.create(session1, {title: "test"});
-    const otherDocument = await TestDocument.create(otherSession, {title: "test"});
+    const document = await TestDocument.create(session1, {title: "test", access: "public"});
+    const otherDocument = await TestDocument.create(otherSession, {
+        title: "test",
+        access: "public",
+    });
     const task1 = await TestTask.create(session1, {title: "test"});
     const task2 = await TestTask.create(session2, {title: "test"});
     const task3 = await TestTask.create(session2, {title: "test"});
     const task4 = await TestTask.create(session2, {title: "test"});
     const task5 = await TestTask.create(session2, {title: "test"});
-    const collection1 = await TestTaskCollection.createPublic(session2, {name: "test"});
-    const collection2 = await TestTaskCollection.createPrivate(session2, {name: "test"});
-    const collection3 = await TestTaskCollection.createPrivate(session2, {
+    const collection1 = await TestTaskCollection.create(session2, {name: "test", access: "public"});
+    const collection2 = await TestTaskCollection.create(session2, {name: "test"});
+    const collection3 = await TestTaskCollection.create(session2, {
         name: "test",
-        otherGrantedAccounts: [session1],
+        access: TestAccessPolicy.private.with(session1),
     });
 
     await task3.addCollection(session2, collection1);
@@ -1896,6 +1906,7 @@ test("searches with natural language parsing works", async () => {
     const document1 = await TestDocument.create(session1, {
         title: "Test 1",
         body: "Trains! Trains!",
+        access: "public",
     });
 
     // So the next `createdTime` is larger...
@@ -1904,6 +1915,7 @@ test("searches with natural language parsing works", async () => {
     const document2 = await TestDocument.create(session2, {
         title: "Test 2",
         body: "By: John. Trains!",
+        access: "public",
     });
 
     // So the next `createdTime` is larger...
@@ -1912,6 +1924,7 @@ test("searches with natural language parsing works", async () => {
     const document3 = await TestDocument.create(session1, {
         title: "Test 3",
         body: "By: Sara",
+        access: "public",
     });
 
     // So the next `createdTime` is larger...
@@ -1920,6 +1933,7 @@ test("searches with natural language parsing works", async () => {
     const document4 = await TestDocument.create(session1, {
         title: "Test 4",
         body: "By: John. Trains! Trains!",
+        access: "public",
     });
 
     // So the next `createdTime` is larger...
@@ -1928,6 +1942,7 @@ test("searches with natural language parsing works", async () => {
     const document5 = await TestDocument.create(session2, {
         title: "Test 5",
         body: "By: Sara",
+        access: "public",
     });
 
     // So the next `createdTime` is larger...

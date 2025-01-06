@@ -554,7 +554,7 @@ test("two subscriptions with identical queries use the same underlying query", a
         TestTask.create(session1),
     ]);
 
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1, {access: "public"});
 
     await runAllPromises([
         task1.addCollection(session1, collection),
@@ -695,8 +695,8 @@ test("two subscriptions with different queries load different queries", async ()
         TestTask.create(session1),
     ]);
 
-    const collection1 = await TestTaskCollection.createPublic(session1);
-    const collection2 = await TestTaskCollection.createPublic(session1);
+    const collection1 = await TestTaskCollection.create(session1, {access: "public"});
+    const collection2 = await TestTaskCollection.create(session1, {access: "public"});
 
     await runAllPromises([
         task1.addCollection(session1, collection1),
@@ -808,7 +808,7 @@ test("will send actions for updated tasks in the subscription's loaded range", a
         TestTask.create(session),
     ]);
 
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session, {access: "public"});
 
     await runAllPromises([
         task1.addCollection(session, collection),
@@ -928,7 +928,7 @@ test("will send actions for removed tasks in the subscription's loaded range", a
         TestTask.create(session),
     ]);
 
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session, {access: "public"});
 
     await runAllPromises([
         task1.addCollection(session, collection),
@@ -1048,7 +1048,7 @@ test("will backfill added tasks in the subscription's loaded range", async () =>
         TestTask.create(session),
     ]);
 
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session, {access: "public"});
 
     await runAllPromises([
         task1.addCollection(session, collection),
@@ -1160,8 +1160,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
         TestTask.create(session1),
     ]);
 
-    const collection1 = await TestTaskCollection.createPublic(session1);
-    const collection2 = await TestTaskCollection.createPublic(session1);
+    const collection1 = await TestTaskCollection.create(session1, {access: "public"});
+    const collection2 = await TestTaskCollection.create(session1, {access: "public"});
 
     await runAllPromises([
         task1.addCollection(session1, collection1),
@@ -1608,8 +1608,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
         TestTask.create(session1),
     ]);
 
-    const collection1 = await TestTaskCollection.createPublic(session1);
-    const collection2 = await TestTaskCollection.createPublic(session1);
+    const collection1 = await TestTaskCollection.create(session1, {access: "public"});
+    const collection2 = await TestTaskCollection.create(session1, {access: "public"});
 
     await runAllPromises([
         task1.addCollection(session1, collection1),
@@ -2158,7 +2158,7 @@ test("visible task added out of loaded range ignored", async () => {
         TestTask.create(session),
     ]);
 
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session, {access: "public"});
 
     await task1.addCollection(session, collection);
     await task2.addCollection(session, collection);
@@ -2304,7 +2304,7 @@ test("visible task updated out of loaded range ignored", async () => {
         TestTask.create(session),
     ]);
 
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session, {access: "public"});
 
     await task1.addCollection(session, collection);
     await task2.addCollection(session, collection);
@@ -2462,7 +2462,7 @@ test("visible task removed out of loaded range ignored", async () => {
         TestTask.create(session),
     ]);
 
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session, {access: "public"});
 
     await task1.addCollection(session, collection);
     await task2.addCollection(session, collection);
@@ -2620,7 +2620,7 @@ test("visible task moved into loaded range", async () => {
         TestTask.create(session),
     ]);
 
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session, {access: "public"});
 
     await task1.addCollection(session, collection);
     await task2.addCollection(session, collection);
@@ -2797,7 +2797,7 @@ test("visible task moved out of loaded range", async () => {
         TestTask.create(session),
     ]);
 
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session, {access: "public"});
 
     await task1.addCollection(session, collection);
     await task2.addCollection(session, collection);
@@ -3273,16 +3273,16 @@ test("all referenced collections will be backfilled in the query when loaded", a
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -3399,14 +3399,14 @@ test("all referenced collections will be backfilled in the query when added", as
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -3546,14 +3546,14 @@ test("when a collection is added it will be backfilled", async () => {
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -3681,9 +3681,9 @@ test("if a collection is referenced then the connection will receive actions for
             TestTask.create(session),
             TestTask.create(session),
             TestTask.create(session),
-            TestTaskCollection.createPublic(session),
-            TestTaskCollection.createPublic(session),
-            TestTaskCollection.createPublic(session),
+            TestTaskCollection.create(session, {access: "public"}),
+            TestTaskCollection.create(session, {access: "public"}),
+            TestTaskCollection.create(session, {access: "public"}),
         ]);
 
     await runAllPromises([
@@ -3815,7 +3815,7 @@ test("if a collection is referenced then the all references must be removed to n
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -4039,7 +4039,7 @@ test("collections unreferenced by removing loaded task do not receive actions", 
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -4164,7 +4164,7 @@ test("collections can be referenced, unreferenced, then referenced again", async
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -4331,7 +4331,7 @@ test("parent tasks are backfilled when query is initially loaded", async () => {
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -4403,7 +4403,7 @@ test("parent tasks are backfilled when more is loaded from query", async () => {
             TestTask.create(session),
             TestTask.create(session),
             TestTask.create(session),
-            TestTaskCollection.createPublic(session),
+            TestTaskCollection.create(session, {access: "public"}),
         ]);
 
     await runAllPromises([
@@ -4499,7 +4499,7 @@ test("parent tasks are backfilled when task is made visible", async () => {
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -4574,7 +4574,7 @@ test("parent tasks is backfilled when task is updated", async () => {
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -4695,7 +4695,7 @@ test("parents of loaded tasks receive update actions", async () => {
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -4873,7 +4873,7 @@ test("parents of loaded tasks receive update actions until all references are re
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -5113,7 +5113,7 @@ test("grandparent tasks are backfilled when query is initially loaded", async ()
             TestTask.create(session),
             TestTask.create(session),
             TestTask.create(session),
-            TestTaskCollection.createPublic(session),
+            TestTaskCollection.create(session, {access: "public"}),
         ]);
 
     await runAllPromises([
@@ -5187,7 +5187,7 @@ test("grandparent tasks are backfilled when more is loaded from query", async ()
             TestTask.create(session),
             TestTask.create(session),
             TestTask.create(session),
-            TestTaskCollection.createPublic(session),
+            TestTaskCollection.create(session, {access: "public"}),
         ]);
 
     await runAllPromises([
@@ -5286,7 +5286,7 @@ test("grandparent tasks are backfilled when task is made visible", async () => {
             TestTask.create(session),
             TestTask.create(session),
             TestTask.create(session),
-            TestTaskCollection.createPublic(session),
+            TestTaskCollection.create(session, {access: "public"}),
         ]);
 
     await runAllPromises([
@@ -5370,7 +5370,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
             TestTask.create(session),
             TestTask.create(session),
             TestTask.create(session),
-            TestTaskCollection.createPublic(session),
+            TestTaskCollection.create(session, {access: "public"}),
         ]);
 
     await runAllPromises([
@@ -5599,7 +5599,7 @@ test("grandparents of loaded tasks receive update actions", async () => {
             TestTask.create(session),
             TestTask.create(session),
             TestTask.create(session),
-            TestTaskCollection.createPublic(session),
+            TestTaskCollection.create(session, {access: "public"}),
         ]);
 
     await runAllPromises([
@@ -5787,7 +5787,7 @@ test("grandparents of loaded tasks receive update actions until all references a
             TestTask.create(session),
             TestTask.create(session),
             TestTask.create(session),
-            TestTaskCollection.createPublic(session),
+            TestTaskCollection.create(session, {access: "public"}),
         ]);
 
     await runAllPromises([
@@ -6044,9 +6044,9 @@ test("collections of parent tasks are backfilled when query is initially loaded"
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -6158,9 +6158,9 @@ test("collections of parent tasks are backfilled when more is loaded from query"
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -6263,8 +6263,8 @@ test("collections of parent tasks are backfilled when task is made visible", asy
             TestTask.create(session),
             TestTask.create(session),
             TestTask.create(session),
-            TestTaskCollection.createPublic(session),
-            TestTaskCollection.createPublic(session),
+            TestTaskCollection.create(session, {access: "public"}),
+            TestTaskCollection.create(session, {access: "public"}),
         ]);
 
     await runAllPromises([
@@ -6346,8 +6346,8 @@ test("collections of parent tasks are backfilled when task is updated", async ()
             TestTask.create(session),
             TestTask.create(session),
             TestTask.create(session),
-            TestTaskCollection.createPublic(session),
-            TestTaskCollection.createPublic(session),
+            TestTaskCollection.create(session, {access: "public"}),
+            TestTaskCollection.create(session, {access: "public"}),
         ]);
 
     await runAllPromises([
@@ -6571,9 +6571,9 @@ test("collections of parents of loaded tasks receive update actions", async () =
             TestTask.create(session),
             TestTask.create(session),
             TestTask.create(session),
-            TestTaskCollection.createPublic(session),
-            TestTaskCollection.createPublic(session),
-            TestTaskCollection.createPublic(session),
+            TestTaskCollection.create(session, {access: "public"}),
+            TestTaskCollection.create(session, {access: "public"}),
+            TestTaskCollection.create(session, {access: "public"}),
         ]);
 
     await runAllPromises([
@@ -6791,8 +6791,8 @@ test("collections of parents of loaded tasks receive update actions until all re
             TestTask.create(session),
             TestTask.create(session),
             TestTask.create(session),
-            TestTaskCollection.createPublic(session),
-            TestTaskCollection.createPublic(session),
+            TestTaskCollection.create(session, {access: "public"}),
+            TestTaskCollection.create(session, {access: "public"}),
         ]);
 
     await runAllPromises([
@@ -7583,7 +7583,7 @@ test("race condition: collection can be removed before previous collection has l
 
     const [task1, collection] = await runAllPromises([
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session, {access: "public"}),
     ]);
 
     await task1.updateAssignee(session, session);
@@ -7721,7 +7721,7 @@ test("race condition: parent task can change before previous collection of paren
     const [task1, task2, collection] = await runAllPromises([
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -7907,8 +7907,8 @@ test("multiple subscriptions that receive the same actions only show action once
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -8079,7 +8079,7 @@ test("referenced task may be unauthorized", async () => {
         TestTask.create(session1),
         TestTask.create(session1),
         TestTask.create(session1),
-        TestTaskCollection.createPublic(session1),
+        TestTaskCollection.create(session1, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -8172,7 +8172,7 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
         TestTask.create(session1),
         TestTask.create(session1),
         TestTask.create(session1),
-        TestTaskCollection.createPublic(session1),
+        TestTaskCollection.create(session1, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -8344,8 +8344,8 @@ test("authorized referenced task may be loaded later", async () => {
         TestTask.create(session1),
         TestTask.create(session1),
         TestTask.create(session1),
-        TestTaskCollection.createPublic(session1),
-        TestTaskCollection.createPublic(session1),
+        TestTaskCollection.create(session1, {access: "public"}),
+        TestTaskCollection.create(session1, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -8542,7 +8542,7 @@ test("a loaded task may then become referenced", async () => {
         TestTask.create(session1),
         TestTask.create(session1),
         TestTask.create(session1),
-        TestTaskCollection.createPublic(session1),
+        TestTaskCollection.create(session1, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -8702,7 +8702,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
         TestTask.create(session1),
         TestTask.create(session1),
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session1),
+        TestTaskCollection.create(session1, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -8986,7 +8986,7 @@ test("authorized referenced task may be referenced multiple times", async () => 
         TestTask.create(session1),
         TestTask.create(session1),
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session1),
+        TestTaskCollection.create(session1, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -9159,7 +9159,7 @@ test("unauthorized referenced task may be referenced multiple times", async () =
         TestTask.create(session1),
         TestTask.create(session1),
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session1),
+        TestTaskCollection.create(session1, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -9305,9 +9305,9 @@ test("may reference unauthorized collections", async () => {
             TestTask.create(session1),
             TestTask.create(session1),
             TestTask.create(session1),
-            TestTaskCollection.createPublic(session2),
-            TestTaskCollection.createPrivate(session2),
-            TestTaskCollection.createPrivate(session2),
+            TestTaskCollection.create(session2, {access: "public"}),
+            TestTaskCollection.create(session2),
+            TestTaskCollection.create(session2),
         ],
     );
 
@@ -9439,7 +9439,7 @@ test("authorized referenced collection may be referenced multiple times", async 
     const [task1, task2, collection] = await runAllPromises([
         TestTask.create(session1),
         TestTask.create(session1),
-        TestTaskCollection.createPublic(session2),
+        TestTaskCollection.create(session2, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -9603,8 +9603,8 @@ test("unauthorized referenced collection may be referenced multiple times", asyn
     const [task1, task2, collection1, collection2] = await runAllPromises([
         TestTask.create(session1),
         TestTask.create(session1),
-        TestTaskCollection.createPrivate(session2),
-        TestTaskCollection.createPublic(session1),
+        TestTaskCollection.create(session2),
+        TestTaskCollection.create(session1, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -9750,7 +9750,7 @@ test("will reauthorize an unauthorized referenced task to authorized", async () 
         TestTask.create(session1),
         TestTask.create(session1),
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session1),
+        TestTaskCollection.create(session1, {access: "public"}),
     ]);
 
     await task1.addCollection(session1, collection);
@@ -9865,7 +9865,7 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
         TestTask.create(session1),
         TestTask.create(session1),
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session1),
+        TestTaskCollection.create(session1, {access: "public"}),
     ]);
 
     await task1.addCollection(session1, collection);
@@ -10021,7 +10021,7 @@ test("reauthorize will noop if an unauthorized referenced task is still unauthor
         TestTask.create(session1),
         TestTask.create(session1),
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session1),
+        TestTaskCollection.create(session1, {access: "public"}),
     ]);
 
     await task1.addCollection(session1, collection);
@@ -10096,7 +10096,7 @@ test("reauthorize will noop if an authorized referenced task is still authorized
         TestTask.create(session1),
         TestTask.create(session1),
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session1),
+        TestTaskCollection.create(session1, {access: "public"}),
     ]);
 
     await task1.addCollection(session1, collection);
@@ -10211,8 +10211,8 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
     const [task1, task2, collection1, collection2] = await runAllPromises([
         TestTask.create(session1),
         TestTask.create(session1),
-        TestTaskCollection.createPublic(session1),
-        TestTaskCollection.createPrivate(session2),
+        TestTaskCollection.create(session1, {access: "public"}),
+        TestTaskCollection.create(session2),
     ]);
 
     await task1.addCollection(session1, collection1);
@@ -10264,7 +10264,7 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
 
     expect(connection.takeEvents()).toEqual([]);
 
-    await collection2.setPublicAccessPolicy(session2);
+    await collection2.updateAccess(session2, "public");
     await server.wait();
 
     expect(connection.takeEvents()).toEqual([
@@ -10345,8 +10345,8 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
     const [task1, task2, collection1, collection2] = await runAllPromises([
         TestTask.create(session1),
         TestTask.create(session1),
-        TestTaskCollection.createPublic(session1),
-        TestTaskCollection.createPublic(session1),
+        TestTaskCollection.create(session1, {access: "public"}),
+        TestTaskCollection.create(session1, {access: "public"}),
     ]);
 
     await task1.addCollection(session1, collection1);
@@ -10418,7 +10418,7 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
         },
     ]);
 
-    await collection2.setPrivateAccessPolicy(session2);
+    await collection2.updateAccess(session2, "private");
     await server.wait();
 
     expect(connection.takeEvents()).toEqual([
@@ -10477,8 +10477,8 @@ test("reauthorize will noop if an unauthorized referenced collection is still un
     const [task1, task2, collection1, collection2] = await runAllPromises([
         TestTask.create(session1),
         TestTask.create(session1),
-        TestTaskCollection.createPublic(session1),
-        TestTaskCollection.createPrivate(session2),
+        TestTaskCollection.create(session1, {access: "public"}),
+        TestTaskCollection.create(session2),
     ]);
 
     await task1.addCollection(session1, collection1);
@@ -10551,8 +10551,8 @@ test("reauthorize will noop if an authorized referenced collection is still auth
     const [task1, task2, collection1, collection2] = await runAllPromises([
         TestTask.create(session1),
         TestTask.create(session1),
-        TestTaskCollection.createPublic(session1),
-        TestTaskCollection.createPublic(session2),
+        TestTaskCollection.create(session1, {access: "public"}),
+        TestTaskCollection.create(session2, {access: "public"}),
     ]);
 
     await task1.addCollection(session1, collection1);
@@ -10666,8 +10666,8 @@ test("referenced data is not evicted", async () => {
         TestTask.create(session1),
         TestTask.create(session1),
         TestTask.create(session1),
-        TestTaskCollection.createPublic(session1),
-        TestTaskCollection.createPublic(session1),
+        TestTaskCollection.create(session1, {access: "public"}),
+        TestTaskCollection.create(session1, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -10848,8 +10848,8 @@ test("unreferenced data is evicted", async () => {
         TestTask.create(session1),
         TestTask.create(session1),
         TestTask.create(session1),
-        TestTaskCollection.createPublic(session1),
-        TestTaskCollection.createPublic(session1),
+        TestTaskCollection.create(session1, {access: "public"}),
+        TestTaskCollection.create(session1, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -10995,8 +10995,8 @@ test("unreferenced data can be reused when no eviction", async () => {
         TestTask.create(session1),
         TestTask.create(session1),
         TestTask.create(session1),
-        TestTaskCollection.createPublic(session1),
-        TestTaskCollection.createPublic(session1),
+        TestTaskCollection.create(session1, {access: "public"}),
+        TestTaskCollection.create(session1, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -12316,7 +12316,7 @@ test("will lose access to subscribed task upon reauthorization", async () => {
     const server = createWebSocketServer(space);
 
     const task1 = await TestTask.create(session1);
-    const collection1 = await TestTaskCollection.createPublic(session1);
+    const collection1 = await TestTaskCollection.create(session1, {access: "public"});
     await task1.addCollection(session1, collection1);
 
     await server.wait();
@@ -12372,7 +12372,7 @@ test("will lose access to subscribed task upon reauthorization", async () => {
     expect(connection.isClosed()).toEqual(false);
     expect(connection.takeEvents()).toEqual([]);
 
-    await collection1.setPrivateAccessPolicy(session1);
+    await collection1.updateAccess(session1, "private");
     await server.wait();
 
     expect(connection.isClosed()).toEqual(true);
@@ -12414,7 +12414,7 @@ test("will lose access to subscribed task upon reauthorization if account remove
     const server = createWebSocketServer(space);
 
     const task1 = await TestTask.create(session1);
-    const collection1 = await TestTaskCollection.createPublic(session1);
+    const collection1 = await TestTaskCollection.create(session1, {access: "public"});
     await task1.addCollection(session1, collection1);
 
     await server.wait();
@@ -12504,9 +12504,9 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
             TestTask.create(session),
             TestTask.create(session),
             TestTask.create(session),
-            TestTaskCollection.createPrivate(session),
-            TestTaskCollection.createPrivate(session),
-            TestTaskCollection.createPrivate(session),
+            TestTaskCollection.create(session),
+            TestTaskCollection.create(session),
+            TestTaskCollection.create(session),
         ]);
 
     await runAllPromises([
@@ -12972,7 +12972,7 @@ test("subscribed task will become unauthorized after unsubscribed", async () => 
     const [task1, task2, collection1] = await runAllPromises([
         TestTask.create(session1),
         TestTask.create(session1),
-        TestTaskCollection.createPublic(session1),
+        TestTaskCollection.create(session1, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -13075,8 +13075,8 @@ test("can subscribe to collection", async () => {
     const server = createWebSocketServer(space);
 
     const [collection1, collection2] = await runAllPromises([
-        TestTaskCollection.createPrivate(session),
-        TestTaskCollection.createPrivate(session),
+        TestTaskCollection.create(session),
+        TestTaskCollection.create(session),
     ]);
 
     await server.wait();
@@ -13169,7 +13169,7 @@ test("can't subscribe to collection that you don't have access to", async () => 
 
     const server = createWebSocketServer(space);
 
-    const collection1 = await TestTaskCollection.createPrivate(session1);
+    const collection1 = await TestTaskCollection.create(session1);
 
     await server.wait();
 
@@ -13194,7 +13194,7 @@ test("will lose access to subscribed collection upon reauthorization", async () 
 
     const server = createWebSocketServer(space);
 
-    const collection1 = await TestTaskCollection.createPublic(session1);
+    const collection1 = await TestTaskCollection.create(session1, {access: "public"});
 
     await server.wait();
 
@@ -13248,7 +13248,7 @@ test("will lose access to subscribed collection upon reauthorization", async () 
 
     expect(connection.takeEvents()).toEqual([]);
 
-    await collection1.setPrivateAccessPolicy(session1);
+    await collection1.updateAccess(session1, "private");
     await server.wait();
 
     expect(connection.takeEvents()).toEqual([
@@ -13318,8 +13318,8 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
 
     const [task1, collection1, collection2] = await runAllPromises([
         TestTask.create(session1),
-        TestTaskCollection.createPublic(session1),
-        TestTaskCollection.createPublic(session2),
+        TestTaskCollection.create(session1, {access: "public"}),
+        TestTaskCollection.create(session2, {access: "public"}),
     ]);
 
     await runAllPromises([
@@ -13370,7 +13370,7 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
     expect(connection.isClosed()).toEqual(false);
     expect(connection.getCloseError()).toEqual(null);
 
-    await collection2.setPrivateAccessPolicy(session2);
+    await collection2.updateAccess(session2, "private");
     await server.wait();
 
     expect(connection.isClosed()).toEqual(true);
@@ -13410,7 +13410,7 @@ test("deleting task and all children when subscribed to task and its children", 
         TestTask.create(session),
     ]);
 
-    const collection = await TestTaskCollection.createPrivate(session);
+    const collection = await TestTaskCollection.create(session);
 
     await runAllPromises([
         task2.updateParentTask(session, task1),
@@ -13518,7 +13518,7 @@ test("will load some expanded task queries if requested", async () => {
         TestTask.create(session1),
         TestTask.create(session1),
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session2),
+        TestTaskCollection.create(session2, {access: "public"}),
     ]);
 
     await task4.addCollection(session2, collection);
@@ -14135,7 +14135,7 @@ test("race condition: extra query task ids includes task from action that happen
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPrivate(session),
+        TestTaskCollection.create(session),
     ]);
 
     await runAllPromises([

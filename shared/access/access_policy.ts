@@ -21,7 +21,7 @@ export type AccessLevel = SchemaType<typeof AccessLevelSchema>;
 
 const allAccessLevels = ["View", "Comment", "Edit", "Manage"] as const;
 
-const AccessLevelSchema = Schema.enum(allAccessLevels);
+export const AccessLevelSchema = Schema.enum(allAccessLevels);
 
 /**
  * Does someone's access level high enough to take an action at the expected

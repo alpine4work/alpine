@@ -27,7 +27,7 @@ test("can comment on a document and use the comment thread sidebar", async ({
 
     const document = await createDocument(context.action(session1), {
         spaceId: space.id,
-        content: createSimpleDocumentContent("Hello, world!"),
+        content: createSimpleDocumentContent(session1.account.id, "Hello, world!"),
     });
 
     await services.signIn(browserContext1, session1);

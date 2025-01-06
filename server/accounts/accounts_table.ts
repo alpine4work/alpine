@@ -52,7 +52,7 @@ export const appleReviewerAccountEmailAddress = "apple.reviewer@alpine.inc" as E
 /**
  * This is a secret string shared between our company and Apple. An Apple
  * reviewer may use this string to log into a space made just for them. It's
- * not that big a deal if the strong leaks. All the account has access to is
+ * not that big a deal if the string leaks. All the account has access to is
  * their own space.
  */
 const appleReviewerAccountPassword = "968706";

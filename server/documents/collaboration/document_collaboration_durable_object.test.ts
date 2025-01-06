@@ -28,10 +28,7 @@ import {WebSocketServerTestConnection} from "~/server/web_socket/web_socket_serv
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
-import {
-    emptyDocumentContent,
-    DocumentContentProsemirrorSchema as schema,
-} from "~/shared/documents/document_content_schema.js";
+import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
@@ -106,10 +103,7 @@ test("can not connect to a document that does not exist", async () => {
 });
 
 test("can not connect to a document in a different space", async () => {
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     await expect(connectForTest(context.action(otherSession), document.id)).rejects.toThrow(
         PermissionDeniedError,
@@ -117,10 +111,7 @@ test("can not connect to a document in a different space", async () => {
 });
 
 test("can not connect to an existing document durable object in a different space", async () => {
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     await connectForTest(context.action(session1), document.id);
 
@@ -130,10 +121,7 @@ test("can not connect to an existing document durable object in a different spac
 });
 
 test("can update document content", async () => {
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     const client1Id = generateId<ContentEditorClientId>();
     const connection1 = await connectForTest(context.action(session1), document.id);
@@ -211,10 +199,7 @@ test("can update document content", async () => {
 });
 
 test("will optimistically update the document and then persist later", async () => {
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     const client1Id = generateId<ContentEditorClientId>();
     const connection1 = await connectForTest(context.action(session1), document.id);
@@ -325,10 +310,7 @@ test("will optimistically update the document and then persist later", async () 
 });
 
 test("will not batch updates from different accounts when persisting", async () => {
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     const client1Id = generateId<ContentEditorClientId>();
     const client3Id = generateId<ContentEditorClientId>();
@@ -446,10 +428,7 @@ test("will not batch updates from different accounts when persisting", async () 
 });
 
 test("will respond optimistically with a comment thread even if it has not been persisted yet", async () => {
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     await updateDocumentContent(context.action(session1), {
         id: document.id,
@@ -716,10 +695,7 @@ test("will respond optimistically with a comment thread even if it has not been 
 });
 
 test("will respond optimistically to backfills with a comment thread even if it has not been persisted yet", async () => {
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     await updateDocumentContent(context.action(session1), {
         id: document.id,
@@ -863,10 +839,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
 });
 
 test("will respond optimistically with a comment thread with files even if it has not been persisted yet", async () => {
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     await updateDocumentContent(context.action(session1), {
         id: document.id,
@@ -1245,10 +1218,7 @@ test("will respond optimistically with a comment thread with files even if it ha
 });
 
 test("when comment threads are added back to the document they will be loaded", async () => {
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     await updateDocumentContent(context.action(session1), {
         id: document.id,
@@ -1400,10 +1370,7 @@ test("when comment threads are added back to the document they will be loaded", 
 });
 
 test("comment thread can be optimistic at first and then loaded from the database", async () => {
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     await updateDocumentContent(context.action(session1), {
         id: document.id,
@@ -1654,10 +1621,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
 });
 
 test("can create comments in comment threads", async () => {
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     await updateDocumentContent(context.action(session1), {
         id: document.id,
@@ -2046,10 +2010,7 @@ test("can create comments in comment threads", async () => {
 });
 
 test("if comment thread is persisting we will wait to create messages but respond to backfill requests", async () => {
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     await updateDocumentContent(context.action(session1), {
         id: document.id,
@@ -2332,10 +2293,7 @@ test("if comment thread is persisting we will wait to create messages but respon
 });
 
 test("if comment thread update message hasn't been processed we will wait to respond to backfill requests", async () => {
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     await updateDocumentContent(context.action(session1), {
         id: document.id,
@@ -2640,10 +2598,7 @@ test("if comment thread update message hasn't been processed we will wait to res
 });
 
 test("while comment thread is persisting we will respond to comment load requests", async () => {
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     await updateDocumentContent(context.action(session1), {
         id: document.id,
@@ -3539,15 +3494,9 @@ test("while comment thread is persisting we will respond to comment load request
 });
 
 test("will cleanup comment thread marks if from a different document", async () => {
-    const document1 = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document1 = await createDocument(context.action(session1), {spaceId: space.id});
 
-    const document2 = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document2 = await createDocument(context.action(session1), {spaceId: space.id});
 
     await updateDocumentContent(context.action(session1), {
         id: document1.id,
@@ -3943,10 +3892,7 @@ test("will cleanup comment thread marks if from a different document", async () 
 });
 
 test("can add comment thread marks back to document after they've been removed", async () => {
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const document = await createDocument(context.action(session1), {spaceId: space.id});
 
     await updateDocumentContent(context.action(session1), {
         id: document.id,
@@ -4253,7 +4199,7 @@ test("can resolve a comment thread", async () => {
     const session1 = await space.createSession();
     const session2 = await space.createSession();
 
-    const document = await TestDocument.create(session1);
+    const document = await TestDocument.create(session1, {access: "public"});
 
     const {range} = await document.type(session1, "Hello");
     await document.type(session1, ", world!");
@@ -4353,7 +4299,7 @@ test("can unresolve a comment thread", async () => {
     const session1 = await space.createSession();
     const session2 = await space.createSession();
 
-    const document = await TestDocument.create(session1);
+    const document = await TestDocument.create(session1, {access: "public"});
 
     const {range} = await document.type(session1, "Hello");
     await document.type(session1, ", world!");

@@ -107,7 +107,15 @@ export class DocumentCollaborationConnection {
     }
 
     public async authorize(context: WorkerSessionActionContext) {
-        await authorizeDocumentAccess(context, {documentId: this._contentManager.id});
+        await authorizeDocumentAccess(context, {
+            documentId: this._contentManager.id,
+            // TODO(calebmer, #sharing): Maybe we should have the client pass through what
+            // mode it's in. It's not that harmful to let non-editors call the
+            // `updateContent()` procedure since the `updateDocumentContent()` RPC call
+            // will fail. But other viewers would see content being added in realtime which
+            // can be considered a security violation.
+            expectedAccessLevel: "View",
+        });
     }
 
     public getPersistedVersion() {

@@ -60,6 +60,7 @@ ts_project(
         "//:node_modules/murmurhash",
         "//:node_modules/prosemirror-model",
         "//:node_modules/prosemirror-transform",
+        "//server/access",
         "//server/content",
         "//server/dynamo/core",
         "//server/helpers",

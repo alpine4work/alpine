@@ -20,10 +20,7 @@ import {
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {
-    DocumentContentReferences,
-    UncheckedDocumentContentWithReferences,
-} from "~/shared/documents/document_content_references.js";
+import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -65,14 +62,16 @@ export function DocumentCommentThreadPreview({
                 exceptCommentThreadIds: new Set([commentThread.id]),
             }),
             references: contentReferences,
-        } as UncheckedDocumentContentWithReferences;
+        };
     }, [commentThread.id, contentReferences, contentSnippet]);
 
     // Our `previousContent` state holds the last `currentContent` object we
     // rendered. So if `currentContent` becomes null we can continue to render the
     // last value we saw out of `previousContent`.
-    const [previousContent, setPreviousContent] =
-        useState<UncheckedDocumentContentWithReferences | null>(null);
+    const [previousContent, setPreviousContent] = useState<{
+        doc: Node;
+        references: DocumentContentReferences;
+    } | null>(null);
 
     if (!previousContent && currentContent) setPreviousContent(currentContent);
     if (previousContent && currentContent && previousContent !== currentContent)

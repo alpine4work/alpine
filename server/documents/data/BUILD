@@ -25,6 +25,7 @@ ts_project(
         "//:node_modules/date-fns",
         "//:node_modules/prosemirror-model",
         "//:node_modules/prosemirror-transform",
+        "//server/access",
         "//server/content",
         "//server/context",
         "//server/dynamo/core",

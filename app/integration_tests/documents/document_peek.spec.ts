@@ -58,7 +58,7 @@ test("can create document from peek", async ({browser, context: browserContext1,
 test("clicking a link will open a peek", async ({context: browserContext, page}) => {
     const document2 = await createDocument(context.action(session), {
         spaceId: space.id,
-        content: createSimpleDocumentContent("Test document content 2"),
+        content: createSimpleDocumentContent(session.account.id, "Test document content 2"),
     });
 
     const document1 = await createDocument(context.action(session), {
@@ -95,7 +95,7 @@ test("clicking a link will open a peek", async ({context: browserContext, page})
 test("clicking close will close a peek", async ({context: browserContext, page}) => {
     const document2 = await createDocument(context.action(session), {
         spaceId: space.id,
-        content: createSimpleDocumentContent("Test document content 2"),
+        content: createSimpleDocumentContent(session.account.id, "Test document content 2"),
     });
 
     const document1 = await createDocument(context.action(session), {
@@ -137,7 +137,7 @@ test("clicking close will close a peek", async ({context: browserContext, page})
 test("clicking expand will expand a peek", async ({context: browserContext, page}) => {
     const document2 = await createDocument(context.action(session), {
         spaceId: space.id,
-        content: createSimpleDocumentContent("Test document content 2"),
+        content: createSimpleDocumentContent(session.account.id, "Test document content 2"),
     });
 
     const document1 = await createDocument(context.action(session), {
@@ -179,7 +179,7 @@ test("clicking expand will expand a peek", async ({context: browserContext, page
 test("can navigate within peek", async ({context: browserContext, page}) => {
     const document4 = await createDocument(context.action(session), {
         spaceId: space.id,
-        content: createSimpleDocumentContent("Test document content 4"),
+        content: createSimpleDocumentContent(session.account.id, "Test document content 4"),
     });
 
     const document3 = await createDocument(context.action(session), {
@@ -286,17 +286,17 @@ test("can navigate within peek", async ({context: browserContext, page}) => {
 test("can open multiple peeks", async ({context: browserContext, page}) => {
     const document4 = await createDocument(context.action(session), {
         spaceId: space.id,
-        content: createSimpleDocumentContent("Test document content 4"),
+        content: createSimpleDocumentContent(session.account.id, "Test document content 4"),
     });
 
     const document3 = await createDocument(context.action(session), {
         spaceId: space.id,
-        content: createSimpleDocumentContent("Test document content 3"),
+        content: createSimpleDocumentContent(session.account.id, "Test document content 3"),
     });
 
     const document2 = await createDocument(context.action(session), {
         spaceId: space.id,
-        content: createSimpleDocumentContent("Test document content 2"),
+        content: createSimpleDocumentContent(session.account.id, "Test document content 2"),
     });
 
     const document1 = await createDocument(context.action(session), {
@@ -386,17 +386,17 @@ test("can open multiple peeks", async ({context: browserContext, page}) => {
 test("can close all peeks with a shift click", async ({context: browserContext, page}) => {
     const document4 = await createDocument(context.action(session), {
         spaceId: space.id,
-        content: createSimpleDocumentContent("Test document content 4"),
+        content: createSimpleDocumentContent(session.account.id, "Test document content 4"),
     });
 
     const document3 = await createDocument(context.action(session), {
         spaceId: space.id,
-        content: createSimpleDocumentContent("Test document content 3"),
+        content: createSimpleDocumentContent(session.account.id, "Test document content 3"),
     });
 
     const document2 = await createDocument(context.action(session), {
         spaceId: space.id,
-        content: createSimpleDocumentContent("Test document content 2"),
+        content: createSimpleDocumentContent(session.account.id, "Test document content 2"),
     });
 
     const document1 = await createDocument(context.action(session), {
@@ -474,12 +474,12 @@ test("remembers peek state across page reloads", async ({context: browserContext
 }) => {
     const document5 = await createDocument(context.action(session), {
         spaceId: space.id,
-        content: createSimpleDocumentContent("Test document content 5"),
+        content: createSimpleDocumentContent(session.account.id, "Test document content 5"),
     });
 
     const document4 = await createDocument(context.action(session), {
         spaceId: space.id,
-        content: createSimpleDocumentContent("Test document content 4"),
+        content: createSimpleDocumentContent(session.account.id, "Test document content 4"),
     });
 
     const document3 = await createDocument(context.action(session), {
@@ -503,7 +503,7 @@ test("remembers peek state across page reloads", async ({context: browserContext
 
     const document2 = await createDocument(context.action(session), {
         spaceId: space.id,
-        content: createSimpleDocumentContent("Test document content 2"),
+        content: createSimpleDocumentContent(session.account.id, "Test document content 2"),
     });
 
     const document1 = await createDocument(context.action(session), {
@@ -638,17 +638,17 @@ test("expand remembers peeks on the previous page including the expanded peek", 
 }) => {
     const document4 = await createDocument(context.action(session), {
         spaceId: space.id,
-        content: createSimpleDocumentContent("Test document content 4"),
+        content: createSimpleDocumentContent(session.account.id, "Test document content 4"),
     });
 
     const document3 = await createDocument(context.action(session), {
         spaceId: space.id,
-        content: createSimpleDocumentContent("Test document content 3"),
+        content: createSimpleDocumentContent(session.account.id, "Test document content 3"),
     });
 
     const document2 = await createDocument(context.action(session), {
         spaceId: space.id,
-        content: createSimpleDocumentContent("Test document content 2"),
+        content: createSimpleDocumentContent(session.account.id, "Test document content 2"),
     });
 
     const document1 = await createDocument(context.action(session), {
