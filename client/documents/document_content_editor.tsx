@@ -23,7 +23,7 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
-import {createCommentThreadMetaKey} from "~/client/content/content_editor_state.js";
+import {createContentCommentThreadMetaKey} from "~/client/content/content_editor_state.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {Box} from "~/client/design/box.js";
@@ -1624,7 +1624,8 @@ export function DocumentContentEditor({
                                     openCommentThreadPromiseRef?: {
                                         current: Promise<void> | null;
                                     };
-                                } | null = transaction.getMeta(createCommentThreadMetaKey) ?? null;
+                                } | null =
+                                    transaction.getMeta(createContentCommentThreadMetaKey) ?? null;
 
                                 if (
                                     createCommentThread &&

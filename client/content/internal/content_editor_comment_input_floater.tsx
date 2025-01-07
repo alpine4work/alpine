@@ -18,7 +18,7 @@ import {createPortal} from "react-dom";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {
     ContentEditorState,
-    createCommentThreadMetaKey,
+    createContentCommentThreadMetaKey,
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
@@ -368,7 +368,7 @@ function ContentEditorCommentInput({
             );
         }
 
-        transaction.setMeta(createCommentThreadMetaKey, {
+        transaction.setMeta(createContentCommentThreadMetaKey, {
             commentThreadId,
             initialCommentContent: content,
             initialCommentFileIds: files.map(({file}) => file.id),

@@ -97,6 +97,7 @@ export default implementRpcs(definitions, {
                     steps: input.steps,
                     clientId: input.clientId,
                     createCommentThreads: input.createCommentThreads,
+                    intentionallyUpdateAccessPolicy: input.intentionallyUpdateAccessPolicy,
                     resolveCommentThreadIds: input.resolveCommentThreadIds,
                     unresolveCommentThreadIds: input.unresolveCommentThreadIds,
                 },

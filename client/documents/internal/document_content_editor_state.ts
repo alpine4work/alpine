@@ -8,9 +8,11 @@ import {
 } from "~/client/content/collaborative_content_editor_state.js";
 import {
     ContentEditorReferencesAction,
-    createCommentThreadMetaKey,
+    createContentCommentThreadMetaKey,
+    intentionallyUpdateContentAccessPolicyMetaKey,
     reduceContentReferencesShared,
 } from "~/client/content/content_editor_state.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
 import {
     DocumentContentReferences,
@@ -58,6 +60,14 @@ type DocumentContentEditorExtraState = {
         readonly initialCommentContent: MessageContent;
         readonly initialCommentFileIds: ReadonlyArray<FileId>;
     }> | null;
+
+    /**
+     * When we update an access policy we need to send an
+     * `intentionallyUpdateAccessPolicy` property to the server so the server knows
+     * the access policy change isn't ProseMirror accidentally changing a document
+     * attribute.
+     */
+    readonly pendingIntentionallyUpdateAccessPolicy: AccessPolicy | null;
 
     /**
      * Remember some number of steps in our state to map phantom selections from
@@ -136,6 +146,7 @@ export function getInitialDocumentContentEditorState(
         reduceReferences: reduceDocumentContentReferences,
         extra: {
             pendingCreateCommentThreads: null,
+            pendingIntentionallyUpdateAccessPolicy: null,
             rememberedSteps: [],
             ourPresenceState: null,
             otherPresenceStateByConnectionId: ImmutableMap.empty(),
@@ -203,6 +214,7 @@ export function reduceDocumentContentEditorState(
     const oldPersistedVersion = state.persistedVersion;
     const oldPendingSendableSteps = state.pendingSendableSteps;
     const oldRememberedSteps = state.extra.rememberedSteps;
+    const oldOurPresenceState = state.extra.ourPresenceState;
     const oldOtherPresenceStateByConnectionId = state.extra.otherPresenceStateByConnectionId;
 
     state = baseReduceDocumentContentEditorState(state, actions);
@@ -216,18 +228,34 @@ export function reduceDocumentContentEditorState(
                 extra: {
                     ...state.extra,
                     pendingCreateCommentThreads: null,
+                    pendingIntentionallyUpdateAccessPolicy: null,
                 },
             };
         } else {
+            let isLastTransactionIntentionallyUpdatingAccessPolicy = false;
+            let lastIntentionallyUpdateAccessPolicy: AccessPolicy | null = null;
+
             // We can have multiple steps from the same origin transaction. So uniquify our
             // new comment thread objects.
+            const transactions = new Set(state.pendingSendableSteps.origins);
+
             const createCommentThreads = Array.from(
-                filterMapIterable(new Set(state.pendingSendableSteps.origins), transaction => {
+                filterMapIterable(transactions, transaction => {
                     const createCommentThread: {
                         commentThreadId: DocumentCommentThreadId;
                         initialCommentContent: MessageContentWithReferences;
                         initialCommentFileIds: ReadonlyArray<FileId>;
-                    } | null = transaction.getMeta(createCommentThreadMetaKey) ?? null;
+                    } | null = transaction.getMeta(createContentCommentThreadMetaKey) ?? null;
+
+                    const intentionallyUpdateAccessPolicy: AccessPolicy | null =
+                        transaction.getMeta(intentionallyUpdateContentAccessPolicyMetaKey) ?? null;
+
+                    if (intentionallyUpdateAccessPolicy !== null) {
+                        isLastTransactionIntentionallyUpdatingAccessPolicy = true;
+                        lastIntentionallyUpdateAccessPolicy = intentionallyUpdateAccessPolicy;
+                    } else {
+                        isLastTransactionIntentionallyUpdatingAccessPolicy = false;
+                    }
 
                     if (!createCommentThread) return;
 
@@ -244,12 +272,21 @@ export function reduceDocumentContentEditorState(
                 extra: {
                     ...state.extra,
                     pendingCreateCommentThreads: createCommentThreads,
+                    pendingIntentionallyUpdateAccessPolicy: lastIntentionallyUpdateAccessPolicy,
                     // Make sure our presence state is up-to-date as well since we will send it to
                     // the server along with our sendable steps.
-                    ourPresenceState: {
-                        version: state.editorState.getVersion(),
-                        selection: state.editorState.getSelection(),
-                    },
+                    //
+                    // If we're updating the access policy in this action and the old presence state
+                    // is null then don't set a new presence state which'll flash our cursor at the
+                    // start of the document.
+                    ourPresenceState:
+                        isLastTransactionIntentionallyUpdatingAccessPolicy &&
+                        oldOurPresenceState === null
+                            ? null
+                            : {
+                                  version: state.editorState.getVersion(),
+                                  selection: state.editorState.getSelection(),
+                              },
                 },
             };
         }

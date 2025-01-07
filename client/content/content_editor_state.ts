@@ -18,6 +18,7 @@ import {
 } from "~/client/content/internal/content_editor_keymap_plugin.js";
 import {contentEditorTableColumnResizingPlugin} from "~/client/content/internal/table/content_table_column_resize_plugin.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {
     ContentReferences,
@@ -48,7 +49,8 @@ import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_f
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
-export const createCommentThreadMetaKey = "createCommentThread";
+export const createContentCommentThreadMetaKey = "createCommentThread";
+export const intentionallyUpdateContentAccessPolicyMetaKey = "intentionallyUpdateAccessPolicy";
 
 function buildPlugins<Content extends ContentWithReferences>({
     schema,
@@ -499,6 +501,25 @@ export class ContentEditorState<Content extends ContentWithReferences> {
     ): ContentEditorState<Content> {
         return new ContentEditorState(
             this._state.apply(updateContentEditorReferences(this._state.tr, action)),
+        );
+    }
+
+    /**
+     * Set the access policy for this content.
+     *
+     * Throws an error if the content doesn't have an access policy. Makes sure
+     * the `intentionallyUpdateAccessPolicy` option is set when running this
+     * update on the backend.
+     */
+    public setAccessPolicy(accessPolicy: AccessPolicy): ContentEditorState<Content> {
+        assert(this._state.schema.topNodeType.spec.attrs?.accessPolicy);
+
+        return new ContentEditorState(
+            this._state.apply(
+                this._state.tr
+                    .setDocAttribute("accessPolicy", accessPolicy)
+                    .setMeta(intentionallyUpdateContentAccessPolicyMetaKey, accessPolicy),
+            ),
         );
     }
 

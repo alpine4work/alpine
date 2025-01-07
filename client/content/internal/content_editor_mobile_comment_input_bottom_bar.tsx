@@ -4,7 +4,7 @@ import {Memo, RefObject, useEffect, useMemo, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import {
     ContentEditorState,
-    createCommentThreadMetaKey,
+    createContentCommentThreadMetaKey,
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
 import {MessageInputFile} from "~/client/content/messaging/add_message_input_files.js";
@@ -127,7 +127,7 @@ export function ContentEditorMobileCommentInputBottomBar({
             );
         }
 
-        transaction.setMeta(createCommentThreadMetaKey, {
+        transaction.setMeta(createContentCommentThreadMetaKey, {
             commentThreadId,
             initialCommentContent: content,
             initialCommentFileIds: files.map(({file}) => file.id),

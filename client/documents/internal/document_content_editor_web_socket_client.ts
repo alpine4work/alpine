@@ -478,6 +478,8 @@ export class DocumentContentEditorWebSocketClient {
                         steps: state.pendingSendableSteps.steps,
                         clientId: state.pendingSendableSteps.clientId,
                         createCommentThreads: state.extra.pendingCreateCommentThreads ?? [],
+                        intentionallyUpdateAccessPolicy:
+                            state.extra.pendingIntentionallyUpdateAccessPolicy,
                         updateOurPresenceState: {
                             state: state.extra.ourPresenceState
                                 ? {

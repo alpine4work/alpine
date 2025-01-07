@@ -26,7 +26,6 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {pointerEventsNoneNotInheritedClassName} from "~/client/styles/styles.js";
-import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
 import {
     RemLength,
@@ -380,7 +379,11 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                             <>
                                 {shareButton && routeLayout !== "narrow" && (
                                     <Box paddingRight="4">
-                                        <ShareButton accessPolicy={shareButton.accessPolicy} />
+                                        <ShareButton
+                                            accessPolicy={shareButton.accessPolicy}
+                                            onAccessPolicyChange={shareButton.onAccessPolicyChange}
+                                            onCopyLink={shareButton.onCopyLink}
+                                        />
                                     </Box>
                                 )}
                                 {isTextInputFocused ? (

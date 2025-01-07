@@ -1119,6 +1119,7 @@ test("collaborative update scenario", () => {
         errorState: {hasError: false},
         extra: {
             pendingCreateCommentThreads: [],
+            pendingIntentionallyUpdateAccessPolicy: null,
             rememberedSteps: [],
             ourPresenceState: {
                 version: 8,

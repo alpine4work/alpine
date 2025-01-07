@@ -5,6 +5,7 @@ import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
 import {RemLength, Spacing} from "~/shared/design/core/spacing.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 export type NavigationBarRef = {
     /**
@@ -21,6 +22,8 @@ export type NavigationBarRef = {
 
 export type NavigationBarShareButtonProps = {
     readonly accessPolicy: AccessPolicy;
+    readonly onAccessPolicyChange: (accessPolicy: AccessPolicy) => void;
+    readonly onCopyLink: () => MaybePromise<void>;
 };
 
 export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDivElement> = {

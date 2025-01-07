@@ -6,6 +6,7 @@ import {
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {DocumentCollaborationStepCache} from "~/server/documents/collaboration/document_collaboration_step_cache.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {
     DocumentCollaborationEvent,
@@ -106,6 +107,7 @@ export class DocumentCollaborationContentManager {
                 readonly initialCommentContent: MessageContent;
                 readonly createdTime: Date;
             }>;
+            readonly intentionallyUpdateAccessPolicyRef: {current: AccessPolicy | null};
         } | null;
         promise: Promise<void>;
     } | null = null;
@@ -260,6 +262,7 @@ export class DocumentCollaborationContentManager {
                 initialCommentContent: MessageContent;
                 initialCommentFileIds: ReadonlyArray<FileId>;
             }>;
+            intentionallyUpdateAccessPolicy: AccessPolicy | null;
             resolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             unresolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             updateOurPresenceState: {state: DocumentCollaborationPresenceState | null};
@@ -402,6 +405,10 @@ export class DocumentCollaborationContentManager {
                     });
                 }
 
+                this._persistenceState.next.intentionallyUpdateAccessPolicyRef.current =
+                    update.intentionallyUpdateAccessPolicy ??
+                    this._persistenceState.next.intentionallyUpdateAccessPolicyRef.current;
+
                 // We should have already thrown an error if `update.resolveCommentThreadIds`
                 // or `update.unresolveCommentThreadIds` are non-empty. Not allowed to batch
                 // updates that resolve comment threads.
@@ -415,6 +422,9 @@ export class DocumentCollaborationContentManager {
                         createdTime: commentThreadCreatedTime,
                     }),
                 );
+                const nextIntentionallyUpdateAccessPolicyRef = {
+                    current: update.intentionallyUpdateAccessPolicy,
+                };
                 const nextResolveCommentThreadIds = update.resolveCommentThreadIds ?? [];
                 const nextUnresolveCommentThreadIds = update.unresolveCommentThreadIds ?? [];
 
@@ -443,6 +453,10 @@ export class DocumentCollaborationContentManager {
                                         steps: nextSteps,
                                         clientId: update.clientId,
                                         createCommentThreads: nextCreateCommentThreads,
+                                        // NOCOMMIT: Would love to test this whole code path
+                                        intentionallyUpdateAccessPolicy:
+                                            nextIntentionallyUpdateAccessPolicyRef.current ??
+                                            undefined,
                                         resolveCommentThreadIds: nextResolveCommentThreadIds,
                                         unresolveCommentThreadIds: nextUnresolveCommentThreadIds,
                                     });
@@ -533,6 +547,7 @@ export class DocumentCollaborationContentManager {
                         clientId: update.clientId,
                         steps: nextSteps,
                         createCommentThreads: nextCreateCommentThreads,
+                        intentionallyUpdateAccessPolicyRef: nextIntentionallyUpdateAccessPolicyRef,
                     },
                     // NOTE(calebmer): We're careful to spawn the promise which updates content from
                     // this `update()` method so the `AppService` network calls count against the
@@ -671,6 +686,7 @@ export class DocumentCollaborationContentManager {
                             // rather by our backend here.
                             clientId: generateId(),
                             createCommentThreads: [],
+                            intentionallyUpdateAccessPolicy: null,
                             updateOurPresenceState: {state: null},
                         })
                             // If we have some comment thread marks to remove, then wait to send our update

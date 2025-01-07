@@ -38,13 +38,22 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
-export function ShareButton({accessPolicy}: {accessPolicy: AccessPolicy}) {
+export function ShareButton({
+    accessPolicy,
+    onAccessPolicyChange,
+    onCopyLink,
+}: {
+    accessPolicy: AccessPolicy;
+    onAccessPolicyChange: (accessPolicy: AccessPolicy) => void;
+    onCopyLink: () => MaybePromise<void>;
+}) {
     const reporter = useReporter();
 
-    // We need all accounts when the `<ShareButtonOverlay>` is open so preload
+    // We need all accounts when the `<ShareOverlay>` is open so preload
     // them now.
     useExpensivelyPreloadAllSpaceAccounts();
 
@@ -56,7 +65,11 @@ export function ShareButton({accessPolicy}: {accessPolicy: AccessPolicy}) {
                 offset="3"
                 overlay={
                     <Box>
-                        <ShareButtonOverlay accessPolicy={accessPolicy} />
+                        <ShareOverlay
+                            accessPolicy={accessPolicy}
+                            onAccessPolicyChange={onAccessPolicyChange}
+                            onCopyLink={onCopyLink}
+                        />
                     </Box>
                 }
             >
@@ -127,7 +140,15 @@ const accessLevelText: Record<AccessLevel, string> = {
 const noAccessLevelText = "can’t access";
 const removeAccessLevelText = "remove access";
 
-function ShareButtonOverlay({accessPolicy}: {accessPolicy: AccessPolicy}) {
+function ShareOverlay({
+    accessPolicy,
+    onAccessPolicyChange,
+    onCopyLink,
+}: {
+    accessPolicy: AccessPolicy;
+    onAccessPolicyChange: (accessPolicy: AccessPolicy) => void;
+    onCopyLink: () => MaybePromise<void>;
+}) {
     const {currentAccount} = useSpaceContext();
 
     const [isAltKeyDown, setIsAltKeyDown] = useState(false);
@@ -193,10 +214,10 @@ function ShareButtonOverlay({accessPolicy}: {accessPolicy: AccessPolicy}) {
             width="96"
             padding="5"
         >
-            <ShareButtonOverlayAccountGrantInput isAltKeyDown={isAltKeyDown} />
+            <ShareOverlayAccountGrantInput isAltKeyDown={isAltKeyDown} />
             <Spacer space="4" />
             <Box display="flex" flexDirection="column" gap="4">
-                <ShareButtonOverlayAccountGrant
+                <ShareOverlayAccountGrant
                     // We always want to show at least the current account in the share overlay and
                     // we want to show the current account first.
                     account={currentAccount}
@@ -211,7 +232,7 @@ function ShareButtonOverlay({accessPolicy}: {accessPolicy: AccessPolicy}) {
                     isAltKeyDown={isAltKeyDown}
                 />
                 {sortedAccountGrants.map(([accountId, accountGrant]) => (
-                    <ShareButtonOverlayAccountGrant
+                    <ShareOverlayAccountGrant
                         key={accountId}
                         account={accountById.get(accountId) ?? null}
                         accountGrant={accountGrant}
@@ -222,12 +243,15 @@ function ShareButtonOverlay({accessPolicy}: {accessPolicy: AccessPolicy}) {
             <Spacer space="4" />
             <Box height="border" backgroundColor="grey-5" />
             <Spacer space="4" />
-            <ShareButtonOverlayDefaultGrant
+            <ShareOverlayDefaultGrant
                 defaultGrant={accessPolicy.defaultGrant}
+                onDefaultGrantChange={defaultGrant => {
+                    onAccessPolicyChange({...accessPolicy, defaultGrant});
+                }}
                 isAltKeyDown={isAltKeyDown}
             />
             <Spacer space="3" />
-            <ShareButtonOverlayLinkGrant />
+            <ShareOverlayLinkGrant />
             <Spacer space="4" />
             <Box height="border" backgroundColor="grey-5" />
             <Spacer space="5" />
@@ -237,9 +261,8 @@ function ShareButtonOverlay({accessPolicy}: {accessPolicy: AccessPolicy}) {
                 fullWidth={true}
                 borderRadius="1.5"
                 icon={<LinkIcon size={spacing["4"]} />}
-                onPress={() => {
-                    // NOCOMMIT: Implement
-                }}
+                pressErrorTitle="Couldn’t copy link"
+                onPress={onCopyLink}
             >
                 Copy link
             </Button>
@@ -247,7 +270,7 @@ function ShareButtonOverlay({accessPolicy}: {accessPolicy: AccessPolicy}) {
     );
 }
 
-function ShareButtonOverlayAccountGrantInput({isAltKeyDown}: {isAltKeyDown: boolean}) {
+function ShareOverlayAccountGrantInput({isAltKeyDown}: {isAltKeyDown: boolean}) {
     return (
         <Box
             padding="2"
@@ -305,7 +328,7 @@ function ShareButtonOverlayAccountGrantInput({isAltKeyDown}: {isAltKeyDown: bool
     );
 }
 
-function ShareButtonOverlayAccountGrant({
+function ShareOverlayAccountGrant({
     account,
     accountGrant,
     isAltKeyDown,
@@ -393,11 +416,13 @@ function ShareButtonOverlayAccountGrant({
     );
 }
 
-function ShareButtonOverlayDefaultGrant({
+function ShareOverlayDefaultGrant({
     defaultGrant,
+    onDefaultGrantChange,
     isAltKeyDown,
 }: {
     defaultGrant: AccessPolicyDefaultGrant | null;
+    onDefaultGrantChange: (defaultGrant: AccessPolicyDefaultGrant | null) => void;
     isAltKeyDown: boolean;
 }) {
     const {space} = useSpaceContext();
@@ -421,7 +446,7 @@ function ShareButtonOverlayDefaultGrant({
                             isSelected: defaultGrant?.level === "Manage",
                             label: accessLevelText.Manage,
                             onPress: () => {
-                                // NOCOMMIT
+                                onDefaultGrantChange({type: "Space", level: "Manage"});
                             },
                         },
                         ...(isAltKeyDown || defaultGrant?.level === "Edit"
@@ -430,7 +455,7 @@ function ShareButtonOverlayDefaultGrant({
                                       isSelected: defaultGrant?.level === "Edit",
                                       label: accessLevelText.Edit,
                                       onPress: () => {
-                                          // NOCOMMIT
+                                          onDefaultGrantChange({type: "Space", level: "Edit"});
                                       },
                                   }),
                               ]
@@ -439,14 +464,14 @@ function ShareButtonOverlayDefaultGrant({
                             isSelected: defaultGrant?.level === "Comment",
                             label: accessLevelText.Comment,
                             onPress: () => {
-                                // NOCOMMIT
+                                onDefaultGrantChange({type: "Space", level: "Comment"});
                             },
                         },
                         {
                             isSelected: defaultGrant?.level === "View",
                             label: accessLevelText.View,
                             onPress: () => {
-                                // NOCOMMIT
+                                onDefaultGrantChange({type: "Space", level: "View"});
                             },
                         },
                     ],
@@ -455,14 +480,14 @@ function ShareButtonOverlayDefaultGrant({
                             isSelected: defaultGrant === null,
                             label: noAccessLevelText,
                             onPress: () => {
-                                // NOCOMMIT
+                                onDefaultGrantChange(null);
                             },
                         },
                     ],
                 ]}
             >
                 <Button
-                    variant="quieter"
+                    variant={defaultGrant === null ? "quieter" : "quiet"}
                     height="6"
                     paddingX="2"
                     icon={<CaretDown />}
@@ -477,7 +502,7 @@ function ShareButtonOverlayDefaultGrant({
     );
 }
 
-function ShareButtonOverlayLinkGrant() {
+function ShareOverlayLinkGrant() {
     return (
         <Box display="flex" alignItems="center">
             <Box
@@ -518,7 +543,8 @@ function ShareButtonOverlayLinkGrant() {
                 ]}
             >
                 <Button
-                    variant="quieter"
+                    // NOCOMMIT: Check if access level is actually null
+                    variant={true ? "quieter" : "quiet"}
                     height="6"
                     paddingX="2"
                     icon={<CaretDown />}
