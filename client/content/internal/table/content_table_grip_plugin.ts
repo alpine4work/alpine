@@ -9,6 +9,7 @@ import {
     isRowSelected,
     selectColumn,
     selectRow,
+    selectTable,
 } from "~/client/content/internal/table/content_table_client_util.js";
 import {
     addContentTableColumnAfter,
@@ -39,23 +40,27 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
 
                 const {doc, selection} = state;
                 const decorations: Array<Decoration> = [];
-                console.log("isInTable", isInContentTable(state));
-                if (!isInContentTable(state)) {
-                    decorations.push(
-                        Decoration.widget(0, () => {
-                            const button = document.createElement("a");
-                            button.className = contentStyles.gripTableClassName;
-                            button.addEventListener("mousedown", event => {
-                                event.preventDefault();
-                                event.stopImmediatePropagation();
-                                if (view) {
-                                    // Here you can add the table selection logic
-                                    // For now it just prevents default behavior
-                                }
-                            });
-                            return button;
-                        }),
-                    );
+                if (isInContentTable(state)) {
+                    // Get the first cell position which will be at the start of the table
+                    const rowCells = getCellsInColumn(0)(selection);
+                    if (rowCells?.[0]) {
+                        decorations.push(
+                            Decoration.widget(rowCells[0].pos, () => {
+                                const button = document.createElement("a");
+                                button.className = contentStyles.gripTableClassName;
+                                button.title = "Select table";
+                                button.addEventListener("mousedown", event => {
+                                    event.preventDefault();
+                                    event.stopImmediatePropagation();
+                                    if (view) {
+                                        const tr = view.state.tr;
+                                        view.dispatch(selectTable(tr));
+                                    }
+                                });
+                                return button;
+                            }),
+                        );
+                    }
                 }
 
                 // Handle row grips

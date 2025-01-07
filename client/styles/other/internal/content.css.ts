@@ -2479,28 +2479,23 @@ export const gripTableClassName = style({
     position: "absolute",
     top: "-24px",
     left: "-24px",
+    borderRadius: "100%",
     width: spacing[4],
     height: spacing[4],
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.05)",
     cursor: "pointer",
-    display: "flex",
-    justifyContent: "center",
     zIndex: 11,
-    borderTopLeftRadius: borderRadius["0.5"],
-    borderLeft: `1px solid rgba(0, 0, 0, 0.2)`,
-    borderTop: `1px solid rgba(0, 0, 0, 0.2)`,
-});
-
-globalStyle(`${darkColorSchemeSelector} .${gripTableClassName}`, {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderColor: "rgba(255, 255, 255, 0.2)",
-});
-
-globalStyle(`.${gripTableClassName}:hover`, {
-    backgroundColor: "rgba(0, 0, 0, 0.1)",
+    border: `1px solid ${colorSchemeVars["grey-20"]}`,
+    opacity: 1,
+    transition: "opacity 0.2s",
+    ":hover": {
+        backgroundColor: "rgba(0, 0, 0, 0.1)",
+    },
 });
 
 globalStyle(`${darkColorSchemeSelector} .${gripTableClassName}:hover`, {
     backgroundColor: "rgba(255, 255, 255, 0.2)",
+});
+
+globalStyle(`${darkColorSchemeSelector} .${gripTableClassName}:hover::before`, {
+    borderColor: "rgba(255, 255, 255, 0.6)",
 });

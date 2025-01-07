@@ -271,7 +271,6 @@ export const getCellsInRow = (rowIndex: number | Array<number>) => (selection: S
 // Update the name of this function to be globally unique
 export const getCellsInColumn = (columnIndex: number | Array<number>) => (selection: Selection) => {
     const table = findTable(selection);
-    console.log("getCellsInColumn", table);
     if (table) {
         const map = ContentTableMap.get(table.node);
         const indexes = Array.isArray(columnIndex) ? columnIndex : Array.from([columnIndex]);
