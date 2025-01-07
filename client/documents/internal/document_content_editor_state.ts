@@ -23,7 +23,6 @@ import {
     createEmptyDocumentContent,
     isDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {DocumentModel} from "~/shared/documents/document_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
@@ -114,15 +113,26 @@ type DocumentContentEditorExtraState = {
 };
 
 export function getInitialDocumentContentEditorState(
-    currentAccountId: AccountId,
-    initialDocument: DocumentModel | null,
+    options:
+        | {
+              initialDocument: {
+                  version: number;
+                  content: DocumentContentWithReferences;
+              };
+          }
+        | {
+              initialDocument?: undefined;
+              currentAccountId: AccountId;
+          },
 ): DocumentContentEditorState {
     return getInitialCollaborativeContentEditorState({
-        initialVersion: initialDocument?.version ?? 0,
-        initialContent: initialDocument?.content ?? {
-            doc: createEmptyDocumentContent(currentAccountId),
-            references: emptyDocumentContentReferences,
-        },
+        initialVersion: options.initialDocument?.version ?? 0,
+        initialContent: options.initialDocument
+            ? options.initialDocument.content
+            : {
+                  doc: createEmptyDocumentContent(options.currentAccountId),
+                  references: emptyDocumentContentReferences,
+              },
         reduceReferences: reduceDocumentContentReferences,
         extra: {
             pendingCreateCommentThreads: null,
@@ -144,7 +154,8 @@ type DocumentContentEditorExtraAction =
     | DocumentContentEditorSetAllOtherPresenceStatesAction
     | DocumentContentEditorUpdateOtherPresenceStateAction
     | DocumentContentEditorUpdateCommentThreadReferenceAction
-    | DocumentContentEditorUpdateCommentThreadResolutionStatesAction;
+    | DocumentContentEditorUpdateCommentThreadResolutionStatesAction
+    | DocumentContentEditorResetToPersistedVersionAction;
 
 type DocumentContentEditorAugmentRememberedStepsAction = {
     readonly type: "AugmentRememberedSteps";
@@ -181,10 +192,15 @@ type DocumentContentEditorUpdateCommentThreadResolutionStatesAction = {
     readonly unresolveCommentThreadIds: ReadonlyArray<DocumentCommentThreadId>;
 };
 
+type DocumentContentEditorResetToPersistedVersionAction = {
+    readonly type: "ResetToPersistedVersion";
+};
+
 export function reduceDocumentContentEditorState(
     state: DocumentContentEditorState,
     actions: ReadonlyArray<DocumentContentEditorAction>,
 ): DocumentContentEditorState {
+    const oldPersistedVersion = state.persistedVersion;
     const oldPendingSendableSteps = state.pendingSendableSteps;
     const oldRememberedSteps = state.extra.rememberedSteps;
     const oldOtherPresenceStateByConnectionId = state.extra.otherPresenceStateByConnectionId;
@@ -239,15 +255,27 @@ export function reduceDocumentContentEditorState(
         }
     }
 
-    // If `rememberedSteps` or `otherPresenceStateByConnectionId` changed, then
-    // discard any `rememberedSteps` we don't need anymore for rebasing
-    // presence state selections.
+    // If `persistedVersion`, `rememberedSteps`, or
+    // `otherPresenceStateByConnectionId` changed, then discard any
+    // `rememberedSteps` we don't need anymore for rebasing presence state
+    // selections.
     if (
+        state.persistedVersion !== oldPersistedVersion ||
         state.extra.rememberedSteps !== oldRememberedSteps ||
         state.extra.otherPresenceStateByConnectionId !== oldOtherPresenceStateByConnectionId
     ) {
         let discardRememberedStepsBeforeVersion = state.editorState.getVersion();
 
+        // We remember steps between the persisted version and the `editorState`'s
+        // confirmed version so we can implement the `ResetToPersistedVersion` action
+        // properly. If we see that action then we look up the old document from
+        // `rememberedSteps`.
+        if (state.persistedVersion < discardRememberedStepsBeforeVersion)
+            discardRememberedStepsBeforeVersion = state.persistedVersion;
+
+        // We remember steps between the current version and the version for any of our
+        // presence states so that we can map the presence state position from the
+        // version where it was created to the latest document version.
         for (const presenceState of state.extra.otherPresenceStateByConnectionId.values()) {
             if (presenceState.version < discardRememberedStepsBeforeVersion)
                 discardRememberedStepsBeforeVersion = presenceState.version;
@@ -480,6 +508,23 @@ const baseReduceDocumentContentEditorState = createCollaborativeContentEditorSta
                     unpersistedResolutionStateByCommentThreadId,
                 },
             };
+        }
+        case "ResetToPersistedVersion": {
+            const oldContent =
+                state.extra.rememberedSteps[
+                    state.extra.rememberedSteps.length -
+                        (state.editorState.getVersion() - state.persistedVersion)
+                ]!.contentBeforeStep.get();
+
+            return getInitialDocumentContentEditorState({
+                initialDocument: {
+                    version: state.persistedVersion,
+                    content: {
+                        doc: oldContent,
+                        references: state.editorState.getContent().references,
+                    },
+                },
+            });
         }
         default:
             throw exhaustive(action.extra);

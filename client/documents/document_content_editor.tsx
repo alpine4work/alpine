@@ -243,7 +243,7 @@ export function DocumentContentEditor({
         spaceId,
         isConnected,
         editorState,
-        onChangeEditorState,
+        onEditorStateChange,
         otherPresenceStateByConnectionId,
         rememberedSteps,
         toggleShouldConnect,
@@ -1484,6 +1484,16 @@ export function DocumentContentEditor({
     const navigationBarRef = useRef<NavigationBarRef>(null);
     const titleBoundaryRef = useRef<HTMLElement | null>(null);
 
+    const handleCopyLink = async () => {
+        // When the user goes to copy the link for a document, make sure the document
+        // has been created before copying. Otherwise the other user won't see realtime
+        // updates to the document.
+        await ensureCreateDocument();
+
+        const url = new URL(`/s/${spaceId}/documents/${documentId}`, window.location.href);
+        await writeTextToClipboard(url.toString());
+    };
+
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         ref: navigationBarRef,
         title: getDocumentContentTitle(content.doc),
@@ -1500,19 +1510,8 @@ export function DocumentContentEditor({
             [
                 {
                     label: "Copy link",
-                    pressErrorTitle: "Couldn’t copy document link",
-                    onPress: async () => {
-                        // When the user goes to copy the link for a document, make sure the document
-                        // has been created before copying. Otherwise the other user won't see realtime
-                        // updates to the document.
-                        await ensureCreateDocument();
-
-                        const url = new URL(
-                            `/s/${spaceId}/documents/${documentId}`,
-                            window.location.href,
-                        );
-                        await writeTextToClipboard(url.toString());
-                    },
+                    pressErrorTitle: "Couldn’t copy link",
+                    onPress: handleCopyLink,
                 },
             ],
             [
@@ -1548,6 +1547,9 @@ export function DocumentContentEditor({
         ],
         shareButton: {
             accessPolicy: content.doc.attrs.accessPolicy,
+            onAccessPolicyChange: accessPolicy =>
+                onEditorStateChange(editorState.setAccessPolicy(accessPolicy)),
+            onCopyLink: handleCopyLink,
         },
         desktopTitleMaxWidth: contentStyles.contentMaxWidth,
         desktopTitleFontSize: "400",
@@ -1613,7 +1615,7 @@ export function DocumentContentEditor({
                             )}
                             state={editorState}
                             onChange={(state, transaction) => {
-                                onChangeEditorState(state);
+                                onEditorStateChange(state);
 
                                 const createCommentThread: {
                                     commentThreadId: DocumentCommentThreadId;

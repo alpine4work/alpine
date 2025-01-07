@@ -88,7 +88,7 @@ export function useDocumentContentEditorWebSocket(
     spaceId: SpaceId;
     isConnected: boolean;
     editorState: ContentEditorState<DocumentContentWithReferences>;
-    onChangeEditorState: Memo<
+    onEditorStateChange: Memo<
         (editorState: ContentEditorState<DocumentContentWithReferences>) => void
     >;
     otherPresenceStateByConnectionId: ImmutableMap<
@@ -141,7 +141,7 @@ export function useDocumentContentEditorWebSocket(
                 return {
                     type: "NotExists",
                     state: new ValueStore(
-                        getInitialDocumentContentEditorState(currentAccount.id, null),
+                        getInitialDocumentContentEditorState({currentAccountId: currentAccount.id}),
                     ),
                     pendingProcedures: [],
                 };
@@ -153,10 +153,7 @@ export function useDocumentContentEditorWebSocket(
                         addGlobalLoadingIndicator: (promise, indicator) =>
                             addGlobalLoadingIndicatorRef.current(promise, indicator),
                         documentId: initialDocument.id,
-                        initialState: getInitialDocumentContentEditorState(
-                            currentAccount.id,
-                            initialDocument,
-                        ),
+                        initialState: getInitialDocumentContentEditorState({initialDocument}),
                     }),
                 };
             }
@@ -176,10 +173,7 @@ export function useDocumentContentEditorWebSocket(
                 addGlobalLoadingIndicator: (promise, indicator) =>
                     addGlobalLoadingIndicatorRef.current(promise, indicator),
                 documentId: initialDocument.id,
-                initialState: getInitialDocumentContentEditorState(
-                    currentAccount.id,
-                    initialDocument,
-                ),
+                initialState: getInitialDocumentContentEditorState({initialDocument}),
             }),
         });
     }
@@ -226,7 +220,7 @@ export function useDocumentContentEditorWebSocket(
                     );
                 }
 
-                // `flushSync()` since we need procedure calls and `onChangeEditorState` calls
+                // `flushSync()` since we need procedure calls and `onEditorStateChange` calls
                 // to update our new client.
                 flushSync(() => {
                     setClientState({
@@ -286,7 +280,7 @@ export function useDocumentContentEditorWebSocket(
         spaceId: space.id,
         isConnected: webSocketState?.isConnected ?? false,
         editorState: state.editorState,
-        onChangeEditorState: useCallback(
+        onEditorStateChange: useCallback(
             editorState => {
                 if (clientState.type === "Exists") {
                     clientState.client.changeEditorState(editorState);

@@ -21,10 +21,8 @@ import {
 import {DocumentModel} from "~/shared/documents/document_model.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, ContentEditorClientId} from "~/shared/id/types/id_types.js";
+import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema.js";
-
-const currentAccountId = generateId<AccountId>();
 
 function textSlice(text: string) {
     if (text.length === 0) return Slice.empty;
@@ -34,9 +32,8 @@ function textSlice(text: string) {
 test("can receive steps one at a time", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
-    let state = getInitialDocumentContentEditorState(
-        currentAccountId,
-        new DocumentModel({
+    let state = getInitialDocumentContentEditorState({
+        initialDocument: new DocumentModel({
             id: generateId(),
             createdTime: new Date(),
             spaceId: generateId(),
@@ -51,7 +48,7 @@ test("can receive steps one at a time", () => {
                 references: emptyDocumentContentReferences,
             },
         }),
-    );
+    });
 
     state = reduceDocumentContentEditorState(state, [
         {
@@ -129,9 +126,8 @@ test("can receive steps one at a time", () => {
 test("can receive multiple steps at a time", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
-    let state = getInitialDocumentContentEditorState(
-        currentAccountId,
-        new DocumentModel({
+    let state = getInitialDocumentContentEditorState({
+        initialDocument: new DocumentModel({
             id: generateId(),
             createdTime: new Date(),
             spaceId: generateId(),
@@ -146,7 +142,7 @@ test("can receive multiple steps at a time", () => {
                 references: emptyDocumentContentReferences,
             },
         }),
-    );
+    });
 
     state = reduceDocumentContentEditorState(state, [
         {
@@ -242,9 +238,8 @@ test("can receive multiple steps at a time", () => {
 test("can receive steps out of order", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
-    let state = getInitialDocumentContentEditorState(
-        currentAccountId,
-        new DocumentModel({
+    let state = getInitialDocumentContentEditorState({
+        initialDocument: new DocumentModel({
             id: generateId(),
             createdTime: new Date(),
             spaceId: generateId(),
@@ -259,7 +254,7 @@ test("can receive steps out of order", () => {
                 references: emptyDocumentContentReferences,
             },
         }),
-    );
+    });
 
     state = reduceDocumentContentEditorState(state, [
         {
@@ -360,9 +355,8 @@ test("can receive steps out of order", () => {
 test("can receive steps multiple times", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
-    let state = getInitialDocumentContentEditorState(
-        currentAccountId,
-        new DocumentModel({
+    let state = getInitialDocumentContentEditorState({
+        initialDocument: new DocumentModel({
             id: generateId(),
             createdTime: new Date(),
             spaceId: generateId(),
@@ -377,7 +371,7 @@ test("can receive steps multiple times", () => {
                 references: emptyDocumentContentReferences,
             },
         }),
-    );
+    });
 
     state = reduceDocumentContentEditorState(state, [
         {
@@ -535,9 +529,8 @@ test("can receive steps multiple times", () => {
 test("can receive large step backfill with duplicate steps at end of backfill", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
-    let state = getInitialDocumentContentEditorState(
-        currentAccountId,
-        new DocumentModel({
+    let state = getInitialDocumentContentEditorState({
+        initialDocument: new DocumentModel({
             id: generateId(),
             createdTime: new Date(),
             spaceId: generateId(),
@@ -552,7 +545,7 @@ test("can receive large step backfill with duplicate steps at end of backfill", 
                 references: emptyDocumentContentReferences,
             },
         }),
-    );
+    });
 
     state = reduceDocumentContentEditorState(state, [
         {
@@ -636,9 +629,8 @@ test("can receive large step backfill with duplicate steps at end of backfill", 
 test("can receive large step backfill with duplicate steps at beginning of backfill", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
-    let state = getInitialDocumentContentEditorState(
-        currentAccountId,
-        new DocumentModel({
+    let state = getInitialDocumentContentEditorState({
+        initialDocument: new DocumentModel({
             id: generateId(),
             createdTime: new Date(),
             spaceId: generateId(),
@@ -653,7 +645,7 @@ test("can receive large step backfill with duplicate steps at beginning of backf
                 references: emptyDocumentContentReferences,
             },
         }),
-    );
+    });
 
     state = reduceDocumentContentEditorState(state, [
         {
@@ -725,9 +717,8 @@ test("can receive large step backfill with duplicate steps at beginning of backf
 test("can receive large step backfill with duplicate steps in the middle of backfill", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
-    let state = getInitialDocumentContentEditorState(
-        currentAccountId,
-        new DocumentModel({
+    let state = getInitialDocumentContentEditorState({
+        initialDocument: new DocumentModel({
             id: generateId(),
             createdTime: new Date(),
             spaceId: generateId(),
@@ -742,7 +733,7 @@ test("can receive large step backfill with duplicate steps in the middle of back
                 references: emptyDocumentContentReferences,
             },
         }),
-    );
+    });
 
     state = reduceDocumentContentEditorState(state, [
         {
@@ -806,9 +797,8 @@ test("can receive large step backfill with duplicate steps in the middle of back
 test("reproduce receive steps assertion failure", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
-    let state = getInitialDocumentContentEditorState(
-        currentAccountId,
-        new DocumentModel({
+    let state = getInitialDocumentContentEditorState({
+        initialDocument: new DocumentModel({
             id: generateId(),
             createdTime: new Date(),
             spaceId: generateId(),
@@ -823,7 +813,7 @@ test("reproduce receive steps assertion failure", () => {
                 references: emptyDocumentContentReferences,
             },
         }),
-    );
+    });
 
     state = reduceDocumentContentEditorState(state, [
         {
@@ -1155,9 +1145,8 @@ test("generates correct remembered steps", () => {
         ]),
     );
 
-    let state = getInitialDocumentContentEditorState(
-        currentAccountId,
-        new DocumentModel({
+    let state = getInitialDocumentContentEditorState({
+        initialDocument: new DocumentModel({
             id: generateId(),
             createdTime: new Date(),
             spaceId: generateId(),
@@ -1167,7 +1156,7 @@ test("generates correct remembered steps", () => {
                 references: emptyDocumentContentReferences,
             },
         }),
-    );
+    });
 
     state = {
         ...state,

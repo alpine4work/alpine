@@ -16,6 +16,7 @@ import {
     DocumentCollaborationEvent,
     DocumentCollaborationPresenceState,
     DocumentCollaborationProtocol,
+    documentBackfillFutureVersionErrorMessage,
 } from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {
@@ -193,9 +194,9 @@ export class DocumentCollaborationConnection {
                         throw error;
                     }
 
-                    throw new FailedPreconditionError(
-                        "Tried to backfill a future document version",
-                    );
+                    // If the client detects this specific error message it will revert any
+                    // confirmed but not persisted steps and try backfilling again.
+                    throw new FailedPreconditionError(documentBackfillFutureVersionErrorMessage);
                 }
 
                 const [{steps, stepsContentReferences}, rememberSteps] = await runAllPromiseThunks(

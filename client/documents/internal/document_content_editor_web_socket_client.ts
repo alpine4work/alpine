@@ -12,7 +12,10 @@ import {
     WebSocketClientProcedures,
     WebSocketClientState,
 } from "~/client/web_socket/web_socket_client.js";
-import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
+import {
+    DocumentCollaborationProtocol,
+    documentBackfillFutureVersionErrorMessage,
+} from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {
     DocumentCommentModel,
@@ -175,73 +178,127 @@ export class DocumentContentEditorWebSocketClient {
                 const ourConnectionState = {isBackfilling: true};
                 connectionState = ourConnectionState;
 
-                this._client.procedures
-                    .backfill({
-                        version: this._state.getSnapshot().editorState.getVersion(),
-                    })
-                    .then(
-                        output => {
-                            // If while waiting on our backfill we disconnected then don't update
-                            // our state. We use an object to make sure if we connect/reconnect quickly we
-                            // still ignore the backfill result.
-                            if (connectionState !== ourConnectionState) return;
+                const attemptBackfill = () => {
+                    this._client.procedures
+                        .backfill({
+                            version: this._state.getSnapshot().editorState.getVersion(),
+                        })
+                        .then(
+                            output => {
+                                // If while waiting on our backfill we disconnected then don't update
+                                // our state. We use an object to make sure if we connect/reconnect quickly we
+                                // still ignore the backfill result.
+                                if (connectionState !== ourConnectionState) return;
 
-                            // One dispatch call just to make sure React applies these actions atomically
-                            // and doesn't do any scheduling weirdness.
-                            this._dispatchBatch([
-                                {
-                                    type: "Extra",
-                                    extra: {
-                                        type: "SetAllOtherPresenceStates",
-                                        stateByConnectionId: ImmutableMap.from(
-                                            mapIterable(output.presenceStates, presenceState => [
-                                                presenceState.connectionId,
-                                                presenceState.state,
-                                            ]),
-                                        ),
+                                // One dispatch call just to make sure React applies these actions atomically
+                                // and doesn't do any scheduling weirdness.
+                                this._dispatchBatch([
+                                    {
+                                        type: "Extra",
+                                        extra: {
+                                            type: "SetAllOtherPresenceStates",
+                                            stateByConnectionId: ImmutableMap.from(
+                                                mapIterable(
+                                                    output.presenceStates,
+                                                    presenceState => [
+                                                        presenceState.connectionId,
+                                                        presenceState.state,
+                                                    ],
+                                                ),
+                                            ),
+                                        },
                                     },
-                                },
-                                {
-                                    type: "ReceiveSteps",
-                                    newVersion: output.newVersion,
-                                    steps: output.steps,
-                                    stepsContentReferences: output.stepsContentReferences,
-                                },
-                                {
-                                    type: "Persisted",
-                                    newVersion: output.persistedVersion,
-                                },
-
-                                // Unconditionally run this action even if we have no new remembered steps
-                                // because it will throw if the editor version in state is not
-                                // `expectedVersion`. This is a nice way to double check that our previous
-                                // action actually caught us up.
-                                {
-                                    type: "Extra",
-                                    extra: {
-                                        type: "AugmentRememberedSteps",
-                                        expectedVersion: output.newVersion,
-                                        startVersion:
-                                            output.newVersion -
-                                            output.steps.length -
-                                            output.rememberInvertedSteps.length,
-                                        invertedSteps: output.rememberInvertedSteps,
+                                    {
+                                        type: "ReceiveSteps",
+                                        newVersion: output.newVersion,
+                                        steps: output.steps,
+                                        stepsContentReferences: output.stepsContentReferences,
                                     },
-                                },
-                            ]);
+                                    {
+                                        type: "Persisted",
+                                        newVersion: output.persistedVersion,
+                                    },
 
-                            ourConnectionState.isBackfilling = false;
-                            maybeSendUpdatesToServer();
-                        },
-                        error => {
-                            // If while waiting on our backfill we disconnected then don't update
-                            // our state. We use an object to make sure if we connect/reconnect quickly we
-                            // still ignore the backfill result.
-                            if (connectionState !== ourConnectionState) return;
+                                    // Unconditionally run this action even if we have no new remembered steps
+                                    // because it will throw if the editor version in state is not
+                                    // `expectedVersion`. This is a nice way to double check that our previous
+                                    // action actually caught us up.
+                                    {
+                                        type: "Extra",
+                                        extra: {
+                                            type: "AugmentRememberedSteps",
+                                            expectedVersion: output.newVersion,
+                                            startVersion:
+                                                output.newVersion -
+                                                output.steps.length -
+                                                output.rememberInvertedSteps.length,
+                                            invertedSteps: output.rememberInvertedSteps,
+                                        },
+                                    },
+                                ]);
 
-                            this._dispatch({type: "Error", error});
-                        },
-                    );
+                                ourConnectionState.isBackfilling = false;
+                                maybeSendUpdatesToServer();
+                            },
+                            error => {
+                                // If while waiting on our backfill we disconnected then don't update
+                                // our state. We use an object to make sure if we connect/reconnect quickly we
+                                // still ignore the backfill result.
+                                if (connectionState !== ourConnectionState) return;
+
+                                try {
+                                    // If the collaboration service is telling us that we're trying to backfill at
+                                    // a future version then that may be because we have steps a previous
+                                    // collaboration service confirmed but couldn't persist. Let's try reverting
+                                    // those steps and retrying our backfill.
+                                    //
+                                    // To test this branch try throwing an error from `updateDocumentContent()` in
+                                    // `documents_table.ts` for some step (maybe any step that adds a "t"). The
+                                    // collaboration service should accept this step but fail to persist it in the
+                                    // database. An error should show up in your client, then you should hit
+                                    // "Retry". At which point we'll try backfilling, hit this error, then reset
+                                    // the client to a good state.
+                                    //
+                                    // TODO(calebmer): This logic needs to be ported to
+                                    // `TaskDetailNotesContentEditorWebSocketClient` but task notes currently doesn't
+                                    // have remembered steps which we need to implement this.
+                                    let state = this._state.getSnapshot();
+                                    if (
+                                        error instanceof Error &&
+                                        error.message.includes(
+                                            documentBackfillFutureVersionErrorMessage,
+                                        ) &&
+                                        state.persistedVersion < state.editorState.getVersion()
+                                    ) {
+                                        this._dispatch({
+                                            type: "Extra",
+                                            extra: {type: "ResetToPersistedVersion"},
+                                        });
+
+                                        // Check that the state's version moved back to
+                                        // `state.persistedVersion`. This makes sure we won't get stuck in an infinite
+                                        // retry loop.
+                                        state = this._state.getSnapshot();
+                                        assert(
+                                            state.persistedVersion ===
+                                                state.editorState.getVersion(),
+                                        );
+
+                                        attemptBackfill();
+                                        return;
+                                    }
+                                } catch (newError) {
+                                    // Handle an error thrown by our error handling logic.
+                                    this._dispatch({type: "Error", error: newError});
+                                    return;
+                                }
+
+                                this._dispatch({type: "Error", error});
+                            },
+                        );
+                };
+
+                attemptBackfill();
 
                 maybeSendUpdatesToServer();
             }

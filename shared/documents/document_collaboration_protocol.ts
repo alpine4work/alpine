@@ -369,3 +369,8 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
         }),
     },
 });
+
+// If the client detects this specific error message it will revert any
+// confirmed but not persisted steps and try backfilling again.
+export const documentBackfillFutureVersionErrorMessage =
+    "Tried to backfill a future document version";
