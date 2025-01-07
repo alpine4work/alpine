@@ -5,13 +5,19 @@ import {
     getCellsInColumn,
     getCellsInRow,
     isColumnSelected,
+    isInContentTable,
     isRowSelected,
     selectColumn,
     selectRow,
 } from "~/client/content/internal/table/content_table_client_util.js";
-import {addContentTableColumnAfter} from "~/client/content/internal/table/content_table_commands.js";
+import {
+    addContentTableColumnAfter,
+    addRowAfter,
+} from "~/client/content/internal/table/content_table_commands.js";
 import {contentStyles} from "~/client/styles/styles.js";
 
+// NOCOMMIT: update the names of the grips, all of them seems confusing
+// because of similar functionalities.
 export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plugin => {
     let view: EditorView | null;
 
@@ -33,6 +39,24 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
 
                 const {doc, selection} = state;
                 const decorations: Array<Decoration> = [];
+                console.log("isInTable", isInContentTable(state));
+                if (!isInContentTable(state)) {
+                    decorations.push(
+                        Decoration.widget(0, () => {
+                            const button = document.createElement("a");
+                            button.className = contentStyles.gripTableClassName;
+                            button.addEventListener("mousedown", event => {
+                                event.preventDefault();
+                                event.stopImmediatePropagation();
+                                if (view) {
+                                    // Here you can add the table selection logic
+                                    // For now it just prevents default behavior
+                                }
+                            });
+                            return button;
+                        }),
+                    );
+                }
 
                 // Handle row grips
                 const rowCells = getCellsInColumn(0)(selection);
@@ -66,6 +90,46 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                             }),
                         );
                     });
+
+                    // Add row button after last row
+                    if (rowCells.length > 0) {
+                        const lastCell = rowCells[rowCells.length - 1];
+                        if (lastCell) {
+                            // Calculate position after all rows
+                            const lastCellNode = state.doc.nodeAt(lastCell.pos);
+                            const addButtonPos = lastCell.pos + (lastCellNode?.nodeSize || 0);
+
+                            decorations.push(
+                                Decoration.widget(addButtonPos, () => {
+                                    const addRowGrip = document.createElement("div");
+                                    addRowGrip.className = contentStyles.tableAddRowGripClassName;
+                                    addRowGrip.innerHTML = "+";
+                                    addRowGrip.title = "Add row";
+
+                                    addRowGrip.addEventListener("mousedown", event => {
+                                        event.preventDefault();
+                                        event.stopImmediatePropagation();
+                                        if (view) {
+                                            // Add row at the very end
+                                            addRowAfter(view.state, view.dispatch);
+                                            // After adding, select the new last row
+                                            const newRowCells = getCellsInColumn(0)(
+                                                view.state.selection,
+                                            );
+                                            if (newRowCells) {
+                                                const lastRowIndex = newRowCells.length - 1;
+                                                view.dispatch(
+                                                    selectRow(lastRowIndex)(view.state.tr),
+                                                );
+                                            }
+                                        }
+                                    });
+
+                                    return addRowGrip;
+                                }),
+                            );
+                        }
+                    }
                 }
 
                 // Handle column grips

@@ -217,6 +217,8 @@ export function getContentTableColumnWidths(table: Node): ReadonlyArray<number> 
     return columnWidths;
 }
 
+// NOCOMMIT: write docs for this function
+// Update the name of this function to be globally unique
 export const isColumnSelected = (columnIndex: number) => (selection: Selection) => {
     if (isCellSelection(selection)) {
         const map = ContentTableMap.get(selection.$anchorCell.node(-1));
@@ -232,6 +234,8 @@ export const isColumnSelected = (columnIndex: number) => (selection: Selection) 
     return false;
 };
 
+// NOCOMMIT: write docs for this function
+// Update the name of this function to be globally unique
 export const getCellsInRow = (rowIndex: number | Array<number>) => (selection: Selection) => {
     const table = findTable(selection);
 
@@ -263,6 +267,8 @@ export const getCellsInRow = (rowIndex: number | Array<number>) => (selection: S
 
     return null;
 };
+// NOCOMMIT: write docs for this function
+// Update the name of this function to be globally unique
 export const getCellsInColumn = (columnIndex: number | Array<number>) => (selection: Selection) => {
     const table = findTable(selection);
     console.log("getCellsInColumn", table);
@@ -295,6 +301,8 @@ export const getCellsInColumn = (columnIndex: number | Array<number>) => (select
     return null;
 };
 
+// NOCOMMIT: write docs for this function
+// Update the name of this function to be globally unique
 export const findTable = (selection: Selection) =>
     findParentNode(node => node.type.name === "table")(selection);
 
@@ -328,6 +336,8 @@ export function findParentNodeClosestToPos(
     }
 }
 
+// NOCOMMIT: write docs for this function
+// Update the name of this function to be globally unique
 export const isRowSelected = (rowIndex: number) => (selection: Selection) => {
     if (isCellSelection(selection)) {
         const map = ContentTableMap.get(selection.$anchorCell.node(-1));
@@ -343,9 +353,13 @@ export const isRowSelected = (rowIndex: number) => (selection: Selection) => {
     return false;
 };
 
+// NOCOMMIT: write docs for this function
+// Update the name of this function to be globally unique
 export const isCellSelection = (selection: Selection): selection is ContentTableCellSelection =>
     selection instanceof ContentTableCellSelection;
 
+// NOCOMMIT: write docs for this function
+// Update the name of this function to be globally unique
 export const isRectSelected = (rect: Rect) => (selection: ContentTableCellSelection) => {
     const map = ContentTableMap.get(selection.$anchorCell.node(-1));
     const start = selection.$anchorCell.start(-1);
@@ -373,6 +387,8 @@ interface Rect {
     bottom: number;
 }
 
+// NOCOMMIT: write docs for this function
+// Update the name of this function to be globally unique
 const select = (type: "row" | "column") => (index: number) => (tr: Transaction) => {
     const table = findTable(tr.selection);
     const isRowSelection = type === "row";
@@ -415,6 +431,8 @@ const select = (type: "row" | "column") => (index: number) => (tr: Transaction) 
     return tr;
 };
 
+// NOCOMMIT: write docs for this function
+// Update the name of this function to be globally unique
 export const selectColumn = select("column");
 
 export const selectRow = select("row");

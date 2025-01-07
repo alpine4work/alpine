@@ -44,6 +44,8 @@ import {
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 
+// NOCOMMIT: remove the subscribe to selection events because we are doing this from
+// plugins.
 export function createContentEditorTableNodeView({
     subscribeToSelectionUpdate,
 }: {

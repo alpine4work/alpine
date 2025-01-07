@@ -2238,6 +2238,10 @@ globalStyle(`${tableWrapperClassName} button`, {
     cursor: "pointer",
 });
 
+// NOCOMMIT: make these styles more consistent with the rest of the styles
+// like the selectors, colors etc.
+// maybe better way to write these styles than this.
+
 export const addNewRowButtonClassName = style({
     height: spacing[3],
 });
@@ -2446,4 +2450,57 @@ export const tableAddColumnButtonClassName = style({
     ":hover": {
         color: colorSchemeVars["grey-100"],
     },
+});
+
+export const tableAddRowGripClassName = style({
+    position: "absolute",
+    bottom: "-24px", // Position it outside the table at the bottom
+    top: "auto", // Reset any top positioning
+    right: "0", // Align with table right edge
+    left: "-24px", // Start from the row grip area
+    width: "calc(100% + 48px)", // Full table width + left and right margins
+    height: "24px",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colorSchemeVars["grey-10"],
+    borderTop: `1px solid ${colorSchemeVars["grey-20"]}`,
+    borderBottom: `1px solid ${colorSchemeVars["grey-20"]}`,
+    fontSize: "16px",
+    color: colorSchemeVars["grey-60"],
+    ":hover": {
+        backgroundColor: colorSchemeVars["grey-20"],
+        color: colorSchemeVars["grey-100"],
+    },
+});
+
+export const gripTableClassName = style({
+    position: "absolute",
+    top: "-24px",
+    left: "-24px",
+    width: spacing[4],
+    height: spacing[4],
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    cursor: "pointer",
+    display: "flex",
+    justifyContent: "center",
+    zIndex: 11,
+    borderTopLeftRadius: borderRadius["0.5"],
+    borderLeft: `1px solid rgba(0, 0, 0, 0.2)`,
+    borderTop: `1px solid rgba(0, 0, 0, 0.2)`,
+});
+
+globalStyle(`${darkColorSchemeSelector} .${gripTableClassName}`, {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(255, 255, 255, 0.2)",
+});
+
+globalStyle(`.${gripTableClassName}:hover`, {
+    backgroundColor: "rgba(0, 0, 0, 0.1)",
+});
+
+globalStyle(`${darkColorSchemeSelector} .${gripTableClassName}:hover`, {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
 });
