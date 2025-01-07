@@ -1546,7 +1546,9 @@ export function DocumentContentEditor({
                   ]
                 : []),
         ],
-        shareButton: {},
+        shareButton: {
+            accessPolicy: content.doc.attrs.accessPolicy,
+        },
         desktopTitleMaxWidth: contentStyles.contentMaxWidth,
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",

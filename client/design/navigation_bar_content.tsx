@@ -14,6 +14,7 @@ import {
     navigationBarHeight,
     navigationBarMobileGap,
 } from "~/client/design/navigation_bar_helpers.js";
+import {NavigationBarShareButtonProps} from "~/client/design/navigation_bar_types.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {OverlayTriggerButtonState} from "~/client/design/overlay_trigger_button.js";
 import {useReporter} from "~/client/design/reporter.js";
@@ -25,6 +26,7 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {pointerEventsNoneNotInheritedClassName} from "~/client/styles/styles.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
 import {
     RemLength,
@@ -70,7 +72,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         subtitle?: ReactNode;
         menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
         onMenuStateChange?: (state: OverlayTriggerButtonState) => void;
-        shareButton?: {};
+        shareButton?: NavigationBarShareButtonProps;
         replaceActions?: ReactNode;
         extraIconButton?: {
             icon: ReactNode;
@@ -378,7 +380,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                             <>
                                 {shareButton && routeLayout !== "narrow" && (
                                     <Box paddingRight="4">
-                                        <ShareButton />
+                                        <ShareButton accessPolicy={shareButton.accessPolicy} />
                                     </Box>
                                 )}
                                 {isTextInputFocused ? (

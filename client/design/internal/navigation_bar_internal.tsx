@@ -36,7 +36,10 @@ import {
     navigationBarHeight,
     navigationBarHeightRem,
 } from "~/client/design/navigation_bar_helpers.js";
-import {NavigationBarRef} from "~/client/design/navigation_bar_types.js";
+import {
+    NavigationBarRef,
+    NavigationBarShareButtonProps,
+} from "~/client/design/navigation_bar_types.js";
 import {OverlayTriggerButtonState} from "~/client/design/overlay_trigger_button.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {scrollbarVisibleAfterScrollDurationMs} from "~/client/design/scrollbar.js";
@@ -175,7 +178,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     subtitle: ReactNode | undefined;
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
     onMenuStateChange: ((state: OverlayTriggerButtonState) => void) | undefined;
-    shareButton: {} | undefined;
+    shareButton: NavigationBarShareButtonProps | undefined;
     stickyBanner: ReactNode;
     replaceActions: ReactNode;
     extraIconButton?: {

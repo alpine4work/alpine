@@ -1,5 +1,6 @@
 import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
@@ -44,6 +45,18 @@ export function maxAccessLevel(level1: AccessLevel, level2: AccessLevel): Access
 
     if (index2 > index1) return level2;
     return level1;
+}
+
+/**
+ * Compare two access levels for sorting. Lower access levels will appear
+ * first. For example `View` will appear before `Edit`.
+ */
+export function compareAccessLevel(level1: AccessLevel, level2: AccessLevel): -1 | 0 | 1 {
+    const index1 = allAccessLevels.indexOf(level1);
+    const index2 = allAccessLevels.indexOf(level2);
+    assert(index1 >= 0 && index2 >= 0);
+
+    return clamp(-1, index1 - index2, 1) as -1 | 0 | 1;
 }
 
 /**

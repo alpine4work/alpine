@@ -2,6 +2,7 @@ import {ReactElement, ReactNode, Ref, RefCallback, RefObject} from "react";
 import {MenuAction} from "~/client/design/menu.js";
 import {OverlayTriggerButtonState} from "~/client/design/overlay_trigger_button.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
 import {RemLength, Spacing} from "~/shared/design/core/spacing.js";
 
@@ -18,11 +19,15 @@ export type NavigationBarRef = {
     getMaxVisibleHeight(): number;
 };
 
+export type NavigationBarShareButtonProps = {
+    readonly accessPolicy: AccessPolicy;
+};
+
 export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDivElement> = {
     /**
      * A ref for interacting with the navigation bar when mounted.
      */
-    ref?: Ref<NavigationBarRef>;
+    readonly ref?: Ref<NavigationBarRef>;
 
     /**
      * Is the navigation bar actually rendered? If true then none of the navigation
@@ -30,7 +35,7 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
      *
      * `ref` will not be initialized if true.
      */
-    isDisabled?: boolean;
+    readonly isDisabled?: boolean;
 
     /**
      * When true, the navigation bar will scroll away when you scroll down and will
@@ -52,7 +57,7 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
      * it's a complex interaction. Otherwise it would be easy for every route that
      * needs a navigation bar to render `<NavigationBarContent>` themselves.
      */
-    withScrollAway?: boolean;
+    readonly withScrollAway?: boolean;
 
     /**
      * The title to display in the navigation bar. It will be truncated based
@@ -60,59 +65,56 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
      *
      * The title will not be displayed when scrolled to the top of the view.
      */
-    title?: ReactNode;
+    readonly title?: ReactNode;
 
     /**
      * The title only displays once the user has scrolled past this element. When
      * crossing this boundary the title animates in/out.
      */
-    titleBoundaryRef?: RefObject<TitleBoundaryElement>;
+    readonly titleBoundaryRef?: RefObject<TitleBoundaryElement>;
 
     /**
      * The title only displays once the user has scrolled this distance past the
      * title boundary element's top.
      */
-    titleBoundaryMarginTop?: Spacing | RemLength;
+    readonly titleBoundaryMarginTop?: Spacing | RemLength;
 
     /**
      * Don't let the title disappear when the navigation bar is scrolled to the
      * top. This can lead to some cleaner designs.
      */
-    withoutDisappearingTitle?: boolean;
+    readonly withoutDisappearingTitle?: boolean;
 
     /**
      * A secondary title we render under the main title at a smaller size. Used to
      * add a bit of extra detail.
      */
-    subtitle?: ReactNode;
+    readonly subtitle?: ReactNode;
 
     /**
      * Actions that are made available to the user in a menu button at the right of
      * the navigation bar. These are secondary and tertiary actions where it
      * doesn't make sense to give them their own screen space.
      */
-    menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+    readonly menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
 
     /**
      * Called whenever the menu opens/closes. Useful if you want to change how
      * something is rendered when the menu navigation bar is open.
      */
-    onMenuStateChange?: (state: OverlayTriggerButtonState) => void;
+    readonly onMenuStateChange?: (state: OverlayTriggerButtonState) => void;
 
     /**
      * Configures the behavior of the share button in the navigation bar. If not
      * provided then there's no share button in the navigation bar.
      */
-    // TODO(calebmer): Currently the share button is unimplemented. When we add
-    // implementation this object will configure updating share properties
-    // and such.
-    shareButton?: {};
+    readonly shareButton?: NavigationBarShareButtonProps;
 
     /**
      * The sticky banner element will be rendered underneath the navigation bar and
      * will continue to be visible as the user scrolls.
      */
-    stickyBanner?: ReactNode;
+    readonly stickyBanner?: ReactNode;
 
     /**
      * If provided, completely replace the actions in this navigation bar's content
@@ -122,7 +124,7 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
      * Useful if you're entering an edit modality and need controls to exit the
      * editing modality.
      */
-    replaceActions?: ReactNode;
+    readonly replaceActions?: ReactNode;
 
     /**
      * If provided, allows for another action and icon button in the navigation
@@ -130,11 +132,11 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
      * configure a subset of the `<IconButton>`'s props, but not modify
      * size or layout.
      */
-    extraIconButton?: {
-        icon: ReactNode;
-        description: string;
-        pressErrorTitle: string;
-        onPress: () => Promise<void>;
+    readonly extraIconButton?: {
+        readonly icon: ReactNode;
+        readonly description: string;
+        readonly pressErrorTitle: string;
+        readonly onPress: () => Promise<void>;
     };
 
     /**
@@ -142,7 +144,7 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
      * `flex-start` on desktop. Override if you want the same behavior on both
      * platforms.
      */
-    titleJustifyContent?: "center" | "flex-start";
+    readonly titleJustifyContent?: "center" | "flex-start";
 
     /**
      * Only rendered on desktop (not mobile).
@@ -155,7 +157,7 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
      * button renders at the very top of the task and when the user scrolls it's
      * also a part of the navigation bar.
      */
-    desktopControls?: ReactNode;
+    readonly desktopControls?: ReactNode;
 
     /**
      * The amount of space all content in the navigation bar can occupy on desktop.
@@ -167,13 +169,13 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
      * be aligned with the right side of the screen but if `desktopMaxWidth` is set
      * then `menuActions` and `shareButton` are within the max width.
      */
-    desktopMaxWidth?: Spacing | RemLength;
+    readonly desktopMaxWidth?: Spacing | RemLength;
 
     /**
      * The amount of space the title can occupy on desktop. This also has the
      * effect of centering the title container (of this width) when set.
      */
-    desktopTitleMaxWidth?: Spacing | RemLength;
+    readonly desktopTitleMaxWidth?: Spacing | RemLength;
 
     /**
      * When using `desktopTitleMaxWidth` we offset the title from the center by
@@ -181,30 +183,30 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
      * your content is optically centered (disregarding the space layout sidebar
      * width) to make sure the navigation bar title is optically centered as well.
      */
-    desktopTitleMaxWidthCenterOffset?: Spacing | RemLength;
+    readonly desktopTitleMaxWidthCenterOffset?: Spacing | RemLength;
 
     /**
      * Font size to use for the title on desktop.
      */
-    desktopTitleFontSize?: FontSize;
+    readonly desktopTitleFontSize?: FontSize;
 
     /**
      * Font weight to use for the title on desktop.
      */
-    desktopTitleFontWeight?: "semi-bold" | "bold";
+    readonly desktopTitleFontWeight?: "semi-bold" | "bold";
 
     /**
      * Slop we add to the left of the title element. You can use this if you don't
      * want the title's `overflow="hidden"` to clip some UI the title renders to
      * the left.
      */
-    desktopTitleLeftSlop?: Spacing;
+    readonly desktopTitleLeftSlop?: Spacing;
 
     /**
      * Don't render a back button on mobile. Only set this to true for top level
      * mobile tab routes.
      */
-    withoutMobileBackButton?: boolean;
+    readonly withoutMobileBackButton?: boolean;
 
     /**
      * By default, the navigation bar on mobile has a back button which calls
@@ -215,7 +217,7 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
      * For instance, if you use this in a `<MobileFullScreenModal>` you need to
      * close the modal instead of calling `navigate(-1)`.
      */
-    onMobileCancel?: () => void;
+    readonly onMobileCancel?: () => void;
 };
 
 export type NavigationBarResult = {

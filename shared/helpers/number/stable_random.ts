@@ -40,7 +40,7 @@ export class StableRandom {
     }
 
     /**
-     * Generates a stable random integer between `a` and `b`.
+     * Generates a stable random integer between `a` and `b` (exclusive).
      *
      * If `b` is not defined, generates a random integer between 0 and `a`.
      */

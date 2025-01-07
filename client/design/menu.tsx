@@ -450,8 +450,9 @@ const Menu = forwardRef(function Menu(
 
     const [openedActionKey, setOpenedActionKey] = useState<Key | null>(null);
 
-    const flattenedActions = useMemo(() => {
+    const {flattenedActions, hasSiblingSelectedAction} = useMemo(() => {
         let keys: Set<Key> | undefined;
+        let hasSiblingSelectedAction = false;
 
         const flattenedActions: Array<{type: "Action"; action: MenuAction} | {type: "Divider"}> =
             [];
@@ -464,6 +465,14 @@ const Menu = forwardRef(function Menu(
                 if (nestedAction.hasChildren) {
                     assert(!keys?.has(nestedAction.key));
                     (keys ??= new Set()).add(nestedAction.key);
+                }
+
+                if (
+                    !nestedAction.withCustomLayout &&
+                    !nestedAction.hasChildren &&
+                    nestedAction.isSelected
+                ) {
+                    hasSiblingSelectedAction = true;
                 }
 
                 flattenedActions.push({type: "Action", action: nestedAction});
@@ -481,11 +490,15 @@ const Menu = forwardRef(function Menu(
                     (keys ??= new Set()).add(action.key);
                 }
 
+                if (!action.withCustomLayout && !action.hasChildren && action.isSelected) {
+                    hasSiblingSelectedAction = true;
+                }
+
                 flattenedActions.push({type: "Action", action});
             }
         }
 
-        return flattenedActions;
+        return {flattenedActions, hasSiblingSelectedAction};
     }, [nestedActions]);
 
     assert(flattenedActions.length > 0);
@@ -795,6 +808,7 @@ const Menu = forwardRef(function Menu(
                                 ref={menuItemRefs[index]}
                                 size={size}
                                 action={action.action}
+                                hasSiblingSelectedAction={hasSiblingSelectedAction}
                                 parentPlacement={placement}
                                 onCloseWithAnimation={onCloseWithAnimation}
                                 onCloseWithoutAnimation={onCloseWithoutAnimation}
@@ -831,6 +845,7 @@ export const MenuItem = forwardRef(function MenuItem(
     {
         size = "base",
         action,
+        hasSiblingSelectedAction = false,
         parentPlacement,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
@@ -843,6 +858,7 @@ export const MenuItem = forwardRef(function MenuItem(
     }: {
         size?: MenuSize;
         action: MenuAction;
+        hasSiblingSelectedAction?: boolean;
         parentPlacement?: OverlayPlacement;
         onCloseWithAnimation: () => void;
         onCloseWithoutAnimation: () => void;
@@ -913,6 +929,7 @@ export const MenuItem = forwardRef(function MenuItem(
                         size={size}
                         menuItemId={id}
                         action={action}
+                        hasSiblingSelectedAction={hasSiblingSelectedAction}
                         onCloseWithAnimation={onCloseWithAnimation}
                         onCloseWithoutAnimation={onCloseWithoutAnimation}
                         skipTooltipHoverDelay={skipHoverDelay}
@@ -930,6 +947,7 @@ export const MenuItem = forwardRef(function MenuItem(
                 size={size}
                 menuItemId={id}
                 action={action}
+                hasSiblingSelectedAction={hasSiblingSelectedAction}
                 onCloseWithAnimation={onCloseWithAnimation}
                 onCloseWithoutAnimation={onCloseWithoutAnimation}
                 isNotFocusable={isNotFocusable}
@@ -945,6 +963,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         size,
         menuItemId,
         action,
+        hasSiblingSelectedAction,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
         skipTooltipHoverDelay,
@@ -955,6 +974,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         size: MenuSize;
         menuItemId: string;
         action: MenuStandardAction;
+        hasSiblingSelectedAction: boolean;
         onCloseWithAnimation: () => void;
         onCloseWithoutAnimation: () => void;
         skipTooltipHoverDelay?: () => void;
@@ -1175,8 +1195,8 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                         </Box>
                     </Box>
                 )}
-                {action.isSelected && (
-                    <Box flexShrink="0">
+                {action.isSelected ? (
+                    <Box flexShrink="0" width={iconSize} height={iconSize} marginLeft="1">
                         <Check
                             size={spacing[iconSize]}
                             color={
@@ -1184,7 +1204,9 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                             }
                         />
                     </Box>
-                )}
+                ) : hasSiblingSelectedAction ? (
+                    <Box flexShrink="0" width={iconSize} height={iconSize} marginLeft="1" />
+                ) : null}
                 {action.iconPlacement === "end" && icon}
             </Box>
         </FocusRing>
