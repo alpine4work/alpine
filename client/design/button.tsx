@@ -157,8 +157,9 @@ function Button(
             | "5"
             | "6"
             | "7"
+            | "8"
             | "full"
-            | {desktop: "5" | "6" | "7" | "full"; mobile: "5" | "6" | "7" | "full"};
+            | {desktop: "5" | "6" | "7" | "8" | "full"; mobile: "5" | "6" | "7" | "8" | "full"};
 
         /**
          * Gap between the icon and button label. Default is `1`.

@@ -156,7 +156,7 @@ export function SearchModal({
             maxWidth="256"
             height="full"
             maxHeight={searchModalMaxHeight}
-            borderRadius="2"
+            borderRadius="2.5"
             withoutCloseButton={true}
             // Don't animate the search modal open. The search modal is generally opened by
             // a user with direct intent to search. The search modal is a critical part of
