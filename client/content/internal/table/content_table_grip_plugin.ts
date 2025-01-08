@@ -7,6 +7,7 @@ import {
     isColumnSelected,
     isInContentTable,
     isRowSelected,
+    isTableSelected,
     selectColumn,
     selectRow,
     selectTable,
@@ -48,7 +49,12 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                             Decoration.widget(rowCells[0].pos, () => {
                                 const button = document.createElement("a");
                                 button.className = contentStyles.gripTableClassName;
+
                                 button.title = "Select table";
+
+                                if (isTableSelected(selection)) {
+                                    button.className += " selected";
+                                }
                                 button.addEventListener("mousedown", event => {
                                     event.preventDefault();
                                     event.stopImmediatePropagation();

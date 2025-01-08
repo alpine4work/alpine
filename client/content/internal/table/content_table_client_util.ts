@@ -31,6 +31,7 @@
 
 import {Node, ResolvedPos} from "prosemirror-model";
 import {EditorState, NodeSelection, PluginKey, Selection, Transaction} from "prosemirror-state";
+import {EditorView} from "prosemirror-view";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 
@@ -442,7 +443,7 @@ export const selectTable = (tr: Transaction) => {
     if (table) {
         const {map} = ContentTableMap.get(table.node);
 
-        if (map && map.length) {
+        if (map?.length) {
             const head = table.start + map[0]!;
             const anchor = table.start + map[map.length - 1]!;
             const $head = tr.doc.resolve(head);
@@ -468,4 +469,99 @@ export const isTableSelected = (selection: Selection) => {
     }
 
     return false;
+};
+
+export function getSelectedRowGripInContentTable({
+    view,
+    state,
+}: {
+    view: EditorView;
+    state: EditorState;
+}) {
+    if (!isInContentTable(state) || isTableSelected(state.selection)) {
+        return false;
+    }
+
+    // check 1: where we use current position
+    const cursorNumberPos = state.selection.$from.pos;
+    const domAtPos = view.domAtPos(cursorNumberPos).node as HTMLElement;
+    const nodeDOM = view.nodeDOM(cursorNumberPos) as HTMLElement;
+    const node = nodeDOM || domAtPos;
+
+    if (!node) {
+        return false;
+    }
+
+    // find the relavant table for this node
+    const table = node.parentElement?.closest("table");
+    if (!table) {
+        return false;
+    }
+
+    // Find any grip-column element with the selected class
+    return table.querySelector("a.grip-row.selected");
+}
+
+export const getSelectedColumnGripInContentTable = ({
+    view,
+    state,
+}: {
+    view: EditorView;
+    state: EditorState;
+}) => {
+    if (!isInContentTable(state) || isTableSelected(state.selection)) {
+        return false;
+    }
+
+    // check 1: where we use current position
+    const cursorNumberPos = state.selection.$from.pos;
+    const domAtPos = view.domAtPos(cursorNumberPos).node as HTMLElement;
+    const nodeDOM = view.nodeDOM(cursorNumberPos) as HTMLElement;
+    const node = nodeDOM || domAtPos;
+
+    if (!node) {
+        return false;
+    }
+
+    // find the relavant table for this node
+    const table = node.parentElement?.closest("table");
+    if (!table) {
+        return false;
+    }
+
+    // Find any grip-column element with the selected class
+    return table.querySelector("a.grip-column.selected");
+};
+
+export const getSelectedTableGripInContentTable = ({
+    view,
+    state,
+}: {
+    view: EditorView;
+    state: EditorState;
+}) => {
+    console.log("isInContentTable", isInContentTable(state));
+    if (!isInContentTable(state)) {
+        return false;
+    }
+
+    // check 1: where we use current position
+    const cursorNumberPos = state.selection.$from.pos;
+    const domAtPos = view.domAtPos(cursorNumberPos).node as HTMLElement;
+    const nodeDOM = view.nodeDOM(cursorNumberPos) as HTMLElement;
+    const node = nodeDOM || domAtPos;
+
+    if (!node) {
+        return false;
+    }
+
+    // find the relavant table for this node
+    const table = node.parentElement?.closest("table");
+    if (!table) {
+        return false;
+    }
+
+    const grip = table.querySelector("a.grip-button.selected");
+    console.log("grip", grip);
+    return grip;
 };

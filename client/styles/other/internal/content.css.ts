@@ -2291,10 +2291,10 @@ export const gripColumnClassName = "grip-column";
 globalStyle(`.${gripColumnClassName}`, {
     width: "calc(100% + 1px)",
     borderLeft: `1px solid rgba(0, 0, 0, 0.2)`,
-    height: spacing[4],
+    height: spacing[3],
     left: 0,
     marginLeft: "-1px",
-    top: `-${spacing[4]}`,
+    top: `-${spacing[3]}`,
     alignItems: "center",
     backgroundColor: "rgba(0, 0, 0, 0.05)",
     cursor: "pointer",
@@ -2358,8 +2358,8 @@ export const gripRowClassName = "grip-row";
 globalStyle(`.${gripRowClassName}`, {
     height: "calc(100% + 1px)",
     borderTop: `1px solid rgba(0, 0, 0, 0.2)`,
-    left: `-${spacing[4]}`,
-    width: spacing[4],
+    left: `-${spacing[3]}`,
+    width: spacing[3],
     top: 0,
     marginTop: "-1px",
     alignItems: "center",
@@ -2442,28 +2442,14 @@ export const tableAddColumnGripClassName = style({
     },
 });
 
-export const tableAddColumnButtonClassName = style({
-    width: "16px",
-    height: "16px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "16px",
-    color: colorSchemeVars["grey-60"],
-    cursor: "pointer",
-    ":hover": {
-        color: colorSchemeVars["grey-100"],
-    },
-});
-
 export const tableAddRowGripClassName = style({
     position: "absolute",
-    bottom: "-24px", // Position it outside the table at the bottom
+    bottom: `-${spacing[3]}`, // Position it outside the table at the bottom
     top: "auto", // Reset any top positioning
     right: "0", // Align with table right edge
-    left: "-24px", // Start from the row grip area
-    width: "calc(100% + 48px)", // Full table width + left and right margins
-    height: "24px",
+    left: `-${spacing[3]}`, // Start from the row grip area
+    width: `calc(100% + ${spacing[3]} + ${spacing[3]})`, // Full table width + left and right margins
+    height: spacing[3],
     cursor: "pointer",
     display: "flex",
     alignItems: "center",
@@ -2479,7 +2465,9 @@ export const tableAddRowGripClassName = style({
     },
 });
 
-export const gripTableClassName = style({
+export const gripTableClassName = "grip-button";
+
+globalStyle(`.${gripTableClassName}`, {
     position: "absolute",
     top: "-24px",
     left: "-24px",
@@ -2491,9 +2479,10 @@ export const gripTableClassName = style({
     border: `1px solid ${colorSchemeVars["grey-20"]}`,
     opacity: 1,
     transition: "opacity 0.2s",
-    ":hover": {
-        backgroundColor: "rgba(0, 0, 0, 0.1)",
-    },
+});
+
+globalStyle(`${darkColorSchemeSelector} .${gripTableClassName} .selected`, {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
 });
 
 globalStyle(`${darkColorSchemeSelector} .${gripTableClassName}:hover`, {
