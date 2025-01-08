@@ -454,3 +454,18 @@ export const selectTable = (tr: Transaction) => {
 
     return tr;
 };
+
+export const isTableSelected = (selection: Selection) => {
+    if (isCellSelection(selection)) {
+        const map = ContentTableMap.get(selection.$anchorCell.node(-1));
+
+        return isRectSelected({
+            left: 0,
+            right: map.width,
+            top: 0,
+            bottom: map.height,
+        })(selection);
+    }
+
+    return false;
+};

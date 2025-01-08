@@ -2286,7 +2286,9 @@ export const selectRowButtonClassName = style({
     color: colorSchemeVars["grey-70"],
 });
 
-export const gripColumnClassName = style({
+export const gripColumnClassName = "grip-column";
+
+globalStyle(`.${gripColumnClassName}`, {
     width: "calc(100% + 1px)",
     borderLeft: `1px solid rgba(0, 0, 0, 0.2)`,
     height: spacing[4],
@@ -2351,7 +2353,9 @@ globalStyle(`${darkColorSchemeSelector} .${gripColumnClassName}.selected`, {
     borderColor: "rgba(255, 255, 255, 0.3)",
 });
 
-export const gripRowClassName = style({
+export const gripRowClassName = "grip-row";
+
+globalStyle(`.${gripRowClassName}`, {
     height: "calc(100% + 1px)",
     borderTop: `1px solid rgba(0, 0, 0, 0.2)`,
     left: `-${spacing[4]}`,

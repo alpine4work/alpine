@@ -44,13 +44,7 @@ import {
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 
-// NOCOMMIT: remove the subscribe to selection events because we are doing this from
-// plugins.
-export function createContentEditorTableNodeView({
-    subscribeToSelectionUpdate,
-}: {
-    subscribeToSelectionUpdate: (listener: () => void) => () => void;
-}): NodeViewConstructor {
+export function createContentEditorTableNodeView(): NodeViewConstructor {
     return node => {
         const tableWrapperElement = document.createElement("div");
         tableWrapperElement.className = tableWrapperClassName;
@@ -72,20 +66,8 @@ export function createContentEditorTableNodeView({
         const tableBodyElement = document.createElement("tbody");
         tableElement.appendChild(tableBodyElement);
 
-        addActiveTableClass();
-
         // Subscribe to spacing scale changes. This also covers all platform changes so
         // we don't need to also subscribe to platform changes.
-        const unsubscribeFromSpacingScaleChange = subscribeToSpacingScaleChange(() => {
-            updateContentTableColumnsOnResize(node, tableElement);
-        });
-
-        const unsubscribeFromSelectionUpdate = subscribeToSelectionUpdate(() => {
-            // TODO(calebmer): Why do we need `requestAnimationFrame()` here?
-            requestAnimationFrame(addActiveTableClass);
-        });
-
-        function addActiveTableClass() {}
 
         return {
             dom: tableWrapperElement,
@@ -103,10 +85,7 @@ export function createContentEditorTableNodeView({
                     (record.target === tableElement || record.target === tableWrapper3Element)
                 );
             },
-            destroy: () => {
-                unsubscribeFromSpacingScaleChange();
-                unsubscribeFromSelectionUpdate();
-            },
+            destroy: () => {},
         };
     };
 }
