@@ -121,12 +121,6 @@ export class DocumentCollaborationContentManager {
     private _persistedVersion: number;
 
     /**
-     * The access policy that's currently persisted to the database. Matches the
-     * access policy for the document at `_persistedVersion`.
-     */
-    private _persistedAccessPolicy: AccessPolicy;
-
-    /**
      * Comment threads created during this durable object's lifetime. Comment
      * threads are actually created at the same time as an
      * `updateDocumentContent()` call. But document persistence in our durable
@@ -180,7 +174,6 @@ export class DocumentCollaborationContentManager {
             content: initialContent,
         });
         this._persistedVersion = initialVersion;
-        this._persistedAccessPolicy = initialContent.attrs.accessPolicy;
         this.stepCache = new DocumentCollaborationStepCache(id, initialVersion);
         this._sendEventToAll = sendEventToAll;
         this._killProcess = killProcess;
@@ -207,22 +200,6 @@ export class DocumentCollaborationContentManager {
      */
     public getPersistedVersion() {
         return this._persistedVersion;
-    }
-
-    /**
-     * Get the access policy that's persisted in the database. Authorization
-     * decisions should be made based on the persisted access policy not the
-     * optimistic access policy in our content manager.
-     *
-     * This will be the same access policy as the one in the document at
-     * `getPersistedVersion()`.
-     *
-     * This is mutable and will change over time as users update the
-     * document content!
-     */
-    // NOCOMMIT: Do we need this?
-    public getPersistedAccessPolicy() {
-        return this._persistedAccessPolicy;
     }
 
     /**
@@ -497,13 +474,6 @@ export class DocumentCollaborationContentManager {
                                 }
 
                                 this._persistedVersion = oldVersion + nextSteps.length;
-
-                                // `intentionallyUpdateAccessPolicy` should always be set when updating the
-                                // access policy. So we can use it to know when to update
-                                // `_persistedAccessPolicy`.
-                                if (nextIntentionallyUpdateAccessPolicyRef.current)
-                                    this._persistedAccessPolicy =
-                                        nextIntentionallyUpdateAccessPolicyRef.current;
 
                                 // Cleanup comment threads that have been persisted. We will be able to fetch
                                 // the latest value from the database from here on out.
