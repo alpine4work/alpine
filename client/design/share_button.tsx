@@ -32,7 +32,7 @@ import {
     compareAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {UnimplementedError} from "~/shared/error/error.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -44,11 +44,13 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export function ShareButton({
     accessPolicy,
-    onAccessPolicyChange,
+    onAccessPolicyChange: onAccessPolicyChangeProp,
+    isReadOnly,
     onCopyLink,
 }: {
     accessPolicy: AccessPolicy;
     onAccessPolicyChange: (accessPolicy: AccessPolicy) => void;
+    isReadOnly: boolean;
     onCopyLink: () => MaybePromise<void>;
 }) {
     const reporter = useReporter();
@@ -56,6 +58,17 @@ export function ShareButton({
     // We need all accounts when the `<ShareOverlay>` is open so preload
     // them now.
     useExpensivelyPreloadAllSpaceAccounts();
+
+    const onAccessPolicyChange = (accessPolicy: AccessPolicy) => {
+        // Defend against making changes while read only. Ultimately the backend should
+        // prevent invalid changes like this but it's nice to catch errors like this
+        // early.
+        if (isReadOnly) {
+            throw new InternalError("Can't update access policy when share button is read only");
+        }
+
+        onAccessPolicyChangeProp(accessPolicy);
+    };
 
     return (
         <Box display="flex" alignItems="center" gap="1.5">
@@ -68,6 +81,7 @@ export function ShareButton({
                         <ShareOverlay
                             accessPolicy={accessPolicy}
                             onAccessPolicyChange={onAccessPolicyChange}
+                            isReadOnly={isReadOnly}
                             onCopyLink={onCopyLink}
                         />
                     </Box>
@@ -143,10 +157,12 @@ const removeAccessLevelText = "remove access";
 function ShareOverlay({
     accessPolicy,
     onAccessPolicyChange,
+    isReadOnly,
     onCopyLink,
 }: {
     accessPolicy: AccessPolicy;
     onAccessPolicyChange: (accessPolicy: AccessPolicy) => void;
+    isReadOnly: boolean;
     onCopyLink: () => MaybePromise<void>;
 }) {
     const {currentAccount} = useSpaceContext();
@@ -214,8 +230,12 @@ function ShareOverlay({
             width="96"
             padding="5"
         >
-            <ShareOverlayAccountGrantInput isAltKeyDown={isAltKeyDown} />
-            <Spacer space="4" />
+            {!isReadOnly && (
+                <>
+                    <ShareOverlayAccountGrantInput isAltKeyDown={isAltKeyDown} />
+                    <Spacer space="5" />
+                </>
+            )}
             <Box display="flex" flexDirection="column" gap="4">
                 <ShareOverlayAccountGrant
                     // We always want to show at least the current account in the share overlay and
@@ -229,30 +249,35 @@ function ShareOverlay({
                             // default grant.
                             accessPolicy.defaultGrant,
                     )}
+                    isReadOnly={isReadOnly}
                     isAltKeyDown={isAltKeyDown}
                 />
                 {sortedAccountGrants.map(([accountId, accountGrant]) => (
+                    // NOCOMMIT: Scroll if this gets too long
                     <ShareOverlayAccountGrant
                         key={accountId}
                         account={accountById.get(accountId) ?? null}
                         accountGrant={accountGrant}
+                        isReadOnly={isReadOnly}
                         isAltKeyDown={isAltKeyDown}
                     />
                 ))}
             </Box>
-            <Spacer space="4" />
+            <Spacer space="5" />
             <Box height="border" backgroundColor="grey-5" />
-            <Spacer space="4" />
+            <Spacer space="5" />
             <ShareOverlayDefaultGrant
                 defaultGrant={accessPolicy.defaultGrant}
                 onDefaultGrantChange={defaultGrant => {
+                    // NOCOMMIT: Warn if this will change the current account's access level.
                     onAccessPolicyChange({...accessPolicy, defaultGrant});
                 }}
+                isReadOnly={isReadOnly}
                 isAltKeyDown={isAltKeyDown}
             />
             <Spacer space="3" />
-            <ShareOverlayLinkGrant />
-            <Spacer space="4" />
+            <ShareOverlayLinkGrant isReadOnly={isReadOnly} />
+            <Spacer space="5" />
             <Box height="border" backgroundColor="grey-5" />
             <Spacer space="5" />
             <Button
@@ -331,10 +356,12 @@ function ShareOverlayAccountGrantInput({isAltKeyDown}: {isAltKeyDown: boolean}) 
 function ShareOverlayAccountGrant({
     account,
     accountGrant,
+    isReadOnly,
     isAltKeyDown,
 }: {
     account: AccountModel | null;
     accountGrant: AccessPolicyAccountGrant;
+    isReadOnly: boolean;
     isAltKeyDown: boolean;
 }) {
     const accountData = useAccountModel(account);
@@ -361,57 +388,61 @@ function ShareOverlayAccountGrant({
                 </>
             )}
             <Box flexGrow="1" />
-            <MenuButton
-                placement="bottom-end"
-                actions={[
-                    [
-                        {
-                            isSelected: accountGrant.level === "Manage",
-                            label: accessLevelText.Manage,
-                            onPress: () => {
-                                // NOCOMMIT
+            {isReadOnly ? (
+                <Box flexShrink="0">{accessLevelText[accountGrant.level]}</Box>
+            ) : (
+                <MenuButton
+                    placement="bottom-end"
+                    actions={[
+                        [
+                            {
+                                isSelected: accountGrant.level === "Manage",
+                                label: accessLevelText.Manage,
+                                onPress: () => {
+                                    // NOCOMMIT
+                                },
                             },
-                        },
-                        ...(isAltKeyDown
-                            ? [
-                                  cast<MenuAction>({
-                                      isSelected: accountGrant.level === "Edit",
-                                      label: accessLevelText.Edit,
-                                      onPress: () => {
-                                          // NOCOMMIT
-                                      },
-                                  }),
-                              ]
-                            : emptyArray),
-                        {
-                            isSelected: accountGrant.level === "Comment",
-                            label: accessLevelText.Comment,
-                            onPress: () => {
-                                // NOCOMMIT
+                            ...(isAltKeyDown
+                                ? [
+                                      cast<MenuAction>({
+                                          isSelected: accountGrant.level === "Edit",
+                                          label: accessLevelText.Edit,
+                                          onPress: () => {
+                                              // NOCOMMIT
+                                          },
+                                      }),
+                                  ]
+                                : emptyArray),
+                            {
+                                isSelected: accountGrant.level === "Comment",
+                                label: accessLevelText.Comment,
+                                onPress: () => {
+                                    // NOCOMMIT
+                                },
                             },
-                        },
-                        {
-                            isSelected: accountGrant.level === "View",
-                            label: accessLevelText.View,
-                            onPress: () => {
-                                // NOCOMMIT
+                            {
+                                isSelected: accountGrant.level === "View",
+                                label: accessLevelText.View,
+                                onPress: () => {
+                                    // NOCOMMIT
+                                },
                             },
-                        },
-                    ],
-                    [
-                        {
-                            label: removeAccessLevelText,
-                            onPress: () => {
-                                // NOCOMMIT
+                        ],
+                        [
+                            {
+                                label: removeAccessLevelText,
+                                onPress: () => {
+                                    // NOCOMMIT
+                                },
                             },
-                        },
-                    ],
-                ]}
-            >
-                <Button height="6" paddingX="2" icon={<CaretDown />} iconPlacement="end">
-                    {accessLevelText[accountGrant.level]}
-                </Button>
-            </MenuButton>
+                        ],
+                    ]}
+                >
+                    <Button height="6" paddingX="2" icon={<CaretDown />} iconPlacement="end">
+                        {accessLevelText[accountGrant.level]}
+                    </Button>
+                </MenuButton>
+            )}
         </Box>
     );
 }
@@ -419,10 +450,12 @@ function ShareOverlayAccountGrant({
 function ShareOverlayDefaultGrant({
     defaultGrant,
     onDefaultGrantChange,
+    isReadOnly,
     isAltKeyDown,
 }: {
     defaultGrant: AccessPolicyDefaultGrant | null;
     onDefaultGrantChange: (defaultGrant: AccessPolicyDefaultGrant | null) => void;
+    isReadOnly: boolean;
     isAltKeyDown: boolean;
 }) {
     const {space} = useSpaceContext();
@@ -438,71 +471,79 @@ function ShareOverlayDefaultGrant({
                 </span>
             </Box>
             <Box flexGrow="1" minWidth="2" />
-            <MenuButton
-                placement="bottom-end"
-                actions={[
-                    [
-                        {
-                            isSelected: defaultGrant?.level === "Manage",
-                            label: accessLevelText.Manage,
-                            onPress: () => {
-                                onDefaultGrantChange({type: "Space", level: "Manage"});
-                            },
-                        },
-                        ...(isAltKeyDown || defaultGrant?.level === "Edit"
-                            ? [
-                                  cast<MenuAction>({
-                                      isSelected: defaultGrant?.level === "Edit",
-                                      label: accessLevelText.Edit,
-                                      onPress: () => {
-                                          onDefaultGrantChange({type: "Space", level: "Edit"});
-                                      },
-                                  }),
-                              ]
-                            : emptyArray),
-                        {
-                            isSelected: defaultGrant?.level === "Comment",
-                            label: accessLevelText.Comment,
-                            onPress: () => {
-                                onDefaultGrantChange({type: "Space", level: "Comment"});
-                            },
-                        },
-                        {
-                            isSelected: defaultGrant?.level === "View",
-                            label: accessLevelText.View,
-                            onPress: () => {
-                                onDefaultGrantChange({type: "Space", level: "View"});
-                            },
-                        },
-                    ],
-                    [
-                        {
-                            isSelected: defaultGrant === null,
-                            label: noAccessLevelText,
-                            onPress: () => {
-                                onDefaultGrantChange(null);
-                            },
-                        },
-                    ],
-                ]}
-            >
-                <Button
-                    variant={defaultGrant === null ? "quieter" : "quiet"}
-                    height="6"
-                    paddingX="2"
-                    icon={<CaretDown />}
-                    iconPlacement="end"
-                >
+            {isReadOnly ? (
+                <Box color={defaultGrant === null ? "grey-60" : "grey-100"}>
                     {defaultGrant === null
                         ? noAccessLevelText
                         : accessLevelText[defaultGrant.level]}
-                </Button>
-            </MenuButton>
+                </Box>
+            ) : (
+                <MenuButton
+                    placement="bottom-end"
+                    actions={[
+                        [
+                            {
+                                isSelected: defaultGrant?.level === "Manage",
+                                label: accessLevelText.Manage,
+                                onPress: () => {
+                                    onDefaultGrantChange({type: "Space", level: "Manage"});
+                                },
+                            },
+                            ...(isAltKeyDown || defaultGrant?.level === "Edit"
+                                ? [
+                                      cast<MenuAction>({
+                                          isSelected: defaultGrant?.level === "Edit",
+                                          label: accessLevelText.Edit,
+                                          onPress: () => {
+                                              onDefaultGrantChange({type: "Space", level: "Edit"});
+                                          },
+                                      }),
+                                  ]
+                                : emptyArray),
+                            {
+                                isSelected: defaultGrant?.level === "Comment",
+                                label: accessLevelText.Comment,
+                                onPress: () => {
+                                    onDefaultGrantChange({type: "Space", level: "Comment"});
+                                },
+                            },
+                            {
+                                isSelected: defaultGrant?.level === "View",
+                                label: accessLevelText.View,
+                                onPress: () => {
+                                    onDefaultGrantChange({type: "Space", level: "View"});
+                                },
+                            },
+                        ],
+                        [
+                            {
+                                isSelected: defaultGrant === null,
+                                label: noAccessLevelText,
+                                onPress: () => {
+                                    onDefaultGrantChange(null);
+                                },
+                            },
+                        ],
+                    ]}
+                >
+                    <Button
+                        variant={defaultGrant === null ? "quieter" : "quiet"}
+                        height="6"
+                        paddingX="2"
+                        icon={<CaretDown />}
+                        iconPlacement="end"
+                    >
+                        {defaultGrant === null
+                            ? noAccessLevelText
+                            : accessLevelText[defaultGrant.level]}
+                    </Button>
+                </MenuButton>
+            )}
         </Box>
     );
 }
 
-function ShareOverlayLinkGrant() {
+function ShareOverlayLinkGrant({isReadOnly}: {isReadOnly: boolean}) {
     return (
         <Box display="flex" alignItems="center">
             <Box
@@ -520,39 +561,48 @@ function ShareOverlayLinkGrant() {
                 Anyone with the link
             </Box>
             <Box flexGrow="1" minWidth="2" />
-            <MenuButton
-                placement="bottom-end"
-                actions={[
-                    [
-                        {
-                            label: accessLevelText.View,
-                            onPress: () => {
-                                // NOCOMMIT
-                            },
-                        },
-                    ],
-                    [
-                        {
-                            label: noAccessLevelText,
-                            isSelected: true,
-                            onPress: () => {
-                                // NOCOMMIT
-                            },
-                        },
-                    ],
-                ]}
-            >
-                <Button
+            {isReadOnly ? (
+                <Box
                     // NOCOMMIT: Check if access level is actually null
-                    variant={true ? "quieter" : "quiet"}
-                    height="6"
-                    paddingX="2"
-                    icon={<CaretDown />}
-                    iconPlacement="end"
+                    color={true ? "grey-60" : "grey-100"}
                 >
                     {noAccessLevelText}
-                </Button>
-            </MenuButton>
+                </Box>
+            ) : (
+                <MenuButton
+                    placement="bottom-end"
+                    actions={[
+                        [
+                            {
+                                label: accessLevelText.View,
+                                onPress: () => {
+                                    // NOCOMMIT
+                                },
+                            },
+                        ],
+                        [
+                            {
+                                label: noAccessLevelText,
+                                isSelected: true,
+                                onPress: () => {
+                                    // NOCOMMIT
+                                },
+                            },
+                        ],
+                    ]}
+                >
+                    <Button
+                        // NOCOMMIT: Check if access level is actually null
+                        variant={true ? "quieter" : "quiet"}
+                        height="6"
+                        paddingX="2"
+                        icon={<CaretDown />}
+                        iconPlacement="end"
+                    >
+                        {noAccessLevelText}
+                    </Button>
+                </MenuButton>
+            )}
         </Box>
     );
 }

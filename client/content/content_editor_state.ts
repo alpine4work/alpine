@@ -1,7 +1,15 @@
 import {collab, getVersion, receiveTransaction, sendableSteps} from "prosemirror-collab";
 import {history, redoDepth, undoDepth} from "prosemirror-history";
 import {Node} from "prosemirror-model";
-import {Command, EditorState, Plugin, PluginKey, Selection, Transaction} from "prosemirror-state";
+import {
+    Command,
+    EditorState,
+    Plugin,
+    PluginKey,
+    Selection,
+    SelectionBookmark,
+    Transaction,
+} from "prosemirror-state";
 import {tableEditing} from "prosemirror-tables";
 import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
@@ -113,10 +121,10 @@ export class ContentEditorState<Content extends ContentWithReferences> {
         content: ContentWithReferences & {doc: ContentDoc},
         options: {
             /**
-             * Where should we put our selection when the user first focuses the
-             * content editor?
+             * The initial selection to use for the editor state. If the string "start" or
+             * "end" then we'll automatically put the selection at that side of the doc.
              */
-            selectionAt?: "start" | "end";
+            selection?: "start" | "end" | Selection | SelectionBookmark;
 
             /**
              * Should the undo/redo keyboard shortcuts be disabled on this editor? When
@@ -140,7 +148,7 @@ export class ContentEditorState<Content extends ContentWithReferences> {
     private static _create<Content extends ContentWithReferences>({
         content,
         reduceReferences,
-        selectionAt = "start",
+        selection = "start",
         disableUndoKeyboardShortcuts = false,
     }: {
         /** The initial content of the editor. */
@@ -159,7 +167,7 @@ export class ContentEditorState<Content extends ContentWithReferences> {
             action: ContentEditorReferencesAction<Content["references"]>,
         ) => Content["references"];
 
-        selectionAt?: "start" | "end";
+        selection?: "start" | "end" | Selection | SelectionBookmark;
         disableUndoKeyboardShortcuts?: boolean;
     }): ContentEditorState<Content> {
         const schema = content.doc.type.schema;
@@ -177,9 +185,13 @@ export class ContentEditorState<Content extends ContentWithReferences> {
                 doc: content.doc,
                 plugins,
                 selection:
-                    selectionAt === "end"
+                    selection === "start"
+                        ? Selection.atStart(content.doc)
+                        : selection === "end"
                         ? Selection.atEnd(content.doc)
-                        : Selection.atStart(content.doc),
+                        : selection instanceof Selection
+                        ? selection
+                        : selection.resolve(content.doc),
             }),
         );
     }
@@ -190,6 +202,7 @@ export class ContentEditorState<Content extends ContentWithReferences> {
     public static createCollaborative<Content extends ContentWithReferences>({
         version,
         content,
+        selection = "start",
         reduceReferences,
         clientId = generateId<ContentEditorClientId>(),
         disableUndoKeyboardShortcuts = false,
@@ -204,6 +217,12 @@ export class ContentEditorState<Content extends ContentWithReferences> {
          * start with empty content.
          */
         content: Content;
+
+        /**
+         * The initial selection to use for the editor state. If the string "start" or
+         * "end" then we'll automatically put the selection at that side of the doc.
+         */
+        selection?: "start" | "end" | Selection | SelectionBookmark;
 
         /**
          * The editor may dispatch actions to update the content's references. This
@@ -260,6 +279,14 @@ export class ContentEditorState<Content extends ContentWithReferences> {
             EditorState.create({
                 doc: content.doc,
                 plugins,
+                selection:
+                    selection === "start"
+                        ? Selection.atStart(content.doc)
+                        : selection === "end"
+                        ? Selection.atEnd(content.doc)
+                        : selection instanceof Selection
+                        ? selection
+                        : selection.resolve(content.doc),
             }),
         );
 

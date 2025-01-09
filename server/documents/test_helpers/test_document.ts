@@ -7,6 +7,7 @@ import {
 import {
     DocumentContentCacheForUpdate,
     createDocument,
+    getDocumentWithOptionalComments,
     updateDocumentContent,
 } from "~/server/documents/data/documents_table.js";
 import {TestDocumentCommentThread} from "~/server/documents/test_helpers/test_document_comment_thread.js";
@@ -129,6 +130,10 @@ export class TestDocument {
                 lastUpdatePos: content.nodeSize - 3,
             }),
         );
+    }
+
+    public get() {
+        return getDocumentWithOptionalComments(this.space.systemAction(), this.id);
     }
 
     /**

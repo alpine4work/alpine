@@ -2018,7 +2018,7 @@ class TaskActionTransactionCommitState {
 
         if (!hasAccess) {
             throw new PermissionDeniedError(
-                quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
+                quote`Actor doesn't have ${expectedAccessLevel} access level to task collection`,
                 {
                     displayMessage: getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
                         collectionItem,
@@ -2044,7 +2044,7 @@ class TaskActionTransactionCommitState {
 
         if (!hasAccess) {
             throw new PermissionDeniedError(
-                quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
+                quote`Actor doesn't have ${expectedAccessLevel} access level to task collection`,
                 {
                     displayMessage: getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
                         collectionItem,
@@ -2073,7 +2073,7 @@ class TaskActionTransactionCommitState {
 
         if (!hasAccess) {
             throw new PermissionDeniedError(
-                quote`Actor does not have ${expectedAccessLevel} access level to task`,
+                quote`Actor doesn't have ${expectedAccessLevel} access level to task`,
                 {
                     displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
                         taskItem,
@@ -2102,7 +2102,7 @@ class TaskActionTransactionCommitState {
 
         if (!hasAccess) {
             throw new PermissionDeniedError(
-                quote`Actor does not have ${expectedAccessLevel} access level to task`,
+                quote`Actor doesn't have ${expectedAccessLevel} access level to task`,
                 {
                     displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
                         taskItem,
@@ -2543,9 +2543,7 @@ async function actuallyCommitTaskActionTransaction(
                                 }
 
                                 if (taskItem.parentTaskId.value === null) {
-                                    throw new FailedPreconditionError(
-                                        "Task does not have a parent",
-                                    );
+                                    throw new FailedPreconditionError("Task doesn't have a parent");
                                 }
 
                                 const parentTaskItem = await state.getTaskItem(
@@ -3693,7 +3691,7 @@ export async function authorizeTaskCollectionAccess(
 
     if (!hasAccess) {
         throw new PermissionDeniedError(
-            quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
+            quote`Actor doesn't have ${expectedAccessLevel} access level to task collection`,
             {
                 displayMessage: getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
                     collectionItem,
@@ -3943,7 +3941,7 @@ export async function authorizeTaskAccess(
 
             if (!hasAccess) {
                 throw new PermissionDeniedError(
-                    quote`Actor does not have ${expectedAccessLevel} access level to task`,
+                    quote`Actor doesn't have ${expectedAccessLevel} access level to task`,
                     {
                         displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
                             await getTaskItemForAuthorization(context, taskId, loaders),
@@ -4035,7 +4033,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
 
             if (!hasAccess) {
                 throw new PermissionDeniedError(
-                    quote`Actor does not have ${expectedAccessLevel} access level to task`,
+                    quote`Actor doesn't have ${expectedAccessLevel} access level to task`,
                     {
                         displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
                             taskItem,
@@ -4149,7 +4147,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
 
             if (!hasAccess) {
                 throw new PermissionDeniedError(
-                    quote`Actor does not have ${expectedAccessLevel} access level to task`,
+                    quote`Actor doesn't have ${expectedAccessLevel} access level to task`,
                     {
                         displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
                             item,
@@ -4200,7 +4198,7 @@ async function authorizeTaskItemAccess(
 
     if (!hasAccess) {
         throw new PermissionDeniedError(
-            quote`Actor does not have ${expectedAccessLevel} access level to task`,
+            quote`Actor doesn't have ${expectedAccessLevel} access level to task`,
             {
                 displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
                     taskItem,
@@ -5826,7 +5824,7 @@ export function updateTaskNotesContent(
 
                     if (!hasAccess) {
                         throw new PermissionDeniedError(
-                            quote`Actor does not have ${expectedAccessLevel} access level to task`,
+                            quote`Actor doesn't have ${expectedAccessLevel} access level to task`,
                             {
                                 displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
                                     taskItem,
@@ -6188,7 +6186,7 @@ export async function getTaskCollectionSearchResult(
 
     if (!hasAccess) {
         throw new PermissionDeniedError(
-            quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
+            quote`Actor doesn't have ${expectedAccessLevel} access level to task collection`,
             {
                 displayMessage: getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
                     collectionItem,

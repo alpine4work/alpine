@@ -22,7 +22,6 @@ import {
     deleteDocumentComment,
     documentContentCacheEvictionTimeoutMs,
     getDocument,
-    getDocumentAndCommentThreads,
     getDocumentAndCommentThreadsWithInitialComments,
     getDocumentComment,
     getDocumentCommentAuthorId,
@@ -35,11 +34,14 @@ import {
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
     getDocumentContent,
+    getDocumentContentForCollaborationServiceInitialization,
     getDocumentContentSteps,
-    getDocumentIfExists,
+    getDocumentContentWithOptionalComments,
     getDocumentPreview,
     getDocumentPreviewIfExists,
     getDocumentTitle,
+    getDocumentWithOptionalComments,
+    getDocumentWithOptionalCommentsIfExists,
     getDocumentsTableForTest,
     getInternalDocumentTestCounter,
     getResolvedDocumentCommentThreadRanges,
@@ -252,7 +254,9 @@ test("can read a created document", async () => {
         content,
     });
 
-    expect(massageDocument(await getDocument(session.action(), documentId))).toEqual({
+    expect(
+        massageDocument(await getDocumentWithOptionalComments(session.action(), documentId)),
+    ).toEqual({
         version: 0,
         content: content.toJSON(),
     });
@@ -281,7 +285,7 @@ test("can update a document with a single step", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -298,7 +302,7 @@ test("can update a document with a single step", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -315,7 +319,7 @@ test("can update a document with a single step", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 3,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -338,7 +342,7 @@ test("can update a document with multiple steps", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -359,7 +363,7 @@ test("can update a document with multiple steps", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 4,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -382,7 +386,7 @@ test("can not update a document if the version is greater than the current versi
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -401,7 +405,7 @@ test("can not update a document if the version is greater than the current versi
         });
     }).rejects.toThrow(FailedPreconditionError);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -424,7 +428,7 @@ test("can update a document if the version is one less than the current version"
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -441,7 +445,7 @@ test("can update a document if the version is one less than the current version"
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -458,7 +462,7 @@ test("can update a document if the version is one less than the current version"
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 3,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -481,7 +485,7 @@ test("can update a document if the version is many steps behind the current vers
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -519,7 +523,7 @@ test("can update a document if the version is many steps behind the current vers
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 5,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -536,7 +540,7 @@ test("can update a document if the version is many steps behind the current vers
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 6,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -559,7 +563,7 @@ test("can update a document with many steps if the version is one less than the 
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -576,7 +580,7 @@ test("can update a document with many steps if the version is one less than the 
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -598,7 +602,7 @@ test("can update a document with many steps if the version is one less than the 
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 6,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -621,7 +625,7 @@ test("can update a document with many steps if the version is many steps behind 
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -659,7 +663,7 @@ test("can update a document with many steps if the version is many steps behind 
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 5,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -681,7 +685,7 @@ test("can update a document with many steps if the version is many steps behind 
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 9,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -704,7 +708,7 @@ test("when two document updates race the loser will rebase", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -729,7 +733,7 @@ test("when two document updates race the loser will rebase", async () => {
 
     const {unpause: unpauseRequest2} = await request2PausePromise;
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -746,7 +750,7 @@ test("when two document updates race the loser will rebase", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -760,7 +764,7 @@ test("when two document updates race the loser will rebase", async () => {
 
     await request2Promise;
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 3,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -783,7 +787,7 @@ test("can not apply an invalid step", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -802,7 +806,7 @@ test("can not apply an invalid step", async () => {
         });
     }).rejects.toThrow(FailedPreconditionError);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -825,7 +829,7 @@ test("can not apply an invalid step even when rebasing", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -842,7 +846,7 @@ test("can not apply an invalid step even when rebasing", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -861,7 +865,7 @@ test("can not apply an invalid step even when rebasing", async () => {
         });
     }).rejects.toThrow(FailedPreconditionError);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -884,7 +888,7 @@ test("a single rebased step may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -901,7 +905,7 @@ test("a single rebased step may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -918,7 +922,7 @@ test("a single rebased step may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -941,7 +945,7 @@ test("many rebased steps may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -958,7 +962,7 @@ test("many rebased steps may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -979,7 +983,7 @@ test("many rebased steps may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1002,7 +1006,7 @@ test("some rebased steps may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1019,7 +1023,7 @@ test("some rebased steps may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1040,7 +1044,7 @@ test("some rebased steps may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 3,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1068,7 +1072,7 @@ test("reads the document on first update but not on subsequent updates", async (
 
     expect(getCount()).toEqual(1);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1089,7 +1093,7 @@ test("reads the document on first update but not on subsequent updates", async (
 
     expect(getCount()).toEqual(1);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1110,7 +1114,7 @@ test("reads the document on first update but not on subsequent updates", async (
 
     expect(getCount()).toEqual(1);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 3,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1131,7 +1135,7 @@ test("reads the document on first update but not on subsequent updates", async (
 
     expect(getCount()).toEqual(1);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 4,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1204,7 +1208,7 @@ test("can't read a corrupted document", async () => {
     });
 
     await expect(async () => {
-        await getDocument(session.action(), document.id);
+        await document.get();
     }).rejects.toThrow(DataLossError);
 });
 
@@ -1320,7 +1324,7 @@ test("updates made in parallel will read the document once", async () => {
     expect(getCount()).toEqual(1);
 
     {
-        const documentResult = await getDocument(session.action(), document.id);
+        const documentResult = await document.get();
         expect(documentResult.version).toEqual(6);
         expect(documentResult.content.doc.child(1).textContent.split("").sort().join("")).toEqual(
             "abcdef",
@@ -1382,7 +1386,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(1);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1403,7 +1407,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(1);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1425,7 +1429,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(2);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 3,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1447,7 +1451,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(2);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 4,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1468,7 +1472,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(2);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 5,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1490,7 +1494,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(2);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 6,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1520,7 +1524,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     expect(getCount()).toEqual(1);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1541,7 +1545,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     expect(getCount()).toEqual(1);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1564,7 +1568,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     expect(getCount()).toEqual(2);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 3,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1585,7 +1589,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     expect(getCount()).toEqual(2);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 4,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1615,7 +1619,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(1);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1638,7 +1642,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(2);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1663,7 +1667,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(2);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 3,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1688,7 +1692,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(2);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 4,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1713,7 +1717,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(2);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 5,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1738,7 +1742,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(3);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 6,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1756,7 +1760,7 @@ test("updates the document title whenever it changes", async () => {
     const session = await space.createSession();
     const document = await TestDocument.create(session);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 0,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1780,7 +1784,7 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1804,7 +1808,7 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1828,7 +1832,7 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 3,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1852,7 +1856,7 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 5,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1876,7 +1880,7 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 6,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1911,7 +1915,7 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 7,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1936,7 +1940,7 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 8,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1966,7 +1970,7 @@ test("resolves a conflict when typing in deleted content", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -1983,7 +1987,7 @@ test("resolves a conflict when typing in deleted content", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 3,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -2000,7 +2004,7 @@ test("resolves a conflict when typing in deleted content", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 3,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -2023,7 +2027,7 @@ test("resolves a conflict when typing in deleted content and the delete action i
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -2040,7 +2044,7 @@ test("resolves a conflict when typing in deleted content and the delete action i
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 3,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -2057,7 +2061,7 @@ test("resolves a conflict when typing in deleted content and the delete action i
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 4,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -2074,7 +2078,7 @@ test("resolves a conflict when typing in deleted content and the delete action i
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 4,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -2437,7 +2441,9 @@ test("can not read a created document in a different space", async () => {
         content,
     });
 
-    await expect(getDocument(session.action(), documentId)).rejects.toThrow(PermissionDeniedError);
+    await expect(getDocumentWithOptionalComments(session.action(), documentId)).rejects.toThrow(
+        PermissionDeniedError,
+    );
     await expect(getDocumentTitle(session.action(), documentId)).rejects.toThrow(
         PermissionDeniedError,
     );
@@ -2465,7 +2471,7 @@ test("can not update a document in a different space", async () => {
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
-    expect(massageDocument(await getDocument(otherSession.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 0,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -2490,7 +2496,7 @@ test("can not update a cached document in a different space", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(otherSession.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -2509,7 +2515,7 @@ test("can not update a cached document in a different space", async () => {
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
-    expect(massageDocument(await getDocument(otherSession.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -2536,7 +2542,7 @@ test("can update a cached document after rejecting an update in a different spac
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
-    expect(massageDocument(await getDocument(otherSession.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 0,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -2553,7 +2559,7 @@ test("can update a cached document after rejecting an update in a different spac
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(otherSession.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -2592,7 +2598,7 @@ test("can not update a document with an invalid step", async () => {
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -2680,7 +2686,7 @@ test("can not update a document such that it would have invalid content", async 
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 2,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -2805,7 +2811,7 @@ test("can not add a newline character to an existing `codeBlockLine` node in a d
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -2828,7 +2834,7 @@ test("can not add a newline character to an existing `codeBlockLine` node in a d
         new FailedPreconditionError(`Can't add "\\n" character to "codeBlockLine" node`),
     );
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -2844,12 +2850,11 @@ test("can not add a newline character to an existing `codeBlockLine` node in a d
 test("can not add a newline character with a new `codeBlockLine` node in a document", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
-
-    const {id} = await createDocument(session.action(), {spaceId: space.id});
+    const document = await TestDocument.create(session);
 
     await expect(
         updateDocumentContent(session.action(), {
-            id,
+            id: document.id,
             version: 0,
             steps: [
                 new ReplaceStep(
@@ -2872,7 +2877,7 @@ test("can not add a newline character with a new `codeBlockLine` node in a docum
         new FailedPreconditionError(`Can't add "\\n" character to "codeBlockLine" node`),
     );
 
-    expect(massageDocument(await getDocument(session.action(), id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 0,
         content: createEmptyDocumentContent(session.account.id).toJSON(),
     });
@@ -2945,7 +2950,7 @@ test("can't add comment mark to `fileRow` node in a document", async () => {
         ),
     );
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -3020,7 +3025,7 @@ test("can add comment mark to `file` node in a document", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -3583,7 +3588,7 @@ test("authorizing document access after getting document as session actor is cac
 
         expect(getCount()).toEqual(0);
 
-        await getDocument(actionContext, document.id);
+        await getDocumentWithOptionalComments(actionContext, document.id);
 
         expect(getCount()).toEqual(2);
 
@@ -3796,7 +3801,7 @@ test("authorizing document access after getting document as system actor is cach
 
         expect(getCount()).toEqual(0);
 
-        await getDocument(actionContext, document.id);
+        await getDocumentWithOptionalComments(actionContext, document.id);
 
         expect(getCount()).toEqual(1);
 
@@ -3985,7 +3990,7 @@ test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", 
             ),
         ]);
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -4023,7 +4028,7 @@ test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", 
             ),
         ]);
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 2,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -4095,7 +4100,7 @@ test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", 
             new AttrStep(2, "direction", "left"),
         ]);
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -4454,70 +4459,54 @@ test("getting document with comments requires comment access level", async () =>
     const commentThread = await document.createCommentThread(session1, range);
 
     {
-        const documentResult = await getDocument(session1.action(), document.id);
-
-        // `getDocument()` requires the `Comment` access level because comment threads
-        // are included in references.
-        expect(documentResult.content.references.commentThreadById.has(commentThread.id)).toEqual(
-            true,
-        );
-    }
-
-    {
         await getDocument(session1.action(), document.id);
         await getDocument(session2.action(), document.id);
         await expect(getDocument(session3.action(), document.id)).rejects.toThrow(
-            'Actor does not have "Comment" access level to document',
+            'Actor doesn\'t have "Comment" access level to document',
         );
         await expect(getDocument(session4.action(), document.id)).rejects.toThrow(
-            'Actor does not have "Comment" access level to document',
+            'Actor doesn\'t have "View" access level to document',
         );
         await expect(getDocument(otherSession.action(), document.id)).rejects.toThrow(
-            'Actor does not have "Comment" access level to document',
+            'Actor doesn\'t have "View" access level to document',
         );
     }
 
     {
-        await getDocumentIfExists(session1.action(), document.id);
-        await getDocumentIfExists(session2.action(), document.id);
-        await expect(getDocumentIfExists(session3.action(), document.id)).rejects.toThrow(
-            'Actor does not have "Comment" access level to document',
+        await getDocumentContent(session1.action(), document.id);
+        await getDocumentContent(session2.action(), document.id);
+        await expect(getDocumentContent(session3.action(), document.id)).rejects.toThrow(
+            'Actor doesn\'t have "Comment" access level to document',
         );
-        await expect(getDocumentIfExists(session4.action(), document.id)).rejects.toThrow(
-            'Actor does not have "Comment" access level to document',
+        await expect(getDocumentContent(session4.action(), document.id)).rejects.toThrow(
+            'Actor doesn\'t have "View" access level to document',
         );
-        await expect(getDocumentIfExists(otherSession.action(), document.id)).rejects.toThrow(
-            'Actor does not have "Comment" access level to document',
+        await expect(getDocumentContent(otherSession.action(), document.id)).rejects.toThrow(
+            'Actor doesn\'t have "View" access level to document',
         );
     }
 
     {
-        await getDocumentAndCommentThreads(session1.action(), {
-            documentId: document.id,
-            commentThreadIds: [commentThread.id],
-        });
-        await getDocumentAndCommentThreads(session2.action(), {
-            documentId: document.id,
-            commentThreadIds: [commentThread.id],
-        });
+        await getDocumentContentForCollaborationServiceInitialization(
+            session1.action(),
+            document.id,
+        );
+        await getDocumentContentForCollaborationServiceInitialization(
+            session2.action(),
+            document.id,
+        );
         await expect(
-            getDocumentAndCommentThreads(session3.action(), {
-                documentId: document.id,
-                commentThreadIds: [commentThread.id],
-            }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+            getDocumentContentForCollaborationServiceInitialization(session3.action(), document.id),
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
         await expect(
-            getDocumentAndCommentThreads(session4.action(), {
-                documentId: document.id,
-                commentThreadIds: [commentThread.id],
-            }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+            getDocumentContentForCollaborationServiceInitialization(session4.action(), document.id),
+        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
         await expect(
-            getDocumentAndCommentThreads(otherSession.action(), {
-                documentId: document.id,
-                commentThreadIds: [commentThread.id],
-            }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+            getDocumentContentForCollaborationServiceInitialization(
+                otherSession.action(),
+                document.id,
+            ),
+        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
     }
 
     {
@@ -4540,7 +4529,7 @@ test("getting document with comments requires comment access level", async () =>
                 commentLimit: 100,
                 commentThreadCountAgainstLimit: 0,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
         await expect(
             getDocumentAndCommentThreadsWithInitialComments(session4.action(), {
                 documentId: document.id,
@@ -4548,7 +4537,7 @@ test("getting document with comments requires comment access level", async () =>
                 commentLimit: 100,
                 commentThreadCountAgainstLimit: 0,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
         await expect(
             getDocumentAndCommentThreadsWithInitialComments(otherSession.action(), {
                 documentId: document.id,
@@ -4557,8 +4546,49 @@ test("getting document with comments requires comment access level", async () =>
                 commentThreadCountAgainstLimit: 0,
             }),
         ).rejects.toThrow(
-            'Actor does not have "Comment" access level to document (and 1 other error)',
+            'Actor doesn\'t have "View" access level to document (and 1 other error)',
         );
+    }
+
+    // Check that even when `commentThreadIds` is empty we still throw if the actor
+    // only has view access to the document.
+    {
+        await getDocumentAndCommentThreadsWithInitialComments(session1.action(), {
+            documentId: document.id,
+            commentThreadIds: [],
+            commentLimit: 100,
+            commentThreadCountAgainstLimit: 0,
+        });
+        await getDocumentAndCommentThreadsWithInitialComments(session2.action(), {
+            documentId: document.id,
+            commentThreadIds: [],
+            commentLimit: 100,
+            commentThreadCountAgainstLimit: 0,
+        });
+        await expect(
+            getDocumentAndCommentThreadsWithInitialComments(session3.action(), {
+                documentId: document.id,
+                commentThreadIds: [],
+                commentLimit: 100,
+                commentThreadCountAgainstLimit: 0,
+            }),
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
+        await expect(
+            getDocumentAndCommentThreadsWithInitialComments(session4.action(), {
+                documentId: document.id,
+                commentThreadIds: [],
+                commentLimit: 100,
+                commentThreadCountAgainstLimit: 0,
+            }),
+        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
+        await expect(
+            getDocumentAndCommentThreadsWithInitialComments(otherSession.action(), {
+                documentId: document.id,
+                commentThreadIds: [],
+                commentLimit: 100,
+                commentThreadCountAgainstLimit: 0,
+            }),
+        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
     }
 
     {
@@ -4578,21 +4608,21 @@ test("getting document with comments requires comment access level", async () =>
                 commentThreadId: commentThread.id,
                 isFirstComment: true,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
         await expect(
             getDocumentCommentThreadNotificationSubscribers(session4.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
                 isFirstComment: true,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
         await expect(
             getDocumentCommentThreadNotificationSubscribers(otherSession.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
                 isFirstComment: true,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
     }
 
     {
@@ -4609,19 +4639,19 @@ test("getting document with comments requires comment access level", async () =>
                 documentId: document.id,
                 commentThreadId: commentThread.id,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
         await expect(
             getDocumentCommentThread(session4.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
         await expect(
             getDocumentCommentThread(otherSession.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
     }
 
     {
@@ -4641,21 +4671,21 @@ test("getting document with comments requires comment access level", async () =>
                 commentThreadId: commentThread.id,
                 commentIndex: 0,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
         await expect(
             getDocumentCommentAuthorId(session4.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
                 commentIndex: 0,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
         await expect(
             getDocumentCommentAuthorId(otherSession.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
                 commentIndex: 0,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
     }
 
     {
@@ -4672,19 +4702,19 @@ test("getting document with comments requires comment access level", async () =>
                 documentId: document.id,
                 commentThreadIds: [commentThread.id],
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
         await expect(
             batchGetDocumentCommentThreadReferencesIfExists(session4.action(), {
                 documentId: document.id,
                 commentThreadIds: [commentThread.id],
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
         await expect(
             batchGetDocumentCommentThreadReferencesIfExists(otherSession.action(), {
                 documentId: document.id,
                 commentThreadIds: [commentThread.id],
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
     }
 
     {
@@ -4704,21 +4734,21 @@ test("getting document with comments requires comment access level", async () =>
                 commentThreadId: commentThread.id,
                 limit: 100,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
         await expect(
             getDocumentCommentThreadAndInitialComments(session4.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
                 limit: 100,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
         await expect(
             getDocumentCommentThreadAndInitialComments(otherSession.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
                 limit: 100,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
     }
 
     {
@@ -4738,21 +4768,21 @@ test("getting document with comments requires comment access level", async () =>
                 commentThreadId: commentThread.id,
                 limit: 100,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
         await expect(
             getDocumentCommentThreadAndInitialCommentsIfExists(session4.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
                 limit: 100,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
         await expect(
             getDocumentCommentThreadAndInitialCommentsIfExists(otherSession.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
                 limit: 100,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
     }
 
     {
@@ -4769,13 +4799,13 @@ test("getting document with comments requires comment access level", async () =>
                 documentId: document.id,
                 commentThreadIds: [commentThread.id],
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
         await expect(
             confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency(session4.action(), {
                 documentId: document.id,
                 commentThreadIds: [commentThread.id],
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
         await expect(
             confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency(
                 otherSession.action(),
@@ -4784,7 +4814,41 @@ test("getting document with comments requires comment access level", async () =>
                     commentThreadIds: [commentThread.id],
                 },
             ),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
+    }
+
+    {
+        await getDocumentContentSteps(session1.action(), {
+            id: document.id,
+            startVersion: 0,
+            endVersion: 4,
+        });
+        await getDocumentContentSteps(session2.action(), {
+            id: document.id,
+            startVersion: 0,
+            endVersion: 4,
+        });
+        await expect(
+            getDocumentContentSteps(session3.action(), {
+                id: document.id,
+                startVersion: 0,
+                endVersion: 4,
+            }),
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
+        await expect(
+            getDocumentContentSteps(session4.action(), {
+                id: document.id,
+                startVersion: 0,
+                endVersion: 4,
+            }),
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
+        await expect(
+            getDocumentContentSteps(otherSession.action(), {
+                id: document.id,
+                startVersion: 0,
+                endVersion: 4,
+            }),
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
     }
 });
 
@@ -4820,19 +4884,19 @@ test("getting document with resolved comment thread requires comment access leve
                 documentId: document.id,
                 commentThreadId: commentThread.id,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
         await expect(
             getResolvedDocumentCommentThreadRanges(session4.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
         await expect(
             getResolvedDocumentCommentThreadRanges(otherSession.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
             }),
-        ).rejects.toThrow('Actor does not have "Comment" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
     }
 });
 
@@ -4853,15 +4917,66 @@ test("getting document without comments requires view access level", async () =>
     await document.createCommentThread(session1, range);
 
     {
-        await getDocumentContent(session1.action(), document.id);
-        await getDocumentContent(session2.action(), document.id);
-        await getDocumentContent(session3.action(), document.id);
-        await expect(getDocumentContent(session4.action(), document.id)).rejects.toThrow(
-            'Actor does not have "View" access level to document',
+        await getDocumentWithOptionalComments(session1.action(), document.id);
+        await getDocumentWithOptionalComments(session2.action(), document.id);
+        await getDocumentWithOptionalComments(session3.action(), document.id);
+        await expect(
+            getDocumentWithOptionalComments(session4.action(), document.id),
+        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
+        await expect(
+            getDocumentWithOptionalComments(otherSession.action(), document.id),
+        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
+    }
+
+    {
+        await getDocumentWithOptionalCommentsIfExists(session1.action(), document.id);
+        await getDocumentWithOptionalCommentsIfExists(session2.action(), document.id);
+        await getDocumentWithOptionalCommentsIfExists(session3.action(), document.id);
+        await expect(
+            getDocumentWithOptionalCommentsIfExists(session4.action(), document.id),
+        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
+        await expect(
+            getDocumentWithOptionalCommentsIfExists(otherSession.action(), document.id),
+        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
+    }
+
+    {
+        await getDocumentContentWithOptionalComments(session1.action(), document.id);
+        await getDocumentContentWithOptionalComments(session2.action(), document.id);
+        await getDocumentContentWithOptionalComments(session3.action(), document.id);
+        await expect(
+            getDocumentContentWithOptionalComments(session4.action(), document.id),
+        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
+        await expect(
+            getDocumentContentWithOptionalComments(otherSession.action(), document.id),
+        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
+    }
+
+    {
+        await getDocumentContentForCollaborationServiceInitialization(
+            context.action(session1, {serviceName: "DocumentCollaborationService"}),
+            document.id,
         );
-        await expect(getDocumentContent(otherSession.action(), document.id)).rejects.toThrow(
-            'Actor does not have "View" access level to document',
+        await getDocumentContentForCollaborationServiceInitialization(
+            context.action(session2, {serviceName: "DocumentCollaborationService"}),
+            document.id,
         );
+        await getDocumentContentForCollaborationServiceInitialization(
+            context.action(session3, {serviceName: "DocumentCollaborationService"}),
+            document.id,
+        );
+        await expect(
+            getDocumentContentForCollaborationServiceInitialization(
+                context.action(session4, {serviceName: "DocumentCollaborationService"}),
+                document.id,
+            ),
+        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
+        await expect(
+            getDocumentContentForCollaborationServiceInitialization(
+                context.action(otherSession, {serviceName: "DocumentCollaborationService"}),
+                document.id,
+            ),
+        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
     }
 
     {
@@ -4869,10 +4984,10 @@ test("getting document without comments requires view access level", async () =>
         await getDocumentPreview(session2.action(), document.id);
         await getDocumentPreview(session3.action(), document.id);
         await expect(getDocumentPreview(session4.action(), document.id)).rejects.toThrow(
-            'Actor does not have "View" access level to document',
+            'Actor doesn\'t have "View" access level to document',
         );
         await expect(getDocumentPreview(otherSession.action(), document.id)).rejects.toThrow(
-            'Actor does not have "View" access level to document',
+            'Actor doesn\'t have "View" access level to document',
         );
     }
 
@@ -4881,11 +4996,11 @@ test("getting document without comments requires view access level", async () =>
         await getDocumentPreviewIfExists(session2.action(), document.id);
         await getDocumentPreviewIfExists(session3.action(), document.id);
         await expect(getDocumentPreviewIfExists(session4.action(), document.id)).rejects.toThrow(
-            'Actor does not have "View" access level to document',
+            'Actor doesn\'t have "View" access level to document',
         );
         await expect(
             getDocumentPreviewIfExists(otherSession.action(), document.id),
-        ).rejects.toThrow('Actor does not have "View" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
     }
 
     {
@@ -4893,43 +5008,11 @@ test("getting document without comments requires view access level", async () =>
         await getDocumentTitle(session2.action(), document.id);
         await getDocumentTitle(session3.action(), document.id);
         await expect(getDocumentTitle(session4.action(), document.id)).rejects.toThrow(
-            'Actor does not have "View" access level to document',
+            'Actor doesn\'t have "View" access level to document',
         );
         await expect(getDocumentTitle(otherSession.action(), document.id)).rejects.toThrow(
-            'Actor does not have "View" access level to document',
+            'Actor doesn\'t have "View" access level to document',
         );
-    }
-
-    {
-        await getDocumentContentSteps(session1.action(), {
-            id: document.id,
-            startVersion: 0,
-            endVersion: 4,
-        });
-        await getDocumentContentSteps(session2.action(), {
-            id: document.id,
-            startVersion: 0,
-            endVersion: 4,
-        });
-        await getDocumentContentSteps(session3.action(), {
-            id: document.id,
-            startVersion: 0,
-            endVersion: 4,
-        });
-        await expect(
-            getDocumentContentSteps(session4.action(), {
-                id: document.id,
-                startVersion: 0,
-                endVersion: 4,
-            }),
-        ).rejects.toThrow('Actor does not have "View" access level to document');
-        await expect(
-            getDocumentContentSteps(otherSession.action(), {
-                id: document.id,
-                startVersion: 0,
-                endVersion: 4,
-            }),
-        ).rejects.toThrow('Actor does not have "View" access level to document');
     }
 });
 
@@ -5057,7 +5140,7 @@ test("must have edit access to edit a document and can change the document's acc
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5074,9 +5157,9 @@ test("must have edit access to edit a document and can change the document's acc
             steps: [new ReplaceStep(6, 6, textSlice("bar"))],
             clientId: generateId(),
         }),
-    ).rejects.toThrow('Actor does not have "Edit" access level to document');
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5099,7 +5182,7 @@ test("must have edit access to edit a document and can change the document's acc
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: publicAccessPolicy}, [
@@ -5116,7 +5199,7 @@ test("must have edit access to edit a document and can change the document's acc
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 3,
         content: schema
             .node("doc", {accessPolicy: publicAccessPolicy}, [
@@ -5142,7 +5225,7 @@ test("can't update access policy unintentionally", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5159,9 +5242,9 @@ test("can't update access policy unintentionally", async () => {
             steps: [new ReplaceStep(6, 6, textSlice("bar"))],
             clientId: generateId(),
         }),
-    ).rejects.toThrow('Actor does not have "Edit" access level to document');
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5187,7 +5270,7 @@ test("can't update access policy unintentionally", async () => {
         "Can't update the document's access policy unless `intentionallyUpdateAccessPolicy` is provided",
     );
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5204,9 +5287,9 @@ test("can't update access policy unintentionally", async () => {
             steps: [new ReplaceStep(6, 6, textSlice("bar"))],
             clientId: generateId(),
         }),
-    ).rejects.toThrow('Actor does not have "Edit" access level to document');
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5232,7 +5315,7 @@ test("can't update access policy with a mismatched intentional access policy", a
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5249,9 +5332,9 @@ test("can't update access policy with a mismatched intentional access policy", a
             steps: [new ReplaceStep(6, 6, textSlice("bar"))],
             clientId: generateId(),
         }),
-    ).rejects.toThrow('Actor does not have "Edit" access level to document');
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5286,7 +5369,7 @@ test("can't update access policy with a mismatched intentional access policy", a
         "The document's new access policy doesn't match `intentionallyUpdateAccessPolicy`",
     );
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5303,9 +5386,9 @@ test("can't update access policy with a mismatched intentional access policy", a
             steps: [new ReplaceStep(6, 6, textSlice("bar"))],
             clientId: generateId(),
         }),
-    ).rejects.toThrow('Actor does not have "Edit" access level to document');
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5332,7 +5415,7 @@ test("can't update the access policy without the manage access level", async () 
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5349,9 +5432,9 @@ test("can't update the access policy without the manage access level", async () 
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow('Actor does not have "Edit" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5374,9 +5457,9 @@ test("can't update the access policy without the manage access level", async () 
                 intentionallyUpdateAccessPolicy: publicAccessPolicy,
                 clientId: generateId(),
             }),
-        ).rejects.toThrow('Actor does not have "Edit" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5393,9 +5476,9 @@ test("can't update the access policy without the manage access level", async () 
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow('Actor does not have "Edit" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5421,7 +5504,7 @@ test("can't update the access policy without the manage access level", async () 
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5438,9 +5521,9 @@ test("can't update the access policy without the manage access level", async () 
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow('Actor does not have "Edit" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5463,9 +5546,9 @@ test("can't update the access policy without the manage access level", async () 
                 intentionallyUpdateAccessPolicy: publicAccessPolicy,
                 clientId: generateId(),
             }),
-        ).rejects.toThrow('Actor does not have "Manage" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Manage" access level to document');
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5482,9 +5565,9 @@ test("can't update the access policy without the manage access level", async () 
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow('Actor does not have "Edit" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5510,7 +5593,7 @@ test("can't update the access policy without the manage access level", async () 
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5527,9 +5610,9 @@ test("can't update the access policy without the manage access level", async () 
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow('Actor does not have "Edit" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5552,7 +5635,7 @@ test("can't update the access policy without the manage access level", async () 
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 2,
             content: schema
                 .node("doc", {accessPolicy: publicAccessPolicy}, [
@@ -5569,7 +5652,7 @@ test("can't update the access policy without the manage access level", async () 
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: publicAccessPolicy}, [
@@ -5596,7 +5679,7 @@ test("can't update the access policy without the manage access level even if the
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5613,9 +5696,9 @@ test("can't update the access policy without the manage access level even if the
             steps: [new ReplaceStep(6, 6, textSlice("bar"))],
             clientId: generateId(),
         }),
-    ).rejects.toThrow('Actor does not have "Edit" access level to document');
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5633,9 +5716,9 @@ test("can't update the access policy without the manage access level even if the
             intentionallyUpdateAccessPolicy: document.initialAccessPolicy,
             clientId: generateId(),
         }),
-    ).rejects.toThrow('Actor does not have "Manage" access level to document');
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to document');
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5652,9 +5735,9 @@ test("can't update the access policy without the manage access level even if the
             steps: [new ReplaceStep(6, 6, textSlice("bar"))],
             clientId: generateId(),
         }),
-    ).rejects.toThrow('Actor does not have "Edit" access level to document');
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5686,7 +5769,7 @@ test("can handle conflicting access policy changes", async () => {
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5703,9 +5786,9 @@ test("can handle conflicting access policy changes", async () => {
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow('Actor does not have "Edit" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5746,7 +5829,7 @@ test("can handle conflicting access policy changes", async () => {
         );
         expect(conflictingSteps2.length).toEqual(1);
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: accessPolicyForSession2}, [
@@ -5763,9 +5846,9 @@ test("can handle conflicting access policy changes", async () => {
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow('Actor does not have "Edit" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: accessPolicyForSession2}, [
@@ -5796,7 +5879,7 @@ test("can handle conflicting access policy changes", async () => {
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5813,9 +5896,9 @@ test("can handle conflicting access policy changes", async () => {
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow('Actor does not have "Edit" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5856,7 +5939,7 @@ test("can handle conflicting access policy changes", async () => {
         );
         expect(conflictingSteps2.length).toEqual(1);
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: accessPolicyForSession2}, [
@@ -5873,7 +5956,7 @@ test("can handle conflicting access policy changes", async () => {
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 4,
             content: schema
                 .node("doc", {accessPolicy: accessPolicyForSession2}, [
@@ -5906,7 +5989,7 @@ test("can handle conflicting access policy changes within a single update call",
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5923,9 +6006,9 @@ test("can handle conflicting access policy changes within a single update call",
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow('Actor does not have "Edit" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5953,7 +6036,7 @@ test("can handle conflicting access policy changes within a single update call",
             "The document's new access policy doesn't match `intentionallyUpdateAccessPolicy`",
         );
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -5970,9 +6053,9 @@ test("can handle conflicting access policy changes within a single update call",
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow('Actor does not have "Edit" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6003,7 +6086,7 @@ test("can handle conflicting access policy changes within a single update call",
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6020,9 +6103,9 @@ test("can handle conflicting access policy changes within a single update call",
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow('Actor does not have "Edit" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6046,7 +6129,7 @@ test("can handle conflicting access policy changes within a single update call",
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: accessPolicy3}, [
@@ -6063,9 +6146,9 @@ test("can handle conflicting access policy changes within a single update call",
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow('Actor does not have "Edit" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: accessPolicy3}, [
@@ -6096,7 +6179,7 @@ test("can handle conflicting access policy changes within a single update call",
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6113,9 +6196,9 @@ test("can handle conflicting access policy changes within a single update call",
                 steps: [new ReplaceStep(6, 6, textSlice("bar"))],
                 clientId: generateId(),
             }),
-        ).rejects.toThrow('Actor does not have "Edit" access level to document');
+        ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6139,7 +6222,7 @@ test("can handle conflicting access policy changes within a single update call",
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: accessPolicy3}, [
@@ -6156,7 +6239,7 @@ test("can handle conflicting access policy changes within a single update call",
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 4,
             content: schema
                 .node("doc", {accessPolicy: accessPolicy3}, [
@@ -6166,6 +6249,358 @@ test("can handle conflicting access policy changes within a single update call",
                 .toJSON(),
         });
     }
+});
+
+test("getting a document with optional comments strips comments if the actor only has view access", async () => {
+    const space = await TestSpace.create(context);
+    const [editorSession, commenterSession, viewerSession, otherSession] =
+        await space.createSessions(4);
+
+    const document = await TestDocument.create(editorSession, {
+        access: TestAccessPolicy.private.with(
+            [commenterSession, "Comment"],
+            [viewerSession, "View"],
+        ),
+    });
+
+    await document.type(editorSession, "Hello, ");
+    const {range} = await document.type(editorSession, "world");
+    await document.type(editorSession, "!");
+
+    const commentThread = await document.createCommentThread(editorSession, range);
+
+    expect(await getDocumentWithOptionalComments(editorSession.action(), document.id)).toEqual(
+        new DocumentModel({
+            id: document.id,
+            spaceId: space.id,
+            createdTime: expect.any(Date),
+            version: 4,
+            content: {
+                doc: assertDocumentContent(
+                    schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                        schema.node("title"),
+                        schema.node("paragraph", {}, [
+                            schema.text("Hello, "),
+                            schema.text("world", [
+                                schema.mark("comment", {commentThreadId: commentThread.id}),
+                            ]),
+                            schema.text("!"),
+                        ]),
+                    ]),
+                ),
+                references: {
+                    ...emptyDocumentContentReferences,
+                    commentThreadById: new Map([
+                        [
+                            commentThread.id,
+                            {
+                                commentCount: 1,
+                                commentAuthors: [await editorSession.get()],
+                            },
+                        ],
+                    ]),
+                },
+            },
+        }),
+    );
+
+    expect(await getDocumentWithOptionalComments(commenterSession.action(), document.id)).toEqual(
+        new DocumentModel({
+            id: document.id,
+            spaceId: space.id,
+            createdTime: expect.any(Date),
+            version: 4,
+            content: {
+                doc: assertDocumentContent(
+                    schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                        schema.node("title"),
+                        schema.node("paragraph", {}, [
+                            schema.text("Hello, "),
+                            schema.text("world", [
+                                schema.mark("comment", {commentThreadId: commentThread.id}),
+                            ]),
+                            schema.text("!"),
+                        ]),
+                    ]),
+                ),
+                references: {
+                    ...emptyDocumentContentReferences,
+                    commentThreadById: new Map([
+                        [
+                            commentThread.id,
+                            {
+                                commentCount: 1,
+                                commentAuthors: [await editorSession.get()],
+                            },
+                        ],
+                    ]),
+                },
+            },
+        }),
+    );
+
+    expect(await getDocumentWithOptionalComments(viewerSession.action(), document.id)).toEqual(
+        new DocumentModel({
+            id: document.id,
+            spaceId: space.id,
+            createdTime: expect.any(Date),
+            version: 4,
+            content: {
+                doc: assertDocumentContent(
+                    schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                        schema.node("title"),
+                        schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                    ]),
+                ),
+                references: {
+                    ...emptyDocumentContentReferences,
+                    commentThreadById: new Map(),
+                },
+            },
+        }),
+    );
+
+    await expect(
+        getDocumentWithOptionalComments(otherSession.action(), document.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect(
+        await getDocumentWithOptionalCommentsIfExists(editorSession.action(), document.id),
+    ).toEqual(
+        new DocumentModel({
+            id: document.id,
+            spaceId: space.id,
+            createdTime: expect.any(Date),
+            version: 4,
+            content: {
+                doc: assertDocumentContent(
+                    schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                        schema.node("title"),
+                        schema.node("paragraph", {}, [
+                            schema.text("Hello, "),
+                            schema.text("world", [
+                                schema.mark("comment", {commentThreadId: commentThread.id}),
+                            ]),
+                            schema.text("!"),
+                        ]),
+                    ]),
+                ),
+                references: {
+                    ...emptyDocumentContentReferences,
+                    commentThreadById: new Map([
+                        [
+                            commentThread.id,
+                            {
+                                commentCount: 1,
+                                commentAuthors: [await editorSession.get()],
+                            },
+                        ],
+                    ]),
+                },
+            },
+        }),
+    );
+
+    expect(
+        await getDocumentWithOptionalCommentsIfExists(commenterSession.action(), document.id),
+    ).toEqual(
+        new DocumentModel({
+            id: document.id,
+            spaceId: space.id,
+            createdTime: expect.any(Date),
+            version: 4,
+            content: {
+                doc: assertDocumentContent(
+                    schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                        schema.node("title"),
+                        schema.node("paragraph", {}, [
+                            schema.text("Hello, "),
+                            schema.text("world", [
+                                schema.mark("comment", {commentThreadId: commentThread.id}),
+                            ]),
+                            schema.text("!"),
+                        ]),
+                    ]),
+                ),
+                references: {
+                    ...emptyDocumentContentReferences,
+                    commentThreadById: new Map([
+                        [
+                            commentThread.id,
+                            {
+                                commentCount: 1,
+                                commentAuthors: [await editorSession.get()],
+                            },
+                        ],
+                    ]),
+                },
+            },
+        }),
+    );
+
+    expect(
+        await getDocumentWithOptionalCommentsIfExists(viewerSession.action(), document.id),
+    ).toEqual(
+        new DocumentModel({
+            id: document.id,
+            spaceId: space.id,
+            createdTime: expect.any(Date),
+            version: 4,
+            content: {
+                doc: assertDocumentContent(
+                    schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                        schema.node("title"),
+                        schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                    ]),
+                ),
+                references: {
+                    ...emptyDocumentContentReferences,
+                    commentThreadById: new Map(),
+                },
+            },
+        }),
+    );
+
+    await expect(
+        getDocumentWithOptionalCommentsIfExists(otherSession.action(), document.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect(
+        await getDocumentContentWithOptionalComments(editorSession.action(), document.id),
+    ).toEqual({
+        spaceId: space.id,
+        creatorId: editorSession.account.id,
+        createdTime: expect.any(Date),
+        version: 4,
+        content: assertDocumentContent(
+            schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title"),
+                schema.node("paragraph", {}, [
+                    schema.text("Hello, "),
+                    schema.text("world", [
+                        schema.mark("comment", {commentThreadId: commentThread.id}),
+                    ]),
+                    schema.text("!"),
+                ]),
+            ]),
+        ),
+    });
+
+    expect(
+        await getDocumentContentWithOptionalComments(commenterSession.action(), document.id),
+    ).toEqual({
+        spaceId: space.id,
+        creatorId: editorSession.account.id,
+        createdTime: expect.any(Date),
+        version: 4,
+        content: assertDocumentContent(
+            schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title"),
+                schema.node("paragraph", {}, [
+                    schema.text("Hello, "),
+                    schema.text("world", [
+                        schema.mark("comment", {commentThreadId: commentThread.id}),
+                    ]),
+                    schema.text("!"),
+                ]),
+            ]),
+        ),
+    });
+
+    expect(
+        await getDocumentContentWithOptionalComments(viewerSession.action(), document.id),
+    ).toEqual({
+        spaceId: space.id,
+        creatorId: editorSession.account.id,
+        createdTime: expect.any(Date),
+        version: 4,
+        content: assertDocumentContent(
+            schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title"),
+                schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+            ]),
+        ),
+    });
+
+    await expect(
+        getDocumentContentWithOptionalComments(otherSession.action(), document.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect(
+        await getDocumentContentForCollaborationServiceInitialization(
+            context.action(editorSession, {serviceName: "DocumentCollaborationService"}),
+            document.id,
+        ),
+    ).toEqual({
+        spaceId: space.id,
+        creatorId: editorSession.account.id,
+        createdTime: expect.any(Date),
+        version: 4,
+        content: assertDocumentContent(
+            schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title"),
+                schema.node("paragraph", {}, [
+                    schema.text("Hello, "),
+                    schema.text("world", [
+                        schema.mark("comment", {commentThreadId: commentThread.id}),
+                    ]),
+                    schema.text("!"),
+                ]),
+            ]),
+        ),
+    });
+
+    expect(
+        await getDocumentContentForCollaborationServiceInitialization(
+            context.action(commenterSession, {serviceName: "DocumentCollaborationService"}),
+            document.id,
+        ),
+    ).toEqual({
+        spaceId: space.id,
+        creatorId: editorSession.account.id,
+        createdTime: expect.any(Date),
+        version: 4,
+        content: assertDocumentContent(
+            schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title"),
+                schema.node("paragraph", {}, [
+                    schema.text("Hello, "),
+                    schema.text("world", [
+                        schema.mark("comment", {commentThreadId: commentThread.id}),
+                    ]),
+                    schema.text("!"),
+                ]),
+            ]),
+        ),
+    });
+
+    expect(
+        await getDocumentContentForCollaborationServiceInitialization(
+            context.action(viewerSession, {serviceName: "DocumentCollaborationService"}),
+            document.id,
+        ),
+    ).toEqual({
+        spaceId: space.id,
+        creatorId: editorSession.account.id,
+        createdTime: expect.any(Date),
+        version: 4,
+        content: assertDocumentContent(
+            schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title"),
+                schema.node("paragraph", {}, [
+                    schema.text("Hello, "),
+                    schema.text("world", [
+                        schema.mark("comment", {commentThreadId: commentThread.id}),
+                    ]),
+                    schema.text("!"),
+                ]),
+            ]),
+        ),
+    });
+
+    await expect(
+        getDocumentContentForCollaborationServiceInitialization(otherSession.action(), document.id),
+    ).rejects.toThrow(PermissionDeniedError);
 });
 
 describe("Comments", () => {
@@ -6211,7 +6646,7 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6235,7 +6670,7 @@ describe("Comments", () => {
             ],
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 2,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6318,7 +6753,7 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6342,7 +6777,7 @@ describe("Comments", () => {
             ],
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 2,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6419,7 +6854,7 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6445,7 +6880,7 @@ describe("Comments", () => {
             }),
         ).rejects.toThrow(InvalidArgumentError);
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6524,7 +6959,7 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6541,7 +6976,7 @@ describe("Comments", () => {
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 2,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6624,7 +7059,7 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6635,9 +7070,7 @@ describe("Comments", () => {
         });
 
         expect(
-            (
-                await getDocument(session1.action(), document.id)
-            ).content.references.commentThreadById.has(commentThreadId),
+            (await document.get()).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         await updateDocumentContent(session1.action(), {
@@ -6654,7 +7087,7 @@ describe("Comments", () => {
             ],
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 2,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6669,9 +7102,7 @@ describe("Comments", () => {
         });
 
         expect(
-            (
-                await getDocument(session1.action(), document.id)
-            ).content.references.commentThreadById.has(commentThreadId),
+            (await document.get()).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(true);
 
         expect(
@@ -6707,7 +7138,7 @@ describe("Comments", () => {
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6718,9 +7149,7 @@ describe("Comments", () => {
         });
 
         expect(
-            (
-                await getDocument(session1.action(), document.id)
-            ).content.references.commentThreadById.has(commentThreadId),
+            (await document.get()).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
@@ -6751,7 +7180,7 @@ describe("Comments", () => {
 
         await updateDocumentSnapshotForTest(session1.action(), document.id);
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6762,9 +7191,7 @@ describe("Comments", () => {
         });
 
         expect(
-            (
-                await getDocument(session1.action(), document.id)
-            ).content.references.commentThreadById.has(commentThreadId),
+            (await document.get()).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
@@ -6836,7 +7263,7 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6847,9 +7274,7 @@ describe("Comments", () => {
         });
 
         expect(
-            (
-                await getDocument(session1.action(), document.id)
-            ).content.references.commentThreadById.has(commentThreadId),
+            (await document.get()).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         await updateDocumentContent(session1.action(), {
@@ -6866,7 +7291,7 @@ describe("Comments", () => {
             ],
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 2,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6881,9 +7306,7 @@ describe("Comments", () => {
         });
 
         expect(
-            (
-                await getDocument(session1.action(), document.id)
-            ).content.references.commentThreadById.has(commentThreadId),
+            (await document.get()).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(true);
 
         expect(
@@ -6919,7 +7342,7 @@ describe("Comments", () => {
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6930,9 +7353,7 @@ describe("Comments", () => {
         });
 
         expect(
-            (
-                await getDocument(session1.action(), document.id)
-            ).content.references.commentThreadById.has(commentThreadId),
+            (await document.get()).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
@@ -6963,7 +7384,7 @@ describe("Comments", () => {
 
         await updateDocumentSnapshotForTest(session1.action(), document.id);
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -6974,9 +7395,7 @@ describe("Comments", () => {
         });
 
         expect(
-            (
-                await getDocument(session1.action(), document.id)
-            ).content.references.commentThreadById.has(commentThreadId),
+            (await document.get()).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
@@ -7025,7 +7444,7 @@ describe("Comments", () => {
             ),
         );
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -7036,9 +7455,7 @@ describe("Comments", () => {
         });
 
         expect(
-            (
-                await getDocument(session1.action(), document.id)
-            ).content.references.commentThreadById.has(commentThreadId),
+            (await document.get()).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
@@ -7110,7 +7527,7 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -7121,9 +7538,7 @@ describe("Comments", () => {
         });
 
         expect(
-            (
-                await getDocument(session1.action(), document.id)
-            ).content.references.commentThreadById.has(commentThreadId),
+            (await document.get()).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         await updateDocumentContent(session1.action(), {
@@ -7140,7 +7555,7 @@ describe("Comments", () => {
             ],
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 2,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -7155,9 +7570,7 @@ describe("Comments", () => {
         });
 
         expect(
-            (
-                await getDocument(session1.action(), document.id)
-            ).content.references.commentThreadById.has(commentThreadId),
+            (await document.get()).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(true);
 
         expect(
@@ -7193,7 +7606,7 @@ describe("Comments", () => {
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -7204,9 +7617,7 @@ describe("Comments", () => {
         });
 
         expect(
-            (
-                await getDocument(session1.action(), document.id)
-            ).content.references.commentThreadById.has(commentThreadId),
+            (await document.get()).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
@@ -7237,7 +7648,7 @@ describe("Comments", () => {
 
         await updateDocumentSnapshotForTest(session1.action(), document.id);
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -7248,9 +7659,7 @@ describe("Comments", () => {
         });
 
         expect(
-            (
-                await getDocument(session1.action(), document.id)
-            ).content.references.commentThreadById.has(commentThreadId),
+            (await document.get()).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
@@ -7286,7 +7695,7 @@ describe("Comments", () => {
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 4,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -7301,9 +7710,7 @@ describe("Comments", () => {
         });
 
         expect(
-            (
-                await getDocument(session1.action(), document.id)
-            ).content.references.commentThreadById.has(commentThreadId),
+            (await document.get()).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(true);
 
         expect(
@@ -7334,7 +7741,7 @@ describe("Comments", () => {
 
         await updateDocumentSnapshotForTest(session1.action(), document.id);
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 4,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -7349,9 +7756,7 @@ describe("Comments", () => {
         });
 
         expect(
-            (
-                await getDocument(session1.action(), document.id)
-            ).content.references.commentThreadById.has(commentThreadId),
+            (await document.get()).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(true);
 
         expect(
@@ -7453,7 +7858,7 @@ describe("Comments", () => {
             ],
         });
 
-        expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 4,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -10507,7 +10912,7 @@ describe("Comments", () => {
 
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -10531,7 +10936,7 @@ describe("Comments", () => {
             ],
         });
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 2,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -10552,7 +10957,7 @@ describe("Comments", () => {
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -10577,7 +10982,7 @@ describe("Comments", () => {
 
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -10608,7 +11013,7 @@ describe("Comments", () => {
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -10630,7 +11035,7 @@ describe("Comments", () => {
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 4,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -10655,7 +11060,7 @@ describe("Comments", () => {
 
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -10679,7 +11084,7 @@ describe("Comments", () => {
             ],
         });
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 2,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -10700,7 +11105,7 @@ describe("Comments", () => {
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -10717,7 +11122,7 @@ describe("Comments", () => {
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 4,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -10746,7 +11151,7 @@ describe("Comments", () => {
 
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 1,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -10777,7 +11182,7 @@ describe("Comments", () => {
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 3,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -10799,7 +11204,7 @@ describe("Comments", () => {
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 4,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -10816,7 +11221,7 @@ describe("Comments", () => {
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+        expect(massageDocument(await document.get())).toEqual({
             version: 5,
             content: schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -10871,7 +11276,7 @@ describe("Comments", () => {
 
         const commentThread = await document.createCommentThread(session, range, "test1");
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -10896,7 +11301,7 @@ describe("Comments", () => {
         );
 
         expect(updatedCommentThreads.length).toEqual(1);
-        expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+        expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
         expect(updatedCommentThreads[0]).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
@@ -10923,7 +11328,7 @@ describe("Comments", () => {
 
         const commentThread = await document.createCommentThread(session, range, "test1");
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -10949,7 +11354,7 @@ describe("Comments", () => {
             );
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -10990,7 +11395,7 @@ describe("Comments", () => {
             );
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -11031,7 +11436,7 @@ describe("Comments", () => {
 
         const fakeCommentThreadId = generateId<DocumentCommentThreadId>();
 
-        expect((await getDocument(session.action(), document.id)).version).toEqual(2);
+        expect((await document.get()).version).toEqual(2);
 
         await expect(
             document.update(
@@ -11045,7 +11450,7 @@ describe("Comments", () => {
             ),
         ).rejects.toThrow(NotFoundError);
 
-        expect((await getDocument(session.action(), document.id)).version).toEqual(2);
+        expect((await document.get()).version).toEqual(2);
     });
 
     test("can't resolve comment thread if there are no other steps", async () => {
@@ -11059,7 +11464,7 @@ describe("Comments", () => {
 
         const commentThread = await document.createCommentThread(session, range, "test1");
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -11089,7 +11494,7 @@ describe("Comments", () => {
 
         const commentThread = await document.createCommentThread(session, range, "test1");
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -11129,7 +11534,7 @@ describe("Comments", () => {
 
         const commentThread = await document.createCommentThread(session, range, "test1");
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -11167,7 +11572,7 @@ describe("Comments", () => {
 
         const commentThread = await document.createCommentThread(session, range2, "test1");
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -11217,7 +11622,7 @@ describe("Comments", () => {
         const commentThread2 = await document.createCommentThread(session2, range2, "test2");
         const commentThread3 = await document.createCommentThread(session1, range3, "test3");
 
-        expect(await commentThread1.get(session1)).toEqual(
+        expect(await commentThread1.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread1.id,
                 documentId: document.id,
@@ -11230,7 +11635,7 @@ describe("Comments", () => {
                 firstCommentAuthor: await session1.get(),
             }),
         );
-        expect(await commentThread2.get(session1)).toEqual(
+        expect(await commentThread2.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread2.id,
                 documentId: document.id,
@@ -11243,7 +11648,7 @@ describe("Comments", () => {
                 firstCommentAuthor: await session2.get(),
             }),
         );
-        expect(await commentThread3.get(session1)).toEqual(
+        expect(await commentThread3.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread3.id,
                 documentId: document.id,
@@ -11275,13 +11680,13 @@ describe("Comments", () => {
 
         expect(updatedCommentThreads.length).toEqual(3);
         expect(updatedCommentThreads.find(({id}) => id === commentThread1.id)).toEqual(
-            await commentThread1.get(session1),
+            await commentThread1.get(),
         );
         expect(updatedCommentThreads.find(({id}) => id === commentThread2.id)).toEqual(
-            await commentThread2.get(session1),
+            await commentThread2.get(),
         );
         expect(updatedCommentThreads.find(({id}) => id === commentThread3.id)).toEqual(
-            await commentThread3.get(session1),
+            await commentThread3.get(),
         );
         expect(updatedCommentThreads.find(({id}) => id === commentThread1.id)).toEqual(
             new DocumentCommentThreadModel({
@@ -11376,7 +11781,7 @@ describe("Comments", () => {
 
         const commentThread = await document.createCommentThread(session, range, "test1");
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -11402,7 +11807,7 @@ describe("Comments", () => {
             );
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -11446,7 +11851,7 @@ describe("Comments", () => {
             });
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -11474,7 +11879,7 @@ describe("Comments", () => {
 
         const commentThread = await document.createCommentThread(session, range, "test1");
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -11500,7 +11905,7 @@ describe("Comments", () => {
             );
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -11544,7 +11949,7 @@ describe("Comments", () => {
             });
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -11575,7 +11980,7 @@ describe("Comments", () => {
             });
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -11603,7 +12008,7 @@ describe("Comments", () => {
 
         const commentThread = await document.createCommentThread(session, range, "test1");
 
-        expect((await getDocument(session.action(), document.id)).content.doc.toJSON()).toEqual(
+        expect((await document.get()).content.doc.toJSON()).toEqual(
             schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                     schema.node("title"),
@@ -11619,7 +12024,7 @@ describe("Comments", () => {
 
         await document.update(session, [new ReplaceStep(range.from, range.to, textSlice(""))]);
 
-        expect((await getDocument(session.action(), document.id)).content.doc.toJSON()).toEqual(
+        expect((await document.get()).content.doc.toJSON()).toEqual(
             schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                     schema.node("title"),
@@ -11630,7 +12035,7 @@ describe("Comments", () => {
 
         await commentThread.resolve(session);
 
-        expect((await getDocument(session.action(), document.id)).content.doc.toJSON()).toEqual(
+        expect((await document.get()).content.doc.toJSON()).toEqual(
             schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                     schema.node("title"),
@@ -11667,7 +12072,7 @@ describe("Comments", () => {
             });
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -11698,7 +12103,7 @@ describe("Comments", () => {
             );
         }
 
-        expect((await getDocument(session.action(), document.id)).content.doc.toJSON()).toEqual(
+        expect((await document.get()).content.doc.toJSON()).toEqual(
             schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                     schema.node("title"),
@@ -11736,7 +12141,7 @@ describe("Comments", () => {
             ),
         ]);
 
-        expect((await getDocument(session.action(), document.id)).content.doc.toJSON()).toEqual(
+        expect((await document.get()).content.doc.toJSON()).toEqual(
             schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                     schema.node("title"),
@@ -11760,7 +12165,7 @@ describe("Comments", () => {
 
         await commentThread.resolve(session);
 
-        expect((await getDocument(session.action(), document.id)).content.doc.toJSON()).toEqual(
+        expect((await document.get()).content.doc.toJSON()).toEqual(
             schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                     schema.node("title"),
@@ -11801,7 +12206,7 @@ describe("Comments", () => {
             });
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -11844,7 +12249,7 @@ describe("Comments", () => {
             );
         }
 
-        expect((await getDocument(session.action(), document.id)).content.doc.toJSON()).toEqual(
+        expect((await document.get()).content.doc.toJSON()).toEqual(
             schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                     schema.node("title"),
@@ -11879,7 +12284,7 @@ describe("Comments", () => {
         const commentThread = await document.createCommentThread(session, range, "test1");
         const fakeCommentThreadId = generateId<DocumentCommentThreadId>();
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -11905,7 +12310,7 @@ describe("Comments", () => {
             );
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -11935,7 +12340,7 @@ describe("Comments", () => {
                 ranges: [{...range, isNode: false}],
             });
 
-            expect((await getDocument(session.action(), document.id)).version).toEqual(4);
+            expect((await document.get()).version).toEqual(4);
 
             await expect(
                 updateDocumentContent(session.action(), {
@@ -11952,7 +12357,7 @@ describe("Comments", () => {
                 }),
             ).rejects.toThrow(NotFoundError);
 
-            expect((await getDocument(session.action(), document.id)).version).toEqual(4);
+            expect((await document.get()).version).toEqual(4);
         }
     });
 
@@ -11967,7 +12372,7 @@ describe("Comments", () => {
 
         const commentThread = await document.createCommentThread(session, range, "test1");
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -11993,7 +12398,7 @@ describe("Comments", () => {
             );
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -12038,7 +12443,7 @@ describe("Comments", () => {
             });
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -12066,7 +12471,7 @@ describe("Comments", () => {
 
         const commentThread = await document.createCommentThread(session, range, "test1");
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -12092,7 +12497,7 @@ describe("Comments", () => {
             );
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -12136,7 +12541,7 @@ describe("Comments", () => {
             });
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -12171,7 +12576,7 @@ describe("Comments", () => {
         const commentThread2 = await document.createCommentThread(session2, range2, "test2");
         const commentThread3 = await document.createCommentThread(session1, range3, "test3");
 
-        expect(await commentThread1.get(session1)).toEqual(
+        expect(await commentThread1.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread1.id,
                 documentId: document.id,
@@ -12184,7 +12589,7 @@ describe("Comments", () => {
                 firstCommentAuthor: await session1.get(),
             }),
         );
-        expect(await commentThread2.get(session1)).toEqual(
+        expect(await commentThread2.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread2.id,
                 documentId: document.id,
@@ -12197,7 +12602,7 @@ describe("Comments", () => {
                 firstCommentAuthor: await session2.get(),
             }),
         );
-        expect(await commentThread3.get(session1)).toEqual(
+        expect(await commentThread3.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread3.id,
                 documentId: document.id,
@@ -12236,13 +12641,13 @@ describe("Comments", () => {
 
             expect(updatedCommentThreads.length).toEqual(3);
             expect(updatedCommentThreads.find(({id}) => id === commentThread1.id)).toEqual(
-                await commentThread1.get(session1),
+                await commentThread1.get(),
             );
             expect(updatedCommentThreads.find(({id}) => id === commentThread2.id)).toEqual(
-                await commentThread2.get(session1),
+                await commentThread2.get(),
             );
             expect(updatedCommentThreads.find(({id}) => id === commentThread3.id)).toEqual(
-                await commentThread3.get(session1),
+                await commentThread3.get(),
             );
             expect(updatedCommentThreads.find(({id}) => id === commentThread1.id)).toEqual(
                 new DocumentCommentThreadModel({
@@ -12360,13 +12765,13 @@ describe("Comments", () => {
 
             expect(updatedCommentThreads.length).toEqual(3);
             expect(updatedCommentThreads.find(({id}) => id === commentThread1.id)).toEqual(
-                await commentThread1.get(session1),
+                await commentThread1.get(),
             );
             expect(updatedCommentThreads.find(({id}) => id === commentThread2.id)).toEqual(
-                await commentThread2.get(session1),
+                await commentThread2.get(),
             );
             expect(updatedCommentThreads.find(({id}) => id === commentThread3.id)).toEqual(
-                await commentThread3.get(session1),
+                await commentThread3.get(),
             );
             expect(updatedCommentThreads.find(({id}) => id === commentThread1.id)).toEqual(
                 new DocumentCommentThreadModel({
@@ -12468,7 +12873,7 @@ describe("Comments", () => {
 
         const commentThread = await document.createCommentThread(session, range, "test1");
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -12494,7 +12899,7 @@ describe("Comments", () => {
             );
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -12538,7 +12943,7 @@ describe("Comments", () => {
             });
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -12566,7 +12971,7 @@ describe("Comments", () => {
             );
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -12610,7 +13015,7 @@ describe("Comments", () => {
             });
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -12640,7 +13045,7 @@ describe("Comments", () => {
         const {range: range3} = await document.type(session, "world");
         await document.type(session, "!");
 
-        expect((await getDocument(session.action(), document.id)).content.doc.toJSON()).toEqual(
+        expect((await document.get()).content.doc.toJSON()).toEqual(
             schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                     schema.node("title"),
@@ -12651,7 +13056,7 @@ describe("Comments", () => {
 
         const commentThread = await document.createCommentThread(session, range3, "test1");
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -12665,7 +13070,7 @@ describe("Comments", () => {
             }),
         );
 
-        expect((await getDocument(session.action(), document.id)).content.doc.toJSON()).toEqual(
+        expect((await document.get()).content.doc.toJSON()).toEqual(
             schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                     schema.node("title"),
@@ -12693,7 +13098,7 @@ describe("Comments", () => {
 
             expect(newVersion).toEqual(8);
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -12709,7 +13114,7 @@ describe("Comments", () => {
             );
         }
 
-        expect((await getDocument(session.action(), document.id)).content.doc.toJSON()).toEqual(
+        expect((await document.get()).content.doc.toJSON()).toEqual(
             schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                     schema.node("title"),
@@ -12722,7 +13127,7 @@ describe("Comments", () => {
             new ReplaceStep(range2.from, range2.to, textSlice("wooonderfulll")),
         ]);
 
-        expect((await getDocument(session.action(), document.id)).content.doc.toJSON()).toEqual(
+        expect((await document.get()).content.doc.toJSON()).toEqual(
             schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                     schema.node("title"),
@@ -12735,7 +13140,7 @@ describe("Comments", () => {
             new ReplaceStep(range1.from, range1.to, textSlice("Hellloooo")),
         ]);
 
-        expect((await getDocument(session.action(), document.id)).content.doc.toJSON()).toEqual(
+        expect((await document.get()).content.doc.toJSON()).toEqual(
             schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                     schema.node("title"),
@@ -12776,7 +13181,7 @@ describe("Comments", () => {
 
             expect(newVersion).toEqual(11);
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -12792,7 +13197,7 @@ describe("Comments", () => {
             );
         }
 
-        expect((await getDocument(session.action(), document.id)).content.doc.toJSON()).toEqual(
+        expect((await document.get()).content.doc.toJSON()).toEqual(
             schema
                 .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                     schema.node("title"),
@@ -12842,7 +13247,7 @@ describe("Comments", () => {
             "test1",
         );
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -12868,7 +13273,7 @@ describe("Comments", () => {
             );
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -12912,7 +13317,7 @@ describe("Comments", () => {
             });
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread.id,
@@ -12975,7 +13380,7 @@ describe("Comments", () => {
             "test3",
         );
 
-        expect(await commentThread1.get(session)).toEqual(
+        expect(await commentThread1.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread1.id,
                 documentId: document.id,
@@ -12989,7 +13394,7 @@ describe("Comments", () => {
             }),
         );
 
-        expect(await commentThread2.get(session)).toEqual(
+        expect(await commentThread2.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread2.id,
                 documentId: document.id,
@@ -13003,7 +13408,7 @@ describe("Comments", () => {
             }),
         );
 
-        expect(await commentThread3.get(session)).toEqual(
+        expect(await commentThread3.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread3.id,
                 documentId: document.id,
@@ -13029,7 +13434,7 @@ describe("Comments", () => {
             );
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread2.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread2.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread2.id,
@@ -13045,7 +13450,7 @@ describe("Comments", () => {
             );
         }
 
-        expect(await commentThread1.get(session)).toEqual(
+        expect(await commentThread1.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread1.id,
                 documentId: document.id,
@@ -13059,7 +13464,7 @@ describe("Comments", () => {
             }),
         );
 
-        expect(await commentThread2.get(session)).toEqual(
+        expect(await commentThread2.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread2.id,
                 documentId: document.id,
@@ -13073,7 +13478,7 @@ describe("Comments", () => {
             }),
         );
 
-        expect(await commentThread3.get(session)).toEqual(
+        expect(await commentThread3.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread3.id,
                 documentId: document.id,
@@ -13099,7 +13504,7 @@ describe("Comments", () => {
             );
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread1.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread1.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread1.id,
@@ -13115,7 +13520,7 @@ describe("Comments", () => {
             );
         }
 
-        expect(await commentThread1.get(session)).toEqual(
+        expect(await commentThread1.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread1.id,
                 documentId: document.id,
@@ -13129,7 +13534,7 @@ describe("Comments", () => {
             }),
         );
 
-        expect(await commentThread2.get(session)).toEqual(
+        expect(await commentThread2.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread2.id,
                 documentId: document.id,
@@ -13143,7 +13548,7 @@ describe("Comments", () => {
             }),
         );
 
-        expect(await commentThread3.get(session)).toEqual(
+        expect(await commentThread3.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread3.id,
                 documentId: document.id,
@@ -13185,7 +13590,7 @@ describe("Comments", () => {
             });
 
             expect(updatedCommentThreads.length).toEqual(1);
-            expect(updatedCommentThreads[0]).toEqual(await commentThread2.get(session));
+            expect(updatedCommentThreads[0]).toEqual(await commentThread2.get());
             expect(updatedCommentThreads[0]).toEqual(
                 new DocumentCommentThreadModel({
                     id: commentThread2.id,
@@ -13201,7 +13606,7 @@ describe("Comments", () => {
             );
         }
 
-        expect(await commentThread1.get(session)).toEqual(
+        expect(await commentThread1.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread1.id,
                 documentId: document.id,
@@ -13215,7 +13620,7 @@ describe("Comments", () => {
             }),
         );
 
-        expect(await commentThread2.get(session)).toEqual(
+        expect(await commentThread2.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread2.id,
                 documentId: document.id,
@@ -13229,7 +13634,7 @@ describe("Comments", () => {
             }),
         );
 
-        expect(await commentThread3.get(session)).toEqual(
+        expect(await commentThread3.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread3.id,
                 documentId: document.id,
@@ -13292,7 +13697,7 @@ describe("Comments", () => {
             "test1",
         );
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -13317,7 +13722,7 @@ describe("Comments", () => {
         );
 
         expect(updatedCommentThreads.length).toEqual(1);
-        expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+        expect(updatedCommentThreads[0]).toEqual(await commentThread.get());
         expect(updatedCommentThreads[0]).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
@@ -13635,7 +14040,7 @@ describe("Comments", () => {
 
         const commentThread = await document.createCommentThread(session, range, "test1");
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -13651,7 +14056,7 @@ describe("Comments", () => {
 
         await document.update(session, [new ReplaceStep(range.from, range.to, textSlice(""))]);
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -13688,7 +14093,7 @@ describe("Comments", () => {
             ),
         ]);
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -13717,7 +14122,7 @@ describe("Comments", () => {
 
         await document.update(session, [new ReplaceStep(range.from, range.to + 3, textSlice(""))]);
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -13766,7 +14171,7 @@ describe("Comments", () => {
             ),
         ]);
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -13782,7 +14187,7 @@ describe("Comments", () => {
 
         await document.update(session, [new ReplaceStep(range1.from, range1.to, textSlice(""))]);
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -13800,7 +14205,7 @@ describe("Comments", () => {
             new ReplaceStep(range2.from - 5, range2.to - 5, textSlice("")),
         ]);
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -13838,7 +14243,7 @@ describe("Comments", () => {
             ),
         ]);
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -13870,7 +14275,7 @@ describe("Comments", () => {
             new ReplaceStep(range1.from, range1.to + 3, textSlice("")),
         ]);
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -13909,7 +14314,7 @@ describe("Comments", () => {
 
         const commentThread = await document.createCommentThread(session, range, "test1");
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -13929,7 +14334,7 @@ describe("Comments", () => {
             {resolveCommentThreadIds: [commentThread.id]},
         );
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -13966,7 +14371,7 @@ describe("Comments", () => {
             ),
         ]);
 
-        expect(await commentThread.get(session)).toEqual(
+        expect(await commentThread.get()).toEqual(
             new DocumentCommentThreadModel({
                 id: commentThread.id,
                 documentId: document.id,
@@ -14104,7 +14509,7 @@ describe("Comments", () => {
 
             const DocumentsTable = getDocumentsTableForTest();
 
-            const document = await getDocument(context, documentId);
+            const document = await getDocumentWithOptionalComments(context, documentId);
 
             const commentThreadItem = await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
@@ -14270,6 +14675,6 @@ describe("Comments", () => {
                 messageChangesResult: commentChangesResult,
             };
         },
-        spacePermissionDeniedErrorMessage: 'Actor does not have "Comment" access level to document',
+        spacePermissionDeniedErrorMessage: 'Actor doesn\'t have "Comment" access level to document',
     });
 });

@@ -1,18 +1,19 @@
 import {Fragment, Slice} from "prosemirror-model";
-import {AddMarkStep, RemoveMarkStep, ReplaceStep} from "prosemirror-transform";
+import {AddMarkStep, DocAttrStep, RemoveMarkStep, ReplaceStep} from "prosemirror-transform";
+import {TestAccessPolicy} from "~/server/access/test_access_policy.js";
 import {WorkerSessionActionContextModules} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContextModules} from "~/server/cloudflare/context/worker_process_context.js";
 import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
 import {DocumentCollaborationConnection} from "~/server/documents/collaboration/document_collaboration_connection.js";
 import {
-    documentCollaborationContentManagerBeforePersistTestCheckpoint,
+    documentCollaborationContentManagerBeforePersist1TestCheckpoint,
+    documentCollaborationContentManagerBeforePersist2TestCheckpoint,
     documentCollaborationContentManagerBeforeUpdateTestCheckpoint,
 } from "~/server/documents/collaboration/document_collaboration_content_manager.js";
 import {DocumentCollaborationDurableObject} from "~/server/documents/collaboration/document_collaboration_durable_object.js";
 import {
     FileDocumentAuthorizer,
     createDocumentComment,
-    getDocument,
     getDocumentComment,
     updateDocumentContent,
 } from "~/server/documents/data/documents_table.js";
@@ -22,7 +23,9 @@ import {uploadTestFile} from "~/server/files/test_helpers/test_file.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {WebSocketServerTestConnection} from "~/server/web_socket/web_socket_server.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
@@ -31,8 +34,9 @@ import {
     DocumentCommentThreadModel,
     DocumentModel,
 } from "~/shared/documents/document_model.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {InternalError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {FileModel} from "~/shared/files/file_model.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -136,7 +140,7 @@ test("can update document content", async () => {
         version: 0,
     });
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 0,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -151,12 +155,13 @@ test("can update document content", async () => {
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: client1Id,
         createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
     await waitForPersistence(connection1, 1);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 1,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -171,12 +176,13 @@ test("can update document content", async () => {
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
         clientId: client1Id,
         createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
     await waitForPersistence(connection1, 2);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 2,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -191,12 +197,13 @@ test("can update document content", async () => {
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
         clientId: client1Id,
         createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
     await waitForPersistence(connection1, 3);
 
-    expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 3,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -225,13 +232,14 @@ test("will optimistically update the document and then persist later", async () 
     });
 
     const pausePromise =
-        documentCollaborationContentManagerBeforePersistTestCheckpoint.pauseForTest(document.id);
+        documentCollaborationContentManagerBeforePersist2TestCheckpoint.pauseForTest(document.id);
 
     await connection1.procedures.updateContent({
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: client1Id,
         createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -240,6 +248,7 @@ test("will optimistically update the document and then persist later", async () 
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
         clientId: client1Id,
         createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -248,6 +257,7 @@ test("will optimistically update the document and then persist later", async () 
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
         clientId: client1Id,
         createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -286,7 +296,7 @@ test("will optimistically update the document and then persist later", async () 
         },
     ]);
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 0,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -299,7 +309,7 @@ test("will optimistically update the document and then persist later", async () 
     unpause();
     await waitForPersistence(connection1, 3);
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 3,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -344,13 +354,14 @@ test("will not batch updates from different accounts when persisting", async () 
     });
 
     const pausePromise =
-        documentCollaborationContentManagerBeforePersistTestCheckpoint.pauseForTest(document.id);
+        documentCollaborationContentManagerBeforePersist2TestCheckpoint.pauseForTest(document.id);
 
     await connection1.procedures.updateContent({
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: client1Id,
         createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -359,6 +370,7 @@ test("will not batch updates from different accounts when persisting", async () 
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
         clientId: client1Id,
         createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -367,6 +379,7 @@ test("will not batch updates from different accounts when persisting", async () 
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
         clientId: client3Id,
         createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -405,7 +418,7 @@ test("will not batch updates from different accounts when persisting", async () 
         },
     ]);
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 0,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -418,7 +431,7 @@ test("will not batch updates from different accounts when persisting", async () 
     unpause();
     await waitForPersistence(connection1, 3);
 
-    expect(massageDocument(await getDocument(session1.action(), document.id))).toEqual({
+    expect(massageDocument(await document.get())).toEqual({
         version: 3,
         content: schema
             .node("doc", {accessPolicy: document.initialAccessPolicy}, [
@@ -475,7 +488,7 @@ test("will respond optimistically with a comment thread even if it has not been 
     });
 
     const pausePromise =
-        documentCollaborationContentManagerBeforePersistTestCheckpoint.pauseForTest(document.id);
+        documentCollaborationContentManagerBeforePersist2TestCheckpoint.pauseForTest(document.id);
 
     await connection1.procedures.updateContent({
         version: 1,
@@ -488,6 +501,7 @@ test("will respond optimistically with a comment thread even if it has not been 
                 initialCommentFileIds: [],
             },
         ],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -732,7 +746,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
     });
 
     const pausePromise =
-        documentCollaborationContentManagerBeforePersistTestCheckpoint.pauseForTest(document.id);
+        documentCollaborationContentManagerBeforePersist2TestCheckpoint.pauseForTest(document.id);
 
     await connection1.procedures.updateContent({
         version: 1,
@@ -745,6 +759,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
                 initialCommentFileIds: [],
             },
         ],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -876,7 +891,7 @@ test("will respond optimistically with a comment thread with files even if it ha
     });
 
     const pausePromise =
-        documentCollaborationContentManagerBeforePersistTestCheckpoint.pauseForTest(document.id);
+        documentCollaborationContentManagerBeforePersist2TestCheckpoint.pauseForTest(document.id);
 
     const [{fileId: file1Id}, {fileId: file2Id}] = await runAllPromises([
         uploadTestFile(session1.action(), space.id),
@@ -909,6 +924,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                 initialCommentFileIds: [file1Id, file2Id],
             },
         ],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -1283,6 +1299,7 @@ test("when comment threads are added back to the document they will be loaded", 
         steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
         clientId: client1Id,
         createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -1399,6 +1416,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
                 initialCommentFileIds: [],
             },
         ],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -1417,6 +1435,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
         steps: [new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
         clientId: client1Id,
         createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -1427,6 +1446,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
         steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
         clientId: client1Id,
         createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -1638,6 +1658,7 @@ test("can create comments in comment threads", async () => {
                 initialCommentFileIds: [],
             },
         ],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -1988,7 +2009,7 @@ test("if comment thread is persisting we will wait to create messages but respon
     ).rejects.toThrow(NotFoundError);
 
     const pausePromise =
-        documentCollaborationContentManagerBeforePersistTestCheckpoint.pauseForTest(document.id);
+        documentCollaborationContentManagerBeforePersist2TestCheckpoint.pauseForTest(document.id);
 
     await connection1.procedures.updateContent({
         version: 1,
@@ -2001,6 +2022,7 @@ test("if comment thread is persisting we will wait to create messages but respon
                 initialCommentFileIds: [],
             },
         ],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -2252,7 +2274,7 @@ test("if comment thread update message hasn't been processed we will wait to res
     const pausePromise1 =
         documentCollaborationContentManagerBeforeUpdateTestCheckpoint.pauseForTest(document.id);
     const pausePromise2 =
-        documentCollaborationContentManagerBeforePersistTestCheckpoint.pauseForTest(document.id);
+        documentCollaborationContentManagerBeforePersist2TestCheckpoint.pauseForTest(document.id);
 
     const updateMessagePromise = connection1.procedures.updateContent({
         version: 1,
@@ -2265,6 +2287,7 @@ test("if comment thread update message hasn't been processed we will wait to res
                 initialCommentFileIds: [],
             },
         ],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -2534,7 +2557,7 @@ test("while comment thread is persisting we will respond to comment load request
     ).rejects.toThrow(NotFoundError);
 
     const pausePromise =
-        documentCollaborationContentManagerBeforePersistTestCheckpoint.pauseForTest(document.id);
+        documentCollaborationContentManagerBeforePersist2TestCheckpoint.pauseForTest(document.id);
 
     await connection1.procedures.updateContent({
         version: 1,
@@ -2547,6 +2570,7 @@ test("while comment thread is persisting we will respond to comment load request
                 initialCommentFileIds: [],
             },
         ],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -3405,6 +3429,7 @@ test("will cleanup comment thread marks if from a different document", async () 
                 initialCommentFileIds: [],
             },
         ],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -3498,6 +3523,7 @@ test("will cleanup comment thread marks if from a different document", async () 
         ],
         clientId: client1Id,
         createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -3620,6 +3646,7 @@ test("will cleanup comment thread marks if from a different document", async () 
         ],
         clientId: client1Id,
         createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -3778,6 +3805,7 @@ test("can add comment thread marks back to document after they've been removed",
                 initialCommentFileIds: [],
             },
         ],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -3858,6 +3886,7 @@ test("can add comment thread marks back to document after they've been removed",
         steps: [new ReplaceStep(3, 16, textSlice(""))],
         clientId: client1Id,
         createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -3926,6 +3955,7 @@ test("can add comment thread marks back to document after they've been removed",
         ],
         clientId: client1Id,
         createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -4246,4 +4276,1300 @@ test("can unresolve a comment thread", async () => {
             unresolveCommentThreadIds: [commentThread.id],
         },
     ]);
+});
+
+test("can connect and backfill as a viewer", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1, {
+        access: TestAccessPolicy.private.with(session2, "View"),
+    });
+
+    await document.type(session1, "Hello, ");
+    const {range} = await document.type(session1, "world");
+    await document.type(session1, "!");
+
+    const commentThread = await document.createCommentThread(session1, range);
+
+    const connection1 = await connectForTest(
+        context.action(session1, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+    );
+
+    const connection2 = await connectForTest(
+        context.action(session2, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+        {withoutComments: true},
+    );
+
+    expect(
+        await connection1.procedures.backfill({
+            version: 0,
+        }),
+    ).toEqual({
+        newVersion: 4,
+        persistedVersion: 4,
+        steps: [
+            {
+                clientId: expect.any(String),
+                invertedStep: expect.any(ReplaceStep),
+                step: new ReplaceStep(3, 3, textSlice("Hello, ")),
+            },
+            {
+                clientId: expect.any(String),
+                invertedStep: expect.any(ReplaceStep),
+                step: new ReplaceStep(10, 10, textSlice("world")),
+            },
+            {
+                clientId: expect.any(String),
+                invertedStep: expect.any(ReplaceStep),
+                step: new ReplaceStep(15, 15, textSlice("!")),
+            },
+            {
+                clientId: expect.any(String),
+                invertedStep: expect.any(RemoveMarkStep),
+                step: new AddMarkStep(
+                    10,
+                    15,
+                    schema.mark("comment", {commentThreadId: commentThread.id}),
+                ),
+            },
+        ],
+        stepsContentReferences: {
+            ...emptyDocumentContentReferences,
+            commentThreadById: new Map([
+                [commentThread.id, {commentCount: 1, commentAuthors: [await session1.get()]}],
+            ]),
+        },
+        presenceStates: [],
+        rememberInvertedSteps: [],
+    });
+
+    expect(
+        await connection2.procedures.backfill({
+            version: 0,
+        }),
+    ).toEqual({
+        newVersion: 4,
+        persistedVersion: 4,
+        steps: [
+            {
+                clientId: expect.any(String),
+                invertedStep: expect.any(ReplaceStep),
+                step: new ReplaceStep(3, 3, textSlice("Hello, ")),
+            },
+            {
+                clientId: expect.any(String),
+                invertedStep: expect.any(ReplaceStep),
+                step: new ReplaceStep(10, 10, textSlice("world")),
+            },
+            {
+                clientId: expect.any(String),
+                invertedStep: expect.any(ReplaceStep),
+                step: new ReplaceStep(15, 15, textSlice("!")),
+            },
+            {
+                clientId: expect.any(String),
+                invertedStep: expect.any(RemoveMarkStep),
+                step: new RemoveMarkStep(0, 0, schema.mark("bold")),
+            },
+        ],
+        stepsContentReferences: emptyDocumentContentReferences,
+        presenceStates: [],
+        rememberInvertedSteps: [],
+    });
+});
+
+test("can't connect as a viewer and ask for comments", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1, {
+        access: TestAccessPolicy.private.with(session2, "View"),
+    });
+
+    await document.type(session1, "Hello, ");
+    const {range} = await document.type(session1, "world");
+    await document.type(session1, "!");
+
+    const commentThread = await document.createCommentThread(session1, range);
+
+    const connection1 = await connectForTest(
+        context.action(session1, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+        {withoutComments: false},
+    );
+
+    await expect(
+        connectForTest(
+            context.action(session2, {serviceName: "DocumentCollaborationService"}),
+            document.id,
+            {withoutComments: false},
+        ),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
+
+    expect(
+        await connection1.procedures.backfill({
+            version: 0,
+        }),
+    ).toEqual({
+        newVersion: 4,
+        persistedVersion: 4,
+        steps: [
+            {
+                clientId: expect.any(String),
+                invertedStep: expect.any(ReplaceStep),
+                step: new ReplaceStep(3, 3, textSlice("Hello, ")),
+            },
+            {
+                clientId: expect.any(String),
+                invertedStep: expect.any(ReplaceStep),
+                step: new ReplaceStep(10, 10, textSlice("world")),
+            },
+            {
+                clientId: expect.any(String),
+                invertedStep: expect.any(ReplaceStep),
+                step: new ReplaceStep(15, 15, textSlice("!")),
+            },
+            {
+                clientId: expect.any(String),
+                invertedStep: expect.any(RemoveMarkStep),
+                step: new AddMarkStep(
+                    10,
+                    15,
+                    schema.mark("comment", {commentThreadId: commentThread.id}),
+                ),
+            },
+        ],
+        stepsContentReferences: {
+            ...emptyDocumentContentReferences,
+            commentThreadById: new Map([
+                [commentThread.id, {commentCount: 1, commentAuthors: [await session1.get()]}],
+            ]),
+        },
+        presenceStates: [],
+        rememberInvertedSteps: [],
+    });
+});
+
+test("can connect and backfill as a viewer when there are remembered steps", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1, {
+        access: TestAccessPolicy.private.with(session2, "View"),
+    });
+
+    await document.type(session1, "Hello, ");
+    const {range} = await document.type(session1, "world");
+    await document.type(session1, "!");
+
+    const commentThread = await document.createCommentThread(session1, range);
+
+    const connection1 = await connectForTest(
+        context.action(session1, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+    );
+
+    expect(
+        await connection1.procedures.backfill({
+            version: 4,
+        }),
+    ).toEqual({
+        newVersion: 4,
+        persistedVersion: 4,
+        steps: [],
+        stepsContentReferences: emptyDocumentContentReferences,
+        presenceStates: [],
+        rememberInvertedSteps: [],
+    });
+
+    const pausePromise =
+        documentCollaborationContentManagerBeforePersist1TestCheckpoint.pauseForTest(document.id);
+
+    await connection1.procedures.resolveCommentThread({
+        commentThreadId: commentThread.id,
+    });
+
+    const {unpause} = await pausePromise;
+
+    const connection2 = await connectForTest(
+        context.action(session2, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+        {withoutComments: true},
+    );
+
+    expect(
+        await connection2.procedures.backfill({
+            version: 5,
+        }),
+    ).toEqual({
+        newVersion: 5,
+        persistedVersion: 4,
+        steps: [],
+        stepsContentReferences: emptyDocumentContentReferences,
+        presenceStates: [],
+        rememberInvertedSteps: [new RemoveMarkStep(0, 0, schema.mark("bold"))],
+    });
+
+    unpause();
+});
+
+test("can't update content as a viewer", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1, {
+        access: TestAccessPolicy.private.with(session2, "View"),
+    });
+
+    await document.type(session1, "Hello, ");
+    const {range} = await document.type(session1, "world");
+    await document.type(session1, "!");
+
+    await document.createCommentThread(session1, range);
+
+    const connection1 = await connectForTest(
+        context.action(session1, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+    );
+
+    const connection2 = await connectForTest(
+        context.action(session2, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+        {withoutComments: true},
+    );
+
+    expect(
+        await connection1.procedures.backfill({
+            version: 4,
+        }),
+    ).toEqual({
+        newVersion: 4,
+        persistedVersion: 4,
+        steps: [],
+        stepsContentReferences: emptyDocumentContentReferences,
+        presenceStates: [],
+        rememberInvertedSteps: [],
+    });
+
+    expect(
+        await connection2.procedures.backfill({
+            version: 4,
+        }),
+    ).toEqual({
+        newVersion: 4,
+        persistedVersion: 4,
+        steps: [],
+        stepsContentReferences: emptyDocumentContentReferences,
+        presenceStates: [],
+        rememberInvertedSteps: [],
+    });
+
+    await expect(
+        connection2.procedures.updateContent({
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("a"))],
+            clientId: generateId(),
+            createCommentThreads: [],
+            intentionallyUpdateAccessPolicy: null,
+            updateOurPresenceState: {state: null},
+        }),
+    ).rejects.toThrow("Can't update document");
+
+    await expect(
+        connection2.procedures.updateContent({
+            version: 4,
+            steps: [new ReplaceStep(3, 3, textSlice("a"))],
+            clientId: generateId(),
+            createCommentThreads: [],
+            intentionallyUpdateAccessPolicy: null,
+            updateOurPresenceState: {state: null},
+        }),
+    ).rejects.toThrow("Can't update document");
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(connection1.takeEvents()).toEqual([]);
+    expect(connection2.takeEvents()).toEqual([]);
+});
+
+test("can't call comment procedures as viewer", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1, {
+        access: TestAccessPolicy.private.with(session2, "View"),
+    });
+
+    await document.type(session1, "Hello, ");
+    const {range} = await document.type(session1, "world");
+    await document.type(session1, "!");
+
+    const commentThread = await document.createCommentThread(session1, range);
+
+    const connection1 = await connectForTest(
+        context.action(session1, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+    );
+
+    const connection2 = await connectForTest(
+        context.action(session2, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+        {withoutComments: true},
+    );
+
+    await expect(
+        connection2.procedures.backfillComments({
+            commentThreadId: commentThread.id,
+            clientCommentCount: 0,
+            clientLastCommentChangeTime: null,
+            newCommentLimit: 100,
+        }),
+    ).rejects.toThrow("Can't see document comments");
+
+    await connection1.procedures.backfillComments({
+        commentThreadId: commentThread.id,
+        clientCommentCount: 0,
+        clientLastCommentChangeTime: null,
+        newCommentLimit: 100,
+    });
+
+    await expect(
+        connection2.procedures.createComment({
+            commentThreadId: commentThread.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("foo"),
+            fileIds: [],
+        }),
+    ).rejects.toThrow("Can't see document comments");
+
+    await connection1.procedures.createComment({
+        commentThreadId: commentThread.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("bar"),
+        fileIds: [],
+    });
+
+    await expect(
+        connection2.procedures.updateCommentContent({
+            commentThreadId: commentThread.id,
+            commentIndex: 0,
+            content: createSimpleMessageContent("foo2"),
+        }),
+    ).rejects.toThrow("Can't see document comments");
+
+    await connection1.procedures.updateCommentContent({
+        commentThreadId: commentThread.id,
+        commentIndex: 0,
+        content: createSimpleMessageContent("bar2"),
+    });
+
+    await expect(
+        connection2.procedures.deleteComment({
+            commentThreadId: commentThread.id,
+            commentIndex: 0,
+        }),
+    ).rejects.toThrow("Can't see document comments");
+
+    await connection1.procedures.deleteComment({
+        commentThreadId: commentThread.id,
+        commentIndex: 0,
+    });
+
+    await expect(
+        connection2.procedures.startTypingInCommentInput({
+            commentThreadId: commentThread.id,
+        }),
+    ).rejects.toThrow("Can't see document comments");
+
+    await connection1.procedures.startTypingInCommentInput({
+        commentThreadId: commentThread.id,
+    });
+
+    await expect(
+        connection2.procedures.stopTypingInCommentInput({
+            commentThreadId: commentThread.id,
+        }),
+    ).rejects.toThrow("Can't see document comments");
+
+    await connection1.procedures.stopTypingInCommentInput({
+        commentThreadId: commentThread.id,
+    });
+
+    await expect(
+        connection2.procedures.getCommentThreadAndInitialCommentsIfExists({
+            commentThreadId: commentThread.id,
+            limit: 100,
+        }),
+    ).rejects.toThrow("Can't see document comments");
+
+    await connection1.procedures.getCommentThreadAndInitialCommentsIfExists({
+        commentThreadId: commentThread.id,
+        limit: 100,
+    });
+
+    await expect(
+        connection2.procedures.getCommentsFromStart({
+            commentThreadId: commentThread.id,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).rejects.toThrow("Can't see document comments");
+
+    await connection1.procedures.getCommentsFromStart({
+        commentThreadId: commentThread.id,
+        limit: 100,
+        afterCommentIndex: null,
+        beforeCommentIndex: null,
+    });
+
+    await expect(
+        connection2.procedures.getCommentsFromEnd({
+            commentThreadId: commentThread.id,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).rejects.toThrow("Can't see document comments");
+
+    await connection1.procedures.getCommentsFromEnd({
+        commentThreadId: commentThread.id,
+        limit: 100,
+        afterCommentIndex: null,
+        beforeCommentIndex: null,
+    });
+
+    await expect(
+        connection2.procedures.resolveCommentThread({
+            commentThreadId: commentThread.id,
+        }),
+    ).rejects.toThrow("Can't see document comments");
+
+    await connection1.procedures.resolveCommentThread({
+        commentThreadId: commentThread.id,
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    await expect(
+        connection2.procedures.unresolveCommentThread({
+            commentThreadId: commentThread.id,
+        }),
+    ).rejects.toThrow("Can't see document comments");
+
+    await connection1.procedures.unresolveCommentThread({
+        commentThreadId: commentThread.id,
+    });
+});
+
+test("viewer receives update events without comment data", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const document = await TestDocument.create(session1, {
+        access: TestAccessPolicy.private.with([session2, "Comment"], [session3, "View"]),
+    });
+
+    const client1Id = generateId<ContentEditorClientId>();
+
+    const connection1 = await connectForTest(
+        context.action(session1, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+    );
+
+    const connection2 = await connectForTest(
+        context.action(session2, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+        {withoutComments: false},
+    );
+
+    const connection3 = await connectForTest(
+        context.action(session2, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+        {withoutComments: true},
+    );
+
+    expect(
+        await connection1.procedures.backfill({
+            version: 0,
+        }),
+    ).toEqual({
+        newVersion: 0,
+        persistedVersion: 0,
+        steps: [],
+        stepsContentReferences: emptyDocumentContentReferences,
+        presenceStates: [],
+        rememberInvertedSteps: [],
+    });
+
+    expect(
+        await connection2.procedures.backfill({
+            version: 0,
+        }),
+    ).toEqual({
+        newVersion: 0,
+        persistedVersion: 0,
+        steps: [],
+        stepsContentReferences: emptyDocumentContentReferences,
+        presenceStates: [],
+        rememberInvertedSteps: [],
+    });
+
+    expect(
+        await connection3.procedures.backfill({
+            version: 0,
+        }),
+    ).toEqual({
+        newVersion: 0,
+        persistedVersion: 0,
+        steps: [],
+        stepsContentReferences: emptyDocumentContentReferences,
+        presenceStates: [],
+        rememberInvertedSteps: [],
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(connection1.takeEvents()).toEqual([]);
+    expect(connection2.takeEvents()).toEqual([]);
+    expect(connection3.takeEvents()).toEqual([]);
+
+    await connection1.procedures.updateContent({
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("Hello, "))],
+        clientId: client1Id,
+        createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
+        updateOurPresenceState: {state: null},
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 1,
+            updatedCommentThreads: emptyArray,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 1,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, "))],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 1,
+            updatedCommentThreads: emptyArray,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 1,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, "))],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection3.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 1,
+            updatedCommentThreads: emptyArray,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 1,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, "))],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+
+    await connection1.procedures.updateContent({
+        version: 1,
+        steps: [new ReplaceStep(7, 7, textSlice("world!"))],
+        clientId: client1Id,
+        createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
+        updateOurPresenceState: {state: null},
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 2,
+            updatedCommentThreads: emptyArray,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 2,
+            steps: [new ReplaceStep(7, 7, textSlice("world!"))],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 2,
+            updatedCommentThreads: emptyArray,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 2,
+            steps: [new ReplaceStep(7, 7, textSlice("world!"))],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection3.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 2,
+            updatedCommentThreads: emptyArray,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 2,
+            steps: [new ReplaceStep(7, 7, textSlice("world!"))],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+
+    const commentThreadId = generateId<DocumentCommentThreadId>();
+
+    await connection1.procedures.updateContent({
+        version: 2,
+        steps: [new AddMarkStep(7, 12, schema.mark("comment", {commentThreadId}))],
+        clientId: client1Id,
+        createCommentThreads: [
+            {
+                commentThreadId,
+                initialCommentContent: createSimpleMessageContent("Test comment 1"),
+                initialCommentFileIds: [],
+            },
+        ],
+        intentionallyUpdateAccessPolicy: null,
+        updateOurPresenceState: {state: null},
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 3,
+            updatedCommentThreads: emptyArray,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 3,
+            steps: [new AddMarkStep(7, 12, schema.mark("comment", {commentThreadId}))],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [commentThreadId, {commentCount: 1, commentAuthors: [await session1.get()]}],
+                ]),
+            },
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 3,
+            updatedCommentThreads: emptyArray,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 3,
+            steps: [new AddMarkStep(7, 12, schema.mark("comment", {commentThreadId}))],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [commentThreadId, {commentCount: 1, commentAuthors: [await session1.get()]}],
+                ]),
+            },
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection3.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 3,
+            updatedCommentThreads: emptyArray,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 3,
+            steps: [new RemoveMarkStep(0, 0, schema.mark("bold"))],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+
+    await connection2.procedures.createComment({
+        commentThreadId,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("Test comment 2"),
+        fileIds: [],
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "Comments",
+            commentThreadId,
+            event: {
+                type: "NewMessage",
+                message: expect.any(DocumentCommentModel),
+                updateOtherTypingState: null,
+            },
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "Comments",
+            commentThreadId,
+            event: {
+                type: "NewMessage",
+                message: expect.any(DocumentCommentModel),
+                updateOtherTypingState: null,
+            },
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection3.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([]);
+
+    await connection1.procedures.resolveCommentThread({
+        commentThreadId,
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 4,
+            updatedCommentThreads: [expect.any(DocumentCommentThreadModel)],
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 4,
+            steps: [new RemoveAllMarksStep(schema.mark("comment", {commentThreadId}))],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: expect.any(String),
+            updateOtherPresenceState: null,
+            resolveCommentThreadIds: [commentThreadId],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 4,
+            updatedCommentThreads: [expect.any(DocumentCommentThreadModel)],
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 4,
+            steps: [new RemoveAllMarksStep(schema.mark("comment", {commentThreadId}))],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: expect.any(String),
+            updateOtherPresenceState: null,
+            resolveCommentThreadIds: [commentThreadId],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection3.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 4,
+            updatedCommentThreads: [],
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 4,
+            steps: [new RemoveMarkStep(0, 0, schema.mark("bold"))],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: expect.any(String),
+            updateOtherPresenceState: null,
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+
+    await connection1.procedures.unresolveCommentThread({
+        commentThreadId,
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 5,
+            updatedCommentThreads: [expect.any(DocumentCommentThreadModel)],
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 5,
+            steps: [
+                new AddMarksAfterRemoveAllStep(schema.mark("comment", {commentThreadId}), [
+                    {from: 7, to: 12, isNode: false},
+                ]),
+            ],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [
+                        commentThreadId,
+                        {
+                            commentCount: 2,
+                            commentAuthors: await runAllPromises([session1.get(), session2.get()]),
+                        },
+                    ],
+                ]),
+            },
+            clientId: expect.any(String),
+            updateOtherPresenceState: null,
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [commentThreadId],
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 5,
+            updatedCommentThreads: [expect.any(DocumentCommentThreadModel)],
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 5,
+            steps: [
+                new AddMarksAfterRemoveAllStep(schema.mark("comment", {commentThreadId}), [
+                    {from: 7, to: 12, isNode: false},
+                ]),
+            ],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [
+                        commentThreadId,
+                        {
+                            commentCount: 2,
+                            commentAuthors: await runAllPromises([session1.get(), session2.get()]),
+                        },
+                    ],
+                ]),
+            },
+            clientId: expect.any(String),
+            updateOtherPresenceState: null,
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [commentThreadId],
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection3.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 5,
+            updatedCommentThreads: [],
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 5,
+            steps: [new RemoveMarkStep(0, 0, schema.mark("bold"))],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: expect.any(String),
+            updateOtherPresenceState: null,
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+});
+
+test("can update access policy", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1);
+
+    await document.type(session1, "Hello, ");
+    const {range} = await document.type(session1, "world");
+    await document.type(session1, "!");
+
+    await document.createCommentThread(session1, range);
+
+    const client1Id = generateId<ContentEditorClientId>();
+
+    const connection1 = await connectForTest(context.action(session1), document.id);
+
+    await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
+        'Actor doesn\'t have "Comment" access level to document',
+    );
+
+    const accessPolicy1: AccessPolicy = {
+        accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
+        defaultGrant: null,
+    };
+
+    const accessPolicy2: AccessPolicy = {
+        accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
+        defaultGrant: {type: "Space", level: "Comment"},
+    };
+
+    await connection1.procedures.updateContent({
+        version: 1,
+        steps: [new DocAttrStep("accessPolicy", accessPolicy2)],
+        clientId: client1Id,
+        createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: accessPolicy2,
+        updateOurPresenceState: {state: null},
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const connection2a = await connectForTest(context.action(session2), document.id);
+
+    await connection1.procedures.updateContent({
+        version: 2,
+        steps: [new DocAttrStep("accessPolicy", accessPolicy1)],
+        clientId: client1Id,
+        createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: accessPolicy1,
+        updateOurPresenceState: {state: null},
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(connection2a.getCloseError()).not.toBeInstanceOf(PermissionDeniedError);
+
+    await expect(connection2a.authorize()).rejects.toThrow(
+        'Actor doesn\'t have "Comment" access level to document',
+    );
+
+    expect(connection2a.getCloseError()).toBeInstanceOf(PermissionDeniedError);
+
+    const pausePromise1 =
+        documentCollaborationContentManagerBeforePersist1TestCheckpoint.pauseForTest(document.id);
+
+    await connection1.procedures.updateContent({
+        version: 3,
+        steps: [new DocAttrStep("accessPolicy", accessPolicy2)],
+        clientId: client1Id,
+        createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: accessPolicy2,
+        updateOurPresenceState: {state: null},
+    });
+
+    const {unpause: unpause1} = await pausePromise1;
+
+    await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
+        'Actor doesn\'t have "Comment" access level to document',
+    );
+
+    await connection1.procedures.updateContent({
+        version: 4,
+        steps: [new DocAttrStep("accessPolicy", accessPolicy1)],
+        clientId: client1Id,
+        createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: accessPolicy1,
+        updateOurPresenceState: {state: null},
+    });
+
+    unpause1();
+    await ProcessContextModule.waitForTestTasks();
+
+    await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
+        'Actor doesn\'t have "Comment" access level to document',
+    );
+
+    const pausePromise2 =
+        documentCollaborationContentManagerBeforePersist1TestCheckpoint.pauseForTest(document.id);
+
+    await connection1.procedures.updateContent({
+        version: 5,
+        steps: [new DocAttrStep("accessPolicy", accessPolicy2)],
+        clientId: client1Id,
+        createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: accessPolicy2,
+        updateOurPresenceState: {state: null},
+    });
+
+    const {unpause: unpause2} = await pausePromise2;
+
+    await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
+        'Actor doesn\'t have "Comment" access level to document',
+    );
+
+    await connection1.procedures.updateContent({
+        version: 6,
+        steps: [new ReplaceStep(3, 3, textSlice("a"))],
+        clientId: client1Id,
+        createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
+        updateOurPresenceState: {state: null},
+    });
+
+    unpause2();
+    await ProcessContextModule.waitForTestTasks();
+
+    await connectForTest(context.action(session2), document.id);
+});
+
+test("can't update access policy unintentionally", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1);
+
+    await document.type(session1, "Hello, ");
+    const {range} = await document.type(session1, "world");
+    await document.type(session1, "!");
+
+    await document.createCommentThread(session1, range);
+
+    const client1Id = generateId<ContentEditorClientId>();
+
+    const connection1 = await connectForTest(context.action(session1), document.id);
+
+    await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
+        'Actor doesn\'t have "Comment" access level to document',
+    );
+
+    const accessPolicy2: AccessPolicy = {
+        accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
+        defaultGrant: {type: "Space", level: "Comment"},
+    };
+
+    await connection1.procedures.updateContent({
+        version: 4,
+        steps: [new DocAttrStep("accessPolicy", accessPolicy2)],
+        clientId: client1Id,
+        createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
+        updateOurPresenceState: {state: null},
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "Error",
+            error: new InternalError(
+                "Can't update the document's access policy unless `intentionallyUpdateAccessPolicy` is provided",
+            ),
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 5,
+            steps: [new DocAttrStep("accessPolicy", accessPolicy2)],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+
+    expect(connection1.isClosed()).toEqual(true);
+
+    await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to document',
+    );
+});
+
+test("can't update access policy with the wrong intentional policy", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1);
+
+    await document.type(session1, "Hello, ");
+    const {range} = await document.type(session1, "world");
+    await document.type(session1, "!");
+
+    await document.createCommentThread(session1, range);
+
+    const client1Id = generateId<ContentEditorClientId>();
+
+    const connection1 = await connectForTest(context.action(session1), document.id);
+
+    await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
+        'Actor doesn\'t have "Comment" access level to document',
+    );
+
+    const accessPolicy2a: AccessPolicy = {
+        accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
+        defaultGrant: {type: "Space", level: "Comment"},
+    };
+
+    const accessPolicy2b: AccessPolicy = {
+        accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
+        defaultGrant: {type: "Space", level: "Edit"},
+    };
+
+    await connection1.procedures.updateContent({
+        version: 4,
+        steps: [new DocAttrStep("accessPolicy", accessPolicy2a)],
+        clientId: client1Id,
+        createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: accessPolicy2b,
+        updateOurPresenceState: {state: null},
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "Error",
+            error: new InternalError(
+                "The document's new access policy doesn't match `intentionallyUpdateAccessPolicy`",
+            ),
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 5,
+            steps: [new DocAttrStep("accessPolicy", accessPolicy2a)],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+
+    expect(connection1.isClosed()).toEqual(true);
+
+    await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to document',
+    );
 });

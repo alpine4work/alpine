@@ -85,7 +85,7 @@ function reduce<RoomKey extends string>(
                     // The user is much more likely to need to edit from the end of the message than
                     // the start. But on mobile, if the message is long, editing should start at the
                     // start of the message so the cursor is visible.
-                    selectionAt: action.platform === "mobile" ? "start" : "end",
+                    selection: action.platform === "mobile" ? "start" : "end",
                 }),
                 initialContent: action.messagePayload.content.doc,
                 returnFocusAfterEditing: action.returnFocusAfterEditing,

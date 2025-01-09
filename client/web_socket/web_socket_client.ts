@@ -1,7 +1,7 @@
 import {AppContext} from "~/client/context/app_context.js";
 import {WebSocketClientConnection} from "~/client/web_socket/web_socket_client_connection.js";
 import {InternalError} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {isTransientError} from "~/shared/error/is_transient_error_code.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -341,7 +341,9 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
         const reconnect = (error: unknown) => {
             reconnectAttempts++;
 
-            if (!isSystemError(error) || reconnectAttempts > reconnectAttemptsBeforeError) {
+            // If this is a transient error then silently try reconnecting a couple times
+            // before showing the user an error.
+            if (!isTransientError(error) || reconnectAttempts > reconnectAttemptsBeforeError) {
                 this._state.set({
                     type: "Error",
                     error,

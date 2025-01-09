@@ -16,6 +16,7 @@ import {
     getDocumentCommentThreadAndInitialCommentsIfExists,
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
+    getDocumentContentForCollaborationServiceInitialization,
     getDocumentContentSteps,
     getDocumentPreviewIfExists,
     getResolvedDocumentCommentThreadRanges,
@@ -56,10 +57,22 @@ export default implementRpcs(definitions, {
     },
 
     getDocument: {
-        visibility: ["DocumentCollaborationService"],
+        visibility: ["AppClient"],
         execute: async (context, input) => {
             const document = await getDocument(context.actor.authorizeSession(), input.documentId);
             return {document};
+        },
+    },
+
+    getDocumentContentForCollaborationServiceInitialization: {
+        visibility: ["DocumentCollaborationService"],
+        execute: async (context, input) => {
+            const {spaceId, version, content} =
+                await getDocumentContentForCollaborationServiceInitialization(
+                    context.actor.authorizeSession(),
+                    input.documentId,
+                );
+            return {spaceId, version, content};
         },
     },
 

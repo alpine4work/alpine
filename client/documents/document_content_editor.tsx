@@ -105,6 +105,7 @@ import {
     inputPlaceholderStyles,
     spinAnimationClassName,
 } from "~/client/styles/styles.js";
+import {hasAccessLevel} from "~/shared/access/access_policy.js";
 import {paragraphClassName, titleClassName} from "~/shared/content/content_styles.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
@@ -244,6 +245,8 @@ export function DocumentContentEditor({
         isConnected,
         editorState,
         onEditorStateChange,
+        content,
+        currentAccessLevel,
         otherPresenceStateByConnectionId,
         rememberedSteps,
         toggleShouldConnect,
@@ -270,7 +273,6 @@ export function DocumentContentEditor({
         ),
     );
 
-    const content = editorState.getContent();
     const lastContentDocRef = useRef(content.doc);
     useEffect(() => {
         if (content.doc !== lastContentDocRef.current) {
@@ -1549,6 +1551,7 @@ export function DocumentContentEditor({
             accessPolicy: content.doc.attrs.accessPolicy,
             onAccessPolicyChange: accessPolicy =>
                 onEditorStateChange(editorState.setAccessPolicy(accessPolicy)),
+            isReadOnly: !hasAccessLevel(currentAccessLevel, "Manage"),
             onCopyLink: handleCopyLink,
         },
         desktopTitleMaxWidth: contentStyles.contentMaxWidth,

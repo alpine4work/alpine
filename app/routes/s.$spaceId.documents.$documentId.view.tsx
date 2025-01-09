@@ -3,7 +3,7 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {DocumentContentView} from "~/client/documents/document_content_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {getDocument} from "~/server/documents/data/documents_table.js";
+import {getDocumentWithOptionalComments} from "~/server/documents/data/documents_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {DocumentModel} from "~/shared/documents/document_model.js";
@@ -15,10 +15,15 @@ const LoaderSchema = Schema.object({
     document: DocumentModel.schema(),
 });
 
+// NOCOMMIT: Test that you can open this route with view access only
+// NOCOMMIT: Maybe delete this route entirely. Why do we need to maintain this?
 export async function loader({params, context}: LoaderArgs) {
     const documentId = Schema.id<DocumentId>().deserialize(params.documentId ?? null);
 
-    const document = await getDocument(await context.actor.authenticate(), documentId);
+    const document = await getDocumentWithOptionalComments(
+        await context.actor.authenticate(),
+        documentId,
+    );
 
     const propagateEventData: TracerEventData = {
         context: {documentId},

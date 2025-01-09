@@ -55,7 +55,7 @@ export function ChannelMobileEditor({
     }));
 
     const [{descriptionState, hasDescriptionChanged}, setDescriptionState] = useState(() => ({
-        descriptionState: ContentEditorState.create(initialDescription, {selectionAt: "start"}),
+        descriptionState: ContentEditorState.create(initialDescription, {selection: "start"}),
         hasDescriptionChanged: false,
     }));
 

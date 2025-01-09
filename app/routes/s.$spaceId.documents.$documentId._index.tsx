@@ -14,7 +14,7 @@ import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affin
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     getDocumentCommentThreadAndInitialComments,
-    getDocumentIfExists,
+    getDocumentWithOptionalCommentsIfExists,
 } from "~/server/documents/data/documents_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -41,6 +41,7 @@ const LoaderSchema = Schema.object({
     }).nullable(),
 });
 
+// NOCOMMIT: Test that you can open this route with view access only
 export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
@@ -51,7 +52,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
         .deserialize(url.searchParams.get("comments"));
 
     const [document, commentThreadResult] = await runAllPromises([
-        getDocumentIfExists(context, documentId),
+        getDocumentWithOptionalCommentsIfExists(context, documentId),
         commentThreadId
             ? getDocumentCommentThreadAndInitialComments(context, {
                   documentId,

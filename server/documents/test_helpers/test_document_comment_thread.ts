@@ -132,8 +132,8 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
         });
     }
 
-    public async get(session: TestSpaceSession) {
-        return getDocumentCommentThread(session.action(), {
+    public async get() {
+        return getDocumentCommentThread(this.space.systemAction(), {
             documentId: this.document.id,
             commentThreadId: this.id,
         });

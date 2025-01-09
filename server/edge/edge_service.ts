@@ -217,7 +217,7 @@ async function handleFetch(
                 const pathname = `/${pathSegments.slice(2).join("/")}`;
 
                 routeString = `/api/durable-objects/documents/:documentId${
-                    pathname !== "/" ? "/*" : ""
+                    pathname === "/view" ? pathname : pathname !== "/" ? "/*" : ""
                 }`;
                 route = {type: "DocumentCollaborationService", documentId, pathname};
                 break;

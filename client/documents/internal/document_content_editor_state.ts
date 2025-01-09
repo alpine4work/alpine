@@ -1,4 +1,4 @@
-import {Selection} from "prosemirror-state";
+import {Selection, SelectionBookmark} from "prosemirror-state";
 import {Step, StepMap} from "prosemirror-transform";
 import {
     CollaborativeContentEditorAction,
@@ -125,24 +125,24 @@ type DocumentContentEditorExtraState = {
 export function getInitialDocumentContentEditorState(
     options:
         | {
-              initialDocument: {
-                  version: number;
-                  content: DocumentContentWithReferences;
-              };
+              initialVersion: number;
+              initialContent: DocumentContentWithReferences;
+              initialSelection?: Selection | SelectionBookmark;
           }
         | {
-              initialDocument?: undefined;
+              initialVersion?: undefined;
+              initialContent?: undefined;
+              initialSelection?: undefined;
               currentAccountId: AccountId;
           },
 ): DocumentContentEditorState {
     return getInitialCollaborativeContentEditorState({
-        initialVersion: options.initialDocument?.version ?? 0,
-        initialContent: options.initialDocument
-            ? options.initialDocument.content
-            : {
-                  doc: createEmptyDocumentContent(options.currentAccountId),
-                  references: emptyDocumentContentReferences,
-              },
+        initialVersion: options.initialVersion ?? 0,
+        initialContent: options.initialContent ?? {
+            doc: createEmptyDocumentContent(options.currentAccountId),
+            references: emptyDocumentContentReferences,
+        },
+        initialSelection: options.initialSelection,
         reduceReferences: reduceDocumentContentReferences,
         extra: {
             pendingCreateCommentThreads: null,
@@ -547,20 +547,14 @@ const baseReduceDocumentContentEditorState = createCollaborativeContentEditorSta
             };
         }
         case "ResetToPersistedVersion": {
-            const oldContent =
-                state.extra.rememberedSteps[
-                    state.extra.rememberedSteps.length -
-                        (state.editorState.getVersion() - state.persistedVersion)
-                ]!.contentBeforeStep.get();
-
             return getInitialDocumentContentEditorState({
-                initialDocument: {
-                    version: state.persistedVersion,
-                    content: {
-                        doc: oldContent,
-                        references: state.editorState.getContent().references,
-                    },
+                initialVersion: state.persistedVersion,
+                initialContent: {
+                    doc: getDocumentContentEditorStatePersistedContent(state),
+                    references: state.editorState.getContent().references,
                 },
+                // Try to maintain the user's selection while resetting state.
+                initialSelection: state.editorState.getSelection().getBookmark(),
             });
         }
         default:
@@ -619,4 +613,27 @@ export function reduceDocumentContentReferences(
         default:
             return reduceContentReferencesShared(references, action);
     }
+}
+
+/**
+ * Get the persisted `DocumentContent` based on our editor state. The persisted
+ * content lags behind the content in our editor state since the editor state
+ * may include local changes and may include optimistic changes that have been
+ * accepted by the durable object but not our database.
+ */
+export function getDocumentContentEditorStatePersistedContent(
+    state: DocumentContentEditorState,
+): DocumentContent {
+    const version = state.editorState.getVersion();
+
+    if (version === state.persistedVersion) {
+        return state.editorState.getDocWithoutSendableSteps();
+    }
+
+    const oldContent =
+        state.extra.rememberedSteps[
+            state.extra.rememberedSteps.length - (version - state.persistedVersion)
+        ]!.contentBeforeStep.get();
+
+    return oldContent;
 }

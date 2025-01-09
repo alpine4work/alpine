@@ -28,7 +28,13 @@ export const AccessLevelSchema = Schema.enum(allAccessLevels);
  * Does someone's access level high enough to take an action at the expected
  * access level?
  */
-export function hasAccessLevel(actualLevel: AccessLevel, expectedLevel: AccessLevel): boolean {
+export function hasAccessLevel(
+    actualLevel: AccessLevel | null,
+    expectedLevel: AccessLevel | null,
+): boolean {
+    if (actualLevel === null) return expectedLevel === null;
+    if (expectedLevel === null) return true;
+
     const actualIndex = allAccessLevels.indexOf(actualLevel);
     const expectedIndex = allAccessLevels.indexOf(expectedLevel);
     assert(actualIndex >= 0 && expectedIndex >= 0);
@@ -36,9 +42,21 @@ export function hasAccessLevel(actualLevel: AccessLevel, expectedLevel: AccessLe
 }
 
 /**
- * Return the higher of the two access levels.
+ * Return the higher of the two access levels. If the access level is null then
+ * null is considered the lower of the two.
  */
-export function maxAccessLevel(level1: AccessLevel, level2: AccessLevel): AccessLevel {
+export function maxAccessLevel(level1: AccessLevel, level2: AccessLevel): AccessLevel;
+export function maxAccessLevel(
+    level1: AccessLevel | null,
+    level2: AccessLevel | null,
+): AccessLevel | null;
+export function maxAccessLevel(
+    level1: AccessLevel | null,
+    level2: AccessLevel | null,
+): AccessLevel | null {
+    if (level1 === null) return level2;
+    if (level2 === null) return level1;
+
     const index1 = allAccessLevels.indexOf(level1);
     const index2 = allAccessLevels.indexOf(level2);
     assert(index1 >= 0 && index2 >= 0);
@@ -48,15 +66,65 @@ export function maxAccessLevel(level1: AccessLevel, level2: AccessLevel): Access
 }
 
 /**
+ * Return the lower of the two access levels. If the access level is null then
+ * null is considered the lower of the two.
+ */
+export function minAccessLevel(level1: AccessLevel, level2: AccessLevel): AccessLevel;
+export function minAccessLevel(
+    level1: AccessLevel | null,
+    level2: AccessLevel | null,
+): AccessLevel | null;
+export function minAccessLevel(
+    level1: AccessLevel | null,
+    level2: AccessLevel | null,
+): AccessLevel | null {
+    if (level1 === null) return level1;
+    if (level2 === null) return level2;
+
+    const index1 = allAccessLevels.indexOf(level1);
+    const index2 = allAccessLevels.indexOf(level2);
+    assert(index1 >= 0 && index2 >= 0);
+
+    if (index2 < index1) return level2;
+    return level1;
+}
+
+/**
  * Compare two access levels for sorting. Lower access levels will appear
  * first. For example `View` will appear before `Edit`.
  */
-export function compareAccessLevel(level1: AccessLevel, level2: AccessLevel): -1 | 0 | 1 {
+export function compareAccessLevel(
+    level1: AccessLevel | null,
+    level2: AccessLevel | null,
+): -1 | 0 | 1 {
+    if (level1 === null) return level2 === null ? 0 : -1;
+    if (level2 === null) return level1 === null ? 0 : 1;
+
     const index1 = allAccessLevels.indexOf(level1);
     const index2 = allAccessLevels.indexOf(level2);
     assert(index1 >= 0 && index2 >= 0);
 
     return clamp(-1, index1 - index2, 1) as -1 | 0 | 1;
+}
+
+/**
+ * Get the access level of the provided `AccountId` assuming the `AccountId`
+ * has access to the space. Which means we can use the space's `defaultGrant`
+ * if there's no account grant.
+ */
+export function getAccountAccessLevelAssumingSpaceAccess(
+    accessPolicy: AccessPolicy,
+    accountId: AccountId,
+): AccessLevel | null {
+    const accountGrant = accessPolicy.accountGrantById.get(accountId);
+
+    if (accountGrant && accessPolicy.defaultGrant?.type === "Space")
+        return maxAccessLevel(accountGrant.level, accessPolicy.defaultGrant.level);
+
+    if (accountGrant) return accountGrant.level;
+    if (accessPolicy.defaultGrant?.type === "Space") return accessPolicy.defaultGrant.level;
+
+    return null;
 }
 
 /**

@@ -235,7 +235,7 @@ function ChannelViewAsideDescriptionEditor({
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const [state, setState] = useState(() =>
-        ContentEditorState.create(initialDescription, {selectionAt: "end"}),
+        ContentEditorState.create(initialDescription, {selection: "end"}),
     );
 
     const [isSaving, setIsSaving] = useState(false);

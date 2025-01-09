@@ -12,8 +12,6 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {
-    createDocument,
-    getDocument,
     getDocumentContentSteps,
     getDocumentsTableForTest,
     updateDocumentContent,
@@ -21,8 +19,6 @@ import {
 } from "~/server/documents/data/documents_table.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
-import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
@@ -62,7 +58,7 @@ test(
         for (let i = 1; i <= 240; i++) {
             const newText = `${i} `;
 
-            await updateDocumentContent(context.action(session), {
+            await updateDocumentContent(session.action(), {
                 id: document.id,
                 version: i - 1,
                 steps: [new ReplaceStep(3 + text.length, 3 + text.length, textSlice(newText))],
@@ -90,7 +86,7 @@ test(
                     )?.version,
                 );
 
-                const documentResult = await getDocument(context.action(session), document.id);
+                const documentResult = await document.get();
                 expect(documentResult.version).toEqual(i);
                 expect(documentResult.content.doc.toJSON()).toEqual(
                     schema
@@ -112,7 +108,7 @@ test(
 
         expect(
             (
-                await getDocumentContentSteps(context.action(session), {
+                await getDocumentContentSteps(session.action(), {
                     id: document.id,
                     startVersion: 0,
                     endVersion: 240,
@@ -122,7 +118,7 @@ test(
 
         expect(
             (
-                await getDocumentContentSteps(context.action(session), {
+                await getDocumentContentSteps(session.action(), {
                     id: document.id,
                     startVersion: 10,
                     endVersion: 20,
@@ -132,7 +128,7 @@ test(
 
         expect(
             (
-                await getDocumentContentSteps(context.action(session), {
+                await getDocumentContentSteps(session.action(), {
                     id: document.id,
                     startVersion: 110,
                     endVersion: 120,
@@ -142,7 +138,7 @@ test(
 
         expect(
             (
-                await getDocumentContentSteps(context.action(session), {
+                await getDocumentContentSteps(session.action(), {
                     id: document.id,
                     startVersion: 210,
                     endVersion: 220,
@@ -152,7 +148,7 @@ test(
 
         expect(
             (
-                await getDocumentContentSteps(context.action(session), {
+                await getDocumentContentSteps(session.action(), {
                     id: document.id,
                     startVersion: 180,
                     endVersion: 220,
@@ -197,7 +193,7 @@ test(
             const step6 = new ReplaceStep(3 + text.length, 3 + text.length, textSlice(newText6));
             text += newText6;
 
-            await updateDocumentContent(context.action(session), {
+            await updateDocumentContent(session.action(), {
                 id: document.id,
                 version: i - 1,
                 steps: [step1, step2, step3, step4, step5, step6],
@@ -222,7 +218,7 @@ test(
                 )?.version,
             );
 
-            const documentResult = await getDocument(context.action(session), document.id);
+            const documentResult = await document.get();
             expect(documentResult.version).toEqual(i + 5);
             expect(documentResult.content.doc.toJSON()).toEqual(
                 schema
@@ -274,7 +270,7 @@ test(
             const requestPausePromise =
                 updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint.pauseForTest(document.id);
 
-            const requestPromise = updateDocumentContent(context.action(session), {
+            const requestPromise = updateDocumentContent(session.action(), {
                 id: document.id,
                 version: i - 1,
                 steps: [step1, step2, step3, step4, step5, step6],
@@ -292,7 +288,7 @@ test(
 
             // Read the document before the request is unpaused so old steps have not been
             // deleted yet.
-            const documentResult = await getDocument(context.action(session), document.id);
+            const documentResult = await document.get();
             expect(documentResult.version).toEqual(i + 5);
             expect(documentResult.content.doc.toJSON()).toEqual(
                 schema
@@ -373,7 +369,7 @@ test(
             // in the cache and instead need to go read them from the database.
             import.meta.jest.runAllTimers();
 
-            await updateDocumentContent(context.action(session), {
+            await updateDocumentContent(session.action(), {
                 id: document.id,
                 version: 0,
                 steps: [step1, step2, step3, step4, step5, step6],
@@ -384,7 +380,7 @@ test(
 
             // Read the document before the request is unpaused so old steps have not been
             // deleted yet.
-            const documentResult = await getDocument(context.action(session), document.id);
+            const documentResult = await document.get();
             expect(documentResult.version).toEqual(i + 5);
             expect(documentResult.content.doc.toJSON()).toEqual(
                 schema

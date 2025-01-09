@@ -137,7 +137,7 @@ function ChannelViewHeaderMobileDescriptionEditor({
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const [state, setState] = useState(() =>
-        ContentEditorState.create(initialDescription, {selectionAt: "start"}),
+        ContentEditorState.create(initialDescription, {selection: "start"}),
     );
 
     const [isSaving, setIsSaving] = useState(false);

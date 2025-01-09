@@ -67,7 +67,10 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 export const documentCollaborationContentManagerBeforeUpdateTestCheckpoint =
     new TestCheckpoint<DocumentId>();
 
-export const documentCollaborationContentManagerBeforePersistTestCheckpoint =
+export const documentCollaborationContentManagerBeforePersist1TestCheckpoint =
+    new TestCheckpoint<DocumentId>();
+
+export const documentCollaborationContentManagerBeforePersist2TestCheckpoint =
     new TestCheckpoint<DocumentId>();
 
 export type DocumentCollaborationContentManagerOptimisticCommentThread = {
@@ -434,6 +437,10 @@ export class DocumentCollaborationContentManager {
                     // client so we can save in a single batch.
                     await lastPersistenceStatePromise;
 
+                    await documentCollaborationContentManagerBeforePersist1TestCheckpoint.waitForTest(
+                        this.id,
+                    );
+
                     // Do not allow the worker to batch more steps for this request! Instead the
                     // worker needs to schedule a new update promise.
                     if (this._persistenceState?.next?.steps === nextSteps)
@@ -443,7 +450,7 @@ export class DocumentCollaborationContentManager {
                         "Persist document content",
                         async (context, span) => {
                             try {
-                                await documentCollaborationContentManagerBeforePersistTestCheckpoint.waitForTest(
+                                await documentCollaborationContentManagerBeforePersist2TestCheckpoint.waitForTest(
                                     this.id,
                                 );
 
@@ -454,7 +461,6 @@ export class DocumentCollaborationContentManager {
                                         steps: nextSteps,
                                         clientId: update.clientId,
                                         createCommentThreads: nextCreateCommentThreads,
-                                        // NOCOMMIT: Would love to test this whole code path
                                         intentionallyUpdateAccessPolicy:
                                             nextIntentionallyUpdateAccessPolicyRef.current ??
                                             undefined,

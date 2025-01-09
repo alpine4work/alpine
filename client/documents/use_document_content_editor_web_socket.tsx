@@ -5,6 +5,7 @@ import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {
     DocumentContentEditorState,
+    getDocumentContentEditorStatePersistedContent,
     getInitialDocumentContentEditorState,
     reduceDocumentContentEditorState,
 } from "~/client/documents/internal/document_content_editor_state.js";
@@ -20,14 +21,27 @@ import {useStore} from "~/client/helpers/use_store.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
+import {
+    AccessLevel,
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
+    minAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
-import {DocumentContent} from "~/shared/documents/document_content_schema.js";
+import {
+    DocumentContent,
+    assertDocumentContent,
+} from "~/shared/documents/document_content_schema.js";
+import {documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/documents/document_error_messages.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
 } from "~/shared/documents/document_model.js";
+import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
+import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
@@ -40,7 +54,7 @@ import {
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
-import {createDocument} from "~/shared/rpc/documents_rpc_definitions.js";
+import {createDocument, getDocument} from "~/shared/rpc/documents_rpc_definitions.js";
 import {nullStore} from "~/shared/store/const_store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
@@ -91,6 +105,8 @@ export function useDocumentContentEditorWebSocket(
     onEditorStateChange: Memo<
         (editorState: ContentEditorState<DocumentContentWithReferences>) => void
     >;
+    content: DocumentContentWithReferences;
+    currentAccessLevel: AccessLevel;
     otherPresenceStateByConnectionId: ImmutableMap<
         WebSocketConnectionId,
         DocumentCollaborationPresenceState
@@ -120,6 +136,15 @@ export function useDocumentContentEditorWebSocket(
         !initialDocument ||
             (initialDocument.spaceId === space.id && initialDocument.id === documentId),
     );
+
+    const initialAccessLevel = !initialDocument
+        ? "Manage"
+        : getAccountAccessLevelAssumingSpaceAccess(
+              initialDocument.content.doc.attrs.accessPolicy,
+              currentAccount.id,
+          );
+
+    const initialWithoutComments = !hasAccessLevel(initialAccessLevel, "Comment");
 
     const context = useAppContext();
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
@@ -153,14 +178,18 @@ export function useDocumentContentEditorWebSocket(
                         addGlobalLoadingIndicator: (promise, indicator) =>
                             addGlobalLoadingIndicatorRef.current(promise, indicator),
                         documentId: initialDocument.id,
-                        initialState: getInitialDocumentContentEditorState({initialDocument}),
+                        withoutComments: initialWithoutComments,
+                        initialState: getInitialDocumentContentEditorState({
+                            initialVersion: initialDocument.version,
+                            initialContent: initialDocument.content,
+                        }),
                     }),
                 };
             }
         },
     );
 
-    // Re-initialize state if the `DocumentId` changes.
+    // Re-initialize client if the `DocumentId` changes.
     if (
         initialDocument !== null &&
         (clientState.type === "NotExists" || initialDocument.id !== clientState.client.documentId)
@@ -173,7 +202,11 @@ export function useDocumentContentEditorWebSocket(
                 addGlobalLoadingIndicator: (promise, indicator) =>
                     addGlobalLoadingIndicatorRef.current(promise, indicator),
                 documentId: initialDocument.id,
-                initialState: getInitialDocumentContentEditorState({initialDocument}),
+                withoutComments: initialWithoutComments,
+                initialState: getInitialDocumentContentEditorState({
+                    initialVersion: initialDocument.version,
+                    initialContent: initialDocument.content,
+                }),
             }),
         });
     }
@@ -194,7 +227,7 @@ export function useDocumentContentEditorWebSocket(
         setShouldConnect(shouldConnect => !shouldConnect);
     }, []);
 
-    const setCreateDocumentErrorState = useErrorState();
+    const setErrorState = useErrorState();
 
     const createDocumentPromiseRef = useRef<Promise<void> | null>(null);
 
@@ -209,6 +242,9 @@ export function useDocumentContentEditorWebSocket(
                     addGlobalLoadingIndicator: (promise, indicator) =>
                         addGlobalLoadingIndicatorRef.current(promise, indicator),
                     documentId,
+                    // When we create a document we have the "Manage" access level. Commenting is
+                    // allowed.
+                    withoutComments: false,
                     initialState: clientState.state.getSnapshot(),
                 });
 
@@ -233,7 +269,7 @@ export function useDocumentContentEditorWebSocket(
                 onCreate?.();
             },
             error => {
-                setCreateDocumentErrorState(error);
+                setErrorState(error);
                 createDocumentPromiseRef.current = null;
             },
         );
@@ -276,6 +312,117 @@ export function useDocumentContentEditorWebSocket(
         webSocketState?.hasError ? webSocketState : state.errorState,
     );
 
+    const content = state.editorState.getContent();
+    const persistedContent = getDocumentContentEditorStatePersistedContent(state);
+
+    // The current account's access level. We take the minimum access level of
+    // what's currently in state and what's persisted in our database. Ultimately,
+    // the access level persisted in our database is what we evaluate permission
+    // checks with. But it doesn't hurt to optimistically lower the permissions
+    // allowed in the UI immediately upon the access policy changing.
+    const currentAccessLevel = useMemo(
+        () =>
+            minAccessLevel(
+                getAccountAccessLevelAssumingSpaceAccess(
+                    content.doc.attrs.accessPolicy,
+                    currentAccount.id,
+                ),
+                getAccountAccessLevelAssumingSpaceAccess(
+                    persistedContent.attrs.accessPolicy,
+                    currentAccount.id,
+                ),
+            ),
+        [content.doc.attrs.accessPolicy, currentAccount.id, persistedContent.attrs.accessPolicy],
+    );
+
+    if (currentAccessLevel === null) {
+        throw new PermissionDeniedError("Current account lost access to document", {
+            displayMessage: documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
+        });
+    }
+
+    const withoutComments = !hasAccessLevel(currentAccessLevel, "Comment");
+
+    // Re-initialize client if `withoutComments` changes to true. This will happen
+    // when going from `Comment` (or higher) access level to `View`.
+    //
+    // NOCOMMIT: Integration test that switching between with and without comments
+    // in realtime hides/shows comment marks.
+    if (clientState.type === "Exists" && withoutComments && !clientState.client.withoutComments) {
+        setClientState({
+            type: "Exists",
+            // eslint-disable-next-line react-compiler/react-compiler
+            client: new DocumentContentEditorWebSocketClient({
+                getContext: () => contextRef.current,
+                addGlobalLoadingIndicator: (promise, indicator) =>
+                    addGlobalLoadingIndicatorRef.current(promise, indicator),
+                documentId: clientState.client.documentId,
+                withoutComments,
+                initialState: getInitialDocumentContentEditorState({
+                    initialVersion: state.editorState.getVersion(),
+                    initialContent: {
+                        doc: assertDocumentContent(
+                            stripDocumentContentCommentMarks(
+                                state.editorState.getDocWithoutSendableSteps(),
+                            ),
+                        ),
+                        references: {
+                            ...state.editorState.getContent().references,
+                            commentThreadById: emptyMap,
+                        },
+                    },
+                    // Try to maintain the user's selection while resetting state.
+                    initialSelection: state.editorState.getSelection().getBookmark(),
+                }),
+            }),
+        });
+    }
+
+    // Re-initialize client if `withoutComments` changes to false. This will happen
+    // when going from `View` access level to `Comment` (or higher). We need to
+    // refetch the document since we don't know where the comment marks in the
+    // document are.
+    const initializingClientWithCommentsSymbolRef = useRef<symbol | null>(null);
+    useEffect(() => {
+        if (
+            clientState.type !== "Exists" ||
+            withoutComments ||
+            !clientState.client.withoutComments
+        ) {
+            initializingClientWithCommentsSymbolRef.current = null;
+            return;
+        }
+
+        if (initializingClientWithCommentsSymbolRef.current) return;
+        const symbol = Symbol();
+        initializingClientWithCommentsSymbolRef.current = symbol;
+
+        getDocument(context, {documentId: clientState.client.documentId}).then(({document}) => {
+            // Make sure our initialization request wasn't cancelled.
+            if (initializingClientWithCommentsSymbolRef.current !== symbol) return;
+
+            setClientState({
+                type: "Exists",
+                client: new DocumentContentEditorWebSocketClient({
+                    getContext: () => contextRef.current,
+                    addGlobalLoadingIndicator: (promise, indicator) =>
+                        addGlobalLoadingIndicatorRef.current(promise, indicator),
+                    documentId: document.id,
+                    withoutComments: false,
+                    initialState: getInitialDocumentContentEditorState({
+                        initialVersion: document.version,
+                        initialContent: document.content,
+                        // Try to maintain the user's selection while resetting state.
+                        initialSelection: clientState.client.state
+                            .getSnapshot()
+                            .editorState.getSelection()
+                            .getBookmark(),
+                    }),
+                }),
+            });
+        }, setErrorState);
+    }, [clientState, context, setErrorState, withoutComments]);
+
     return {
         spaceId: space.id,
         isConnected: webSocketState?.isConnected ?? false,
@@ -292,6 +439,8 @@ export function useDocumentContentEditorWebSocket(
             },
             [clientState],
         ),
+        content,
+        currentAccessLevel,
         otherPresenceStateByConnectionId: state.extra.otherPresenceStateByConnectionId,
         rememberedSteps: state.extra.rememberedSteps,
         unpersistedResolutionStateByCommentThreadId:

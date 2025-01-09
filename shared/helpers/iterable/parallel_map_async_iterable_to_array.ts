@@ -1,4 +1,4 @@
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.js";
 
 /**
  * Map every value in the async iterable in parallel and return the result as
@@ -11,18 +11,14 @@ export async function parallelMapAsyncIterableToArray<Value, NewValue>(
     iterable: AsyncIterable<Value>,
     map: (value: Value, index: number) => Promise<NewValue>,
 ): Promise<Array<NewValue>> {
-    let hasRejection = false;
-    let firstRejectionReason;
-    let hasSystemError = false;
-    let firstSystemError;
-
     const array: Array<any> = [];
     const promises = new Set<Promise<unknown>>();
+    const errors: Array<unknown> = [];
 
     try {
         for await (const item of iterable) {
             // If we have an error, stop iterating!
-            if (hasRejection) break;
+            if (errors.length > 0) break;
 
             const index = array.length;
 
@@ -43,15 +39,7 @@ export async function parallelMapAsyncIterableToArray<Value, NewValue>(
                 },
                 error => {
                     promises.delete(promise);
-
-                    // TODO(calebmer): Log all rejections in our telemetry, not just the first one.
-                    if (!hasRejection) firstRejectionReason = error;
-                    hasRejection = true;
-
-                    if (!hasSystemError && isSystemError(error)) {
-                        hasSystemError = true;
-                        firstSystemError = error;
-                    }
+                    errors.push(error);
                 },
             );
         }
@@ -60,10 +48,7 @@ export async function parallelMapAsyncIterableToArray<Value, NewValue>(
         // promise threw while we were awaiting, rethrow that error.
         await Promise.allSettled(promises);
 
-        // If we had a system error, prioritize throwing that. Otherwise throw the
-        // first error we saw.
-        if (hasSystemError) throw firstSystemError;
-        if (hasRejection) throw firstRejectionReason;
+        if (errors.length > 0) throw createAggregateError(errors);
     }
 
     return array;

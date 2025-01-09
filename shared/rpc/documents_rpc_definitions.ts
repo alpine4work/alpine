@@ -3,7 +3,10 @@ import {ContentReferencedIdsSchema} from "~/shared/content/content_referenced_id
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {DocumentContentReferencedIdsSchema} from "~/shared/documents/document_content_referenced_ids.js";
 import {DocumentContentReferencesSchema} from "~/shared/documents/document_content_references.js";
-import {DocumentContentStepSchema} from "~/shared/documents/document_content_schema.js";
+import {
+    DocumentContentSchema,
+    DocumentContentStepSchema,
+} from "~/shared/documents/document_content_schema.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
@@ -54,6 +57,28 @@ export const getDocument = defineRpc({
     },
     output: {
         document: DocumentModel.schema(),
+    },
+});
+
+// This RPC returns document content with comment marks even if the actor is a
+// viewer! It's a privilege escalation that's only allowed if the collaboration
+// service is calling this RPC. The collaboration service durable object needs
+// the full document content to function. If a viewer initializes the durable
+// object and an editor connects later, the editor still needs to see the
+// document with comment marks.
+//
+// The collaboration service needs to implement additional authorization checks
+// to make sure it doesn't return document content with comment marks to users
+// who only have view access.
+export const getDocumentContentForCollaborationServiceInitialization = defineRpc({
+    name: "getDocumentContentForCollaborationServiceInitialization",
+    input: {
+        documentId: Schema.id<DocumentId>(),
+    },
+    output: {
+        spaceId: Schema.id<SpaceId>(),
+        version: Schema.integer,
+        content: DocumentContentSchema,
     },
 });
 

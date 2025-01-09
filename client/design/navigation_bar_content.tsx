@@ -380,6 +380,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                 {shareButton && routeLayout !== "narrow" && (
                                     <Box paddingRight="4">
                                         <ShareButton
+                                            isReadOnly={shareButton.isReadOnly}
                                             accessPolicy={shareButton.accessPolicy}
                                             onAccessPolicyChange={shareButton.onAccessPolicyChange}
                                             onCopyLink={shareButton.onCopyLink}

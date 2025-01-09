@@ -1,4 +1,4 @@
-import {Transaction} from "prosemirror-state";
+import {Selection, SelectionBookmark, Transaction} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {
     ContentEditorReferencesAction,
@@ -112,12 +112,14 @@ export function getInitialCollaborativeContentEditorState<
 >({
     initialVersion,
     initialContent,
+    initialSelection,
     reduceReferences,
     extra,
     disableUndoKeyboardShortcuts,
 }: {
     initialVersion: number;
     initialContent: Content;
+    initialSelection?: Selection | SelectionBookmark;
     reduceReferences: (
         references: Content["references"],
         action: ContentEditorReferencesAction<Content["references"]>,
@@ -128,6 +130,7 @@ export function getInitialCollaborativeContentEditorState<
     const editorState = ContentEditorState.createCollaborative({
         version: initialVersion,
         content: initialContent,
+        selection: initialSelection,
         reduceReferences,
         disableUndoKeyboardShortcuts,
     });

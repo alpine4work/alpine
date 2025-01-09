@@ -407,6 +407,13 @@ export class WebSocketServer<
     }
 
     /**
+     * Does this server have any connected clients?
+     */
+    public hasConnections(): boolean {
+        return this._connections.size > 0;
+    }
+
+    /**
      * Send a message to all connected clients.
      */
     public sendEventToAll(

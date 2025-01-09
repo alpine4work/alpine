@@ -16,9 +16,12 @@ import {
     DocumentCollaborationEvent,
     DocumentCollaborationPresenceState,
     DocumentCollaborationProtocol,
-    documentBackfillFutureVersionErrorMessage,
 } from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
+import {
+    documentBackfillFutureVersionErrorMessage,
+    documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
+} from "~/shared/documents/document_error_messages.js";
 import {
     DocumentCommentModel,
     DocumentCommentRoomKey,
@@ -26,9 +29,17 @@ import {
     decodeDocumentCommentRoomKey,
     encodeDocumentCommentRoomKey,
 } from "~/shared/documents/document_model.js";
-import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error.js";
+import {stripDocumentContentStepCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
+import {
+    FailedPreconditionError,
+    InternalError,
+    NotFoundError,
+    PermissionDeniedError,
+} from "~/shared/error/error.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
@@ -61,6 +72,7 @@ export const documentCollaborationConnectionBeforeBackfillMessagesTestCheckpoint
     new TestCheckpoint<{documentId: DocumentId; commentThreadId: DocumentCommentThreadId}>();
 
 export class DocumentCollaborationConnection {
+    public readonly withoutComments: boolean;
     public readonly connectionId: WebSocketConnectionId;
 
     private readonly _contentManager: DocumentCollaborationContentManager;
@@ -82,6 +94,7 @@ export class DocumentCollaborationConnection {
     });
 
     constructor({
+        withoutComments,
         connectionId,
         contentManager,
         sendEvent,
@@ -89,6 +102,7 @@ export class DocumentCollaborationConnection {
         iterateOtherConnections,
         killProcess,
     }: {
+        withoutComments: boolean;
         connectionId: WebSocketConnectionId;
         contentManager: DocumentCollaborationContentManager;
         sendEvent: (context: WorkerProcessContext, message: DocumentCollaborationEvent) => void;
@@ -99,6 +113,7 @@ export class DocumentCollaborationConnection {
         iterateOtherConnections: () => Iterable<DocumentCollaborationConnection>;
         killProcess: (context: WorkerProcessContext) => void;
     }) {
+        this.withoutComments = withoutComments;
         this.connectionId = connectionId;
         this._contentManager = contentManager;
         this._sendEvent = sendEvent;
@@ -110,13 +125,17 @@ export class DocumentCollaborationConnection {
     public async authorize(context: WorkerSessionActionContext) {
         await authorizeDocumentAccess(context, {
             documentId: this._contentManager.id,
-            // TODO(calebmer, #sharing): Maybe we should have the client pass through what
-            // mode it's in. It's not that harmful to let non-editors call the
-            // `updateContent()` procedure since the `updateDocumentContent()` RPC call
-            // will fail. But other viewers would see content being added in realtime which
-            // can be considered a security violation.
-            expectedAccessLevel: "View",
+            expectedAccessLevel: this.withoutComments ? "View" : "Comment",
         });
+    }
+
+    private _authorizeCommentAccess() {
+        if (this.withoutComments) {
+            throw new PermissionDeniedError("Can't see document comments", {
+                displayMessage:
+                    documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.Comment,
+            });
+        }
     }
 
     public getPersistedVersion() {
@@ -199,34 +218,68 @@ export class DocumentCollaborationConnection {
                     throw new FailedPreconditionError(documentBackfillFutureVersionErrorMessage);
                 }
 
-                const [{steps, stepsContentReferences}, rememberSteps] = await runAllPromiseThunks(
-                    async () => {
-                        const steps = await this._contentManager.stepCache.getSteps(
-                            context,
-                            clientVersion,
-                            version,
-                        );
-
-                        const {references: stepsContentReferences} =
-                            await this._contentManager.getContentReferencesForSteps(
+                const [{steps, stepsContentReferences}, rememberInvertedSteps] =
+                    await runAllPromiseThunks(
+                        async () => {
+                            let steps = await this._contentManager.stepCache.getSteps(
                                 context,
-                                steps.map(({step}) => step),
+                                clientVersion,
+                                version,
                             );
 
-                        return {
-                            steps,
-                            stepsContentReferences,
-                        };
-                    },
-                    async () =>
-                        smallestPresenceStateVersion && smallestPresenceStateVersion < clientVersion
-                            ? await this._contentManager.stepCache.getSteps(
-                                  context,
-                                  smallestPresenceStateVersion,
-                                  clientVersion,
-                              )
-                            : [],
-                );
+                            if (this.withoutComments) {
+                                steps = steps.map(({step, invertedStep, clientId}) => ({
+                                    step: stripDocumentContentStepCommentMarks(step),
+                                    invertedStep:
+                                        stripDocumentContentStepCommentMarks(invertedStep),
+                                    clientId,
+                                }));
+                            }
+
+                            const {references: stepsContentReferences} =
+                                await this._contentManager.getContentReferencesForSteps(
+                                    context,
+                                    steps.map(({step}) => step),
+                                );
+
+                            return {
+                                steps,
+                                stepsContentReferences,
+                            };
+                        },
+                        async () => {
+                            const rememberVersion = Math.min(
+                                clientVersion,
+                                persistedVersion,
+                                smallestPresenceStateVersion ?? Infinity,
+                            );
+
+                            if (rememberVersion >= clientVersion) return emptyArray;
+
+                            let rememberInvertedSteps = (
+                                await this._contentManager.stepCache.getSteps(
+                                    context,
+                                    rememberVersion,
+                                    clientVersion,
+                                )
+                            ).map(({invertedStep}) => invertedStep);
+
+                            if (this.withoutComments) {
+                                rememberInvertedSteps = rememberInvertedSteps.map(
+                                    stripDocumentContentStepCommentMarks,
+                                );
+                            }
+
+                            return rememberInvertedSteps;
+                        },
+                    );
+
+                // Safety check: By this point if the user doesn't have comment access we
+                // shouldn't have any comment thread references because we stripped out all
+                // comment marks. Double check before returning just to make sure.
+                if (this.withoutComments) {
+                    assert(stepsContentReferences.commentThreadById.size === 0);
+                }
 
                 return {
                     newVersion: version,
@@ -234,11 +287,18 @@ export class DocumentCollaborationConnection {
                     steps,
                     stepsContentReferences,
                     presenceStates,
-                    rememberInvertedSteps: rememberSteps.map(({invertedStep}) => invertedStep),
+                    rememberInvertedSteps,
                 };
             }),
 
-        updateContent: (context, input) =>
+        updateContent: (context, input) => {
+            if (this.withoutComments) {
+                throw new PermissionDeniedError("Can't update document", {
+                    displayMessage:
+                        documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.Edit,
+                });
+            }
+
             // Handle procedures for this connection in sequence as a defense against
             // race conditions.
             //
@@ -247,7 +307,7 @@ export class DocumentCollaborationConnection {
             // `updateContent` then a `updateOurPresenceState` is perhaps a better example.
             //
             // The client mostly sends messages in sequence anyway.
-            this._state.withLock(async stateRef => {
+            return this._state.withLock(async stateRef => {
                 const {presenceState, hasSentPresenceState} = await this._contentManager.update(
                     context,
                     this.connectionId,
@@ -264,7 +324,8 @@ export class DocumentCollaborationConnection {
 
                 stateRef.current.presenceState = presenceState;
                 return {};
-            }),
+            });
+        },
 
         updateOurPresenceState: (context, input) =>
             // Handle procedures for this connection in sequence as a defense against
@@ -322,6 +383,8 @@ export class DocumentCollaborationConnection {
                 newCommentLimit: newMessageLimit,
             },
         ) => {
+            this._authorizeCommentAccess();
+
             const connection = await this._getCommentThreadConnection(commentThreadId);
 
             const {
@@ -353,6 +416,8 @@ export class DocumentCollaborationConnection {
             context,
             {commentThreadId, parentCommentIndex: parentMessageIndex, content, fileIds},
         ) => {
+            this._authorizeCommentAccess();
+
             const connection = await this._getCommentThreadConnection(commentThreadId);
             return connection.createMessage(context, {parentMessageIndex, content, fileIds});
         },
@@ -361,26 +426,36 @@ export class DocumentCollaborationConnection {
             context,
             {commentThreadId, commentIndex: messageIndex, content},
         ) => {
+            this._authorizeCommentAccess();
+
             const connection = await this._getCommentThreadConnection(commentThreadId);
             return connection.updateMessageContent(context, {messageIndex, content});
         },
 
         deleteComment: async (context, {commentThreadId, commentIndex: messageIndex}) => {
+            this._authorizeCommentAccess();
+
             const connection = await this._getCommentThreadConnection(commentThreadId);
             return connection.deleteMessage(context, {messageIndex});
         },
 
         startTypingInCommentInput: async (context, input) => {
+            this._authorizeCommentAccess();
+
             const connection = await this._getCommentThreadConnection(input.commentThreadId);
             return connection.startTypingInMessageInput(context, input);
         },
 
         stopTypingInCommentInput: async (context, input) => {
+            this._authorizeCommentAccess();
+
             const connection = await this._getCommentThreadConnection(input.commentThreadId);
             return connection.stopTypingInMessageInput(context, input);
         },
 
         getCommentThreadAndInitialCommentsIfExists: async (context, input) => {
+            this._authorizeCommentAccess();
+
             // Wait for any pending messages related to document comments before handling
             // comment messages. This way if we are processing an `UpdateContent` that
             // creates the comment thread we are trying to access we will wait until it
@@ -415,6 +490,8 @@ export class DocumentCollaborationConnection {
         },
 
         getCommentsFromStart: async (context, input) => {
+            this._authorizeCommentAccess();
+
             // Wait for any pending messages related to document comments before handling
             // comment messages. This way if we are processing an `UpdateContent` that
             // creates the comment thread we are trying to access we will wait until it
@@ -455,6 +532,8 @@ export class DocumentCollaborationConnection {
         },
 
         getCommentsFromEnd: async (context, input) => {
+            this._authorizeCommentAccess();
+
             // Wait for any pending messages related to document comments before handling
             // comment messages. This way if we are processing an `UpdateContent` that
             // creates the comment thread we are trying to access we will wait until it
@@ -495,6 +574,8 @@ export class DocumentCollaborationConnection {
         },
 
         resolveCommentThread: async (context, {commentThreadId}) => {
+            this._authorizeCommentAccess();
+
             // Wait for any pending messages related to document comments before handling
             // comment messages. This way if we are processing an `UpdateContent` that
             // creates the comment thread we are trying to access we will wait until it
@@ -519,6 +600,7 @@ export class DocumentCollaborationConnection {
                 ],
                 clientId: generateId(),
                 createCommentThreads: [],
+                intentionallyUpdateAccessPolicy: null,
                 resolveCommentThreadIds: [commentThreadId],
                 updateOurPresenceState: {state: null},
             });
@@ -527,6 +609,8 @@ export class DocumentCollaborationConnection {
         },
 
         unresolveCommentThread: async (context, {commentThreadId}) => {
+            this._authorizeCommentAccess();
+
             // Wait for any pending messages related to document comments before handling
             // comment messages. This way if we are processing an `UpdateContent` that
             // creates the comment thread we are trying to access we will wait until it
@@ -576,6 +660,7 @@ export class DocumentCollaborationConnection {
                 ],
                 clientId: generateId(),
                 createCommentThreads: [],
+                intentionallyUpdateAccessPolicy: null,
                 unresolveCommentThreadIds: [commentThreadId],
                 updateOurPresenceState: {state: null},
             });

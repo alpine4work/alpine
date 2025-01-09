@@ -18,7 +18,6 @@ import {
     DocumentContentProsemirrorSchema as schema,
     DocumentContentStepSchema as stepSchema,
 } from "~/shared/documents/document_content_schema.js";
-import {DocumentModel} from "~/shared/documents/document_model.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
@@ -33,21 +32,16 @@ test("can receive steps one at a time", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
-        initialDocument: new DocumentModel({
-            id: generateId(),
-            createdTime: new Date(),
-            spaceId: generateId(),
-            version: 10,
-            content: {
-                doc: assertDocumentContent(
-                    schema.node("doc", {}, [
-                        schema.node("title", {}, []),
-                        schema.node("paragraph", {}, [schema.text("abc")]),
-                    ]),
-                ),
-                references: emptyDocumentContentReferences,
-            },
-        }),
+        initialVersion: 10,
+        initialContent: {
+            doc: assertDocumentContent(
+                schema.node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("abc")]),
+                ]),
+            ),
+            references: emptyDocumentContentReferences,
+        },
     });
 
     state = reduceDocumentContentEditorState(state, [
@@ -127,21 +121,16 @@ test("can receive multiple steps at a time", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
-        initialDocument: new DocumentModel({
-            id: generateId(),
-            createdTime: new Date(),
-            spaceId: generateId(),
-            version: 10,
-            content: {
-                doc: assertDocumentContent(
-                    schema.node("doc", {}, [
-                        schema.node("title", {}, []),
-                        schema.node("paragraph", {}, [schema.text("abc")]),
-                    ]),
-                ),
-                references: emptyDocumentContentReferences,
-            },
-        }),
+        initialVersion: 10,
+        initialContent: {
+            doc: assertDocumentContent(
+                schema.node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("abc")]),
+                ]),
+            ),
+            references: emptyDocumentContentReferences,
+        },
     });
 
     state = reduceDocumentContentEditorState(state, [
@@ -239,21 +228,16 @@ test("can receive steps out of order", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
-        initialDocument: new DocumentModel({
-            id: generateId(),
-            createdTime: new Date(),
-            spaceId: generateId(),
-            version: 10,
-            content: {
-                doc: assertDocumentContent(
-                    schema.node("doc", {}, [
-                        schema.node("title", {}, []),
-                        schema.node("paragraph", {}, [schema.text("ab")]),
-                    ]),
-                ),
-                references: emptyDocumentContentReferences,
-            },
-        }),
+        initialVersion: 10,
+        initialContent: {
+            doc: assertDocumentContent(
+                schema.node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("ab")]),
+                ]),
+            ),
+            references: emptyDocumentContentReferences,
+        },
     });
 
     state = reduceDocumentContentEditorState(state, [
@@ -356,21 +340,16 @@ test("can receive steps multiple times", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
-        initialDocument: new DocumentModel({
-            id: generateId(),
-            createdTime: new Date(),
-            spaceId: generateId(),
-            version: 10,
-            content: {
-                doc: assertDocumentContent(
-                    schema.node("doc", {}, [
-                        schema.node("title", {}, []),
-                        schema.node("paragraph", {}, [schema.text("abc")]),
-                    ]),
-                ),
-                references: emptyDocumentContentReferences,
-            },
-        }),
+        initialVersion: 10,
+        initialContent: {
+            doc: assertDocumentContent(
+                schema.node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("abc")]),
+                ]),
+            ),
+            references: emptyDocumentContentReferences,
+        },
     });
 
     state = reduceDocumentContentEditorState(state, [
@@ -530,21 +509,16 @@ test("can receive large step backfill with duplicate steps at end of backfill", 
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
-        initialDocument: new DocumentModel({
-            id: generateId(),
-            createdTime: new Date(),
-            spaceId: generateId(),
-            version: 10,
-            content: {
-                doc: assertDocumentContent(
-                    schema.node("doc", {}, [
-                        schema.node("title", {}, []),
-                        schema.node("paragraph", {}, [schema.text("abc")]),
-                    ]),
-                ),
-                references: emptyDocumentContentReferences,
-            },
-        }),
+        initialVersion: 10,
+        initialContent: {
+            doc: assertDocumentContent(
+                schema.node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("abc")]),
+                ]),
+            ),
+            references: emptyDocumentContentReferences,
+        },
     });
 
     state = reduceDocumentContentEditorState(state, [
@@ -630,21 +604,16 @@ test("can receive large step backfill with duplicate steps at beginning of backf
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
-        initialDocument: new DocumentModel({
-            id: generateId(),
-            createdTime: new Date(),
-            spaceId: generateId(),
-            version: 10,
-            content: {
-                doc: assertDocumentContent(
-                    schema.node("doc", {}, [
-                        schema.node("title", {}, []),
-                        schema.node("paragraph", {}, [schema.text("abc")]),
-                    ]),
-                ),
-                references: emptyDocumentContentReferences,
-            },
-        }),
+        initialVersion: 10,
+        initialContent: {
+            doc: assertDocumentContent(
+                schema.node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("abc")]),
+                ]),
+            ),
+            references: emptyDocumentContentReferences,
+        },
     });
 
     state = reduceDocumentContentEditorState(state, [
@@ -718,21 +687,16 @@ test("can receive large step backfill with duplicate steps in the middle of back
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
-        initialDocument: new DocumentModel({
-            id: generateId(),
-            createdTime: new Date(),
-            spaceId: generateId(),
-            version: 10,
-            content: {
-                doc: assertDocumentContent(
-                    schema.node("doc", {}, [
-                        schema.node("title", {}, []),
-                        schema.node("paragraph", {}, [schema.text("abc")]),
-                    ]),
-                ),
-                references: emptyDocumentContentReferences,
-            },
-        }),
+        initialVersion: 10,
+        initialContent: {
+            doc: assertDocumentContent(
+                schema.node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("abc")]),
+                ]),
+            ),
+            references: emptyDocumentContentReferences,
+        },
     });
 
     state = reduceDocumentContentEditorState(state, [
@@ -798,21 +762,16 @@ test("reproduce receive steps assertion failure", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
-        initialDocument: new DocumentModel({
-            id: generateId(),
-            createdTime: new Date(),
-            spaceId: generateId(),
-            version: 0,
-            content: {
-                doc: assertDocumentContent(
-                    schema.node("doc", {}, [
-                        schema.node("title", {}, []),
-                        schema.node("paragraph", {}, []),
-                    ]),
-                ),
-                references: emptyDocumentContentReferences,
-            },
-        }),
+        initialVersion: 0,
+        initialContent: {
+            doc: assertDocumentContent(
+                schema.node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, []),
+                ]),
+            ),
+            references: emptyDocumentContentReferences,
+        },
     });
 
     state = reduceDocumentContentEditorState(state, [
@@ -1147,16 +1106,11 @@ test("generates correct remembered steps", () => {
     );
 
     let state = getInitialDocumentContentEditorState({
-        initialDocument: new DocumentModel({
-            id: generateId(),
-            createdTime: new Date(),
-            spaceId: generateId(),
-            version: 10,
-            content: {
-                doc,
-                references: emptyDocumentContentReferences,
-            },
-        }),
+        initialVersion: 10,
+        initialContent: {
+            doc,
+            references: emptyDocumentContentReferences,
+        },
     });
 
     state = {
@@ -1199,6 +1153,10 @@ test("generates correct remembered steps", () => {
             steps: [{step: new ReplaceStep(7, 7, textSlice("e")), clientId: otherClientId}],
             stepsContentReferences: emptyDocumentContentReferences,
         },
+        {
+            type: "Persisted",
+            newVersion: 12,
+        },
     ]);
 
     expect(state.extra.rememberedSteps.length).toEqual(2);
@@ -1223,6 +1181,10 @@ test("generates correct remembered steps", () => {
             steps: [{step: new ReplaceStep(9, 9, textSlice("g")), clientId: otherClientId}],
             stepsContentReferences: emptyDocumentContentReferences,
         },
+        {
+            type: "Persisted",
+            newVersion: 13,
+        },
     ]);
 
     expect(state.extra.rememberedSteps.length).toEqual(4);
@@ -1243,4 +1205,151 @@ test("generates correct remembered steps", () => {
             }
         }
     }
+});
+
+test("can reset to persisted version", () => {
+    const otherClientId = generateId<ContentEditorClientId>();
+
+    const doc = assertDocumentContent(
+        schema.node("doc", {}, [
+            schema.node("title", {}, []),
+            schema.node("paragraph", {}, [schema.text("abc")]),
+        ]),
+    );
+
+    let state = getInitialDocumentContentEditorState({
+        initialVersion: 10,
+        initialContent: {
+            doc,
+            references: emptyDocumentContentReferences,
+        },
+    });
+
+    expect(state.extra.rememberedSteps.length).toEqual(0);
+
+    function testResetToPersistedVersion() {
+        const newState = reduceDocumentContentEditorState(state, [
+            {
+                type: "Extra",
+                extra: {type: "ResetToPersistedVersion"},
+            },
+        ]);
+
+        // Make sure we actually reset our state.
+        expect(newState.editorState.getClientId()).not.toEqual(state.editorState.getClientId());
+
+        return {
+            persistedVersion: newState.persistedVersion,
+            version: newState.editorState.getVersion(),
+            doc: newState.editorState.getContent().doc,
+        };
+    }
+
+    expect(testResetToPersistedVersion()).toEqual({
+        persistedVersion: 10,
+        version: 10,
+        doc,
+    });
+
+    state = reduceDocumentContentEditorState(state, [
+        {
+            type: "ReceiveSteps",
+            newVersion: 11,
+            steps: [{step: new ReplaceStep(6, 6, textSlice("d")), clientId: otherClientId}],
+            stepsContentReferences: emptyDocumentContentReferences,
+        },
+    ]);
+
+    expect(state.extra.rememberedSteps.length).toEqual(1);
+
+    expect(testResetToPersistedVersion()).toEqual({
+        persistedVersion: 10,
+        version: 10,
+        doc,
+    });
+
+    state = reduceDocumentContentEditorState(state, [
+        {
+            type: "ReceiveSteps",
+            newVersion: 12,
+            steps: [{step: new ReplaceStep(7, 7, textSlice("e")), clientId: otherClientId}],
+            stepsContentReferences: emptyDocumentContentReferences,
+        },
+    ]);
+
+    expect(state.extra.rememberedSteps.length).toEqual(2);
+
+    expect(testResetToPersistedVersion()).toEqual({
+        persistedVersion: 10,
+        version: 10,
+        doc,
+    });
+
+    state = reduceDocumentContentEditorState(state, [
+        {
+            type: "ReceiveSteps",
+            newVersion: 13,
+            steps: [{step: new ReplaceStep(8, 8, textSlice("f")), clientId: otherClientId}],
+            stepsContentReferences: emptyDocumentContentReferences,
+        },
+        {
+            type: "Persisted",
+            newVersion: 12,
+        },
+    ]);
+
+    expect(state.extra.rememberedSteps.length).toEqual(1);
+
+    expect(testResetToPersistedVersion()).toEqual({
+        persistedVersion: 12,
+        version: 12,
+        doc: schema.node("doc", {}, [
+            schema.node("title", {}, []),
+            schema.node("paragraph", {}, [schema.text("abcde")]),
+        ]),
+    });
+
+    state = reduceDocumentContentEditorState(state, [
+        {
+            type: "ReceiveSteps",
+            newVersion: 14,
+            steps: [{step: new ReplaceStep(9, 9, textSlice("g")), clientId: otherClientId}],
+            stepsContentReferences: emptyDocumentContentReferences,
+        },
+    ]);
+
+    expect(state.extra.rememberedSteps.length).toEqual(2);
+
+    expect(testResetToPersistedVersion()).toEqual({
+        persistedVersion: 12,
+        version: 12,
+        doc: schema.node("doc", {}, [
+            schema.node("title", {}, []),
+            schema.node("paragraph", {}, [schema.text("abcde")]),
+        ]),
+    });
+
+    state = reduceDocumentContentEditorState(state, [
+        {
+            type: "ReceiveSteps",
+            newVersion: 15,
+            steps: [{step: new ReplaceStep(10, 10, textSlice("h")), clientId: otherClientId}],
+            stepsContentReferences: emptyDocumentContentReferences,
+        },
+        {
+            type: "Persisted",
+            newVersion: 15,
+        },
+    ]);
+
+    expect(state.extra.rememberedSteps.length).toEqual(0);
+
+    expect(testResetToPersistedVersion()).toEqual({
+        persistedVersion: 15,
+        version: 15,
+        doc: schema.node("doc", {}, [
+            schema.node("title", {}, []),
+            schema.node("paragraph", {}, [schema.text("abcdefgh")]),
+        ]),
+    });
 });

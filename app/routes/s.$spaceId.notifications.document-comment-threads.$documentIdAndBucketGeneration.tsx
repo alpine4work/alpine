@@ -167,7 +167,7 @@ function DocumentNewCommentThreadsRouteInner() {
 
     const {
         isConnected,
-        editorState,
+        content,
         procedures,
         subscribeToCommentThreadEvents,
         unpersistedResolutionStateByCommentThreadId,
@@ -179,8 +179,6 @@ function DocumentNewCommentThreadsRouteInner() {
     useSearchAffinityViewInteraction(`Document:${initialDocument.id}`);
 
     const listViewRef = useRef<DocumentCommentThreadListViewRef>(null);
-
-    const documentContent = editorState.getContent();
 
     const commentThreadCount = initialCommentThreads.length;
 
@@ -352,7 +350,7 @@ function DocumentNewCommentThreadsRouteInner() {
             // doesn't work particularly well on mobile.
             key={platform === "mobile" ? `mobile-${mobileCommentThreadIndex}` : "desktop"}
             documentId={initialDocument.id}
-            content={documentContent}
+            content={content}
             isConnected={isConnected}
             procedures={procedures}
             subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}

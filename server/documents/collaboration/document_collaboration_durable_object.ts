@@ -11,14 +11,22 @@ import {createDurableObject} from "~/server/cloudflare/create_durable_object.js"
 import {DocumentCollaborationConnection} from "~/server/documents/collaboration/document_collaboration_connection.js";
 import {DocumentCollaborationContentManager} from "~/server/documents/collaboration/document_collaboration_content_manager.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
-import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
+import {
+    DocumentCollaborationEvent,
+    DocumentCollaborationProtocol,
+} from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
+import {stripDocumentContentStepCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
 import {NotFoundError} from "~/shared/error/error.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyMap} from "~/shared/helpers/array/empty_map.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
-import {getDocument} from "~/shared/rpc/documents_rpc_definitions.js";
+import {getDocumentContentForCollaborationServiceInitialization} from "~/shared/rpc/documents_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-type DocumentCollaborationDurableObjectRoute = "Main" | "NotFound";
+type DocumentCollaborationDurableObjectRoute = "Main" | "WithoutComments" | "NotFound";
 
 class DocumentCollaborationDurableObject {
     public static readonly serviceName = "DocumentCollaborationService";
@@ -30,6 +38,13 @@ class DocumentCollaborationDurableObject {
     private readonly _destroyCallback: () => void;
 
     private readonly _webSocketServer: WebSocketServer<
+        WorkerProcessContextModules,
+        WorkerSessionActionContextModules,
+        typeof DocumentCollaborationProtocol,
+        DocumentCollaborationConnection
+    >;
+
+    private readonly _webSocketServerWithoutComments: WebSocketServer<
         WorkerProcessContextModules,
         WorkerSessionActionContextModules,
         typeof DocumentCollaborationProtocol,
@@ -49,14 +64,17 @@ class DocumentCollaborationDurableObject {
     }): Promise<DocumentCollaborationDurableObject> {
         const documentId = Schema.id<DocumentId>().deserialize(idName);
 
-        const {document} = await getDocument(initializeActionContext, {documentId});
+        const {spaceId, version, content} =
+            await getDocumentContentForCollaborationServiceInitialization(initializeActionContext, {
+                documentId,
+            });
 
         return new DocumentCollaborationDurableObject({
             processContext,
-            spaceId: document.spaceId,
-            id: document.id,
-            initialVersion: document.version,
-            initialContent: document.content.doc,
+            spaceId: spaceId,
+            id: documentId,
+            initialVersion: version,
+            initialContent: content,
             destroy,
         });
     }
@@ -89,9 +107,8 @@ class DocumentCollaborationDurableObject {
             id,
             initialVersion,
             initialContent,
-            sendEventToAll: (context, event) =>
-                this._webSocketServer.sendEventToAll(context, event),
             killProcess: context => this._destroy(context),
+            sendEventToAll: this._sendEventToAll.bind(this),
         });
         this._destroyCallback = destroy;
 
@@ -105,11 +122,62 @@ class DocumentCollaborationDurableObject {
             DocumentCollaborationProtocol,
             ({connectionId, sendEvent, sendEventToOthers, iterateOtherConnections}) => {
                 return new DocumentCollaborationConnection({
+                    withoutComments: false,
                     connectionId,
                     contentManager: this._contentManager,
                     sendEvent,
-                    sendEventToOthers,
-                    iterateOtherConnections,
+                    // NOCOMMIT: Test!
+                    sendEventToOthers: (context, event) => {
+                        sendEventToOthers(context, event);
+
+                        if (this._webSocketServerWithoutComments.hasConnections()) {
+                            const eventWithoutComments =
+                                stripDocumentCollaborationEventComments(event);
+
+                            if (eventWithoutComments !== null) {
+                                this._webSocketServerWithoutComments.sendEventToAll(
+                                    context,
+                                    eventWithoutComments,
+                                );
+                            }
+                        }
+                    },
+                    // NOCOMMIT: Test!
+                    iterateOtherConnections: () =>
+                        concatIterables(
+                            iterateOtherConnections(),
+                            this._webSocketServerWithoutComments.iterateAllConnections(),
+                        ),
+                    killProcess: context => this._destroy(context),
+                });
+            },
+        );
+
+        this._webSocketServerWithoutComments = new WebSocketServer<
+            WorkerProcessContextModules,
+            WorkerSessionActionContextModules,
+            typeof DocumentCollaborationProtocol,
+            DocumentCollaborationConnection
+        >(
+            this._processContext,
+            DocumentCollaborationProtocol,
+            ({connectionId, sendEvent, sendEventToOthers, iterateOtherConnections}) => {
+                return new DocumentCollaborationConnection({
+                    withoutComments: true,
+                    connectionId,
+                    contentManager: this._contentManager,
+                    sendEvent,
+                    // NOCOMMIT: Test!
+                    sendEventToOthers: (context, event) => {
+                        this._webSocketServer.sendEventToAll(context, event);
+                        sendEventToOthers(context, event);
+                    },
+                    // NOCOMMIT: Test!
+                    iterateOtherConnections: () =>
+                        concatIterables(
+                            this._webSocketServer.iterateAllConnections(),
+                            iterateOtherConnections(),
+                        ),
                     killProcess: context => this._destroy(context),
                 });
             },
@@ -117,6 +185,7 @@ class DocumentCollaborationDurableObject {
     }
 
     public static parseRoute(url: URL): [string, DocumentCollaborationDurableObjectRoute] {
+        if (url.pathname === "/view") return ["/view", "WithoutComments"];
         if (url.pathname !== "/") return ["/*", "NotFound"];
         return ["/", "Main"];
     }
@@ -132,16 +201,96 @@ class DocumentCollaborationDurableObject {
         });
 
         if (route === "NotFound") throw new NotFoundError("Route not found");
+
+        if (route === "WithoutComments") {
+            return this._webSocketServerWithoutComments.upgrade(
+                context.actor.authorizeSession(),
+                request,
+            );
+        }
+
         return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
     }
 
-    public connectForTest(context: WorkerSessionActionContext) {
-        return this._webSocketServer.connectForTest(context);
+    public connectForTest(
+        context: WorkerSessionActionContext,
+        options?: {withoutComments?: boolean},
+    ) {
+        if (options?.withoutComments) {
+            return this._webSocketServerWithoutComments.connectForTest(context);
+        } else {
+            return this._webSocketServer.connectForTest(context);
+        }
     }
 
     private _destroy(context: WorkerProcessContext) {
         this._webSocketServer.closeAll(context);
+        this._webSocketServerWithoutComments.closeAll(context);
         this._destroyCallback();
+    }
+
+    private _sendEventToAll(context: WorkerProcessContext, event: DocumentCollaborationEvent) {
+        this._webSocketServer.sendEventToAll(context, event);
+
+        if (this._webSocketServerWithoutComments.hasConnections()) {
+            const eventWithoutComments = stripDocumentCollaborationEventComments(event);
+
+            if (eventWithoutComments !== null) {
+                this._webSocketServerWithoutComments.sendEventToAll(context, eventWithoutComments);
+            }
+        }
+    }
+}
+
+function stripDocumentCollaborationEventComments(
+    event: DocumentCollaborationEvent,
+): DocumentCollaborationEvent | null {
+    // Code style: Manually recreate the event objects so that we can be absolutely
+    // sure comment data isn't slipping into `eventWithoutComments`. Especially
+    // when we add new fields in the future, we want TypeScript to error and the
+    // developer to consider whether comment information needs to be stripped.
+    switch (event.type) {
+        case "UpdateContentWithoutPersistence": {
+            return {
+                type: "UpdateContentWithoutPersistence",
+                newVersion: event.newVersion,
+                steps: event.steps.map(stripDocumentContentStepCommentMarks),
+                stepsContentReferences: {
+                    ...event.stepsContentReferences,
+                    commentThreadById: emptyMap,
+                },
+                clientId: event.clientId,
+                updateOtherPresenceState: event.updateOtherPresenceState,
+                resolveCommentThreadIds: emptyArray,
+                unresolveCommentThreadIds: emptyArray,
+            };
+        }
+        case "PersistedContent": {
+            return {
+                type: "PersistedContent",
+                newVersion: event.newVersion,
+                updatedCommentThreads: emptyArray,
+            };
+        }
+        case "UpdateOtherPresenceState": {
+            return {
+                type: "UpdateOtherPresenceState",
+                connectionId: event.connectionId,
+                state: event.state,
+            };
+        }
+        case "Error": {
+            return {
+                type: "Error",
+                error: event.error,
+            };
+        }
+        case "Comments": {
+            // Never send comment realtime events to view-only clients.
+            return null;
+        }
+        default:
+            throw exhaustive(event);
     }
 }
 

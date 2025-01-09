@@ -12,15 +12,14 @@ import {
     WebSocketClientProcedures,
     WebSocketClientState,
 } from "~/client/web_socket/web_socket_client.js";
-import {
-    DocumentCollaborationProtocol,
-    documentBackfillFutureVersionErrorMessage,
-} from "~/shared/documents/document_collaboration_protocol.js";
+import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
+import {documentBackfillFutureVersionErrorMessage} from "~/shared/documents/document_error_messages.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
 } from "~/shared/documents/document_model.js";
+import {isTransientError} from "~/shared/error/is_transient_error_code.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -92,6 +91,7 @@ export class DocumentContentEditorWebSocketClient {
     >;
 
     public readonly documentId: DocumentId;
+    public readonly withoutComments: boolean;
     private readonly _getContext: () => AppContext;
     private readonly _addGlobalLoadingIndicator: (
         promise: Promise<void>,
@@ -100,6 +100,11 @@ export class DocumentContentEditorWebSocketClient {
     private readonly _client: WebSocketClient<typeof DocumentCollaborationProtocol>;
     private readonly _state: ValueStore<DocumentContentEditorState>;
     private _disconnect: (() => void) | null = null;
+
+    // The number of times `updateContent()` has thrown an error. Stored at the
+    // class level to survive across reconnects. Reset once `updateContent()`
+    // succeeds.
+    private _updateContentRetryErrorCount = 0;
 
     // We provide access to procedures regarding document comments. Procedures that
     // update document content can only be called internally within this class.
@@ -117,6 +122,7 @@ export class DocumentContentEditorWebSocketClient {
         getContext,
         addGlobalLoadingIndicator,
         documentId,
+        withoutComments,
         initialState,
     }: {
         getContext: () => AppContext;
@@ -125,16 +131,18 @@ export class DocumentContentEditorWebSocketClient {
             indicator: GlobalLoadingIndicator,
         ) => void;
         documentId: DocumentId;
+        withoutComments: boolean;
         initialState: DocumentContentEditorState;
     }) {
         this.documentId = documentId;
+        this.withoutComments = withoutComments;
         this._getContext = getContext;
         this._addGlobalLoadingIndicator = addGlobalLoadingIndicator;
         this._client = new WebSocketClient(
             getContext,
             "DocumentCollaborationService",
             DocumentCollaborationProtocol,
-            `/api/durable-objects/documents/${documentId}`,
+            `/api/durable-objects/documents/${documentId}${withoutComments ? "/view" : ""}`,
         );
         this._state = new ValueStore(initialState);
 
@@ -491,32 +499,56 @@ export class DocumentContentEditorWebSocketClient {
                                 : null,
                         },
                     })
-                    .catch(error => {
-                        // If we're connected when an error occurs then this isn't a network related
-                        // issue. Present the error to the user. If we're disconnected when an error
-                        // occurs silently log and we want to retry when the WebSocket reconnects.
-                        if (this._client.state.getSnapshot().isConnected) {
-                            this._dispatch({type: "Error", error});
-                            return;
-                        }
+                    .then(
+                        () => {
+                            this._updateContentRetryErrorCount = 0;
+                        },
+                        error => {
+                            // If we're connected when an error occurs then this isn't a network related
+                            // issue. Present the error to the user. If we're disconnected when an error
+                            // occurs silently log and we want to retry when the WebSocket reconnects.
+                            if (this._client.state.getSnapshot().isConnected) {
+                                // If this is a transient error, don't try resetting the user's pending steps
+                                // until we've retried 2 times. This means the user will manually need to hit
+                                // the "Retry" button twice before we reset their state.
+                                //
+                                // We'd like to avoid resetting the user's pending steps if possible since
+                                // that's data loss.
+                                if (
+                                    isTransientError(error) &&
+                                    this._updateContentRetryErrorCount < 2
+                                ) {
+                                    this._updateContentRetryErrorCount++;
+                                    this._dispatch({type: "Error", error});
+                                } else {
+                                    this._updateContentRetryErrorCount = 0;
 
-                        this._getContext()
-                            .tracer.getRoot()
-                            .logUncaughtException(
-                                "Couldn't update content after disconnect",
-                                error,
-                            );
+                                    this._dispatchBatch([
+                                        {type: "Extra", extra: {type: "ResetToPersistedVersion"}},
+                                        {type: "Error", error},
+                                    ]);
+                                }
+                                return;
+                            }
 
-                        // Next time we send updates, we'll silently retry updating content if another
-                        // `updateContent()` call hasn't happened in the meantime.
-                        //
-                        // For example, maybe the WebSocket abruptly disconnected while executing this
-                        // procedure. When the WebSocket reconnects we'll try again.
-                        if (generation === updateGeneration) {
-                            lastPendingSendableStepsVersionSentToServer = "SilentError";
-                            lastOurPresenceStateSentToServer = "SilentError";
-                        }
-                    });
+                            this._getContext()
+                                .tracer.getRoot()
+                                .logUncaughtException(
+                                    "Couldn't update content after disconnect",
+                                    error,
+                                );
+
+                            // Next time we send updates, we'll silently retry updating content if another
+                            // `updateContent()` call hasn't happened in the meantime.
+                            //
+                            // For example, maybe the WebSocket abruptly disconnected while executing this
+                            // procedure. When the WebSocket reconnects we'll try again.
+                            if (generation === updateGeneration) {
+                                lastPendingSendableStepsVersionSentToServer = "SilentError";
+                                lastOurPresenceStateSentToServer = "SilentError";
+                            }
+                        },
+                    );
             }
 
             if (

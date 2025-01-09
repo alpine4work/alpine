@@ -121,7 +121,7 @@ export default function DocumentCommentThreadRoute() {
 
     const {
         isConnected,
-        editorState,
+        content,
         procedures,
         subscribeToCommentThreadEvents,
         unpersistedResolutionStateByCommentThreadId,
@@ -141,7 +141,7 @@ export default function DocumentCommentThreadRoute() {
     const node = (
         <DocumentCommentThreadListView
             documentId={initialDocument.id}
-            content={editorState.getContent()}
+            content={content}
             isConnected={isConnected}
             procedures={procedures}
             subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
