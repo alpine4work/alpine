@@ -76,16 +76,17 @@ export function ShareButton({
                 aria-haspopup="dialog"
                 placement="bottom"
                 offset="3"
-                overlay={
+                overlay={({onCloseWithoutAnimation}) => (
                     <Box>
                         <ShareOverlay
                             accessPolicy={accessPolicy}
                             onAccessPolicyChange={onAccessPolicyChange}
                             isReadOnly={isReadOnly}
                             onCopyLink={onCopyLink}
+                            onCloseWithoutAnimation={onCloseWithoutAnimation}
                         />
                     </Box>
-                }
+                )}
             >
                 <Button height="6" paddingX="2">
                     Share
@@ -159,12 +160,15 @@ function ShareOverlay({
     onAccessPolicyChange,
     isReadOnly,
     onCopyLink,
+    onCloseWithoutAnimation,
 }: {
     accessPolicy: AccessPolicy;
     onAccessPolicyChange: (accessPolicy: AccessPolicy) => void;
     isReadOnly: boolean;
     onCopyLink: () => MaybePromise<void>;
+    onCloseWithoutAnimation: () => void;
 }) {
+    const reporter = useReporter();
     const {currentAccount} = useSpaceContext();
 
     const [isAltKeyDown, setIsAltKeyDown] = useState(false);
@@ -287,7 +291,12 @@ function ShareOverlay({
                 borderRadius="1.5"
                 icon={<LinkIcon size={spacing["4"]} />}
                 pressErrorTitle="Couldn’t copy link"
-                onPress={onCopyLink}
+                onPress={async () => {
+                    await onCopyLink();
+
+                    // Assume copy will work and close overlay without flicker.
+                    onCloseWithoutAnimation();
+                }}
             >
                 Copy link
             </Button>
