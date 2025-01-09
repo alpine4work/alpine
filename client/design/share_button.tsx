@@ -168,7 +168,6 @@ function ShareOverlay({
     onCopyLink: () => MaybePromise<void>;
     onCloseWithoutAnimation: () => void;
 }) {
-    const reporter = useReporter();
     const {currentAccount} = useSpaceContext();
 
     const [isAltKeyDown, setIsAltKeyDown] = useState(false);
