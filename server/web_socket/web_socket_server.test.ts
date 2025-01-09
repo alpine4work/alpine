@@ -1,3 +1,5 @@
+import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
+import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {TestSessionActorContextModule} from "~/server/helpers/test/test_actor_context_module.js";
 import {Response} from "~/server/node/install_response_with_web_socket_support.js";
@@ -22,7 +24,10 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId, SessionId, WebSocketProcedureRequestId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
-import {defineWebSocketProtocol} from "~/shared/web_socket/web_socket_protocol.js";
+import {
+    WebSocketProtocolEventType,
+    defineWebSocketProtocol,
+} from "~/shared/web_socket/web_socket_protocol.js";
 import {
     WebSocketClosingWithErrorMessageSchema,
     createWebSocketMessageFromClientSchema,
@@ -65,6 +70,7 @@ const processContext = Context.new({
 });
 
 const account1Id = generateId<AccountId>();
+const account2Id = generateId<AccountId>();
 
 const sessionIdByAccountId = new DefaultMap<AccountId, SessionId>(generateId);
 
@@ -772,4 +778,370 @@ test("authorization error will close the connection", async () => {
     ]);
 
     await closePromiseResolver.promise;
+});
+
+test("authorization function is called with the correct actor when triggering authorization in a different connection", async () => {
+    const TestProtocol = defineWebSocketProtocol({
+        procedures: {
+            sendEventToOthers: {
+                input: {},
+                output: {},
+            },
+        },
+        events: {Test: Schema.object({type: Schema.value("Test")})},
+    });
+
+    const TestMessageFromClientSchema = createWebSocketMessageFromClientSchema(TestProtocol);
+    const TestMessageFromServerSchema = createWebSocketMessageFromServerSchema(TestProtocol);
+
+    const authorizationCountByAccountId = new Map<AccountId, number>();
+
+    const authorizationError = new PermissionDeniedError("Test authorization error");
+
+    const throwAuthorizationErrorByAccountId = new Map<AccountId, boolean>();
+
+    class TestConnection {
+        private readonly _sendEventToOthers: (
+            context: WorkerProcessContext,
+            event: WebSocketProtocolEventType<typeof TestProtocol>,
+        ) => void;
+
+        constructor({
+            sendEventToOthers,
+        }: {
+            sendEventToOthers: (
+                context: WorkerProcessContext,
+                event: WebSocketProtocolEventType<typeof TestProtocol>,
+            ) => void;
+        }) {
+            this._sendEventToOthers = sendEventToOthers;
+        }
+
+        public readonly procedures: WebSocketConnectionProcedures<
+            TestSessionActionContextModules,
+            typeof TestProtocol
+        > = {
+            sendEventToOthers: async (context, {}) => {
+                this._sendEventToOthers(context, {type: "Test"});
+                return {};
+            },
+        };
+
+        public async authorize(context: WorkerSessionActionContext) {
+            const accountId = context.actor.getAccountId();
+
+            authorizationCountByAccountId.set(
+                accountId,
+                (authorizationCountByAccountId.get(accountId) ?? 0) + 1,
+            );
+
+            if (throwAuthorizationErrorByAccountId.get(accountId)) {
+                throw authorizationError;
+            }
+        }
+    }
+
+    const server = new WebSocketServer<
+        TestProcessContextModules,
+        TestSessionActionContextModules,
+        typeof TestProtocol,
+        TestConnection
+    >(
+        processContext,
+        TestProtocol,
+        ({sendEventToOthers}) => new TestConnection({sendEventToOthers}),
+    );
+
+    afterNextCallbacks.push(() => server.closeAll(processContext));
+
+    const request1Id = generateId<WebSocketProcedureRequestId>();
+    const request1PromiseResolver = createPromiseResolver();
+
+    const request2Id = generateId<WebSocketProcedureRequestId>();
+    const request2PromiseResolver = createPromiseResolver();
+
+    const request3Id = generateId<WebSocketProcedureRequestId>();
+    const request3PromiseResolver = createPromiseResolver();
+
+    expect(authorizationCountByAccountId).toEqual(new Map());
+
+    const response1 = await server.upgrade(
+        action(account1Id),
+        new Request("http://localhost/", {headers: {upgrade: "websocket"}}),
+        {responseClassForTest: Response},
+    );
+
+    await waitMacrotask();
+
+    expect(authorizationCountByAccountId).toEqual(new Map([[account1Id, 1]]));
+
+    const webSocket1 = assertExists(response1.webSocket);
+
+    const messages1: Array<unknown> = [];
+    const close1PromiseResolver = createPromiseResolver();
+
+    webSocket1.addEventListener("message", event => {
+        const message = TestMessageFromServerSchema.deserialize(JSON.parse(event.data));
+
+        // Ignore pongs...
+        if (message.type === "Pong") return;
+
+        messages1.push(message);
+
+        if (message.type === "ProcedureResponse" && message.requestId === request1Id) {
+            request1PromiseResolver.resolve();
+        }
+
+        if (message.type === "ProcedureResponse" && message.requestId === request2Id) {
+            request2PromiseResolver.resolve();
+        }
+
+        if (message.type === "ProcedureResponse" && message.requestId === request3Id) {
+            request3PromiseResolver.resolve();
+        }
+    });
+
+    webSocket1.addEventListener("close", () => {
+        close1PromiseResolver.resolve();
+    });
+
+    (webSocket1 as any).accept();
+
+    expect(authorizationCountByAccountId).toEqual(new Map([[account1Id, 1]]));
+
+    const response2 = await server.upgrade(
+        action(account2Id),
+        new Request("http://localhost/", {headers: {upgrade: "websocket"}}),
+        {responseClassForTest: Response},
+    );
+
+    await waitMacrotask();
+
+    expect(authorizationCountByAccountId).toEqual(
+        new Map([
+            [account1Id, 1],
+            [account2Id, 1],
+        ]),
+    );
+
+    const webSocket2 = assertExists(response2.webSocket);
+
+    const messages2: Array<unknown> = [];
+    const close2PromiseResolver = createPromiseResolver();
+
+    webSocket2.addEventListener("message", event => {
+        const message = TestMessageFromServerSchema.deserialize(JSON.parse(event.data));
+
+        // Ignore pongs...
+        if (message.type === "Pong") return;
+
+        messages2.push(message);
+    });
+
+    webSocket2.addEventListener("close", () => {
+        close2PromiseResolver.resolve();
+    });
+
+    (webSocket2 as any).accept();
+
+    expect(authorizationCountByAccountId).toEqual(
+        new Map([
+            [account1Id, 1],
+            [account2Id, 1],
+        ]),
+    );
+
+    expect(messages1).toEqual([]);
+    expect(messages2).toEqual([]);
+
+    webSocket1.send(
+        JSON.stringify(
+            TestMessageFromClientSchema.serialize({
+                type: "ProcedureRequest",
+                requestId: request1Id,
+                input: {type: "sendEventToOthers"},
+                tracerContext: null,
+            }),
+        ),
+    );
+
+    await request1PromiseResolver.promise;
+
+    expect(messages1).toEqual([
+        {
+            type: "ProcedureResponse",
+            requestId: request1Id,
+            result: {ok: true, output: {type: "sendEventToOthers"}},
+        },
+    ]);
+
+    expect(messages2).toEqual([
+        {
+            type: "Event",
+            event: {type: "Test"},
+        },
+    ]);
+
+    expect(authorizationCountByAccountId).toEqual(
+        new Map([
+            [account1Id, 1],
+            [account2Id, 1],
+        ]),
+    );
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    webSocket1.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    webSocket2.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    expect(authorizationCountByAccountId).toEqual(
+        new Map([
+            [account1Id, 1],
+            [account2Id, 1],
+        ]),
+    );
+
+    expect(close1PromiseResolver.isSettled()).toEqual(false);
+    expect(close2PromiseResolver.isSettled()).toEqual(false);
+
+    webSocket1.send(
+        JSON.stringify(
+            TestMessageFromClientSchema.serialize({
+                type: "ProcedureRequest",
+                requestId: request2Id,
+                input: {type: "sendEventToOthers"},
+                tracerContext: null,
+            }),
+        ),
+    );
+
+    await request2PromiseResolver.promise;
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(authorizationCountByAccountId).toEqual(
+        new Map([
+            [account1Id, 2],
+            [account2Id, 2],
+        ]),
+    );
+
+    expect(messages1).toEqual([
+        {
+            type: "ProcedureResponse",
+            requestId: request1Id,
+            result: {ok: true, output: {type: "sendEventToOthers"}},
+        },
+        {
+            type: "ProcedureResponse",
+            requestId: request2Id,
+            result: {ok: true, output: {type: "sendEventToOthers"}},
+        },
+    ]);
+
+    expect(messages2).toEqual([
+        {
+            type: "Event",
+            event: {type: "Test"},
+        },
+        {
+            type: "Event",
+            event: {type: "Test"},
+        },
+    ]);
+
+    webSocket1.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    webSocket2.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    import.meta.jest.advanceTimersByTime(1000 * 60);
+
+    webSocket1.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    webSocket2.send(
+        JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
+    );
+
+    import.meta.jest.advanceTimersByTime(1000 * 60 + 1000);
+
+    expect(authorizationCountByAccountId).toEqual(
+        new Map([
+            [account1Id, 2],
+            [account2Id, 2],
+        ]),
+    );
+
+    expect(close1PromiseResolver.isSettled()).toEqual(false);
+    expect(close2PromiseResolver.isSettled()).toEqual(false);
+
+    throwAuthorizationErrorByAccountId.set(account2Id, true);
+
+    webSocket1.send(
+        JSON.stringify(
+            TestMessageFromClientSchema.serialize({
+                type: "ProcedureRequest",
+                requestId: request3Id,
+                input: {type: "sendEventToOthers"},
+                tracerContext: null,
+            }),
+        ),
+    );
+
+    await request3PromiseResolver.promise;
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(authorizationCountByAccountId).toEqual(
+        new Map([
+            [account1Id, 3],
+            [account2Id, 3],
+        ]),
+    );
+
+    expect(messages1).toEqual([
+        {
+            type: "ProcedureResponse",
+            requestId: request1Id,
+            result: {ok: true, output: {type: "sendEventToOthers"}},
+        },
+        {
+            type: "ProcedureResponse",
+            requestId: request2Id,
+            result: {ok: true, output: {type: "sendEventToOthers"}},
+        },
+        {
+            type: "ProcedureResponse",
+            requestId: request3Id,
+            result: {ok: true, output: {type: "sendEventToOthers"}},
+        },
+    ]);
+
+    expect(messages2).toEqual([
+        {
+            type: "Event",
+            event: {type: "Test"},
+        },
+        {
+            type: "Event",
+            event: {type: "Test"},
+        },
+        {
+            type: "ClosingWithError",
+            error: authorizationError,
+        },
+    ]);
+
+    expect(close1PromiseResolver.isSettled()).toEqual(false);
+    expect(close2PromiseResolver.isSettled()).toEqual(true);
 });
