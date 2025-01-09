@@ -45,6 +45,7 @@ export function dispatchUpdatedContentEditorFileParentEvent(element: Element) {
     updatedContentEditorFileParentEventEmitterByElement?.get(element)?.emit();
 }
 
+// NOCOMMIT: Read-only mode
 export function createContentEditorFileNodeViewConstructor({
     rootNavigate,
     getLayoutScreenWidth,

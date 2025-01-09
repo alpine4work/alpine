@@ -164,6 +164,14 @@ export class DocumentContentEditorWebSocketClient {
         this._dispatch({type: "Edit", editorState});
     }
 
+    public clearOurPresenceState() {
+        this._dispatch({type: "Extra", extra: {type: "ClearOurPresenceState"}});
+    }
+
+    public unclearOurPresenceState() {
+        this._dispatch({type: "Extra", extra: {type: "UnclearOurPresenceState"}});
+    }
+
     public connect() {
         assert(this._disconnect === null, "WebSocket is already connected");
 

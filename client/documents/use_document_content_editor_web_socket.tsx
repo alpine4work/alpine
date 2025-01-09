@@ -105,8 +105,10 @@ export function useDocumentContentEditorWebSocket(
     onEditorStateChange: Memo<
         (editorState: ContentEditorState<DocumentContentWithReferences>) => void
     >;
+    onClearOurPresenceState: Memo<() => void>;
+    onUnclearOurPresenceState: Memo<() => void>;
     content: DocumentContentWithReferences;
-    currentAccessLevel: AccessLevel;
+    accessLevel: AccessLevel;
     otherPresenceStateByConnectionId: ImmutableMap<
         WebSocketConnectionId,
         DocumentCollaborationPresenceState
@@ -180,6 +182,7 @@ export function useDocumentContentEditorWebSocket(
                         documentId: initialDocument.id,
                         withoutComments: initialWithoutComments,
                         initialState: getInitialDocumentContentEditorState({
+                            currentAccountId: currentAccount.id,
                             initialVersion: initialDocument.version,
                             initialContent: initialDocument.content,
                         }),
@@ -204,6 +207,7 @@ export function useDocumentContentEditorWebSocket(
                 documentId: initialDocument.id,
                 withoutComments: initialWithoutComments,
                 initialState: getInitialDocumentContentEditorState({
+                    currentAccountId: currentAccount.id,
                     initialVersion: initialDocument.version,
                     initialContent: initialDocument.content,
                 }),
@@ -312,6 +316,9 @@ export function useDocumentContentEditorWebSocket(
         webSocketState?.hasError ? webSocketState : state.errorState,
     );
 
+    // We assume the current `AccountId` never changes.
+    assert(state.extra.currentAccountId === currentAccount.id);
+
     const content = state.editorState.getContent();
     const persistedContent = getDocumentContentEditorStatePersistedContent(state);
 
@@ -320,7 +327,7 @@ export function useDocumentContentEditorWebSocket(
     // the access level persisted in our database is what we evaluate permission
     // checks with. But it doesn't hurt to optimistically lower the permissions
     // allowed in the UI immediately upon the access policy changing.
-    const currentAccessLevel = useMemo(
+    const accessLevel = useMemo(
         () =>
             minAccessLevel(
                 getAccountAccessLevelAssumingSpaceAccess(
@@ -335,13 +342,13 @@ export function useDocumentContentEditorWebSocket(
         [content.doc.attrs.accessPolicy, currentAccount.id, persistedContent.attrs.accessPolicy],
     );
 
-    if (currentAccessLevel === null) {
+    if (accessLevel === null) {
         throw new PermissionDeniedError("Current account lost access to document", {
             displayMessage: documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
         });
     }
 
-    const withoutComments = !hasAccessLevel(currentAccessLevel, "Comment");
+    const withoutComments = !hasAccessLevel(accessLevel, "Comment");
 
     // Re-initialize client if `withoutComments` changes to true. This will happen
     // when going from `Comment` (or higher) access level to `View`.
@@ -359,6 +366,7 @@ export function useDocumentContentEditorWebSocket(
                 documentId: clientState.client.documentId,
                 withoutComments,
                 initialState: getInitialDocumentContentEditorState({
+                    currentAccountId: currentAccount.id,
                     initialVersion: state.editorState.getVersion(),
                     initialContent: {
                         doc: assertDocumentContent(
@@ -410,6 +418,7 @@ export function useDocumentContentEditorWebSocket(
                     documentId: document.id,
                     withoutComments: false,
                     initialState: getInitialDocumentContentEditorState({
+                        currentAccountId: currentAccount.id,
                         initialVersion: document.version,
                         initialContent: document.content,
                         // Try to maintain the user's selection while resetting state.
@@ -421,7 +430,7 @@ export function useDocumentContentEditorWebSocket(
                 }),
             });
         }, setErrorState);
-    }, [clientState, context, setErrorState, withoutComments]);
+    }, [clientState, context, currentAccount.id, setErrorState, withoutComments]);
 
     return {
         spaceId: space.id,
@@ -439,8 +448,30 @@ export function useDocumentContentEditorWebSocket(
             },
             [clientState],
         ),
+        onClearOurPresenceState: useCallback(() => {
+            if (clientState.type === "Exists") {
+                clientState.client.clearOurPresenceState();
+            } else {
+                clientState.state.set(state =>
+                    reduceDocumentContentEditorState(state, [
+                        {type: "Extra", extra: {type: "ClearOurPresenceState"}},
+                    ]),
+                );
+            }
+        }, [clientState]),
+        onUnclearOurPresenceState: useCallback(() => {
+            if (clientState.type === "Exists") {
+                clientState.client.unclearOurPresenceState();
+            } else {
+                clientState.state.set(state =>
+                    reduceDocumentContentEditorState(state, [
+                        {type: "Extra", extra: {type: "UnclearOurPresenceState"}},
+                    ]),
+                );
+            }
+        }, [clientState]),
         content,
-        currentAccessLevel,
+        accessLevel,
         otherPresenceStateByConnectionId: state.extra.otherPresenceStateByConnectionId,
         rememberedSteps: state.extra.rememberedSteps,
         unpersistedResolutionStateByCommentThreadId:

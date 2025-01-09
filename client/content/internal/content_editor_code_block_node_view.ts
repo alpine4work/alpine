@@ -22,6 +22,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 //
 // IMPORTANT: Any change you make to this function also likely must be made to
 // the `codeBlock` node renderer in `renderContentInHtml()`.
+//
+// NOCOMMIT: Read-only mode
 export function createContentEditorCodeBlockNodeViewConstructor({
     getReporter,
     onCodeBlockLanguagePickerOpen,

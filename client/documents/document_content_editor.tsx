@@ -245,8 +245,10 @@ export function DocumentContentEditor({
         isConnected,
         editorState,
         onEditorStateChange,
+        onClearOurPresenceState,
+        onUnclearOurPresenceState,
         content,
-        currentAccessLevel,
+        accessLevel,
         otherPresenceStateByConnectionId,
         rememberedSteps,
         toggleShouldConnect,
@@ -1551,7 +1553,7 @@ export function DocumentContentEditor({
             accessPolicy: content.doc.attrs.accessPolicy,
             onAccessPolicyChange: accessPolicy =>
                 onEditorStateChange(editorState.setAccessPolicy(accessPolicy)),
-            isReadOnly: !hasAccessLevel(currentAccessLevel, "Manage"),
+            isReadOnly: !hasAccessLevel(accessLevel, "Manage"),
             onCopyLink: handleCopyLink,
         },
         desktopTitleMaxWidth: contentStyles.contentMaxWidth,
@@ -1650,6 +1652,7 @@ export function DocumentContentEditor({
                             }}
                             aria-label="Document"
                             placeholder="Share your ideas…"
+                            accessLevel={accessLevel}
                             // While the sidebar is open, don't render our document toolbar. It would be
                             // weird for it to pop up when writing a comment.
                             withoutMobileKeyboardToolbar={sidebarState.isOpen}
@@ -1670,6 +1673,8 @@ export function DocumentContentEditor({
                                     return pressedCommentThreadId;
                                 });
                             }}
+                            onSelectionLeave={onClearOurPresenceState}
+                            onFocus={onUnclearOurPresenceState}
                         />
                         {
                             // IMPORTANT: It's important that this element is below `<ContentEditor>` so

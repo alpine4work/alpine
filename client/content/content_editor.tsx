@@ -146,6 +146,7 @@ import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensi
 import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {colorSchemeVars, contentEditorStyles, contentStyles} from "~/client/styles/styles.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {getContentReferencedIdsForSlice} from "~/shared/content/content_referenced_ids.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
@@ -414,6 +415,15 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     containerClassName?: string;
 
     /**
+     * The access level to use for this content editor. If "View" then the editor
+     * will be in readonly mode and not allow changes. In "Comment" mode, we also
+     * won't allow changes except to add new comment threads.
+     *
+     * If undefined then we assume you have the highest access level possible.
+     */
+    accessLevel?: AccessLevel;
+
+    /**
      * Don't render the mobile keyboard toolbar with this content editor. Use this
      * if you render your own toolbar outside the `<ContentEditor>`.
      * `<MessageInput>` is a component that does this.
@@ -483,6 +493,12 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * Event fired when the user unfocuses the content editor.
      */
     onBlur?: (event: FocusEvent<HTMLDivElement>) => void;
+
+    /**
+     * Called when the selection leaves the content editor. Documents should
+     * use this to turn off the phantom selection for their connection.
+     */
+    onSelectionLeave?: () => void;
 
     /**
      * Fired when the user presses enter in a content editor.
@@ -750,6 +766,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         className,
         style,
         containerClassName: customContainerClassName,
+        accessLevel = "Manage",
         withoutMobileKeyboardToolbar,
         withoutMobileDualModality,
         "aria-label": ariaLabel,
@@ -974,15 +991,20 @@ function ContentEditor<Content extends ContentWithReferences>(
         const schema = initialState.doc.type.schema;
 
         const initialIsDualModality = isDualModalityRef.current;
+        const initialAccessLevel = propsRef.current.accessLevel ?? "Manage";
+        const initialHasEditAccessLevel = hasAccessLevel(initialAccessLevel, "Edit");
 
         const viewProps: DirectEditorProps = {
             state: initialState,
 
-            // On mobile devices we implement dual interaction modality. Before any
-            // interaction the content is read-only. Tapping on links follows the link
-            // instead of editing the content. Tapping on text switches to an editing
-            // modality where tapping on a link instead edits the text.
-            editable: () => !initialIsDualModality,
+            editable: () =>
+                initialHasEditAccessLevel &&
+                // On mobile devices we implement dual interaction modality. Before any
+                // interaction the content is read-only. Tapping on links follows the link
+                // instead of editing the content. Tapping on text switches to an editing
+                // modality and now while in an editing modality tapping on a link edits the
+                // link's text.
+                !initialIsDualModality,
 
             attributes: {
                 // Native spellcheck is often more distracting then it's worth. It puts a red
@@ -2611,6 +2633,13 @@ function ContentEditor<Content extends ContentWithReferences>(
             return false;
         };
 
+        // We add this handler in a patch to `prosemirror-view`.
+        viewProps.handleSelectionLeave = () => {
+            propsRef.current.onSelectionLeave?.();
+
+            return false;
+        };
+
         /* ========================================================================== *\
          *                 ProseMirror/React reconciliation (part 1)                  *
         \* ========================================================================== */
@@ -3032,8 +3061,10 @@ function ContentEditor<Content extends ContentWithReferences>(
     useLayoutEffect(() => {
         const view = assertExists(viewRef.current);
 
+        const hasEditAccessLevel = hasAccessLevel(accessLevel, "Edit");
+
         view.setProps({
-            editable: () => !isDualModality || isFocused,
+            editable: () => hasEditAccessLevel && (!isDualModality || isFocused),
 
             decorations: state => {
                 let decorationSet = DecorationSet.empty;
@@ -3054,7 +3085,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 return decorationSet;
             },
         });
-    }, [decorationCallbacks, isDualModality, isFocused]);
+    }, [accessLevel, decorationCallbacks, isDualModality, isFocused]);
 
     /* ========================================================================== *\
      *                              View attributes                               *

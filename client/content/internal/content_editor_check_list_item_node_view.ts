@@ -6,6 +6,7 @@ import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {contentStyles} from "~/client/styles/styles.js";
 
+// NOCOMMIT: Read-only mode
 export function createContentEditorCheckListItemNodeView(
     node: Node,
     view: EditorView,
