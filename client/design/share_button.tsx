@@ -77,7 +77,7 @@ export function ShareButton({
                 placement="bottom"
                 offset="3"
                 overlay={({onCloseWithoutAnimation}) => (
-                    <Box>
+                    <Box paddingX="3">
                         <ShareOverlay
                             accessPolicy={accessPolicy}
                             onAccessPolicyChange={onAccessPolicyChange}
@@ -230,7 +230,6 @@ function ShareOverlay({
             backgroundColor="grey-0"
             borderRadius="2.5"
             boxShadow="elevation-20"
-            marginX="2"
             width="96"
             padding="5"
         >
