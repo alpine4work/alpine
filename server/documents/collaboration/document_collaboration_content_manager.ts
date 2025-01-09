@@ -31,6 +31,7 @@ import {
     InternalError,
     InvalidArgumentError,
 } from "~/shared/error/error.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -120,6 +121,12 @@ export class DocumentCollaborationContentManager {
     private _persistedVersion: number;
 
     /**
+     * The access policy that's currently persisted to the database. Matches the
+     * access policy for the document at `_persistedVersion`.
+     */
+    private _persistedAccessPolicy: AccessPolicy;
+
+    /**
      * Comment threads created during this durable object's lifetime. Comment
      * threads are actually created at the same time as an
      * `updateDocumentContent()` call. But document persistence in our durable
@@ -173,6 +180,7 @@ export class DocumentCollaborationContentManager {
             content: initialContent,
         });
         this._persistedVersion = initialVersion;
+        this._persistedAccessPolicy = initialContent.attrs.accessPolicy;
         this.stepCache = new DocumentCollaborationStepCache(id, initialVersion);
         this._sendEventToAll = sendEventToAll;
         this._killProcess = killProcess;
@@ -199,6 +207,22 @@ export class DocumentCollaborationContentManager {
      */
     public getPersistedVersion() {
         return this._persistedVersion;
+    }
+
+    /**
+     * Get the access policy that's persisted in the database. Authorization
+     * decisions should be made based on the persisted access policy not the
+     * optimistic access policy in our content manager.
+     *
+     * This will be the same access policy as the one in the document at
+     * `getPersistedVersion()`.
+     *
+     * This is mutable and will change over time as users update the
+     * document content!
+     */
+    // NOCOMMIT: Do we need this?
+    public getPersistedAccessPolicy() {
+        return this._persistedAccessPolicy;
     }
 
     /**
@@ -468,11 +492,18 @@ export class DocumentCollaborationContentManager {
                                 // We save steps anyway to preserve as much user data as we can.
                                 if (conflictingSteps.length > 0) {
                                     throw new InternalError(
-                                        "Some process updated document content other than the document's durable object. This may cause many downstream issues as a core assumption about the document collaboration implementation has been violated",
+                                        "Some process updated document content other than the document's durable object. This may cause downstream issues as a core assumption about the document collaboration implementation has been violated",
                                     );
                                 }
 
                                 this._persistedVersion = oldVersion + nextSteps.length;
+
+                                // `intentionallyUpdateAccessPolicy` should always be set when updating the
+                                // access policy. So we can use it to know when to update
+                                // `_persistedAccessPolicy`.
+                                if (nextIntentionallyUpdateAccessPolicyRef.current)
+                                    this._persistedAccessPolicy =
+                                        nextIntentionallyUpdateAccessPolicyRef.current;
 
                                 // Cleanup comment threads that have been persisted. We will be able to fetch
                                 // the latest value from the database from here on out.
@@ -497,7 +528,9 @@ export class DocumentCollaborationContentManager {
                                 // Upgrade the severity to internal since the client has already seen the update.
                                 //
                                 // The client will also attempt to reconnect on a system error.
-                                const error = InternalError.from(unknownError);
+                                const error = !isSystemError(unknownError)
+                                    ? InternalError.from(unknownError)
+                                    : unknownError;
 
                                 span.addException(error);
 
