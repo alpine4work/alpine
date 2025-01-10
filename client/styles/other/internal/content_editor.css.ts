@@ -1,6 +1,7 @@
 import {globalStyle, style} from "@vanilla-extract/css";
 import {darkColorSchemeSelector} from "~/client/styles/core/styles_core.js";
 import {
+    checkListItemCheckboxContainerClassName,
     docClassName,
     mentionClassName,
     narrowRouteLayoutDocClassName,
@@ -126,3 +127,10 @@ globalStyle(
         color: "inherit",
     },
 );
+
+export const hasNoEditAccessClassName = style({});
+
+globalStyle(`${hasNoEditAccessClassName} ${checkListItemCheckboxContainerClassName}`, {
+    cursor: "inherit",
+    userSelect: "inherit",
+});

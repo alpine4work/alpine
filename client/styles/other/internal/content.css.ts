@@ -518,7 +518,6 @@ export const checkListItemCheckboxContainerClassName = style({
             getCheckListItemCheckboxContainerPosition("desktop", "medium"),
         [`${desktopPlatformSelector}${largeSpacingScaleSelector} &`]:
             getCheckListItemCheckboxContainerPosition("desktop", "large"),
-
         [`${mobilePlatformSelector} &`]: getCheckListItemCheckboxContainerPosition(
             "mobile",
             "small",

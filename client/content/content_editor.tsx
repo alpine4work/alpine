@@ -53,7 +53,7 @@ import {
 } from "~/client/content/content_editor_state.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
-import {createContentEditorCheckListItemNodeView} from "~/client/content/internal/content_editor_check_list_item_node_view.js";
+import {createContentEditorCheckListItemNodeViewConstructor} from "~/client/content/internal/content_editor_check_list_item_node_view.js";
 import {ContentEditorCodeBlockLanguagePickerComboBox} from "~/client/content/internal/content_editor_code_block_language_picker_combo_box.js";
 import {createContentEditorCodeBlockNodeViewConstructor} from "~/client/content/internal/content_editor_code_block_node_view.js";
 import {createContentEditorCommentMarkViewConstructor} from "~/client/content/internal/content_editor_comment_mark_view.js";
@@ -788,6 +788,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         commentFileAttachmentTarget,
     } = props;
 
+    const hasEditAccessLevel = hasAccessLevel(accessLevel, "Edit");
+
     /* ========================================================================== *\
      *                                  Context                                   *
     \* ========================================================================== */
@@ -1121,9 +1123,12 @@ function ContentEditor<Content extends ContentWithReferences>(
         // `renderContentToHtml()`.
         viewProps.nodeViews = {
             orderedListItem: createContentEditorOrderedListItemNodeView,
-            checkListItem: createContentEditorCheckListItemNodeView,
+            checkListItem: createContentEditorCheckListItemNodeViewConstructor({
+                getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
+            }),
             codeBlock: createContentEditorCodeBlockNodeViewConstructor({
                 getReporter: () => reporterRef.current,
+                getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
                 onCodeBlockLanguagePickerOpen: ({targetElement, languageId, getPos}) =>
                     setCodeBlockLanguagePickerState({
                         key: generateId(),
@@ -3083,8 +3088,6 @@ function ContentEditor<Content extends ContentWithReferences>(
     useLayoutEffect(() => {
         const view = assertExists(viewRef.current);
 
-        const hasEditAccessLevel = hasAccessLevel(accessLevel, "Edit");
-
         view.setProps({
             editable: () => hasEditAccessLevel && (!isDualModality || isFocused),
 
@@ -3107,7 +3110,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 return decorationSet;
             },
         });
-    }, [accessLevel, decorationCallbacks, isDualModality, isFocused]);
+    }, [accessLevel, decorationCallbacks, hasEditAccessLevel, isDualModality, isFocused]);
 
     /* ========================================================================== *\
      *                              View attributes                               *
@@ -3898,7 +3901,11 @@ function ContentEditor<Content extends ContentWithReferences>(
     const canUndo = state.undoDepth() > 0;
     const canRedo = state.redoDepth() > 0;
 
-    const getContextMenuActions = useCallback((): Array<Array<MenuAction>> => {
+    const getContextMenuActions = useCallback((): ReadonlyArray<ReadonlyArray<MenuAction>> => {
+        // You can't undo, redo, or insert if you don't have edit access to the
+        // document.
+        if (!hasEditAccessLevel) return emptyArray;
+
         const insertMenuActions: Array<Array<MenuAction>> = [];
 
         if (schema.nodes.file) {
@@ -4119,7 +4126,16 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
             ],
         ];
-    }, [canRedo, canUndo, clientInfo.isAppleDevice, schema]);
+    }, [
+        canRedo,
+        canUndo,
+        clientInfo.isAppleDevice,
+        hasEditAccessLevel,
+        schema.nodes.checkListItem,
+        schema.nodes.divider,
+        schema.nodes.file,
+        schema.nodes.heading,
+    ]);
 
     // Manually add context menu actions on `contextmenu` event since we can't
     // render a `<ContextMenu>` component which would break our
@@ -4149,6 +4165,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 !canPrimaryInputHover
                     ? contentEditorStyles.canNotPrimaryInputHoverContainerClassName
                     : undefined,
+                !hasEditAccessLevel ? contentEditorStyles.hasNoEditAccessClassName : undefined,
                 customContainerClassName,
             )}
             onFocus={onFocus}
