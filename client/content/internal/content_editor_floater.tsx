@@ -31,6 +31,7 @@ import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {overlayFadeOutAnimationDurationMs} from "~/client/styles/styles.js";
+import {AccessLevel} from "~/shared/access/access_policy.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -43,19 +44,23 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 export function ContentEditorFloater({
     platform,
     state,
+    accessLevel,
     viewRef,
     floaterState,
     setFloaterState,
     isFocused,
+    hasSelectionEnteredWhenUnfocused,
     setDecorationCallbacks,
     commentFileAttachmentTarget,
 }: {
     platform: Platform;
     state: EditorState & {schema: ContentProsemirrorSchema};
+    accessLevel: AccessLevel;
     viewRef: RefObject<EditorView | null>;
     floaterState: ContentEditorFloaterState;
     setFloaterState: (floaterState: ContentEditorFloaterState) => void;
     isFocused: boolean;
+    hasSelectionEnteredWhenUnfocused: boolean;
     setDecorationCallbacks: Dispatch<
         SetStateAction<
             ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
@@ -71,9 +76,11 @@ export function ContentEditorFloater({
             return (
                 <ContentEditorPointerToolbar
                     state={state}
+                    accessLevel={accessLevel}
                     viewRef={viewRef}
                     previousState={floaterState.previousState}
                     isFocused={isFocused}
+                    hasSelectionEnteredWhenUnfocused={hasSelectionEnteredWhenUnfocused}
                     setDecorationCallbacks={setDecorationCallbacks}
                 />
             );

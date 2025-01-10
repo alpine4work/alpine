@@ -1674,7 +1674,7 @@ export function DocumentContentEditor({
                                 });
                             }}
                             onSelectionLeave={onClearOurPresenceState}
-                            onFocus={onUnclearOurPresenceState}
+                            onSelectionEnter={onUnclearOurPresenceState}
                         />
                         {
                             // IMPORTANT: It's important that this element is below `<ContentEditor>` so
@@ -2312,7 +2312,7 @@ function DocumentContentEditorSidebar({
                 </Box>
             )}
             <Box flexGrow="1" height="full" />
-            <Box flexShrink="0" paddingX="1.5" width={platform === "mobile" ? "9" : "7"}>
+            <Box flexShrink="0" paddingX="1.5" width={platform === "mobile" ? "9" : "8"}>
                 <IconButton
                     size={platform === "mobile" ? "md" : "xs"}
                     description="Close"

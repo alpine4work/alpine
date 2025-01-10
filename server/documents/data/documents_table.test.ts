@@ -5,6 +5,7 @@ import {
     AttrStep,
     DocAttrStep,
     RemoveMarkStep,
+    RemoveNodeMarkStep,
     ReplaceAroundStep,
     ReplaceStep,
     Step,
@@ -6603,6 +6604,456 @@ test("getting a document with optional comments strips comments if the actor onl
     ).rejects.toThrow(PermissionDeniedError);
 });
 
+test("can make updates to comment marks with comment access", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1, {
+        access: TestAccessPolicy.private.withDefault("Comment"),
+    });
+
+    await updateDocumentContent(session1.action(), {
+        id: document.id,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("foo"))],
+        clientId: generateId(),
+    });
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 1,
+        content: schema
+            .node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, [schema.text("foo")]),
+            ])
+            .toJSON(),
+    });
+
+    await expect(
+        updateDocumentContent(session2.action(), {
+            id: document.id,
+            version: 1,
+            steps: [new ReplaceStep(6, 6, textSlice("bar"))],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 1,
+        content: schema
+            .node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, [schema.text("foo")]),
+            ])
+            .toJSON(),
+    });
+
+    const commentThreadId = generateId<DocumentCommentThreadId>();
+
+    await expect(
+        updateDocumentContent(session2.action(), {
+            id: document.id,
+            version: 1,
+            steps: [
+                new AddMarkStep(4, 6, schema.mark("comment", {commentThreadId})),
+                new ReplaceStep(6, 6, textSlice("bar")),
+            ],
+            clientId: generateId(),
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test comment 1"),
+                    initialCommentFileIds: [],
+                },
+            ],
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
+
+    await expect(
+        updateDocumentContent(session2.action(), {
+            id: document.id,
+            version: 1,
+            steps: [
+                new ReplaceStep(6, 6, textSlice("bar")),
+                new AddMarkStep(4, 6, schema.mark("comment", {commentThreadId})),
+            ],
+            clientId: generateId(),
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test comment 1"),
+                    initialCommentFileIds: [],
+                },
+            ],
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
+
+    await expect(
+        updateDocumentContent(session2.action(), {
+            id: document.id,
+            version: 1,
+            steps: [new AddMarkStep(4, 6, schema.mark("bold", {commentThreadId}))],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 1,
+        content: schema
+            .node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, [schema.text("foo")]),
+            ])
+            .toJSON(),
+    });
+
+    await updateDocumentContent(session2.action(), {
+        id: document.id,
+        version: 1,
+        steps: [new AddMarkStep(4, 6, schema.mark("comment", {commentThreadId}))],
+        clientId: generateId(),
+        createCommentThreads: [
+            {
+                commentThreadId,
+                initialCommentContent: createSimpleMessageContent("Test comment 1"),
+                initialCommentFileIds: [],
+            },
+        ],
+    });
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 2,
+        content: schema
+            .node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, [
+                    schema.text("f"),
+                    schema.text("oo", [schema.mark("comment", {commentThreadId})]),
+                ]),
+            ])
+            .toJSON(),
+    });
+
+    await expect(
+        updateDocumentContent(session2.action(), {
+            id: document.id,
+            version: 1,
+            steps: [
+                new RemoveAllMarksStep(schema.mark("comment", {commentThreadId})),
+                new ReplaceStep(6, 6, textSlice("bar")),
+            ],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
+
+    await expect(
+        updateDocumentContent(session2.action(), {
+            id: document.id,
+            version: 1,
+            steps: [
+                new ReplaceStep(6, 6, textSlice("bar")),
+                new RemoveAllMarksStep(schema.mark("comment", {commentThreadId})),
+            ],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
+
+    await expect(
+        updateDocumentContent(session2.action(), {
+            id: document.id,
+            version: 1,
+            steps: [new RemoveAllMarksStep(schema.mark("bold"))],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 2,
+        content: schema
+            .node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, [
+                    schema.text("f"),
+                    schema.text("oo", [schema.mark("comment", {commentThreadId})]),
+                ]),
+            ])
+            .toJSON(),
+    });
+
+    await updateDocumentContent(session2.action(), {
+        id: document.id,
+        version: 2,
+        steps: [new RemoveAllMarksStep(schema.mark("comment", {commentThreadId}))],
+        clientId: generateId(),
+        resolveCommentThreadIds: [commentThreadId],
+    });
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 3,
+        content: schema
+            .node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, [schema.text("foo")]),
+            ])
+            .toJSON(),
+    });
+
+    await expect(
+        updateDocumentContent(session2.action(), {
+            id: document.id,
+            version: 3,
+            steps: [
+                new AddMarksAfterRemoveAllStep(schema.mark("comment", {commentThreadId}), [
+                    {from: 4, to: 6, isNode: false},
+                ]),
+                new ReplaceStep(6, 6, textSlice("bar")),
+            ],
+            clientId: generateId(),
+            unresolveCommentThreadIds: [commentThreadId],
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
+
+    await expect(
+        updateDocumentContent(session2.action(), {
+            id: document.id,
+            version: 3,
+            steps: [
+                new ReplaceStep(6, 6, textSlice("bar")),
+                new AddMarksAfterRemoveAllStep(schema.mark("comment", {commentThreadId}), [
+                    {from: 4, to: 6, isNode: false},
+                ]),
+            ],
+            clientId: generateId(),
+            unresolveCommentThreadIds: [commentThreadId],
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
+
+    await expect(
+        updateDocumentContent(session2.action(), {
+            id: document.id,
+            version: 3,
+            steps: [
+                new AddMarksAfterRemoveAllStep(schema.mark("bold"), [
+                    {from: 4, to: 6, isNode: false},
+                ]),
+            ],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 3,
+        content: schema
+            .node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, [schema.text("foo")]),
+            ])
+            .toJSON(),
+    });
+
+    await updateDocumentContent(session2.action(), {
+        id: document.id,
+        version: 3,
+        steps: [
+            new AddMarksAfterRemoveAllStep(schema.mark("comment", {commentThreadId}), [
+                {from: 4, to: 6, isNode: false},
+            ]),
+        ],
+        clientId: generateId(),
+        unresolveCommentThreadIds: [commentThreadId],
+    });
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 4,
+        content: schema
+            .node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, [
+                    schema.text("f"),
+                    schema.text("oo", [schema.mark("comment", {commentThreadId})]),
+                ]),
+            ])
+            .toJSON(),
+    });
+});
+
+test("can add comment mark to `file` node in a document with comment access level", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1, {
+        access: TestAccessPolicy.private.with(session2, "Comment"),
+    });
+
+    const file = await TestFile.create(session1);
+
+    await attachFileAsUploader(
+        session1.action(),
+        space.id,
+        file.id,
+        FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
+    );
+
+    await updateDocumentContent(session1.action(), {
+        id: document.id,
+        version: 0,
+        steps: [
+            new ReplaceStep(
+                2,
+                4,
+                new Slice(
+                    Fragment.from(
+                        schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
+                    ),
+                    0,
+                    0,
+                ),
+            ),
+        ],
+        clientId: generateId(),
+    });
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 1,
+        content: schema
+            .node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title", {}),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file.id}, [])]),
+            ])
+            .toJSON(),
+    });
+
+    const commentThreadId = generateId<DocumentCommentThreadId>();
+
+    await expect(
+        updateDocumentContent(session2.action(), {
+            id: document.id,
+            version: 1,
+            steps: [
+                new AddNodeMarkStep(3, schema.marks.comment.create({commentThreadId})),
+                new ReplaceStep(6, 6, textSlice("bar")),
+            ],
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test comment"),
+                    initialCommentFileIds: [],
+                },
+            ],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
+
+    await expect(
+        updateDocumentContent(session2.action(), {
+            id: document.id,
+            version: 1,
+            steps: [
+                new ReplaceStep(6, 6, textSlice("bar")),
+                new AddNodeMarkStep(3, schema.marks.comment.create({commentThreadId})),
+            ],
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test comment"),
+                    initialCommentFileIds: [],
+                },
+            ],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
+
+    await expect(
+        updateDocumentContent(session2.action(), {
+            id: document.id,
+            version: 1,
+            steps: [new AddNodeMarkStep(3, schema.marks.bold.create())],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
+
+    await updateDocumentContent(session2.action(), {
+        id: document.id,
+        version: 1,
+        steps: [new AddNodeMarkStep(3, schema.marks.comment.create({commentThreadId}))],
+        createCommentThreads: [
+            {
+                commentThreadId,
+                initialCommentContent: createSimpleMessageContent("Test comment"),
+                initialCommentFileIds: [],
+            },
+        ],
+        clientId: generateId(),
+    });
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 2,
+        content: schema
+            .node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title", {}),
+                schema.node("fileRow", {}, [
+                    schema.node(
+                        "file",
+                        {fileId: file.id},
+                        [],
+                        [schema.mark("comment", {commentThreadId})],
+                    ),
+                ]),
+            ])
+            .toJSON(),
+    });
+
+    await expect(
+        updateDocumentContent(session2.action(), {
+            id: document.id,
+            version: 2,
+            steps: [
+                new RemoveNodeMarkStep(3, schema.marks.comment.create({commentThreadId})),
+                new ReplaceStep(6, 6, textSlice("bar")),
+            ],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
+
+    await expect(
+        updateDocumentContent(session2.action(), {
+            id: document.id,
+            version: 2,
+            steps: [
+                new ReplaceStep(6, 6, textSlice("bar")),
+                new RemoveNodeMarkStep(3, schema.marks.comment.create({commentThreadId})),
+            ],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
+
+    await expect(
+        updateDocumentContent(session2.action(), {
+            id: document.id,
+            version: 2,
+            steps: [new RemoveNodeMarkStep(3, schema.marks.bold.create())],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
+
+    await updateDocumentContent(session2.action(), {
+        id: document.id,
+        version: 2,
+        steps: [new RemoveNodeMarkStep(3, schema.marks.comment.create({commentThreadId}))],
+        clientId: generateId(),
+    });
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 3,
+        content: schema
+            .node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title", {}),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
+            ])
+            .toJSON(),
+    });
+});
+
 describe("Comments", () => {
     test("can create a comment thread while updating content", async () => {
         const DocumentsTable = getDocumentsTableForTest();
@@ -11599,7 +12050,7 @@ describe("Comments", () => {
             ),
         ).rejects.toThrow(
             new InvalidArgumentError(
-                "Can only update with `removeAllMarks` steps when resolving a comment thread",
+                "When resolving a comment thread only `removeAllMarks` steps can be used",
             ),
         );
     });

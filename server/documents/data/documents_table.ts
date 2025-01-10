@@ -1,6 +1,12 @@
 import {differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
-import {Step} from "prosemirror-transform";
+import {
+    AddMarkStep,
+    AddNodeMarkStep,
+    RemoveMarkStep,
+    RemoveNodeMarkStep,
+    Step,
+} from "prosemirror-transform";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {
     getContentReferencesForNode,
@@ -2677,7 +2683,7 @@ export async function updateDocumentContent(
             // don't move positions. e.g. `RemoveAllMarksStep` or `AddMarkStep`.
             if (!clientSteps.every(step => step instanceof RemoveAllMarksStep)) {
                 throw new InvalidArgumentError(
-                    "Can only update with `removeAllMarks` steps when resolving a comment thread",
+                    "When resolving a comment thread only `removeAllMarks` steps can be used",
                 );
             }
         }
@@ -2686,11 +2692,32 @@ export async function updateDocumentContent(
         if (!internalDocument)
             throw new NotFoundError("Can not update document that doesn't exist");
 
+        let expectedAccessLevel: AccessLevel = "Edit";
+
+        // If the client is ONLY adding or removing comment marks then its ok if they
+        // have the comment access level instead of the edit access level.
+        if (
+            clientSteps.every(
+                step =>
+                    (step instanceof AddMarkStep && step.mark.type.name === "comment") ||
+                    (step instanceof RemoveMarkStep && step.mark.type.name === "comment") ||
+                    (step instanceof AddNodeMarkStep && step.mark.type.name === "comment") ||
+                    (step instanceof RemoveNodeMarkStep && step.mark.type.name === "comment") ||
+                    (step instanceof AddMarksAfterRemoveAllStep &&
+                        step.mark.type.name === "comment") ||
+                    (step instanceof RemoveAllMarksStep && step.mark.type.name === "comment"),
+            )
+        ) {
+            expectedAccessLevel = "Comment";
+        }
+
         // Make sure we have edit access to the document before continuing. Another
         // user with access may have cached the document so it's important we check
         // permissions here.
-        if (!(await isDocumentItemAccessAuthorized(context, internalDocument, "Edit"))) {
-            throw createDocumentPermissionDeniedError("Edit");
+        if (
+            !(await isDocumentItemAccessAuthorized(context, internalDocument, expectedAccessLevel))
+        ) {
+            throw createDocumentPermissionDeniedError(expectedAccessLevel);
         }
 
         const [{newContent, steps, invertedSteps, conflictingSteps}] = await runAllPromises([

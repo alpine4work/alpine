@@ -76,6 +76,7 @@ import {
     insertContentTable,
     insertContentUnorderedListItem,
 } from "~/client/content/internal/content_editor_insert.js";
+import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_keymap_plugin.js";
 import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
 import {createContentEditorMentionNodeViewConstructor} from "~/client/content/internal/content_editor_mention_node_view.js";
 import {ContentEditorMobileCommentInputBottomBar} from "~/client/content/internal/content_editor_mobile_comment_input_bottom_bar.js";
@@ -495,8 +496,16 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     onBlur?: (event: FocusEvent<HTMLDivElement>) => void;
 
     /**
-     * Called when the selection leaves the content editor. Documents should
-     * use this to turn off the phantom selection for their connection.
+     * Called when the selection enters the content editor. This works regardless
+     * of the `accessLevel`. If the `accessLevel` is `View` then we'll still call
+     * this function even though the editor isn't editable.
+     */
+    onSelectionEnter?: () => void;
+
+    /**
+     * Called when the selection leaves the content editor. This works regardless
+     * of the `accessLevel`. If the `accessLevel` is `View` then we'll still call
+     * this function even though the editor isn't editable.
      */
     onSelectionLeave?: () => void;
 
@@ -2634,9 +2643,16 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
 
         // We add this handler in a patch to `prosemirror-view`.
-        viewProps.handleSelectionLeave = () => {
-            propsRef.current.onSelectionLeave?.();
+        viewProps.handleSelectionEnter = () => {
+            if (!view.hasFocus()) setHasSelectionEnteredWhenUnfocused(true);
+            propsRef.current.onSelectionEnter?.();
+            return false;
+        };
 
+        // We add this handler in a patch to `prosemirror-view`.
+        viewProps.handleSelectionLeave = () => {
+            if (!view.hasFocus()) setHasSelectionEnteredWhenUnfocused(false);
+            propsRef.current.onSelectionLeave?.();
             return false;
         };
 
@@ -3053,6 +3069,12 @@ function ContentEditor<Content extends ContentWithReferences>(
     \* ========================================================================== */
 
     const [isFocused, setIsFocused] = useState(false);
+
+    // Will be true if the selection has entered the `<ContentEditor>` but the
+    // editor isn't focused. For example, when `accessLevel` is `View` and we're
+    // selecting text.
+    const [hasSelectionEnteredWhenUnfocused, setHasSelectionEnteredWhenUnfocused] = useState(false);
+    if (isFocused && hasSelectionEnteredWhenUnfocused) setHasSelectionEnteredWhenUnfocused(false);
 
     const [decorationCallbacks, setDecorationCallbacks] = useState<
         ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
@@ -4136,6 +4158,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             <ContentEditorFloater
                 platform={platform}
                 state={unwrappedState}
+                accessLevel={accessLevel}
                 viewRef={viewRef}
                 floaterState={floaterState}
                 setFloaterState={floaterState => {
@@ -4143,6 +4166,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     view.dispatch(setContentEditorFloaterState(view.state.tr, floaterState));
                 }}
                 isFocused={isFocused}
+                hasSelectionEnteredWhenUnfocused={hasSelectionEnteredWhenUnfocused}
                 setDecorationCallbacks={setDecorationCallbacks}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
@@ -4361,6 +4385,46 @@ function ContentEditor<Content extends ContentWithReferences>(
                         }}
                     />
                 )}
+            {hasSelectionEnteredWhenUnfocused && !unwrappedState.selection.empty && (
+                // When `accessLevel` is `Comment` add a global keydown listener for the
+                // comment keyboard shortcut. Since the content editor won't be focused while
+                // in read-only mode we need to listen to global keydown events.
+                <GlobalKeyDownEvent
+                    onGlobalKeyDown={event => {
+                        const view = assertExists(viewRef.current);
+                        const {state} = view;
+
+                        if (
+                            !view.editable &&
+                            event.key === "c" &&
+                            event.shiftKey &&
+                            (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
+                        ) {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            if (state.selection.from !== state.selection.to) {
+                                let isCommentSupported = false;
+                                state.doc.nodesBetween(
+                                    state.selection.from,
+                                    state.selection.to,
+                                    node => {
+                                        isCommentSupported ||=
+                                            !!schema.marks.comment &&
+                                            node.type.allowsMarkType(schema.marks.comment);
+                                    },
+                                );
+
+                                if (isCommentSupported) {
+                                    view.dispatch(
+                                        state.tr.setMeta(openCommentInputFloaterMetaKey, true),
+                                    );
+                                }
+                            }
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 }

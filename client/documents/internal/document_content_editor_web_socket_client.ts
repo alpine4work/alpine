@@ -286,6 +286,13 @@ export class DocumentContentEditorWebSocketClient {
                                         ) &&
                                         state.persistedVersion < state.editorState.getVersion()
                                     ) {
+                                        // Dispatching `ResetToPersistedVersion` also resets `pendingSendableSteps` and
+                                        // `ourPresenceState`. Reset these variables so the next update can work
+                                        // properly.
+                                        updateGeneration += 1;
+                                        lastPendingSendableStepsVersionSentToServer = null;
+                                        lastOurPresenceStateSentToServer = null;
+
                                         this._dispatch({
                                             type: "Extra",
                                             extra: {type: "ResetToPersistedVersion"},
@@ -522,6 +529,10 @@ export class DocumentContentEditorWebSocketClient {
                                 //
                                 // We'd like to avoid resetting the user's pending steps if possible since
                                 // that's data loss.
+                                //
+                                // TODO(calebmer): This logic needs to be ported to
+                                // `TaskDetailNotesContentEditorWebSocketClient` but task notes currently doesn't
+                                // have remembered steps which we need to implement this.
                                 if (
                                     isTransientError(error) &&
                                     this._updateContentRetryErrorCount < 2
@@ -530,6 +541,13 @@ export class DocumentContentEditorWebSocketClient {
                                     this._dispatch({type: "Error", error});
                                 } else {
                                     this._updateContentRetryErrorCount = 0;
+
+                                    // Dispatching `ResetToPersistedVersion` also resets `pendingSendableSteps` and
+                                    // `ourPresenceState`. Reset these variables so the next update can work
+                                    // properly.
+                                    updateGeneration += 1;
+                                    lastPendingSendableStepsVersionSentToServer = null;
+                                    lastOurPresenceStateSentToServer = null;
 
                                     this._dispatchBatch([
                                         {type: "Extra", extra: {type: "ResetToPersistedVersion"}},

@@ -1,5 +1,5 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..47bbbbd6b93c89c94206a7bda459fc6c93eb1d23 100644
+index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..aada05987b0823f358818b7e100a97f4d0a5a9e2 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
 @@ -181,8 +181,32 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -107,16 +107,42 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..47bbbbd6b93c89c94206a7bda459fc6c
    }
  };
  
-@@ -4813,7 +4869,7 @@ var DOMObserver = function () {
+@@ -4710,6 +4766,7 @@ var DOMObserver = function () {
+     this.currentSelection = new SelectionState();
+     this.onCharData = null;
+     this.suppressingSelectionUpdates = false;
++    this.selectionEntered = false;
+     this.observer = window.MutationObserver && new window.MutationObserver(function (mutations) {
+       for (var i = 0; i < mutations.length; i++) {
+         _this11.queue.push(mutations[i]);
+@@ -4813,7 +4870,13 @@ var DOMObserver = function () {
    }, {
      key: "onSelectionChange",
      value: function onSelectionChange() {
 -      if (!hasFocusAndSelection(this.view)) return;
-+      if (!hasFocusAndSelection(this.view)) return this.view.someProp("handleSelectionLeave", f => f(this));
++      if (!hasFocusAndSelection(this.view)) {
++        if (this.selectionEntered) {
++          this.selectionEntered = false;
++          this.view.someProp("handleSelectionLeave", f => f(this));
++        }
++        return;
++      }
        if (this.suppressingSelectionUpdates) return selectionToDOM(this.view);
  
        if (ie && ie_version <= 11 && !this.view.state.selection.empty) {
-@@ -5392,6 +5448,8 @@ var EditorView = function () {
+@@ -4822,6 +4885,11 @@ var DOMObserver = function () {
+       }
+ 
+       this.flush();
++
++      if (!this.selectionEntered) {
++        this.selectionEntered = true;
++        this.view.someProp("handleSelectionEnter", f => f(this));
++      }
+     }
+   }, {
+     key: "setCurSelection",
+@@ -5392,6 +5460,8 @@ var EditorView = function () {
      this.domObserver.start();
      initInput(this);
      this.updatePluginViews();
@@ -125,7 +151,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..47bbbbd6b93c89c94206a7bda459fc6c
    }
  
    _createClass(EditorView, [{
-@@ -5792,3 +5850,6 @@ exports.EditorView = EditorView;
+@@ -5792,3 +5862,6 @@ exports.EditorView = EditorView;
  exports.__endComposition = __endComposition;
  exports.__parseFromClipboard = __parseFromClipboard;
  exports.__serializeForClipboard = __serializeForClipboard;
@@ -133,7 +159,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..47bbbbd6b93c89c94206a7bda459fc6c
 +// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
 +exports.serializeForClipboard = serializeForClipboard;
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index 52ee8840c754562f9ae4d9891f61682035b092e7..bd717a40472bf12358d3ad368e0ef07120fb2c8b 100644
+index 52ee8840c754562f9ae4d9891f61682035b092e7..3325e68126d5fc261fe290dc6af1579d2f26eac3 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
 @@ -649,7 +649,7 @@ interface EditorProps<P = any> {
@@ -145,19 +171,21 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..bd717a40472bf12358d3ad368e0ef071
      /**
      Called when the view, after updating its state, tries to scroll
      the selection into view. A handler function may return false to
-@@ -657,6 +657,11 @@ interface EditorProps<P = any> {
+@@ -657,6 +657,13 @@ interface EditorProps<P = any> {
      handlers or the default behavior should be tried.
      */
      handleScrollToSelection?: (this: P, view: EditorView) => boolean;
-+    // NOTE(calebmer): Called when the document selection leaves the `EditorView`.
-+    // Useful for our phantom cursor implementation since when the selection leaves
-+    // we want to hide the content editor's phantom cursor. ProseMirror state will
-+    // keep the selection in the same position but we don't want to show that.
++    // NOTE(calebmer): Called when the document selection enters/leaves the
++    // `EditorView`. Useful for our phantom cursor implementation since when the
++    // selection leaves we want to hide the content editor's phantom cursor.
++    // ProseMirror state will keep the selection in the same position but we don't
++    // want to show that.
++    handleSelectionEnter?: (this: P, view: EditorView) => boolean;
 +    handleSelectionLeave?: (this: P, view: EditorView) => boolean;
      /**
      Can be used to override the way a selection is created when
      reading a DOM selection between the given anchor and head.
-@@ -674,6 +679,10 @@ interface EditorProps<P = any> {
+@@ -674,6 +681,10 @@ interface EditorProps<P = any> {
      for example to clean it up.
      */
      transformPastedHTML?: (this: P, html: string) => string;
@@ -168,7 +196,7 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..bd717a40472bf12358d3ad368e0ef071
      /**
      The [parser](https://prosemirror.net/docs/ref/#model.DOMParser) to use when reading content from
      the clipboard. When not given, the value of the
-@@ -831,6 +840,17 @@ interface DirectEditorProps extends EditorProps {
+@@ -831,6 +842,17 @@ interface DirectEditorProps extends EditorProps {
      the view instance as its `this` binding.
      */
      dispatchTransaction?: (tr: Transaction) => void;
@@ -187,7 +215,7 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..bd717a40472bf12358d3ad368e0ef071
 +    text: string;
 +};
 diff --git a/dist/index.js b/dist/index.js
-index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..009fdd9ef99f7308559ab5d4cf486f581f749dcf 100644
+index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..bebcee770348d2a7fd28a3487bd0b58e6bbb2043 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -141,14 +141,36 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -305,16 +333,41 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..009fdd9ef99f7308559ab5d4cf486f58
      }
  };
  handlers.blur = (view, _event) => {
-@@ -4286,7 +4338,7 @@ class DOMObserver {
+@@ -4218,6 +4270,7 @@ class DOMObserver {
+         this.currentSelection = new SelectionState;
+         this.onCharData = null;
+         this.suppressingSelectionUpdates = false;
++        this.selectionEntered = false;
+         this.observer = window.MutationObserver &&
+             new window.MutationObserver(mutations => {
+                 for (let i = 0; i < mutations.length; i++)
+@@ -4285,8 +4338,13 @@ class DOMObserver {
+         setTimeout(() => this.suppressingSelectionUpdates = false, 50);
      }
      onSelectionChange() {
-         if (!hasFocusAndSelection(this.view))
--            return;
-+            return this.view.someProp("handleSelectionLeave", f => f(this));
+-        if (!hasFocusAndSelection(this.view))
++        if (!hasFocusAndSelection(this.view)) {
++            if (this.selectionEntered) {
++                this.selectionEntered = false;
++                this.view.someProp("handleSelectionLeave", f => f(this));
++            }
+             return;
++        }
          if (this.suppressingSelectionUpdates)
              return selectionToDOM(this.view);
          // Deletions on IE11 fire their events in the wrong order, giving
-@@ -4879,6 +4931,8 @@ class EditorView {
+@@ -4299,6 +4357,10 @@ class DOMObserver {
+                 return this.flushSoon();
+         }
+         this.flush();
++        if (!this.selectionEntered) {
++            this.selectionEntered = true;
++            this.view.someProp("handleSelectionEnter", f => f(this));
++        }
+     }
+     setCurSelection() {
+         this.currentSelection.set(this.view.domSelection());
+@@ -4879,6 +4941,8 @@ class EditorView {
          this.domObserver.start();
          initInput(this);
          this.updatePluginViews();
@@ -323,7 +376,7 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..009fdd9ef99f7308559ab5d4cf486f58
      }
      /**
      Holds `true` when a
-@@ -5304,3 +5358,6 @@ function checkStateComponent(plugin) {
+@@ -5304,3 +5368,6 @@ function checkStateComponent(plugin) {
  }
  
  export { Decoration, DecorationSet, EditorView, __endComposition, __parseFromClipboard, __serializeForClipboard };
@@ -404,20 +457,45 @@ index 4b8e0f3291116e3f1c0e3136a13c0d6626de42f3..3cb6ef9dbc24da546b8c8317c0005a0a
  }
  
 diff --git a/src/domobserver.ts b/src/domobserver.ts
-index 77da09098cecde7b3cf5c34ca7a532fa21e5a22c..dbd1c6b6dbd91e10b725119dd2d956a7806a4766 100644
+index 77da09098cecde7b3cf5c34ca7a532fa21e5a22c..2616c1df549bf81e175d8b6aee07b868ddb0c7e9 100644
 --- a/src/domobserver.ts
 +++ b/src/domobserver.ts
-@@ -121,7 +121,7 @@ export class DOMObserver {
+@@ -43,6 +43,7 @@ export class DOMObserver {
+   currentSelection = new SelectionState
+   onCharData: ((e: Event) => void) | null = null
+   suppressingSelectionUpdates = false
++  selectionEntered = false
+ 
+   constructor(
+     readonly view: EditorView,
+@@ -121,7 +122,13 @@ export class DOMObserver {
    }
  
    onSelectionChange() {
 -    if (!hasFocusAndSelection(this.view)) return
-+    if (!hasFocusAndSelection(this.view)) return this.view.someProp("handleSelectionLeave", f => f(this))
++    if (!hasFocusAndSelection(this.view)) {
++      if (this.selectionEntered) {
++        this.selectionEntered = false
++        this.view.someProp("handleSelectionLeave", f => f(this))
++      }
++      return
++    }
      if (this.suppressingSelectionUpdates) return selectionToDOM(this.view)
      // Deletions on IE11 fire their events in the wrong order, giving
      // us a selection change event before the DOM changes are
+@@ -133,6 +140,10 @@ export class DOMObserver {
+         return this.flushSoon()
+     }
+     this.flush()
++    if (!this.selectionEntered) {
++      this.selectionEntered = true
++      this.view.someProp("handleSelectionEnter", f => f(this))
++    }
+   }
+ 
+   setCurSelection() {
 diff --git a/src/index.ts b/src/index.ts
-index f28002967d6ff175430efdd8c2389924211c35ce..1a8aa5bcaeac4fa0b29f685a20ad43276582cc47 100644
+index f28002967d6ff175430efdd8c2389924211c35ce..163bef19c665b7f1e9e3d772e774ff6ebb85831b 100644
 --- a/src/index.ts
 +++ b/src/index.ts
 @@ -25,6 +25,9 @@ export const __parseFromClipboard = parseFromClipboard
@@ -457,20 +535,22 @@ index f28002967d6ff175430efdd8c2389924211c35ce..1a8aa5bcaeac4fa0b29f685a20ad4327
  
    /// Called when the view, after updating its state, tries to scroll
    /// the selection into view. A handler function may return false to
-@@ -600,6 +607,12 @@ export interface EditorProps<P = any> {
+@@ -600,6 +607,14 @@ export interface EditorProps<P = any> {
    /// handlers or the default behavior should be tried.
    handleScrollToSelection?: (this: P, view: EditorView) => boolean
  
-+  // NOTE(calebmer): Called when the document selection leaves the `EditorView`.
-+  // Useful for our phantom cursor implementation since when the selection leaves
-+  // we want to hide the content editor's phantom cursor. ProseMirror state will
-+  // keep the selection in the same position but we don't want to show that.
++  // NOTE(calebmer): Called when the document selection enters/leaves the
++  // `EditorView`. Useful for our phantom cursor implementation since when the
++  // selection leaves we want to hide the content editor's phantom cursor.
++  // ProseMirror state will keep the selection in the same position but we don't
++  // want to show that.
++  handleSelectionEnter?: (this: P, view: EditorView) => boolean
 +  handleSelectionLeave?: (this: P, view: EditorView) => boolean
 +
    /// Can be used to override the way a selection is created when
    /// reading a DOM selection between the given anchor and head.
    createSelectionBetween?: (this: P, view: EditorView, anchor: ResolvedPos, head: ResolvedPos) => Selection | null
-@@ -614,6 +627,11 @@ export interface EditorProps<P = any> {
+@@ -614,6 +629,11 @@ export interface EditorProps<P = any> {
    /// for example to clean it up.
    transformPastedHTML?: (this: P, html: string) => string
  
@@ -482,7 +562,7 @@ index f28002967d6ff175430efdd8c2389924211c35ce..1a8aa5bcaeac4fa0b29f685a20ad4327
    /// The [parser](#model.DOMParser) to use when reading content from
    /// the clipboard. When not given, the value of the
    /// [`domParser`](#view.EditorProps.domParser) prop is used.
-@@ -734,4 +752,9 @@ export interface DirectEditorProps extends EditorProps {
+@@ -734,4 +754,9 @@ export interface DirectEditorProps extends EditorProps {
    /// [applied](#state.EditorState.apply). The callback will be bound to have
    /// the view instance as its `this` binding.
    dispatchTransaction?: (tr: Transaction) => void

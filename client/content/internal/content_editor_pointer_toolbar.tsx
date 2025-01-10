@@ -67,6 +67,7 @@ import {
     overlayFadeInAnimationDurationMs,
     sprinkles,
 } from "~/client/styles/styles.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {linkClassName} from "~/shared/content/content_styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
@@ -79,18 +80,22 @@ import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_f
 
 export function ContentEditorPointerToolbar({
     state,
+    accessLevel,
     viewRef,
     previousState,
     isFocused,
+    hasSelectionEnteredWhenUnfocused,
     setDecorationCallbacks,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
+    accessLevel: AccessLevel;
     viewRef: RefObject<EditorView | null>;
     previousState: Exclude<
         ContentEditorFloaterState,
         ContentEditorPointerToolbarFloaterState
     > | null;
     isFocused: boolean;
+    hasSelectionEnteredWhenUnfocused: boolean;
     setDecorationCallbacks: Dispatch<
         SetStateAction<
             ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
@@ -229,9 +234,17 @@ export function ContentEditorPointerToolbar({
 
     const isContextMenuOpen = useIsContextMenuOpen();
 
+    const shouldShowCommentOnly: boolean = useMemo(
+        () =>
+            !!state.schema.marks.comment &&
+            hasAccessLevel(accessLevel, "Comment") &&
+            !hasAccessLevel(accessLevel, "Edit"),
+        [accessLevel, state.schema.marks.comment],
+    );
+
     const shouldShowIgnoringInteractionModality = useMemo(() => {
         return (
-            isFocused &&
+            (isFocused || (shouldShowCommentOnly && hasSelectionEnteredWhenUnfocused)) &&
             // Don't show while the context menu is open.
             !isContextMenuOpen &&
             // Make sure some characters are selected before showing the selection toolbar.
@@ -267,9 +280,11 @@ export function ContentEditorPointerToolbar({
         );
     }, [
         hasPointerMovedWhileDown,
+        hasSelectionEnteredWhenUnfocused,
         isContextMenuOpen,
         isFocused,
         isWaitingForTripleClickAfterDoubleClick,
+        shouldShowCommentOnly,
         state.doc,
         state.selection,
     ]);
@@ -519,6 +534,7 @@ export function ContentEditorPointerToolbar({
             selectionFrom={Math.min(state.doc.nodeSize - 2, showState.selectionFrom)}
             selectionTo={Math.min(state.doc.nodeSize - 2, showState.selectionTo)}
             animation={showState.animation}
+            shouldShowCommentOnly={shouldShowCommentOnly}
             isLinkInputOpen={showState.extraOverlay === "LinkInput"}
             onLinkInputOpen={() =>
                 setShowState(prevState =>
@@ -555,6 +571,7 @@ function ContentEditorPointerToolbarOverlay({
     selectionFrom,
     selectionTo,
     animation,
+    shouldShowCommentOnly,
     isLinkInputOpen,
     onLinkInputOpen,
     onLinkInputClose,
@@ -567,6 +584,7 @@ function ContentEditorPointerToolbarOverlay({
     selectionFrom: number;
     selectionTo: number;
     animation: "FadingIn" | "FadingOut" | null;
+    shouldShowCommentOnly: boolean;
     isLinkInputOpen: boolean;
     onLinkInputOpen: () => void;
     onLinkInputClose: () => void;
@@ -594,7 +612,7 @@ function ContentEditorPointerToolbarOverlay({
             fallbackPlacements={["bottom-start"]}
             overflowTop={navigationBarHeight}
             offset="3"
-            offsetAlong="-4"
+            offsetAlong={shouldShowCommentOnly ? "-1" : "-4"}
             overlay={
                 <div
                     className={overlayAnimateContainerClassName}
@@ -624,20 +642,27 @@ function ContentEditorPointerToolbarOverlay({
                         )}
                         style={{marginLeft: -1, marginRight: -1}}
                     >
-                        <ContentEditorPointerToolbarButtons
-                            state={state}
-                            viewRef={viewRef}
-                            selectionFrom={selectionFrom}
-                            selectionTo={selectionTo}
-                            sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                            isFadingOut={animation === "FadingOut"}
-                            isLinkInputOpen={isLinkInputOpen}
-                            onLinkInputOpen={onLinkInputOpen}
-                            onLinkInputClose={onLinkInputClose}
-                            isHighlightSelectorOpen={isHighlightSelectorOpen}
-                            onHighlightSelectorOpen={onHighlightSelectorOpen}
-                            onHighlightSelectorClose={onHighlightSelectorClose}
-                        />
+                        {shouldShowCommentOnly ? (
+                            <ContentEditorPointerToolbarButtonsCommentOnly
+                                viewRef={viewRef}
+                                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                            />
+                        ) : (
+                            <ContentEditorPointerToolbarButtons
+                                state={state}
+                                viewRef={viewRef}
+                                selectionFrom={selectionFrom}
+                                selectionTo={selectionTo}
+                                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                                isFadingOut={animation === "FadingOut"}
+                                isLinkInputOpen={isLinkInputOpen}
+                                onLinkInputOpen={onLinkInputOpen}
+                                onLinkInputClose={onLinkInputClose}
+                                isHighlightSelectorOpen={isHighlightSelectorOpen}
+                                onHighlightSelectorOpen={onHighlightSelectorOpen}
+                                onHighlightSelectorClose={onHighlightSelectorClose}
+                            />
+                        )}
                     </Box>
                 </div>
             }
@@ -982,7 +1007,7 @@ function ContentEditorPointerToolbarButton({
     dividerRight,
     onTooltipStateChange,
 }: {
-    description: string;
+    description: string | null;
     keyboardShortcutHint: string;
     viewRef: RefObject<EditorView | null>;
     isTooltipDisabledWithoutAnimation: boolean;
@@ -1024,17 +1049,21 @@ function ContentEditorPointerToolbarButton({
             // Don't allow flipping the tooltip down into selection content.
             fallbackPlacements={emptyArray}
             content={
-                <Box paddingY="0.5">
-                    {description}
+                description !== null ? (
+                    <Box paddingY="0.5">
+                        {description}
+                        <Box color="grey-50">{keyboardShortcutHint}</Box>
+                    </Box>
+                ) : (
                     <Box color="grey-50">{keyboardShortcutHint}</Box>
-                </Box>
+                )
             }
             onStateChange={onTooltipStateChange}
         >
             <div
                 {...mergeProps(pressProps, hoverProps)}
                 ref={localRef}
-                aria-label={description}
+                aria-label={description ?? undefined}
                 // Disable the ability to focus this icon button! The icon buttons in the
                 // selection toolbar are only mouse accessible. They are not keyboard
                 // accessible. By being focusable then the button steals focus when you click
@@ -1357,4 +1386,46 @@ function isNodeBoundarySlice(slice: Slice): boolean {
     }
 
     return firstNode.childCount === 0 && secondNode.childCount === 0;
+}
+
+// NOCOMMIT: Test creating a comment as a comment only user
+function ContentEditorPointerToolbarButtonsCommentOnly({
+    viewRef,
+    sharedTooltipLifecycleRef,
+}: {
+    viewRef: RefObject<EditorView | null>;
+    sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
+}) {
+    const {isAppleDevice} = useClientInfo();
+
+    return (
+        <ContentEditorPointerToolbarButton
+            // It's fine setting `description` to null since we render it in text.
+            description={null}
+            keyboardShortcutHint={isAppleDevice ? "⌘+Shift+C" : "Ctrl+Shift+C"}
+            viewRef={viewRef}
+            isTooltipDisabledWithoutAnimation={false}
+            sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+            isActive={false}
+            command={(state, dispatch) => {
+                let isCommentSupported = false;
+                state.doc.nodesBetween(state.selection.from, state.selection.to, node => {
+                    if (!node.inlineContent) return;
+                    isCommentSupported ||=
+                        !!state.schema.marks.comment &&
+                        node.type.allowsMarkType(state.schema.marks.comment);
+                });
+
+                if (!isCommentSupported) return false;
+
+                dispatch?.(state.tr.setMeta(openCommentInputFloaterMetaKey, true));
+                return true;
+            }}
+        >
+            <Box display="flex" gap="1">
+                <ChatCircleText />
+                <Box color="grey-100">Comment</Box>
+            </Box>
+        </ContentEditorPointerToolbarButton>
+    );
 }
