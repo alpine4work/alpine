@@ -31,7 +31,6 @@ import {RootOverlayScopeContextProvider} from "~/client/design/overlay_scope_con
 import {emitMobileKeyboardFrameChangeIfNotNative} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {useTextInputVisibilityMaintainer} from "~/client/design/use_text_input_visibility_maintainer.js";
-import {useTrailingNewlineSelectionTrimmer} from "~/client/design/use_trailing_newline_selection_trimmer.js";
 import {
     attachDevConsoleForAccountInProduction,
     useDevConsoleTool,
@@ -338,9 +337,6 @@ function SpaceLayoutRouteInner({
     // When the user types in a text input in a space we need to make sure the new
     // text isn't offscreen (or hidden by the native mobile keyboard).
     useTextInputVisibilityMaintainer();
-
-    // NOCOMMIT: Document what this does
-    useTrailingNewlineSelectionTrimmer();
 
     const setSearchQueryText = useCallback(
         (queryText: string | null) => {
