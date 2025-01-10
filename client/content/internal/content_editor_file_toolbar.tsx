@@ -28,6 +28,7 @@ import {
     overlayFadeOutAnimationDurationMs,
     sprinkles,
 } from "~/client/styles/styles.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
@@ -52,6 +53,7 @@ ContentEditorFileToolbarController.withDisableInitialAnimation = (action: () => 
 export function ContentEditorFileToolbarController({
     state,
     viewRef,
+    accessLevel,
     floaterState,
     selectedNodeElement,
     hasFileDropTarget,
@@ -60,6 +62,7 @@ export function ContentEditorFileToolbarController({
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView>;
+    accessLevel: AccessLevel;
     floaterState: ContentEditorFloaterState;
     selectedNodeElement: HTMLElement | null;
     hasFileDropTarget: boolean;
@@ -79,7 +82,8 @@ export function ContentEditorFileToolbarController({
         floaterState.type === "PointerToolbar" &&
         state.selection instanceof NodeSelection &&
         state.selection.node.type.name === "file" &&
-        !hasFileDropTarget;
+        !hasFileDropTarget &&
+        hasAccessLevel(accessLevel, "Comment");
 
     if (
         isFileToolbarVisible &&
@@ -120,6 +124,7 @@ export function ContentEditorFileToolbarController({
             key={fileToolbar.key}
             state={state}
             viewRef={viewRef}
+            accessLevel={accessLevel}
             isVisible={isFileToolbarVisible}
             selection={fileToolbar.selection}
             targetElement={fileToolbar.targetElement}
@@ -133,6 +138,7 @@ export function ContentEditorFileToolbarController({
 function ContentEditorFileToolbar({
     state,
     viewRef,
+    accessLevel,
     isVisible,
     selection,
     targetElement,
@@ -142,6 +148,7 @@ function ContentEditorFileToolbar({
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView>;
+    accessLevel: AccessLevel;
     isVisible: boolean;
     selection: NodeSelection;
     targetElement: HTMLElement;
@@ -162,6 +169,8 @@ function ContentEditorFileToolbar({
             selectionRef.current = null;
         };
     }, [selection]);
+
+    const hasEditAccessLevel = hasAccessLevel(accessLevel, "Edit");
 
     const hasAlignmentButtons =
         state.schema.nodes.fileFloat &&
@@ -214,7 +223,7 @@ function ContentEditorFileToolbar({
                         boxShadow="elevation-20"
                         className={greyElevated2ClassName}
                     >
-                        {hasAlignmentButtons && (
+                        {hasEditAccessLevel && hasAlignmentButtons && (
                             <>
                                 <ContentEditorFileToolbarButton
                                     description="Align left"
@@ -400,52 +409,60 @@ function ContentEditorFileToolbar({
                                 </ContentEditorFileToolbarButton>
                             </>
                         )}
-                        <ContentEditorFileToolbarButton
-                            dividerLeft={hasAlignmentButtons}
-                            description={`Replace ${getFileContentTypeNoun(file?.contentType)}`}
-                            viewRef={viewRef}
-                            isActive={false}
-                            command={() => {
-                                const toolbarElement = assertExists(toolbarRef.current);
+                        {hasEditAccessLevel && (
+                            <>
+                                <ContentEditorFileToolbarButton
+                                    dividerLeft={hasAlignmentButtons}
+                                    description={`Replace ${getFileContentTypeNoun(
+                                        file?.contentType,
+                                    )}`}
+                                    viewRef={viewRef}
+                                    isActive={false}
+                                    command={() => {
+                                        const toolbarElement = assertExists(toolbarRef.current);
 
-                                selectFiles(toolbarElement, {
-                                    multiple: false,
-                                })
-                                    .then(files => {
-                                        if (files.length !== 1) return;
+                                        selectFiles(toolbarElement, {
+                                            multiple: false,
+                                        })
+                                            .then(files => {
+                                                if (files.length !== 1) return;
 
-                                        // If the component unmounted while we were waiting on a selection then don't
-                                        // try replacing this file.
-                                        if (!selectionRef.current) return;
+                                                // If the component unmounted while we were waiting on a selection then don't
+                                                // try replacing this file.
+                                                if (!selectionRef.current) return;
 
-                                        onInsertFiles(selectionRef.current, [files[0]!]);
-                                    })
-                                    .catch(scheduleUncaughtError);
+                                                onInsertFiles(selectionRef.current, [files[0]!]);
+                                            })
+                                            .catch(scheduleUncaughtError);
 
-                                return true;
-                            }}
-                        >
-                            <Swap />
-                        </ContentEditorFileToolbarButton>
-                        <ContentEditorFileToolbarButton
-                            dividerRight={!!state.schema.marks.comment}
-                            description={`Delete ${getFileContentTypeNoun(file?.contentType)}`}
-                            viewRef={viewRef}
-                            isActive={false}
-                            command={() => {
-                                setShowDeleteConfirmationDialog(true);
-                                return true;
-                            }}
-                        >
-                            <Trash />
-                        </ContentEditorFileToolbarButton>
+                                        return true;
+                                    }}
+                                >
+                                    <Swap />
+                                </ContentEditorFileToolbarButton>
+                                <ContentEditorFileToolbarButton
+                                    dividerRight={!!state.schema.marks.comment}
+                                    description={`Delete ${getFileContentTypeNoun(
+                                        file?.contentType,
+                                    )}`}
+                                    viewRef={viewRef}
+                                    isActive={false}
+                                    command={() => {
+                                        setShowDeleteConfirmationDialog(true);
+                                        return true;
+                                    }}
+                                >
+                                    <Trash />
+                                </ContentEditorFileToolbarButton>
+                            </>
+                        )}
                         {state.schema.marks.comment && (
                             <ContentEditorFileToolbarButton
-                                dividerLeft={true}
+                                dividerLeft={hasEditAccessLevel}
                                 // Intentionally not rendering keyboard shortcut since "Comment" is the only
                                 // option that supports a keyboard shortcut. Only showing a keyboard shortcut
                                 // on this one button's tooltip would look weird.
-                                description="Comment"
+                                description={hasEditAccessLevel ? "Comment" : null}
                                 viewRef={viewRef}
                                 isActive={false}
                                 command={(state, dispatch) => {
@@ -459,7 +476,14 @@ function ContentEditorFileToolbar({
                                     return true;
                                 }}
                             >
-                                <ChatCircleText />
+                                {hasEditAccessLevel ? (
+                                    <ChatCircleText />
+                                ) : (
+                                    <Box display="flex" gap="1">
+                                        <ChatCircleText />
+                                        <Box color="grey-100">Comment</Box>
+                                    </Box>
+                                )}
                             </ContentEditorFileToolbarButton>
                         )}
                     </Box>
@@ -491,7 +515,7 @@ function ContentEditorFileToolbarButton({
     dividerLeft,
     dividerRight,
 }: {
-    description: string;
+    description: string | null;
     viewRef: RefObject<EditorView | null>;
     isActive: boolean;
     command: Command;
@@ -525,6 +549,7 @@ function ContentEditorFileToolbarButton({
 
     return (
         <Tooltip
+            isDisabled={description === null}
             placement="top"
             // Don't allow flipping the tooltip down into selection content.
             fallbackPlacements={emptyArray}
@@ -533,7 +558,7 @@ function ContentEditorFileToolbarButton({
             <div
                 {...mergeProps(pressProps, hoverProps)}
                 ref={localRef}
-                aria-label={description}
+                aria-label={description ?? undefined}
                 // Disable the ability to focus this icon button! The icon buttons in the
                 // selection toolbar are only mouse accessible. They are not keyboard
                 // accessible. By being focusable then the button steals focus when you click

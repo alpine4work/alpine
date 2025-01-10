@@ -76,38 +76,45 @@ import {ResolvedPos} from "prosemirror-model";
  *
  * Other browsers may behave differently.
  */
-export function trimSelectionInvisibleExtensionIntoAdjacentNodes({
-    $from,
-    $to,
-}: {
+export function trimSelectionInvisibleExtensionIntoAdjacentNodes(selection: {
     $from: ResolvedPos;
     $to: ResolvedPos;
 }): {
     $from: ResolvedPos;
     $to: ResolvedPos;
 } {
-    if ($from.parentOffset === $from.parent.nodeSize - 2) {
-        const docNodeSize = $from.doc.nodeSize;
-        for (let pos = $from.pos + 1; pos < docNodeSize - 2; pos++) {
-            const $pos = $from.doc.resolve(pos);
+    if (selection.$from.pos === selection.$to.pos) return selection;
+
+    let $newFrom: ResolvedPos | undefined;
+    let $newTo: ResolvedPos | undefined;
+
+    if (selection.$from.parentOffset === selection.$from.parent.nodeSize - 2) {
+        const docNodeSize = selection.$from.doc.nodeSize;
+        for (
+            let pos = selection.$from.pos + 1;
+            pos < docNodeSize - 2 && pos <= selection.$to.pos;
+            pos++
+        ) {
+            const $pos = selection.$from.doc.resolve(pos);
 
             if ($pos.parent.isTextblock && $pos.parentOffset === 0) {
-                $from = $pos;
+                $newFrom = $pos;
                 break;
             }
         }
     }
 
-    if ($to.parentOffset === 0) {
-        for (let pos = $to.pos - 1; pos > 0; pos--) {
-            const $pos = $to.doc.resolve(pos);
+    if (selection.$to.parentOffset === 0) {
+        for (let pos = selection.$to.pos - 1; pos > 0 && pos >= selection.$from.pos; pos--) {
+            const $pos = selection.$to.doc.resolve(pos);
 
             if ($pos.parent.isTextblock && $pos.parentOffset === $pos.parent.nodeSize - 2) {
-                $to = $pos;
+                $newTo = $pos;
                 break;
             }
         }
     }
 
-    return {$from, $to};
+    if ($newFrom === undefined && $newTo === undefined) return selection;
+    return {$from: $newFrom ?? selection.$from, $to: $newTo ?? selection.$to};
 }

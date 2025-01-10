@@ -1183,6 +1183,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                 getReporter: () => reporterRef.current,
                 getAttachmentTarget: () => assertExists(propsRef.current.fileAttachmentTarget),
+                getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
                 subscribeToReferencesUpdate: listener => {
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
                     return referencesUpdateEmitterRef.current.subscribe(listener);
@@ -4181,6 +4182,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             <ContentEditorFileToolbarController
                 state={unwrappedState}
                 viewRef={viewRef}
+                accessLevel={accessLevel}
                 floaterState={floaterState}
                 selectedNodeElement={selectedNodeElement}
                 hasFileDropTarget={!!fileDropTarget}
@@ -4191,9 +4193,17 @@ function ContentEditor<Content extends ContentWithReferences>(
                     setIsMobileCommentInputOpen(true);
                 }}
             />
-            {!fileDropTarget && selectedNodeElement && (
-                <FocusRing isVisible={true} targetElement={selectedNodeElement} />
-            )}
+            {!fileDropTarget &&
+                selectedNodeElement &&
+                // Only show the focus ring for selected nodes while editing. Unless we have
+                // comment access and we've selected a file node. Since we still show the
+                // toolbar for selected files with the only option being "Comment".
+                (hasEditAccessLevel ||
+                    (hasAccessLevel(accessLevel, "Comment") &&
+                        unwrappedState.selection instanceof NodeSelection &&
+                        unwrappedState.selection.node.type.name === "file")) && (
+                    <FocusRing isVisible={true} targetElement={selectedNodeElement} />
+                )}
             {phantomSelections?.map(phantomSelection => (
                 <ContentEditorPhantomSelectionCursor
                     key={phantomSelection.key}

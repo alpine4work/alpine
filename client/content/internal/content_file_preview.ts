@@ -1328,6 +1328,7 @@ export function addContentFilePreviewBehavior(
         rootNavigate,
         getReporter,
         onShiftMouseDown,
+        isLongPressDisabled,
         onLongPress,
         onDrag,
         onOpenViewer,
@@ -1342,6 +1343,7 @@ export function addContentFilePreviewBehavior(
         rootNavigate: NavigateFunction;
         getReporter: () => Reporter;
         onShiftMouseDown?: (event: PointerEvent) => void;
+        isLongPressDisabled?: () => boolean;
         onLongPress?: () => void;
         onDrag?: (dragPromise: Promise<void>) => void;
         onOpenViewer?: () => {preventDefault: boolean} | void;
@@ -1426,15 +1428,18 @@ export function addContentFilePreviewBehavior(
             (event.altKey || event.shiftKey)
         ) {
             onShiftMouseDown?.(event);
-        } else if (isPointerDownAndOver && onLongPress) {
+        } else if (isPointerDownAndOver && onLongPress && !isLongPressDisabled?.()) {
             // Emulate a `UILongPressGestureRecognizer` on iOS. Which [waits for a touch to
             // last 0.5 seconds][1] before firing.
             //
             // [1]: https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
             longPressTimeout = createTimeout(() => {
                 longPressTimeout = null;
-                isLongPress = true;
-                onLongPress();
+
+                if (!isLongPressDisabled?.()) {
+                    isLongPress = true;
+                    onLongPress();
+                }
             }, 500);
         }
     };

@@ -17,7 +17,6 @@ const {linkPressedClassName} = contentStyles;
  * Opens the link when the node is clicked instead of selecting text. We're
  * optimizing for reading content here over writing.
  */
-// NOCOMMIT: Read-only mode? Shouldn't be able to edit link
 export function createContentEditorLinkMarkViewConstructor({
     canPrimaryInputHover,
     onPointerEnterAfterDelay,

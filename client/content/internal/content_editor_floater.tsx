@@ -31,7 +31,7 @@ import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {overlayFadeOutAnimationDurationMs} from "~/client/styles/styles.js";
-import {AccessLevel} from "~/shared/access/access_policy.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -116,6 +116,7 @@ export function ContentEditorFloater({
                     key={floaterState.key}
                     state={state}
                     viewRef={viewRef}
+                    accessLevel={accessLevel}
                     mark={floaterState.mark}
                     range={floaterState.range}
                     hasPointerLeftMark={floaterState.hasPointerLeftMark}
@@ -379,6 +380,7 @@ function ContentEditorKeyboardLinkFloater({
 function ContentEditorPointerLinkFloater({
     state,
     viewRef,
+    accessLevel,
     mark,
     range,
     hasPointerLeftMark,
@@ -386,6 +388,7 @@ function ContentEditorPointerLinkFloater({
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
+    accessLevel: AccessLevel;
     mark: Mark;
     range: {from: number; to: number};
     hasPointerLeftMark: boolean;
@@ -475,6 +478,7 @@ function ContentEditorPointerLinkFloater({
                         range={range}
                         mark={mark}
                         isDisabled={isClosing}
+                        isReadOnly={!hasAccessLevel(accessLevel, "Edit")}
                         onClose={onClose}
                     />
                 </Box>

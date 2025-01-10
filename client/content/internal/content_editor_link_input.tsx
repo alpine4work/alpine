@@ -16,6 +16,7 @@ export function ContentEditorLinkInput({
     range,
     mark,
     isDisabled = false,
+    isReadOnly = false,
     autoFocus,
     onClose,
 }: {
@@ -23,6 +24,7 @@ export function ContentEditorLinkInput({
     range: {from: number; to: number};
     mark: Mark | null;
     isDisabled?: boolean;
+    isReadOnly?: boolean;
     autoFocus?: boolean;
     onClose: () => void;
 }) {
@@ -126,6 +128,7 @@ export function ContentEditorLinkInput({
                     aria-label="URL"
                     placeholder="https://example.com"
                     disabled={isDisabled}
+                    readOnly={isReadOnly}
                     value={url}
                     onChange={event => setUrl(event.currentTarget.value)}
                     onKeyDown={event => {
@@ -137,8 +140,18 @@ export function ContentEditorLinkInput({
                     }}
                 />
             </FocusRing>
-            <ContentEditorLinkInputClearButton isDisabled={isDisabled} onPress={() => clear()} />
-            <ContentEditorLinkInputSaveButton isDisabled={isDisabled} onPress={() => save()} />
+            {!isReadOnly && (
+                <>
+                    <ContentEditorLinkInputClearButton
+                        isDisabled={isDisabled}
+                        onPress={() => clear()}
+                    />
+                    <ContentEditorLinkInputSaveButton
+                        isDisabled={isDisabled}
+                        onPress={() => save()}
+                    />
+                </>
+            )}
         </Box>
     );
 }

@@ -25,6 +25,7 @@ import {
 } from "~/client/remix/spacing_scale_context.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
 import {contentStyles} from "~/client/styles/styles.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -45,7 +46,6 @@ export function dispatchUpdatedContentEditorFileParentEvent(element: Element) {
     updatedContentEditorFileParentEventEmitterByElement?.get(element)?.emit();
 }
 
-// NOCOMMIT: Read-only mode
 export function createContentEditorFileNodeViewConstructor({
     rootNavigate,
     getLayoutScreenWidth,
@@ -53,6 +53,7 @@ export function createContentEditorFileNodeViewConstructor({
     getSpaceId,
     getReporter,
     getAttachmentTarget,
+    getAccessLevel,
     subscribeToReferencesUpdate,
     draggingFileRef,
 }: {
@@ -62,6 +63,7 @@ export function createContentEditorFileNodeViewConstructor({
     getSpaceId: () => SpaceId;
     getReporter: () => Reporter;
     getAttachmentTarget: () => FileAttachmentTarget;
+    getAccessLevel: () => AccessLevel;
     subscribeToReferencesUpdate: (listener: () => void) => () => void;
     draggingFileRef: MutableRefObject<{getPos: () => number | null} | null>;
 }): NodeViewConstructor {
@@ -171,6 +173,12 @@ export function createContentEditorFileNodeViewConstructor({
                             );
 
                             if (!view.hasFocus()) view.focus();
+                        },
+                        isLongPressDisabled: () => {
+                            // Selection after a long press is only useful when there's a toolbar to show
+                            // over the file. If we're in "View" mode we don't render a toolbar or
+                            // selection ring so disable long presses.
+                            return !hasAccessLevel(getAccessLevel(), "Comment");
                         },
                         onLongPress: () => {
                             dom.classList.add(contentStyles.longPressedFileClassName);
