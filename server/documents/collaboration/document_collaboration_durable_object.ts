@@ -126,7 +126,6 @@ class DocumentCollaborationDurableObject {
                     connectionId,
                     contentManager: this._contentManager,
                     sendEvent,
-                    // NOCOMMIT: Test!
                     sendEventToOthers: (context, event) => {
                         sendEventToOthers(context, event);
 
@@ -142,7 +141,6 @@ class DocumentCollaborationDurableObject {
                             }
                         }
                     },
-                    // NOCOMMIT: Test!
                     iterateOtherConnections: () =>
                         concatIterables(
                             iterateOtherConnections(),
@@ -167,12 +165,10 @@ class DocumentCollaborationDurableObject {
                     connectionId,
                     contentManager: this._contentManager,
                     sendEvent,
-                    // NOCOMMIT: Test!
                     sendEventToOthers: (context, event) => {
                         this._webSocketServer.sendEventToAll(context, event);
                         sendEventToOthers(context, event);
                     },
-                    // NOCOMMIT: Test!
                     iterateOtherConnections: () =>
                         concatIterables(
                             this._webSocketServer.iterateAllConnections(),

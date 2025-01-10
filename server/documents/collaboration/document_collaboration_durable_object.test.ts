@@ -1,4 +1,5 @@
 import {Fragment, Slice} from "prosemirror-model";
+import {TextSelection} from "prosemirror-state";
 import {AddMarkStep, DocAttrStep, RemoveMarkStep, ReplaceStep} from "prosemirror-transform";
 import {TestAccessPolicy} from "~/server/access/test_access_policy.js";
 import {WorkerSessionActionContextModules} from "~/server/cloudflare/context/worker_action_context.js";
@@ -44,6 +45,7 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {generateId} from "~/shared/id/id.js";
 import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
+import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
@@ -5572,4 +5574,149 @@ test("can't update access policy with the wrong intentional policy", async () =>
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
         'Actor doesn\'t have "View" access level to document',
     );
+});
+
+test("can get presence updates across viewer/editor connections", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1, {
+        access: TestAccessPolicy.private.with(session2, "View"),
+    });
+
+    await document.type(session1, "Hello, ");
+    const {range} = await document.type(session1, "world");
+    await document.type(session1, "!");
+
+    await document.createCommentThread(session1, range);
+
+    const connection1 = await connectForTest(
+        context.action(session1, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+    );
+
+    const connection2 = await connectForTest(
+        context.action(session2, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+        {withoutComments: true},
+    );
+
+    expect(
+        await connection1.procedures.backfill({
+            version: 4,
+        }),
+    ).toEqual({
+        newVersion: 4,
+        persistedVersion: 4,
+        steps: [],
+        stepsContentReferences: emptyDocumentContentReferences,
+        presenceStates: [],
+        rememberInvertedSteps: [],
+    });
+
+    expect(
+        await connection2.procedures.backfill({
+            version: 4,
+        }),
+    ).toEqual({
+        newVersion: 4,
+        persistedVersion: 4,
+        steps: [],
+        stepsContentReferences: emptyDocumentContentReferences,
+        presenceStates: [],
+        rememberInvertedSteps: [],
+    });
+
+    expect(connection1.takeEvents()).toEqual([]);
+    expect(connection2.takeEvents()).toEqual([]);
+
+    await connection1.procedures.updateOurPresenceState({
+        state: {
+            version: 4,
+            selection: ProsemirrorSelectionWrapper.new(
+                TextSelection.near((await document.get()).content.doc.resolve(5)),
+            ),
+        },
+    });
+
+    expect(connection1.takeEvents()).toEqual([]);
+
+    expect(connection2.takeEvents()).toEqual([
+        {
+            type: "UpdateOtherPresenceState",
+            connectionId: connection1.id,
+            state: {
+                version: 4,
+                selection: ProsemirrorSelectionWrapper.fromJSON({type: "text", anchor: 5, head: 5}),
+            },
+        },
+    ]);
+
+    await connection2.procedures.updateOurPresenceState({
+        state: {
+            version: 4,
+            selection: ProsemirrorSelectionWrapper.new(
+                TextSelection.near((await document.get()).content.doc.resolve(7)),
+            ),
+        },
+    });
+
+    expect(connection1.takeEvents()).toEqual([
+        {
+            type: "UpdateOtherPresenceState",
+            connectionId: connection2.id,
+            state: {
+                version: 4,
+                selection: ProsemirrorSelectionWrapper.fromJSON({type: "text", anchor: 7, head: 7}),
+            },
+        },
+    ]);
+
+    expect(connection2.takeEvents()).toEqual([]);
+
+    expect(
+        await connection1.procedures.backfill({
+            version: 4,
+        }),
+    ).toEqual({
+        newVersion: 4,
+        persistedVersion: 4,
+        steps: [],
+        stepsContentReferences: emptyDocumentContentReferences,
+        presenceStates: [
+            {
+                connectionId: connection2.id,
+                state: {
+                    version: 4,
+                    selection: ProsemirrorSelectionWrapper.new(
+                        TextSelection.near((await document.get()).content.doc.resolve(7)),
+                    ),
+                },
+            },
+        ],
+        rememberInvertedSteps: [],
+    });
+
+    expect(
+        await connection2.procedures.backfill({
+            version: 4,
+        }),
+    ).toEqual({
+        newVersion: 4,
+        persistedVersion: 4,
+        steps: [],
+        stepsContentReferences: emptyDocumentContentReferences,
+        presenceStates: [
+            {
+                connectionId: connection1.id,
+                state: {
+                    version: 4,
+                    selection: ProsemirrorSelectionWrapper.new(
+                        TextSelection.near((await document.get()).content.doc.resolve(5)),
+                    ),
+                },
+            },
+        ],
+        rememberInvertedSteps: [],
+    });
 });

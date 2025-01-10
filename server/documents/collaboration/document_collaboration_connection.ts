@@ -740,14 +740,18 @@ export class DocumentCollaborationConnection {
             connectionId: this.connectionId,
             spaceId: this._contentManager.spaceId,
             roomKey: encodeDocumentCommentRoomKey(this._contentManager.id, commentThreadId),
-            sendEvent: (context, event) =>
-                this._sendEvent(context, {type: "Comments", commentThreadId, event}),
-            sendEventToOthers: (context, event) =>
-                this._sendEventToOthers(context, {type: "Comments", commentThreadId, event}),
-            iterateOtherConnections: () =>
-                mapIterable(this._iterateOtherConnections(), connection =>
+            sendEvent: (context, event) => {
+                if (this.withoutComments) return;
+                this._sendEvent(context, {type: "Comments", commentThreadId, event});
+            },
+            sendEventToOthers: (context, event) => {
+                this._sendEventToOthers(context, {type: "Comments", commentThreadId, event});
+            },
+            iterateOtherConnections: () => {
+                return mapIterable(this._iterateOtherConnections(), connection =>
                     connection._commentThreadConnectionById.getOrSetDefault(commentThreadId),
-                ),
+                );
+            },
             createMessage: async (
                 context,
                 {roomKey, parentMessageIndex: parentCommentIndex, content, fileIds},
