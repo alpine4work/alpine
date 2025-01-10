@@ -156,6 +156,28 @@ export function renderContentFilePreview({
         html.setAttribute("data-testid", `ContentFilePreview:${file.contentType}`);
     }
 
+    // This space helps Chrome's selection logic. In many cases we've observed that
+    // when selecting an element's contents instead of ending the selection at the
+    // end of the element, Chrome will end the selection at the beginning of the
+    // next selectable text node it finds! So when we don't have this text nodes,
+    // Chrome automatically selects all files until the next selectable text node
+    // underneath.
+    //
+    // To test this case but two files on top of each other with some text
+    // above/below. Then start dragging from the text above down. Without this
+    // text, Chrome selects both files immediately once the paragraph at the top
+    // has been selected. Since it's ending its selection in the next selectable
+    // text node (the paragraph below).
+    {
+        const selectionBoundaryHtml = new HtmlElementGenerator("span");
+        selectionBoundaryHtml.setAttribute(
+            "style",
+            "position: absolute; opacity: 0; user-select: text; -webkit-user-select: text",
+        );
+        html.appendChild(selectionBoundaryHtml);
+        selectionBoundaryHtml.appendChild(new HtmlTextGenerator(" "));
+    }
+
     if (!file) {
         const blankHtml = new HtmlElementGenerator("div");
         html.appendChild(blankHtml);
