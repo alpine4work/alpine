@@ -540,7 +540,6 @@ export const getSelectedTableGripInContentTable = ({
     view: EditorView;
     state: EditorState;
 }) => {
-    console.log("isInContentTable", isInContentTable(state));
     if (!isInContentTable(state)) {
         return false;
     }
@@ -562,6 +561,5 @@ export const getSelectedTableGripInContentTable = ({
     }
 
     const grip = table.querySelector("a.grip-button.selected");
-    console.log("grip", grip);
     return grip;
 };

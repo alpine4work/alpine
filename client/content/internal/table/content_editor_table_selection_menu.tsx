@@ -1,18 +1,25 @@
 /* eslint-disable react-compiler/react-compiler */
 /* eslint-disable @typescript-eslint/unbound-method */
-import {Transaction} from "prosemirror-state";
-import {EditorView} from "prosemirror-view";
-import {RefObject, useLayoutEffect, useState} from "react";
+import {NodeSelection, Transaction} from "prosemirror-state";
+import {EditorView, serializeForClipboard} from "prosemirror-view";
+import {RefObject, useCallback, useLayoutEffect, useState} from "react";
 import {getSelectedTableGripInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
 import {deleteContentTableColumn} from "~/client/content/internal/table/content_table_commands.js";
 import {Menu, MenuAction} from "~/client/design/menu.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {Reporter} from "~/client/design/reporter.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Id, generateId} from "~/shared/id/id.js";
 
-export const ContentEditorTableSelectionMenu = ({viewRef}: {viewRef: RefObject<EditorView>}) => {
+export const ContentEditorTableSelectionMenu = ({
+    viewRef,
+    getReporter,
+}: {
+    viewRef: RefObject<EditorView>;
+    getReporter: () => Reporter;
+}) => {
     const platform = usePlatform();
     const [menuState, setMenuState] = useState<{
         readonly key: Id;
@@ -70,30 +77,50 @@ export const ContentEditorTableSelectionMenu = ({viewRef}: {viewRef: RefObject<E
         {
             label: "Copy table",
             onPress: () => {
-                // Copy table actions
-                if (viewRef.current) {
-                    const {state} = viewRef.current;
-                    const {selection} = state;
-                    const cursorNumberPos = selection.$from.pos;
-                    const domAtPos = viewRef.current.domAtPos(cursorNumberPos).node as HTMLElement;
-                    const nodeDOM = viewRef.current.nodeDOM(cursorNumberPos) as HTMLElement;
-                    const node = nodeDOM || domAtPos;
+                const view = assertExists(viewRef.current);
+                const tableGrip = getSelectedTableGripInContentTable({
+                    view,
+                    state: view.state,
+                });
+                if (!tableGrip) return;
 
-                    if (!node) {
-                        return false;
+                // Find the table node and its position
+                const tablePos = view.posAtDOM(tableGrip, 0);
+                const $pos = view.state.doc.resolve(tablePos);
+
+                // Walk up to find the actual table node
+                let depth = $pos.depth;
+                let tableNode = null;
+                while (depth >= 0) {
+                    const node = $pos.node(depth);
+                    if (node.type.name === "table") {
+                        tableNode = node;
+                        break;
                     }
-
-                    // find the relavant table for this node
-                    const table = node.parentElement?.closest("table");
-                    if (!table) {
-                        return false;
-                    }
-
-                    const tableHTML = table.outerHTML;
-                    navigator.clipboard
-                        .writeText(tableHTML)
-                        .catch(err => console.error("Failed to copy table:", err));
+                    depth--;
                 }
+
+                if (!tableNode) return;
+
+                // Get the start position of the table
+                const startPos = $pos.start(depth);
+                const endPos = startPos + tableNode.nodeSize;
+
+                const {dom, text} = serializeForClipboard(
+                    view,
+                    view.state.doc.slice(startPos, endPos),
+                );
+
+                navigator.clipboard
+                    .write([
+                        new ClipboardItem({
+                            "text/html": new Blob([dom.innerHTML], {type: "text/html"}),
+                            "text/plain": new Blob([text], {type: "text/plain"}),
+                        }),
+                    ])
+                    .catch(error => {
+                        getReporter().displayError("Couldn't copy table", error);
+                    });
             },
         },
         {
