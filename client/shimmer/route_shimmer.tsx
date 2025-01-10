@@ -168,7 +168,6 @@ const shimmerOptionsByRouteId: {
         inboxBannerMaxWidth: documentCommentThreadListViewMaxWidth,
         component: DocumentCommentThreadRouteShimmer,
     },
-    "routes/s.$spaceId.documents.$documentId.view": {component: DocumentRouteShimmer},
     "routes/s.$spaceId.inbox": {component: InboxRouteShimmer},
     "routes/s.$spaceId.more._index": {component: MoreRouteShimmer},
     "routes/s.$spaceId.more.switch-space": {component: MoreSwitchSpaceRouteShimmer},

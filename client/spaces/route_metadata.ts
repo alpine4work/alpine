@@ -36,9 +36,6 @@ const metadataByRouteId: {
     "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId": {
         errorTitle: "Couldn’t open comment thread",
     },
-    "routes/s.$spaceId.documents.$documentId.view": {
-        errorTitle: "Couldn’t open document",
-    },
     "routes/s.$spaceId.inbox": {
         errorTitle: "Couldn’t open inbox",
         isFullWidth: true,
