@@ -4,7 +4,7 @@ import {NodeSelection, Transaction} from "prosemirror-state";
 import {EditorView, serializeForClipboard} from "prosemirror-view";
 import {RefObject, useCallback, useLayoutEffect, useState} from "react";
 import {getSelectedTableGripInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
-import {deleteContentTableColumn} from "~/client/content/internal/table/content_table_commands.js";
+import {deleteContentTable, deleteContentTableColumn} from "~/client/content/internal/table/content_table_commands.js";
 import {Menu, MenuAction} from "~/client/design/menu.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {Reporter} from "~/client/design/reporter.js";
@@ -128,7 +128,7 @@ export const ContentEditorTableSelectionMenu = ({
             onPress: () => {
                 // Delete column actions
                 if (viewRef.current) {
-                    deleteContentTableColumn(viewRef.current.state, viewRef.current.dispatch);
+                    deleteContentTable(viewRef.current.state, viewRef.current.dispatch);
                 }
             },
         },

@@ -5,6 +5,7 @@ import {EditorView} from "prosemirror-view";
 import {RefObject, useLayoutEffect, useState} from "react";
 import {getSelectedRowGripInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
 import {
+    addContentTableRowBefore,
     addRowAfter,
     deleteContentTableRow,
 } from "~/client/content/internal/table/content_table_commands.js";
@@ -76,6 +77,14 @@ export const ContentEditorTableRowsMenu = ({viewRef}: {viewRef: RefObject<Editor
                 // Add row actions
                 if (viewRef.current) {
                     addRowAfter(viewRef.current.state, viewRef.current.dispatch);
+                }
+            },
+        },
+        {
+            label: "Add row before",
+            onPress: () => {
+                if (viewRef.current) {
+                    addContentTableRowBefore(viewRef.current.state, viewRef.current.dispatch);
                 }
             },
         },

@@ -4147,12 +4147,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                     setIsMobileCommentInputOpen(true);
                 }}
             />
-            {/* <ContentEditorTableRowsMenu viewRef={viewRef} />
-            <ContentEditorTableColumnsMenu viewRef={viewRef} /> */}
-            <ContentEditorTableSelectionMenu
+            {/* <ContentEditorTableRowsMenu viewRef={viewRef} /> */}
+            <ContentEditorTableColumnsMenu viewRef={viewRef} />
+            {/* <ContentEditorTableSelectionMenu 
                 viewRef={viewRef}
                 getReporter={() => reporterRef.current}
-            />
+            /> */}
             {!fileDropTarget && selectedNodeElement && (
                 <FocusRing isVisible={true} targetElement={selectedNodeElement} />
             )}

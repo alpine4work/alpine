@@ -6,6 +6,7 @@ import {RefObject, useLayoutEffect, useState} from "react";
 import {getSelectedColumnGripInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
 import {
     addContentTableColumnAfter,
+    addContentTableColumnBefore,
     deleteContentTableColumn,
 } from "~/client/content/internal/table/content_table_commands.js";
 import {Menu, MenuAction} from "~/client/design/menu.js";
@@ -71,11 +72,20 @@ export const ContentEditorTableColumnsMenu = ({viewRef}: {viewRef: RefObject<Edi
 
     const actions: Array<MenuAction> = [
         {
-            label: "Add Column",
+            label: "Add Column After",
             onPress: () => {
                 // Add column actions
                 if (viewRef.current) {
                     addContentTableColumnAfter(viewRef.current.state, viewRef.current.dispatch);
+                }
+            },
+        },
+        {
+            label: "Add Column Before",
+            onPress: () => {
+                // Add column actions
+                if (viewRef.current) {
+                    addContentTableColumnBefore(viewRef.current.state, viewRef.current.dispatch);
                 }
             },
         },
