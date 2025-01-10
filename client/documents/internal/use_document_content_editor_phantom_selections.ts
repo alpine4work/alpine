@@ -4,6 +4,7 @@ import {Mapping, StepMap} from "prosemirror-transform";
 import {useMemo} from "react";
 import {ContentEditorPhantomSelection} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/internal/helpers/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {defaultThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
@@ -154,11 +155,21 @@ export function useDocumentContentEditorPhantomSelections({
                     murmurhash.v3(presenceState.connectionId) % filteredThemeColors.length
                 ]!;
 
+            const trimmedSelection = trimSelectionInvisibleExtensionIntoAdjacentNodes(
+                presenceState.selection,
+            );
+
             phantomSelections.push({
                 key: presenceState.connectionId,
                 color,
-                anchor: presenceState.selection.anchor,
-                head: presenceState.selection.head,
+                $anchor:
+                    presenceState.selection.anchor < presenceState.selection.head
+                        ? trimmedSelection.$from
+                        : trimmedSelection.$to,
+                $head:
+                    presenceState.selection.anchor < presenceState.selection.head
+                        ? trimmedSelection.$to
+                        : trimmedSelection.$from,
                 isTextSelection: presenceState.selection instanceof TextSelection,
             });
         }

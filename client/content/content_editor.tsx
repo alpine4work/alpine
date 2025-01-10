@@ -12,7 +12,7 @@ import {
     TextHTwo,
 } from "phosphor-react";
 import {history, redo, redoDepth, undo, undoDepth} from "prosemirror-history";
-import {Fragment, Node, Slice} from "prosemirror-model";
+import {Fragment, Node, ResolvedPos, Slice} from "prosemirror-model";
 import {
     AllSelection,
     EditorState,
@@ -614,8 +614,8 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
 export type ContentEditorPhantomSelection = {
     readonly key: string;
     readonly color: ThemeColor;
-    readonly anchor: number;
-    readonly head: number;
+    readonly $anchor: ResolvedPos;
+    readonly $head: ResolvedPos;
     readonly isTextSelection: boolean;
 };
 
@@ -3572,20 +3572,11 @@ function ContentEditor<Content extends ContentWithReferences>(
         const decorations: Array<(state: EditorState) => Array<Decoration>> = [];
 
         for (const phantomSelection of phantomSelections) {
-            if (phantomSelection.anchor !== phantomSelection.head) {
+            if (phantomSelection.$anchor.pos !== phantomSelection.$head.pos) {
                 decorations.push(state => {
-                    const from = Math.min(
-                        Math.min(phantomSelection.anchor, phantomSelection.head),
-                        state.doc.nodeSize - 2,
-                    );
-                    const to = Math.min(
-                        Math.max(phantomSelection.anchor, phantomSelection.head),
-                        state.doc.nodeSize - 2,
-                    );
-
                     return createPhantomSelectionDecorations(
                         state.doc,
-                        TextSelection.between(state.doc.resolve(from), state.doc.resolve(to)),
+                        TextSelection.between(phantomSelection.$anchor, phantomSelection.$head),
                         phantomSelection.color,
                     );
                 });
@@ -4593,12 +4584,6 @@ function handleLinkPasteWithoutSelection(
  *   that you are selecting a newline.
  */
 function createPhantomSelectionDecorations(doc: Node, selection: Selection, color: ThemeColor) {
-    // Convert non-text selections into text selections. So the `from` and `to`
-    // point to positions in text.
-    if (!(selection instanceof TextSelection)) {
-        selection = TextSelection.between(selection.$from, selection.$to);
-    }
-
     const decorations = [
         Decoration.inline(selection.from, selection.to, {
             class: contentStyles.phantomSelectionClassName,

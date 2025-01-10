@@ -1,4 +1,5 @@
 import {Command} from "prosemirror-state";
+import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/internal/helpers/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {maxContentListItemIndentation} from "~/shared/content/content_schema.js";
 
 /**
@@ -24,7 +25,7 @@ import {maxContentListItemIndentation} from "~/shared/content/content_schema.js"
  * ```
  */
 export const indentListItemCommand: Command = (state, dispatch) => {
-    const {$from, $to} = state.selection;
+    const {$from, $to} = trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection);
 
     let failed = false;
     const transaction = state.tr;
@@ -101,7 +102,7 @@ export const indentListItemCommand: Command = (state, dispatch) => {
  * ```
  */
 export const dedentListItemCommand: Command = (state, dispatch) => {
-    const {$from, $to} = state.selection;
+    const {$from, $to} = trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection);
 
     let failed = false;
     const transaction = state.tr;

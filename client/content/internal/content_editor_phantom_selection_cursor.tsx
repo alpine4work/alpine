@@ -45,13 +45,13 @@ function ContentEditorPhantomTextSelectionCursor({
             ref={useContentEditorTracker({
                 state,
                 viewRef,
-                pos: phantomSelection.head,
+                pos: phantomSelection.$head.pos,
                 // Bias the tracker position towards the anchor. This is apparent when you are
                 // selecting a line of text and the head of your selection is at the newline.
                 side:
-                    phantomSelection.anchor < phantomSelection.head
+                    phantomSelection.$anchor.pos < phantomSelection.$head.pos
                         ? -1
-                        : phantomSelection.anchor > phantomSelection.head
+                        : phantomSelection.$anchor.pos > phantomSelection.$head.pos
                         ? 1
                         : 0,
                 // Give the tracker the height of our parent element's line height since that

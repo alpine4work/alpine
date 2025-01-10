@@ -30,6 +30,7 @@ import {
     indentListItemCommand,
 } from "~/client/content/internal/helpers/indent_and_dedent_list_item_commands.js";
 import {splitBlockWithCodeBlockLineLeadingIndentation} from "~/client/content/internal/helpers/split_block_with_code_block_line_leading_indentation.js";
+import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/internal/helpers/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {addSharedContentEditorKeymapCommands} from "~/client/content/shared/add_shared_content_editor_keymap_commands.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
@@ -1988,13 +1989,15 @@ export function buildContentEditorKeymapPlugin(
     // Highlight overlay
     if (schema.marks.highlight) {
         keys.set("Mod-shift-h", (state, dispatch) => {
+            const selection = trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection);
+
             // Only open highlight color selector if we're selecting some text.
-            if (state.selection.from === state.selection.to) {
+            if (selection.$from.pos === selection.$to.pos) {
                 return false;
             }
 
             let isHighlightSupported = false;
-            state.doc.nodesBetween(state.selection.from, state.selection.to, node => {
+            state.doc.nodesBetween(selection.$from.pos, selection.$to.pos, node => {
                 if (!node.inlineContent) return;
                 isHighlightSupported ||= node.type.allowsMarkType(schema.marks.highlight!);
             });
@@ -2007,13 +2010,15 @@ export function buildContentEditorKeymapPlugin(
     }
 
     const linkCommand: Command = (state, dispatch) => {
+        const selection = trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection);
+
         // Only open highlight color selector if we're selecting some text.
-        if (state.selection.from === state.selection.to) {
+        if (selection.$from.pos === selection.$to.pos) {
             return false;
         }
 
         let isLinkSupported = false;
-        state.doc.nodesBetween(state.selection.from, state.selection.to, node => {
+        state.doc.nodesBetween(selection.$from.pos, selection.$to.pos, node => {
             if (!node.inlineContent) return;
             isLinkSupported ||= node.type.allowsMarkType(schema.marks.link);
         });
@@ -2034,13 +2039,15 @@ export function buildContentEditorKeymapPlugin(
     // Comments
     if (schema.marks.comment) {
         keys.set("Mod-shift-c", (state, dispatch) => {
+            const selection = trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection);
+
             // Only open comment input if we're selecting some text.
-            if (state.selection.from === state.selection.to) {
+            if (selection.$from.pos === selection.$to.pos) {
                 return false;
             }
 
             let isCommentSupported = false;
-            state.doc.nodesBetween(state.selection.from, state.selection.to, node => {
+            state.doc.nodesBetween(selection.$from.pos, selection.$to.pos, node => {
                 isCommentSupported ||=
                     !!schema.marks.comment && node.type.allowsMarkType(schema.marks.comment);
             });

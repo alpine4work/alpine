@@ -1,6 +1,7 @@
 import {chainCommands} from "prosemirror-commands";
 import {EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
+import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/internal/helpers/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {
     isTrackingSomeSelectionWithinSharedContentEditor,
     trackSelectionWithinSharedContentEditor,
@@ -60,7 +61,7 @@ function wrapWithPunctuation(
     {withoutAutoBalancing = false}: {withoutAutoBalancing?: boolean} = {},
 ): Command {
     return (state, dispatch) => {
-        const {$from, $to} = state.selection;
+        const {$from, $to} = trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection);
         const nodeFrom = $from.node();
         const nodeTo = $to.node();
 

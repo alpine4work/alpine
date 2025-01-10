@@ -47,6 +47,7 @@ import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/cr
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
 import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
 import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/helpers/get_marks_spanning_across_entire_range.js";
+import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/internal/helpers/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {Box} from "~/client/design/box.js";
 import {useIsContextMenuOpen} from "~/client/design/context_menu.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
@@ -198,7 +199,11 @@ export function ContentEditorPointerToolbar({
         return () => timeout.clear();
     }, [isWaitingForTripleClickAfterDoubleClick]);
 
-    const initialSelection = useConstant(() => state.selection);
+    const selection = useMemo(
+        () => trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection),
+        [state.selection],
+    );
+    const initialSelection = useConstant(() => selection);
 
     const [
         hasSelectionChangedOrPointerMovedSinceMount,
@@ -215,8 +220,8 @@ export function ContentEditorPointerToolbar({
         // show the pointer toolbar until your selection moves.
         if (
             previousState !== null &&
-            (previousState.range.from !== initialSelection.from ||
-                previousState.range.to !== initialSelection.to)
+            (previousState.range.from !== initialSelection.$from.pos ||
+                previousState.range.to !== initialSelection.$to.pos)
         ) {
             return true;
         }
@@ -226,8 +231,8 @@ export function ContentEditorPointerToolbar({
 
     if (
         !hasSelectionChangedOrPointerMovedSinceMount &&
-        (state.selection.from !== initialSelection.from ||
-            state.selection.to !== initialSelection.to)
+        (selection.$from.pos !== initialSelection.$from.pos ||
+            selection.$to.pos !== initialSelection.$to.pos)
     ) {
         setHasSelectionChangedOrPointerMovedSinceMount(true);
     }
@@ -248,7 +253,7 @@ export function ContentEditorPointerToolbar({
             // Don't show while the context menu is open.
             !isContextMenuOpen &&
             // Make sure some characters are selected before showing the selection toolbar.
-            state.selection.from !== state.selection.to &&
+            selection.$from.pos !== selection.$to.pos &&
             // Only show the pointer toolbar for a text selection. This includes the
             // `AllSelection`.
             state.selection instanceof TextSelection &&
@@ -265,11 +270,15 @@ export function ContentEditorPointerToolbar({
             // Styling just a node boundary is kind of ridiculous so since it looks weird
             // to show the toolbar on a node boundary, disable the toolbar entirely on node
             // boundary selections.
+            //
+            // TODO(calebmer): Do we need this anymore now that we have
+            // `trimSelectionInvisibleExtensionIntoAdjacentNodes()`? I'd expect boundary
+            // selections to become empty?
             !isNodeBoundarySlice(state.doc.slice(state.selection.from, state.selection.to)) &&
             // Don't show the toolbar if the selection overlaps with the title. The title
             // can only be at the beginning of a document so checking whether
             // `selection.from` is in the title is sufficient for detecting overlap.
-            state.selection.$from.parent.type.name !== "title" &&
+            selection.$from.parent.type.name !== "title" &&
             // Don't show the toolbar if the user's pointer is dragging to select text.
             !hasPointerMovedWhileDown &&
             // If the user has double clicked (to select a word) then we wait to see if
@@ -284,6 +293,9 @@ export function ContentEditorPointerToolbar({
         isContextMenuOpen,
         isFocused,
         isWaitingForTripleClickAfterDoubleClick,
+        selection.$from.parent.type.name,
+        selection.$from.pos,
+        selection.$to.pos,
         shouldShowCommentOnly,
         state.doc,
         state.selection,
@@ -404,14 +416,14 @@ export function ContentEditorPointerToolbar({
     if (
         shouldShow &&
         showState.isShowing &&
-        (showState.selectionFrom !== state.selection.from ||
-            showState.selectionTo !== state.selection.to)
+        (showState.selectionFrom !== selection.$from.pos ||
+            showState.selectionTo !== selection.$to.pos)
     ) {
         showState = showState.isShowing
             ? {
                   ...showState,
-                  selectionFrom: state.selection.from,
-                  selectionTo: state.selection.to,
+                  selectionFrom: selection.$from.pos,
+                  selectionTo: selection.$to.pos,
                   animation: showState.animation === "FadingOut" ? "FadingIn" : showState.animation,
                   // Close the link input when the selection changes.
                   extraOverlay: null,
@@ -448,8 +460,8 @@ export function ContentEditorPointerToolbar({
             const timeoutId = setTimeout(() => {
                 setShowState({
                     isShowing: true,
-                    selectionFrom: state.selection.from,
-                    selectionTo: state.selection.to,
+                    selectionFrom: selection.$from.pos,
+                    selectionTo: selection.$to.pos,
                     animation: "FadingIn",
                     extraOverlay: null,
                 });
@@ -461,10 +473,10 @@ export function ContentEditorPointerToolbar({
         }
     }, [
         hasSelectionChangedOrPointerMovedSinceMount,
+        selection.$from.pos,
+        selection.$to.pos,
         shouldShow,
         showState.isShowing,
-        state.selection.from,
-        state.selection.to,
     ]);
 
     useEffect(() => {
