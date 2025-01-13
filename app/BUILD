@@ -78,6 +78,7 @@ ts_project(
         "//client/helpers",
         "//client/inbox",
         "//client/messaging",
+        "//client/navigation",
         "//client/peek",
         "//client/remix",
         "//client/rpc",

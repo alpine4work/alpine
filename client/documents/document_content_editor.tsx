@@ -35,8 +35,6 @@ import {
     mobileFullScreenModalAnimationEasingParsedCubicBezier,
 } from "~/client/design/mobile_full_screen_modal.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {useNavigationBar} from "~/client/design/navigation_bar.js";
-import {NavigationBarRef} from "~/client/design/navigation_bar_types.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
@@ -77,6 +75,8 @@ import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {LecturnIcon} from "~/client/icons/lecturn_icon.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
+import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
+import {NavigationBarRef} from "~/client/navigation/navigation_bar_types.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";

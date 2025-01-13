@@ -2,7 +2,6 @@ import {CaretLeft, CaretRight} from "phosphor-react";
 import {MutableRefObject, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {
     DocumentCommentThreadListView,
@@ -12,6 +11,7 @@ import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
+import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {
     getInitialAppRenderPlatform,

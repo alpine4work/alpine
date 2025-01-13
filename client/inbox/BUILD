@@ -16,6 +16,7 @@ ts_project(
         "//client/context",
         "//client/design",
         "//client/dynamo",
+        "//client/navigation",
         "//client/peek",
         "//client/spaces",
         "//client/virtualized",

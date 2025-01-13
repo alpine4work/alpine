@@ -14,13 +14,13 @@ import {
     navigationBarHeight,
     navigationBarMobileGap,
 } from "~/client/design/navigation_bar_helpers.js";
-import {NavigationBarShareButtonProps} from "~/client/design/navigation_bar_types.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {OverlayTriggerButtonState} from "~/client/design/overlay_trigger_button.js";
 import {useReporter} from "~/client/design/reporter.js";
-import {ShareButton} from "~/client/design/share_button.js";
-import {addShareMenuItem} from "~/client/design/share_menu_item.js";
 import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
+import {NavigationBarShareButtonProps} from "~/client/navigation/navigation_bar_types.js";
+import {ShareButton} from "~/client/navigation/share_button.js";
+import {addShareMenuItem} from "~/client/navigation/share_menu_item.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";

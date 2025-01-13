@@ -1,8 +1,8 @@
 import {useCallback, useMemo} from "react";
-import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {ChannelViewNameEditor} from "~/client/forum/internal/channel_view_name_editor.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
+import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";

@@ -8,7 +8,6 @@ import {
 import {ChatAccountPicker} from "~/client/chat/chat_account_picker.js";
 import {NewChatMessagingView} from "~/client/chat/new_chat_messaging_view.js";
 import {Box} from "~/client/design/box.js";
-import {NavigationBarContent} from "~/client/design/navigation_bar_content.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {
@@ -17,6 +16,7 @@ import {
 } from "~/client/helpers/use_resize_observer.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {MessagingViewRef} from "~/client/messaging/messaging_view.js";
+import {NavigationBarContent} from "~/client/navigation/navigation_bar_content.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";

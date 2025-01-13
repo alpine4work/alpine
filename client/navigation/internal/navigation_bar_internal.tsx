@@ -29,21 +29,21 @@ import {flushSync} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {
-    NavigationBarContent,
-    NavigationBarContentRef,
-} from "~/client/design/navigation_bar_content.js";
-import {
     navigationBarHeight,
     navigationBarHeightRem,
 } from "~/client/design/navigation_bar_helpers.js";
-import {
-    NavigationBarRef,
-    NavigationBarShareButtonProps,
-} from "~/client/design/navigation_bar_types.js";
 import {OverlayTriggerButtonState} from "~/client/design/overlay_trigger_button.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {scrollbarVisibleAfterScrollDurationMs} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {
+    NavigationBarContent,
+    NavigationBarContentRef,
+} from "~/client/navigation/navigation_bar_content.js";
+import {
+    NavigationBarRef,
+    NavigationBarShareButtonProps,
+} from "~/client/navigation/navigation_bar_types.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {
     getRemPxWithoutListening,

@@ -9,7 +9,9 @@ import {MenuButton} from "~/client/design/menu_button.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {Spacer} from "~/client/design/spacer.js";
+import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -20,7 +22,7 @@ import {
 import {
     elevation,
     greyElevated1ClassName,
-    inputPlaceholderStyles,
+    pointerEventsNoneNotInheritedClassName,
     pulseAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
@@ -31,7 +33,7 @@ import {
     AccessPolicyDefaultGrant,
     compareAccessLevel,
 } from "~/shared/access/access_policy.js";
-import {spacing} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -303,59 +305,77 @@ function ShareOverlay({
 }
 
 function ShareOverlayAccountGrantInput({isAltKeyDown}: {isAltKeyDown: boolean}) {
+    const spacingScale = useSpacingScale();
+
+    const [buttonsRef, buttonsSize] = useResizeObserver();
+
+    const [accessLevel, setAccessLevel] = useState<AccessLevel>("Manage");
+
     return (
-        <Box
-            padding="2"
-            display="flex"
-            alignItems="center"
-            gap="2"
-            border="grey-20"
-            borderRadius="1.5"
-        >
-            <Box paddingLeft="1" flexGrow="1" style={inputPlaceholderStyles}>
-                Add people
-            </Box>
-            <MenuButton
-                placement="bottom-end"
-                actions={[
-                    {
-                        isSelected: true,
-                        label: accessLevelText.Manage,
-                        onPress: () => {
-                            // NOCOMMIT
-                        },
-                    },
-                    ...(isAltKeyDown
-                        ? [
-                              cast<MenuAction>({
-                                  label: accessLevelText.Edit,
-                                  onPress: () => {
-                                      // NOCOMMIT
-                                  },
-                              }),
-                          ]
-                        : emptyArray),
-                    {
-                        label: accessLevelText.Comment,
-                        onPress: () => {
-                            // NOCOMMIT
-                        },
-                    },
-                    {
-                        label: accessLevelText.View,
-                        onPress: () => {
-                            // NOCOMMIT
-                        },
-                    },
-                ]}
+        <Box position="relative" height="10">
+            <input
+                className={sprinkles({
+                    height: "full",
+                    width: "full",
+                    paddingLeft: "3",
+                    border: "grey-20",
+                    borderRadius: "1.5",
+                    backgroundColor: "transparent",
+                })}
+                style={{
+                    paddingRight:
+                        (buttonsSize?.width ?? 0) + convertRemLengthToPx("2", spacingScale),
+                }}
+                placeholder="Add people"
+            />
+            <Box
+                ref={buttonsRef}
+                className={pointerEventsNoneNotInheritedClassName}
+                position="absolute"
+                top="0"
+                bottom="0"
+                right="2"
+                display="flex"
+                alignItems="center"
+                gap="2"
             >
-                <Button height="6" paddingX="2" icon={<CaretDown />} iconPlacement="end">
-                    {accessLevelText.Manage}
+                <MenuButton
+                    placement="bottom-end"
+                    actions={[
+                        {
+                            isSelected: accessLevel === "Manage",
+                            label: accessLevelText.Manage,
+                            onPress: () => setAccessLevel("Manage"),
+                        },
+                        ...(isAltKeyDown
+                            ? [
+                                  cast<MenuAction>({
+                                      isSelected: accessLevel === "Edit",
+                                      label: accessLevelText.Edit,
+                                      onPress: () => setAccessLevel("Edit"),
+                                  }),
+                              ]
+                            : emptyArray),
+                        {
+                            isSelected: accessLevel === "Comment",
+                            label: accessLevelText.Comment,
+                            onPress: () => setAccessLevel("Comment"),
+                        },
+                        {
+                            isSelected: accessLevel === "View",
+                            label: accessLevelText.View,
+                            onPress: () => setAccessLevel("View"),
+                        },
+                    ]}
+                >
+                    <Button height="6" paddingX="2" icon={<CaretDown />} iconPlacement="end">
+                        {accessLevelText[accessLevel]}
+                    </Button>
+                </MenuButton>
+                <Button variant="neutral" height="6" paddingX="3" withoutMinWidth>
+                    Add
                 </Button>
-            </MenuButton>
-            <Button variant="neutral" height="6" paddingX="3" withoutMinWidth>
-                Add
-            </Button>
+            </Box>
         </Box>
     );
 }

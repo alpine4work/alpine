@@ -1,17 +1,17 @@
 import {useCallback, useMemo, useRef} from "react";
 import {flushSync} from "react-dom";
-import {NavigationBar} from "~/client/design/internal/navigation_bar_internal.js";
 import {
     dispatchNavigationBarPrepareSmoothScrollToEventEmitter,
     flushNavigationBarScrollEventEmitter,
     navigationBarHeight,
 } from "~/client/design/navigation_bar_helpers.js";
-import {NavigationBarProps, NavigationBarResult} from "~/client/design/navigation_bar_types.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer.js";
+import {NavigationBar} from "~/client/navigation/internal/navigation_bar_internal.js";
+import {NavigationBarProps, NavigationBarResult} from "~/client/navigation/navigation_bar_types.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";

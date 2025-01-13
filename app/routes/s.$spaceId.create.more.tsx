@@ -6,8 +6,8 @@ import {TaskQueryBrandIcon} from "~/client/icons/brand/task_query_brand_icon.js"
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
+import {SpaceRouteScrollView} from "~/client/spaces/layout/space_route_scroll_view.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {generateId} from "~/shared/id/id.js";
 
