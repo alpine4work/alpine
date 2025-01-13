@@ -581,29 +581,41 @@ function OverlayTriggerButton(
                 if (isActuallyVisible) {
                     dispatchTriggeredOverlayOpenEvent(overlayTriggerElement);
                 } else {
-                    pendingTriggeredOverlayCloseRef.current = () => {
+                    if (state.disableAnimationOut) {
                         dispatchTriggeredOverlayCloseEvent(overlayTriggerElement);
-                    };
+                    } else {
+                        pendingTriggeredOverlayCloseRef.current = () => {
+                            dispatchTriggeredOverlayCloseEvent(overlayTriggerElement);
+                        };
 
-                    // The double `requestAnimationFrame()` is for overlay triggers which use
-                    // `<IconButton variant="quiet">` or `<Button variant="quiet">`. These
-                    // components show a background color when they're either hovered or their
-                    // overlay is open. When their overlay is open, because `isBlocking` is true
-                    // there's a cover element over the DOM to prevent pointer interactions from
-                    // going to the underlying UI. When the overlay closes, this cover element is
-                    // removed and `pointerover` is fired on the button (if the mouse hasn't moved)
-                    // so it considers itself hovered again. However, there's a small delay between
-                    // the cover being removed and `pointerover` being fired. Two animation frames
-                    // of delay in fact. So wait two animation frames so the button's background
-                    // doesn't flicker when the overlay closes.
-                    requestAnimationFrame(() => {
+                        // The double `requestAnimationFrame()` is for overlay triggers which use
+                        // `<IconButton variant="quiet">` or `<Button variant="quiet">`. These
+                        // components show a background color when they're either hovered or their
+                        // overlay is open. When their overlay is open, because `isBlocking` is true
+                        // there's a cover element over the DOM to prevent pointer interactions from
+                        // going to the underlying UI. When the overlay closes, this cover element is
+                        // removed and `pointerover` is fired on the button (if the mouse hasn't moved)
+                        // so it considers itself hovered again. However, there's a small delay between
+                        // the cover being removed and `pointerover` being fired. Two animation frames
+                        // of delay in fact. So wait two animation frames so the button's background
+                        // doesn't flicker when the overlay closes.
+                        //
+                        // Video reproduction of the bug:
+                        // https://cyberworlds.dev/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/abaeqqrmkpetc1x1wm0nkzfbbc
+                        //
+                        // However, if the overlay was closed without animation then we want to remove
+                        // the background color on our button the same frame the overlay closes. Which
+                        // is why we make sure `state.disableAnimationOut` is false before entering
+                        // this code path.
                         requestAnimationFrame(() => {
-                            if (pendingTriggeredOverlayCloseRef.current !== null) {
-                                pendingTriggeredOverlayCloseRef.current();
-                                pendingTriggeredOverlayCloseRef.current = null;
-                            }
+                            requestAnimationFrame(() => {
+                                if (pendingTriggeredOverlayCloseRef.current !== null) {
+                                    pendingTriggeredOverlayCloseRef.current();
+                                    pendingTriggeredOverlayCloseRef.current = null;
+                                }
+                            });
                         });
-                    });
+                    }
                 }
             }}
         >
