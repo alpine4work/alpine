@@ -55,8 +55,7 @@ if (typeof window !== "undefined") {
 
     HTMLElement.prototype.focus = function () {
         const debugId = getFocusElementDebugId(this);
-        // NOCOMMIT
-        console.trace(`[FocusEventDebugger#${debugId}] focus()`, ...arguments);
+        console.log(`[FocusEventDebugger#${debugId}] focus()`, ...arguments);
         return originalFocus.apply(this, arguments as any);
     };
 
