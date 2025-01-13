@@ -24,7 +24,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {iterableFindIndex} from "~/shared/helpers/iterable/iterable_find_index.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -433,7 +432,9 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
                         );
                     }
 
-                    return defaultCompareStrings(item1.textValue, item2.textValue);
+                    // Use the sort order from the server. The server returns accounts in
+                    // affinity order.
+                    return 0;
                 });
 
                 return allItems;
