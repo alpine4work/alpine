@@ -1,5 +1,5 @@
 import {CaretDown, Globe, Link as LinkIcon} from "phosphor-react";
-import {forwardRef, useEffect, useMemo, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {FocusScope} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
@@ -74,6 +74,8 @@ export function ShareOverlay({
     //
     // The current account is not included in this array. The current account is
     // displayed first in the list of accounts with access.
+    //
+    // NOCOMMIT: Scroll if there are too many users
     const sortedAccountGrants = useMemo(
         () =>
             Array.from(
@@ -134,6 +136,9 @@ export function ShareOverlay({
                         <>
                             <ShareOverlayAccountGrantInput
                                 accountGrantById={accessPolicy.accountGrantById}
+                                onAccountGrantByIdChange={accountGrantById =>
+                                    onAccessPolicyChange({...accessPolicy, accountGrantById})
+                                }
                                 allAccounts={allAccounts}
                                 accountById={accountById}
                                 isAltKeyDown={isAltKeyDown}
@@ -143,6 +148,10 @@ export function ShareOverlay({
                     )}
                     <Box display="flex" flexDirection="column" gap="4">
                         <ShareOverlayAccountGrant
+                            // NOCOMMIT: Protect against removing your own access
+                            // NOCOMMIT: Protect against newly granted accounts lowering previously granted
+                            // account access
+                            //
                             // We always want to show at least the current account in the share overlay and
                             // we want to show the current account first.
                             account={currentAccount}
@@ -163,6 +172,22 @@ export function ShareOverlay({
                                 key={accountId}
                                 account={accountById.get(accountId) ?? null}
                                 accountGrant={accountGrant}
+                                onAccountGrantChange={newAccountGrant => {
+                                    const newAccountGrantById = new Map(
+                                        accessPolicy.accountGrantById,
+                                    );
+
+                                    if (newAccountGrant === null) {
+                                        newAccountGrantById.delete(accountId);
+                                    } else {
+                                        newAccountGrantById.set(accountId, newAccountGrant);
+                                    }
+
+                                    onAccessPolicyChange({
+                                        ...accessPolicy,
+                                        accountGrantById: newAccountGrantById,
+                                    });
+                                }}
                                 isReadOnly={isReadOnly}
                                 isAltKeyDown={isAltKeyDown}
                             />
@@ -210,11 +235,13 @@ export function ShareOverlay({
 function ShareOverlayAccountGrant({
     account,
     accountGrant,
+    onAccountGrantChange,
     isReadOnly,
     isAltKeyDown,
 }: {
     account: AccountModel | null;
     accountGrant: AccessPolicyAccountGrant;
+    onAccountGrantChange: (accountGrant: AccessPolicyAccountGrant | null) => void;
     isReadOnly: boolean;
     isAltKeyDown: boolean;
 }) {
@@ -252,42 +279,32 @@ function ShareOverlayAccountGrant({
                             {
                                 isSelected: accountGrant.level === "Manage",
                                 label: accessLevelText.Manage,
-                                onPress: () => {
-                                    // NOCOMMIT
-                                },
+                                onPress: () => onAccountGrantChange({level: "Manage"}),
                             },
                             ...(isAltKeyDown
                                 ? [
                                       cast<MenuAction>({
                                           isSelected: accountGrant.level === "Edit",
                                           label: accessLevelText.Edit,
-                                          onPress: () => {
-                                              // NOCOMMIT
-                                          },
+                                          onPress: () => onAccountGrantChange({level: "Edit"}),
                                       }),
                                   ]
                                 : emptyArray),
                             {
                                 isSelected: accountGrant.level === "Comment",
                                 label: accessLevelText.Comment,
-                                onPress: () => {
-                                    // NOCOMMIT
-                                },
+                                onPress: () => onAccountGrantChange({level: "Comment"}),
                             },
                             {
                                 isSelected: accountGrant.level === "View",
                                 label: accessLevelText.View,
-                                onPress: () => {
-                                    // NOCOMMIT
-                                },
+                                onPress: () => onAccountGrantChange({level: "View"}),
                             },
                         ],
                         [
                             {
                                 label: removeAccessLevelText,
-                                onPress: () => {
-                                    // NOCOMMIT
-                                },
+                                onPress: () => onAccountGrantChange(null),
                             },
                         ],
                     ]}

@@ -5,6 +5,7 @@ import _Fuse from "fuse.js";
 import {CaretDown, MagnifyingGlass} from "phosphor-react";
 import {KeyboardEvent, RefObject, createRef, useEffect, useMemo, useRef, useState} from "react";
 import {AriaListBoxOptions, useComboBox, useListBox, useOption} from "react-aria";
+import {flushSync} from "react-dom";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
@@ -57,11 +58,13 @@ let isClosingComboBox = false;
 
 export function ShareOverlayAccountGrantInput({
     accountGrantById,
+    onAccountGrantByIdChange,
     allAccounts,
     accountById,
     isAltKeyDown,
 }: {
     accountGrantById: AccessPolicy["accountGrantById"];
+    onAccountGrantByIdChange: (accountGrantById: AccessPolicy["accountGrantById"]) => void;
     allAccounts: ReadonlyArray<AccountModel>;
     accountById: ReadonlyMap<AccountId, AccountModel>;
     isAltKeyDown: boolean;
@@ -633,7 +636,29 @@ export function ShareOverlayAccountGrantInput({
                                 {accessLevelText[accessLevel]}
                             </Button>
                         </MenuButton>
-                        <Button variant="neutral" height="6" paddingX="3" withoutMinWidth>
+                        <Button
+                            variant="neutral"
+                            height="6"
+                            paddingX="3"
+                            withoutMinWidth
+                            onPress={() => {
+                                const newAccountGrantById = new Map(accountGrantById);
+
+                                for (const selectedAccount of selectedAccounts) {
+                                    if (!newAccountGrantById.has(selectedAccount.id)) {
+                                        newAccountGrantById.set(selectedAccount.id, {
+                                            level: accessLevel,
+                                        });
+                                    }
+                                }
+
+                                // Make sure these both happen in a single React commit.
+                                flushSync(() => {
+                                    setSelectedAccounts(emptyArray);
+                                    onAccountGrantByIdChange(newAccountGrantById);
+                                });
+                            }}
+                        >
                             Add
                         </Button>
                     </Box>
