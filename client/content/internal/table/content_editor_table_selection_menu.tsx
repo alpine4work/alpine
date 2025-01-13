@@ -1,77 +1,54 @@
-/* eslint-disable react-compiler/react-compiler */
-/* eslint-disable @typescript-eslint/unbound-method */
-import {NodeSelection, Transaction} from "prosemirror-state";
+import {EditorState} from "prosemirror-state";
 import {EditorView, serializeForClipboard} from "prosemirror-view";
-import {RefObject, useCallback, useLayoutEffect, useState} from "react";
+import {RefObject, useEffect, useState} from "react";
+import {TableMenuState} from "~/client/content/content_editor.js";
 import {getSelectedTableGripInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
-import {deleteContentTable, deleteContentTableColumn} from "~/client/content/internal/table/content_table_commands.js";
+import {deleteContentTable} from "~/client/content/internal/table/content_table_commands.js";
 import {Menu, MenuAction} from "~/client/design/menu.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {Id, generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.js";
 
 export const ContentEditorTableSelectionMenu = ({
     viewRef,
+    state,
     getReporter,
 }: {
     viewRef: RefObject<EditorView>;
+    state: EditorState;
     getReporter: () => Reporter;
 }) => {
     const platform = usePlatform();
-    const [menuState, setMenuState] = useState<{
-        readonly key: Id;
-        readonly targetElement: HTMLElement;
-    } | null>(null);
+    const [menuState, setMenuState] = useState<TableMenuState | null>(null);
 
-    useLayoutEffect(() => {
-        if (!viewRef.current) return;
+    useEffect(() => {
+        const selectedTableGrip = getSelectedTableGripInContentTable({
+            view: assertExists(viewRef.current),
+            state,
+        });
 
-        const view = viewRef.current;
-        const handleUpdate = (tr: Transaction) => {
-            const tableGrip = getSelectedTableGripInContentTable({
-                view,
-                state: view.state,
+        if (selectedTableGrip) {
+            setMenuState({
+                type: "selection",
+                key: generateId(),
+                targetElement: selectedTableGrip as HTMLElement,
+                isVisible: true,
             });
+        } else {
+            setMenuState(null);
+        }
+    }, [state, viewRef]);
 
-            if (tableGrip) {
-                const targetElement = tableGrip;
-                if (targetElement && (!menuState || menuState.targetElement !== targetElement)) {
-                    setMenuState({
-                        key: menuState?.key ?? generateId(),
-                        targetElement: targetElement as HTMLElement,
-                    });
-                }
-            } else if (menuState) {
-                setMenuState(null);
-            }
-        };
+    const onCloseWithAnimation = () => {
+        setMenuState(prev => (prev ? {...prev, isVisible: false} : null));
+    };
 
-        // Initial check
-        handleUpdate(view.state.tr);
-
-        // Subscribe to state updates using a ref to avoid closure issues
-        const originalDispatch = view.dispatch;
-        const dispatchRef = {current: originalDispatch};
-
-        view.dispatch = (tr: Transaction) => {
-            dispatchRef.current.call(view, tr);
-            handleUpdate(tr);
-        };
-
-        return () => {
-            view.dispatch = originalDispatch;
-        };
-    }, [viewRef, menuState]);
-
-    // Check if target is still valid
-    if (menuState && !document.body.contains(menuState.targetElement)) {
+    const onCloseWithoutAnimation = () => {
         setMenuState(null);
-    }
-
-    if (!menuState) return null;
+    };
 
     const actions: Array<MenuAction> = [
         {
@@ -126,29 +103,31 @@ export const ContentEditorTableSelectionMenu = ({
         {
             label: "Delete table",
             onPress: () => {
-                // Delete column actions
                 if (viewRef.current) {
                     deleteContentTable(viewRef.current.state, viewRef.current.dispatch);
+                    onCloseWithAnimation();
                 }
             },
         },
     ];
 
+    if (!menuState) return null;
+
     return (
         <OverlayAnimated
             isBlocking={false}
-            isVisible={!!menuState}
+            isVisible={menuState.isVisible}
             offset={defaultTooltipOffset}
             placement="top-start"
-            fallbackPlacements={["top-start"]}
+            fallbackPlacements={["left-start"]}
             overflowBottom={platform === "mobile" ? "18rem" : undefined}
-            targetElement={assertExists(menuState?.targetElement)}
+            targetElement={menuState.targetElement}
             overlay={
                 <Menu
                     isNotFocusable={true}
                     actions={actions}
-                    onCloseWithAnimation={() => setMenuState(null)}
-                    onCloseWithoutAnimation={() => setMenuState(null)}
+                    onCloseWithAnimation={onCloseWithAnimation}
+                    onCloseWithoutAnimation={onCloseWithoutAnimation}
                 />
             }
         />

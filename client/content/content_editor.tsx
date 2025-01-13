@@ -106,7 +106,12 @@ import {ContentEditorTableColumnsMenu} from "~/client/content/internal/table/con
 import {createContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {ContentEditorTableRowsMenu} from "~/client/content/internal/table/content_editor_table_rows_menu.js";
 import {ContentEditorTableSelectionMenu} from "~/client/content/internal/table/content_editor_table_selection_menu.js";
-import {isInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
+import {
+    getSelectedColumnGripInContentTable,
+    getSelectedRowGripInContentTable,
+    getSelectedTableGripInContentTable,
+    isInContentTable,
+} from "~/client/content/internal/table/content_table_client_util.js";
 import {handleContentTablePaste} from "~/client/content/internal/table/content_table_input.js";
 import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
@@ -235,6 +240,24 @@ import {
 // users may accidentally click on a word that makes sense to them and get this
 // menu which could be frustrating. Long term we also plan on implementing our
 // own spell checking. So the conflicting spell checking is unfortunate.
+
+export type TableMenuState = {
+    readonly key: Id;
+    readonly targetElement: HTMLElement;
+    readonly isVisible: boolean;
+} & (
+    | {
+          readonly type: "row";
+          readonly position: number;
+      }
+    | {
+          readonly type: "column";
+          readonly position: number;
+      }
+    | {
+          readonly type: "selection";
+      }
+);
 
 function wrap<Content extends ContentWithReferences>(
     state: EditorState,
@@ -1687,7 +1710,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             promise.catch(error => {
                 reporter.displayError(
-                    hasUploadFileError ? "Couldn’t upload file" : "Couldn’t paste",
+                    hasUploadFileError ? "Couldn't upload file" : "Couldn't paste",
                     error,
                 );
             });
@@ -4147,12 +4170,16 @@ function ContentEditor<Content extends ContentWithReferences>(
                     setIsMobileCommentInputOpen(true);
                 }}
             />
-            {/* <ContentEditorTableRowsMenu viewRef={viewRef} /> */}
-            <ContentEditorTableColumnsMenu viewRef={viewRef} />
-            {/* <ContentEditorTableSelectionMenu 
+
+            {/* Table menus */}
+            <ContentEditorTableRowsMenu viewRef={viewRef} state={unwrappedState} />
+            <ContentEditorTableColumnsMenu viewRef={viewRef} state={unwrappedState} />
+            <ContentEditorTableSelectionMenu
                 viewRef={viewRef}
+                state={unwrappedState}
                 getReporter={() => reporterRef.current}
-            /> */}
+            />
+
             {!fileDropTarget && selectedNodeElement && (
                 <FocusRing isVisible={true} targetElement={selectedNodeElement} />
             )}
