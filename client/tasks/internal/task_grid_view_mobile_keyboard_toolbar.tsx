@@ -593,7 +593,7 @@ function TaskGridViewMobileKeyboardToolbarButton({
     // Change this state only when `isPressed` changes. If it becomes active while
     // pressed we don't want to change the color.
     const [isPressedAndActive] = useStateWithDependencies(
-        isPressed => isPressed && isActive,
+        ([isPressed]) => isPressed && isActive,
         [isPressed],
     );
 

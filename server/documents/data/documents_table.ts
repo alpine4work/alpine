@@ -2785,10 +2785,10 @@ export async function updateDocumentContent(
 
         assert(isDocumentContent(newContent));
 
-        const hasAccessPolicyChanged = !isDeepEqual(
-            internalDocument.content.attrs.accessPolicy,
-            newContent.attrs.accessPolicy,
-        );
+        const oldAccessPolicy: AccessPolicy = internalDocument.content.attrs.accessPolicy;
+        const newAccessPolicy: AccessPolicy = newContent.attrs.accessPolicy;
+
+        const hasAccessPolicyChanged = !isDeepEqual(oldAccessPolicy, newAccessPolicy);
 
         // We don't allow the access policy to be updated unless
         // `intentionallyUpdateAccessPolicy` is defined. This is a protection which
@@ -2811,7 +2811,7 @@ export async function updateDocumentContent(
         // intend.
         if (
             intentionallyUpdateAccessPolicy &&
-            !isDeepEqual(intentionallyUpdateAccessPolicy, newContent.attrs.accessPolicy)
+            !isDeepEqual(intentionallyUpdateAccessPolicy, newAccessPolicy)
         ) {
             throw new PermissionDeniedError(
                 "The document's new access policy doesn't match `intentionallyUpdateAccessPolicy`",
@@ -3094,6 +3094,33 @@ export async function updateDocumentContent(
                                     },
                                 );
                             }
+
+                            // Increase affinity points for all accounts this actor granted access to with
+                            // a high intent update since the user clearly wants to show something to the
+                            // granted accounts.
+                            //
+                            // TODO(calebmer, #sharing): Make sure to add this for task access policy
+                            // changes too.
+                            for (const grantedAccountId of newAccessPolicy.accountGrantById.keys()) {
+                                if (oldAccessPolicy.accountGrantById.has(grantedAccountId))
+                                    continue;
+
+                                context.process.waitUntil(async () => {
+                                    if (
+                                        await isAccountMemberOfSpace(
+                                            context,
+                                            internalDocument.spaceId,
+                                            grantedAccountId,
+                                        )
+                                    ) {
+                                        await markSearchAffinityInteraction(context, {
+                                            spaceId: internalDocument.spaceId,
+                                            affinityId: `Account:${grantedAccountId}`,
+                                            interaction: {type: "HighIntentUpdate"},
+                                        });
+                                    }
+                                });
+                            }
                         },
                     },
                 ),
@@ -3210,32 +3237,6 @@ export async function updateDocumentContent(
                                     updatedTraits: {type: "Any"},
                                 },
                             });
-
-                            // Increase affinity points for all mentioned accounts with a high intent
-                            // update since the user clearly wants the attention of the mentioned accounts.
-                            //
-                            // (If a mentioned account doesn't have access to this message should that
-                            // still be a high intent update? For now we say yes since the user is
-                            // explicitly choosing to reference them.)
-                            for (const mentionedAccountId of mentionedAccountIds) {
-                                context.process.waitUntil(async () => {
-                                    if (
-                                        await isAccountMemberOfSpace(
-                                            context,
-                                            internalDocument.spaceId,
-                                            mentionedAccountId,
-                                        )
-                                    ) {
-                                        await markSearchAffinityInteraction(context, {
-                                            spaceId: internalDocument.spaceId,
-                                            affinityId: `Account:${
-                                                mentionedAccountId as AccountId
-                                            }`,
-                                            interaction: {type: "HighIntentUpdate"},
-                                        });
-                                    }
-                                });
-                            }
                         },
                     },
                 ),

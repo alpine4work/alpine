@@ -325,7 +325,7 @@ export function useTaskGridViewVirtualizedList({
     const isDragging = !!dndContext.active;
 
     const [draggingData] = useStateWithDependencies(
-        isDragging => {
+        ([isDragging]) => {
             if (!isDragging) return null;
 
             const draggingData = dndContext.active?.data.current as
@@ -340,7 +340,7 @@ export function useTaskGridViewVirtualizedList({
     const reactId = useId();
 
     const [bottomGhostTaskId, setBottomGhostTaskId] = useStateWithDependencies(
-        rootQuery => {
+        ([rootQuery]) => {
             if (!rootQuery) return null;
             if (!initialAppRenderId) return generateId<TaskId>();
 

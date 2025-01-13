@@ -234,7 +234,7 @@ export function TaskRealtimeClientContextProvider({
     // `AccountClientStore` and also prevent garbage collection of `currentAccount`
     // from `AccountClientStore`.
     useStateWithDependencies(
-        (accountStore, currentAccount) => accountStore.getAccountStore(currentAccount),
+        ([accountStore, currentAccount]) => accountStore.getAccountStore(currentAccount),
         [accountStore, currentAccount],
     );
 

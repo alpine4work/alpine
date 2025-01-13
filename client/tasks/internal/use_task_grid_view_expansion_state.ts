@@ -364,7 +364,7 @@ export function useTaskGridViewExpansionState({
 
     // When `query` changes we need to reset our state.
     const [stateManager] = useStateWithDependencies(
-        query =>
+        ([query]) =>
             query
                 ? createTaskGridViewExpansionStateManager({
                       getContext,

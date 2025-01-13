@@ -130,7 +130,7 @@ export default function NewChatRoute() {
     // when we get a new result back from Remix (due to route transition), that
     // always wins.
     const [selectedAccounts, setSelectedAccounts] = useStateWithDependencies(
-        selectedAccounts => selectedAccounts,
+        ([selectedAccounts]) => selectedAccounts,
         [loaderData.selectedAccounts],
     );
 
