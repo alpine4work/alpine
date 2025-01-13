@@ -1550,6 +1550,7 @@ export function DocumentContentEditor({
                 : []),
         ],
         shareButton: {
+            entityNoun: "document",
             accessPolicy: content.doc.attrs.accessPolicy,
             onAccessPolicyChange: accessPolicy =>
                 onEditorStateChange(editorState.setAccessPolicy(accessPolicy)),

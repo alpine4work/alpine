@@ -545,7 +545,11 @@ export class ContentEditorState<Content extends ContentWithReferences> {
             this._state.apply(
                 this._state.tr
                     .setDocAttribute("accessPolicy", accessPolicy)
-                    .setMeta(intentionallyUpdateContentAccessPolicyMetaKey, accessPolicy),
+                    .setMeta(intentionallyUpdateContentAccessPolicyMetaKey, accessPolicy)
+                    // Don't allow undoing access policy changes with cmd-z. Trying to undo an
+                    // access policy change will cause an error since it doesn't have the
+                    // `intentionallyUpdateAccessPolicy` property set.
+                    .setMeta("addToHistory", false),
             ),
         );
     }

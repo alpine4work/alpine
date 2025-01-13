@@ -21,6 +21,7 @@ export type NavigationBarRef = {
 };
 
 export type NavigationBarShareButtonProps = {
+    readonly entityNoun: string;
     readonly accessPolicy: AccessPolicy;
     readonly onAccessPolicyChange: (accessPolicy: AccessPolicy) => void;
     readonly isReadOnly: boolean;

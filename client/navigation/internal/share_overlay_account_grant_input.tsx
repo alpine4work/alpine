@@ -22,6 +22,7 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {accessLevelText} from "~/client/navigation/internal/access_level_text.js";
+import {AccessPolicyAction} from "~/client/navigation/internal/access_policy_action.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -32,7 +33,11 @@ import {
     pointerEventsNoneNotInheritedClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
+import {
+    AccessLevel,
+    AccessPolicy,
+    AccessPolicyAccountGrant,
+} from "~/shared/access/access_policy.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -58,13 +63,13 @@ let isClosingComboBox = false;
 
 export function ShareOverlayAccountGrantInput({
     accountGrantById,
-    onAccountGrantByIdChange,
+    onAccessPolicyChange,
     allAccounts,
     accountById,
     isAltKeyDown,
 }: {
     accountGrantById: AccessPolicy["accountGrantById"];
-    onAccountGrantByIdChange: (accountGrantById: AccessPolicy["accountGrantById"]) => void;
+    onAccessPolicyChange: (action: AccessPolicyAction) => void;
     allAccounts: ReadonlyArray<AccountModel>;
     accountById: ReadonlyMap<AccountId, AccountModel>;
     isAltKeyDown: boolean;
@@ -642,7 +647,10 @@ export function ShareOverlayAccountGrantInput({
                             paddingX="3"
                             withoutMinWidth
                             onPress={() => {
-                                const newAccountGrantById = new Map(accountGrantById);
+                                const newAccountGrantById = new Map<
+                                    AccountId,
+                                    AccessPolicyAccountGrant
+                                >();
 
                                 for (const selectedAccount of selectedAccounts) {
                                     if (!newAccountGrantById.has(selectedAccount.id)) {
@@ -655,7 +663,10 @@ export function ShareOverlayAccountGrantInput({
                                 // Make sure these both happen in a single React commit.
                                 flushSync(() => {
                                     setSelectedAccounts(emptyArray);
-                                    onAccountGrantByIdChange(newAccountGrantById);
+                                    onAccessPolicyChange({
+                                        type: "AddAccountGrants",
+                                        accountGrantById: newAccountGrantById,
+                                    });
                                 });
                             }}
                         >

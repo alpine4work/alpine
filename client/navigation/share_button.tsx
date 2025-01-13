@@ -13,11 +13,13 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 export function ShareButton({
+    entityNoun,
     accessPolicy,
     onAccessPolicyChange: onAccessPolicyChangeProp,
     isReadOnly,
     onCopyLink,
 }: {
+    entityNoun: string;
     accessPolicy: AccessPolicy;
     onAccessPolicyChange: (accessPolicy: AccessPolicy) => void;
     isReadOnly: boolean;
@@ -49,6 +51,7 @@ export function ShareButton({
                 overlay={({isVisible, onCloseWithoutAnimation}) => (
                     <Box paddingX="3">
                         <ShareOverlay
+                            entityNoun={entityNoun}
                             accessPolicy={accessPolicy}
                             onAccessPolicyChange={onAccessPolicyChange}
                             isVisible={isVisible}

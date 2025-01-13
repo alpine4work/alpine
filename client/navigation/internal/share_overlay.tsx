@@ -1,12 +1,16 @@
 import {CaretDown, Globe, Link as LinkIcon} from "phosphor-react";
-import {useEffect, useMemo, useState} from "react";
+import {useEffect, useId, useMemo, useState} from "react";
 import {FocusScope} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
+import {
+    useAccountClientStore,
+    useAccountModel,
+} from "~/client/accounts/account_client_store_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
+import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
@@ -16,6 +20,10 @@ import {
     noAccessLevelText,
     removeAccessLevelText,
 } from "~/client/navigation/internal/access_level_text.js";
+import {
+    AccessPolicyAction,
+    reduceAccessPolicy,
+} from "~/client/navigation/internal/access_policy_action.js";
 import {ShareOverlayAccountGrantInput} from "~/client/navigation/internal/share_overlay_account_grant_input.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
@@ -33,12 +41,20 @@ import {
     AccessPolicyAccountGrant,
     AccessPolicyDefaultGrant,
     allAccessLevels,
+    compareAccessLevel,
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
 } from "~/shared/access/access_policy.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {flatIterable} from "~/shared/helpers/iterable/flat_iterable.js";
+import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
+import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -46,13 +62,15 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export function ShareOverlay({
+    entityNoun,
     accessPolicy,
-    onAccessPolicyChange,
+    onAccessPolicyChange: onAccessPolicyChangeWithoutValidations,
     isVisible,
     isReadOnly,
     onCopyLink,
     onCloseWithoutAnimation,
 }: {
+    entityNoun: string;
     accessPolicy: AccessPolicy;
     onAccessPolicyChange: (accessPolicy: AccessPolicy) => void;
     isVisible: boolean;
@@ -60,7 +78,11 @@ export function ShareOverlay({
     onCopyLink: () => MaybePromise<void>;
     onCloseWithoutAnimation: () => void;
 }) {
-    const [isAltKeyDown, setIsAltKeyDown] = useState(false);
+    const {space, currentAccount} = useSpaceContext();
+    const accountStore = useAccountClientStore();
+    const id = useId();
+
+    const hasAccountGrantInput = !isReadOnly;
 
     const allAccounts = useExpensivelyLoadAllSpaceAccounts() ?? emptyArray;
 
@@ -69,6 +91,8 @@ export function ShareOverlay({
         for (const account of allAccounts) accountById.set(account.id, account);
         return accountById;
     }, [allAccounts]);
+
+    const [isAltKeyDown, setIsAltKeyDown] = useState(false);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -91,7 +115,160 @@ export function ShareOverlay({
         };
     }, []);
 
-    const hasAccountGrantInput = !isReadOnly;
+    const [warningDialogState, setWarningDialogState] = useState<{
+        readonly title: string;
+        readonly description: string;
+        readonly action: AccessPolicyAction;
+    } | null>(null);
+
+    const onAccessPolicyChange = (action: AccessPolicyAction) => {
+        const oldAccessPolicy = accessPolicy;
+        const newAccessPolicy = reduceAccessPolicy(oldAccessPolicy, action);
+
+        let changeDescription: string;
+        switch (action.type) {
+            case "AddAccountGrants": {
+                changeDescription = `give ${
+                    action.accountGrantById.size > 1
+                        ? "these people"
+                        : getAccountShortNameWithoutFullNameTooltip(
+                              accountStore
+                                  .getAccountStore(
+                                      (action.accountGrantById.size === 1
+                                          ? accountById.get(
+                                                iterableFirst(action.accountGrantById)![0],
+                                            )
+                                          : null) ?? AccountModel.getUnknown(),
+                                  )
+                                  .getSnapshot(),
+                          )
+                } access to the ${entityNoun}`;
+                break;
+            }
+            case "DeleteAccountGrant": {
+                changeDescription = `remove ${
+                    currentAccount.id === action.accountId
+                        ? "your"
+                        : `${getAccountShortNameWithoutFullNameTooltip(
+                              accountStore
+                                  .getAccountStore(
+                                      accountById.get(action.accountId) ??
+                                          AccountModel.getUnknown(),
+                                  )
+                                  .getSnapshot(),
+                          )}’s`
+                } access to the ${entityNoun}`;
+                break;
+            }
+            case "SetAccountGrantLevel": {
+                changeDescription = `change ${
+                    currentAccount.id === action.accountId
+                        ? "your"
+                        : `${getAccountShortNameWithoutFullNameTooltip(
+                              accountStore
+                                  .getAccountStore(
+                                      accountById.get(action.accountId) ??
+                                          AccountModel.getUnknown(),
+                                  )
+                                  .getSnapshot(),
+                          )}’s`
+                } access to the ${entityNoun} to “${accessLevelText[action.level]}”`;
+                break;
+            }
+            case "AddDefaultGrant": {
+                changeDescription = `change everyone in ${
+                    space.name
+                }’s access to the ${entityNoun} to “${accessLevelText[action.defaultGrant.level]}”`;
+                break;
+            }
+            case "DeleteDefaultGrant": {
+                changeDescription = `remove everyone in ${space.name}’s access to the ${entityNoun}`;
+                break;
+            }
+            case "SetDefaultGrantLevel": {
+                changeDescription = `change everyone in ${
+                    space.name
+                }’s access to the ${entityNoun} to “${accessLevelText[action.level]}”`;
+                break;
+            }
+            default:
+                throw exhaustive(action);
+        }
+
+        {
+            const doesAnyAccountHaveManageAccessLevel =
+                hasAccessLevel(newAccessPolicy.defaultGrant?.level ?? null, "Manage") ||
+                iterableSome(newAccessPolicy.accountGrantById.values(), accountGrant =>
+                    hasAccessLevel(accountGrant.level, "Manage"),
+                );
+
+            // NOCOMMIT: Integration test
+            if (!doesAnyAccountHaveManageAccessLevel) {
+                setWarningDialogState({
+                    title: "Remove everyone who can change permissions?",
+                    description: `If you ${changeDescription} then there won’t be anyone who can share or change permissions on the ${entityNoun}. You can’t undo this change.`,
+                    action,
+                });
+                return;
+            }
+        }
+
+        {
+            const oldAccessLevel = getAccountAccessLevelAssumingSpaceAccess(
+                oldAccessPolicy,
+                currentAccount.id,
+            );
+            const newAccessLevel = getAccountAccessLevelAssumingSpaceAccess(
+                newAccessPolicy,
+                currentAccount.id,
+            );
+
+            // NOCOMMIT: Integration test
+            if (compareAccessLevel(oldAccessLevel, newAccessLevel) > 0) {
+                const permissionDescriptions: Array<string> = [];
+
+                if (
+                    hasAccessLevel(oldAccessLevel, "View") &&
+                    !hasAccessLevel(newAccessLevel, "View")
+                ) {
+                    permissionDescriptions.push("see");
+                } else {
+                    if (
+                        hasAccessLevel(oldAccessLevel, "Edit") &&
+                        !hasAccessLevel(newAccessLevel, "Edit")
+                    ) {
+                        permissionDescriptions.push("edit");
+                    } else if (
+                        hasAccessLevel(oldAccessLevel, "Comment") &&
+                        !hasAccessLevel(newAccessLevel, "Comment")
+                    ) {
+                        permissionDescriptions.push("comment on");
+                    }
+
+                    if (
+                        hasAccessLevel(oldAccessLevel, "Manage") &&
+                        !hasAccessLevel(newAccessLevel, "Manage")
+                    ) {
+                        permissionDescriptions.push("share");
+                    }
+                }
+
+                const joinedPermissionDescriptions = joinPrettyConjunctionList(
+                    permissionDescriptions,
+                    "or",
+                );
+
+                setWarningDialogState({
+                    title: "Remove permissions from yourself?",
+                    description: `If you ${changeDescription} then you won’t be able to ${joinedPermissionDescriptions} the ${entityNoun} anymore. You can’t undo this change.`,
+                    action,
+                });
+                return;
+            }
+        }
+
+        onAccessPolicyChangeWithoutValidations(newAccessPolicy);
+    };
 
     return (
         <FocusScope
@@ -100,9 +277,10 @@ export function ShareOverlay({
             contain={isVisible}
         >
             <Box
+                id={id}
                 // Let initial focus from `<OverlayTriggerButton>` go somewhere other than the
                 // add people text input.
-                tabIndex={-1}
+                tabIndex={0}
                 className={greyElevated1ClassName}
                 position="relative"
                 zIndex="0"
@@ -121,9 +299,7 @@ export function ShareOverlay({
                         <Box position="relative" zIndex="10" paddingX="5">
                             <ShareOverlayAccountGrantInput
                                 accountGrantById={accessPolicy.accountGrantById}
-                                onAccountGrantByIdChange={accountGrantById =>
-                                    onAccessPolicyChange({...accessPolicy, accountGrantById})
-                                }
+                                onAccessPolicyChange={onAccessPolicyChange}
                                 allAccounts={allAccounts}
                                 accountById={accountById}
                                 isAltKeyDown={isAltKeyDown}
@@ -153,9 +329,7 @@ export function ShareOverlay({
                     ) : (
                         <ShareOverlayAccountGrants
                             accountGrantById={accessPolicy.accountGrantById}
-                            onAccountGrantByIdChange={accountGrantById =>
-                                onAccessPolicyChange({...accessPolicy, accountGrantById})
-                            }
+                            onAccessPolicyChange={onAccessPolicyChange}
                             accountById={accountById}
                             isReadOnly={isReadOnly}
                             isAltKeyDown={isAltKeyDown}
@@ -166,10 +340,7 @@ export function ShareOverlay({
                         <Spacer space="5" />
                         <ShareOverlayDefaultGrant
                             defaultGrant={accessPolicy.defaultGrant}
-                            onDefaultGrantChange={defaultGrant => {
-                                // NOCOMMIT: Warn if this will change the current account's access level.
-                                onAccessPolicyChange({...accessPolicy, defaultGrant});
-                            }}
+                            onAccessPolicyChange={onAccessPolicyChange}
                             isReadOnly={isReadOnly}
                             isAltKeyDown={isAltKeyDown}
                         />
@@ -196,6 +367,22 @@ export function ShareOverlay({
                         </Button>
                     </Box>
                 </OverlayScopeContextProvider>
+                {warningDialogState && (
+                    <ModalDialog
+                        data-ownedby={id}
+                        title={warningDialogState.title}
+                        description={warningDialogState.description}
+                        primaryButtonLabel="Cancel"
+                        onPrimaryButtonPress={() => setWarningDialogState(null)}
+                        cancelButtonLabel="I understand, make this change"
+                        onCancelButtonPress={() =>
+                            onAccessPolicyChangeWithoutValidations(
+                                reduceAccessPolicy(accessPolicy, warningDialogState.action),
+                            )
+                        }
+                        onClose={() => setWarningDialogState(null)}
+                    />
+                )}
             </Box>
         </FocusScope>
     );
@@ -203,13 +390,13 @@ export function ShareOverlay({
 
 function ShareOverlayAccountGrants({
     accountGrantById,
-    onAccountGrantByIdChange,
+    onAccessPolicyChange,
     accountById,
     isReadOnly,
     isAltKeyDown,
 }: {
     accountGrantById: AccessPolicy["accountGrantById"];
-    onAccountGrantByIdChange: (accountGrantById: AccessPolicy["accountGrantById"]) => void;
+    onAccessPolicyChange: (action: AccessPolicyAction) => void;
     accountById: ReadonlyMap<AccountId, AccountModel>;
     isReadOnly: boolean;
     isAltKeyDown: boolean;
@@ -267,6 +454,7 @@ function ShareOverlayAccountGrants({
         [accountGrantById],
     );
 
+    // NOCOMMIT: Removed accounts should be sorted last and colored differently
     const sortedAccountGrants = useMemo(
         () =>
             flatIterable(
@@ -309,24 +497,14 @@ function ShareOverlayAccountGrants({
                 paddingBottom="5"
             >
                 {mapIterable(sortedAccountGrants, ([accountId, accountGrant]) => (
-                    // NOCOMMIT: Protect against removing your own access
                     // NOCOMMIT: Protect against newly granted accounts lowering previously granted
                     // account access
                     <ShareOverlayAccountGrant
                         key={accountId}
+                        accountId={accountId}
                         account={accountById.get(accountId) ?? null}
                         accountGrant={accountGrant}
-                        onAccountGrantChange={newAccountGrant => {
-                            const newAccountGrantById = new Map(accountGrantById);
-
-                            if (newAccountGrant === null) {
-                                newAccountGrantById.delete(accountId);
-                            } else {
-                                newAccountGrantById.set(accountId, newAccountGrant);
-                            }
-
-                            onAccountGrantByIdChange(newAccountGrantById);
-                        }}
+                        onAccessPolicyChange={onAccessPolicyChange}
                         isReadOnly={isReadOnly}
                         isAltKeyDown={isAltKeyDown}
                     />
@@ -339,15 +517,17 @@ function ShareOverlayAccountGrants({
 const shareOverlayAccountGrantHeight = "6";
 
 function ShareOverlayAccountGrant({
+    accountId,
     account,
     accountGrant,
-    onAccountGrantChange,
+    onAccessPolicyChange,
     isReadOnly,
     isAltKeyDown,
 }: {
+    accountId: AccountId;
     account: AccountModel | null;
     accountGrant: AccessPolicyAccountGrant;
-    onAccountGrantChange: (accountGrant: AccessPolicyAccountGrant | null) => void;
+    onAccessPolicyChange: (action: AccessPolicyAction) => void;
     isReadOnly: boolean;
     isAltKeyDown: boolean;
 }) {
@@ -388,32 +568,61 @@ function ShareOverlayAccountGrant({
                             {
                                 isSelected: accountGrant.level === "Manage",
                                 label: accessLevelText.Manage,
-                                onPress: () => onAccountGrantChange({level: "Manage"}),
+                                onPress: () => {
+                                    onAccessPolicyChange({
+                                        type: "SetAccountGrantLevel",
+                                        accountId,
+                                        level: "Manage",
+                                    });
+                                },
                             },
                             ...(isAltKeyDown
                                 ? [
                                       cast<MenuAction>({
                                           isSelected: accountGrant.level === "Edit",
                                           label: accessLevelText.Edit,
-                                          onPress: () => onAccountGrantChange({level: "Edit"}),
+                                          onPress: () => {
+                                              onAccessPolicyChange({
+                                                  type: "SetAccountGrantLevel",
+                                                  accountId,
+                                                  level: "Edit",
+                                              });
+                                          },
                                       }),
                                   ]
                                 : emptyArray),
                             {
                                 isSelected: accountGrant.level === "Comment",
                                 label: accessLevelText.Comment,
-                                onPress: () => onAccountGrantChange({level: "Comment"}),
+                                onPress: () => {
+                                    onAccessPolicyChange({
+                                        type: "SetAccountGrantLevel",
+                                        accountId,
+                                        level: "Comment",
+                                    });
+                                },
                             },
                             {
                                 isSelected: accountGrant.level === "View",
                                 label: accessLevelText.View,
-                                onPress: () => onAccountGrantChange({level: "View"}),
+                                onPress: () => {
+                                    onAccessPolicyChange({
+                                        type: "SetAccountGrantLevel",
+                                        accountId,
+                                        level: "View",
+                                    });
+                                },
                             },
                         ],
                         [
                             {
                                 label: removeAccessLevelText,
-                                onPress: () => onAccountGrantChange(null),
+                                onPress: () => {
+                                    onAccessPolicyChange({
+                                        type: "DeleteAccountGrant",
+                                        accountId,
+                                    });
+                                },
                             },
                         ],
                     ]}
@@ -429,12 +638,12 @@ function ShareOverlayAccountGrant({
 
 function ShareOverlayDefaultGrant({
     defaultGrant,
-    onDefaultGrantChange,
+    onAccessPolicyChange,
     isReadOnly,
     isAltKeyDown,
 }: {
     defaultGrant: AccessPolicyDefaultGrant | null;
-    onDefaultGrantChange: (defaultGrant: AccessPolicyDefaultGrant | null) => void;
+    onAccessPolicyChange: (action: AccessPolicyAction) => void;
     isReadOnly: boolean;
     isAltKeyDown: boolean;
 }) {
@@ -466,7 +675,17 @@ function ShareOverlayDefaultGrant({
                                 isSelected: defaultGrant?.level === "Manage",
                                 label: accessLevelText.Manage,
                                 onPress: () => {
-                                    onDefaultGrantChange({type: "Space", level: "Manage"});
+                                    if (defaultGrant) {
+                                        onAccessPolicyChange({
+                                            type: "SetDefaultGrantLevel",
+                                            level: "Manage",
+                                        });
+                                    } else {
+                                        onAccessPolicyChange({
+                                            type: "AddDefaultGrant",
+                                            defaultGrant: {type: "Space", level: "Manage"},
+                                        });
+                                    }
                                 },
                             },
                             ...(isAltKeyDown || defaultGrant?.level === "Edit"
@@ -475,7 +694,20 @@ function ShareOverlayDefaultGrant({
                                           isSelected: defaultGrant?.level === "Edit",
                                           label: accessLevelText.Edit,
                                           onPress: () => {
-                                              onDefaultGrantChange({type: "Space", level: "Edit"});
+                                              if (defaultGrant) {
+                                                  onAccessPolicyChange({
+                                                      type: "SetDefaultGrantLevel",
+                                                      level: "Edit",
+                                                  });
+                                              } else {
+                                                  onAccessPolicyChange({
+                                                      type: "AddDefaultGrant",
+                                                      defaultGrant: {
+                                                          type: "Space",
+                                                          level: "Edit",
+                                                      },
+                                                  });
+                                              }
                                           },
                                       }),
                                   ]
@@ -484,14 +716,34 @@ function ShareOverlayDefaultGrant({
                                 isSelected: defaultGrant?.level === "Comment",
                                 label: accessLevelText.Comment,
                                 onPress: () => {
-                                    onDefaultGrantChange({type: "Space", level: "Comment"});
+                                    if (defaultGrant) {
+                                        onAccessPolicyChange({
+                                            type: "SetDefaultGrantLevel",
+                                            level: "Comment",
+                                        });
+                                    } else {
+                                        onAccessPolicyChange({
+                                            type: "AddDefaultGrant",
+                                            defaultGrant: {type: "Space", level: "Comment"},
+                                        });
+                                    }
                                 },
                             },
                             {
                                 isSelected: defaultGrant?.level === "View",
                                 label: accessLevelText.View,
                                 onPress: () => {
-                                    onDefaultGrantChange({type: "Space", level: "View"});
+                                    if (defaultGrant) {
+                                        onAccessPolicyChange({
+                                            type: "SetDefaultGrantLevel",
+                                            level: "View",
+                                        });
+                                    } else {
+                                        onAccessPolicyChange({
+                                            type: "AddDefaultGrant",
+                                            defaultGrant: {type: "Space", level: "View"},
+                                        });
+                                    }
                                 },
                             },
                         ],
@@ -500,7 +752,9 @@ function ShareOverlayDefaultGrant({
                                 isSelected: defaultGrant === null,
                                 label: noAccessLevelText,
                                 onPress: () => {
-                                    onDefaultGrantChange(null);
+                                    onAccessPolicyChange({
+                                        type: "DeleteDefaultGrant",
+                                    });
                                 },
                             },
                         ],

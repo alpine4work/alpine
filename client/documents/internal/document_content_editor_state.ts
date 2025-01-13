@@ -693,7 +693,11 @@ export function getDocumentContentEditorStatePersistedContent(
 ): DocumentContent {
     const version = state.editorState.getVersion();
 
-    if (version === state.persistedVersion) {
+    // If we're at the persisted version then return the doc as-is. If `version` is
+    // less than `state.persistedVersion` then we've probably received some
+    // realtime events out-of-order. We may still be waiting on the steps from
+    // persisted content from realtime. Don't throw while we're in this state.
+    if (version <= state.persistedVersion) {
         return state.editorState.getDocWithoutSendableSteps();
     }
 
