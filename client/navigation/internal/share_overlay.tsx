@@ -37,9 +37,7 @@ import {
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {flatIterable} from "~/shared/helpers/iterable/flat_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -62,8 +60,6 @@ export function ShareOverlay({
     onCopyLink: () => MaybePromise<void>;
     onCloseWithoutAnimation: () => void;
 }) {
-    const {currentAccount} = useSpaceContext();
-
     const [isAltKeyDown, setIsAltKeyDown] = useState(false);
 
     const allAccounts = useExpensivelyLoadAllSpaceAccounts() ?? emptyArray;
@@ -73,74 +69,6 @@ export function ShareOverlay({
         for (const account of allAccounts) accountById.set(account.id, account);
         return accountById;
     }, [allAccounts]);
-
-    // Sort account grants by:
-    //
-    // 1. Access level (higher access levels first).
-    // 2. Order in which the account grant was added. We assume
-    //    `accountGrantById` is in insertion order.
-    //
-    // The current account is not included in this array. The current account is
-    // displayed first in the list of accounts with access.
-    //
-    // We don't want accounts to move while the user is modifying their access
-    // level. So we sort accounts by their initial access level, not their current
-    // access level. Which is why we have this state here. This state creates a map
-    // of account grants keyed by the initial access policy we saw for the grant.
-    const [accountGrantByIdByInitialAccessLevel] = useStateWithDependencies<
-        ReadonlyMap<AccessLevel, ReadonlyMap<AccountId, AccessPolicyAccountGrant>>,
-        [AccessPolicy["accountGrantById"]]
-    >(
-        ([accountGrantById], previousAccountGrantByIdByInitialAccessLevel) => {
-            const accountGrantByIdByInitialAccessLevel = new Map<
-                AccessLevel,
-                Map<AccountId, AccessPolicyAccountGrant>
-            >();
-
-            const initialAccessLevelByAccountId = new Map<AccountId, AccessLevel>();
-
-            // Record the initial access level for each account in our previous state.
-            for (const [
-                initialAccessLevel,
-                accountGrantById,
-            ] of previousAccountGrantByIdByInitialAccessLevel ?? emptyArray) {
-                for (const accountId of accountGrantById.keys()) {
-                    assert(!initialAccessLevelByAccountId.has(accountId));
-                    initialAccessLevelByAccountId.set(accountId, initialAccessLevel);
-                }
-            }
-
-            // Add accounts to our map keyed by the initial access level we saw for the
-            // account.
-            for (const [accountId, accountGrant] of accountGrantById) {
-                const initialAccessLevel = initialAccessLevelByAccountId.get(accountId);
-
-                getOrSetDefaultMapValue(
-                    accountGrantByIdByInitialAccessLevel,
-                    initialAccessLevel ?? accountGrant.level,
-                    () => new Map(),
-                ).set(accountId, accountGrant);
-            }
-
-            return accountGrantByIdByInitialAccessLevel;
-        },
-        [accessPolicy.accountGrantById],
-    );
-
-    const sortedAccountGrants = useMemo(
-        () =>
-            filterIterable(
-                flatIterable(
-                    Array.from(
-                        allAccessLevels,
-                        accessLevel =>
-                            accountGrantByIdByInitialAccessLevel.get(accessLevel) ?? emptyArray,
-                    ).reverse(),
-                ),
-                ([accountId]) => accountId !== currentAccount.id,
-            ),
-        [accountGrantByIdByInitialAccessLevel, currentAccount.id],
-    );
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -220,80 +148,19 @@ export function ShareOverlay({
                             />
                         </Box>
                     )}
-                    <Box
-                        ref={useScrollbar({insetTop: "5", insetBottom: "5"})}
-                        position="relative"
-                        zIndex="0"
-                        maxHeight="96"
-                        overflowX="hidden"
-                        overflowY="auto"
-                        style={{
-                            // At max, show seven account grants and two thirds of an eighth account.
-                            maxHeight: useMemo(
-                                () =>
-                                    `${
-                                        parseRemLength(shareOverlayAccountGrantHeight) * 7.66667 +
-                                        parseRemLength("4") * 7 +
-                                        parseRemLength("5")
-                                    }rem`,
-                                [],
-                            ),
-                        }}
-                    >
-                        <Box
-                            display="flex"
-                            flexDirection="column"
-                            gap="4"
-                            paddingX="5"
-                            paddingTop="5"
-                            paddingBottom="5"
-                        >
-                            <ShareOverlayAccountGrant
-                                // NOCOMMIT: Protect against removing your own access
-                                // NOCOMMIT: Protect against newly granted accounts lowering previously granted
-                                // account access
-                                //
-                                // We always want to show at least the current account in the share overlay and
-                                // we want to show the current account first.
-                                account={currentAccount}
-                                // In order to open the share overlay the current account must have some access
-                                // declared in the access policy in the first place.
-                                accountGrant={assertExists(
-                                    accessPolicy.accountGrantById.get(currentAccount.id) ??
-                                        // If there's no grant for our current account then they may be covered by the
-                                        // default grant.
-                                        accessPolicy.defaultGrant,
-                                )}
-                                isReadOnly={isReadOnly}
-                                isAltKeyDown={isAltKeyDown}
-                            />
-                            {mapIterable(sortedAccountGrants, ([accountId, accountGrant]) => (
-                                <ShareOverlayAccountGrant
-                                    key={accountId}
-                                    account={accountById.get(accountId) ?? null}
-                                    accountGrant={accountGrant}
-                                    onAccountGrantChange={newAccountGrant => {
-                                        const newAccountGrantById = new Map(
-                                            accessPolicy.accountGrantById,
-                                        );
-
-                                        if (newAccountGrant === null) {
-                                            newAccountGrantById.delete(accountId);
-                                        } else {
-                                            newAccountGrantById.set(accountId, newAccountGrant);
-                                        }
-
-                                        onAccessPolicyChange({
-                                            ...accessPolicy,
-                                            accountGrantById: newAccountGrantById,
-                                        });
-                                    }}
-                                    isReadOnly={isReadOnly}
-                                    isAltKeyDown={isAltKeyDown}
-                                />
-                            ))}
-                        </Box>
-                    </Box>
+                    {accessPolicy.accountGrantById.size === 0 ? (
+                        <Spacer space="5" />
+                    ) : (
+                        <ShareOverlayAccountGrants
+                            accountGrantById={accessPolicy.accountGrantById}
+                            onAccountGrantByIdChange={accountGrantById =>
+                                onAccessPolicyChange({...accessPolicy, accountGrantById})
+                            }
+                            accountById={accountById}
+                            isReadOnly={isReadOnly}
+                            isAltKeyDown={isAltKeyDown}
+                        />
+                    )}
                     <Box paddingX="5">
                         <Box height="border" backgroundColor="grey-5" />
                         <Spacer space="5" />
@@ -334,6 +201,141 @@ export function ShareOverlay({
     );
 }
 
+function ShareOverlayAccountGrants({
+    accountGrantById,
+    onAccountGrantByIdChange,
+    accountById,
+    isReadOnly,
+    isAltKeyDown,
+}: {
+    accountGrantById: AccessPolicy["accountGrantById"];
+    onAccountGrantByIdChange: (accountGrantById: AccessPolicy["accountGrantById"]) => void;
+    accountById: ReadonlyMap<AccountId, AccountModel>;
+    isReadOnly: boolean;
+    isAltKeyDown: boolean;
+}) {
+    // Sort account grants by:
+    //
+    // 1. Access level (higher access levels first).
+    // 2. Order in which the account grant was added. We assume
+    //    `accountGrantById` is in insertion order.
+    //
+    // The current account is not included in this array. The current account is
+    // displayed first in the list of accounts with access.
+    //
+    // We don't want accounts to move while the user is modifying their access
+    // level. So we sort accounts by their initial access level, not their current
+    // access level. Which is why we have this state here. This state creates a map
+    // of account grants keyed by the initial access policy we saw for the grant.
+    const [accountGrantByIdByInitialAccessLevel] = useStateWithDependencies<
+        ReadonlyMap<AccessLevel, ReadonlyMap<AccountId, AccessPolicyAccountGrant>>,
+        [AccessPolicy["accountGrantById"]]
+    >(
+        ([accountGrantById], previousAccountGrantByIdByInitialAccessLevel) => {
+            const accountGrantByIdByInitialAccessLevel = new Map<
+                AccessLevel,
+                Map<AccountId, AccessPolicyAccountGrant>
+            >();
+
+            const initialAccessLevelByAccountId = new Map<AccountId, AccessLevel>();
+
+            // Record the initial access level for each account in our previous state.
+            for (const [
+                initialAccessLevel,
+                accountGrantById,
+            ] of previousAccountGrantByIdByInitialAccessLevel ?? emptyArray) {
+                for (const accountId of accountGrantById.keys()) {
+                    assert(!initialAccessLevelByAccountId.has(accountId));
+                    initialAccessLevelByAccountId.set(accountId, initialAccessLevel);
+                }
+            }
+
+            // Add accounts to our map keyed by the initial access level we saw for the
+            // account.
+            for (const [accountId, accountGrant] of accountGrantById) {
+                const initialAccessLevel = initialAccessLevelByAccountId.get(accountId);
+
+                getOrSetDefaultMapValue(
+                    accountGrantByIdByInitialAccessLevel,
+                    initialAccessLevel ?? accountGrant.level,
+                    () => new Map(),
+                ).set(accountId, accountGrant);
+            }
+
+            return accountGrantByIdByInitialAccessLevel;
+        },
+        [accountGrantById],
+    );
+
+    const sortedAccountGrants = useMemo(
+        () =>
+            flatIterable(
+                Array.from(
+                    allAccessLevels,
+                    accessLevel =>
+                        accountGrantByIdByInitialAccessLevel.get(accessLevel) ?? emptyArray,
+                ).reverse(),
+            ),
+        [accountGrantByIdByInitialAccessLevel],
+    );
+
+    return (
+        <Box
+            ref={useScrollbar({insetTop: "5", insetBottom: "5"})}
+            position="relative"
+            zIndex="0"
+            maxHeight="96"
+            overflowX="hidden"
+            overflowY="auto"
+            style={{
+                // At max, show seven account grants and two thirds of an eighth account.
+                maxHeight: useMemo(
+                    () =>
+                        `${
+                            parseRemLength(shareOverlayAccountGrantHeight) * 7.66667 +
+                            parseRemLength("4") * 7 +
+                            parseRemLength("5")
+                        }rem`,
+                    [],
+                ),
+            }}
+        >
+            <Box
+                display="flex"
+                flexDirection="column"
+                gap="4"
+                paddingX="5"
+                paddingTop="5"
+                paddingBottom="5"
+            >
+                {mapIterable(sortedAccountGrants, ([accountId, accountGrant]) => (
+                    // NOCOMMIT: Protect against removing your own access
+                    // NOCOMMIT: Protect against newly granted accounts lowering previously granted
+                    // account access
+                    <ShareOverlayAccountGrant
+                        key={accountId}
+                        account={accountById.get(accountId) ?? null}
+                        accountGrant={accountGrant}
+                        onAccountGrantChange={newAccountGrant => {
+                            const newAccountGrantById = new Map(accountGrantById);
+
+                            if (newAccountGrant === null) {
+                                newAccountGrantById.delete(accountId);
+                            } else {
+                                newAccountGrantById.set(accountId, newAccountGrant);
+                            }
+
+                            onAccountGrantByIdChange(newAccountGrantById);
+                        }}
+                        isReadOnly={isReadOnly}
+                        isAltKeyDown={isAltKeyDown}
+                    />
+                ))}
+            </Box>
+        </Box>
+    );
+}
+
 const shareOverlayAccountGrantHeight = "6";
 
 function ShareOverlayAccountGrant({
@@ -349,6 +351,8 @@ function ShareOverlayAccountGrant({
     isReadOnly: boolean;
     isAltKeyDown: boolean;
 }) {
+    const {currentAccount} = useSpaceContext();
+
     const accountData = useAccountModel(account);
 
     return (
@@ -369,6 +373,7 @@ function ShareOverlayAccountGrant({
                     <AccountAvatar size={shareOverlayAccountGrantHeight} account={accountData} />
                     <Box fontSize="100" fontStyle="truncate-semi-bold">
                         {accountData.name}
+                        {currentAccount.id === account?.id ? " (you)" : ""}
                     </Box>
                 </>
             )}
