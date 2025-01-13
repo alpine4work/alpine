@@ -12,7 +12,10 @@ import {BlockInference} from "~/shared/helpers/types/block_inference.js";
 export function useStateWithDependencies<State, const Dependencies extends DependencyList>(
     initializeState:
         | State
-        | ((dependencies: BlockInference<Dependencies>, previousState: State | undefined) => State),
+        | ((
+              dependencies: BlockInference<Dependencies>,
+              previousState: BlockInference<State> | undefined,
+          ) => State),
     dependencies: Dependencies,
 ): [State, Dispatch<SetStateAction<State>>] {
     const [stateWithDependencies, setStateWithDependencies] = useState<{

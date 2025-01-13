@@ -8,7 +8,9 @@ import {Button} from "~/client/design/button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
+import {useScrollbar} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
+import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {
     accessLevelText,
     noAccessLevelText,
@@ -20,21 +22,27 @@ import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {
+    backgroundColorVar,
     greyElevated1ClassName,
     pulseAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
 import {
+    AccessLevel,
     AccessPolicy,
     AccessPolicyAccountGrant,
     AccessPolicyDefaultGrant,
-    compareAccessLevel,
+    allAccessLevels,
 } from "~/shared/access/access_policy.js";
-import {spacing} from "~/shared/design/core/spacing.js";
+import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {flatIterable} from "~/shared/helpers/iterable/flat_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -75,19 +83,63 @@ export function ShareOverlay({
     // The current account is not included in this array. The current account is
     // displayed first in the list of accounts with access.
     //
-    // NOCOMMIT: Scroll if there are too many users
+    // We don't want accounts to move while the user is modifying their access
+    // level. So we sort accounts by their initial access level, not their current
+    // access level. Which is why we have this state here. This state creates a map
+    // of account grants keyed by the initial access policy we saw for the grant.
+    const [accountGrantByIdByInitialAccessLevel] = useStateWithDependencies<
+        ReadonlyMap<AccessLevel, ReadonlyMap<AccountId, AccessPolicyAccountGrant>>,
+        [AccessPolicy["accountGrantById"]]
+    >(
+        ([accountGrantById], previousAccountGrantByIdByInitialAccessLevel) => {
+            const accountGrantByIdByInitialAccessLevel = new Map<
+                AccessLevel,
+                Map<AccountId, AccessPolicyAccountGrant>
+            >();
+
+            const initialAccessLevelByAccountId = new Map<AccountId, AccessLevel>();
+
+            // Record the initial access level for each account in our previous state.
+            for (const [
+                initialAccessLevel,
+                accountGrantById,
+            ] of previousAccountGrantByIdByInitialAccessLevel ?? emptyArray) {
+                for (const accountId of accountGrantById.keys()) {
+                    assert(!initialAccessLevelByAccountId.has(accountId));
+                    initialAccessLevelByAccountId.set(accountId, initialAccessLevel);
+                }
+            }
+
+            // Add accounts to our map keyed by the initial access level we saw for the
+            // account.
+            for (const [accountId, accountGrant] of accountGrantById) {
+                const initialAccessLevel = initialAccessLevelByAccountId.get(accountId);
+
+                getOrSetDefaultMapValue(
+                    accountGrantByIdByInitialAccessLevel,
+                    initialAccessLevel ?? accountGrant.level,
+                    () => new Map(),
+                ).set(accountId, accountGrant);
+            }
+
+            return accountGrantByIdByInitialAccessLevel;
+        },
+        [accessPolicy.accountGrantById],
+    );
+
     const sortedAccountGrants = useMemo(
         () =>
-            Array.from(
-                filterIterable(
-                    accessPolicy.accountGrantById,
-                    ([accountId]) => accountId !== currentAccount.id,
+            filterIterable(
+                flatIterable(
+                    Array.from(
+                        allAccessLevels,
+                        accessLevel =>
+                            accountGrantByIdByInitialAccessLevel.get(accessLevel) ?? emptyArray,
+                    ).reverse(),
                 ),
-            ).sort(
-                ([, accountGrant1], [, accountGrant2]) =>
-                    -compareAccessLevel(accountGrant1.level, accountGrant2.level),
+                ([accountId]) => accountId !== currentAccount.id,
             ),
-        [accessPolicy.accountGrantById, currentAccount.id],
+        [accountGrantByIdByInitialAccessLevel, currentAccount.id],
     );
 
     useEffect(() => {
@@ -111,6 +163,8 @@ export function ShareOverlay({
         };
     }, []);
 
+    const hasAccountGrantInput = !isReadOnly;
+
     return (
         <FocusScope
             // If we're animating closed then don't contain focus since we need to move
@@ -122,18 +176,21 @@ export function ShareOverlay({
                 // add people text input.
                 tabIndex={-1}
                 className={greyElevated1ClassName}
+                position="relative"
+                zIndex="0"
                 backgroundColor="grey-0"
                 borderRadius="2.5"
                 boxShadow="elevation-20"
                 width="96"
-                padding="5"
+                paddingTop={hasAccountGrantInput ? "5" : undefined}
+                paddingBottom="5"
             >
                 <OverlayScopeContextProvider
                 // Make sure any overlays inside the share overlay are animated with the share
                 // overlay.
                 >
-                    {!isReadOnly && (
-                        <>
+                    {hasAccountGrantInput && (
+                        <Box position="relative" zIndex="10" paddingX="5">
                             <ShareOverlayAccountGrantInput
                                 accountGrantById={accessPolicy.accountGrantById}
                                 onAccountGrantByIdChange={accountGrantById =>
@@ -143,94 +200,141 @@ export function ShareOverlay({
                                 accountById={accountById}
                                 isAltKeyDown={isAltKeyDown}
                             />
-                            <Spacer space="5" />
-                        </>
-                    )}
-                    <Box display="flex" flexDirection="column" gap="4">
-                        <ShareOverlayAccountGrant
-                            // NOCOMMIT: Protect against removing your own access
-                            // NOCOMMIT: Protect against newly granted accounts lowering previously granted
-                            // account access
-                            //
-                            // We always want to show at least the current account in the share overlay and
-                            // we want to show the current account first.
-                            account={currentAccount}
-                            // In order to open the share overlay the current account must have some access
-                            // declared in the access policy in the first place.
-                            accountGrant={assertExists(
-                                accessPolicy.accountGrantById.get(currentAccount.id) ??
-                                    // If there's no grant for our current account then they may be covered by the
-                                    // default grant.
-                                    accessPolicy.defaultGrant,
-                            )}
-                            isReadOnly={isReadOnly}
-                            isAltKeyDown={isAltKeyDown}
-                        />
-                        {sortedAccountGrants.map(([accountId, accountGrant]) => (
-                            // NOCOMMIT: Scroll if this gets too long
-                            <ShareOverlayAccountGrant
-                                key={accountId}
-                                account={accountById.get(accountId) ?? null}
-                                accountGrant={accountGrant}
-                                onAccountGrantChange={newAccountGrant => {
-                                    const newAccountGrantById = new Map(
-                                        accessPolicy.accountGrantById,
-                                    );
-
-                                    if (newAccountGrant === null) {
-                                        newAccountGrantById.delete(accountId);
-                                    } else {
-                                        newAccountGrantById.set(accountId, newAccountGrant);
-                                    }
-
-                                    onAccessPolicyChange({
-                                        ...accessPolicy,
-                                        accountGrantById: newAccountGrantById,
-                                    });
+                            <Box
+                                position="absolute"
+                                bottom="-1"
+                                left="0"
+                                right="0"
+                                height="1"
+                                style={{backgroundColor: backgroundColorVar}}
+                            />
+                            <Box
+                                position="absolute"
+                                bottom="-4"
+                                left="0"
+                                right="0"
+                                height="3"
+                                style={{
+                                    background: `linear-gradient(to bottom, ${backgroundColorVar}, transparent)`,
                                 }}
+                            />
+                        </Box>
+                    )}
+                    <Box
+                        ref={useScrollbar({insetTop: "5", insetBottom: "5"})}
+                        position="relative"
+                        zIndex="0"
+                        maxHeight="96"
+                        overflowX="hidden"
+                        overflowY="auto"
+                        style={{
+                            // At max, show seven account grants and two thirds of an eighth account.
+                            maxHeight: useMemo(
+                                () =>
+                                    `${
+                                        parseRemLength(shareOverlayAccountGrantHeight) * 7.66667 +
+                                        parseRemLength("4") * 7 +
+                                        parseRemLength("5")
+                                    }rem`,
+                                [],
+                            ),
+                        }}
+                    >
+                        <Box
+                            display="flex"
+                            flexDirection="column"
+                            gap="4"
+                            paddingX="5"
+                            paddingTop="5"
+                            paddingBottom="5"
+                        >
+                            <ShareOverlayAccountGrant
+                                // NOCOMMIT: Protect against removing your own access
+                                // NOCOMMIT: Protect against newly granted accounts lowering previously granted
+                                // account access
+                                //
+                                // We always want to show at least the current account in the share overlay and
+                                // we want to show the current account first.
+                                account={currentAccount}
+                                // In order to open the share overlay the current account must have some access
+                                // declared in the access policy in the first place.
+                                accountGrant={assertExists(
+                                    accessPolicy.accountGrantById.get(currentAccount.id) ??
+                                        // If there's no grant for our current account then they may be covered by the
+                                        // default grant.
+                                        accessPolicy.defaultGrant,
+                                )}
                                 isReadOnly={isReadOnly}
                                 isAltKeyDown={isAltKeyDown}
                             />
-                        ))}
-                    </Box>
-                    <Spacer space="5" />
-                    <Box height="border" backgroundColor="grey-5" />
-                    <Spacer space="5" />
-                    <ShareOverlayDefaultGrant
-                        defaultGrant={accessPolicy.defaultGrant}
-                        onDefaultGrantChange={defaultGrant => {
-                            // NOCOMMIT: Warn if this will change the current account's access level.
-                            onAccessPolicyChange({...accessPolicy, defaultGrant});
-                        }}
-                        isReadOnly={isReadOnly}
-                        isAltKeyDown={isAltKeyDown}
-                    />
-                    <Spacer space="3" />
-                    <ShareOverlayLinkGrant isReadOnly={isReadOnly} />
-                    <Spacer space="5" />
-                    <Box height="border" backgroundColor="grey-5" />
-                    <Spacer space="5" />
-                    <Button
-                        variant="accent"
-                        height="8"
-                        fullWidth={true}
-                        borderRadius="1.5"
-                        icon={<LinkIcon size={spacing["4"]} />}
-                        pressErrorTitle="Couldn’t copy link"
-                        onPress={async () => {
-                            await onCopyLink();
+                            {mapIterable(sortedAccountGrants, ([accountId, accountGrant]) => (
+                                <ShareOverlayAccountGrant
+                                    key={accountId}
+                                    account={accountById.get(accountId) ?? null}
+                                    accountGrant={accountGrant}
+                                    onAccountGrantChange={newAccountGrant => {
+                                        const newAccountGrantById = new Map(
+                                            accessPolicy.accountGrantById,
+                                        );
 
-                            // Assume copy will work and close overlay without flicker.
-                            onCloseWithoutAnimation();
-                        }}
-                    >
-                        Copy link
-                    </Button>
+                                        if (newAccountGrant === null) {
+                                            newAccountGrantById.delete(accountId);
+                                        } else {
+                                            newAccountGrantById.set(accountId, newAccountGrant);
+                                        }
+
+                                        onAccessPolicyChange({
+                                            ...accessPolicy,
+                                            accountGrantById: newAccountGrantById,
+                                        });
+                                    }}
+                                    isReadOnly={isReadOnly}
+                                    isAltKeyDown={isAltKeyDown}
+                                />
+                            ))}
+                        </Box>
+                    </Box>
+                    <Box paddingX="5">
+                        <Box height="border" backgroundColor="grey-5" />
+                        <Spacer space="5" />
+                        <ShareOverlayDefaultGrant
+                            defaultGrant={accessPolicy.defaultGrant}
+                            onDefaultGrantChange={defaultGrant => {
+                                // NOCOMMIT: Warn if this will change the current account's access level.
+                                onAccessPolicyChange({...accessPolicy, defaultGrant});
+                            }}
+                            isReadOnly={isReadOnly}
+                            isAltKeyDown={isAltKeyDown}
+                        />
+                        <Spacer space="3" />
+                        <ShareOverlayLinkGrant isReadOnly={isReadOnly} />
+                        <Spacer space="5" />
+                        <Box height="border" backgroundColor="grey-5" />
+                        <Spacer space="5" />
+                        <Button
+                            variant="accent"
+                            height="8"
+                            fullWidth={true}
+                            borderRadius="1.5"
+                            icon={<LinkIcon size={spacing["4"]} />}
+                            pressErrorTitle="Couldn’t copy link"
+                            onPress={async () => {
+                                await onCopyLink();
+
+                                // Assume copy will work and close overlay without flicker.
+                                onCloseWithoutAnimation();
+                            }}
+                        >
+                            Copy link
+                        </Button>
+                    </Box>
                 </OverlayScopeContextProvider>
             </Box>
         </FocusScope>
     );
 }
+
+const shareOverlayAccountGrantHeight = "6";
 
 function ShareOverlayAccountGrant({
     account,
@@ -248,21 +352,21 @@ function ShareOverlayAccountGrant({
     const accountData = useAccountModel(account);
 
     return (
-        <Box display="flex" alignItems="center" gap="2.5">
+        <Box height={shareOverlayAccountGrantHeight} display="flex" alignItems="center" gap="2.5">
             {!accountData ? (
                 <>
                     <Box
                         className={pulseAnimationClassName}
                         backgroundColor="grey-10"
-                        width="6"
-                        height="6"
+                        width={shareOverlayAccountGrantHeight}
+                        height={shareOverlayAccountGrantHeight}
                         borderRadius="full"
                     />
                     <TextShimmer fontSize="100" width="32" ragRight="random" />
                 </>
             ) : (
                 <>
-                    <AccountAvatar size="6" account={accountData} />
+                    <AccountAvatar size={shareOverlayAccountGrantHeight} account={accountData} />
                     <Box fontSize="100" fontStyle="truncate-semi-bold">
                         {accountData.name}
                     </Box>

@@ -20,7 +20,7 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  */
 export type AccessLevel = SchemaType<typeof AccessLevelSchema>;
 
-const allAccessLevels = ["View", "Comment", "Edit", "Manage"] as const;
+export const allAccessLevels = ["View", "Comment", "Edit", "Manage"] as const;
 
 export const AccessLevelSchema = Schema.enum(allAccessLevels);
 
