@@ -84,6 +84,17 @@ export function useIsFocusRingVisible({
                         ? (event.relatedTarget as Element | null)
                         : document.activeElement;
 
+                // If focus is moving within our target element then ignore `focusout` events.
+                // We'll get a `focusin` event right after we can handle. This fixes an issue
+                // where the parent renders a focus ring when navigating from one element
+                // within it to another (both of which have `<FocusRing>`s of their own). We
+                // should be able to detect the one correct active element and only render a
+                // single focus ring but we end up with two.
+                //
+                // Video reproducing the issue:
+                // https://cyberworlds.dev/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/7q5swjv2f8f5bcfpx2kz4cj1ag
+                if (event?.type === "focusout" && targetElement.contains(focusedElement)) return;
+
                 const nextIsFocused =
                     focusedElement === targetElement ||
                     (isVisibleWhenFocusWithin &&

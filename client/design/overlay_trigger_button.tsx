@@ -33,7 +33,6 @@ import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip_coordination_context_provider.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
-import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
@@ -78,6 +77,7 @@ export type OverlayTriggerButtonChildrenProps = {
 };
 
 export type OverlayTriggerButtonOverlayProps = {
+    isVisible: boolean;
     onCloseWithAnimation: Memo<() => void>;
     onCloseWithoutAnimation: Memo<() => void>;
 };
@@ -110,6 +110,8 @@ function OverlayTriggerButton(
         onOpen: _onOpen,
         onClose: _onClose,
         onStateChange: _onStateChange,
+        onOverlayEscapeGlobalKeyDown,
+        onOverlayTabGlobalKeyDown,
     }: {
         /**
          * The overlay element the trigger will render. Must provide a ref to an
@@ -185,6 +187,18 @@ function OverlayTriggerButton(
          * Different from `onOpen` which is only called before the overlay opens.
          */
         onStateChange?: (state: OverlayTriggerButtonState) => void;
+
+        /**
+         * Called when the escape key is pressed while our overlay is open. Can be used
+         * to prevent the default `<OverlayTriggerButton>` behavior on escape key down.
+         */
+        onOverlayEscapeGlobalKeyDown?: (event: KeyboardEvent) => void | {allowDefault: boolean};
+
+        /**
+         * Called when the tab key is pressed while our overlay is open. Can be used to
+         * prevent the default `<OverlayTriggerButton>` behavior on tab key down.
+         */
+        onOverlayTabGlobalKeyDown?: (event: KeyboardEvent) => void | {allowDefault: boolean};
     },
     ref: Ref<OverlayTriggerButtonRef>,
 ) {
@@ -559,12 +573,15 @@ function OverlayTriggerButton(
                         typeof overlay !== "function"
                             ? overlay
                             : overlay({
+                                  isVisible: state.isExpanded,
                                   onCloseWithAnimation: close,
                                   onCloseWithoutAnimation: closeWithoutAnimation,
                               })
                     }
                     initiallyFocus={state.initiallyFocus ?? "OverlayElement"}
                     onClose={close}
+                    onEscapeGlobalKeyDown={onOverlayEscapeGlobalKeyDown}
+                    onTabGlobalKeyDown={onOverlayTabGlobalKeyDown}
                 />
             }
             onActuallyVisibleChange={isActuallyVisible => {
@@ -631,6 +648,8 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
         overlay,
         initiallyFocus,
         onClose,
+        onEscapeGlobalKeyDown,
+        onTabGlobalKeyDown,
     }: {
         overlay: ReactElement;
         initiallyFocus: "OverlayElement" | "FirstFocusableElement" | "LastFocusableElement";
@@ -638,6 +657,8 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
             returnFocusTo?: "TriggerElement" | "NextElement" | "PreviousElement";
             withoutAnimation?: boolean;
         }) => void;
+        onEscapeGlobalKeyDown?: (event: KeyboardEvent) => void | {allowDefault: boolean};
+        onTabGlobalKeyDown?: (event: KeyboardEvent) => void | {allowDefault: boolean};
     },
     externalRef: Ref<HTMLDivElement>,
 ) {
@@ -734,9 +755,13 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
             //
             // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
             case "Escape": {
-                event.preventDefault();
-                event.stopPropagation();
-                onClose({returnFocusTo: "TriggerElement"});
+                const result = onEscapeGlobalKeyDown?.(event);
+
+                if (!event.defaultPrevented && !result?.allowDefault) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onClose({returnFocusTo: "TriggerElement"});
+                }
                 return;
             }
             // Moves focus to the next (or previous) element in the tab sequence,
@@ -744,23 +769,32 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
             //
             // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
             case "Tab": {
-                event.preventDefault();
-                event.stopPropagation();
-                onClose({
-                    returnFocusTo: event.shiftKey ? "PreviousElement" : "NextElement",
-                });
+                const result = onTabGlobalKeyDown?.(event);
+
+                if (!event.defaultPrevented && !result?.allowDefault) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onClose({
+                        returnFocusTo: event.shiftKey ? "PreviousElement" : "NextElement",
+                    });
+                }
                 return;
             }
 
             default: {
                 const overlayElement = assertExists(overlayRef.current);
 
-                // If focus is within a text element then let the text element handle wayward
-                // keyboard events.
+                // If focus is already within the overlay then we don't need to
+                // re-dispatch the event. The event will already be dispatched
+                // properly.
+                //
+                // TODO(calebmer): To be honest, I've forgotten what the purpose of this
+                // re-dispatching code was. Was it to prevent `keydown` events from bubbling up
+                // to `<GlobalKeyDownEvent>` components? Consider removing this code entirely
+                // if we can't figure out how it's used.
                 if (
                     document.activeElement &&
-                    overlayElement.contains(document.activeElement) &&
-                    isTextInputElement(document.activeElement)
+                    isElementOwnedBy(overlayElement, document.activeElement)
                 ) {
                     return;
                 }
@@ -781,7 +815,9 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
                         : overlayElement
                     ).dispatchEvent(newEvent);
 
-                    if (newEvent.defaultPrevented) return;
+                    if (newEvent.defaultPrevented) {
+                        event.preventDefault();
+                    }
                 } finally {
                     isReDispatchingKeyboardEvent = false;
                 }

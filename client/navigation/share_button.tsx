@@ -46,17 +46,35 @@ export function ShareButton({
                 aria-haspopup="dialog"
                 placement="bottom"
                 offset="3"
-                overlay={({onCloseWithoutAnimation}) => (
+                overlay={({isVisible, onCloseWithoutAnimation}) => (
                     <Box paddingX="3">
                         <ShareOverlay
                             accessPolicy={accessPolicy}
                             onAccessPolicyChange={onAccessPolicyChange}
+                            isVisible={isVisible}
                             isReadOnly={isReadOnly}
                             onCopyLink={onCopyLink}
                             onCloseWithoutAnimation={onCloseWithoutAnimation}
                         />
                     </Box>
                 )}
+                onOverlayEscapeGlobalKeyDown={event => {
+                    // If the focused element is a combobox input, `<MenuButton>`, or menu item
+                    // that's open and the user hits escape then we want the escape keydown to close
+                    // the focused element's overlay.
+                    if (
+                        event.target instanceof HTMLElement &&
+                        (event.target.getAttribute("aria-expanded") === "true" ||
+                            event.target.role === "menuitem")
+                    ) {
+                        return {allowDefault: true};
+                    }
+                }}
+                onOverlayTabGlobalKeyDown={() => {
+                    // Don't close the overlay when tab is pressed. Tab is needed to navigate
+                    // internally within the share overlay.
+                    return {allowDefault: true};
+                }}
             >
                 <Button height="6" paddingX="2">
                     Share

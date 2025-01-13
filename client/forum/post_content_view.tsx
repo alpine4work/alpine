@@ -696,13 +696,13 @@ function PostContentViewEditor({
                         placeholder="Share your ideas…"
                         fileAttachmentTarget={fileAttachmentTarget}
                         className={sprinkles({padding: postContentViewInnerMarginY})}
-                        onModEnter={event => {
+                        onModEnterKeyDown={event => {
                             event.preventDefault();
                             event.stopPropagation();
                             if (postEditingForThisPost.state.isSaving) return;
                             postEditingForThisPost.dispatch({type: "SaveEditedContent"});
                         }}
-                        onEscape={event => {
+                        onEscapeKeyDown={event => {
                             event.preventDefault();
                             event.stopPropagation();
                             if (postEditingForThisPost.state.isSaving) return;

@@ -365,7 +365,7 @@ export function PostCreator({
                                     paddingX: screenPaddingX,
                                 }),
                             )}
-                            onModEnter={() => {
+                            onModEnterKeyDown={() => {
                                 // Programmatically press the button instead of calling `createPost()`
                                 // directly to correctly handle loading and error states.
                                 assertExists(createButtonRef.current).press();

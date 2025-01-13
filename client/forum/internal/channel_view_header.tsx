@@ -196,7 +196,7 @@ function ChannelViewHeaderMobileDescriptionEditor({
                             if (isSaving && transaction.docChanged) return;
                             setState(state);
                         }}
-                        onEscape={event => {
+                        onEscapeKeyDown={event => {
                             event.preventDefault();
                             event.stopPropagation();
 
@@ -204,7 +204,7 @@ function ChannelViewHeaderMobileDescriptionEditor({
 
                             onCancel();
                         }}
-                        onEnterFromPhysicalKeyboard={event => {
+                        onEnterKeyDownFromPhysicalKeyboard={event => {
                             event.preventDefault();
                             event.stopPropagation();
 

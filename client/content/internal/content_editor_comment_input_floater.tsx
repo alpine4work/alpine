@@ -646,7 +646,7 @@ function ContentEditorCommentInput({
                                     paddingBottom:
                                         messageInputEditorPaddingYPx[platform][spacingScale],
                                 }}
-                                onEnterFromPhysicalKeyboard={event => {
+                                onEnterKeyDownFromPhysicalKeyboard={event => {
                                     event.preventDefault();
                                     event.stopPropagation();
                                     assertExists(sendButtonRef.current).press();

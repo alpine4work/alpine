@@ -1,89 +1,770 @@
-import {CaretDown} from "phosphor-react";
-import {useState} from "react";
+import {isFocusVisible, setInteractionModality, usePress} from "@react-aria/interactions";
+import {Node} from "@react-types/shared";
+import classNames from "classnames";
+import _Fuse from "fuse.js";
+import {CaretDown, MagnifyingGlass} from "phosphor-react";
+import {KeyboardEvent, RefObject, createRef, useEffect, useMemo, useRef, useState} from "react";
+import {AriaListBoxOptions, useComboBox, useListBox, useOption} from "react-aria";
+import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
+import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
+import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {useScrollbar} from "~/client/design/scrollbar.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {accessLevelText} from "~/client/navigation/internal/access_level_text.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {pointerEventsNoneNotInheritedClassName, sprinkles} from "~/client/styles/styles.js";
-import {AccessLevel} from "~/shared/access/access_policy.js";
-import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    colorSchemeVars,
+    greyElevated2ClassName,
+    overlayFadeOutAnimationDurationMs,
+    pointerEventsNoneNotInheritedClassName,
+    sprinkles,
+} from "~/client/styles/styles.js";
+import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
+import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {assertId} from "~/shared/id/id.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
+import {Store} from "~/shared/store/store.js";
 
-export function ShareOverlayAccountGrantInput({isAltKeyDown}: {isAltKeyDown: boolean}) {
+// Node.js ESM interop (#node-esm-migration)
+const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
+
+type ShareOverlayAccountGrantInputItem = {
+    readonly key: AccountId;
+    readonly accountData: AccountModelData;
+};
+
+let isClosingComboBox = false;
+
+export function ShareOverlayAccountGrantInput({
+    accountGrantById,
+    allAccounts,
+    accountById,
+    isAltKeyDown,
+}: {
+    accountGrantById: AccessPolicy["accountGrantById"];
+    allAccounts: ReadonlyArray<AccountModel>;
+    accountById: ReadonlyMap<AccountId, AccountModel>;
+    isAltKeyDown: boolean;
+}) {
+    const platform = usePlatform();
     const spacingScale = useSpacingScale();
+    const accountStore = useAccountClientStore();
+    const {currentAccount} = useSpaceContext();
+
+    const inputRef = useRef<HTMLInputElement>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const popoverRef = useRef<HTMLDivElement>(null);
+    const listBoxRef = useRef<HTMLUListElement>(null);
 
     const [buttonsRef, buttonsSize] = useResizeObserver();
 
+    const itemsWithGrantedAccounts = useStore(
+        useMemo(() => {
+            return Store.mapMany(
+                allAccounts.map(account => accountStore.getAccountStore(account)),
+                allAccountDatas =>
+                    filterMapArray(
+                        allAccountDatas,
+                        (accountData): ShareOverlayAccountGrantInputItem | undefined => {
+                            // Don't allow sharing with an account that was removed.
+                            if (accountData.space.wasRemoved) return;
+
+                            return {
+                                key: accountData.id,
+                                accountData,
+                            };
+                        },
+                    ),
+            );
+        }, [accountStore, allAccounts]),
+    );
+
+    const [selectedAccounts, setSelectedAccounts] =
+        useState<ReadonlyArray<AccountModel>>(emptyArray);
+    const [searchQuery, setSearchQuery] = useState("");
     const [accessLevel, setAccessLevel] = useState<AccessLevel>("Manage");
 
-    return (
-        <Box position="relative" height="10">
-            <input
-                className={sprinkles({
-                    height: "full",
-                    width: "full",
-                    paddingLeft: "3",
-                    border: "grey-20",
-                    borderRadius: "1.5",
-                    backgroundColor: "transparent",
-                })}
-                style={{
-                    paddingRight:
-                        (buttonsSize?.width ?? 0) + convertRemLengthToPx("2", spacingScale),
-                }}
-                placeholder="Add people"
-            />
-            <Box
-                ref={buttonsRef}
-                className={pointerEventsNoneNotInheritedClassName}
-                position="absolute"
-                top="0"
-                bottom="0"
-                right="2"
-                display="flex"
-                alignItems="center"
-                gap="2"
-            >
-                <MenuButton
-                    placement="bottom-end"
-                    actions={[
-                        {
-                            isSelected: accessLevel === "Manage",
-                            label: accessLevelText.Manage,
-                            onPress: () => setAccessLevel("Manage"),
-                        },
-                        ...(isAltKeyDown
-                            ? [
-                                  cast<MenuAction>({
-                                      isSelected: accessLevel === "Edit",
-                                      label: accessLevelText.Edit,
-                                      onPress: () => setAccessLevel("Edit"),
-                                  }),
-                              ]
-                            : emptyArray),
-                        {
-                            isSelected: accessLevel === "Comment",
-                            label: accessLevelText.Comment,
-                            onPress: () => setAccessLevel("Comment"),
-                        },
-                        {
-                            isSelected: accessLevel === "View",
-                            label: accessLevelText.View,
-                            onPress: () => setAccessLevel("View"),
-                        },
-                    ]}
+    const items = useMemo(() => {
+        const selectedAccountIds = new Set<AccountId>(selectedAccounts.map(account => account.id));
+
+        return itemsWithGrantedAccounts.filter(
+            item =>
+                item.key !== currentAccount.id &&
+                !accountGrantById.has(item.key) &&
+                !selectedAccountIds.has(item.key),
+        );
+    }, [selectedAccounts, itemsWithGrantedAccounts, currentAccount.id, accountGrantById]);
+
+    const itemsSearchIndex = useMemo(
+        () =>
+            new Fuse(items, {
+                keys: [
+                    {
+                        name: "name",
+                        getFn: item => item.accountData.name,
+                    },
+                ],
+            }),
+        [items],
+    );
+
+    const searchedItems = useMemo(
+        () =>
+            searchQuery === "" ? items : itemsSearchIndex.search(searchQuery).map(({item}) => item),
+        [items, itemsSearchIndex, searchQuery],
+    );
+
+    const [disableAnimationOut, setDisableAnimationOut] = useState(true);
+    useEffect(() => {
+        if (disableAnimationOut) return;
+
+        const timeout = createTimeout(() => {
+            setDisableAnimationOut(true);
+        }, overlayFadeOutAnimationDurationMs);
+        return () => {
+            timeout.clear();
+        };
+    }, [disableAnimationOut]);
+
+    const comboBoxProps: ComboBoxStateOptions<ShareOverlayAccountGrantInputItem> = {
+        label: "Add people",
+        menuTrigger: "manual",
+        // Don't close when there are no items.
+        allowsEmptyCollection: true,
+
+        inputValue: searchQuery,
+        onInputChange: searchQuery => {
+            setSearchQuery(searchQuery);
+
+            if (!comboBoxState.isOpen) {
+                comboBoxState.open();
+            }
+        },
+
+        items: searchedItems,
+        children: item => (
+            <Item textValue={item.accountData.name}>
+                <ShareOverlayAccountGrantInputListBoxOptionItem item={item} />
+            </Item>
+        ),
+
+        onFocus: () => {
+            // Open the combobox on focus.
+            comboBoxState.open();
+        },
+
+        onBlur: event => {
+            // Chrome dispatches a "fake" blur event when the user has an element focused
+            // but then clicks on another window, focusing that window but leaving our
+            // current window visible. `blur` is dispatched but `document.activeElement`
+            // doesn't change!
+            //
+            // Detect this case. If we receive a `blur` event but `document.activeElement`
+            // hasn't changed then escalate to a real blur.
+            if (event.target === document.activeElement) {
+                event.target.blur();
+            }
+
+            // Animate when the combobox loses focus. Losing focus is typically not a
+            // direct user interaction. e.g. Clicking outside of the text box. Tabbing out
+            // of the text box we consider an indirect interaction since the animation can
+            // highlight to the user that their state is going away.
+            setDisableAnimationOut(false);
+        },
+
+        // No key is ever selected by the combobox. Instead when a selection occurs we
+        // add it to a list of selected values.
+        selectedKey: null,
+        onSelectionChange: key => {
+            if (isClosingComboBox) return;
+
+            setSearchQuery("");
+
+            if (typeof key === "string") {
+                const account = accountById.get(assertId(key));
+                if (account) {
+                    setSelectedAccounts(selectedAccounts => {
+                        // If the account already exists in the selection, don't add it a second time.
+                        if (selectedAccounts.some(otherAccount => otherAccount.id === account.id)) {
+                            return selectedAccounts;
+                        }
+                        return [...selectedAccounts, account];
+                    });
+                }
+            }
+
+            // Close after the user has selected an option. `shouldSelect: true` will also
+            // disable the overlay animation out.
+            //
+            // Annoyingly, `react-aria` recursively calls `onSelectionChange` when you call
+            // `close()` so we need to defend against recursion.
+            isClosingComboBox = true;
+            try {
+                comboBoxState.close();
+            } finally {
+                isClosingComboBox = false;
+            }
+        },
+    };
+
+    const comboBoxState = useComboBoxState(comboBoxProps);
+
+    const {labelProps, inputProps, listBoxProps} = useComboBox(
+        {
+            ...comboBoxProps,
+            inputRef,
+            buttonRef,
+            popoverRef,
+            listBoxRef,
+            onKeyDown: event => {
+                assert(event.currentTarget instanceof HTMLInputElement);
+
+                switch (event.key) {
+                    case "ArrowDown":
+                    case "ArrowUp":
+                    case "Home":
+                    case "End": {
+                        setInteractionModality("keyboard");
+                        break;
+                    }
+
+                    // If we are at the beginning of the combobox text input, the backspace key
+                    // will delete the last selected account.
+                    case "Backspace": {
+                        if (
+                            selectedAccounts.length > 0 &&
+                            event.currentTarget.selectionStart ===
+                                event.currentTarget.selectionEnd &&
+                            event.currentTarget.selectionStart === 0
+                        ) {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            setSelectedAccounts(selectedAccounts => {
+                                if (selectedAccounts.length === 0) return selectedAccounts;
+                                return selectedAccounts.slice(0, -1);
+                            });
+                        }
+                        break;
+                    }
+                    // If we are at the beginning of the combobox text input, the arrow left key
+                    // will focus a previously selected account if we have one.
+                    case "ArrowLeft": {
+                        if (
+                            selectedAccountRefs.length > 0 &&
+                            event.currentTarget.selectionStart ===
+                                event.currentTarget.selectionEnd &&
+                            event.currentTarget.selectionStart === 0
+                        ) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setInteractionModality("keyboard");
+                            selectedAccountRefs[selectedAccountRefs.length - 1]?.current?.focus();
+                        }
+                        break;
+                    }
+                }
+            },
+        },
+        comboBoxState,
+    );
+
+    const selectedAccountsLength = selectedAccounts.length;
+    const selectedAccountRefs = useMemo(
+        () => createArrayWithLength(selectedAccountsLength, () => createRef<HTMLDivElement>()),
+        [selectedAccountsLength],
+    );
+
+    const selectedAccountDatas = useStore(
+        useMemo(
+            () =>
+                Store.mapMany(
+                    selectedAccounts.map(account => accountStore.getAccountStore(account)),
+                    accounts => accounts,
+                ),
+            [accountStore, selectedAccounts],
+        ),
+    );
+
+    const selectedAccountsChildren = selectedAccountDatas.map((accountData, index) => {
+        const deleteAccount = () => {
+            setSelectedAccounts(selectedAccounts => {
+                const newSelectedAccounts = selectedAccounts.filter(
+                    otherAccount => otherAccount.id !== accountData.id,
+                );
+                return newSelectedAccounts.length !== selectedAccounts.length
+                    ? newSelectedAccounts
+                    : selectedAccounts;
+            });
+        };
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            switch (event.key) {
+                // Backspace or delete will remove our selected account.
+                case "Backspace":
+                case "Delete": {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setInteractionModality("keyboard");
+                    deleteAccount();
+                    if (index + 1 < selectedAccountRefs.length) {
+                        selectedAccountRefs[index + 1]?.current?.focus();
+                    } else {
+                        inputRef.current?.focus();
+                    }
+                    break;
+                }
+                // Arrow keys navigate through selected accounts. Only the first selected
+                // account is focusable since you use arrow keys to navigate between accounts.
+                case "ArrowLeft": {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setInteractionModality("keyboard");
+                    selectedAccountRefs[index - 1]?.current?.focus();
+                    break;
+                }
+                // Arrow keys navigate through selected accounts. Only the first selected
+                // account is focusable since you use arrow keys to navigate between accounts.
+                case "ArrowRight": {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setInteractionModality("keyboard");
+                    if (index + 1 < selectedAccountRefs.length) {
+                        selectedAccountRefs[index + 1]?.current?.focus();
+                    } else {
+                        inputRef.current?.focus();
+                    }
+                    break;
+                }
+                default: {
+                    // If the user presses a letter then interpret that as the user trying to
+                    // replace the focused account. So delete the selected account and add the text
+                    // to our search input.
+                    if (/^[0-9a-zA-Z]$/.test(event.key)) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        deleteAccount();
+                        setSearchQuery(searchQuery + event.key);
+                        inputRef.current?.focus();
+                    }
+                    break;
+                }
+            }
+        };
+
+        return (
+            <FocusRing key={accountData.id}>
+                <Box
+                    ref={selectedAccountRefs[index]}
+                    cursor="default"
+                    height="6"
+                    backgroundColor="grey-5"
+                    borderRadius="full"
+                    display="flex"
+                    alignItems="center"
+                    tabIndex={index === 0 ? 0 : -1}
+                    // On mobile we want taps to fallthrough and focus the combobox input instead of
+                    // selecting the account. On mobile you can only press backspace to delete the
+                    // last account, you can't delete a specific account (unless you have an
+                    // external keyboard, then you can use arrow keys).
+                    pointerEvents={platform !== "mobile" ? undefined : "none"}
+                    onKeyDown={handleKeyDown}
                 >
-                    <Button height="6" paddingX="2" icon={<CaretDown />} iconPlacement="end">
-                        {accessLevelText[accessLevel]}
-                    </Button>
-                </MenuButton>
-                <Button variant="neutral" height="6" paddingX="3" withoutMinWidth>
-                    Add
-                </Button>
+                    <Box paddingLeft="0.5">
+                        <AccountAvatar size="5" account={accountData} />
+                    </Box>
+                    <Box paddingLeft="1.5" paddingRight="2" fontSize="75">
+                        {selectedAccounts.length <= 1 ? (
+                            accountData.name
+                        ) : (
+                            <AccountShortName account={accountData} />
+                        )}
+                    </Box>
+                </Box>
+            </FocusRing>
+        );
+    });
+
+    const {pressProps: backdropPressProps} = usePress({
+        // Backdrop doesn't receive focus.
+        preventFocusOnPress: true,
+
+        onPressStart: event => {
+            // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
+            // touch. Because a touch press gesture might actually be a scroll. If the user
+            // starts scrolling that cancels our press.
+            if (event.pointerType === "mouse") {
+                assertExists(inputRef.current).focus();
+
+                // As a convenience, if you tap on this element while it's already focused but
+                // the combobox isn't open then open the combobox. After you select an option
+                // the combobox closes but the user may want to select another account.
+                if (!comboBoxState.isOpen) {
+                    comboBoxState.open();
+                }
+            }
+        },
+        onPress: event => {
+            // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
+            // touch. Because a touch press gesture might actually be a scroll. If the user
+            // starts scrolling that cancels our press.
+            if (event.pointerType !== "mouse") {
+                assertExists(inputRef.current).focus();
+
+                // As a convenience, if you tap on this element while it's already focused but
+                // the combobox isn't open then open the combobox. After you select an option
+                // the combobox closes but the user may want to select another account.
+                if (!comboBoxState.isOpen) {
+                    comboBoxState.open();
+                }
+            }
+        },
+    });
+
+    return (
+        <OverlayAnimated
+            isVisible={comboBoxState.isOpen}
+            disableAnimationIn={true}
+            disableAnimationOut={disableAnimationOut}
+            placement="bottom-start"
+            sameWidth={true}
+            offset="2"
+            overlay={
+                <Box ref={popoverRef} position="relative">
+                    <ShareOverlayAccountGrantInputListBox
+                        comboBoxState={comboBoxState}
+                        listBoxRef={listBoxRef}
+                        listBoxProps={listBoxProps}
+                    />
+                </Box>
+            }
+        >
+            <FocusRing
+                offset="inset"
+                isVisibleWhenFocusWithin={true}
+                // Render below the listbox overlay.
+                overlayZIndex="-10"
+                // If we are selecting an item within the combobox show a focus ring there,
+                // not here.
+                isDisabled={
+                    comboBoxState.isOpen && comboBoxState.selectionManager.focusedKey !== null
+                }
+            >
+                <Box
+                    position="relative"
+                    zIndex="0"
+                    minHeight="10"
+                    borderRadius="1.5"
+                    style={{
+                        // Use `box-shadow` instead of `border` so drawing the border doesn't take
+                        // space in the layout.
+                        boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-20"]}`,
+                    }}
+                >
+                    <Box
+                        position="relative"
+                        zIndex="0"
+                        display="flex"
+                        alignItems="center"
+                        flexWrap="wrap"
+                        rowGap="1.5"
+                        columnGap="1.5"
+                        paddingY="2"
+                        paddingLeft="2"
+                        style={{
+                            paddingRight:
+                                (buttonsSize?.width ?? 0) + convertRemLengthToPx("2", spacingScale),
+                        }}
+                    >
+                        <label
+                            {...labelProps}
+                            className={sprinkles({
+                                display: "block",
+                                position: "absolute",
+                                top: "0",
+                                left: "0",
+                                opacity: "0",
+                                width: "0",
+                                height: "0",
+                            })}
+                        >
+                            {comboBoxProps.label}
+                        </label>
+                        <Box
+                            {...backdropPressProps}
+                            position="absolute"
+                            zIndex="-10"
+                            inset="0"
+                            cursor="text"
+                        />
+                        {selectedAccountsChildren}
+                        <input
+                            {...inputProps}
+                            ref={inputRef}
+                            className={sprinkles({
+                                height: "6",
+                                flexGrow: "1",
+                                display: "block",
+                                minWidth:
+                                    searchQuery.length > 0 || selectedAccounts.length === 0
+                                        ? "full"
+                                        : "4",
+                                paddingLeft:
+                                    searchQuery.length > 0 || selectedAccounts.length === 0
+                                        ? "1"
+                                        : "0",
+                                backgroundColor: "transparent",
+                            })}
+                            placeholder={selectedAccounts.length === 0 ? "Add people…" : undefined}
+                            // By default `<input>` elements have a `min-width` determined by the `size`
+                            // property. We want our `<input>`s `min-width` to be determined by our CSS
+                            // so set it to a small value as not to matter.
+                            // https://stackoverflow.com/questions/29470676/why-doesnt-the-input-element-respect-min-width
+                            size={1}
+                            // Allow iOS and MacOS autocorrect and spell checking. By default `react-aria`
+                            // disables these capabilities because the user has combobox suggestions.
+                            // However, fixing typos at the OS level when typos are common (like on iOS)
+                            // is really useful.
+                            autoCorrect={undefined}
+                            spellCheck={undefined}
+                            onKeyDown={event => {
+                                if (
+                                    event.key === "Enter" &&
+                                    comboBoxState.selectionManager.focusedKey == null
+                                ) {
+                                    // NOTE(calebmer): By default, `@react-aria/combobox` [calls `state.commit()`
+                                    // whenever `Enter` is pressed][1] whether or not an option is focused. If an
+                                    // option isn't focused this just closes the combobox and leaves the user
+                                    // confused. Is what they typed the new value or not? It's not, you can tell
+                                    // since the avatar doesn't change. This is particularly confusing on mobile
+                                    // where the user may hit the return key expecting the first value in the menu
+                                    // to be selected. But that won't happen, the menu will just close.
+                                    //
+                                    // So intercept this case and don't call into `@react-aria/combobox`.
+                                    //
+                                    // [1]: https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/combobox/src/useComboBox.ts#L132
+                                } else {
+                                    inputProps.onKeyDown?.(event);
+                                }
+                            }}
+                            onPointerDown={event => {
+                                // As a convenience, if you tap on this element while it's already focused but
+                                // the combobox isn't open then open the combobox. After you select an option
+                                // the combobox closes but the user may want to select another account.
+                                //
+                                // We have to be a little careful and make sure this doesn't break the default
+                                // browser behavior of focusing the input if it's unfocused.
+                                if (
+                                    document.activeElement === event.target &&
+                                    !comboBoxState.isOpen
+                                ) {
+                                    comboBoxState.open();
+                                }
+                            }}
+                        />
+                    </Box>
+                    <Box
+                        ref={buttonsRef}
+                        className={pointerEventsNoneNotInheritedClassName}
+                        position="absolute"
+                        zIndex="10"
+                        top="2"
+                        right="2"
+                        height="6"
+                        display="flex"
+                        alignItems="center"
+                        gap="2"
+                    >
+                        <MenuButton
+                            placement="bottom-end"
+                            actions={[
+                                {
+                                    isSelected: accessLevel === "Manage",
+                                    label: accessLevelText.Manage,
+                                    onPress: () => setAccessLevel("Manage"),
+                                },
+                                ...(isAltKeyDown
+                                    ? [
+                                          cast<MenuAction>({
+                                              isSelected: accessLevel === "Edit",
+                                              label: accessLevelText.Edit,
+                                              onPress: () => setAccessLevel("Edit"),
+                                          }),
+                                      ]
+                                    : emptyArray),
+                                {
+                                    isSelected: accessLevel === "Comment",
+                                    label: accessLevelText.Comment,
+                                    onPress: () => setAccessLevel("Comment"),
+                                },
+                                {
+                                    isSelected: accessLevel === "View",
+                                    label: accessLevelText.View,
+                                    onPress: () => setAccessLevel("View"),
+                                },
+                            ]}
+                        >
+                            <Button
+                                height="6"
+                                paddingX="2"
+                                icon={<CaretDown />}
+                                iconPlacement="end"
+                            >
+                                {accessLevelText[accessLevel]}
+                            </Button>
+                        </MenuButton>
+                        <Button variant="neutral" height="6" paddingX="3" withoutMinWidth>
+                            Add
+                        </Button>
+                    </Box>
+                </Box>
+            </FocusRing>
+        </OverlayAnimated>
+    );
+}
+
+function ShareOverlayAccountGrantInputListBox({
+    comboBoxState,
+    listBoxRef,
+    listBoxProps: _listBoxProps,
+}: {
+    comboBoxState: ComboBoxState<ShareOverlayAccountGrantInputItem>;
+    listBoxRef: RefObject<HTMLUListElement>;
+    listBoxProps: AriaListBoxOptions<ShareOverlayAccountGrantInputItem>;
+}) {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const {listBoxProps} = useListBox({..._listBoxProps, scrollRef}, comboBoxState, listBoxRef);
+
+    return (
+        <div
+            // `useScrollbar()` is on a `<div>` wrapping the `<ul>` so `useScrollbar()`
+            // doesn't need to add a resize listener to every child. This means we need to
+            // provide `useListBox()` a `scrollRef` if we want to scroll to the
+            // focused option.
+            ref={useMergedRefs(useScrollbar(), scrollRef)}
+            className={classNames(
+                greyElevated2ClassName,
+                sprinkles({
+                    borderRadius: "1.5",
+                    padding: "1",
+                    marginX: "2",
+                    backgroundColor: "grey-0",
+                    boxShadow: "elevation-20",
+                    maxHeight: {desktop: "64", mobile: "48"},
+                    overflowX: "hidden",
+                    overflowY: "auto",
+                    position: "relative",
+                }),
+            )}
+        >
+            <ul {...listBoxProps} ref={listBoxRef}>
+                {comboBoxState.collection.size === 0 ? (
+                    <Box
+                        paddingX="1.5"
+                        paddingY="1.5"
+                        display="flex"
+                        alignItems="center"
+                        gap="2"
+                        color="grey-70"
+                    >
+                        <Box padding="1">
+                            <MagnifyingGlass size={spacing["4"]} />
+                        </Box>
+                        <Box>No results</Box>
+                    </Box>
+                ) : (
+                    Array.from(comboBoxState.collection, item => (
+                        <ShareOverlayAccountGrantInputListBoxOption
+                            key={item.key}
+                            comboBoxState={comboBoxState}
+                            item={item}
+                        />
+                    ))
+                )}
+            </ul>
+        </div>
+    );
+}
+
+function ShareOverlayAccountGrantInputListBoxOption({
+    comboBoxState,
+    item,
+}: {
+    comboBoxState: ComboBoxState<ShareOverlayAccountGrantInputItem>;
+    item: Node<ShareOverlayAccountGrantInputItem>;
+}) {
+    const optionRef = useRef(null);
+    const {optionProps, isFocused, isPressed, isHovered} = useOption(
+        {
+            key: item.key,
+            // By default `@react-aria/listbox` allows you to press on the combobox trigger
+            // then drag up and release to select an item. This is not a common interaction
+            // and not something we want to support (our `<MenuButton>` doesn't support
+            // this). Furthermore, on mobile it means if you press an option in a combobox
+            // then scroll and release that option will be selected! Instead the scroll
+            // should cancel the press. We really want to disable that behavior since it
+            // feels broken.
+            disallowsDifferentPressOrigin: true,
+        },
+        comboBoxState,
+        optionRef,
+    );
+
+    const [wasFocusVisibleWhenFocused, setWasFocusVisibleWhenFocused] = useState(false);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isFocused) setWasFocusVisibleWhenFocused(isFocusVisible());
+    }, [isFocused]);
+
+    return (
+        <FocusRing offset="0" isVisible={isFocused && wasFocusVisibleWhenFocused}>
+            <li
+                {...optionProps}
+                ref={optionRef}
+                className={sprinkles({
+                    width: "full",
+                    paddingX: "1.5",
+                    paddingY: "1.5",
+                    borderRadius: "1",
+                    color: "grey-100",
+                    backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
+                })}
+            >
+                {item.rendered}
+            </li>
+        </FocusRing>
+    );
+}
+
+function ShareOverlayAccountGrantInputListBoxOptionItem({
+    item,
+}: {
+    item: ShareOverlayAccountGrantInputItem;
+}) {
+    return (
+        <Box display="flex" alignItems="center" gap="1.5">
+            <AccountAvatar account={item.accountData} size="5" />
+            <Box flexGrow="1" fontStyle="truncate">
+                {item.accountData.name}
             </Box>
         </Box>
     );

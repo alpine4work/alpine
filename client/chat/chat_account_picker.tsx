@@ -408,6 +408,7 @@ export function ChatAccountPicker({
                         ) {
                             event.preventDefault();
                             event.stopPropagation();
+                            setInteractionModality("keyboard");
                             selectedAccountRefs[selectedAccountRefs.length - 1]?.current?.focus();
                         }
                         break;
@@ -454,6 +455,7 @@ export function ChatAccountPicker({
                 case "Delete": {
                     event.preventDefault();
                     event.stopPropagation();
+                    setInteractionModality("keyboard");
                     deleteAccount();
                     if (index + 1 < selectedAccountRefs.length) {
                         selectedAccountRefs[index + 1]?.current?.focus();
@@ -467,6 +469,7 @@ export function ChatAccountPicker({
                 case "ArrowLeft": {
                     event.preventDefault();
                     event.stopPropagation();
+                    setInteractionModality("keyboard");
                     selectedAccountRefs[index - 1]?.current?.focus();
                     break;
                 }
@@ -475,6 +478,7 @@ export function ChatAccountPicker({
                 case "ArrowRight": {
                     event.preventDefault();
                     event.stopPropagation();
+                    setInteractionModality("keyboard");
                     if (index + 1 < selectedAccountRefs.length) {
                         selectedAccountRefs[index + 1]?.current?.focus();
                     } else {
@@ -562,6 +566,13 @@ export function ChatAccountPicker({
             // starts scrolling that cancels our press.
             if (event.pointerType === "mouse") {
                 assertExists(inputRef.current).focus();
+
+                // As a convenience, if you tap on this element while it's already focused but
+                // the combobox isn't open then open the combobox. After you select an option
+                // the combobox closes but the user may want to select another account.
+                if (!comboBoxState.isOpen) {
+                    comboBoxState.open();
+                }
             }
         },
         onPress: event => {
@@ -570,6 +581,13 @@ export function ChatAccountPicker({
             // starts scrolling that cancels our press.
             if (event.pointerType !== "mouse") {
                 assertExists(inputRef.current).focus();
+
+                // As a convenience, if you tap on this element while it's already focused but
+                // the combobox isn't open then open the combobox. After you select an option
+                // the combobox closes but the user may want to select another account.
+                if (!comboBoxState.isOpen) {
+                    comboBoxState.open();
+                }
             }
         },
     });
@@ -577,7 +595,8 @@ export function ChatAccountPicker({
     return (
         <OverlayAnimated
             isVisible={comboBoxState.isOpen}
-            disableAnimation={!shouldOverlayAnimate}
+            disableAnimationIn={true}
+            disableAnimationOut={!shouldOverlayAnimate}
             placement="bottom-start"
             sameWidth={true}
             offset="-1"
@@ -665,7 +684,7 @@ export function ChatAccountPicker({
                                 }rem`,
                             }}
                             placeholder={
-                                selectedAccounts.length === 0 ? "Search for people" : undefined
+                                selectedAccounts.length === 0 ? "Search for people…" : undefined
                             }
                             // By default `<input>` elements have a `min-width` determined by the `size`
                             // property. We want our `<input>`s `min-width` to be determined by our CSS

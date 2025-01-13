@@ -1,11 +1,13 @@
 import {CaretDown, Globe, Link as LinkIcon} from "phosphor-react";
-import {useEffect, useMemo, useState} from "react";
+import {forwardRef, useEffect, useMemo, useState} from "react";
+import {FocusScope} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {
     accessLevelText,
@@ -40,12 +42,14 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 export function ShareOverlay({
     accessPolicy,
     onAccessPolicyChange,
+    isVisible,
     isReadOnly,
     onCopyLink,
     onCloseWithoutAnimation,
 }: {
     accessPolicy: AccessPolicy;
     onAccessPolicyChange: (accessPolicy: AccessPolicy) => void;
+    isVisible: boolean;
     isReadOnly: boolean;
     onCopyLink: () => MaybePromise<void>;
     onCloseWithoutAnimation: () => void;
@@ -106,81 +110,100 @@ export function ShareOverlay({
     }, []);
 
     return (
-        <Box
-            className={greyElevated1ClassName}
-            backgroundColor="grey-0"
-            borderRadius="2.5"
-            boxShadow="elevation-20"
-            width="96"
-            padding="5"
+        <FocusScope
+            // If we're animating closed then don't contain focus since we need to move
+            // focus back to the overlay trigger button element.
+            contain={isVisible}
         >
-            {!isReadOnly && (
-                <>
-                    <ShareOverlayAccountGrantInput isAltKeyDown={isAltKeyDown} />
-                    <Spacer space="5" />
-                </>
-            )}
-            <Box display="flex" flexDirection="column" gap="4">
-                <ShareOverlayAccountGrant
-                    // We always want to show at least the current account in the share overlay and
-                    // we want to show the current account first.
-                    account={currentAccount}
-                    // In order to open the share overlay the current account must have some access
-                    // declared in the access policy in the first place.
-                    accountGrant={assertExists(
-                        accessPolicy.accountGrantById.get(currentAccount.id) ??
-                            // If there's no grant for our current account then they may be covered by the
-                            // default grant.
-                            accessPolicy.defaultGrant,
+            <Box
+                // Let initial focus from `<OverlayTriggerButton>` go somewhere other than the
+                // add people text input.
+                tabIndex={-1}
+                className={greyElevated1ClassName}
+                backgroundColor="grey-0"
+                borderRadius="2.5"
+                boxShadow="elevation-20"
+                width="96"
+                padding="5"
+            >
+                <OverlayScopeContextProvider
+                // Make sure any overlays inside the share overlay are animated with the share
+                // overlay.
+                >
+                    {!isReadOnly && (
+                        <>
+                            <ShareOverlayAccountGrantInput
+                                accountGrantById={accessPolicy.accountGrantById}
+                                allAccounts={allAccounts}
+                                accountById={accountById}
+                                isAltKeyDown={isAltKeyDown}
+                            />
+                            <Spacer space="5" />
+                        </>
                     )}
-                    isReadOnly={isReadOnly}
-                    isAltKeyDown={isAltKeyDown}
-                />
-                {sortedAccountGrants.map(([accountId, accountGrant]) => (
-                    // NOCOMMIT: Scroll if this gets too long
-                    <ShareOverlayAccountGrant
-                        key={accountId}
-                        account={accountById.get(accountId) ?? null}
-                        accountGrant={accountGrant}
+                    <Box display="flex" flexDirection="column" gap="4">
+                        <ShareOverlayAccountGrant
+                            // We always want to show at least the current account in the share overlay and
+                            // we want to show the current account first.
+                            account={currentAccount}
+                            // In order to open the share overlay the current account must have some access
+                            // declared in the access policy in the first place.
+                            accountGrant={assertExists(
+                                accessPolicy.accountGrantById.get(currentAccount.id) ??
+                                    // If there's no grant for our current account then they may be covered by the
+                                    // default grant.
+                                    accessPolicy.defaultGrant,
+                            )}
+                            isReadOnly={isReadOnly}
+                            isAltKeyDown={isAltKeyDown}
+                        />
+                        {sortedAccountGrants.map(([accountId, accountGrant]) => (
+                            // NOCOMMIT: Scroll if this gets too long
+                            <ShareOverlayAccountGrant
+                                key={accountId}
+                                account={accountById.get(accountId) ?? null}
+                                accountGrant={accountGrant}
+                                isReadOnly={isReadOnly}
+                                isAltKeyDown={isAltKeyDown}
+                            />
+                        ))}
+                    </Box>
+                    <Spacer space="5" />
+                    <Box height="border" backgroundColor="grey-5" />
+                    <Spacer space="5" />
+                    <ShareOverlayDefaultGrant
+                        defaultGrant={accessPolicy.defaultGrant}
+                        onDefaultGrantChange={defaultGrant => {
+                            // NOCOMMIT: Warn if this will change the current account's access level.
+                            onAccessPolicyChange({...accessPolicy, defaultGrant});
+                        }}
                         isReadOnly={isReadOnly}
                         isAltKeyDown={isAltKeyDown}
                     />
-                ))}
-            </Box>
-            <Spacer space="5" />
-            <Box height="border" backgroundColor="grey-5" />
-            <Spacer space="5" />
-            <ShareOverlayDefaultGrant
-                defaultGrant={accessPolicy.defaultGrant}
-                onDefaultGrantChange={defaultGrant => {
-                    // NOCOMMIT: Warn if this will change the current account's access level.
-                    onAccessPolicyChange({...accessPolicy, defaultGrant});
-                }}
-                isReadOnly={isReadOnly}
-                isAltKeyDown={isAltKeyDown}
-            />
-            <Spacer space="3" />
-            <ShareOverlayLinkGrant isReadOnly={isReadOnly} />
-            <Spacer space="5" />
-            <Box height="border" backgroundColor="grey-5" />
-            <Spacer space="5" />
-            <Button
-                variant="accent"
-                height="8"
-                fullWidth={true}
-                borderRadius="1.5"
-                icon={<LinkIcon size={spacing["4"]} />}
-                pressErrorTitle="Couldn’t copy link"
-                onPress={async () => {
-                    await onCopyLink();
+                    <Spacer space="3" />
+                    <ShareOverlayLinkGrant isReadOnly={isReadOnly} />
+                    <Spacer space="5" />
+                    <Box height="border" backgroundColor="grey-5" />
+                    <Spacer space="5" />
+                    <Button
+                        variant="accent"
+                        height="8"
+                        fullWidth={true}
+                        borderRadius="1.5"
+                        icon={<LinkIcon size={spacing["4"]} />}
+                        pressErrorTitle="Couldn’t copy link"
+                        onPress={async () => {
+                            await onCopyLink();
 
-                    // Assume copy will work and close overlay without flicker.
-                    onCloseWithoutAnimation();
-                }}
-            >
-                Copy link
-            </Button>
-        </Box>
+                            // Assume copy will work and close overlay without flicker.
+                            onCloseWithoutAnimation();
+                        }}
+                    >
+                        Copy link
+                    </Button>
+                </OverlayScopeContextProvider>
+            </Box>
+        </FocusScope>
     );
 }
 

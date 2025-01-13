@@ -512,35 +512,36 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     /**
      * Fired when the user presses enter in a content editor.
      *
-     * Providing an `onEnterFromPhysicalKeyboard` callback will prevent the default
-     * enter behavior. It will also switch our editor out of multiline mode for
-     * assistive technologies.
+     * Providing an `onEnterKeyDownFromPhysicalKeyboard` callback will prevent the
+     * default enter behavior. It will also switch our editor out of multiline mode
+     * for assistive technologies.
      *
      * Pressing shift+enter has the same behavior as pressing enter as a
      * workaround. Pressing alt+enter will insert a hard line break and won't
      * trigger this callback. Pasting in content with multiple paragraphs also
-     * allows you to add multiple lines. So providing `onEnterFromPhysicalKeyboard`
-     * doesn't make our editor fully single lined.
+     * allows you to add multiple lines. So providing
+     * `onEnterKeyDownFromPhysicalKeyboard` doesn't make our editor fully single lined.
      */
-    onEnterFromPhysicalKeyboard?: (event: KeyboardEvent) => void;
+    onEnterKeyDownFromPhysicalKeyboard?: (event: KeyboardEvent) => void;
 
     /**
      * Fired when the user press cmd-enter (or ctrl-enter on non MacOS platforms)
      * in a content editor.
      *
-     * Providing an `onModEnter` callback will prevent the default enter behavior.
+     * Providing an `onModEnterKeyDown` callback will prevent the default enter
+     * behavior.
      */
-    onModEnter?: (event: KeyboardEvent) => void;
+    onModEnterKeyDown?: (event: KeyboardEvent) => void;
 
     /**
      * Fired when the user presses the escape key.
      */
-    onEscape?: (event: KeyboardEvent) => void;
+    onEscapeKeyDown?: (event: KeyboardEvent) => void;
 
     /**
      * Fired when the user presses the up arrow key.
      */
-    onArrowUp?: (event: KeyboardEvent) => void;
+    onArrowUpKeyDown?: (event: KeyboardEvent) => void;
 
     /**
      * Opens a comment thread when clicked. If your schema supports comment marks
@@ -2547,19 +2548,19 @@ function ContentEditor<Content extends ContentWithReferences>(
             }
 
             if (
-                typeof propsRef.current.onModEnter === "function" &&
+                typeof propsRef.current.onModEnterKeyDown === "function" &&
                 event.key === "Enter" &&
                 !event.altKey &&
                 !event.shiftKey &&
                 // Cmd+Enter triggers this on MacOS and Ctrl+Enter triggers this elsewhere
                 (isAppleDevice ? event.metaKey : event.ctrlKey)
             ) {
-                propsRef.current.onModEnter(event);
+                propsRef.current.onModEnterKeyDown(event);
                 if (event.defaultPrevented) return true;
             }
 
             if (
-                typeof propsRef.current.onEnterFromPhysicalKeyboard === "function" &&
+                typeof propsRef.current.onEnterKeyDownFromPhysicalKeyboard === "function" &&
                 event.key === "Enter" &&
                 !event.altKey &&
                 !event.shiftKey &&
@@ -2574,17 +2575,20 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // button press.
                 !isVirtualKeyboardEvent(event)
             ) {
-                propsRef.current.onEnterFromPhysicalKeyboard(event);
+                propsRef.current.onEnterKeyDownFromPhysicalKeyboard(event);
                 if (event.defaultPrevented) return true;
             }
 
-            if (typeof propsRef.current.onEscape === "function" && event.key === "Escape") {
-                propsRef.current.onEscape(event);
+            if (typeof propsRef.current.onEscapeKeyDown === "function" && event.key === "Escape") {
+                propsRef.current.onEscapeKeyDown(event);
                 if (event.defaultPrevented) return true;
             }
 
-            if (typeof propsRef.current.onArrowUp === "function" && event.key === "ArrowUp") {
-                propsRef.current.onArrowUp(event);
+            if (
+                typeof propsRef.current.onArrowUpKeyDown === "function" &&
+                event.key === "ArrowUp"
+            ) {
+                propsRef.current.onArrowUpKeyDown(event);
                 if (event.defaultPrevented) return true;
             }
 

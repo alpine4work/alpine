@@ -444,7 +444,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                     onBlur?.();
                 }}
                 onBeforeFocusFromReplyOrEditingChange={onBeforeFocusFromReplyOrEditingChange}
-                onArrowUp={event => {
+                onArrowUpKeyDown={event => {
                     if (messageEditingForThisInput) return;
 
                     if (isContentEmpty(inputState.getDoc())) {

@@ -168,7 +168,7 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     onFocusCapture?: (event: FocusEvent) => void;
     onBlur?: (event: FocusEvent) => void;
     onBeforeFocusFromReplyOrEditingChange?: () => {preventDefault: boolean} | void;
-    onArrowUp?: (event: KeyboardEvent) => void;
+    onArrowUpKeyDown?: (event: KeyboardEvent) => void;
 };
 
 const MessageInputBaseForwardRef = forwardRef(MessageInputBase) as <
@@ -217,7 +217,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         onFocusCapture,
         onBlur,
         onBeforeFocusFromReplyOrEditingChange: onBeforeFocusFromReplyOrEditingChangeProp,
-        onArrowUp,
+        onArrowUpKeyDown,
         sendButtonVerb = messageEditingForThisInput ? "Save" : "Send",
         placeholder = `${
             messageEditingForThisInput ? "Edit" : messageNoun === "message" ? "Send a" : "Add a"
@@ -1134,12 +1134,12 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                         spacingScale
                                                     ],
                                             }}
-                                            onEnterFromPhysicalKeyboard={event => {
+                                            onEnterKeyDownFromPhysicalKeyboard={event => {
                                                 event.preventDefault();
                                                 event.stopPropagation();
                                                 onSend();
                                             }}
-                                            onArrowUp={onArrowUp}
+                                            onArrowUpKeyDown={onArrowUpKeyDown}
                                             onPasteOrDropFiles={fileInfos => {
                                                 events.addFiles(
                                                     "<MessageInput> paste files",
