@@ -3,6 +3,7 @@ import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js
 import {
     ActorContextModuleBase,
     ActorServiceName,
+    AnonymousActorContextModule,
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
@@ -26,7 +27,8 @@ import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
  */
 export type DynamoActorContextModule =
     | DynamoSessionActorContextModule
-    | DynamoSystemActorContextModule;
+    | DynamoSystemActorContextModule
+    | DynamoAnonymousActorContextModule;
 
 interface DynamoActorContextModuleBase extends ActorContextModuleBase {
     /**
@@ -78,8 +80,8 @@ export class DynamoUnknownActorContextModule extends ContextModuleBase<{
             dynamo: DynamoContextModule;
             cache: CacheContextModule;
         }>,
-    ) => Promise<DynamoActorContextModule | null>;
-    private readonly _contextModuleRef: {current: Promise<DynamoActorContextModule | null> | null};
+    ) => Promise<DynamoActorContextModule>;
+    private readonly _contextModuleRef: {current: Promise<DynamoActorContextModule> | null};
 
     constructor(
         authenticate: (
@@ -89,14 +91,14 @@ export class DynamoUnknownActorContextModule extends ContextModuleBase<{
                 dynamo: DynamoContextModule;
                 cache: CacheContextModule;
             }>,
-        ) => Promise<DynamoActorContextModule | null>,
+        ) => Promise<DynamoActorContextModule>,
     ) {
         super();
         this._authenticate = authenticate;
         this._contextModuleRef = {current: null};
     }
 
-    private _getContextModule(): Promise<DynamoActorContextModule | null> {
+    private _getContextModule(): Promise<DynamoActorContextModule> {
         if (this._contextModuleRef.current === null) {
             this._contextModuleRef.current = this._authenticate(this._context);
         }
@@ -120,7 +122,6 @@ export class DynamoUnknownActorContextModule extends ContextModuleBase<{
         this: ContextModuleBase<Modules> & DynamoUnknownActorContextModule,
     ): Promise<Context<Replace<Modules, {actor: DynamoActorContextModule}>>> {
         const contextModule = await this._getContextModule();
-        if (!contextModule) throw unauthenticatedSessionError();
         return this._context.clone({actor: contextModule});
     }
 }
@@ -316,5 +317,52 @@ export class DynamoSystemActorContextModule
 
     public fork() {
         return new DynamoSystemActorContextModule(this.serviceName, this._spaceId);
+    }
+}
+
+export class DynamoAnonymousActorContextModule
+    extends DynamoUnknownActorContextModule
+    implements DynamoActorContextModuleBase, AnonymousActorContextModule
+{
+    public readonly type = "Anonymous";
+
+    /**
+     * Name of the service which initiated the current action. Only services that
+     * can sign tokens can create an anonymous actor context.
+     */
+    public readonly serviceName: ActorServiceName;
+
+    private constructor(serviceName: ActorServiceName) {
+        super(() => Promise.resolve(this));
+        this.serviceName = serviceName;
+    }
+
+    /**
+     * Dangerous since you can pass in an arbitrary `serviceName` here. You need to
+     * make sure to pass in the right one so you only get access to the procedures
+     * made available to your service.
+     */
+    public static dangerouslyNew(serviceName: ActorServiceName) {
+        return new DynamoAnonymousActorContextModule(serviceName);
+    }
+
+    public getTokenPayload(): TokenPayload {
+        return {type: "Anonymous"};
+    }
+
+    public authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: DynamoSessionActorContextModule}>> {
+        throw unauthenticatedSessionError();
+    }
+
+    public authorizeSystem<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: DynamoSystemActorContextModule}>> {
+        throw new PermissionDeniedError("Anonymous actor is not a system actor");
+    }
+
+    public fork() {
+        return new DynamoAnonymousActorContextModule(this.serviceName);
     }
 }

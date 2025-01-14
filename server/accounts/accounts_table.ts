@@ -14,6 +14,7 @@ import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {FromEmailAddress} from "~/server/emails/from_email_address.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {Context} from "~/shared/context/context.js";
@@ -1042,7 +1043,10 @@ export async function authorizeInternalAccess(context: Context<{actor: DynamoAct
             break;
         }
         case "System": {
-            throw new PermissionDeniedError("System does not have internal access");
+            throw new PermissionDeniedError("System actor does not have internal access");
+        }
+        case "Anonymous": {
+            throw unauthenticatedSessionError();
         }
         default:
             throw exhaustive(context.actor);
@@ -1282,6 +1286,9 @@ export async function deleteAccountAppleDeviceTokenIfExists(
         case "System": {
             // System actor can delete device tokens for any account...
             break;
+        }
+        case "Anonymous": {
+            throw unauthenticatedSessionError();
         }
         default:
             throw exhaustive(context.actor);

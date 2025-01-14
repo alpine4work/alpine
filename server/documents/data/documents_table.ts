@@ -34,6 +34,7 @@ import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condit
 import {FileAuthorizer, getFileFromAttachment} from "~/server/files/data/files_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
+import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
@@ -980,17 +981,23 @@ async function isDocumentItemAccessAuthorized(
     documentItem: {spaceId: SpaceId; accessPolicy: AccessPolicy},
     expectedAccessLevel: AccessLevel,
 ): Promise<boolean> {
+    if (context.actor.type === "Anonymous") {
+        throw unauthenticatedSessionError();
+    }
+
     // System actors can read all documents in the space they have access to.
     if (context.actor.type === "System") {
         return context.actor.getSpaceId() === documentItem.spaceId;
     }
+
+    const accountId = context.actor.getAccountId();
 
     // Check that the account has access to the space the document is in.
     if (
         !(await isAccountMemberOfSpaceWithoutAuthorization(
             context,
             documentItem.spaceId,
-            context.actor.getAccountId(),
+            accountId,
         ))
     ) {
         return false;
@@ -1000,7 +1007,7 @@ async function isDocumentItemAccessAuthorized(
     return evaluateAccessPolicy(
         context,
         documentItem.spaceId,
-        context.actor.getAccountId(),
+        accountId,
         documentItem.accessPolicy,
         expectedAccessLevel,
     );

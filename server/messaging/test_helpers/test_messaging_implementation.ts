@@ -1,5 +1,8 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
-import {ServerContentSessionActionContext} from "~/server/context/server_content_action_context.js";
+import {
+    ServerContentActionContext,
+    ServerContentSessionActionContext,
+} from "~/server/context/server_content_action_context.js";
 import {
     TestContext,
     TestSessionActionContext,
@@ -19,6 +22,7 @@ import {
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
+    UnauthenticatedError,
 } from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -112,7 +116,7 @@ type DeleteMessageFunctionForTest<RoomKey extends string> = (
  * starting after a message ID) and loading forwards in time.
  */
 type GetMessagesFromStartForTest<Message extends MessageModel> = (
-    context: ServerContentSessionActionContext,
+    context: ServerContentActionContext,
     options: {
         roomKey: MessageRoomKeyType<Message>;
         limit: number;
@@ -131,7 +135,7 @@ type GetMessagesFromStartForTest<Message extends MessageModel> = (
  * starting before a message ID) and loading backwards in time.
  */
 type GetMessagesFromEndForTest<Message extends MessageModel> = (
-    context: ServerContentSessionActionContext,
+    context: ServerContentActionContext,
     options: {
         roomKey: MessageRoomKeyType<Message>;
         limit: number;
@@ -2424,6 +2428,19 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(new PermissionDeniedError(spacePermissionDeniedErrorMessage));
         });
 
+        test("can't get messages for anonymous actor", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            await expect(
+                getMessagesFromStart(context.anonymousAction(), {
+                    roomKey: room.key,
+                    limit: 100,
+                    afterMessageIndex: null,
+                    beforeMessageIndex: null,
+                }),
+            ).rejects.toThrow(new UnauthenticatedError("Unauthenticated session"));
+        });
+
         if (createPrivateRoom !== "Unimplemented") {
             test("can't get messages for private room from account who doesn't have access", async () => {
                 const room = await createPrivateRoom(context.action(session1), space.id);
@@ -4229,6 +4246,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                     beforeMessageIndex: null,
                 }),
             ).rejects.toThrow(new PermissionDeniedError(spacePermissionDeniedErrorMessage));
+        });
+
+        test("can't get messages from end for anonymous actor", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            await expect(
+                getMessagesFromEnd(context.anonymousAction(), {
+                    roomKey: room.key,
+                    limit: 100,
+                    afterMessageIndex: null,
+                    beforeMessageIndex: null,
+                }),
+            ).rejects.toThrow(new UnauthenticatedError("Unauthenticated session"));
         });
 
         if (createPrivateRoom !== "Unimplemented") {

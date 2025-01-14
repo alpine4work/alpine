@@ -52,6 +52,7 @@ import {
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
+    UnauthenticatedError,
 } from "~/shared/error/error.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
@@ -3311,11 +3312,11 @@ test("can add accounts to spaces as admin", async () => {
 });
 
 test("can authorize post access at different levels", async () => {
-    const space = await TestSpace.create(context);
-    const otherSpace = await TestSpace.create(context);
+    const space1 = await TestSpace.create(context);
+    const space2 = await TestSpace.create(context);
 
-    const [session1, session2, session3] = await space.createSessions(3);
-    const otherSession = await otherSpace.createSession();
+    const [session1, session2, session3] = await space1.createSessions(3);
+    const session4 = await space2.createSession();
 
     const channel = await TestChannel.create(session1);
 
@@ -3327,60 +3328,68 @@ test("can authorize post access at different levels", async () => {
         context: ServerActionContext,
         id: PostId,
         expectedAccessLevel: "View" | "Edit",
-    ): Promise<boolean> => {
+    ) => {
         try {
             await authorizePostAccess(context, id, expectedAccessLevel);
-            return true;
+            return null;
         } catch (error) {
             if (error instanceof PermissionDeniedError) {
-                return false;
+                return "PermissionDenied";
+            } else if (error instanceof UnauthenticatedError) {
+                return "Unauthenticated";
             } else {
                 throw error;
             }
         }
     };
 
-    expect(await authorize(space.systemAction(), post1.id, "View")).toEqual(true);
-    expect(await authorize(otherSpace.systemAction(), post1.id, "View")).toEqual(false);
-    expect(await authorize(session1.action(), post1.id, "View")).toEqual(true);
-    expect(await authorize(session2.action(), post1.id, "View")).toEqual(true);
-    expect(await authorize(session3.action(), post1.id, "View")).toEqual(true);
-    expect(await authorize(otherSession.action(), post1.id, "View")).toEqual(false);
+    expect(await authorize(space1.systemAction(), post1.id, "View")).toEqual(null);
+    expect(await authorize(space2.systemAction(), post1.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session1.action(), post1.id, "View")).toEqual(null);
+    expect(await authorize(session2.action(), post1.id, "View")).toEqual(null);
+    expect(await authorize(session3.action(), post1.id, "View")).toEqual(null);
+    expect(await authorize(session4.action(), post1.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(context.anonymousAction(), post1.id, "View")).toEqual("Unauthenticated");
 
-    expect(await authorize(space.systemAction(), post1.id, "Edit")).toEqual(true);
-    expect(await authorize(otherSpace.systemAction(), post1.id, "Edit")).toEqual(false);
-    expect(await authorize(session1.action(), post1.id, "Edit")).toEqual(true);
-    expect(await authorize(session2.action(), post1.id, "Edit")).toEqual(false);
-    expect(await authorize(session3.action(), post1.id, "Edit")).toEqual(false);
-    expect(await authorize(otherSession.action(), post1.id, "Edit")).toEqual(false);
+    expect(await authorize(space1.systemAction(), post1.id, "Edit")).toEqual(null);
+    expect(await authorize(space2.systemAction(), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session1.action(), post1.id, "Edit")).toEqual(null);
+    expect(await authorize(session2.action(), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session3.action(), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session4.action(), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(context.anonymousAction(), post1.id, "Edit")).toEqual("Unauthenticated");
 
-    expect(await authorize(space.systemAction(), post2.id, "View")).toEqual(true);
-    expect(await authorize(otherSpace.systemAction(), post2.id, "View")).toEqual(false);
-    expect(await authorize(session1.action(), post2.id, "View")).toEqual(true);
-    expect(await authorize(session2.action(), post2.id, "View")).toEqual(true);
-    expect(await authorize(session3.action(), post2.id, "View")).toEqual(true);
-    expect(await authorize(otherSession.action(), post2.id, "View")).toEqual(false);
+    expect(await authorize(space1.systemAction(), post2.id, "View")).toEqual(null);
+    expect(await authorize(space2.systemAction(), post2.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session1.action(), post2.id, "View")).toEqual(null);
+    expect(await authorize(session2.action(), post2.id, "View")).toEqual(null);
+    expect(await authorize(session3.action(), post2.id, "View")).toEqual(null);
+    expect(await authorize(session4.action(), post2.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(context.anonymousAction(), post2.id, "View")).toEqual("Unauthenticated");
 
-    expect(await authorize(space.systemAction(), post2.id, "Edit")).toEqual(true);
-    expect(await authorize(otherSpace.systemAction(), post2.id, "Edit")).toEqual(false);
-    expect(await authorize(session1.action(), post2.id, "Edit")).toEqual(false);
-    expect(await authorize(session2.action(), post2.id, "Edit")).toEqual(true);
-    expect(await authorize(session3.action(), post2.id, "Edit")).toEqual(false);
-    expect(await authorize(otherSession.action(), post2.id, "Edit")).toEqual(false);
+    expect(await authorize(space1.systemAction(), post2.id, "Edit")).toEqual(null);
+    expect(await authorize(space2.systemAction(), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session1.action(), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session2.action(), post2.id, "Edit")).toEqual(null);
+    expect(await authorize(session3.action(), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session4.action(), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(context.anonymousAction(), post2.id, "Edit")).toEqual("Unauthenticated");
 
-    expect(await authorize(space.systemAction(), post3.id, "View")).toEqual(true);
-    expect(await authorize(otherSpace.systemAction(), post3.id, "View")).toEqual(false);
-    expect(await authorize(session1.action(), post3.id, "View")).toEqual(true);
-    expect(await authorize(session2.action(), post3.id, "View")).toEqual(true);
-    expect(await authorize(session3.action(), post3.id, "View")).toEqual(true);
-    expect(await authorize(otherSession.action(), post3.id, "View")).toEqual(false);
+    expect(await authorize(space1.systemAction(), post3.id, "View")).toEqual(null);
+    expect(await authorize(space2.systemAction(), post3.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session1.action(), post3.id, "View")).toEqual(null);
+    expect(await authorize(session2.action(), post3.id, "View")).toEqual(null);
+    expect(await authorize(session3.action(), post3.id, "View")).toEqual(null);
+    expect(await authorize(session4.action(), post3.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(context.anonymousAction(), post3.id, "View")).toEqual("Unauthenticated");
 
-    expect(await authorize(space.systemAction(), post3.id, "Edit")).toEqual(true);
-    expect(await authorize(otherSpace.systemAction(), post3.id, "Edit")).toEqual(false);
-    expect(await authorize(session1.action(), post3.id, "Edit")).toEqual(false);
-    expect(await authorize(session2.action(), post3.id, "Edit")).toEqual(false);
-    expect(await authorize(session3.action(), post3.id, "Edit")).toEqual(true);
-    expect(await authorize(otherSession.action(), post3.id, "Edit")).toEqual(false);
+    expect(await authorize(space1.systemAction(), post3.id, "Edit")).toEqual(null);
+    expect(await authorize(space2.systemAction(), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session1.action(), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session2.action(), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session3.action(), post3.id, "Edit")).toEqual(null);
+    expect(await authorize(session4.action(), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(context.anonymousAction(), post3.id, "Edit")).toEqual("Unauthenticated");
 });
 
 test("authorizing channel access as session actor is cached", async () => {
@@ -4266,6 +4275,10 @@ test("can create, get, update, and authorize a post draft", async () => {
     ).rejects.toThrow("System action doesn't have access to space");
 
     await expect(
+        authorizePostDraftAccess(context.anonymousAction(), space.id, session1.account.id, draftId),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
         createOrReplacePostDraft(session2.action(), space.id, session1.account.id, draftId, {
             channelId: null,
             content: createSimplePostContent("Test post content 2"),
@@ -4298,6 +4311,19 @@ test("can create, get, update, and authorize a post draft", async () => {
             },
         ),
     ).rejects.toThrow("System action doesn't have access to space");
+
+    await expect(
+        createOrReplacePostDraft(
+            context.anonymousAction(),
+            space.id,
+            session1.account.id,
+            draftId,
+            {
+                channelId: null,
+                content: createSimplePostContent("Test post content 2"),
+            },
+        ),
+    ).rejects.toThrow("Unauthenticated session");
 
     expect(
         await getPostDraftIfExists(session1.action(), space.id, session1.account.id, draftId),
@@ -4339,6 +4365,10 @@ test("can create, get, update, and authorize a post draft", async () => {
     await expect(
         getPostDraftIfExists(otherSpace.systemAction(), space.id, session1.account.id, draftId),
     ).rejects.toThrow("System action doesn't have access to space");
+
+    await expect(
+        getPostDraftIfExists(context.anonymousAction(), space.id, session1.account.id, draftId),
+    ).rejects.toThrow("Unauthenticated session");
 });
 
 test("will delete draft when creating post", async () => {

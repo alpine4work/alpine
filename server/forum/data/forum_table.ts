@@ -35,6 +35,7 @@ import {
     getFileFromAttachment,
     getPostDraftFileAttachments,
 } from "~/server/files/data/files_table.js";
+import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
@@ -2645,6 +2646,9 @@ export async function authorizePostAccess(
                     }
                     break;
                 }
+                case "Anonymous": {
+                    throw unauthenticatedSessionError();
+                }
                 default:
                     throw exhaustive(context.actor);
             }
@@ -3966,6 +3970,9 @@ export async function authorizePostDraftAccess(
                 throw new PermissionDeniedError("Can't access drafts from other accounts");
             }
             break;
+        }
+        case "Anonymous": {
+            throw unauthenticatedSessionError();
         }
         default:
             throw exhaustive(context.actor);

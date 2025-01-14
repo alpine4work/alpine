@@ -88,6 +88,7 @@ import {
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
+    UnauthenticatedError,
 } from "~/shared/error/error.js";
 import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -4410,9 +4411,16 @@ test("authorization succeeds for session actor in the same space", async () => {
 
     const document = await TestDocument.create(session1);
 
-    const authorize = (session: TestSpaceSession | TestSpace, expectedAccessLevel: AccessLevel) =>
+    const authorize = (
+        session: TestSpaceSession | TestSpace | "Anonymous",
+        expectedAccessLevel: AccessLevel,
+    ) =>
         authorizeDocumentAccess(
-            session instanceof TestSpace ? session.systemAction() : session.action(),
+            session === "Anonymous"
+                ? context.anonymousAction()
+                : session instanceof TestSpace
+                ? session.systemAction()
+                : session.action(),
             document.id,
             expectedAccessLevel,
         );
@@ -4441,6 +4449,11 @@ test("authorization succeeds for session actor in the same space", async () => {
     await expect(authorize(otherSpace, "Comment")).rejects.toThrow(PermissionDeniedError);
     await expect(authorize(otherSpace, "Edit")).rejects.toThrow(PermissionDeniedError);
     await expect(authorize(otherSpace, "Manage")).rejects.toThrow(PermissionDeniedError);
+
+    await expect(authorize("Anonymous", "View")).rejects.toThrow(UnauthenticatedError);
+    await expect(authorize("Anonymous", "Comment")).rejects.toThrow(UnauthenticatedError);
+    await expect(authorize("Anonymous", "Edit")).rejects.toThrow(UnauthenticatedError);
+    await expect(authorize("Anonymous", "Manage")).rejects.toThrow(UnauthenticatedError);
 });
 
 test("getting document with comments requires comment access level", async () => {

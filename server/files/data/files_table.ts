@@ -13,6 +13,7 @@ import {
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {fileProcessorDeclarationByContentType} from "~/server/files/data/file_processor_declaration_by_content_type.js";
+import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {
@@ -733,6 +734,9 @@ export class FileUploader {
                     throw new PermissionDeniedError("System actor is not for the file's space");
                 }
                 break;
+            }
+            case "Anonymous": {
+                throw unauthenticatedSessionError();
             }
             default:
                 throw exhaustive(context.actor);
@@ -1516,6 +1520,9 @@ async function getFileItemIfExistsAsUploader(
                 throw new PermissionDeniedError("Account didn't upload file");
             }
             break;
+        }
+        case "Anonymous": {
+            throw unauthenticatedSessionError();
         }
         default:
             throw exhaustive(context.actor);

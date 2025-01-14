@@ -51,6 +51,7 @@ import {
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
+    UnauthenticatedError,
 } from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -15810,6 +15811,21 @@ test("can't get notes as the wrong system action", async () => {
     ).rejects.toThrow(PermissionDeniedError);
 });
 
+test("can't get notes as an anonymous actor", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const task = await TestTask.create(session);
+
+    await expect(getTaskNotesContent(context.anonymousAction(), task.id)).rejects.toThrow(
+        UnauthenticatedError,
+    );
+
+    await expect(
+        getTaskNotesContentWithoutReferences(context.anonymousAction(), task.id),
+    ).rejects.toThrow(UnauthenticatedError);
+});
+
 test("can update task notes", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -17341,6 +17357,87 @@ test("account can remove access from itself", async () => {
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
+    );
+});
+
+test("can authorize task with system actor and anonymous actor", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const [task1, collection1] = await runAllPromises([
+        TestTask.create(session2),
+        TestTaskCollection.create(session2, {access: "public"}),
+    ]);
+
+    await task1.addCollection(session2, collection1);
+
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit");
+
+    await authorizeTaskAccess(space.systemAction(), task1.id, "Edit");
+
+    await expect(authorizeTaskAccess(otherSpace.systemAction(), task1.id, "Edit")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(authorizeTaskAccess(context.anonymousAction(), task1.id, "Edit")).rejects.toThrow(
+        UnauthenticatedError,
+    );
+
+    await commitTaskActionTransaction(TestTask.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: testClock.nowLogical(),
+            taskId: task1.id,
+            taskAction: {
+                type: "RemoveCollection",
+                collectionId: collection1.id,
+            },
+        },
+    ]);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await authorizeTaskAccess(space.systemAction(), task1.id, "Edit");
+
+    await expect(authorizeTaskAccess(otherSpace.systemAction(), task1.id, "Edit")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(authorizeTaskAccess(context.anonymousAction(), task1.id, "Edit")).rejects.toThrow(
+        UnauthenticatedError,
+    );
+
+    await expect(
+        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await authorizeTaskAccess(space.systemAction(), task1.id, "Edit");
+
+    await expect(authorizeTaskAccess(otherSpace.systemAction(), task1.id, "Edit")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(authorizeTaskAccess(context.anonymousAction(), task1.id, "Edit")).rejects.toThrow(
+        UnauthenticatedError,
     );
 });
 

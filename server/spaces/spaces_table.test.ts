@@ -33,6 +33,7 @@ import {
     InternalError,
     NotFoundError,
     PermissionDeniedError,
+    UnauthenticatedError,
 } from "~/shared/error/error.js";
 import {compareArrays} from "~/shared/helpers/array/compare_arrays.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -2037,6 +2038,10 @@ test("can get an account's registered apple devices", async () => {
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
+        getRegisteredAccountDevices(context.anonymousAction(), session1A.account.id),
+    ).rejects.toThrow(UnauthenticatedError);
+
+    await expect(
         getRegisteredAccountDevices(session1B.action(), session1B.account.id),
     ).resolves.toEqual([]);
 
@@ -2061,6 +2066,10 @@ test("can get an account's registered apple devices", async () => {
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
+        getRegisteredAccountDevices(context.anonymousAction(), session1B.account.id),
+    ).rejects.toThrow(UnauthenticatedError);
+
+    await expect(
         getRegisteredAccountDevices(sharedSession.action(), sharedSession.account.id),
     ).resolves.toEqual([]);
 
@@ -2083,6 +2092,10 @@ test("can get an account's registered apple devices", async () => {
     await expect(
         getRegisteredAccountDevices(space2.systemAction(), sharedSession.account.id),
     ).resolves.toEqual([]);
+
+    await expect(
+        getRegisteredAccountDevices(context.anonymousAction(), sharedSession.account.id),
+    ).rejects.toThrow(UnauthenticatedError);
 
     const deviceToken1A = new Uint8Array(createArrayWithLength(32, () => randomInteger(0, 255)));
     const deviceToken1B1 = new Uint8Array(createArrayWithLength(32, () => randomInteger(0, 255)));
@@ -2130,6 +2143,10 @@ test("can get an account's registered apple devices", async () => {
     await expect(
         getRegisteredAccountDevices(space2.systemAction(), session1A.account.id),
     ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(context.anonymousAction(), session1A.account.id),
+    ).rejects.toThrow(UnauthenticatedError);
 
     await expect(
         getRegisteredAccountDevices(session1B.action(), session1B.account.id).then(devices =>
@@ -2188,6 +2205,10 @@ test("can get an account's registered apple devices", async () => {
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
+        getRegisteredAccountDevices(context.anonymousAction(), session1B.account.id),
+    ).rejects.toThrow(UnauthenticatedError);
+
+    await expect(
         getRegisteredAccountDevices(sharedSession.action(), sharedSession.account.id),
     ).resolves.toEqual([{type: "Apple", deviceToken: sharedDeviceToken}]);
 
@@ -2210,6 +2231,10 @@ test("can get an account's registered apple devices", async () => {
     await expect(
         getRegisteredAccountDevices(space2.systemAction(), sharedSession.account.id),
     ).resolves.toEqual([{type: "Apple", deviceToken: sharedDeviceToken}]);
+
+    await expect(
+        getRegisteredAccountDevices(context.anonymousAction(), sharedSession.account.id),
+    ).rejects.toThrow(UnauthenticatedError);
 });
 
 test("can delete an account's registered apple devices", async () => {
@@ -2259,6 +2284,14 @@ test("can delete an account's registered apple devices", async () => {
             deviceToken1A,
         ),
     ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        deleteAccountAppleDeviceTokenIfExists(
+            context.anonymousAction(),
+            session1.account.id,
+            deviceToken1A,
+        ),
+    ).rejects.toThrow(UnauthenticatedError);
 
     await expect(
         getRegisteredAccountDevices(space.systemAction(), session1.account.id).then(devices =>
@@ -2351,5 +2384,39 @@ test("can delete an account's registered apple devices", async () => {
         [{type: "Apple", deviceToken: deviceToken1C}].sort((a, b) =>
             compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
         ),
+    );
+});
+
+test("can't authorize space access for anonymous actor", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSession = await otherSpace.createSession();
+
+    await authorizeSpaceAccess(session.action(), space.id);
+    await expect(authorizeSpaceAccess(session.action(), otherSpace.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(authorizeSpaceAccess(otherSession.action(), space.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await authorizeSpaceAccess(otherSession.action(), otherSpace.id);
+
+    await authorizeSpaceAccess(space.systemAction(), space.id);
+    await expect(authorizeSpaceAccess(space.systemAction(), otherSpace.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(authorizeSpaceAccess(otherSpace.systemAction(), space.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await authorizeSpaceAccess(otherSpace.systemAction(), otherSpace.id);
+
+    await expect(authorizeSpaceAccess(context.anonymousAction(), space.id)).rejects.toThrow(
+        UnauthenticatedError,
+    );
+    await expect(authorizeSpaceAccess(context.anonymousAction(), otherSpace.id)).rejects.toThrow(
+        UnauthenticatedError,
     );
 });

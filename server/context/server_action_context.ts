@@ -1,5 +1,6 @@
 import {
     DynamoActorContextModule,
+    DynamoAnonymousActorContextModule,
     DynamoSessionActorContextModule,
     DynamoSystemActorContextModule,
     DynamoUnknownActorContextModule,
@@ -63,6 +64,17 @@ export type ServerSystemActionContext = Context<ServerSystemActionContextModules
 export type ServerSystemActionContextModules = MergeObjectIntersection<
     ServerActionContextModulesBase & {
         actor: DynamoSystemActorContextModule;
+    }
+>;
+
+/**
+ * Context for actions from anonymous users.
+ */
+export type ServerAnonymousActionContext = Context<ServerAnonymousActionContextModules>;
+
+export type ServerAnonymousActionContextModules = MergeObjectIntersection<
+    ServerActionContextModulesBase & {
+        actor: DynamoAnonymousActorContextModule;
     }
 >;
 

@@ -26,7 +26,10 @@ assertAssignableTypes<ActorServiceName, TracerServiceName>();
  * Useful for tests. Code written against `ActorContextModule` can
  * accept either an `AppActorContextModule` or a `WorkerActorContextModule`.
  */
-export type ActorContextModule = SessionActorContextModule | SystemActorContextModule;
+export type ActorContextModule =
+    | SessionActorContextModule
+    | SystemActorContextModule
+    | AnonymousActorContextModule;
 
 export interface ActorContextModuleBase extends ContextModuleBase, ForkableContextModuleBase {
     /**
@@ -66,4 +69,8 @@ export interface SystemActorContextModule extends ActorContextModuleBase {
     readonly type: "System";
 
     getSpaceId(): SpaceId;
+}
+
+export interface AnonymousActorContextModule extends ActorContextModuleBase {
+    readonly type: "Anonymous";
 }

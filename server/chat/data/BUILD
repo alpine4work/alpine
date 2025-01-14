@@ -12,6 +12,7 @@ alias(
 ts_project(
     name = "data",
     test_deps = [
+        "//server/chat/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/messaging/test_helpers",
         "//server/spaces/test_helpers",

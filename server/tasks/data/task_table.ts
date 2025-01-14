@@ -28,6 +28,7 @@ import {FileAuthorizer, getFileFromAttachment} from "~/server/files/data/files_t
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
+import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
@@ -3953,6 +3954,9 @@ export async function authorizeTaskAccess(
 
             return {spaceId, createdTime};
         }
+        case "Anonymous": {
+            throw unauthenticatedSessionError();
+        }
         default:
             throw exhaustive(context.actor);
     }
@@ -4047,6 +4051,9 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
                 item: taskItem,
                 commentsSummaryItem: taskCommentsSummaryItem,
             };
+        }
+        case "Anonymous": {
+            throw unauthenticatedSessionError();
         }
         default:
             throw exhaustive(context.actor);
@@ -4158,6 +4165,9 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
             }
 
             return value;
+        }
+        case "Anonymous": {
+            throw unauthenticatedSessionError();
         }
         default:
             throw exhaustive(context.actor);

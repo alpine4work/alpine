@@ -13,6 +13,7 @@ import {seedDynamo} from "~/app/seed_dynamo.js";
 import {Session} from "~/server/accounts/accounts_table.js";
 import {
     DynamoActorContextModule,
+    DynamoAnonymousActorContextModule,
     DynamoSessionActorContextModule,
     DynamoSystemActorContextModule,
     DynamoUnknownActorContextModule,
@@ -476,7 +477,7 @@ function createActorContextModule(
             if (!session) {
                 // Remove our session cookie if the session was deleted from the database.
                 sessionCookie.dangerouslySet(null);
-                return null;
+                return DynamoAnonymousActorContextModule.dangerouslyNew("AppClient");
             }
 
             // If we receive a session cookie, we treat the request as if it came from a
@@ -515,11 +516,16 @@ function createActorContextModule(
                         authorizationHeaderPayload.spaceId,
                     );
                 }
+                case "Anonymous": {
+                    return DynamoAnonymousActorContextModule.dangerouslyNew(serviceName);
+                }
                 default:
                     throw exhaustive(authorizationHeaderPayload);
             }
         }
 
-        return null;
+        // 3. If we don't have a session cookie or `Authorization` header then this is
+        //    an anonymous request.
+        return DynamoAnonymousActorContextModule.dangerouslyNew("AppClient");
     });
 }

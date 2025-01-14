@@ -22,6 +22,7 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynam
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     AccountModelWithoutSpace,
@@ -1098,6 +1099,9 @@ export async function authorizeSpaceAccess(
             }
             break;
         }
+        case "Anonymous": {
+            throw unauthenticatedSessionError();
+        }
         default:
             throw exhaustive(context.actor);
     }
@@ -1494,6 +1498,9 @@ export async function getRegisteredAccountDevices(
                 );
             }
             break;
+        }
+        case "Anonymous": {
+            throw unauthenticatedSessionError();
         }
         default:
             throw exhaustive(context.actor);

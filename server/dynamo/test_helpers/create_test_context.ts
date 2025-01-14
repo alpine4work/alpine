@@ -11,6 +11,7 @@ import {SqsLocal, startSqsLocal} from "~/admin/sqs/local/start_sqs_local.js";
 import {Session} from "~/server/accounts/accounts_table.js";
 import {
     DynamoActorContextModule,
+    DynamoAnonymousActorContextModule,
     DynamoSessionActorContextModule,
     DynamoSystemActorContextModule,
     DynamoUnknownActorContextModule,
@@ -21,6 +22,7 @@ import {
     TestFilesContextModule,
 } from "~/server/context/files_context_module.js";
 import {
+    ServerAnonymousActionContextModules,
     ServerSessionActionContextModules,
     ServerSystemActionContextModules,
     ServerUnknownActionContextModules,
@@ -96,6 +98,11 @@ export type TestSystemActionContextModules = ServerSystemActionContextModules &
 
 export type TestSystemActionContext = Context<TestSystemActionContextModules>;
 
+export type TestAnonymousActionContextModules = ServerAnonymousActionContextModules &
+    TestContextExtraModules;
+
+export type TestAnonymousActionContext = Context<TestAnonymousActionContextModules>;
+
 export type TestUnknownActionContextModules = ServerUnknownActionContextModules &
     TestContextExtraModules;
 
@@ -115,11 +122,6 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
     restartSqsLocal(): Promise<void>;
 
     /**
-     * An action where we don't know whether we're authenticated or not.
-     */
-    unauthenticatedAction(): TestUnknownActionContext;
-
-    /**
      * An action with an authenticated session.
      */
     action(
@@ -136,6 +138,17 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
         spaceId: SpaceId,
         options?: {serviceName: ActorServiceName},
     ): TestSystemActionContext;
+
+    /**
+     * An anonymous action.
+     */
+    anonymousAction(options?: {serviceName: ActorServiceName}): TestAnonymousActionContext;
+
+    /**
+     * An action where we don't know whether we're authenticated or not. When
+     * authenticated it'll be an anonymous actor.
+     */
+    unknownAnonymousAction(): TestUnknownActionContext;
 
     /**
      * Add a `CacheContextModule` to our test context. Each time you call
@@ -330,11 +343,13 @@ export function createTestContext({
         );
     };
 
-    const createUnauthenticatedSessionContext = (): TestUnknownActionContext => {
+    const createUnknownAnonymousContext = (): TestUnknownActionContext => {
         return processContext.clone({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
-            actor: new DynamoUnknownActorContextModule(async () => null),
+            actor: new DynamoUnknownActorContextModule(async () =>
+                DynamoAnonymousActorContextModule.dangerouslyNew("Test"),
+            ),
         });
     };
 
@@ -376,6 +391,19 @@ export function createTestContext({
         });
     };
 
+    const createAnonymousContext = ({
+        // Dangerously allow pretending to be from any context in tests.
+        serviceName = "Test",
+    }: {
+        serviceName?: ActorServiceName;
+    } = {}): TestAnonymousActionContext => {
+        return processContext.clone({
+            cache: new CacheContextModule(),
+            dynamoBatchContext: new DynamoBatchContextModule(),
+            actor: DynamoAnonymousActorContextModule.dangerouslyNew(serviceName),
+        });
+    };
+
     const withCache = () => {
         return processContext.clone({
             cache: new CacheContextModule(),
@@ -407,9 +435,10 @@ export function createTestContext({
         getSqsLocalJobQueueUrl,
         getSqsLocalFileProcessorJobQueueUrl,
         restartSqsLocal,
-        unauthenticatedAction: createUnauthenticatedSessionContext,
         action: createSessionContext,
         systemAction: createSystemContext,
+        anonymousAction: createAnonymousContext,
+        unknownAnonymousAction: createUnknownAnonymousContext,
         withCache,
         escalateToSystemContext,
         cloneWithHelpers(modules) {
