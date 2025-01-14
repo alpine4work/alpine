@@ -2,10 +2,7 @@ import {CaretDown, Globe, Link as LinkIcon} from "phosphor-react";
 import {useEffect, useId, useMemo, useState} from "react";
 import {FocusScope} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {
-    useAccountClientStore,
-    useAccountModel,
-} from "~/client/accounts/account_client_store_context.js";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {MenuAction} from "~/client/design/menu.js";
@@ -15,6 +12,7 @@ import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {
     accessLevelText,
     noAccessLevelText,
@@ -57,10 +55,12 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {flatIterable} from "~/shared/helpers/iterable/flat_iterable.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {partitionIterable} from "~/shared/helpers/iterable/partition_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
+import {computeStore} from "~/shared/store/compute_store.js";
 
 export function ShareOverlay({
     entityNoun,
@@ -461,6 +461,8 @@ function ShareOverlayAccountGrants({
     isReadOnly: boolean;
     isAltKeyDown: boolean;
 }) {
+    const accountStore = useAccountClientStore();
+
     // Sort account grants by:
     //
     // 1. Access level (higher access levels first).
@@ -514,17 +516,50 @@ function ShareOverlayAccountGrants({
         [accountGrantById],
     );
 
-    // NOCOMMIT: Removed accounts should be sorted last and colored differently
-    const sortedAccountGrants = useMemo(
-        () =>
-            flatIterable(
-                Array.from(
-                    allAccessLevels,
-                    accessLevel =>
-                        accountGrantByIdByInitialAccessLevel.get(accessLevel) ?? emptyArray,
-                ).reverse(),
-            ),
-        [accountGrantByIdByInitialAccessLevel],
+    const sortedAccountGrants = useStore(
+        useMemo(
+            () =>
+                computeStore(get =>
+                    Array.from(
+                        flatIterable<{
+                            accountId: AccountId;
+                            accountGrant: AccessPolicyAccountGrant;
+                            account: AccountModel | null;
+                            accountData: AccountModelData | null;
+                        }>(
+                            // This partition is used to sort removed accounts last. It splits the provided
+                            // iterator into two iterators. The true iterator first (non-removed accounts)
+                            // and the false iterator second (removed accounts). We then flatten that back
+                            // into one iterable with the wrapping `flatIterable()`.
+                            partitionIterable(
+                                mapIterable(
+                                    // Create an iterable that goes through each account grant in initial access
+                                    // level order. Starting with the `Manage` access level and ending with the
+                                    // `View` access level.
+                                    flatIterable(
+                                        Array.from(
+                                            allAccessLevels,
+                                            accessLevel =>
+                                                accountGrantByIdByInitialAccessLevel.get(
+                                                    accessLevel,
+                                                ) ?? emptyArray,
+                                        ).reverse(),
+                                    ),
+                                    ([accountId, accountGrant]) => {
+                                        const account = accountById.get(accountId) ?? null;
+                                        const accountData = account
+                                            ? get(accountStore.getAccountStore(account))
+                                            : null;
+                                        return {accountId, accountGrant, account, accountData};
+                                    },
+                                ),
+                                ({accountData}) => !accountData || !accountData.space.wasRemoved,
+                            ),
+                        ),
+                    ),
+                ),
+            [accountById, accountGrantByIdByInitialAccessLevel, accountStore],
+        ),
     );
 
     return (
@@ -556,11 +591,11 @@ function ShareOverlayAccountGrants({
                 paddingTop="5"
                 paddingBottom="5"
             >
-                {mapIterable(sortedAccountGrants, ([accountId, accountGrant]) => (
+                {sortedAccountGrants.map(({accountId, accountGrant, accountData}) => (
                     <ShareOverlayAccountGrant
                         key={accountId}
                         accountId={accountId}
-                        account={accountById.get(accountId) ?? null}
+                        accountData={accountData}
                         accountGrant={accountGrant}
                         onAccessPolicyChange={onAccessPolicyChange}
                         isReadOnly={isReadOnly}
@@ -576,22 +611,20 @@ const shareOverlayAccountGrantHeight = "6";
 
 function ShareOverlayAccountGrant({
     accountId,
-    account,
+    accountData,
     accountGrant,
     onAccessPolicyChange,
     isReadOnly,
     isAltKeyDown,
 }: {
     accountId: AccountId;
-    account: AccountModel | null;
+    accountData: AccountModelData | null;
     accountGrant: AccessPolicyAccountGrant;
     onAccessPolicyChange: (action: AccessPolicyAction) => void;
     isReadOnly: boolean;
     isAltKeyDown: boolean;
 }) {
     const {currentAccount} = useSpaceContext();
-
-    const accountData = useAccountModel(account);
 
     return (
         <Box height={shareOverlayAccountGrantHeight} display="flex" alignItems="center" gap="2.5">
@@ -609,9 +642,13 @@ function ShareOverlayAccountGrant({
             ) : (
                 <>
                     <AccountAvatar size={shareOverlayAccountGrantHeight} account={accountData} />
-                    <Box fontSize="100" fontStyle="truncate-semi-bold">
+                    <Box
+                        fontSize="100"
+                        fontStyle="truncate-semi-bold"
+                        color={accountData.space.wasRemoved ? "grey-60" : "grey-100"}
+                    >
                         {accountData.name}
-                        {currentAccount.id === account?.id ? " (you)" : ""}
+                        {currentAccount.id === accountId ? " (you)" : ""}
                     </Box>
                 </>
             )}

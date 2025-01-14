@@ -1300,8 +1300,8 @@ export async function getDocumentWithOptionalCommentsIfExists(
     documentId: DocumentId,
 ): Promise<DocumentModel | null> {
     return (
-        (await getDocumentWithOptionalCommentsAndCommentThreads(context, {documentId}))?.document ??
-        null
+        (await getDocumentWithOptionalCommentsAndCommentThreadsIfExists(context, {documentId}))
+            ?.document ?? null
     );
 }
 
