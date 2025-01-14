@@ -1,5 +1,3 @@
-import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
-import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {TestSessionActorContextModule} from "~/server/helpers/test/test_actor_context_module.js";
 import {Response} from "~/server/node/install_response_with_web_socket_support.js";
@@ -54,10 +52,14 @@ afterEach(() => {
     assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
 });
 
+type TestProcessContext = Context<TestProcessContextModules>;
+
 type TestProcessContextModules = {
     tracer: TracerContextModule;
     process: ProcessContextModule;
 };
+
+type TestSessionActionContext = Context<TestSessionActionContextModules>;
 
 type TestSessionActionContextModules = TestProcessContextModules & {
     actor: SessionActorContextModule;
@@ -802,7 +804,7 @@ test("authorization function is called with the correct actor when triggering au
 
     class TestConnection {
         private readonly _sendEventToOthers: (
-            context: WorkerProcessContext,
+            context: TestProcessContext,
             event: WebSocketProtocolEventType<typeof TestProtocol>,
         ) => void;
 
@@ -810,7 +812,7 @@ test("authorization function is called with the correct actor when triggering au
             sendEventToOthers,
         }: {
             sendEventToOthers: (
-                context: WorkerProcessContext,
+                context: TestProcessContext,
                 event: WebSocketProtocolEventType<typeof TestProtocol>,
             ) => void;
         }) {
@@ -827,7 +829,7 @@ test("authorization function is called with the correct actor when triggering au
             },
         };
 
-        public async authorize(context: WorkerSessionActionContext) {
+        public async authorize(context: TestSessionActionContext) {
             const accountId = context.actor.getAccountId();
 
             authorizationCountByAccountId.set(

@@ -181,7 +181,12 @@ function TaskCollectionViewDesktopHeader(
                 gap="2"
             >
                 <Box paddingRight="3">
-                    <ShareButton />
+                    <ShareButton
+                        {
+                            // NOCOMMIT
+                            ...(null as any)
+                        }
+                    />
                 </Box>
                 <MenuButton actions={menuActions}>
                     <IconButton size="sm" description="More" withoutTooltip>

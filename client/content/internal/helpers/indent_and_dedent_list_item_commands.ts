@@ -1,5 +1,5 @@
 import {Command} from "prosemirror-state";
-import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/internal/helpers/trim_selection_invisible_extension_into_adjacent_nodes.js";
+import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {maxContentListItemIndentation} from "~/shared/content/content_schema.js";
 
 /**

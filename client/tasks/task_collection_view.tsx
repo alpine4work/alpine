@@ -839,7 +839,8 @@ export function TaskCollectionView({
             />
         ),
         desktopTitleLeftSlop: platform !== "mobile" ? "2" : undefined,
-        shareButton: {},
+        // NOCOMMIT
+        shareButton: {} as any,
         menuActions,
         stickyBanner: readOnlyStickyBanner,
     });

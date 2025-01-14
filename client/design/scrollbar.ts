@@ -11,7 +11,7 @@ import {
 } from "~/client/helpers/use_resize_observer.js";
 import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {scrollbarStyles, sprinkles} from "~/client/styles/styles.js";
-import {ParsableRemLength, RemLength, parseRemLength} from "~/shared/design/core/spacing.js";
+import {ParsableRemLength, parseRemLength} from "~/shared/design/core/spacing.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";

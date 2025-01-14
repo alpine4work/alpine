@@ -1,11 +1,11 @@
 import {chainCommands} from "prosemirror-commands";
 import {EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/internal/helpers/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {
     isTrackingSomeSelectionWithinSharedContentEditor,
     trackSelectionWithinSharedContentEditor,
 } from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
+import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 

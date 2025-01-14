@@ -7,8 +7,8 @@ import {
 import {MarkType, NodeType} from "prosemirror-model";
 import {TextSelection} from "prosemirror-state";
 import {findWrapping} from "prosemirror-transform";
-import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/internal/helpers/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {addSharedContentEditorInputRules} from "~/client/content/shared/build_shared_content_editor_input_rules_plugin.js";
+import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
