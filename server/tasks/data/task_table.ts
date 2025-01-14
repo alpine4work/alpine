@@ -3031,7 +3031,7 @@ async function actuallyCommitTaskActionTransaction(
                                         collectionAction.accessPolicy.accountGrantById.values(),
                                         grant => !hasAccessLevel(grant.level, "Manage"),
                                     ) &&
-                                    (collectionAction.accessPolicy.defaultGrant?.type !== "Space" ||
+                                    (collectionAction.accessPolicy.defaultGrant === null ||
                                         !hasAccessLevel(
                                             collectionAction.accessPolicy.defaultGrant.level,
                                             "Manage",

@@ -92,7 +92,7 @@ export function reduceAccessPolicy(
             return {
                 ...accessPolicy,
                 defaultGrant:
-                    accessPolicy.defaultGrant?.type === "Space"
+                    accessPolicy.defaultGrant !== null
                         ? {...accessPolicy.defaultGrant, level: action.level}
                         : accessPolicy.defaultGrant,
             };

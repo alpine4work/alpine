@@ -103,6 +103,20 @@ export function checkSchemaBackwardsCompatibility(
                 return;
             }
             case "Enum": {
+                // A value schema is allowed to evolve into an enum schema. Where there are now
+                // multiple values compatible with the original value.
+                if (lastSchema.type === "Value") {
+                    if (
+                        lastSchema.value === null ||
+                        !nextSchema.values.includes(lastSchema.value)
+                    ) {
+                        throw new SchemaBackwardsIncompatibleError(
+                            `Enum \`${JSON.stringify(lastSchema.value)}\` value not found`,
+                        );
+                    }
+                    return;
+                }
+
                 if (lastSchema.type !== "Enum") {
                     throw new SchemaBackwardsIncompatibleError(
                         `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
@@ -145,6 +159,22 @@ export function checkSchemaBackwardsCompatibility(
                 return;
             }
             case "Object": {
+                // If the last schema was a union then we allow migrating unions to objects if
+                // every variant of the union is compatible with the new object schema.
+                if (lastSchema.type === "Union") {
+                    for (const [typeValue, lastVariantSchema] of Object.entries(
+                        lastSchema.variantSchemaByTypeValue,
+                    )) {
+                        withSchemaSerializedValueDescriptionStackFrame(
+                            {type: "UnionVariant", typeKey: lastSchema.typeKey, typeValue},
+                            () => {
+                                checkSchemaBackwardsCompatibility(lastVariantSchema, nextSchema);
+                            },
+                        );
+                    }
+                    return;
+                }
+
                 if (lastSchema.type !== "Object") {
                     throw new SchemaBackwardsIncompatibleError(
                         `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,

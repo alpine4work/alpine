@@ -32,6 +32,10 @@ import {
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
+// NOTE(calebmer, 2025-01-14): The fact that this is a constant string
+// `"Space"` and not a boolean is a historical artifact based on data written
+// to the database. See the comment on the `defaultGrantType` field in
+// `SearchEntityIndexAccessPolicyType` for more information.
 export type SearchEntityIndexDefaultGrantType = IntegerMappingStringType<
     typeof SearchEntityIndexDefaultGrantTypeIntegerMapping
 >;
@@ -52,6 +56,22 @@ const SearchEntityIndexAccessPolicyType = OpensearchIndexObjectType.new({
             serialize: accountIds => Array.from(accountIds),
             deserialize: accountIds => new Set(accountIds),
         }),
+
+        // NOTE(calebmer, 2025-01-14): When I first designed the `AccessPolicy` type I
+        // thought public sharing via URL would be expressed as a union on the grant
+        // type. So the type of `defaultGrant` would be
+        // `{type: "Space"; level: AccessLevel} | {type: "Internet"; level: AccessLevel}`
+        // or something like this. The problem with this design is we want to be able
+        // to express an `AccessPolicy` where the public internet has `View` access
+        // and internal space accounts have `Edit` access. Using a union makes it
+        // more challenging to express this. So we scrapped the union and now
+        // `defaultGrant` only refers to space access.
+        //
+        // However, since we've written this `defaultGrantType` type to OpenSearch, we
+        // can't change this to the ideal field (which would be a boolean named
+        // something like `hasDefaultGrant`) without a migration. So for now we're
+        // leaving the idea of a default grant type in OpenSearch and basically
+        // treating it as a boolean.
         defaultGrantType: new OpensearchIndexByteType({isFilterable: true})
             .transform<SearchEntityIndexDefaultGrantType>({
                 serialize: type => SearchEntityIndexDefaultGrantTypeIntegerMapping.into(type),

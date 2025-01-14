@@ -1498,27 +1498,14 @@ export const dynamoGeneratedSchemaDescription: {
                                                     "valueSchema": {
                                                         "type": "Nullable",
                                                         "schema": {
-                                                            "type": "Union",
-                                                            "typeKey": "type",
-                                                            "variantSchemaByTypeValue": {
-                                                                "Space": {
-                                                                    "type": "Object",
-                                                                    "propertySchemaByKey": {
-                                                                        "type": {
-                                                                            "valueSchema": {
-                                                                                "type": "Value",
-                                                                                "value": "Space"
-                                                                            },
-                                                                            "optional": false
-                                                                        },
-                                                                        "level": {
-                                                                            "valueSchema": {
-                                                                                "type": "Reference",
-                                                                                "reuseReferenceId": "068c871a"
-                                                                            },
-                                                                            "optional": false
-                                                                        }
-                                                                    }
+                                                            "type": "Object",
+                                                            "propertySchemaByKey": {
+                                                                "level": {
+                                                                    "valueSchema": {
+                                                                        "type": "Reference",
+                                                                        "reuseReferenceId": "068c871a"
+                                                                    },
+                                                                    "optional": false
                                                                 }
                                                             }
                                                         }

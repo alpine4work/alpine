@@ -5,7 +5,6 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -26,11 +25,7 @@ export async function evaluateAccessPolicy(
     accessPolicy: AccessPolicy,
     expectedAccessLevel: AccessLevel,
 ): Promise<boolean> {
-    if (accessPolicy.defaultGrant) {
-        // If we ever add other default grant types then TypeScript will error here
-        // forcing us to update this code.
-        cast<"Space">(accessPolicy.defaultGrant.type);
-
+    if (accessPolicy.defaultGrant !== null) {
         if (
             (await isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId)) &&
             hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)

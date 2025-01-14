@@ -422,7 +422,7 @@ export function TaskCollectionView({
                                                 accountGrantById: new Map([
                                                     [currentAccount.id, {level: "Manage"}],
                                                 ]),
-                                                defaultGrant: {type: "Space", level: "Manage"},
+                                                defaultGrant: {level: "Manage"},
                                             },
                                         },
                                     },

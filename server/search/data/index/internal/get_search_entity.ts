@@ -606,6 +606,7 @@ async function getAccountSearchEntity(
 
 export const getDocumentSearchEntityTestCheckpoint = new TestCheckpoint<DocumentId>();
 
+// NOCOMMIT: Documents and document comments need to be secured!
 async function getDocumentSearchEntity(
     state: SearchEntityReadState,
     documentId: DocumentId,
@@ -1084,12 +1085,9 @@ function getTaskSearchEntityAccessPolicy({
                 hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
             ) {
                 if (defaultGrantType === null) {
-                    defaultGrantType = accessPolicy.defaultGrant.type;
+                    defaultGrantType = "Space";
                 } else {
-                    // If we add new default grant types in the future, we'll need to merge the
-                    // default grants to the one which gives the most access.
-                    cast<"Space">(defaultGrantType);
-                    cast<"Space">(accessPolicy.defaultGrant.type);
+                    assert(defaultGrantType === "Space");
                 }
             }
 
@@ -1294,7 +1292,7 @@ async function getTaskCollectionSearchEntity(
     const accessPolicy = collection.getAccessPolicy();
 
     const defaultGrantType: SearchEntityIndexDefaultGrantType | null =
-        accessPolicy.defaultGrant?.type ?? null;
+        accessPolicy.defaultGrant !== null ? "Space" : null;
     let accountGrantAccountIds = new Set(accessPolicy.accountGrantById.keys());
 
     // If we have a space default grant then the individual account grants don't

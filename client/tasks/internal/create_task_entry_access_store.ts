@@ -6,7 +6,6 @@ import {
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
 import {AccessLevel, maxAccessLevel} from "~/shared/access/access_policy.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -170,11 +169,7 @@ function computeTaskCollectionEntryAccess(
 
     const accessLevels: Array<AccessLevel> = [];
 
-    if (accessPolicy.defaultGrant) {
-        // If we ever add other default grant types then TypeScript will error here
-        // forcing us to update this code.
-        cast<"Space">(accessPolicy.defaultGrant.type);
-
+    if (accessPolicy.defaultGrant !== null) {
         accessLevels.push(accessPolicy.defaultGrant.level);
     }
 

@@ -683,7 +683,7 @@ function ShareOverlayDefaultGrant({
                                     } else {
                                         onAccessPolicyChange({
                                             type: "AddDefaultGrant",
-                                            defaultGrant: {type: "Space", level: "Manage"},
+                                            defaultGrant: {level: "Manage"},
                                         });
                                     }
                                 },
@@ -702,10 +702,7 @@ function ShareOverlayDefaultGrant({
                                               } else {
                                                   onAccessPolicyChange({
                                                       type: "AddDefaultGrant",
-                                                      defaultGrant: {
-                                                          type: "Space",
-                                                          level: "Edit",
-                                                      },
+                                                      defaultGrant: {level: "Edit"},
                                                   });
                                               }
                                           },
@@ -724,7 +721,7 @@ function ShareOverlayDefaultGrant({
                                     } else {
                                         onAccessPolicyChange({
                                             type: "AddDefaultGrant",
-                                            defaultGrant: {type: "Space", level: "Comment"},
+                                            defaultGrant: {level: "Comment"},
                                         });
                                     }
                                 },
@@ -741,7 +738,7 @@ function ShareOverlayDefaultGrant({
                                     } else {
                                         onAccessPolicyChange({
                                             type: "AddDefaultGrant",
-                                            defaultGrant: {type: "Space", level: "View"},
+                                            defaultGrant: {level: "View"},
                                         });
                                     }
                                 },

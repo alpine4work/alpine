@@ -118,11 +118,11 @@ export function getAccountAccessLevelAssumingSpaceAccess(
 ): AccessLevel | null {
     const accountGrant = accessPolicy.accountGrantById.get(accountId);
 
-    if (accountGrant && accessPolicy.defaultGrant?.type === "Space")
+    if (accountGrant && accessPolicy.defaultGrant !== null)
         return maxAccessLevel(accountGrant.level, accessPolicy.defaultGrant.level);
 
     if (accountGrant) return accountGrant.level;
-    if (accessPolicy.defaultGrant?.type === "Space") return accessPolicy.defaultGrant.level;
+    if (accessPolicy.defaultGrant !== null) return accessPolicy.defaultGrant.level;
 
     return null;
 }
@@ -146,11 +146,8 @@ const AccessPolicyAccountGrantSchema = Schema.object({
 export type AccessPolicyDefaultGrant = SchemaType<typeof AccessPolicyDefaultGrantSchema>;
 
 // TODO(calebmer, #sharing): Public internet level access?
-const AccessPolicyDefaultGrantSchema = Schema.union({
-    Space: Schema.object({
-        type: Schema.value("Space"),
-        level: AccessLevelSchema,
-    }),
+const AccessPolicyDefaultGrantSchema = Schema.object({
+    level: AccessLevelSchema,
 });
 
 /**

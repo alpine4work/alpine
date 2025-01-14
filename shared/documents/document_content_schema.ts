@@ -279,7 +279,7 @@ export const emptyDocumentWithoutTitleContent = DocumentWithoutTitleContentProse
  */
 export const dangerousLegacyDefaultDocumentAccessPolicy: AccessPolicy = {
     accountGrantById: emptyMap,
-    defaultGrant: {type: "Space", level: "Manage"},
+    defaultGrant: {level: "Manage"},
 };
 
 const documentContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
