@@ -5331,13 +5331,15 @@ test("can update access policy", async () => {
     );
 
     const accessPolicy1: AccessPolicy = {
-        accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
+        accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
+        urlGrant: null,
     };
 
     const accessPolicy2: AccessPolicy = {
-        accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
-        defaultGrant: {type: "Space", level: "Comment"},
+        accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+        defaultGrant: {level: "Comment"},
+        urlGrant: null,
     };
 
     await connection1.procedures.updateContent({
@@ -5460,8 +5462,9 @@ test("can't update access policy unintentionally", async () => {
     );
 
     const accessPolicy2: AccessPolicy = {
-        accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
-        defaultGrant: {type: "Space", level: "Comment"},
+        accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+        defaultGrant: {level: "Comment"},
+        urlGrant: null,
     };
 
     await connection1.procedures.updateContent({
@@ -5526,13 +5529,15 @@ test("can't update access policy with the wrong intentional policy", async () =>
     );
 
     const accessPolicy2a: AccessPolicy = {
-        accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
-        defaultGrant: {type: "Space", level: "Comment"},
+        accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+        defaultGrant: {level: "Comment"},
+        urlGrant: null,
     };
 
     const accessPolicy2b: AccessPolicy = {
-        accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
-        defaultGrant: {type: "Space", level: "Edit"},
+        accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+        defaultGrant: {level: "Edit"},
+        urlGrant: null,
     };
 
     await connection1.procedures.updateContent({

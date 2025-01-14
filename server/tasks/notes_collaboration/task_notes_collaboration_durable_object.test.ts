@@ -518,8 +518,9 @@ test("can backfill task note steps but can't update if you only have view access
     await task.addCollection(session1, collection);
 
     await collection.updateAccess(session1, {
-        accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
-        defaultGrant: {type: "Space", level: "View"},
+        accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+        defaultGrant: {level: "View"},
+        urlGrant: null,
     });
 
     const client1Id = generateId<ContentEditorClientId>();

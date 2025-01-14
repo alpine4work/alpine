@@ -97,6 +97,7 @@ test("validates access policy updates without default grants", () => {
     const accessPolicy1: AccessPolicy = {
         accountGrantById: new Map([[accountId1, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
+        urlGrant: null,
     };
 
     expect(
@@ -443,6 +444,7 @@ test("validates access policy updates with default grants", () => {
     const accessPolicy1: AccessPolicy = {
         accountGrantById: new Map([[accountId1, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
+        urlGrant: null,
     };
 
     expect(
@@ -775,6 +777,7 @@ test("validates access policy can't remove all manage access", () => {
     const accessPolicy1: AccessPolicy = {
         accountGrantById: new Map([[accountId1, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
+        urlGrant: null,
     };
 
     expect(

@@ -281,8 +281,9 @@ function createCollection(
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     }: {
@@ -8057,8 +8058,9 @@ test("can create then update collections optimistically", async () => {
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -8189,8 +8191,9 @@ test("can create then update collections optimistically and resolve commits out 
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -8329,8 +8332,9 @@ test("can create then update collections optimistically after an action from the
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -8484,8 +8488,9 @@ test("can create then update collections optimistically our of order", async () 
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -8617,8 +8622,9 @@ test("can create then update collections optimistically out of order after an ac
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -8773,8 +8779,9 @@ test("can create then update collections optimistically out of order with more n
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -8952,8 +8959,9 @@ test("resolving collection optimistic update after garbage collection is ok", as
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -9841,8 +9849,9 @@ test("regular actions are added to optimistic state when collection is created o
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -10002,8 +10011,9 @@ test("regular actions are added to optimistic state with multiple actions when c
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -10221,8 +10231,9 @@ test("regular actions are added to optimistic state with multiple actions that a
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -10801,8 +10812,9 @@ test("backfilling a collection when there are optimistic actions but no previous
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -11044,8 +11056,9 @@ test("can create collections optimistically (rejected)", async () => {
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -11105,8 +11118,9 @@ test("can create then update collections optimistically (rejected)", async () =>
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -11222,8 +11236,9 @@ test("can create then update collections optimistically and resolve commits out 
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -11355,8 +11370,9 @@ test("can create then update collections optimistically after an action from the
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -11491,8 +11507,9 @@ test("can create then update collections optimistically our of order (rejected)"
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -11617,8 +11634,9 @@ test("can create then update collections optimistically out of order after an ac
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -11762,8 +11780,9 @@ test("can create then update collections optimistically out of order with more n
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -11925,8 +11944,9 @@ test("resolving collection optimistic update after garbage collection is ok (rej
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -12802,8 +12822,9 @@ test("regular actions are added to optimistic state when collection is created o
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -12960,8 +12981,9 @@ test("regular actions are added to optimistic state with multiple actions when c
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -13173,8 +13195,9 @@ test("regular actions are added to optimistic state with multiple actions that a
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -13741,8 +13764,9 @@ test("backfilling a collection when there are optimistic actions but no previous
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -13913,8 +13937,9 @@ test("create collection applied after optimistic updates", async () => {
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -14056,8 +14081,9 @@ test("create collection applied after optimistic updates that are resolved out o
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -14202,8 +14228,9 @@ test("create collection applied after optimistic updates (rejected)", async () =
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;
@@ -14342,8 +14369,9 @@ test("create collection applied after optimistic updates that are resolved out o
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;

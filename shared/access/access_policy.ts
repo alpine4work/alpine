@@ -189,6 +189,26 @@ const AccessPolicyDefaultGrantSchema = UnionSchema.unionWithKey("level", {
 });
 
 /**
+ * Access granted to everyone who knows the URL of the entity in question. This
+ * grant allows users to share content with people outside of their space or
+ * who don't have an Alpine account at all.
+ *
+ * After enabling a URL grant, the user is responsible for keeping the URL
+ * secure if they care about the privacy of their document. We ask search
+ * engines not to index the URL so the user's information doesn't leak.
+ *
+ * If an entity has a `urlGrant` but doesn't have a `defaultGrant` then members
+ * of the space are allowed to view the entity but only if they have the URL.
+ * The entity won't be made available in search and won't appear on the
+ * algorithmic home feed.
+ */
+export type AccessPolicyUrlGrant = SchemaType<typeof AccessPolicyUrlGrantSchema>;
+
+const AccessPolicyUrlGrantSchema = Schema.object({
+    level: Schema.value("View"),
+});
+
+/**
  * Policy designating who is allowed to interact with some entity and what they
  * are allowed to do.
  */
@@ -197,6 +217,7 @@ export type AccessPolicy = SchemaType<typeof AccessPolicySchema>;
 export const AccessPolicySchema = Schema.object({
     accountGrantById: Schema.map(Schema.id<AccountId>(), AccessPolicyAccountGrantSchema),
     defaultGrant: AccessPolicyDefaultGrantSchema.nullable(),
+    urlGrant: AccessPolicyUrlGrantSchema.nullable().default(null),
 });
 
 export const AccessPolicyRegister = createCrdtRegister(AccessPolicySchema);

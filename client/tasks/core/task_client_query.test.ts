@@ -893,7 +893,8 @@ test("task references can be added to query through backfill", () => {
             name: "Test 1",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -908,7 +909,8 @@ test("task references can be added to query through backfill", () => {
             name: "Test 2",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -923,7 +925,8 @@ test("task references can be added to query through backfill", () => {
             name: "Test 3",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -1151,7 +1154,8 @@ test("task references can be added to query through previous backfill", () => {
             name: "Test 1",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -1166,7 +1170,8 @@ test("task references can be added to query through previous backfill", () => {
             name: "Test 2",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -1181,7 +1186,8 @@ test("task references can be added to query through previous backfill", () => {
             name: "Test 3",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -1428,7 +1434,8 @@ test("task references can be added to query through action", () => {
             name: "Test 1",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -1443,7 +1450,8 @@ test("task references can be added to query through action", () => {
             name: "Test 2",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -1458,7 +1466,8 @@ test("task references can be added to query through action", () => {
             name: "Test 3",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -1717,7 +1726,8 @@ test("task references can be removed from query through actions", () => {
             name: "Test 1",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -1732,7 +1742,8 @@ test("task references can be removed from query through actions", () => {
             name: "Test 2",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -1747,7 +1758,8 @@ test("task references can be removed from query through actions", () => {
             name: "Test 3",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -2057,7 +2069,8 @@ test("references from optimistic task can be removed", async () => {
             name: "Test 1",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -2072,7 +2085,8 @@ test("references from optimistic task can be removed", async () => {
             name: "Test 2",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -2087,7 +2101,8 @@ test("references from optimistic task can be removed", async () => {
             name: "Test 3",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -2371,7 +2386,8 @@ test("task references can be added and removed through actions", () => {
             name: "Test 1",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -2386,7 +2402,8 @@ test("task references can be added and removed through actions", () => {
             name: "Test 2",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -2401,7 +2418,8 @@ test("task references can be added and removed through actions", () => {
             name: "Test 3",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -2657,7 +2675,8 @@ test("task references can be added and removed through actions on a referenced t
             name: "Test 1",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -2672,7 +2691,8 @@ test("task references can be added and removed through actions on a referenced t
             name: "Test 2",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -2687,7 +2707,8 @@ test("task references can be added and removed through actions on a referenced t
             name: "Test 3",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -2961,7 +2982,8 @@ test("task references can be added and removed through actions on a task that's 
             name: "Test 1",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -2976,7 +2998,8 @@ test("task references can be added and removed through actions on a task that's 
             name: "Test 2",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -2991,7 +3014,8 @@ test("task references can be added and removed through actions on a task that's 
             name: "Test 3",
             accessPolicy: {
                 accountGrantById: new Map([]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     );
@@ -4020,7 +4044,7 @@ test("deleting task and all children when subscribed to task and its children", 
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
             },
         },
@@ -4515,7 +4539,7 @@ test("peek task over collection initial load scenario", () => {
                         color: {value: "purple", version: "111267806774231040"},
                         accessPolicy: {
                             value: {
-                                accountGrantById: [[account1.id, {level: "Manage"}]],
+                                accountGrantById: [[account1.id, {level: "Manage", generation: 0}]],
                                 defaultGrant: null,
                             },
                             version: "111296374519169024",
@@ -4669,7 +4693,7 @@ test("peek task over collection initial load scenario", () => {
                         },
                         accessPolicy: {
                             value: {
-                                accountGrantById: [[account1.id, {level: "Manage"}]],
+                                accountGrantById: [[account1.id, {level: "Manage", generation: 0}]],
                                 defaultGrant: null,
                             },
                             version: "111296374519169024",
@@ -4701,7 +4725,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
             creatorId: null,
             name: "Test",
             accessPolicy: {
-                accountGrantById: new Map([[account2.id, {level: "Manage"}]]),
+                accountGrantById: new Map([[account2.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
             },
         },
@@ -4714,8 +4738,9 @@ test("can handle unauthorized task with another unauthorized task parent due to 
         collectionAction: {
             type: "UpdateAccessPolicy",
             accessPolicy: {
-                accountGrantById: new Map([[account2.id, {level: "Manage"}]]),
-                defaultGrant: {type: "Space", level: "Manage"},
+                accountGrantById: new Map([[account2.id, {level: "Manage", generation: 0}]]),
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
             },
         },
     } satisfies TaskAction;

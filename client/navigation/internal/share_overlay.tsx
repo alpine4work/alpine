@@ -38,6 +38,7 @@ import {
     AccessPolicy,
     AccessPolicyAccountGrant,
     AccessPolicyDefaultGrant,
+    AccessPolicyUrlGrant,
     allAccessLevels,
     compareAccessLevel,
     getAccountAccessLevelAssumingSpaceAccess,
@@ -190,6 +191,22 @@ export function ShareOverlay({
                 changeDescription = `change everyone in ${
                     space.name
                 }’s access to the ${entityNoun} to “${accessLevelText[action.level]}”`;
+                break;
+            }
+            case "AddUrlGrant": {
+                changeDescription = `change anyone with the link’s access to the ${entityNoun} to “${
+                    accessLevelText[action.urlGrant.level]
+                }”`;
+                break;
+            }
+            case "DeleteUrlGrant": {
+                changeDescription = `remove anyone with the link’s access to the ${entityNoun}`;
+                break;
+            }
+            case "SetUrlGrantLevel": {
+                changeDescription = `change anyone with the link’s access to the ${entityNoun} to “${
+                    accessLevelText[action.level]
+                }”`;
                 break;
             }
             default:
@@ -390,7 +407,11 @@ export function ShareOverlay({
                             isAltKeyDown={isAltKeyDown}
                         />
                         <Spacer space="3" />
-                        <ShareOverlayLinkGrant isReadOnly={isReadOnly} />
+                        <ShareOverlayUrlGrant
+                            urlGrant={accessPolicy.urlGrant}
+                            onAccessPolicyChange={onAccessPolicyChange}
+                            isReadOnly={isReadOnly}
+                        />
                         <Spacer space="5" />
                         <Box height="border" backgroundColor="grey-5" />
                         <Spacer space="5" />
@@ -869,7 +890,15 @@ function ShareOverlayDefaultGrant({
     );
 }
 
-function ShareOverlayLinkGrant({isReadOnly}: {isReadOnly: boolean}) {
+function ShareOverlayUrlGrant({
+    urlGrant,
+    onAccessPolicyChange,
+    isReadOnly,
+}: {
+    urlGrant: AccessPolicyUrlGrant | null;
+    onAccessPolicyChange: (action: AccessPolicyAction) => void;
+    isReadOnly: boolean;
+}) {
     return (
         <Box display="flex" alignItems="center">
             <Box
@@ -888,44 +917,51 @@ function ShareOverlayLinkGrant({isReadOnly}: {isReadOnly: boolean}) {
             </Box>
             <Box flexGrow="1" minWidth="2" />
             {isReadOnly ? (
-                <Box
-                    // NOCOMMIT: Check if access level is actually null
-                    color={true ? "grey-60" : "grey-100"}
-                >
-                    {noAccessLevelText}
-                </Box>
+                <Box color={urlGrant === null ? "grey-60" : "grey-100"}>{noAccessLevelText}</Box>
             ) : (
                 <MenuButton
                     placement="bottom-end"
                     actions={[
                         [
                             {
+                                isSelected: urlGrant?.level === "View",
                                 label: accessLevelText.View,
                                 onPress: () => {
-                                    // NOCOMMIT
+                                    if (urlGrant) {
+                                        onAccessPolicyChange({
+                                            type: "SetUrlGrantLevel",
+                                            level: "View",
+                                        });
+                                    } else {
+                                        onAccessPolicyChange({
+                                            type: "AddUrlGrant",
+                                            urlGrant: {level: "View"},
+                                        });
+                                    }
                                 },
                             },
                         ],
                         [
                             {
+                                isSelected: urlGrant === null,
                                 label: noAccessLevelText,
-                                isSelected: true,
                                 onPress: () => {
-                                    // NOCOMMIT
+                                    onAccessPolicyChange({
+                                        type: "DeleteUrlGrant",
+                                    });
                                 },
                             },
                         ],
                     ]}
                 >
                     <Button
-                        // NOCOMMIT: Check if access level is actually null
-                        variant={true ? "quieter" : "quiet"}
+                        variant={urlGrant === null ? "quieter" : "quiet"}
                         height="6"
                         paddingX="2"
                         icon={<CaretDown />}
                         iconPlacement="end"
                     >
-                        {noAccessLevelText}
+                        {urlGrant === null ? noAccessLevelText : accessLevelText[urlGrant.level]}
                     </Button>
                 </MenuButton>
             )}

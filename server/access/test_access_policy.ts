@@ -62,11 +62,13 @@ export class TestAccessPolicy {
     public static readonly public = new TestAccessPolicy(() => ({
         accountGrantById: emptyMap,
         defaultGrant: {level: "Manage", generation: 0},
+        urlGrant: null,
     }));
 
     public static readonly private = new TestAccessPolicy(actorAccountId => ({
         accountGrantById: new Map([[actorAccountId, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
+        urlGrant: null,
     }));
 
     public readonly build: (actorAccountId: AccountId) => AccessPolicy;
@@ -101,6 +103,7 @@ export class TestAccessPolicy {
                     ),
                 ),
                 defaultGrant: accessPolicy.defaultGrant,
+                urlGrant: accessPolicy.urlGrant,
             };
         });
     }
@@ -113,6 +116,7 @@ export class TestAccessPolicy {
                 accountGrantById: accessPolicy.accountGrantById,
                 defaultGrant:
                     level !== null ? (level === "Manage" ? {level, generation: 0} : {level}) : null,
+                urlGrant: accessPolicy.urlGrant,
             };
         });
     }

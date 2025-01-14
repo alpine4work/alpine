@@ -19,7 +19,7 @@ import {
 } from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
-import {AccessLevel} from "~/shared/access/access_policy.js";
+import {AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {generateId} from "~/shared/id/id.js";
@@ -63,13 +63,14 @@ testMessagingImplementation<TaskId>(processContext, {
         const taskCollection = await TestTaskCollection.create(session);
 
         await taskCollection.updateAccess(session, {
-            accountGrantById: new Map<AccountId, {level: AccessLevel}>([
+            accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                 ...sessions.map(innerSession => {
                     return [innerSession.account.id, {level: "Comment"}] as const;
                 }),
-                [session.account.id, {level: "Manage"}],
+                [session.account.id, {level: "Manage", generation: 0}],
             ]),
             defaultGrant: null,
+            urlGrant: null,
         });
 
         const task = await TestTask.create(session);

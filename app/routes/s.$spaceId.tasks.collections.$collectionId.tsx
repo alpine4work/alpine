@@ -130,6 +130,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
                                 [context.actor.getAccountId(), {level: "Manage", generation: 0}],
                             ]),
                             defaultGrant: null,
+                            urlGrant: null,
                         },
                     },
                 },

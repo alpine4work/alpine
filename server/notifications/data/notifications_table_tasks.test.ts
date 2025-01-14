@@ -13,7 +13,7 @@ import {
 } from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
-import {AccessLevel} from "~/shared/access/access_policy.js";
+import {AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -90,12 +90,13 @@ for (const [currentProcessingType, processingMultiple] of [
             const collection = await TestTaskCollection.create(scenario.session1);
 
             await collection.updateAccess(scenario.session1, {
-                accountGrantById: new Map<AccountId, {level: AccessLevel}>([
-                    [scenario.session1.account.id, {level: "Manage"}],
+                accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+                    [scenario.session1.account.id, {level: "Manage", generation: 0}],
                     [scenario.session2.account.id, {level: "Edit"}],
                     [scenario.session3.account.id, {level: "Edit"}],
                 ]),
                 defaultGrant: null,
+                urlGrant: null,
             });
 
             await task.addCollection(scenario.session1, collection);
@@ -334,12 +335,13 @@ for (const [currentProcessingType, processingMultiple] of [
             const collection = await TestTaskCollection.create(scenario.session1);
 
             await collection.updateAccess(scenario.session1, {
-                accountGrantById: new Map<AccountId, {level: AccessLevel}>([
-                    [scenario.session1.account.id, {level: "Manage"}],
+                accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+                    [scenario.session1.account.id, {level: "Manage", generation: 0}],
                     [scenario.session2.account.id, {level: "Edit"}],
                     [scenario.session3.account.id, {level: "Edit"}],
                 ]),
                 defaultGrant: null,
+                urlGrant: null,
             });
 
             await task.addCollection(scenario.session1, collection);
@@ -497,12 +499,13 @@ for (const [currentProcessingType, processingMultiple] of [
             const collection = await TestTaskCollection.create(scenario.session1);
 
             await collection.updateAccess(scenario.session1, {
-                accountGrantById: new Map<AccountId, {level: AccessLevel}>([
-                    [scenario.session1.account.id, {level: "Manage"}],
+                accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+                    [scenario.session1.account.id, {level: "Manage", generation: 0}],
                     [scenario.session2.account.id, {level: "Edit"}],
                     [scenario.session3.account.id, {level: "Edit"}],
                 ]),
                 defaultGrant: null,
+                urlGrant: null,
             });
 
             await task.addCollection(scenario.session1, collection);
@@ -670,12 +673,13 @@ for (const [currentProcessingType, processingMultiple] of [
             const collection = await TestTaskCollection.create(scenario.session1);
 
             await collection.updateAccess(scenario.session1, {
-                accountGrantById: new Map<AccountId, {level: AccessLevel}>([
-                    [scenario.session1.account.id, {level: "Manage"}],
+                accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+                    [scenario.session1.account.id, {level: "Manage", generation: 0}],
                     [scenario.session2.account.id, {level: "Edit"}],
                     [scenario.session3.account.id, {level: "Edit"}],
                 ]),
                 defaultGrant: null,
+                urlGrant: null,
             });
 
             await task.addCollection(scenario.session1, collection);
@@ -932,20 +936,22 @@ for (const [currentProcessingType, processingMultiple] of [
             const collectionInOtherSession = await TestTaskCollection.create(scenario.otherSession);
 
             await collectionInSession1.updateAccess(scenario.session1, {
-                accountGrantById: new Map<AccountId, {level: AccessLevel}>([
-                    [scenario.session1.account.id, {level: "Manage"}],
+                accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+                    [scenario.session1.account.id, {level: "Manage", generation: 0}],
                     [scenario.session2.account.id, {level: "Edit"}],
                     [scenario.sharedSession.account.id, {level: "Edit"}],
                 ]),
                 defaultGrant: null,
+                urlGrant: null,
             });
 
             await collectionInOtherSession.updateAccess(scenario.otherSession, {
-                accountGrantById: new Map<AccountId, {level: AccessLevel}>([
-                    [scenario.otherSession.account.id, {level: "Manage"}],
+                accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+                    [scenario.otherSession.account.id, {level: "Manage", generation: 0}],
                     [scenario.sharedSession.account.id, {level: "Edit"}],
                 ]),
                 defaultGrant: null,
+                urlGrant: null,
             });
 
             await ProcessContextModule.waitForTestTasks();
@@ -1114,19 +1120,21 @@ for (const [currentProcessingType, processingMultiple] of [
             const collectionInOtherSession = await TestTaskCollection.create(scenario.otherSession);
 
             await collectionInSession1.updateAccess(scenario.session1, {
-                accountGrantById: new Map<AccountId, {level: AccessLevel}>([
-                    [scenario.session1.account.id, {level: "Manage"}],
+                accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+                    [scenario.session1.account.id, {level: "Manage", generation: 0}],
                     [scenario.session2.account.id, {level: "Edit"}],
                     [scenario.session3.account.id, {level: "Edit"}],
                 ]),
                 defaultGrant: null,
+                urlGrant: null,
             });
 
             await collectionInOtherSession.updateAccess(scenario.otherSession, {
-                accountGrantById: new Map<AccountId, {level: AccessLevel}>([
-                    [scenario.otherSession.account.id, {level: "Manage"}],
+                accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+                    [scenario.otherSession.account.id, {level: "Manage", generation: 0}],
                 ]),
                 defaultGrant: null,
+                urlGrant: null,
             });
 
             await taskInSession.addCollection(scenario.session1, collectionInSession1);

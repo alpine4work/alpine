@@ -131,7 +131,7 @@ test("can't update collection from a different space", async () => {
                     type: "Create",
                     creatorId: null,
                     name: "Test",
-                    accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                    accessPolicy: {accountGrantById: new Map(), defaultGrant: null, urlGrant: null},
                 },
             },
         ],
@@ -1457,18 +1457,20 @@ test("excludes collections account doesn't have access to when searching", async
 
     await collection5.updateAccess(session1, {
         accountGrantById: new Map([
-            [session1.account.id, {level: "Manage"}],
-            [session3.account.id, {level: "Manage"}],
+            [session1.account.id, {level: "Manage", generation: 0}],
+            [session3.account.id, {level: "Manage", generation: 0}],
         ]),
         defaultGrant: null,
+        urlGrant: null,
     });
 
     await collection6.updateAccess(session2, {
         accountGrantById: new Map([
-            [session2.account.id, {level: "Manage"}],
-            [session3.account.id, {level: "Manage"}],
+            [session2.account.id, {level: "Manage", generation: 0}],
+            [session3.account.id, {level: "Manage", generation: 0}],
         ]),
         defaultGrant: null,
+        urlGrant: null,
     });
 
     await collection10.delete(session1);

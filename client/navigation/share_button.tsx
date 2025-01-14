@@ -12,6 +12,7 @@ import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
+// NOCOMMIT: Implement toggle button
 export function ShareButton({
     entityNoun,
     accessPolicy,

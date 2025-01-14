@@ -3,6 +3,7 @@ import {
     AccessPolicy,
     AccessPolicyAccountGrant,
     AccessPolicyDefaultGrant,
+    AccessPolicyUrlGrant,
     getAccountAccessPolicyManageGeneration,
 } from "~/shared/access/access_policy.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -36,6 +37,17 @@ export type AccessPolicyAction =
     | {
           readonly type: "SetDefaultGrantLevel";
           readonly level: AccessLevel;
+      }
+    | {
+          readonly type: "AddUrlGrant";
+          readonly urlGrant: AccessPolicyUrlGrant;
+      }
+    | {
+          readonly type: "DeleteUrlGrant";
+      }
+    | {
+          readonly type: "SetUrlGrantLevel";
+          readonly level: "View";
       };
 
 export function reduceAccessPolicy(
@@ -131,6 +143,27 @@ export function reduceAccessPolicy(
                             ? {level: action.level}
                             : {level: action.level, generation: actorManageGeneration + 1}
                         : accessPolicy.defaultGrant,
+            };
+        }
+        case "AddUrlGrant": {
+            return {
+                ...accessPolicy,
+                urlGrant: !accessPolicy.urlGrant ? action.urlGrant : accessPolicy.urlGrant,
+            };
+        }
+        case "DeleteUrlGrant": {
+            return {
+                ...accessPolicy,
+                urlGrant: null,
+            };
+        }
+        case "SetUrlGrantLevel": {
+            return {
+                ...accessPolicy,
+                urlGrant:
+                    accessPolicy.urlGrant?.level !== action.level
+                        ? {level: action.level}
+                        : accessPolicy.urlGrant,
             };
         }
         default:

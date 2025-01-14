@@ -18,7 +18,7 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
-import {AccessLevel} from "~/shared/access/access_policy.js";
+import {AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -1142,14 +1142,15 @@ test("will not allow users to view task comments they do not have access to", as
     await privateTask.updateAssignee(creatorSession, assigneeSession);
 
     await privateCollection.updateAccess(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
-            [creatorSession.account.id, {level: "Manage"}],
-            [manageSession.account.id, {level: "Manage"}],
+        accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+            [creatorSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 0}],
             [editorSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
         ]),
         defaultGrant: null,
+        urlGrant: null,
     });
 
     const taskSearchEntityIdOrder: Array<SearchEntityId> = [
@@ -1280,12 +1281,13 @@ test("will not allow users to view task comments they do not have access to afte
     ];
 
     await privateCollection.updateAccess(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
-            [creatorSession.account.id, {level: "Manage"}],
+        accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+            [creatorSession.account.id, {level: "Manage", generation: 0}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
         ]),
         defaultGrant: null,
+        urlGrant: null,
     });
 
     const getSearchEntityIds = async (session: TestSpaceSession) => {
@@ -1329,12 +1331,13 @@ test("will not allow users to view task comments they do not have access to afte
     ]);
 
     await privateCollection.updateAccess(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
-            [creatorSession.account.id, {level: "Manage"}],
+        accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+            [creatorSession.account.id, {level: "Manage", generation: 0}],
             [commenterSession.account.id, {level: "View"}],
             [viewerSession.account.id, {level: "Comment"}],
         ]),
         defaultGrant: null,
+        urlGrant: null,
     });
 
     import.meta.jest.advanceTimersByTime(60 * 1000);
@@ -1393,10 +1396,11 @@ test("will not allow users to view task comments they do not have access to when
     ];
 
     await privateCollection.updateAccess(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
-            [creatorSession.account.id, {level: "Manage"}],
+        accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+            [creatorSession.account.id, {level: "Manage", generation: 0}],
         ]),
-        defaultGrant: {type: "Space", level: "View"},
+        defaultGrant: {level: "View"},
+        urlGrant: null,
     });
 
     const getSearchEntityIds = async (session: TestSpaceSession) => {
@@ -1431,10 +1435,11 @@ test("will not allow users to view task comments they do not have access to when
     ]);
 
     await privateCollection.updateAccess(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: AccessLevel}>([
-            [creatorSession.account.id, {level: "Manage"}],
+        accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+            [creatorSession.account.id, {level: "Manage", generation: 0}],
         ]),
-        defaultGrant: {type: "Space", level: "Comment"},
+        defaultGrant: {level: "Comment"},
+        urlGrant: null,
     });
 
     import.meta.jest.advanceTimersByTime(60 * 1000);
