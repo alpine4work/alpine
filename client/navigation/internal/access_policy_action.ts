@@ -3,14 +3,19 @@ import {
     AccessPolicy,
     AccessPolicyAccountGrant,
     AccessPolicyDefaultGrant,
+    getAccountAccessPolicyManageGeneration,
 } from "~/shared/access/access_policy.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 export type AccessPolicyAction =
     | {
           readonly type: "AddAccountGrants";
-          readonly accountGrantById: ReadonlyMap<AccountId, AccessPolicyAccountGrant>;
+          readonly accountGrantById: ReadonlyMap<
+              AccountId,
+              DistributiveOmit<AccessPolicyAccountGrant, "generation">
+          >;
       }
     | {
           readonly type: "DeleteAccountGrant";
@@ -23,7 +28,7 @@ export type AccessPolicyAction =
       }
     | {
           readonly type: "AddDefaultGrant";
-          readonly defaultGrant: AccessPolicyDefaultGrant;
+          readonly defaultGrant: DistributiveOmit<AccessPolicyDefaultGrant, "generation">;
       }
     | {
           readonly type: "DeleteDefaultGrant";
@@ -34,16 +39,33 @@ export type AccessPolicyAction =
       };
 
 export function reduceAccessPolicy(
+    actorAccountId: AccountId,
     accessPolicy: AccessPolicy,
     action: AccessPolicyAction,
 ): AccessPolicy {
+    const actorManageGeneration = getAccountAccessPolicyManageGeneration(
+        actorAccountId,
+        accessPolicy,
+    );
+
+    // If the actor doesn't have manage access then they can't make changes.
+    if (actorManageGeneration === null) return accessPolicy;
+
     switch (action.type) {
         case "AddAccountGrants": {
             const newAccountGrantById = new Map(accessPolicy.accountGrantById);
 
             for (const [accountId, accountGrant] of action.accountGrantById) {
                 if (newAccountGrantById.has(accountId)) continue;
-                newAccountGrantById.set(accountId, accountGrant);
+
+                if (accountGrant.level !== "Manage") {
+                    newAccountGrantById.set(accountId, {level: accountGrant.level});
+                } else {
+                    newAccountGrantById.set(accountId, {
+                        level: accountGrant.level,
+                        generation: actorManageGeneration + 1,
+                    });
+                }
             }
 
             return {
@@ -65,8 +87,15 @@ export function reduceAccessPolicy(
             const newAccountGrantById = new Map(accessPolicy.accountGrantById);
 
             const accountGrant = newAccountGrantById.get(action.accountId);
-            if (accountGrant) {
-                newAccountGrantById.set(action.accountId, {...accountGrant, level: action.level});
+            if (accountGrant?.level !== action.level) {
+                if (action.level !== "Manage") {
+                    newAccountGrantById.set(action.accountId, {level: action.level});
+                } else {
+                    newAccountGrantById.set(action.accountId, {
+                        level: action.level,
+                        generation: actorManageGeneration + 1,
+                    });
+                }
             }
 
             return {
@@ -78,7 +107,12 @@ export function reduceAccessPolicy(
             return {
                 ...accessPolicy,
                 defaultGrant: !accessPolicy.defaultGrant
-                    ? action.defaultGrant
+                    ? action.defaultGrant.level !== "Manage"
+                        ? action.defaultGrant
+                        : {
+                              level: action.defaultGrant.level,
+                              generation: actorManageGeneration + 1,
+                          }
                     : accessPolicy.defaultGrant,
             };
         }
@@ -92,8 +126,10 @@ export function reduceAccessPolicy(
             return {
                 ...accessPolicy,
                 defaultGrant:
-                    accessPolicy.defaultGrant !== null
-                        ? {...accessPolicy.defaultGrant, level: action.level}
+                    accessPolicy.defaultGrant?.level !== action.level
+                        ? action.level !== "Manage"
+                            ? {level: action.level}
+                            : {level: action.level, generation: actorManageGeneration + 1}
                         : accessPolicy.defaultGrant,
             };
         }

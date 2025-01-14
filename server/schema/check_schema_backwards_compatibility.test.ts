@@ -1349,3 +1349,195 @@ test("union schema can become object schema when there's multiple variants", () 
         sampleValues: [{type: "bar", b: 2}],
     });
 });
+
+test("object can become union", () => {
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.object({type: Schema.enum(["a", "b"])}),
+        nextSchema: Schema.union({
+            a: Schema.object({type: Schema.value("a")}),
+            b: Schema.object({type: Schema.value("b")}),
+        }),
+        sampleValues: [{type: "a"}, {type: "b"}],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.object({type: Schema.enum(["a", "b", "c"])}),
+        nextSchema: Schema.union({
+            a: Schema.object({type: Schema.value("a")}),
+            b: Schema.object({type: Schema.value("b")}),
+        }),
+        sampleValues: [{type: "c"}],
+    });
+
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.object({type: Schema.enum(["a", "b"])}),
+        nextSchema: Schema.union({
+            a: Schema.object({type: Schema.value("a")}),
+            b: Schema.object({type: Schema.value("b")}),
+            c: Schema.object({type: Schema.value("c")}),
+        }),
+        sampleValues: [{type: "a"}, {type: "b"}],
+    });
+});
+
+test("object with properties can become union", () => {
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.object({type: Schema.enum(["a", "b"]), foo: Schema.integer}),
+        nextSchema: Schema.union({
+            a: Schema.object({type: Schema.value("a"), foo: Schema.integer}),
+            b: Schema.object({type: Schema.value("b"), foo: Schema.integer}),
+        }),
+        sampleValues: [
+            {type: "a", foo: 1},
+            {type: "b", foo: 2},
+        ],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.object({type: Schema.enum(["a", "b"]), foo: Schema.integer.optional()}),
+        nextSchema: Schema.union({
+            a: Schema.object({type: Schema.value("a"), foo: Schema.integer}),
+            b: Schema.object({type: Schema.value("b"), foo: Schema.integer}),
+        }),
+        sampleValues: [{type: "a"}, {type: "b"}],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.object({type: Schema.enum(["a", "b"]), foo: Schema.integer.optional()}),
+        nextSchema: Schema.union({
+            a: Schema.object({type: Schema.value("a")}),
+            b: Schema.object({type: Schema.value("b"), foo: Schema.integer}),
+        }),
+        sampleValues: [{type: "b"}],
+    });
+
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.object({type: Schema.enum(["a", "b"]), foo: Schema.integer}),
+        nextSchema: Schema.union({
+            a: Schema.object({type: Schema.value("a"), foo: Schema.integer}),
+            b: Schema.object({type: Schema.value("b"), foo: Schema.integer.optional()}),
+        }),
+        sampleValues: [
+            {type: "a", foo: 1},
+            {type: "b", foo: 2},
+        ],
+    });
+
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.object({type: Schema.enum(["a", "b"]), foo: Schema.integer}),
+        nextSchema: Schema.union({
+            a: Schema.object({type: Schema.value("a"), foo: Schema.integer}),
+            b: Schema.object({type: Schema.value("b"), foo: Schema.integer}),
+            c: Schema.object({type: Schema.value("c"), foo: Schema.integer.optional()}),
+            d: Schema.object({type: Schema.value("d")}),
+        }),
+        sampleValues: [
+            {type: "a", foo: 1},
+            {type: "b", foo: 2},
+        ],
+    });
+});
+
+test("object can become union with custom key", () => {
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.object({bar: Schema.enum(["a", "b"])}),
+        nextSchema: Schema.unionWithKey("bar", {
+            a: Schema.object({bar: Schema.value("a")}),
+            b: Schema.object({bar: Schema.value("b")}),
+        }),
+        sampleValues: [{bar: "a"}, {bar: "b"}],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.object({bar: Schema.enum(["a", "b", "c"])}),
+        nextSchema: Schema.unionWithKey("bar", {
+            a: Schema.object({bar: Schema.value("a")}),
+            b: Schema.object({bar: Schema.value("b")}),
+        }),
+        sampleValues: [{bar: "c"}],
+    });
+
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.object({bar: Schema.enum(["a", "b"])}),
+        nextSchema: Schema.unionWithKey("bar", {
+            a: Schema.object({bar: Schema.value("a")}),
+            b: Schema.object({bar: Schema.value("b")}),
+            c: Schema.object({bar: Schema.value("c")}),
+        }),
+        sampleValues: [{bar: "a"}, {bar: "b"}],
+    });
+});
+
+test("object with properties can become union with custom key", () => {
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.object({bar: Schema.enum(["a", "b"]), foo: Schema.integer}),
+        nextSchema: Schema.unionWithKey("bar", {
+            a: Schema.object({bar: Schema.value("a"), foo: Schema.integer}),
+            b: Schema.object({bar: Schema.value("b"), foo: Schema.integer}),
+        }),
+        sampleValues: [
+            {bar: "a", foo: 1},
+            {bar: "b", foo: 2},
+        ],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.object({bar: Schema.enum(["a", "b"]), foo: Schema.integer.optional()}),
+        nextSchema: Schema.unionWithKey("bar", {
+            a: Schema.object({bar: Schema.value("a"), foo: Schema.integer}),
+            b: Schema.object({bar: Schema.value("b"), foo: Schema.integer}),
+        }),
+        sampleValues: [{bar: "a"}, {bar: "b"}],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.object({bar: Schema.enum(["a", "b"]), foo: Schema.integer.optional()}),
+        nextSchema: Schema.unionWithKey("bar", {
+            a: Schema.object({bar: Schema.value("a")}),
+            b: Schema.object({bar: Schema.value("b"), foo: Schema.integer}),
+        }),
+        sampleValues: [{bar: "b"}],
+    });
+
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.object({bar: Schema.enum(["a", "b"]), foo: Schema.integer}),
+        nextSchema: Schema.unionWithKey("bar", {
+            a: Schema.object({bar: Schema.value("a"), foo: Schema.integer}),
+            b: Schema.object({bar: Schema.value("b"), foo: Schema.integer.optional()}),
+        }),
+        sampleValues: [
+            {bar: "a", foo: 1},
+            {bar: "b", foo: 2},
+        ],
+    });
+
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.object({bar: Schema.enum(["a", "b"]), foo: Schema.integer}),
+        nextSchema: Schema.unionWithKey("bar", {
+            a: Schema.object({bar: Schema.value("a"), foo: Schema.integer}),
+            b: Schema.object({bar: Schema.value("b"), foo: Schema.integer}),
+            c: Schema.object({bar: Schema.value("c"), foo: Schema.integer.optional()}),
+            d: Schema.object({bar: Schema.value("d")}),
+        }),
+        sampleValues: [
+            {bar: "a", foo: 1},
+            {bar: "b", foo: 2},
+        ],
+    });
+});

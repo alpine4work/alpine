@@ -279,7 +279,7 @@ export const emptyDocumentWithoutTitleContent = DocumentWithoutTitleContentProse
  */
 export const dangerousLegacyDefaultDocumentAccessPolicy: AccessPolicy = {
     accountGrantById: emptyMap,
-    defaultGrant: {level: "Manage"},
+    defaultGrant: {level: "Manage", generation: 0},
 };
 
 const documentContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
@@ -355,7 +355,7 @@ export function assertDocumentContent(node: Node): DocumentContent {
 
 export function createSimpleDocumentContent(creatorId: AccountId, text: string): DocumentContent {
     const accessPolicy: AccessPolicy = {
-        accountGrantById: new Map([[creatorId, {level: "Manage"}]]),
+        accountGrantById: new Map([[creatorId, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
     };
 
@@ -385,7 +385,7 @@ export const DocumentContentStepSchema = documentSchemas.createStepSchema();
 
 export function createEmptyDocumentContent(creatorId: AccountId) {
     const accessPolicy: AccessPolicy = {
-        accountGrantById: new Map([[creatorId, {level: "Manage"}]]),
+        accountGrantById: new Map([[creatorId, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
     };
 

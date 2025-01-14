@@ -63,7 +63,6 @@ ts_project(
         "//:node_modules/cookie",
         "//:node_modules/etag",
         "//:node_modules/fs-extra",
-        "//:node_modules/immer",
         "//:node_modules/mjml-react",
         "//:node_modules/pretty-ms",
         "//:node_modules/react",

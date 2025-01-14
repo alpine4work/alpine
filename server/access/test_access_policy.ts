@@ -50,17 +50,22 @@ function getTestAccessPolicyAccountGrant(
     if (!isReadonlyArray(accountGrant))
         return [getTestAccessPolicyAccountId(accountGrant), {level: "Edit"}];
 
-    return [getTestAccessPolicyAccountId(accountGrant[0]), {level: accountGrant[1]}];
+    return [
+        getTestAccessPolicyAccountId(accountGrant[0]),
+        accountGrant[1] === "Manage"
+            ? {level: accountGrant[1], generation: 0}
+            : {level: accountGrant[1]},
+    ];
 }
 
 export class TestAccessPolicy {
     public static readonly public = new TestAccessPolicy(() => ({
         accountGrantById: emptyMap,
-        defaultGrant: {type: "Space", level: "Manage"},
+        defaultGrant: {level: "Manage", generation: 0},
     }));
 
     public static readonly private = new TestAccessPolicy(actorAccountId => ({
-        accountGrantById: new Map([[actorAccountId, {level: "Manage"}]]),
+        accountGrantById: new Map([[actorAccountId, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
     }));
 
@@ -106,7 +111,8 @@ export class TestAccessPolicy {
 
             return {
                 accountGrantById: accessPolicy.accountGrantById,
-                defaultGrant: level !== null ? {type: "Space", level} : null,
+                defaultGrant:
+                    level !== null ? (level === "Manage" ? {level, generation: 0} : {level}) : null,
             };
         });
     }

@@ -44,17 +44,18 @@ import {
     compareAccessLevel,
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
+    validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
+import {InternalError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {flatIterable} from "~/shared/helpers/iterable/flat_iterable.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -118,60 +119,60 @@ export function ShareOverlay({
     const [warningDialogState, setWarningDialogState] = useState<{
         readonly title: string;
         readonly description: string;
+        readonly isAllowed: boolean;
         readonly action: AccessPolicyAction;
     } | null>(null);
 
     const onAccessPolicyChange = (action: AccessPolicyAction) => {
         const oldAccessPolicy = accessPolicy;
-        const newAccessPolicy = reduceAccessPolicy(oldAccessPolicy, action);
+        const newAccessPolicy = reduceAccessPolicy(currentAccount.id, oldAccessPolicy, action);
 
+        let changedAccountName: string | undefined;
         let changeDescription: string;
         switch (action.type) {
             case "AddAccountGrants": {
+                if (action.accountGrantById.size === 1) {
+                    changedAccountName = getAccountShortNameWithoutFullNameTooltip(
+                        accountStore
+                            .getAccountStore(
+                                (action.accountGrantById.size === 1
+                                    ? accountById.get(iterableFirst(action.accountGrantById)![0])
+                                    : null) ?? AccountModel.getUnknown(),
+                            )
+                            .getSnapshot(),
+                    );
+                }
+
                 changeDescription = `give ${
-                    action.accountGrantById.size > 1
-                        ? "these people"
-                        : getAccountShortNameWithoutFullNameTooltip(
-                              accountStore
-                                  .getAccountStore(
-                                      (action.accountGrantById.size === 1
-                                          ? accountById.get(
-                                                iterableFirst(action.accountGrantById)![0],
-                                            )
-                                          : null) ?? AccountModel.getUnknown(),
-                                  )
-                                  .getSnapshot(),
-                          )
+                    changedAccountName ?? "these people"
                 } access to the ${entityNoun}`;
                 break;
             }
             case "DeleteAccountGrant": {
+                changedAccountName = getAccountShortNameWithoutFullNameTooltip(
+                    accountStore
+                        .getAccountStore(
+                            accountById.get(action.accountId) ?? AccountModel.getUnknown(),
+                        )
+                        .getSnapshot(),
+                );
+
                 changeDescription = `remove ${
-                    currentAccount.id === action.accountId
-                        ? "your"
-                        : `${getAccountShortNameWithoutFullNameTooltip(
-                              accountStore
-                                  .getAccountStore(
-                                      accountById.get(action.accountId) ??
-                                          AccountModel.getUnknown(),
-                                  )
-                                  .getSnapshot(),
-                          )}’s`
+                    currentAccount.id === action.accountId ? "your" : `${changedAccountName}’s`
                 } access to the ${entityNoun}`;
                 break;
             }
             case "SetAccountGrantLevel": {
+                changedAccountName = getAccountShortNameWithoutFullNameTooltip(
+                    accountStore
+                        .getAccountStore(
+                            accountById.get(action.accountId) ?? AccountModel.getUnknown(),
+                        )
+                        .getSnapshot(),
+                );
+
                 changeDescription = `change ${
-                    currentAccount.id === action.accountId
-                        ? "your"
-                        : `${getAccountShortNameWithoutFullNameTooltip(
-                              accountStore
-                                  .getAccountStore(
-                                      accountById.get(action.accountId) ??
-                                          AccountModel.getUnknown(),
-                                  )
-                                  .getSnapshot(),
-                          )}’s`
+                    currentAccount.id === action.accountId ? "your" : `${changedAccountName}’s`
                 } access to the ${entityNoun} to “${accessLevelText[action.level]}”`;
                 break;
             }
@@ -195,22 +196,65 @@ export function ShareOverlay({
                 throw exhaustive(action);
         }
 
-        {
-            const doesAnyAccountHaveManageAccessLevel =
-                hasAccessLevel(newAccessPolicy.defaultGrant?.level ?? null, "Manage") ||
-                iterableSome(newAccessPolicy.accountGrantById.values(), accountGrant =>
-                    hasAccessLevel(accountGrant.level, "Manage"),
-                );
+        // NOCOMMIT: Integration test
+        const validationResult = validateAccessPolicyUpdate(
+            currentAccount.id,
+            oldAccessPolicy,
+            newAccessPolicy,
+        );
+        if (!validationResult.ok) {
+            let title: string;
+            let description: string;
 
-            // NOCOMMIT: Integration test
-            if (!doesAnyAccountHaveManageAccessLevel) {
-                setWarningDialogState({
-                    title: "Remove everyone who can change permissions?",
-                    description: `If you ${changeDescription} then there won’t be anyone who can share or change permissions on the ${entityNoun}. You can’t undo this change.`,
-                    action,
-                });
-                return;
+            switch (validationResult.reason) {
+                // Noop if we get here and the actor doesn't have manage access.
+                case "Can't update access policy unless actor has manage access": {
+                    return;
+                }
+
+                // It shouldn't be possible for the share overlay component to create one of
+                // these changes. So throw an internal error if we see one of these reasons.
+                case "Can't set new account grant manage generation to be less than or equal to our actor's manage generation":
+                case "Can't change account grant manage generation":
+                case "Can't set new default grant manage generation to be less than or equal to our actor's manage generation":
+                case "Can't change default grant manage generation": {
+                    throw new InternalError(
+                        `Share overlay made an invalid change: ${validationResult.reason}`,
+                    );
+                }
+
+                case "Can't revoke manage access from an account with a manage generation less than our actor": {
+                    title = `Can’t change ${
+                        changedAccountName ? `${changedAccountName}’s` : "their"
+                    } permissions`;
+
+                    // We use "they" to refer to the change description because we assume this error
+                    // only happens when we either remove an account grant or change an account
+                    // grant's level. In both cases we include the name of the account whose
+                    // permissions we're changing in `changeDescription`.
+                    description = `You can’t change the permissions of someone who was involved in adding you to the ${entityNoun}. So you can’t ${changeDescription}. Try asking whoever added ${
+                        changedAccountName ?? "them"
+                    } to the ${entityNoun} to change their permissions.`;
+                    break;
+                }
+
+                case "Can't update access policy so that no one has manage access": {
+                    title = "Can’t remove everyone who can change permissions";
+                    description = `If you ${changeDescription} then there won’t be anyone who can change permissions of the ${entityNoun} anymore. Try adding more people with “can edit” access.`;
+                    break;
+                }
+
+                default:
+                    throw exhaustive(validationResult.reason);
             }
+
+            setWarningDialogState({
+                title,
+                description,
+                isAllowed: false,
+                action,
+            });
+            return;
         }
 
         {
@@ -261,6 +305,7 @@ export function ShareOverlay({
                 setWarningDialogState({
                     title: "Remove permissions from yourself?",
                     description: `If you ${changeDescription} then you won’t be able to ${joinedPermissionDescriptions} the ${entityNoun} anymore. You can’t undo this change.`,
+                    isAllowed: true,
                     action,
                 });
                 return;
@@ -367,22 +412,37 @@ export function ShareOverlay({
                         </Button>
                     </Box>
                 </OverlayScopeContextProvider>
-                {warningDialogState && (
-                    <ModalDialog
-                        data-ownedby={id}
-                        title={warningDialogState.title}
-                        description={warningDialogState.description}
-                        primaryButtonLabel="Cancel"
-                        onPrimaryButtonPress={() => setWarningDialogState(null)}
-                        cancelButtonLabel="I understand, make this change"
-                        onCancelButtonPress={() =>
-                            onAccessPolicyChangeWithoutValidations(
-                                reduceAccessPolicy(accessPolicy, warningDialogState.action),
-                            )
-                        }
-                        onClose={() => setWarningDialogState(null)}
-                    />
-                )}
+                {warningDialogState &&
+                    (warningDialogState.isAllowed ? (
+                        <ModalDialog
+                            data-ownedby={id}
+                            title={warningDialogState.title}
+                            description={warningDialogState.description}
+                            primaryButtonLabel="Cancel"
+                            onPrimaryButtonPress={() => setWarningDialogState(null)}
+                            cancelButtonLabel="I understand, make this change"
+                            onCancelButtonPress={() =>
+                                onAccessPolicyChangeWithoutValidations(
+                                    reduceAccessPolicy(
+                                        currentAccount.id,
+                                        accessPolicy,
+                                        warningDialogState.action,
+                                    ),
+                                )
+                            }
+                            onClose={() => setWarningDialogState(null)}
+                        />
+                    ) : (
+                        <ModalDialog
+                            data-ownedby={id}
+                            title={warningDialogState.title}
+                            description={warningDialogState.description}
+                            primaryButtonLabel="Ok"
+                            onPrimaryButtonPress={() => setWarningDialogState(null)}
+                            shouldHideCancelButton={true}
+                            onClose={() => setWarningDialogState(null)}
+                        />
+                    ))}
             </Box>
         </FocusScope>
     );
@@ -497,8 +557,6 @@ function ShareOverlayAccountGrants({
                 paddingBottom="5"
             >
                 {mapIterable(sortedAccountGrants, ([accountId, accountGrant]) => (
-                    // NOCOMMIT: Protect against newly granted accounts lowering previously granted
-                    // account access
                     <ShareOverlayAccountGrant
                         key={accountId}
                         accountId={accountId}

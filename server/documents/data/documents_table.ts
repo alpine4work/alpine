@@ -44,7 +44,12 @@ import {
     isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
-import {AccessLevel, AccessPolicy, AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {
+    AccessLevel,
+    AccessPolicy,
+    AccessPolicySchema,
+    validateAccessPolicyUpdate,
+} from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
@@ -2824,6 +2829,19 @@ export async function updateDocumentContent(
             !(await isDocumentItemAccessAuthorized(context, internalDocument, "Manage"))
         ) {
             throw createDocumentPermissionDeniedError("Manage");
+        }
+
+        // Make sure the access policy update is valid and the actor isn't removing
+        // access from accounts with a lower manage generation.
+        if (hasAccessPolicyChanged) {
+            const result = validateAccessPolicyUpdate(
+                context.actor.getAccountId(),
+                oldAccessPolicy,
+                newAccessPolicy,
+            );
+            if (!result.ok) {
+                throw new FailedPreconditionError(result.reason);
+            }
         }
 
         const commentThreadItemPromiseById = new Map<

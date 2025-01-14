@@ -401,7 +401,7 @@ function TaskCollectionsInput(
                                     name: inputState.value,
                                     accessPolicy: {
                                         accountGrantById: new Map([
-                                            [currentAccount.id, {level: "Manage"}],
+                                            [currentAccount.id, {level: "Manage", generation: 0}],
                                         ]),
                                         defaultGrant: null,
                                     },
@@ -1083,7 +1083,10 @@ function TaskCollectionsInput(
                                         name: inputValue,
                                         accessPolicy: {
                                             accountGrantById: new Map([
-                                                [currentAccount.id, {level: "Manage"}],
+                                                [
+                                                    currentAccount.id,
+                                                    {level: "Manage", generation: 0},
+                                                ],
                                             ]),
                                             defaultGrant: null,
                                         },

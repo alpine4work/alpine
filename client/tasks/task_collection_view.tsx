@@ -402,58 +402,14 @@ export function TaskCollectionView({
             // public/private. Eventually I want a full sharing dialog (like in Google
             // Docs) but I want that sharing dialog to work across all stuff in the space.
             // Including docs and channels.
+            //
+            // NOCOMMIT: Remove this
             menuActions.push([
                 {
                     label: isPrivate ? "Make public" : "Make private",
                     icon: isPrivate ? <LockOpen /> : <Lock />,
                     iconPlacement: "end",
-                    onPress: () => {
-                        if (isPrivate) {
-                            store.commitTaskActionTransaction(
-                                context,
-                                [
-                                    {
-                                        type: "UpdateCollection",
-                                        time: store.clock.now(),
-                                        collectionId,
-                                        collectionAction: {
-                                            type: "UpdateAccessPolicy",
-                                            accessPolicy: {
-                                                accountGrantById: new Map([
-                                                    [currentAccount.id, {level: "Manage"}],
-                                                ]),
-                                                defaultGrant: {level: "Manage"},
-                                            },
-                                        },
-                                    },
-                                ],
-                                // Collection changes can't be undone.
-                                {undoManager: null, affinityManager},
-                            );
-                        } else {
-                            store.commitTaskActionTransaction(
-                                context,
-                                [
-                                    {
-                                        type: "UpdateCollection",
-                                        time: store.clock.now(),
-                                        collectionId,
-                                        collectionAction: {
-                                            type: "UpdateAccessPolicy",
-                                            accessPolicy: {
-                                                accountGrantById: new Map([
-                                                    [currentAccount.id, {level: "Manage"}],
-                                                ]),
-                                                defaultGrant: null,
-                                            },
-                                        },
-                                    },
-                                ],
-                                // Collection changes can't be undone.
-                                {undoManager: null, affinityManager},
-                            );
-                        }
-                    },
+                    onPress: () => {},
                 },
             ]);
 
@@ -547,7 +503,6 @@ export function TaskCollectionView({
         affinityManager,
         collectionId,
         context,
-        currentAccount.id,
         customizationState,
         filters,
         isAppleDevice,

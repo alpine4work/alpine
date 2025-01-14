@@ -127,7 +127,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
                         name: createSearchParam,
                         accessPolicy: {
                             accountGrantById: new Map([
-                                [context.actor.getAccountId(), {level: "Manage"}],
+                                [context.actor.getAccountId(), {level: "Manage", generation: 0}],
                             ]),
                             defaultGrant: null,
                         },

@@ -5028,7 +5028,9 @@ test("must have the manage access level on documents you create", async () => {
                 "doc",
                 {
                     accessPolicy: cast<AccessPolicy>({
-                        accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [session1.account.id, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
                     }),
                 },
@@ -5045,7 +5047,9 @@ test("must have the manage access level on documents you create", async () => {
                     "doc",
                     {
                         accessPolicy: cast<AccessPolicy>({
-                            accountGrantById: new Map([[session2.account.id, {level: "Manage"}]]),
+                            accountGrantById: new Map([
+                                [session2.account.id, {level: "Manage", generation: 0}],
+                            ]),
                             defaultGrant: null,
                         }),
                     },
@@ -5100,7 +5104,7 @@ test("must have the manage access level on documents you create", async () => {
                     {
                         accessPolicy: cast<AccessPolicy>({
                             accountGrantById: emptyMap,
-                            defaultGrant: {type: "Space", level: "Edit"},
+                            defaultGrant: {level: "Edit"},
                         }),
                     },
                     [schema.node("title"), schema.node("paragraph")],
@@ -5117,7 +5121,7 @@ test("must have the manage access level on documents you create", async () => {
                 {
                     accessPolicy: cast<AccessPolicy>({
                         accountGrantById: emptyMap,
-                        defaultGrant: {type: "Space", level: "Manage"},
+                        defaultGrant: {level: "Manage", generation: 0},
                     }),
                 },
                 [schema.node("title"), schema.node("paragraph")],
@@ -5172,7 +5176,7 @@ test("must have edit access to edit a document and can change the document's acc
 
     const publicAccessPolicy: AccessPolicy = {
         accountGrantById: emptyMap,
-        defaultGrant: {type: "Space", level: "Manage"},
+        defaultGrant: {level: "Manage", generation: 1},
     };
 
     await updateDocumentContent(session1.action(), {
@@ -5257,7 +5261,7 @@ test("can't update access policy unintentionally", async () => {
 
     const publicAccessPolicy: AccessPolicy = {
         accountGrantById: emptyMap,
-        defaultGrant: {type: "Space", level: "Manage"},
+        defaultGrant: {level: "Manage", generation: 0},
     };
 
     await expect(
@@ -5347,13 +5351,13 @@ test("can't update access policy with a mismatched intentional access policy", a
 
     const publicAccessPolicy: AccessPolicy = {
         accountGrantById: emptyMap,
-        defaultGrant: {type: "Space", level: "Manage"},
+        defaultGrant: {level: "Manage", generation: 0},
     };
 
     const otherAccessPolicy: AccessPolicy = {
         accountGrantById: new Map([
-            [session1.account.id, {level: "Manage"}],
-            [session2.account.id, {level: "Manage"}],
+            [session1.account.id, {level: "Manage", generation: 0}],
+            [session2.account.id, {level: "Manage", generation: 0}],
         ]),
         defaultGrant: null,
     };
@@ -5447,7 +5451,7 @@ test("can't update the access policy without the manage access level", async () 
 
         const publicAccessPolicy: AccessPolicy = {
             accountGrantById: emptyMap,
-            defaultGrant: {type: "Space", level: "Manage"},
+            defaultGrant: {level: "Manage", generation: 0},
         };
 
         await expect(
@@ -5536,7 +5540,7 @@ test("can't update the access policy without the manage access level", async () 
 
         const publicAccessPolicy: AccessPolicy = {
             accountGrantById: emptyMap,
-            defaultGrant: {type: "Space", level: "Manage"},
+            defaultGrant: {level: "Manage", generation: 0},
         };
 
         await expect(
@@ -5625,7 +5629,7 @@ test("can't update the access policy without the manage access level", async () 
 
         const publicAccessPolicy: AccessPolicy = {
             accountGrantById: emptyMap,
-            defaultGrant: {type: "Space", level: "Manage"},
+            defaultGrant: {level: "Manage", generation: 1},
         };
 
         await updateDocumentContent(session2.action(), {
@@ -6250,6 +6254,202 @@ test("can handle conflicting access policy changes within a single update call",
                 .toJSON(),
         });
     }
+});
+
+test("can't revoke access from account with a lower manage generation", async () => {
+    const space = await TestSpace.create(context);
+    const [aliceSession, bobSession, carolSession] = await space.createSessions(3);
+
+    const accessPolicy1: AccessPolicy = {
+        accountGrantById: new Map([[aliceSession.account.id, {level: "Manage", generation: 0}]]),
+        defaultGrant: null,
+    };
+
+    const document = await TestDocument.create(aliceSession, {
+        access: accessPolicy1,
+    });
+
+    const invalidAccessPolicy2: AccessPolicy = {
+        accountGrantById: new Map([
+            [aliceSession.account.id, {level: "Manage", generation: 0}],
+            [bobSession.account.id, {level: "Manage", generation: 0}],
+        ]),
+        defaultGrant: null,
+    };
+
+    const accessPolicy2: AccessPolicy = {
+        accountGrantById: new Map([
+            [aliceSession.account.id, {level: "Manage", generation: 0}],
+            [bobSession.account.id, {level: "Manage", generation: 1}],
+        ]),
+        defaultGrant: null,
+    };
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 0,
+        content: schema
+            .node("doc", {accessPolicy: accessPolicy1}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, []),
+            ])
+            .toJSON(),
+    });
+
+    await expect(
+        updateDocumentContent(aliceSession.action(), {
+            id: document.id,
+            version: 0,
+            steps: [new DocAttrStep("accessPolicy", invalidAccessPolicy2)],
+            intentionallyUpdateAccessPolicy: invalidAccessPolicy2,
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        "Can't set new account grant manage generation to be less than or equal to our actor's manage generation",
+    );
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 0,
+        content: schema
+            .node("doc", {accessPolicy: accessPolicy1}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, []),
+            ])
+            .toJSON(),
+    });
+
+    await updateDocumentContent(aliceSession.action(), {
+        id: document.id,
+        version: 0,
+        steps: [new DocAttrStep("accessPolicy", accessPolicy2)],
+        intentionallyUpdateAccessPolicy: accessPolicy2,
+        clientId: generateId(),
+    });
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 1,
+        content: schema
+            .node("doc", {accessPolicy: accessPolicy2}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, []),
+            ])
+            .toJSON(),
+    });
+
+    const invalidAccessPolicy3: AccessPolicy = {
+        accountGrantById: new Map([[bobSession.account.id, {level: "Manage", generation: 1}]]),
+        defaultGrant: null,
+    };
+
+    const accessPolicy3: AccessPolicy = {
+        accountGrantById: new Map([
+            [aliceSession.account.id, {level: "Manage", generation: 0}],
+            [bobSession.account.id, {level: "Manage", generation: 1}],
+            [carolSession.account.id, {level: "Manage", generation: 2}],
+        ]),
+        defaultGrant: null,
+    };
+
+    await expect(
+        updateDocumentContent(bobSession.action(), {
+            id: document.id,
+            version: 0,
+            steps: [new DocAttrStep("accessPolicy", invalidAccessPolicy3)],
+            intentionallyUpdateAccessPolicy: invalidAccessPolicy3,
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        "Can't revoke manage access from an account with a manage generation less than our actor",
+    );
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 1,
+        content: schema
+            .node("doc", {accessPolicy: accessPolicy2}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, []),
+            ])
+            .toJSON(),
+    });
+
+    await expect(
+        updateDocumentContent(bobSession.action(), {
+            id: document.id,
+            version: 1,
+            steps: [new DocAttrStep("accessPolicy", invalidAccessPolicy3)],
+            intentionallyUpdateAccessPolicy: invalidAccessPolicy3,
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        "Can't revoke manage access from an account with a manage generation less than our actor",
+    );
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 1,
+        content: schema
+            .node("doc", {accessPolicy: accessPolicy2}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, []),
+            ])
+            .toJSON(),
+    });
+
+    await updateDocumentContent(bobSession.action(), {
+        id: document.id,
+        version: 1,
+        steps: [new DocAttrStep("accessPolicy", accessPolicy3)],
+        intentionallyUpdateAccessPolicy: accessPolicy3,
+        clientId: generateId(),
+    });
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 2,
+        content: schema
+            .node("doc", {accessPolicy: accessPolicy3}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, []),
+            ])
+            .toJSON(),
+    });
+
+    const invalidAccessPolicy4a: AccessPolicy = {
+        accountGrantById: new Map([
+            [bobSession.account.id, {level: "Manage", generation: 1}],
+            [carolSession.account.id, {level: "Manage", generation: 2}],
+        ]),
+        defaultGrant: null,
+    };
+
+    const invalidAccessPolicy4b: AccessPolicy = {
+        accountGrantById: new Map([
+            [aliceSession.account.id, {level: "Manage", generation: 0}],
+            [carolSession.account.id, {level: "Manage", generation: 2}],
+        ]),
+        defaultGrant: null,
+    };
+
+    await expect(
+        updateDocumentContent(carolSession.action(), {
+            id: document.id,
+            version: 2,
+            steps: [new DocAttrStep("accessPolicy", invalidAccessPolicy4a)],
+            intentionallyUpdateAccessPolicy: invalidAccessPolicy4a,
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        "Can't revoke manage access from an account with a manage generation less than our actor",
+    );
+
+    await expect(
+        updateDocumentContent(carolSession.action(), {
+            id: document.id,
+            version: 2,
+            steps: [new DocAttrStep("accessPolicy", invalidAccessPolicy4b)],
+            intentionallyUpdateAccessPolicy: invalidAccessPolicy4b,
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        "Can't revoke manage access from an account with a manage generation less than our actor",
+    );
 });
 
 test("getting a document with optional comments strips comments if the actor only has view access", async () => {
@@ -14862,7 +15062,7 @@ describe("Comments", () => {
                         {
                             accessPolicy: cast<AccessPolicy>({
                                 accountGrantById: emptyMap,
-                                defaultGrant: {type: "Space", level: "Manage"},
+                                defaultGrant: {level: "Manage", generation: 0},
                             }),
                         },
                         [schema.node("title"), schema.node("paragraph")],
@@ -14915,7 +15115,10 @@ describe("Comments", () => {
                                         insideSession =>
                                             [insideSession.accountId, {level: "Comment"}] as const,
                                     ),
-                                    [context.actor.getAccountId(), {level: "Manage"}],
+                                    [
+                                        context.actor.getAccountId(),
+                                        {level: "Manage", generation: 0},
+                                    ],
                                 ]),
                                 defaultGrant: null,
                             }),

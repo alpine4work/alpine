@@ -46,6 +46,7 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
@@ -649,7 +650,7 @@ export function ShareOverlayAccountGrantInput({
                             onPress={() => {
                                 const newAccountGrantById = new Map<
                                     AccountId,
-                                    AccessPolicyAccountGrant
+                                    DistributiveOmit<AccessPolicyAccountGrant, "generation">
                                 >();
 
                                 for (const selectedAccount of selectedAccounts) {
