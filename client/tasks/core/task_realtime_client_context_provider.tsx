@@ -3,7 +3,7 @@
 import {useLoaderData} from "@remix-run/react";
 import {ReactNode, createContext, useContext, useEffect, useRef, useState} from "react";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
-import {useAccountClientStoreForSpaceId} from "~/client/accounts/account_client_store_context.js";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
@@ -13,7 +13,7 @@ import {useStore} from "~/client/helpers/use_store.js";
 import {useBrowserId} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {unwrapLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
-import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
@@ -200,7 +200,7 @@ export function TaskRealtimeClientContextProvider({
     children,
 }: {
     spaceId: SpaceId;
-    currentAccountId: AccountId | null;
+    currentAccountId: AccountId;
     children: ReactNode;
 }) {
     const dataRouterStateContext = useContext(DataRouterStateContext);
@@ -215,11 +215,11 @@ export function TaskRealtimeClientContextProvider({
     });
 
     const reporter = useReporter();
-    const spaceContext = useSpaceContextIfExists();
+    const {currentAccount} = useSpaceContext();
 
-    const accountStore = useAccountClientStoreForSpaceId(spaceId);
+    const accountStore = useAccountClientStore();
 
-    // We need to hold a strong reference to `Store<AccountModelData>` in state so
+    // We need to hold a strong reference to `Store<AccountModelData>` so
     // `accountStore.weakGetAccountStoreByIdIfExists()` will always be able to
     // return the data for the current account.
     //
@@ -234,11 +234,8 @@ export function TaskRealtimeClientContextProvider({
     // `AccountClientStore` and also prevent garbage collection of `currentAccount`
     // from `AccountClientStore`.
     useStateWithDependencies(
-        ([accountStore, currentAccount]) => {
-            if (!currentAccount) return;
-            return accountStore.getAccountStore(currentAccount);
-        },
-        [accountStore, spaceContext?.currentAccount],
+        ([accountStore, currentAccount]) => accountStore.getAccountStore(currentAccount),
+        [accountStore, currentAccount],
     );
 
     const [client] = useState((): TaskRealtimeClient => {

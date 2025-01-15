@@ -56,7 +56,7 @@ type DocumentContentEditorExtraState = {
     /**
      * The `AccountId` of the logged in user. Used for evaluating access.
      */
-    readonly currentAccountId: AccountId | null;
+    readonly currentAccountId: AccountId;
 
     /**
      * Comment threads we have sent to the server that we're waiting on
@@ -134,7 +134,7 @@ type DocumentContentEditorExtraState = {
 export function getInitialDocumentContentEditorState(
     options:
         | {
-              currentAccountId: AccountId | null;
+              currentAccountId: AccountId;
               initialVersion: number;
               initialContent: DocumentContentWithReferences;
               initialSelection?: Selection | SelectionBookmark;
@@ -356,13 +356,10 @@ export function reduceDocumentContentEditorState(
         oldState.extra.currentAccountId !== state.extra.currentAccountId
     ) {
         if (state.extra.ourPresenceState?.selection.empty) {
-            const accessLevel =
-                state.extra.currentAccountId !== null
-                    ? getAccountAccessLevelAssumingSpaceAccess(
-                          state.editorState.getDoc().attrs.accessPolicy,
-                          state.extra.currentAccountId,
-                      )
-                    : null;
+            const accessLevel = getAccountAccessLevelAssumingSpaceAccess(
+                state.editorState.getDoc().attrs.accessPolicy,
+                state.extra.currentAccountId,
+            );
 
             if (!hasAccessLevel(accessLevel, "Edit")) {
                 state = {...state, extra: {...state.extra, ourPresenceState: null}};

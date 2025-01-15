@@ -1,7 +1,7 @@
 import {useEffect} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {usePeekContext} from "~/client/remix/peek_context.js";
-import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
@@ -23,7 +23,7 @@ const SessionStorageSchema = Schema.object({
  */
 export function useSearchAffinityViewInteraction(affinityId: SearchAffinityId | null) {
     const context = useAppContext();
-    const spaceContext = useSpaceContextIfExists();
+    const {space} = useSpaceContext();
 
     // When rendered in a peek, the peek may disable view interaction tracking. If
     // you only briefly view a search entity from within the search window's peek,
@@ -35,7 +35,6 @@ export function useSearchAffinityViewInteraction(affinityId: SearchAffinityId | 
     // affinity score. We don't add to affinity scores while the page is
     // hidden. We resume if the user reopens the page.
     useEffect(() => {
-        if (!spaceContext) return;
         if (!affinityId) return;
         if (withoutSearchAffinityViewInteraction) return;
 
@@ -82,7 +81,7 @@ export function useSearchAffinityViewInteraction(affinityId: SearchAffinityId | 
                     // If this errs it will show up in our telemetry but we don't care about
                     // it here.
                     void markSearchAffinityInteraction(context, {
-                        spaceId: spaceContext.space.id,
+                        spaceId: space.id,
                         affinityId,
                         interaction: {type: "View"},
                     });
@@ -140,5 +139,5 @@ export function useSearchAffinityViewInteraction(affinityId: SearchAffinityId | 
                 state = null;
             }
         };
-    }, [context, affinityId, withoutSearchAffinityViewInteraction, spaceContext]);
+    }, [context, affinityId, space.id, withoutSearchAffinityViewInteraction]);
 }

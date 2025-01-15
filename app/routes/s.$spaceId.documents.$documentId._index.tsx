@@ -1,6 +1,5 @@
 import {ShouldRevalidateFunction, useParams, useSearchParams} from "@remix-run/react";
-import {useEffect, useMemo, useState} from "react";
-import {ContentView} from "~/client/content/content_view.js";
+import {useEffect, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {
     DocumentContentEditor,
@@ -12,8 +11,7 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {markSearchAffinityLowIntentUpdateInteraction} from "~/client/search/mark_search_affinity_low_intent_update_interaction.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
-import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
-import {documentContentStyles} from "~/client/styles/styles.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     getDocumentCommentThreadAndInitialComments,
     getDocumentWithOptionalCommentsIfExists,
@@ -30,7 +28,7 @@ import {
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
@@ -43,10 +41,9 @@ const LoaderSchema = Schema.object({
     }).nullable(),
 });
 
-// NOCOMMIT: Test that you can open this route with view access only. And with
-// URL access only. Make sure files and mentions work with URL access.
+// NOCOMMIT: Test that you can open this route with view access only
 export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
-    const context = await unauthenticatedContext.actor.authenticate();
+    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
     const url = new URL(request.url);
     const documentId = Schema.id<DocumentId>().deserialize(params.documentId ?? null);
@@ -112,43 +109,15 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     return nextUrl.toString() !== currentUrl.toString();
 };
 
-export default function DocumentRouteWrapper() {
-    const spaceContext = useSpaceContextIfExists();
-
-    // NOCOMMIT
-    if (!spaceContext) return <DocumentViewRoute />;
-
-    return <DocumentRoute />;
-}
-
-function DocumentViewRoute() {
-    const {document} = useLoaderDataWithSchema(LoaderSchema);
-    if (!document) throw new NotFoundError("Document not found");
-
-    return (
-        <ContentView
-            content={document.content}
-            className={documentContentStyles.documentContentClassName}
-            // en dash (https://graphemica.com/2013)
-            // Represents no content
-            placeholder={"\u2013"}
-            fileAttachmentTarget={useMemo(
-                () => ({type: "Document", documentId: document.id}),
-                [document],
-            )}
-        />
-    );
-}
-
-function DocumentRoute() {
+export default function DocumentRoute() {
     const {document: initialDocument, commentThreadResult} = useLoaderDataWithSchema(LoaderSchema);
     const params = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     const updateMetaTitle = useUpdateMetaTitle();
     const context = useAppContext();
+    const {space} = useSpaceContext();
 
-    const spaceId = params.spaceId as SpaceId;
-    const documentId = params.documentId as DocumentId;
+    const documentId = Schema.id<DocumentId>().deserialize(params.documentId ?? null);
 
     const focusSearchParam = searchParams.get("focus");
     const [shouldInitiallyFocus] = useState(focusSearchParam === "");
@@ -217,7 +186,7 @@ function DocumentRoute() {
 
                 markSearchAffinityLowIntentUpdateInteraction(
                     context,
-                    spaceId,
+                    space.id,
                     `Document:${documentId}`,
                     {isVeryLow: true},
                 );

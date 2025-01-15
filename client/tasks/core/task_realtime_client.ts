@@ -79,7 +79,7 @@ export class TaskRealtimeClient {
         }: {
             accountStore: AccountClientStore;
             spaceId: SpaceId;
-            currentAccountId: AccountId | null;
+            currentAccountId: AccountId;
             browserId: BrowserId;
             onDisplayError: (options: {title: string; error: unknown}) => void;
         },

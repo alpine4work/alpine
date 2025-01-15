@@ -72,7 +72,7 @@ import {
 } from "~/shared/helpers/html/html_generator.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {Id, generateId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {undefinedStore} from "~/shared/store/const_store.js";

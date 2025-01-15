@@ -49,8 +49,6 @@ import {
     AccessLevel,
     AccessPolicy,
     AccessPolicySchema,
-    hasAccessLevel,
-    maxAccessLevel,
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
@@ -984,14 +982,6 @@ async function isDocumentItemAccessAuthorized(
     expectedAccessLevel: AccessLevel,
 ): Promise<boolean> {
     if (context.actor.type === "Anonymous") {
-        // Anonymous users are allowed to access the document if there's a URL grant.
-        // But aren't allowed to comment, edit, or do anything else.
-        //
-        // NOCOMMIT: Test!
-        if (documentItem.accessPolicy.urlGrant !== null) {
-            return hasAccessLevel(documentItem.accessPolicy.urlGrant.level, expectedAccessLevel);
-        }
-
         throw unauthenticatedSessionError();
     }
 
