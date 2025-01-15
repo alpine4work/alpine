@@ -25,6 +25,7 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {pointerEventsNoneNotInheritedClassName} from "~/client/styles/styles.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
 import {
@@ -97,6 +98,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     const {isNativeMobile} = useClientInfo();
     const navigate = useNavigate();
     const reporter = useReporter();
+    const {currentAccount} = useSpaceContext();
 
     const isMobile = platform === "mobile";
 
@@ -219,7 +221,15 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                       </Button>
                                   </Box>
                               ) : (
-                                  !withoutMobileBackButton && (
+                                  !withoutMobileBackButton &&
+                                  // Don't show the back button if the actor doesn't have space access. If the
+                                  // actor doesn't have space access they're probably looking at a shared URL in
+                                  // their web browser. So they're not in an application context. A back button
+                                  // doesn't make sense in a non-application context.
+                                  //
+                                  // TODO(calebmer): Maybe put an Alpine logo here instead? When `currentAccount`
+                                  // does not exist. Or put the space logo.
+                                  (currentAccount || isNativeMobile) && (
                                       <IconButton
                                           size="base"
                                           description="Go back"

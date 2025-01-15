@@ -34,6 +34,11 @@ export const authorizeDocumentAccess = defineRpc({
     input: {
         documentId: Schema.id<DocumentId>(),
         expectedAccessLevel: AccessLevelSchema,
+        // If true, also calls `authorizeSpaceAccess()`. If a document has a non-null
+        // `accessPolicy.urlGrant` then space access isn't required. Setting this true
+        // makes sure the actor has space access even if `accessPolicy.urlGrant` is
+        // non-null.
+        withSpaceAccess: Schema.boolean.optional(),
     },
     output: {},
 });

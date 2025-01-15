@@ -25,7 +25,7 @@ import {
 } from "~/server/documents/data/documents_table.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
-import {getAccount} from "~/server/spaces/spaces_table.js";
+import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {DocumentCommentModel} from "~/shared/documents/document_model.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -36,11 +36,16 @@ export default implementRpcs(definitions, {
     authorizeDocumentAccess: {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, input) => {
-            await authorizeDocumentAccess(
+            const {spaceId} = await authorizeDocumentAccess(
                 context.actor.authorizeSession(),
                 input.documentId,
                 input.expectedAccessLevel,
             );
+
+            if (input.withSpaceAccess) {
+                await authorizeSpaceAccess(context, spaceId);
+            }
+
             return {};
         },
     },

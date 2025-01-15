@@ -126,6 +126,9 @@ export class DocumentCollaborationConnection {
         await authorizeDocumentAccess(context, {
             documentId: this._contentManager.id,
             expectedAccessLevel: this.withoutComments ? "View" : "Comment",
+            // You must have space access to receive document realtime events. We don't
+            // currently allow anonymous users to see document updates in realtime.
+            withSpaceAccess: true,
         });
     }
 

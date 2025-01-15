@@ -1396,7 +1396,7 @@ export function ContentView<Content extends ContentWithReferences>({
                     }}
                 />
             )}
-            {isInitialAppRender && (
+            {isInitialAppRender && codeBlockDecorations.length > 0 && (
                 <script
                     // We only compute this script on the server. On the client we don't bother
                     // rendering the script which allows us to avoid an extra `JSON.stringify()`

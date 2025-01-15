@@ -21,17 +21,39 @@ export async function evaluateAccessPolicy(
         dynamo: DynamoContextModule;
     }>,
     spaceId: SpaceId,
-    accountId: AccountId,
+    accountId: AccountId | null,
     accessPolicy: AccessPolicy,
     expectedAccessLevel: AccessLevel,
 ): Promise<boolean> {
-    if (accessPolicy.defaultGrant !== null) {
-        if (
-            (await isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId)) &&
-            hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
-        ) {
-            return true;
-        }
+    // If there's a `urlGrant` then everyone has access at this level. Even when
+    // `accountId` is null or `accountId` does not have space access.
+    //
+    // NOCOMMIT: Test this. Also test that removed accounts fail this check even if
+    // the access policy gives them access.
+    if (
+        accessPolicy.urlGrant !== null &&
+        hasAccessLevel(accessPolicy.urlGrant.level, expectedAccessLevel)
+    ) {
+        return true;
+    }
+
+    // Anonymous users ONLY get access through `urlGrant`.
+    if (accountId === null) return false;
+
+    // If this account is not a space member they can't have access.
+    //
+    // Even if an account was previously a member, was removed, but is still listed
+    // in the `AccessPolicy` they can't access. An account can only access the
+    // resource if they're an active space member.
+    if (!(await isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId))) {
+        return false;
+    }
+
+    if (
+        accessPolicy.defaultGrant !== null &&
+        hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
+    ) {
+        return true;
     }
 
     const accountGrant = accessPolicy.accountGrantById.get(accountId);

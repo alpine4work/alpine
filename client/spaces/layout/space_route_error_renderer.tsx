@@ -9,10 +9,12 @@ import {
     navigationBarMobileGap,
 } from "~/client/design/navigation_bar_helpers.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getWebMobileTabFromPathname} from "~/client/spaces/layout/web_mobile_tab.js";
 import {useRouteErrorTitle} from "~/client/spaces/route_metadata.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     spaceLayoutErrorRendererPaddingX,
     spaceLayoutErrorRendererPaddingY,
@@ -21,8 +23,10 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 
 export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
     const platform = usePlatform();
+    const {isNativeMobile} = useClientInfo();
     const navigate = useNavigate();
     const location = useLocation();
+    const {currentAccount} = useSpaceContext();
 
     // Is this the initial location for a tab? If so we don't want to render the
     // back button since there's nothing to go back to.
@@ -49,17 +53,22 @@ export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
                     display="flex"
                     alignItems="center"
                 >
-                    {!isTabRootLocation && (
-                        <IconButton
-                            size="base"
-                            description="Go back"
-                            withoutTooltip={true}
-                            pressErrorTitle="Couldn’t go back"
-                            onPress={() => navigate(-1)}
-                        >
-                            <ArrowLeft />
-                        </IconButton>
-                    )}
+                    {!isTabRootLocation &&
+                        // Don't show the back button if the actor doesn't have space access. If the
+                        // actor doesn't have space access they're probably looking at a shared URL in
+                        // their web browser. So they're not in an application context. A back button
+                        // doesn't make sense in a non-application context.
+                        (currentAccount || isNativeMobile) && (
+                            <IconButton
+                                size="base"
+                                description="Go back"
+                                withoutTooltip={true}
+                                pressErrorTitle="Couldn’t go back"
+                                onPress={() => navigate(-1)}
+                            >
+                                <ArrowLeft />
+                            </IconButton>
+                        )}
                 </Box>
             )}
             <Box display="flex" justifyContent="center">

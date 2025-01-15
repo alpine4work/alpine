@@ -652,13 +652,18 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
     placeholder,
     className,
     style,
+    accessLevel = "Manage",
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
     containerClassName: customContainerClassName,
     fileAttachmentTarget,
     editorRef,
 }: ContentEditorProps<Content> & {editorRef: Ref<ContentEditorRef<Content>>}) {
+    const canPrimaryInputHover = useCanPrimaryInputHover();
+
     const containerRef = useRef<HTMLDivElement>(null);
+
+    const hasEditAccessLevel = hasAccessLevel(accessLevel, "Edit");
 
     useImperativeHandle(
         editorRef,
@@ -734,7 +739,14 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
     return (
         <div
             ref={containerRef}
-            className={classNames(contentEditorStyles.containerClassName, customContainerClassName)}
+            className={classNames(
+                contentEditorStyles.containerClassName,
+                !canPrimaryInputHover
+                    ? contentEditorStyles.canNotPrimaryInputHoverContainerClassName
+                    : undefined,
+                !hasEditAccessLevel ? contentEditorStyles.hasNoEditAccessClassName : undefined,
+                customContainerClassName,
+            )}
         >
             <ContentView
                 isEditorInitialAppRender={true}
@@ -2768,6 +2780,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                     // If we're not on mobile the document is always editable.
                     if (!isDualModalityRef.current) return;
 
+                    // If the content isn't editable a tap shouldn't focus it.
+                    if (!hasAccessLevel(propsRef.current.accessLevel ?? "Manage", "Edit")) return;
+
                     // If our view already has focus, we don't need a tap to give it focus.
                     if (view.hasFocus()) return;
 
@@ -2829,6 +2844,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                     touchState = {
                         finish: event => {
                             longPressTimeout.clear();
+
+                            // Make sure, again, that the content is editable before focusing.
+                            if (!hasAccessLevel(propsRef.current.accessLevel ?? "Manage", "Edit"))
+                                return;
 
                             const posResult = view.posAtCoords({
                                 left: touch.clientX,
@@ -3079,6 +3098,10 @@ function ContentEditor<Content extends ContentWithReferences>(
     \* ========================================================================== */
 
     const [isFocused, setIsFocused] = useState(false);
+
+    // Make sure `isFocused` is false if we can't edit since the content editor
+    // will be `contenteditable="false"`.
+    if (isFocused && !hasEditAccessLevel) setIsFocused(false);
 
     // Will be true if the selection has entered the `<ContentEditor>` but the
     // editor isn't focused. For example, when `accessLevel` is `View` and we're

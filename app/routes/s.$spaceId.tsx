@@ -765,10 +765,14 @@ function SpaceLayoutRouteOutlet({
     // elements on mobile devices. (Like the URL bar.)
     const outletContainerHeight =
         resizedWindowHeightForMobileWebKit !== null
-            ? platform === "mobile" && !clientInfo.isNativeMobile
+            ? loaderData.type === "WithAccess" &&
+              platform === "mobile" &&
+              !clientInfo.isNativeMobile
                 ? `min(${resizedWindowHeightForMobileWebKit}px, 100svh - ${spacing[spaceLayoutWebMobileTabBarHeight]})`
                 : `min(${resizedWindowHeightForMobileWebKit}px, 100svh)`
-            : platform === "mobile" && !clientInfo.isNativeMobile
+            : loaderData.type === "WithAccess" &&
+              platform === "mobile" &&
+              !clientInfo.isNativeMobile
             ? `calc(100svh - ${spacing[spaceLayoutWebMobileTabBarHeight]})`
             : "100svh";
 
@@ -857,6 +861,7 @@ function SpaceLayoutRouteOutlet({
                                         // Position with `top` instead of using `bottom: 0` so the saving indicator is
                                         // below the keyboard when the keyboard opens.
                                         top:
+                                            loaderData.type === "WithAccess" &&
                                             platform === "mobile"
                                                 ? `calc(100svh - ${addRemLengths(
                                                       spaceLayoutWebMobileTabBarHeight,

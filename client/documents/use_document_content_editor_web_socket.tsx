@@ -224,11 +224,15 @@ export function useDocumentContentEditorWebSocket(
         if (!shouldConnect) return;
         if (clientState.type === "NotExists") return;
 
+        // Accounts without space access aren't allowed to connect to our realtime
+        // durable object. We'd constantly get authorization errors.
+        if (!currentAccount) return;
+
         clientState.client.connect();
         return () => {
             clientState.client.disconnect();
         };
-    }, [clientState, shouldConnect]);
+    }, [clientState, currentAccount, shouldConnect]);
 
     const toggleShouldConnect = useCallback(() => {
         setShouldConnect(shouldConnect => !shouldConnect);
@@ -378,7 +382,10 @@ export function useDocumentContentEditorWebSocket(
     //
     // NOCOMMIT: Test! To test this we should decrease our own access level from
     // "edit" to "view".
-    const withoutComments = !hasAccessLevel(contentWithoutSendableStepsAccessLevel, "Comment");
+    const withoutComments = useMemo(
+        () => !hasAccessLevel(contentWithoutSendableStepsAccessLevel, "Comment"),
+        [contentWithoutSendableStepsAccessLevel],
+    );
 
     // Re-initialize client if `withoutComments` changes to true. This will happen
     // when going from `Comment` (or higher) access level to `View`.

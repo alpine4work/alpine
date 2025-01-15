@@ -31,9 +31,12 @@ export function useExpensivelyLoadAllSpaceAccounts({
  * network request.
  */
 export function useExpensivelyPreloadAllSpaceAccounts() {
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
-    useIdlyPreloadRpc(expensivelyGetAllSpaceAccounts, {
-        spaceId: space.id,
-    });
+    useIdlyPreloadRpc(
+        expensivelyGetAllSpaceAccounts,
+        // If the actor doesn't have space access then don't preload all space accounts
+        // since we'll get a `PermissionDeniedError` anyway.
+        currentAccount ? {spaceId: space.id} : null,
+    );
 }

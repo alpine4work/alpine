@@ -43,7 +43,6 @@ import {
     authorizeSpaceAccess,
     getAccount,
     isAccountMemberOfSpace,
-    isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
 import {
     AccessLevel,
@@ -79,6 +78,7 @@ import {
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
 import {
     DataLossError,
+    ErrorBase,
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
@@ -93,9 +93,11 @@ import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/pro
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {Result} from "~/shared/helpers/control/result.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
@@ -894,9 +896,7 @@ export async function getDocumentPreviewIfExists(
     const item = await getDocumentItemForAuthorizationIfExists(context, id, options);
     if (!item) return null;
 
-    if (!(await isDocumentItemAccessAuthorized(context, item, "View"))) {
-        throw createDocumentPermissionDeniedError("View");
-    }
+    await authorizeDocumentItemAccess(context, item, "View");
 
     return new DocumentPreviewModel({
         id,
@@ -940,77 +940,72 @@ export async function authorizeDocumentAccess(
     documentId: DocumentId,
     expectedAccessLevel: AccessLevel,
 ): Promise<{spaceId: SpaceId; creatorId: AccountId | null}> {
-    const {spaceId, creatorId, hasAccess} = await isDocumentAccessAuthorized(
-        context,
-        documentId,
-        expectedAccessLevel,
-    );
-    if (!hasAccess) throw createDocumentPermissionDeniedError(expectedAccessLevel);
-
-    return {spaceId, creatorId};
-}
-
-function createDocumentPermissionDeniedError(expectedAccessLevel: AccessLevel) {
-    throw new PermissionDeniedError(
-        quote`Actor doesn't have ${expectedAccessLevel} access level to document`,
-        {
-            displayMessage:
-                documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
-                    expectedAccessLevel
-                ],
-        },
-    );
-}
-
-async function isDocumentAccessAuthorized(
-    context: ServerActionContext,
-    documentId: DocumentId,
-    expectedAccessLevel: AccessLevel,
-) {
     const documentItem = await getDocumentItemForAuthorization(context, documentId);
 
-    return {
-        spaceId: documentItem.spaceId,
-        creatorId: documentItem.creatorId,
-        hasAccess: await isDocumentItemAccessAuthorized(context, documentItem, expectedAccessLevel),
-    };
+    await authorizeDocumentItemAccess(context, documentItem, expectedAccessLevel);
+
+    return {spaceId: documentItem.spaceId, creatorId: documentItem.creatorId};
 }
 
-async function isDocumentItemAccessAuthorized(
+async function authorizeDocumentItemAccess(
     context: ServerActionContext,
     documentItem: {spaceId: SpaceId; accessPolicy: AccessPolicy},
     expectedAccessLevel: AccessLevel,
-): Promise<boolean> {
-    if (context.actor.type === "Anonymous") {
-        throw unauthenticatedSessionError();
-    }
+): Promise<void> {
+    unwrapResult(
+        await authorizeDocumentItemAccessIfPossible(context, documentItem, expectedAccessLevel),
+    );
+}
 
+async function authorizeDocumentItemAccessIfPossible(
+    context: ServerActionContext,
+    documentItem: {spaceId: SpaceId; accessPolicy: AccessPolicy},
+    expectedAccessLevel: AccessLevel,
+): Promise<Result<void, ErrorBase>> {
     // System actors can read all documents in the space they have access to.
     if (context.actor.type === "System") {
-        return context.actor.getSpaceId() === documentItem.spaceId;
-    }
+        if (context.actor.getSpaceId() !== documentItem.spaceId) {
+            return {
+                ok: false,
+                error: new PermissionDeniedError("System actor doesn't have access to space"),
+            };
+        }
 
-    const accountId = context.actor.getAccountId();
-
-    // Check that the account has access to the space the document is in.
-    if (
-        !(await isAccountMemberOfSpaceWithoutAuthorization(
-            context,
-            documentItem.spaceId,
-            accountId,
-        ))
-    ) {
-        return false;
+        return {ok: true, value: undefined};
     }
 
     // Evaluate the document access policy.
-    return evaluateAccessPolicy(
+    const isAccessAuthorized = await evaluateAccessPolicy(
         context,
         documentItem.spaceId,
-        accountId,
+        context.actor.type === "Session" ? context.actor.getAccountId() : null,
         documentItem.accessPolicy,
         expectedAccessLevel,
     );
+
+    if (isAccessAuthorized) return {ok: true, value: undefined};
+
+    // Throw an unauthenticated error if this is an anonymous user instead of
+    // returning false. We want to show the user the unauthenticated error display
+    // message when they don't have access.
+    //
+    // NOCOMMIT: Test this
+    if (context.actor.type === "Anonymous") {
+        return {ok: false, error: unauthenticatedSessionError()};
+    } else {
+        return {
+            ok: false,
+            error: new PermissionDeniedError(
+                quote`Actor doesn't have ${expectedAccessLevel} access level to document`,
+                {
+                    displayMessage:
+                        documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
+                            expectedAccessLevel
+                        ],
+                },
+            ),
+        };
+    }
 }
 
 const DocumentItemAuthorizationCache = new ContextCache<
@@ -1150,11 +1145,15 @@ async function getInternalDocumentIfExists(
                 DocumentItemAuthorizationCache.set(context, documentId, item);
 
                 // Must have view access level to read the document.
-                if (!(await isDocumentItemAccessAuthorized(context, attributes, "View"))) {
-                    throw createDocumentPermissionDeniedError("View");
-                }
+                await authorizeDocumentItemAccess(context, item, "View");
 
-                if (!(await isDocumentItemAccessAuthorized(context, attributes, "Comment"))) {
+                const commentAuthorizationResult = await authorizeDocumentItemAccessIfPossible(
+                    context,
+                    attributes,
+                    "Comment",
+                );
+
+                if (!commentAuthorizationResult.ok) {
                     if (
                         forCollaborationServiceInitialization &&
                         context.actor.serviceName === "DocumentCollaborationService"
@@ -1166,7 +1165,7 @@ async function getInternalDocumentIfExists(
                         // viewers can't see comment marks in document content.
                         isCommentAccessAuthorized = true;
                     } else if (!withOptionalComments) {
-                        throw createDocumentPermissionDeniedError("Comment");
+                        throw commentAuthorizationResult.error;
                     }
                 } else {
                     isCommentAccessAuthorized = true;
@@ -1370,7 +1369,7 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
 } | null> {
     try {
         let maybeAttributes: DocumentAttributesItem | null = null;
-        let isCommentAccessAuthorized = false;
+        let maybeCommentAuthorizationResult: Result<void, ErrorBase> | null = null;
         let stepTransactionsAfterSnapshot: Array<DocumentStepTransactionAfterSnapshotItem> = [];
         let maybeSnapshot: DocumentSnapshotItem | null = null;
         const staleReferencedCommentThreadById = new Map<
@@ -1395,7 +1394,13 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
             // If we've found the snapshot item and the user doesn't have comment access
             // then stop looping. We don't want to read comment thread items since the user
             // doesn't have access to them anyway.
-            if (maybeSnapshot !== null && !isCommentAccessAuthorized) break;
+            if (
+                maybeSnapshot !== null &&
+                maybeCommentAuthorizationResult !== null &&
+                !maybeCommentAuthorizationResult.ok
+            ) {
+                break;
+            }
 
             switch (item.sortRangeType) {
                 case "Attributes": {
@@ -1409,13 +1414,11 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
                     DocumentItemAuthorizationCache.set(context, documentId, item);
 
                     // Must have the view access level to read a document.
-                    if (!(await isDocumentItemAccessAuthorized(context, item, "View"))) {
-                        throw createDocumentPermissionDeniedError("View");
-                    }
+                    await authorizeDocumentItemAccess(context, item, "View");
 
                     // We'll only return comment threads from this function if the actor is allowed
                     // to read comments.
-                    isCommentAccessAuthorized = await isDocumentItemAccessAuthorized(
+                    maybeCommentAuthorizationResult = await authorizeDocumentItemAccessIfPossible(
                         context,
                         item,
                         "Comment",
@@ -1424,8 +1427,8 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
                     // Throw an error if we requested to load some comment thread IDs and the user
                     // doesn't have comment access. This option must be undefined if the user only
                     // has view access.
-                    if (requestedCommentThreadIdsPromise && !isCommentAccessAuthorized) {
-                        throw createDocumentPermissionDeniedError("Comment");
+                    if (requestedCommentThreadIdsPromise && !maybeCommentAuthorizationResult.ok) {
+                        throw maybeCommentAuthorizationResult.error;
                     }
                     break;
                 }
@@ -1446,7 +1449,7 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
             }
         }
 
-        if (maybeAttributes === null) {
+        if (maybeAttributes === null || maybeCommentAuthorizationResult === null) {
             assert(
                 !maybeSnapshot &&
                     stepTransactionsAfterSnapshot.length === 0 &&
@@ -1456,6 +1459,7 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
             return null;
         }
         const attributes = maybeAttributes;
+        const commentAuthorizationResult = maybeCommentAuthorizationResult;
 
         if (!maybeSnapshot)
             throw new DataLossError("Document with attributes should also have a snapshot");
@@ -1508,7 +1512,7 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
             version += stepTransaction.steps.length;
         }
 
-        const referencedCommentThreadIds = isCommentAccessAuthorized
+        const referencedCommentThreadIds = commentAuthorizationResult.ok
             ? getReferencedDocumentCommentThreadIds(content)
             : emptySet;
 
@@ -1614,7 +1618,7 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
         // then we haven't loaded any comment threads. We should have already stopped
         // any comment threads from loading at this point in the function but we double
         // check with asserts to be safe.
-        if (!isCommentAccessAuthorized) {
+        if (!commentAuthorizationResult.ok) {
             assert(referencedCommentThreadById.size === 0);
             assert(archivedCommentThreadById.size === 0);
             assert(actualReferencedCommentThreadById.length === 0);
@@ -1633,14 +1637,14 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
                     // the user can inspect the DOM and see ranges of text with comments even if the
                     // user can't read the comment. The mere presence of a comment on a range of
                     // text may tell the user something they're not allowed to know.
-                    doc: isCommentAccessAuthorized
+                    doc: commentAuthorizationResult.ok
                         ? content
                         : assertDocumentContent(stripDocumentContentCommentMarks(content)),
                     references: {
                         ...contentReferences,
                         // Extra security: Absolutely make sure we don't return comment threads if the
                         // user doesn't have comment access.
-                        commentThreadById: isCommentAccessAuthorized
+                        commentThreadById: commentAuthorizationResult.ok
                             ? new Map(actualReferencedCommentThreadById)
                             : emptyMap,
                     },
@@ -1648,7 +1652,9 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
             }),
             // Extra security: Absolutely make sure we don't return comment threads if the
             // user doesn't have comment access.
-            commentThreads: isCommentAccessAuthorized ? actualRequestedCommentThreads : emptyArray,
+            commentThreads: commentAuthorizationResult.ok
+                ? actualRequestedCommentThreads
+                : emptyArray,
         };
     } catch (error) {
         spaceIdPromiseResolver?.reject(error);
@@ -2726,11 +2732,7 @@ export async function updateDocumentContent(
         // Make sure we have edit access to the document before continuing. Another
         // user with access may have cached the document so it's important we check
         // permissions here.
-        if (
-            !(await isDocumentItemAccessAuthorized(context, internalDocument, expectedAccessLevel))
-        ) {
-            throw createDocumentPermissionDeniedError(expectedAccessLevel);
-        }
+        await authorizeDocumentItemAccess(context, internalDocument, expectedAccessLevel);
 
         const [{newContent, steps, invertedSteps, conflictingSteps}] = await runAllPromises([
             getCollaborativelyUpdateContentResult(context, {
@@ -2831,11 +2833,8 @@ export async function updateDocumentContent(
         }
 
         // Must have the `Manage` permission level to update the access policy.
-        if (
-            (hasAccessPolicyChanged || intentionallyUpdateAccessPolicy) &&
-            !(await isDocumentItemAccessAuthorized(context, internalDocument, "Manage"))
-        ) {
-            throw createDocumentPermissionDeniedError("Manage");
+        if (hasAccessPolicyChanged || intentionallyUpdateAccessPolicy) {
+            await authorizeDocumentItemAccess(context, internalDocument, "Manage");
         }
 
         // Make sure the access policy update is valid and the actor isn't removing
@@ -3785,9 +3784,7 @@ export async function getDocumentContentSteps(
     // This function requires comment access level since we may return steps that
     // add comments to the document and viewers can't see comment ranges on a
     // document.
-    if (!(await isDocumentItemAccessAuthorized(context, documentItem, "Comment"))) {
-        throw createDocumentPermissionDeniedError("Comment");
-    }
+    await authorizeDocumentItemAccess(context, documentItem, "Comment");
 
     if (startVersion < 0) throw new InvalidArgumentError("Start version is less than zero");
     if (startVersion > endVersion)

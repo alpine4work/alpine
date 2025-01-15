@@ -86,6 +86,7 @@ import {
     useSpacingScale,
 } from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {documentContentEditorSidebarWidth} from "~/client/styles/document_shared_styles.js";
 import {
     messageInputEditorBorderRadiusPx,
@@ -129,6 +130,7 @@ import {
 } from "~/shared/documents/document_model.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -231,6 +233,7 @@ export function DocumentContentEditor({
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
+    const {currentAccount} = useSpaceContext();
     const isMounted = useIsMounted();
     const editorRef = useRef<ContentEditorRef<DocumentContentWithReferences>>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -990,94 +993,107 @@ export function DocumentContentEditor({
         setMobileDiscardSidebarCommentInputModalState,
     ] = useState<{onDiscard: () => void} | null>(null);
 
-    const {onSidebarClose, onSidebarMobileFullScreenExpand, onSidebarMobileFullScreenContract} =
-        useEvents({
-            onSidebarClose: () => {
-                const run = () => {
-                    setSidebarState(sidebarState => {
-                        if (!sidebarState.isOpen) return sidebarState;
-                        return {...sidebarState, animationState: "Closing" as const};
-                    });
-                };
-
-                // If the user is in a fullscreen comment thread, warn if they try to exit
-                // without sending a comment they've typed in.
-                //
-                // We do this mostly since the fake comment input rendered when the comment
-                // thread is open but not fullscreen will always be empty. So when returning to
-                // that state we want to actually empty out the underlying comment input.
-                if (
-                    sidebarState.isOpen &&
-                    sidebarState.mobileState.isFullScreen &&
-                    !pinnedCommentInputRef.current?.isEmpty()
-                ) {
-                    setMobileDiscardSidebarCommentInputModalState({onDiscard: run});
-                    return;
-                }
-
-                // We still want to call `clear()` to clear replying state and editing state.
-                pinnedCommentInputRef.current?.clear();
-
-                run();
-            },
-            onSidebarMobileFullScreenExpand: ({
-                onAnimationFinished,
-            }: {
-                onAnimationFinished?: () => void;
-            } = {}) => {
+    const {
+        onSidebarClose,
+        onSidebarMobileFullScreenExpand,
+        onSidebarMobileFullScreenContract,
+        onCopyLink,
+    } = useEvents({
+        onSidebarClose: () => {
+            const run = () => {
                 setSidebarState(sidebarState => {
                     if (!sidebarState.isOpen) return sidebarState;
-                    if (sidebarState.mobileState.isFullScreen) return sidebarState;
+                    return {...sidebarState, animationState: "Closing" as const};
+                });
+            };
+
+            // If the user is in a fullscreen comment thread, warn if they try to exit
+            // without sending a comment they've typed in.
+            //
+            // We do this mostly since the fake comment input rendered when the comment
+            // thread is open but not fullscreen will always be empty. So when returning to
+            // that state we want to actually empty out the underlying comment input.
+            if (
+                sidebarState.isOpen &&
+                sidebarState.mobileState.isFullScreen &&
+                !pinnedCommentInputRef.current?.isEmpty()
+            ) {
+                setMobileDiscardSidebarCommentInputModalState({onDiscard: run});
+                return;
+            }
+
+            // We still want to call `clear()` to clear replying state and editing state.
+            pinnedCommentInputRef.current?.clear();
+
+            run();
+        },
+        onSidebarMobileFullScreenExpand: ({
+            onAnimationFinished,
+        }: {
+            onAnimationFinished?: () => void;
+        } = {}) => {
+            setSidebarState(sidebarState => {
+                if (!sidebarState.isOpen) return sidebarState;
+                if (sidebarState.mobileState.isFullScreen) return sidebarState;
+
+                return {
+                    ...sidebarState,
+                    mobileState: {
+                        isFullScreen: true,
+                        animationState: "Expanding",
+                        onAnimationFinishedRef: {current: onAnimationFinished ?? null},
+                    },
+                };
+            });
+        },
+        onSidebarMobileFullScreenContract: () => {
+            pinnedCommentInputRef.current?.blur();
+
+            const run = () => {
+                setSidebarState(sidebarState => {
+                    if (!sidebarState.isOpen) return sidebarState;
+                    if (!sidebarState.mobileState.isFullScreen) return sidebarState;
 
                     return {
                         ...sidebarState,
                         mobileState: {
-                            isFullScreen: true,
-                            animationState: "Expanding",
-                            onAnimationFinishedRef: {current: onAnimationFinished ?? null},
+                            ...sidebarState.mobileState,
+                            animationState: "Contracting",
                         },
                     };
                 });
-            },
-            onSidebarMobileFullScreenContract: () => {
-                pinnedCommentInputRef.current?.blur();
+            };
 
-                const run = () => {
-                    setSidebarState(sidebarState => {
-                        if (!sidebarState.isOpen) return sidebarState;
-                        if (!sidebarState.mobileState.isFullScreen) return sidebarState;
+            // If the user is in a fullscreen comment thread, warn if they try to exit
+            // without sending a comment they've typed in.
+            //
+            // We do this mostly since the fake comment input rendered when the comment
+            // thread is open but not fullscreen will always be empty. So when returning to
+            // that state we want to actually empty out the underlying comment input.
+            if (
+                sidebarState.isOpen &&
+                sidebarState.mobileState.isFullScreen &&
+                !pinnedCommentInputRef.current?.isEmpty()
+            ) {
+                setMobileDiscardSidebarCommentInputModalState({onDiscard: run});
+                return;
+            }
 
-                        return {
-                            ...sidebarState,
-                            mobileState: {
-                                ...sidebarState.mobileState,
-                                animationState: "Contracting",
-                            },
-                        };
-                    });
-                };
+            // We still want to call `clear()` to clear replying state and editing state.
+            pinnedCommentInputRef.current?.clear();
 
-                // If the user is in a fullscreen comment thread, warn if they try to exit
-                // without sending a comment they've typed in.
-                //
-                // We do this mostly since the fake comment input rendered when the comment
-                // thread is open but not fullscreen will always be empty. So when returning to
-                // that state we want to actually empty out the underlying comment input.
-                if (
-                    sidebarState.isOpen &&
-                    sidebarState.mobileState.isFullScreen &&
-                    !pinnedCommentInputRef.current?.isEmpty()
-                ) {
-                    setMobileDiscardSidebarCommentInputModalState({onDiscard: run});
-                    return;
-                }
+            run();
+        },
+        onCopyLink: async () => {
+            // When the user goes to copy the link for a document, make sure the document
+            // has been created before copying. Otherwise the other user won't see realtime
+            // updates to the document.
+            await ensureCreateDocument();
 
-                // We still want to call `clear()` to clear replying state and editing state.
-                pinnedCommentInputRef.current?.clear();
-
-                run();
-            },
-        });
+            const url = new URL(`/s/${spaceId}/documents/${documentId}`, window.location.href);
+            await writeTextToClipboard(url.toString());
+        },
+    });
 
     /* ========================================================================== *\
      *                        Comment decoration collection                       *
@@ -1488,15 +1504,13 @@ export function DocumentContentEditor({
     const navigationBarRef = useRef<NavigationBarRef>(null);
     const titleBoundaryRef = useRef<HTMLElement | null>(null);
 
-    const handleCopyLink = async () => {
-        // When the user goes to copy the link for a document, make sure the document
-        // has been created before copying. Otherwise the other user won't see realtime
-        // updates to the document.
-        await ensureCreateDocument();
+    const isUndoDisabled = editorState.undoDepth() === 0;
+    const isRedoDisabled = editorState.redoDepth() === 0;
 
-        const url = new URL(`/s/${spaceId}/documents/${documentId}`, window.location.href);
-        await writeTextToClipboard(url.toString());
-    };
+    const hasManageAccessLevel = useMemo(
+        () => hasAccessLevel(accessLevel, "Manage"),
+        [accessLevel],
+    );
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         ref: navigationBarRef,
@@ -1510,53 +1524,74 @@ export function DocumentContentEditor({
                 ),
             [platform, routeLayout],
         ),
-        menuActions: [
-            [
-                {
-                    label: "Copy link",
-                    pressErrorTitle: "Couldn’t copy link",
-                    onPress: handleCopyLink,
-                },
-            ],
-            [
-                {
-                    label: "Undo",
-                    isDisabled: editorState.undoDepth() === 0,
-                    keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
-                    onPress: () => assertExists(editorRef.current).undo(),
-                },
-                {
-                    label: "Redo",
-                    isDisabled: editorState.redoDepth() === 0,
-                    keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
-                    onPress: () => assertExists(editorRef.current).redo(),
-                },
-            ],
-            ...(platform !== "mobile" &&
-            (process.env.NODE_ENV !== "production" || spaceId === alpineCompanyKnownSpaceId)
-                ? [
-                      [
-                          cast<MenuAction>({
-                              label: "Present",
-                              icon: <LecturnIcon />,
-                              iconPlacement: "end",
-                              pressErrorTitle: "Couldn’t present document",
-                              onPress: async () => {
-                                  await assertExists(presentationControllerRef.current).present();
+        menuActions: useMemo(
+            () => [
+                [
+                    {
+                        label: "Copy link",
+                        pressErrorTitle: "Couldn’t copy link",
+                        onPress: onCopyLink,
+                    },
+                ],
+                ...(hasAccessLevel(accessLevel, "Edit")
+                    ? [
+                          [
+                              {
+                                  label: "Undo",
+                                  isDisabled: isUndoDisabled,
+                                  keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
+                                  onPress: () => assertExists(editorRef.current).undo(),
                               },
-                          }),
-                      ],
-                  ]
-                : []),
-        ],
-        shareButton: {
-            entityNoun: "document",
-            accessPolicy: content.doc.attrs.accessPolicy,
-            onAccessPolicyChange: accessPolicy =>
-                onEditorStateChange(editorState.setAccessPolicy(accessPolicy)),
-            isReadOnly: !hasAccessLevel(accessLevel, "Manage"),
-            onCopyLink: handleCopyLink,
-        },
+                              {
+                                  label: "Redo",
+                                  isDisabled: isRedoDisabled,
+                                  keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
+                                  onPress: () => assertExists(editorRef.current).redo(),
+                              },
+                          ],
+                      ]
+                    : emptyArray),
+                ...(platform !== "mobile" &&
+                (process.env.NODE_ENV !== "production" || spaceId === alpineCompanyKnownSpaceId)
+                    ? [
+                          [
+                              cast<MenuAction>({
+                                  label: "Present",
+                                  icon: <LecturnIcon />,
+                                  iconPlacement: "end",
+                                  pressErrorTitle: "Couldn’t present document",
+                                  onPress: async () => {
+                                      await assertExists(
+                                          presentationControllerRef.current,
+                                      ).present();
+                                  },
+                              }),
+                          ],
+                      ]
+                    : []),
+            ],
+            [
+                accessLevel,
+                isAppleDevice,
+                isRedoDisabled,
+                isUndoDisabled,
+                onCopyLink,
+                platform,
+                spaceId,
+            ],
+        ),
+        // Don't render the share button if the account doesn't have space access. They
+        // won't be allowed to see the names of accounts in the share dialog.
+        shareButton: currentAccount
+            ? {
+                  entityNoun: "document",
+                  accessPolicy: content.doc.attrs.accessPolicy,
+                  onAccessPolicyChange: accessPolicy =>
+                      onEditorStateChange(editorState.setAccessPolicy(accessPolicy)),
+                  isReadOnly: !hasManageAccessLevel,
+                  onCopyLink,
+              }
+            : undefined,
         desktopTitleMaxWidth: contentStyles.contentMaxWidth,
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
