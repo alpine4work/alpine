@@ -71,7 +71,9 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentDa
 
     assert(chat.accounts.length > 0);
     const otherChatAccounts = chat.accounts.filter(
-        account => account.id !== spaceRouteData?.currentAccount.id,
+        account =>
+            spaceRouteData?.type !== "WithAccess" ||
+            account.id !== spaceRouteData?.currentAccount.id,
     );
 
     return [

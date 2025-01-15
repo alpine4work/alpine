@@ -466,6 +466,19 @@ export type TracerEventData = {
         /** Information about the space the event was fired while looking at. */
         readonly spaceId?: SpaceId;
 
+        /**
+         * True if this is an anonymous request. Instead of `context.accountId` this'll
+         * be set when there is no authenticated account.
+         */
+        readonly isAnonymous?: boolean;
+
+        /**
+         * True if the actor is accessing a space (in `context.spaceId`) it doesn't
+         * have access to. Will be true for anonymous requests and session actors that
+         * aren't a member of the space.
+         */
+        readonly withoutSpaceAccess?: boolean;
+
         /** The WebSocket connection our event is on behalf of. */
         readonly webSocketConnectionId?: WebSocketConnectionId;
 

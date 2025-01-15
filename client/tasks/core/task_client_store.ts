@@ -286,7 +286,7 @@ export class TaskClientStore {
     private readonly _internal: TaskClientStoreInternal;
     public readonly accountStore: AccountClientStore;
     public readonly spaceId: SpaceId;
-    public readonly currentAccountId: AccountId;
+    public readonly currentAccountId: AccountId | null;
     public readonly clock: HybridLogicalClock;
 
     constructor({
@@ -297,7 +297,7 @@ export class TaskClientStore {
     }: {
         accountStore: AccountClientStore;
         spaceId: SpaceId;
-        currentAccountId: AccountId;
+        currentAccountId: AccountId | null;
         onError: (
             options:
                 | {display: true; title: string; error: unknown}
@@ -479,7 +479,7 @@ export class TaskClientStoreInternal {
 
     public readonly accountStore: AccountClientStore;
     public readonly spaceId: SpaceId;
-    public readonly currentAccountId: AccountId;
+    public readonly currentAccountId: AccountId | null;
     private readonly _onError: (
         options: {display: true; title: string; error: unknown} | {display: false; error: unknown},
     ) => void;
@@ -591,7 +591,7 @@ export class TaskClientStoreInternal {
         }: {
             accountStore: AccountClientStore;
             spaceId: SpaceId;
-            currentAccountId: AccountId;
+            currentAccountId: AccountId | null;
             onError: (
                 options:
                     | {display: true; title: string; error: unknown}

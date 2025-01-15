@@ -200,7 +200,7 @@ export function TaskRealtimeClientContextProvider({
     children,
 }: {
     spaceId: SpaceId;
-    currentAccountId: AccountId;
+    currentAccountId: AccountId | null;
     children: ReactNode;
 }) {
     const dataRouterStateContext = useContext(DataRouterStateContext);

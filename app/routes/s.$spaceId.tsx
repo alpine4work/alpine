@@ -69,16 +69,17 @@ import {
     TaskRealtimeClientContextProvider,
     clientLoaderTaskStoreLoaderData,
 } from "~/client/tasks/core/task_realtime_client_context_provider.js";
-import {getInbox} from "~/server/notifications/data/notifications_table.js";
+import {
+    InboxSessionActionContextWithBroadcast,
+    getInbox,
+} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccount, getSpace} from "~/server/spaces/spaces_table.js";
+import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
-import {
-    DynamoGeneralRealtimeItem,
-    createDynamoGeneralRealtimeItemSchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {UnknownError} from "~/shared/error/error.js";
+import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {PermissionDeniedError, UnknownError} from "~/shared/error/error.js";
 import {
     FileAttachmentTarget,
     deserializeFileAttachmentTargetString,
@@ -87,6 +88,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
@@ -114,11 +116,19 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
-export const LoaderSchema = Schema.object({
-    space: SpaceModel.schema(),
-    currentAccount: AccountModel.schema,
-    hasInternalAccess: Schema.boolean,
-    inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
+export const LoaderSchema = Schema.union({
+    WithAccess: Schema.object({
+        type: Schema.value("WithAccess"),
+        space: SpaceModel.schema(),
+        currentAccount: AccountModel.schema,
+        hasInternalAccess: Schema.boolean,
+        inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
+    }),
+    WithoutAccess: Schema.object({
+        type: Schema.value("WithoutAccess"),
+        space: SpaceModel.schema(),
+        currentAccountWithoutSpace: AccountModelWithoutSpace.schema.nullable(),
+    }),
 });
 
 export function links(): Array<LinkDescriptor> {
@@ -167,32 +177,70 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({currentParams, nextP
 export async function loader({context: loaderContext, params}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
 
-    const context = (await loaderContext.actor.authenticate()).actor.authorizeSession();
+    const context = await loaderContext.actor.authenticate();
 
-    const [space, currentAccount, {hasInternalAccess}, inbox] = await runAllPromises([
-        getSpace(context, spaceId),
-        getAccount(context, spaceId, context.actor.getAccountId()),
-        context.actor.getAccountAndHasInternalAccess(),
-        getInbox(context, {spaceId}),
-    ]);
+    switch (context.actor.type) {
+        case "System": {
+            // Allowing a system actor to load our app would be very dangerous! Since
+            // system actors have read/write access to everything in the space.
+            throw new PermissionDeniedError("Can't load the application with a system actor");
+        }
 
-    const propagateEventData: TracerEventData = {
-        context: {
-            accountId: currentAccount.id,
-            spaceId: space.id,
-        },
-    };
+        case "Anonymous": {
+            const space = new SpaceModel({
+                id: spaceId,
+                // If you don't have space access, you're not allowed to see the space's name.
+                // Use an empty string as a placeholder.
+                name: "",
+            });
 
-    return jsonWithSchema(
-        LoaderSchema,
-        {
-            space,
-            currentAccount,
-            hasInternalAccess,
-            inbox,
-        },
-        {propagateEventData},
-    );
+            const propagateEventData: TracerEventData = {
+                context: {
+                    isAnonymous: true,
+                    withoutSpaceAccess: true,
+                    spaceId,
+                },
+            };
+
+            return jsonWithSchema(
+                LoaderSchema,
+                {type: "WithoutAccess", space, currentAccountWithoutSpace: null},
+                {propagateEventData},
+            );
+        }
+
+        // NOCOMMIT: Session actor from a different space? Remember to set
+        // `propagateEventData` appropriately.
+        case "Session": {
+            const [space, currentAccount, {hasInternalAccess}, inbox] = await runAllPromises([
+                getSpace(context, spaceId),
+                getAccount(context, spaceId, context.actor.getAccountId()),
+                context.actor.getAccountAndHasInternalAccess(),
+                getInbox(context as InboxSessionActionContextWithBroadcast, {spaceId}),
+            ]);
+
+            const propagateEventData: TracerEventData = {
+                context: {
+                    accountId: currentAccount.id,
+                    spaceId: space.id,
+                },
+            };
+
+            return jsonWithSchema(
+                LoaderSchema,
+                {
+                    type: "WithAccess",
+                    space,
+                    currentAccount,
+                    hasInternalAccess,
+                    inbox,
+                },
+                {propagateEventData},
+            );
+        }
+        default:
+            throw exhaustive(context.actor);
+    }
 }
 
 const SearchDebugOptionsSchema = Schema.object({
@@ -271,23 +319,24 @@ function SpaceLayoutRouteInner({
     loaderData: SchemaType<typeof LoaderSchema>;
     error: unknown;
 }) {
+    const params = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     const context = useAppContext();
     const isInitialAppRender = useIsInitialAppRender();
     const clientInfo = useClientInfo();
     const platform = usePlatform();
 
+    const spaceId = params.spaceId as SpaceId;
+
     const peekStackRef = useRef<PeekStackContextProviderRef>(null);
 
-    const {space, currentAccount, hasInternalAccess, inbox: initialInbox} = loaderData;
-
     useEffect(() => {
-        if (hasInternalAccess) {
+        if (loaderData.type === "WithAccess" && loaderData.hasInternalAccess) {
             attachDevConsoleForAccountInProduction();
         }
-    }, [hasInternalAccess]);
+    }, [loaderData]);
 
-    const accountsStore = useAccountClientStoreForSpaceId(space.id);
+    const accountsStore = useAccountClientStoreForSpaceId(spaceId);
 
     useDevConsoleTool("accounts", () => ({
         store: accountsStore,
@@ -535,6 +584,8 @@ function SpaceLayoutRouteInner({
 
     return (
         <GlobalKeyDownEvent
+            // Re-render everything when the space changes.
+            key={spaceId}
             onGlobalKeyDown={event => {
                 switch (event.key) {
                     // Disable Home/End browser behavior when not focused in a text input. When
@@ -597,14 +648,23 @@ function SpaceLayoutRouteInner({
                 {globalLoadingIndicator => (
                     <ContextMenuContextProvider>
                         <SpaceContextProvider
-                            // Re-render everything when the space changes.
-                            key={space.id}
-                            space={space}
-                            currentAccount={currentAccount}
+                            space={loaderData.space}
+                            currentAccount={
+                                loaderData.type === "WithAccess" ? loaderData.currentAccount : null
+                            }
+                            currentAccountWithoutSpace={
+                                loaderData.type === "WithAccess"
+                                    ? loaderData.currentAccount
+                                    : loaderData.currentAccountWithoutSpace
+                            }
                         >
                             <TaskRealtimeClientContextProvider
-                                spaceId={space.id}
-                                currentAccountId={currentAccount.id}
+                                spaceId={spaceId}
+                                currentAccountId={
+                                    loaderData.type === "WithAccess"
+                                        ? loaderData.currentAccount.id
+                                        : loaderData.currentAccountWithoutSpace?.id ?? null
+                                }
                             >
                                 <PeekStackContextProvider
                                     ref={peekStackRef}
@@ -615,20 +675,22 @@ function SpaceLayoutRouteInner({
                                     <SpaceLayoutRouteOutlet
                                         dataRouterStateContext={dataRouterStateContext}
                                         error={error}
-                                        space={space}
-                                        currentAccount={currentAccount}
-                                        initialInbox={initialInbox}
+                                        loaderData={loaderData}
                                         setSearchQueryText={setSearchQueryText}
                                         globalLoadingIndicator={globalLoadingIndicator}
                                     />
                                 </PeekStackContextProvider>
                                 {modals}
-                                {platform === "mobile" && !clientInfo.isNativeMobile && (
-                                    <SpaceLayoutWebMobileTabBar initialInbox={initialInbox} />
-                                )}
-                                {clientInfo.isNativeMobile && (
+                                {loaderData.type === "WithAccess" &&
+                                    platform === "mobile" &&
+                                    !clientInfo.isNativeMobile && (
+                                        <SpaceLayoutWebMobileTabBar
+                                            initialInbox={loaderData.inbox}
+                                        />
+                                    )}
+                                {loaderData.type === "WithAccess" && clientInfo.isNativeMobile && (
                                     <SpaceLayoutNativeMobileInboxController
-                                        initialInbox={initialInbox}
+                                        initialInbox={loaderData.inbox}
                                     />
                                 )}
                             </TaskRealtimeClientContextProvider>
@@ -643,17 +705,13 @@ function SpaceLayoutRouteInner({
 function SpaceLayoutRouteOutlet({
     dataRouterStateContext,
     error,
-    space,
-    currentAccount,
-    initialInbox,
+    loaderData,
     setSearchQueryText,
     globalLoadingIndicator,
 }: {
     dataRouterStateContext: NonNullable<ContextType<typeof DataRouterStateContext>>;
     error: unknown;
-    space: SpaceModel;
-    currentAccount: AccountModel | null;
-    initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
+    loaderData: SchemaType<typeof LoaderSchema>;
     setSearchQueryText: (queryText: string) => void;
     globalLoadingIndicator: GlobalLoadingIndicator | null;
 }) {
@@ -769,11 +827,11 @@ function SpaceLayoutRouteOutlet({
                             // Make sure inert content is not in the accessibility tree.
                             aria-hidden={isInert ? "true" : undefined}
                         >
-                            {platform !== "mobile" && currentAccount !== null && (
+                            {loaderData.type === "WithAccess" && platform !== "mobile" && (
                                 <SpaceLayoutSideBar
-                                    space={space}
-                                    currentAccount={currentAccount}
-                                    initialInbox={initialInbox}
+                                    space={loaderData.space}
+                                    currentAccount={loaderData.currentAccount}
+                                    initialInbox={loaderData.inbox}
                                     onSearchPress={() => setSearchQueryText("")}
                                 />
                             )}
@@ -920,17 +978,15 @@ function SpaceLayoutRouteOutlet({
         return nodes;
     }, [
         context.tracer,
-        currentAccount,
         error,
         globalLoadingIndicatorForMobile,
-        initialInbox,
         isInert,
+        loaderData,
         nativeMobileRouterState,
         outletContainerHeight,
         params.spaceId,
         platform,
         setSearchQueryText,
-        space,
         updateMetaTitle,
     ]);
 
