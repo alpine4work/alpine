@@ -1631,8 +1631,8 @@ function TaskRowTitleParentTaskTitle({
 
     const access = useStore(
         useMemo(
-            () => createTaskEntryAccessStore(currentAccount.id, query, parentTaskEntryStore),
-            [currentAccount.id, parentTaskEntryStore, query],
+            () => createTaskEntryAccessStore(currentAccount?.id, query, parentTaskEntryStore),
+            [currentAccount?.id, parentTaskEntryStore, query],
         ),
     );
 

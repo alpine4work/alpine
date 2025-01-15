@@ -154,7 +154,7 @@ export function TaskDetailView({
         useMemo(
             () =>
                 createTaskEntryAccessStore(
-                    currentAccount.id,
+                    currentAccount?.id,
                     taskSubscription,
                     taskSubscription.taskEntryStore,
                 ).map(access => {
@@ -190,7 +190,7 @@ export function TaskDetailView({
                             throw exhaustive(access);
                     }
                 }),
-            [currentAccount.id, taskSubscription],
+            [currentAccount?.id, taskSubscription],
         ),
     );
 
@@ -1190,6 +1190,10 @@ function TaskDetailViewMain(
                                 aria-labelledby={ariaLabelledBy}
                                 assigneeAccountData={assigneeAccountData}
                                 onAssigneeAccountChange={assigneeAccount => {
+                                    // Currently, accounts without space access can't edit tasks. The max
+                                    // permission level of `urlGrant` is `View`.
+                                    assert(currentAccount);
+
                                     const time = store.clock.now();
 
                                     store.commitTaskActionTransaction(
@@ -1518,7 +1522,7 @@ function TaskDetailViewParentBreadcrumbs({
 
                 const parentAccess = computeTaskEntryAccess(
                     get,
-                    currentAccount.id,
+                    currentAccount?.id,
                     taskSubscription,
                     parentTaskEntry,
                 );
@@ -1617,7 +1621,7 @@ function TaskDetailViewParentBreadcrumbs({
                 </Box>
             );
         });
-    }, [currentAccount.id, navigate, task, taskSubscription]);
+    }, [currentAccount?.id, navigate, task, taskSubscription]);
 
     return useStore(nodeStore);
 }

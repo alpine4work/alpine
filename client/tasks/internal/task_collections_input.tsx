@@ -299,6 +299,10 @@ function TaskCollectionsInput(
         onSelectionChange: key => {
             if (typeof key !== "string") return;
 
+            // Currently, accounts without space access can't edit tasks. The max
+            // permission level of `urlGrant` is `View`.
+            assert(currentAccount);
+
             const shouldReturnFocusToInput = getInteractionModality() !== "pointer";
 
             if (key.startsWith("Collection:")) {
@@ -1071,6 +1075,10 @@ function TaskCollectionsInput(
                             }
                         }}
                         onConfirm={inputValue => {
+                            // Currently, accounts without space access can't edit tasks. The max
+                            // permission level of `urlGrant` is `View`.
+                            assert(currentAccount);
+
                             const collectionId = generateId<TaskCollectionId>();
 
                             commitActionTransactionEvenIfGhost(taskId => [

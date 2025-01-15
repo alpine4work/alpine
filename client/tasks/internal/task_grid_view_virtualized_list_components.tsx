@@ -61,6 +61,7 @@ import {TaskRowView, TaskRowViewRef} from "~/client/tasks/internal/task_row_view
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
@@ -689,6 +690,10 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             return;
         }
 
+        // Currently, accounts without space access can't edit tasks. The max
+        // permission level of `urlGrant` is `View`.
+        assert(currentAccount);
+
         const newTaskId = generateId<TaskId>();
 
         disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
@@ -720,6 +725,10 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
         // manually sorted query. We don't have control of task order in an
         // auto-sorted query.
         if (!isQueryManuallySorted) return;
+
+        // Currently, accounts without space access can't edit tasks. The max
+        // permission level of `urlGrant` is `View`.
+        assert(currentAccount);
 
         if (!taskId) {
             // This method doesn't support bottom ghost tasks. You can't create a task

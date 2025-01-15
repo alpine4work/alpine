@@ -616,6 +616,7 @@ function SpaceLayoutRouteInner({
                                         dataRouterStateContext={dataRouterStateContext}
                                         error={error}
                                         space={space}
+                                        currentAccount={currentAccount}
                                         initialInbox={initialInbox}
                                         setSearchQueryText={setSearchQueryText}
                                         globalLoadingIndicator={globalLoadingIndicator}
@@ -643,6 +644,7 @@ function SpaceLayoutRouteOutlet({
     dataRouterStateContext,
     error,
     space,
+    currentAccount,
     initialInbox,
     setSearchQueryText,
     globalLoadingIndicator,
@@ -650,6 +652,7 @@ function SpaceLayoutRouteOutlet({
     dataRouterStateContext: NonNullable<ContextType<typeof DataRouterStateContext>>;
     error: unknown;
     space: SpaceModel;
+    currentAccount: AccountModel | null;
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
     setSearchQueryText: (queryText: string) => void;
     globalLoadingIndicator: GlobalLoadingIndicator | null;
@@ -766,9 +769,10 @@ function SpaceLayoutRouteOutlet({
                             // Make sure inert content is not in the accessibility tree.
                             aria-hidden={isInert ? "true" : undefined}
                         >
-                            {platform !== "mobile" && (
+                            {platform !== "mobile" && currentAccount !== null && (
                                 <SpaceLayoutSideBar
                                     space={space}
+                                    currentAccount={currentAccount}
                                     initialInbox={initialInbox}
                                     onSearchPress={() => setSearchQueryText("")}
                                 />
@@ -916,6 +920,7 @@ function SpaceLayoutRouteOutlet({
         return nodes;
     }, [
         context.tracer,
+        currentAccount,
         error,
         globalLoadingIndicatorForMobile,
         initialInbox,

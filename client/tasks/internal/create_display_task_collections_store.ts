@@ -18,7 +18,7 @@ export function createDisplayTaskCollectionsStore({
     referencesSubscription,
     collections,
 }: {
-    currentAccount: AccountModel;
+    currentAccount: AccountModel | null;
     referencesSubscription: TaskClientQuery | TaskClientTaskSubscription;
     collections: TaskCollectionSet;
 }): Store<ReadonlyArray<TaskCollectionModel>> {
@@ -31,7 +31,7 @@ export function createDisplayTaskCollectionsStore({
 
             // Test that the collection is not deleted and we have access via the
             // access policy.
-            const access = getTaskCollectionEntryAccess(currentAccount.id, collectionEntry);
+            const access = getTaskCollectionEntryAccess(currentAccount?.id, collectionEntry);
             if (access.type !== "PermissionGranted") return;
 
             return collectionEntry.collection;

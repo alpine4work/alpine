@@ -32,7 +32,10 @@ export function SpaceContextProvider({
 
     return (
         <SpaceContextDefinition.Provider
-            value={useMemo(() => ({space, currentAccount}), [currentAccount, space])}
+            value={useMemo(
+                () => ({space, currentAccount, currentAccountWithoutSpace: currentAccount}),
+                [currentAccount, space],
+            )}
         >
             <MyAccountWebSocketContext.Provider
                 value={useMemo(
@@ -63,7 +66,10 @@ export function TestSpaceContextProvider({
 
     return (
         <SpaceContextDefinition.Provider
-            value={useMemo(() => ({space, currentAccount}), [currentAccount, space])}
+            value={useMemo(
+                () => ({space, currentAccount, currentAccountWithoutSpace: currentAccount}),
+                [currentAccount, space],
+            )}
         >
             {children}
         </SpaceContextDefinition.Provider>

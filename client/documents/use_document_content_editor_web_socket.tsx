@@ -44,6 +44,7 @@ import {PermissionDeniedError} from "~/shared/error/error.js";
 import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
@@ -143,7 +144,7 @@ export function useDocumentContentEditorWebSocket(
         ? "Manage"
         : getAccountAccessLevelAssumingSpaceAccess(
               initialDocument.content.doc.attrs.accessPolicy,
-              currentAccount.id,
+              currentAccount?.id,
           );
 
     const initialWithoutComments = !hasAccessLevel(initialAccessLevel, "Comment");
@@ -168,7 +169,9 @@ export function useDocumentContentEditorWebSocket(
                 return {
                     type: "NotExists",
                     state: new ValueStore(
-                        getInitialDocumentContentEditorState({currentAccountId: currentAccount.id}),
+                        getInitialDocumentContentEditorState({
+                            currentAccountId: assertExists(currentAccount).id,
+                        }),
                     ),
                     pendingProcedures: [],
                 };
@@ -182,7 +185,7 @@ export function useDocumentContentEditorWebSocket(
                         documentId: initialDocument.id,
                         withoutComments: initialWithoutComments,
                         initialState: getInitialDocumentContentEditorState({
-                            currentAccountId: currentAccount.id,
+                            currentAccountId: currentAccount?.id ?? null,
                             initialVersion: initialDocument.version,
                             initialContent: initialDocument.content,
                         }),
@@ -207,7 +210,7 @@ export function useDocumentContentEditorWebSocket(
                 documentId: initialDocument.id,
                 withoutComments: initialWithoutComments,
                 initialState: getInitialDocumentContentEditorState({
-                    currentAccountId: currentAccount.id,
+                    currentAccountId: currentAccount?.id ?? null,
                     initialVersion: initialDocument.version,
                     initialContent: initialDocument.content,
                 }),
@@ -317,7 +320,7 @@ export function useDocumentContentEditorWebSocket(
     );
 
     // We assume the current `AccountId` never changes.
-    assert(state.extra.currentAccountId === currentAccount.id);
+    assert(state.extra.currentAccountId === (currentAccount?.id ?? null));
 
     const content = state.editorState.getContent();
     const contentWithoutSendableSteps = state.editorState.getDocWithoutSendableSteps();
@@ -327,9 +330,9 @@ export function useDocumentContentEditorWebSocket(
         () =>
             getAccountAccessLevelAssumingSpaceAccess(
                 contentWithoutSendableSteps.attrs.accessPolicy,
-                currentAccount.id,
+                currentAccount?.id,
             ),
-        [contentWithoutSendableSteps.attrs.accessPolicy, currentAccount.id],
+        [contentWithoutSendableSteps.attrs.accessPolicy, currentAccount?.id],
     );
 
     // The current account's access level. We take the minimum access level of
@@ -343,19 +346,19 @@ export function useDocumentContentEditorWebSocket(
                 minAccessLevel(
                     getAccountAccessLevelAssumingSpaceAccess(
                         content.doc.attrs.accessPolicy,
-                        currentAccount.id,
+                        currentAccount?.id,
                     ),
                     contentWithoutSendableStepsAccessLevel,
                 ),
                 getAccountAccessLevelAssumingSpaceAccess(
                     persistedContent.attrs.accessPolicy,
-                    currentAccount.id,
+                    currentAccount?.id,
                 ),
             ),
         [
             content.doc.attrs.accessPolicy,
             contentWithoutSendableStepsAccessLevel,
-            currentAccount.id,
+            currentAccount?.id,
             persistedContent.attrs.accessPolicy,
         ],
     );
@@ -393,7 +396,7 @@ export function useDocumentContentEditorWebSocket(
                 documentId: clientState.client.documentId,
                 withoutComments,
                 initialState: getInitialDocumentContentEditorState({
-                    currentAccountId: currentAccount.id,
+                    currentAccountId: currentAccount?.id ?? null,
                     initialVersion: state.editorState.getVersion(),
                     initialContent: {
                         doc: assertDocumentContent(
@@ -445,7 +448,7 @@ export function useDocumentContentEditorWebSocket(
                     documentId: document.id,
                     withoutComments: false,
                     initialState: getInitialDocumentContentEditorState({
-                        currentAccountId: currentAccount.id,
+                        currentAccountId: currentAccount?.id ?? null,
                         initialVersion: document.version,
                         initialContent: document.content,
                         // Try to maintain the user's selection while resetting state.
@@ -457,7 +460,7 @@ export function useDocumentContentEditorWebSocket(
                 }),
             });
         }, setErrorState);
-    }, [clientState, context, currentAccount.id, setErrorState, withoutComments]);
+    }, [clientState, context, currentAccount?.id, setErrorState, withoutComments]);
 
     return {
         spaceId: space.id,

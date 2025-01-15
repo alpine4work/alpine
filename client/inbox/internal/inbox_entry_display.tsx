@@ -245,7 +245,7 @@ export function getInboxEntryDisplay({
 }: {
     entry: InboxEntryModel;
     locale: Locale;
-    currentAccount: AccountModel;
+    currentAccount: AccountModel | null;
 }): InboxEntryDisplay {
     switch (entry.type) {
         case "Chat":
@@ -272,7 +272,7 @@ function getInboxChatEntryDisplay({
 }: {
     entry: InboxChatEntryModel;
     locale: Locale;
-    currentAccount: AccountModel;
+    currentAccount: AccountModel | null;
 }): InboxEntryDisplay {
     const firstAccount = entry.otherChatAccount ?? entry.latestMessage.author;
 
@@ -294,7 +294,7 @@ function getInboxChatEntryDisplay({
             summary.push(" and ");
             summary.push(printPrettyNumber(locale, entry.chatAccountCount - 3, "other"));
         }
-    } else if (entry.latestMessage.author.id !== currentAccount.id) {
+    } else if (entry.latestMessage.author.id !== currentAccount?.id) {
         // NOTE(calebmer): Chat message summaries are an exception to the inbox entry
         // display style guide since the summary is ordered who/what instead of
         // what/how.
@@ -358,10 +358,10 @@ function getInboxPostCommentsEntryDisplay({
     currentAccount,
 }: {
     entry: InboxPostCommentsEntryModel;
-    currentAccount: AccountModel;
+    currentAccount: AccountModel | null;
 }): InboxEntryDisplay {
     const firstAccount: AccountModel =
-        entry.postAuthor.id !== currentAccount.id
+        entry.postAuthor.id !== currentAccount?.id
             ? entry.postAuthor
             : entry.otherCommentAuthor ?? entry.latestComment?.author ?? entry.postAuthor;
 
@@ -379,7 +379,7 @@ function getInboxPostCommentsEntryDisplay({
         summary.push(entry.latestComment.author);
         summary.push(" mentioned you in a comment on ");
 
-        if (currentAccount.id === entry.postAuthor.id) {
+        if (currentAccount?.id === entry.postAuthor.id) {
             summary.push("your");
         } else if (entry.latestComment.author.id === entry.postAuthor.id) {
             summary.push("their");
@@ -390,7 +390,7 @@ function getInboxPostCommentsEntryDisplay({
 
         summary.push(` post in ${entry.channel.name}`);
     } else {
-        if (currentAccount.id === entry.postAuthor.id) {
+        if (currentAccount?.id === entry.postAuthor.id) {
             summary.push("Your");
         } else {
             summary.push(entry.postAuthor);
@@ -462,10 +462,10 @@ function getInboxDocumentCommentThreadEntryDisplay({
     currentAccount,
 }: {
     entry: InboxDocumentCommentThreadEntryModel;
-    currentAccount: AccountModel;
+    currentAccount: AccountModel | null;
 }): InboxEntryDisplay {
     const firstAccount: AccountModel =
-        entry.firstCommentAuthor.id !== currentAccount.id
+        entry.firstCommentAuthor.id !== currentAccount?.id
             ? entry.firstCommentAuthor
             : entry.otherCommentAuthor ?? entry.latestComment.author;
 
@@ -482,7 +482,7 @@ function getInboxDocumentCommentThreadEntryDisplay({
         summary.push(entry.latestComment.author);
         summary.push(" mentioned you in ");
 
-        if (currentAccount.id === entry.firstCommentAuthor.id) {
+        if (currentAccount?.id === entry.firstCommentAuthor.id) {
             summary.push("your");
         } else if (entry.latestComment.author.id === entry.firstCommentAuthor.id) {
             summary.push("their");
@@ -493,7 +493,7 @@ function getInboxDocumentCommentThreadEntryDisplay({
 
         summary.push(` comment thread on “${truncatedDocumentTitle}”`);
     } else {
-        if (currentAccount.id === entry.firstCommentAuthor.id) {
+        if (currentAccount?.id === entry.firstCommentAuthor.id) {
             summary.push("Your");
         } else {
             summary.push(entry.firstCommentAuthor);
@@ -575,7 +575,7 @@ function getInboxTaskEntryDisplay({
     currentAccount,
 }: {
     entry: InboxTaskEntryModel;
-    currentAccount: AccountModel;
+    currentAccount: AccountModel | null;
 }): InboxEntryDisplay {
     const firstAccount = entry.otherCommentAuthor ?? entry.latestComment?.author ?? entry.taskOwner;
 
@@ -590,7 +590,7 @@ function getInboxTaskEntryDisplay({
         summary.push(entry.latestComment.author);
         summary.push(" mentioned you in a comment on ");
 
-        if (currentAccount.id === entry.taskOwner.id) {
+        if (currentAccount?.id === entry.taskOwner.id) {
             summary.push("your");
         } else if (entry.latestComment.author.id === entry.taskOwner.id) {
             summary.push("their");
@@ -601,7 +601,7 @@ function getInboxTaskEntryDisplay({
 
         summary.push(" task");
     } else {
-        if (currentAccount.id === entry.taskOwner.id) {
+        if (currentAccount?.id === entry.taskOwner.id) {
             summary.push("Your");
         } else {
             summary.push(entry.taskOwner);

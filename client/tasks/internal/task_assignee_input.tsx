@@ -198,8 +198,8 @@ function TaskAssigneeInput(
                         if (item1.type === "Null") return -1;
                         if (item2.type === "Null") return 1;
 
-                        if (item1.accountData.id === currentAccount.id) return -1;
-                        if (item2.accountData.id === currentAccount.id) return 1;
+                        if (item1.accountData.id === currentAccount?.id) return -1;
+                        if (item2.accountData.id === currentAccount?.id) return 1;
 
                         // Use the sort order from the server. The server returns accounts in
                         // affinity order.
@@ -209,7 +209,7 @@ function TaskAssigneeInput(
                     return allItems;
                 },
             );
-        }, [accountStore, allAccounts, currentAccount.id]),
+        }, [accountStore, allAccounts, currentAccount?.id]),
     );
 
     const itemsSearchIndex = useMemo(

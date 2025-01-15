@@ -11,7 +11,6 @@ import {SpaceLayoutSideBarCreateButton} from "~/client/spaces/layout/internal/sp
 import {SpaceLayoutSideBarInboxButton} from "~/client/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
 import {SpaceLayoutSideBarSpaceButton} from "~/client/spaces/layout/internal/space_layout_side_bar_space_button.js";
 import {useIsFullWidthRoute} from "~/client/spaces/route_metadata.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {documentContentEditorSidebarWidth} from "~/client/styles/document_shared_styles.js";
 import {contentStyles, spaceLayoutStyles} from "~/client/styles/styles.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";
@@ -19,6 +18,7 @@ import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 const spaceLayoutSidebarWidthRem = parseRemLength(spaceLayoutStyles.sideBarWidth);
@@ -51,10 +51,12 @@ export const spaceLayoutSidebarSpace = `clamp(${spaceLayoutMinSidebarSpaceRem}re
 
 export function SpaceLayoutSideBar({
     space,
+    currentAccount,
     initialInbox,
     onSearchPress,
 }: {
     space: SpaceModel;
+    currentAccount: AccountModel;
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
     onSearchPress: () => void;
 }) {
@@ -147,16 +149,15 @@ export function SpaceLayoutSideBar({
                     alignItems="center"
                     gap="3"
                 >
-                    <SpaceLayoutSideBarAccountButton />
+                    <SpaceLayoutSideBarAccountButton currentAccount={currentAccount} />
                 </Box>
             </Box>
         </Box>
     );
 }
 
-function SpaceLayoutSideBarAccountButton() {
+function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: AccountModel}) {
     const rootNavigate = useRootNavigate();
-    const {currentAccount} = useSpaceContext();
 
     return (
         <MenuButton

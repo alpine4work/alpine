@@ -118,11 +118,11 @@ export function ShareOverlayAccountGrantInput({
 
         return itemsWithGrantedAccounts.filter(
             item =>
-                item.key !== currentAccount.id &&
+                item.key !== currentAccount?.id &&
                 !accountGrantById.has(item.key) &&
                 !selectedAccountIds.has(item.key),
         );
-    }, [selectedAccounts, itemsWithGrantedAccounts, currentAccount.id, accountGrantById]);
+    }, [selectedAccounts, itemsWithGrantedAccounts, currentAccount?.id, accountGrantById]);
 
     const itemsSearchIndex = useMemo(
         () =>

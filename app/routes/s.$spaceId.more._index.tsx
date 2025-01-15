@@ -11,7 +11,7 @@ import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {SpaceRouteScrollView} from "~/client/spaces/layout/space_route_scroll_view.js";
 import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 
 export function meta() {
@@ -21,7 +21,7 @@ export function meta() {
 export default function MoreRoute() {
     const platform = usePlatform();
     const rootNavigate = useRootNavigate();
-    const {space, currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
 
     const maxWidth = platform !== "mobile" ? "96" : undefined;
 

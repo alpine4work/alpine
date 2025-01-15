@@ -202,10 +202,10 @@ export function TaskCollectionView({
             ],
             {
                 currentDate,
-                currentAccountId: currentAccount.id,
+                currentAccountId: currentAccount?.id ?? null,
             },
         );
-    }, [collectionId, collectionSubscription, currentAccount.id, currentDate, filters]);
+    }, [collectionId, collectionSubscription, currentAccount?.id, currentDate, filters]);
 
     // If no filters or sorts have been explicitly set then the user can manually
     // sort by collection position.
@@ -250,7 +250,7 @@ export function TaskCollectionView({
 
             return collectionSubscription.collectionEntryStore
                 .map(collectionEntry =>
-                    getTaskCollectionEntryAccess(currentAccount.id, collectionEntry),
+                    getTaskCollectionEntryAccess(currentAccount?.id, collectionEntry),
                 )
                 .map(access => {
                     switch (access.type) {
@@ -286,7 +286,7 @@ export function TaskCollectionView({
                             throw exhaustive(access);
                     }
                 });
-        }, [collectionSubscription, currentAccount.id, queryState.activeQuery]),
+        }, [collectionSubscription, currentAccount?.id, queryState.activeQuery]),
     );
 
     const readOnlyReason2 = useStore(

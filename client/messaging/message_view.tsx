@@ -483,7 +483,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 },
             ]);
 
-            if (currentAccount.id === message.author.id && message.payload.type === "Content") {
+            if (currentAccount?.id === message.author.id && message.payload.type === "Content") {
                 const messagePayload = message.payload;
 
                 const editContextMenuActions: Array<MenuAction> = [];
@@ -1605,7 +1605,7 @@ function MessageViewTouchMenu<RoomKey extends string, Message extends MessageMod
         },
     });
 
-    if (currentAccount.id === message.author.id && message.payload.type === "Content") {
+    if (currentAccount?.id === message.author.id && message.payload.type === "Content") {
         const messagePayload = message.payload;
 
         const editContextMenuActions: Array<MenuAction> = [];

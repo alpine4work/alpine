@@ -219,9 +219,9 @@ export function TaskRealtimeClientContextProvider({
 
     const accountStore = useAccountClientStore();
 
-    // We need to hold a strong reference to `Store<AccountModelData>` so
-    // `accountStore.weakGetAccountStoreByIdIfExists()` will always be able to
-    // return the data for the current account.
+    // We need to hold a strong reference to `Store<AccountModelData>` for the
+    // current account so `accountStore.weakGetAccountStoreByIdIfExists()` will
+    // always be able to return the data for the current account.
     //
     // The task system depends on current account data existing in
     // `AccountClientStore`. Any `AccountId` in a `TaskAction` we pass to
@@ -234,7 +234,10 @@ export function TaskRealtimeClientContextProvider({
     // `AccountClientStore` and also prevent garbage collection of `currentAccount`
     // from `AccountClientStore`.
     useStateWithDependencies(
-        ([accountStore, currentAccount]) => accountStore.getAccountStore(currentAccount),
+        ([accountStore, currentAccount]) => {
+            if (!currentAccount) return;
+            return accountStore.getAccountStore(currentAccount);
+        },
         [accountStore, currentAccount],
     );
 

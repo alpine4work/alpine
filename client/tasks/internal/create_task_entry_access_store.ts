@@ -5,7 +5,11 @@ import {
     TaskClientStoreTaskEntry,
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
-import {AccessLevel, maxAccessLevel} from "~/shared/access/access_policy.js";
+import {
+    AccessLevel,
+    getAccountAccessLevelAssumingSpaceAccess,
+    maxAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -38,7 +42,7 @@ const taskAccessInternMap = new Map<string, TaskAccess>();
  * that we no longer have access.
  */
 export function createTaskEntryAccessStore(
-    currentAccountId: AccountId,
+    currentAccountId: AccountId | null | undefined,
     referencesSubscription: TaskClientQuery | TaskClientTaskSubscription,
     taskEntryStore: Store<TaskClientStoreTaskEntry>,
 ): Store<TaskAccess> {
@@ -56,7 +60,7 @@ export function createTaskEntryAccessStore(
  */
 export function computeTaskEntryAccess(
     get: <Value>(store: Store<Value>) => Value,
-    currentAccountId: AccountId,
+    currentAccountId: AccountId | null | undefined,
     referencesSubscription: TaskClientQuery | TaskClientTaskSubscription,
     taskEntry: TaskClientStoreTaskEntry,
 ): TaskAccess {
@@ -75,14 +79,16 @@ export function computeTaskEntryAccess(
             return {type: "Deleted"};
         }
 
-        // The task creator has edit access level on their own task.
-        if (taskEntry.task.getCreator().accountId === currentAccountId) {
-            return {type: "PermissionGranted", level: "Edit"};
-        }
+        if (currentAccountId) {
+            // The task creator has edit access level on their own task.
+            if (taskEntry.task.getCreator().accountId === currentAccountId) {
+                return {type: "PermissionGranted", level: "Edit"};
+            }
 
-        // The task assignee has edit access level on their own task.
-        if (taskEntry.task.getAssignee()?.assignee.accountId === currentAccountId) {
-            return {type: "PermissionGranted", level: "Edit"};
+            // The task assignee has edit access level on their own task.
+            if (taskEntry.task.getAssignee()?.assignee.accountId === currentAccountId) {
+                return {type: "PermissionGranted", level: "Edit"};
+            }
         }
 
         const accessLevels: Array<AccessLevel> = [];
@@ -117,9 +123,15 @@ export function computeTaskEntryAccess(
 
         if (accessLevels.length === 0) return {type: "PermissionDenied"};
 
+        let accessLevel = accessLevels[0]!;
+
+        for (let i = 1; i < accessLevels.length; i++) {
+            accessLevel = maxAccessLevel(accessLevel, accessLevels[i]!);
+        }
+
         return {
             type: "PermissionGranted",
-            level: accessLevels.slice(1).reduce(maxAccessLevel, accessLevels[0]!),
+            level: accessLevel,
         };
     };
 
@@ -135,7 +147,7 @@ export function computeTaskEntryAccess(
  * `isTaskCollectionAccessAuthorized()`).
  */
 export function getTaskCollectionEntryAccess(
-    currentAccountId: AccountId,
+    currentAccountId: AccountId | null | undefined,
     collectionEntry: TaskClientStoreCollectionEntry,
 ): TaskAccess {
     const access = computeTaskCollectionEntryAccess(currentAccountId, collectionEntry);
@@ -144,7 +156,7 @@ export function getTaskCollectionEntryAccess(
 }
 
 function computeTaskCollectionEntryAccess(
-    currentAccountId: AccountId,
+    currentAccountId: AccountId | null | undefined,
     collectionEntry: TaskClientStoreCollectionEntry,
 ): TaskAccess {
     // The collection is not loaded. Assume we don't have permission. Principle of
@@ -166,24 +178,14 @@ function computeTaskCollectionEntryAccess(
     }
 
     const accessPolicy = collectionEntry.collection.getAccessPolicy();
+    const accessLevel = getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccountId);
 
-    const accessLevels: Array<AccessLevel> = [];
-
-    if (accessPolicy.defaultGrant !== null) {
-        accessLevels.push(accessPolicy.defaultGrant.level);
-    }
-
-    const accountGrant = accessPolicy.accountGrantById.get(currentAccountId);
-    if (accountGrant) {
-        accessLevels.push(accountGrant.level);
-    }
-
-    if (accessLevels.length === 0) {
+    if (accessLevel === null) {
         return {type: "PermissionDenied"};
     }
 
     return {
         type: "PermissionGranted",
-        level: accessLevels.slice(1).reduce(maxAccessLevel, accessLevels[0]!),
+        level: accessLevel,
     };
 }

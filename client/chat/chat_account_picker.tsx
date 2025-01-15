@@ -139,7 +139,9 @@ export function ChatAccountPicker({
         for (const chat of suggestedChats) {
             assert(chat.accounts.length > 0);
 
-            const otherAccounts = chat.accounts.filter(account => account.id !== currentAccount.id);
+            const otherAccounts = chat.accounts.filter(
+                account => account.id !== currentAccount?.id,
+            );
 
             itemStores.push(
                 Store.mapMany(
@@ -187,7 +189,7 @@ export function ChatAccountPicker({
                 return 0;
             }),
         );
-    }, [accountStore, allAccounts, currentAccount.id, suggestedChats]);
+    }, [accountStore, allAccounts, currentAccount?.id, suggestedChats]);
 
     const allItems = useStore(allItemsStore);
 
@@ -339,7 +341,7 @@ export function ChatAccountPicker({
                             // preserving the order of already selected accounts.
                             ...chat.accounts.filter(
                                 account =>
-                                    account.id !== currentAccount.id &&
+                                    account.id !== currentAccount?.id &&
                                     !selectedAccountIds.has(account.id),
                             ),
                         ];

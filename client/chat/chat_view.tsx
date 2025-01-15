@@ -68,9 +68,9 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
     // Exclude the current user from the list of accounts we display on top of the
     // chat unless this is a one-person chat with only the current user.
     const otherChatAccounts =
-        chat.accounts.length === 1 && chat.accounts[0]!.id === currentAccount.id
+        chat.accounts.length === 1 && chat.accounts[0]!.id === currentAccount?.id
             ? [currentAccount]
-            : chat.accounts.filter(account => account.id !== currentAccount.id);
+            : chat.accounts.filter(account => account.id !== currentAccount?.id);
 
     return (
         <Box

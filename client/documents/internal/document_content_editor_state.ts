@@ -54,9 +54,10 @@ export type DocumentContentEditorState = CollaborativeContentEditorState<
 
 type DocumentContentEditorExtraState = {
     /**
-     * The `AccountId` of the logged in user. Used for evaluating access.
+     * The `AccountId` of the `currentAccount` in `SpaceContext`. Used for
+     * evaluating access. Null if there's no user logged in.
      */
-    readonly currentAccountId: AccountId;
+    readonly currentAccountId: AccountId | null;
 
     /**
      * Comment threads we have sent to the server that we're waiting on
@@ -134,7 +135,7 @@ type DocumentContentEditorExtraState = {
 export function getInitialDocumentContentEditorState(
     options:
         | {
-              currentAccountId: AccountId;
+              currentAccountId: AccountId | null;
               initialVersion: number;
               initialContent: DocumentContentWithReferences;
               initialSelection?: Selection | SelectionBookmark;

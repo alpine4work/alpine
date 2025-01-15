@@ -13,6 +13,7 @@ import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {RemLength, screenPaddingX} from "~/shared/design/core/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
@@ -291,6 +292,10 @@ function TaskRowViewDenseFields(
                             withoutBlurAfterSelection={platform === "mobile"}
                             assigneeAccountData={assigneeAccountData}
                             onAssigneeAccountChange={assigneeAccount => {
+                                // Currently, accounts without space access can't edit tasks. The max
+                                // permission level of `urlGrant` is `View`.
+                                assert(currentAccount);
+
                                 const time = store.clock.now();
 
                                 commitActionTransactionEvenIfGhost(taskId => [

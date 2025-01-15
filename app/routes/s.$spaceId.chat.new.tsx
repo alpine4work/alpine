@@ -162,7 +162,7 @@ export default function NewChatRoute() {
     // account selector type-ahead affinity rankings.
     useSearchAffinityViewInteraction(
         loaderData.selectedChat
-            ? loaderData.selectedChat.chat.accounts.length === 2
+            ? currentAccount && loaderData.selectedChat.chat.accounts.length === 2
                 ? `Account:${
                       loaderData.selectedChat.chat.accounts.filter(
                           account => account.id !== currentAccount.id,

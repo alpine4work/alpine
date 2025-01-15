@@ -193,8 +193,11 @@ export function TaskQueryView({
 
     const normalizedFiltersResult = useMemo(
         () =>
-            normalizeTaskQueryFilters(filters, {currentDate, currentAccountId: currentAccount.id}),
-        [currentAccount.id, currentDate, filters],
+            normalizeTaskQueryFilters(filters, {
+                currentDate,
+                currentAccountId: currentAccount?.id ?? null,
+            }),
+        [currentAccount?.id, currentDate, filters],
     );
 
     const normalizedSorts = useMemo(() => normalizeTaskQuerySorts(sorts), [sorts]);
@@ -773,104 +776,111 @@ function TaskQueryViewInstructionalPlaceholder({
                     alignItems: "center",
                 }}
             >
-                <Box display="flex">
-                    <Box
-                        display="flex"
-                        height="6"
-                        alignItems="center"
-                        paddingX="2"
-                        gap="2"
-                        border="grey-10"
-                        borderRadius="1"
-                    >
-                        <Box>Creator</Box>
-                        <Box color="grey-60">is</Box>
-                        <Box display="flex" gap="1" alignItems="center">
-                            <AccountAvatar size="3" account={currentAccount} />
-                            <Box>me</Box>
+                {currentAccount && (
+                    // TODO(calebmer): If we ever allow anonymous users to view this route we may
+                    // want to consider updating the design of this. Just showing the collections
+                    // filter might not look good?
+                    <>
+                        <Box display="flex">
+                            <Box
+                                display="flex"
+                                height="6"
+                                alignItems="center"
+                                paddingX="2"
+                                gap="2"
+                                border="grey-10"
+                                borderRadius="1"
+                            >
+                                <Box>Creator</Box>
+                                <Box color="grey-60">is</Box>
+                                <Box display="flex" gap="1" alignItems="center">
+                                    <AccountAvatar size="3" account={currentAccount} />
+                                    <Box>me</Box>
+                                </Box>
+                            </Box>
                         </Box>
-                    </Box>
-                </Box>
-                <Button
-                    variant="neutral"
-                    icon={<Plus />}
-                    // Consistent icon placement with mobile customization section filter/sort add
-                    // buttons.
-                    iconPlacement={platform === "mobile" ? "end" : "start"}
-                    height="6"
-                    paddingX="2"
-                    isDisabled={filters.some(
-                        filter =>
-                            filter.type === "Creator" &&
-                            filter.operation.type === "OneOf" &&
-                            filter.operation.accounts.length === 1 &&
-                            filter.operation.accounts[0]!.type === "CurrentAccount",
-                    )}
-                    onPress={() => {
-                        onFiltersChange([
-                            ...filters,
-                            {
-                                type: "Creator",
-                                operation: {
-                                    type: "OneOf",
-                                    accounts: [{type: "CurrentAccount"}],
-                                },
-                            },
-                        ]);
-                    }}
-                >
-                    Add
-                </Button>
-                <Box style={{gridColumn: "1 / span 2"}} borderTop="grey-5" />
-                <Box display="flex">
-                    <Box
-                        display="flex"
-                        height="6"
-                        alignItems="center"
-                        paddingX="2"
-                        gap="2"
-                        border="grey-10"
-                        borderRadius="1"
-                    >
-                        <Box>Assignee</Box>
-                        <Box color="grey-60">is</Box>
-                        <Box display="flex" gap="1" alignItems="center">
-                            <AccountAvatar size="3" account={currentAccount} />
-                            <Box>me</Box>
+                        <Button
+                            variant="neutral"
+                            icon={<Plus />}
+                            // Consistent icon placement with mobile customization section filter/sort add
+                            // buttons.
+                            iconPlacement={platform === "mobile" ? "end" : "start"}
+                            height="6"
+                            paddingX="2"
+                            isDisabled={filters.some(
+                                filter =>
+                                    filter.type === "Creator" &&
+                                    filter.operation.type === "OneOf" &&
+                                    filter.operation.accounts.length === 1 &&
+                                    filter.operation.accounts[0]!.type === "CurrentAccount",
+                            )}
+                            onPress={() => {
+                                onFiltersChange([
+                                    ...filters,
+                                    {
+                                        type: "Creator",
+                                        operation: {
+                                            type: "OneOf",
+                                            accounts: [{type: "CurrentAccount"}],
+                                        },
+                                    },
+                                ]);
+                            }}
+                        >
+                            Add
+                        </Button>
+                        <Box style={{gridColumn: "1 / span 2"}} borderTop="grey-5" />
+                        <Box display="flex">
+                            <Box
+                                display="flex"
+                                height="6"
+                                alignItems="center"
+                                paddingX="2"
+                                gap="2"
+                                border="grey-10"
+                                borderRadius="1"
+                            >
+                                <Box>Assignee</Box>
+                                <Box color="grey-60">is</Box>
+                                <Box display="flex" gap="1" alignItems="center">
+                                    <AccountAvatar size="3" account={currentAccount} />
+                                    <Box>me</Box>
+                                </Box>
+                            </Box>
                         </Box>
-                    </Box>
-                </Box>
-                <Button
-                    variant="neutral"
-                    icon={<Plus />}
-                    // Consistent icon placement with mobile customization section filter/sort add
-                    // buttons.
-                    iconPlacement={platform === "mobile" ? "end" : "start"}
-                    height="6"
-                    paddingX="2"
-                    isDisabled={filters.some(
-                        filter =>
-                            filter.type === "Assignee" &&
-                            filter.operation.type === "OneOf" &&
-                            filter.operation.accounts.length === 1 &&
-                            filter.operation.accounts[0]!.type === "CurrentAccount",
-                    )}
-                    onPress={() => {
-                        onFiltersChange([
-                            ...filters,
-                            {
-                                type: "Assignee",
-                                operation: {
-                                    type: "OneOf",
-                                    accounts: [{type: "CurrentAccount"}],
-                                },
-                            },
-                        ]);
-                    }}
-                >
-                    Add
-                </Button>
-                <Box style={{gridColumn: "1 / span 2"}} borderTop="grey-5" />
+                        <Button
+                            variant="neutral"
+                            icon={<Plus />}
+                            // Consistent icon placement with mobile customization section filter/sort add
+                            // buttons.
+                            iconPlacement={platform === "mobile" ? "end" : "start"}
+                            height="6"
+                            paddingX="2"
+                            isDisabled={filters.some(
+                                filter =>
+                                    filter.type === "Assignee" &&
+                                    filter.operation.type === "OneOf" &&
+                                    filter.operation.accounts.length === 1 &&
+                                    filter.operation.accounts[0]!.type === "CurrentAccount",
+                            )}
+                            onPress={() => {
+                                onFiltersChange([
+                                    ...filters,
+                                    {
+                                        type: "Assignee",
+                                        operation: {
+                                            type: "OneOf",
+                                            accounts: [{type: "CurrentAccount"}],
+                                        },
+                                    },
+                                ]);
+                            }}
+                        >
+                            Add
+                        </Button>
+                        <Box style={{gridColumn: "1 / span 2"}} borderTop="grey-5" />
+                    </>
+                )}
                 <Box display="flex">
                     <Box
                         display="flex"

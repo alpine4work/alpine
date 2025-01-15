@@ -106,10 +106,10 @@ export function TaskQueryFilterAccountOperationEditor({
 
         const normalizedAccountIds = new Set(accountIds);
         normalizedAccountIds.delete("CurrentAccount");
-        normalizedAccountIds.add(currentAccount.id);
+        if (currentAccount) normalizedAccountIds.add(currentAccount.id);
 
         return normalizedAccountIds as ReadonlySet<AccountId | "MissingAccount">;
-    }, [accountIds, currentAccount.id]);
+    }, [accountIds, currentAccount]);
 
     const oneOfOperatorLabel = normalizedAccountIds.size > 1 ? "is one of" : "is";
     const noneOfOperatorLabel = normalizedAccountIds.size > 1 ? "is not one of" : "is not";
@@ -229,7 +229,7 @@ function TaskQueryFilterAccountOperationEditorPreview({
             }
 
             const getAccountIfExists = (accountId: AccountId) =>
-                accountId === currentAccount.id
+                accountId === currentAccount?.id
                     ? currentAccount
                     : filterReferences.accountById.get(accountId);
 
@@ -246,7 +246,7 @@ function TaskQueryFilterAccountOperationEditorPreview({
                 <>
                     <AccountAvatar size="3" account={account} />{" "}
                     <Box paddingLeft="1">
-                        {account.id === currentAccount.id
+                        {account.id === currentAccount?.id
                             ? "me"
                             : getAccountShortNameWithoutFullNameTooltip(
                                   get(accountStore.getAccountStore(account)),
@@ -408,8 +408,8 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
                     if (item1.key === "CurrentAccount") return -1;
                     if (item2.key === "CurrentAccount") return 1;
 
-                    if (item1.key === currentAccount.id) return -1;
-                    if (item2.key === currentAccount.id) return 1;
+                    if (item1.key === currentAccount?.id) return -1;
+                    if (item2.key === currentAccount?.id) return 1;
 
                     // Sort the selected accounts when the listbox was opened first in our
                     // items list.
@@ -443,7 +443,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
     }, [
         accountStore,
         allUnsortedAccounts,
-        currentAccount.id,
+        currentAccount?.id,
         initialAccountIds,
         platform,
         shouldHideMissingAccountItem,

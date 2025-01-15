@@ -11,7 +11,10 @@ import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    useSpaceContext,
+    useSpaceContextAndRequireSpaceAccess,
+} from "~/client/spaces/space_context.js";
 import {tasksStyles} from "~/client/styles/styles.js";
 import {
     taskNotepadViewActiveSectionMinHeight,
@@ -79,7 +82,7 @@ export function TaskNotepadView({
 }) {
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
-    const {currentAccount} = useSpaceContext();
+    const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
     const {isAppleDevice, isNativeMobile} = useClientInfo();
 
     // Retain `assigneeActiveQuery`. We can't retain it in

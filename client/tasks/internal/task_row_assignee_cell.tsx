@@ -31,6 +31,7 @@ import {
 } from "~/client/tasks/internal/task_assignee_input.js";
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -179,6 +180,10 @@ function TaskRowAssigneeCell(
     );
 
     const handleAssigneeAccountChange = (assigneeAccount: AccountModel | null) => {
+        // Currently, accounts without space access can't edit tasks. The max
+        // permission level of `urlGrant` is `View`.
+        assert(currentAccount);
+
         commitActionTransactionEvenIfGhost(taskId => {
             const time = store.clock.now();
 

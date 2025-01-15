@@ -1010,6 +1010,10 @@ function TaskRowView(
             // We should not show a ghost row in a manually sorted query.
             assert(isQueryManuallySorted);
 
+            // Currently, accounts without space access can't edit tasks. The max
+            // permission level of `urlGrant` is `View`.
+            assert(currentAccount);
+
             // Make sure any state update from the `onGhostTaskCreated` callback runs in
             // the same React commit as our store updates (which use
             // `useSyncExternalStore()`).

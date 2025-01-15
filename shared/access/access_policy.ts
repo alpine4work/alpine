@@ -229,17 +229,32 @@ export const AccessPolicyRegister = createCrdtRegister(AccessPolicySchema);
  */
 export function getAccountAccessLevelAssumingSpaceAccess(
     accessPolicy: AccessPolicy,
-    accountId: AccountId,
+    accountId: AccountId | null | undefined,
 ): AccessLevel | null {
-    const accountGrant = accessPolicy.accountGrantById.get(accountId);
+    const accessLevels: Array<AccessLevel> = [];
 
-    if (accountGrant && accessPolicy.defaultGrant !== null)
-        return maxAccessLevel(accountGrant.level, accessPolicy.defaultGrant.level);
+    // If there's a URL grant than everyone gets that access level even if they're
+    // anonymous.
+    if (accessPolicy.urlGrant !== null) accessLevels.push(accessPolicy.urlGrant.level);
 
-    if (accountGrant) return accountGrant.level;
-    if (accessPolicy.defaultGrant !== null) return accessPolicy.defaultGrant.level;
+    if (typeof accountId === "string") {
+        // You only get the default grant if your account is a member of the space.
+        // Which this function assumes.
+        if (accessPolicy.defaultGrant !== null) accessLevels.push(accessPolicy.defaultGrant.level);
 
-    return null;
+        const accountGrant = accessPolicy.accountGrantById.get(accountId);
+        if (accountGrant !== undefined) accessLevels.push(accountGrant.level);
+    }
+
+    if (accessLevels.length === 0) return null;
+
+    let accessLevel = accessLevels[0]!;
+
+    for (let i = 1; i < accessLevels.length; i++) {
+        accessLevel = maxAccessLevel(accessLevel, accessLevels[i]!);
+    }
+
+    return accessLevel;
 }
 
 export function getAccountAccessPolicyManageGeneration(

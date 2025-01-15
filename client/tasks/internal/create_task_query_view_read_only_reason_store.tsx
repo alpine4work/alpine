@@ -29,7 +29,7 @@ export function createTaskQueryViewReadOnlyReasonStore({
     store: TaskClientStore;
     filters: ReadonlyArray<TaskQueryFilter>;
     filterReferences: TaskQueryFilterReferences;
-    currentAccount: AccountModel;
+    currentAccount: AccountModel | null;
 }): Store<{
     icon: ReactNode;
     message: string;
@@ -44,7 +44,7 @@ export function createTaskQueryViewReadOnlyReasonStore({
                 filterReferences,
             }).map(collectionResults =>
                 collectionResults.map(collectionResult =>
-                    getTaskCollectionEntryAccess(currentAccount.id, collectionResult.entry),
+                    getTaskCollectionEntryAccess(currentAccount?.id, collectionResult.entry),
                 ),
             );
         }),

@@ -121,10 +121,13 @@ export function ShareOverlay({
         readonly title: string;
         readonly description: string;
         readonly isAllowed: boolean;
+        readonly currentAccountId: AccountId;
         readonly action: AccessPolicyAction;
     } | null>(null);
 
     const onAccessPolicyChange = (action: AccessPolicyAction) => {
+        if (!currentAccount) return;
+
         const oldAccessPolicy = accessPolicy;
         const newAccessPolicy = reduceAccessPolicy(currentAccount.id, oldAccessPolicy, action);
 
@@ -269,6 +272,7 @@ export function ShareOverlay({
                 title,
                 description,
                 isAllowed: false,
+                currentAccountId: currentAccount.id,
                 action,
             });
             return;
@@ -323,6 +327,7 @@ export function ShareOverlay({
                     title: "Remove permissions from yourself?",
                     description: `If you ${changeDescription} then you won’t be able to ${joinedPermissionDescriptions} the ${entityNoun} anymore. You can’t undo this change.`,
                     isAllowed: true,
+                    currentAccountId: currentAccount.id,
                     action,
                 });
                 return;
@@ -442,15 +447,15 @@ export function ShareOverlay({
                             primaryButtonLabel="Cancel"
                             onPrimaryButtonPress={() => setWarningDialogState(null)}
                             cancelButtonLabel="I understand, make this change"
-                            onCancelButtonPress={() =>
+                            onCancelButtonPress={() => {
                                 onAccessPolicyChangeWithoutValidations(
                                     reduceAccessPolicy(
-                                        currentAccount.id,
+                                        warningDialogState.currentAccountId,
                                         accessPolicy,
                                         warningDialogState.action,
                                     ),
-                                )
-                            }
+                                );
+                            }}
                             onClose={() => setWarningDialogState(null)}
                         />
                     ) : (
@@ -669,7 +674,7 @@ function ShareOverlayAccountGrant({
                         color={accountData.space.wasRemoved ? "grey-60" : "grey-100"}
                     >
                         {accountData.name}
-                        {currentAccount.id === accountId ? " (you)" : ""}
+                        {currentAccount?.id === accountId ? " (you)" : ""}
                     </Box>
                 </>
             )}

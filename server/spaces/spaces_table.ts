@@ -34,6 +34,7 @@ import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_m
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {spaceAccessPermissionDeniedErrorDisplayMessage} from "~/shared/error/common_error_display_messages.js";
 import {
     DataLossError,
     DeadlineExceededError,
@@ -41,7 +42,6 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -1084,9 +1084,7 @@ export async function authorizeSpaceAccess(
             ) {
                 throw new PermissionDeniedError("Account doesn't have access to space", {
                     aggregateDedupeKey: `${spaceId}:${context.actor.getAccountId()}`,
-                    displayMessage: errorDisplayMessage`You don’t have access to this space. Try ${errorDisplayMessage.switchSpaceLink(
-                        "switching spaces",
-                    )} or ${errorDisplayMessage.signOutLink("signing out")}.`,
+                    displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
                 });
             }
             break;

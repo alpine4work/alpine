@@ -28,7 +28,7 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {sendRpcNavigatorBeacon} from "~/client/rpc/send_rpc_navigator_beacon.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {
     postContentViewInnerMarginY,
     postViewNavigationBarSpace,
@@ -63,7 +63,7 @@ export function PostCreator({
     const context = useAppContext();
     const platform = usePlatform();
     const navigate = useNavigate();
-    const {space, currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
 
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const channelSelectorRef = useRef<PostCreatorChannelSelectorInputRef>(null);

@@ -39,6 +39,7 @@ export function useTaskClientStoreSearchAffinityManager(
                     // If the user marks a task they're assigned to as active, count that as a high
                     // intent interaction:
                     if (
+                        currentAccount &&
                         oldDisplayStatus !== newDisplayStatus &&
                         newDisplayStatus === "OpenActive" &&
                         newTaskEntry.task?.getAssignee()?.assignee.accountId === currentAccount.id
@@ -92,6 +93,6 @@ export function useTaskClientStoreSearchAffinityManager(
                 }
             },
         }),
-        [addGlobalLoadingIndicator, affinityId, currentAccount.id, context, space.id],
+        [addGlobalLoadingIndicator, affinityId, currentAccount, context, space.id],
     );
 }
