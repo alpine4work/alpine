@@ -61,9 +61,10 @@ export class AccountModelWithoutSpace {
             // Since "u" is not allowed in IDs we use "n" in place of "u" since "n" is an
             // upside down "u".
             //
-            // TODO(calebmer): We should create an account with this ID in the database
-            // to make sure we don't randomly create an account with this ID. (Which is
-            // incredibly unlikely but not impossible.)
+            // NOTE(calebmer, 2025-01-14): I've create an account with this ID in the
+            // production database as a defense against randomly generating an account with
+            // this ID. It's incredibly unlikely that we'd randomly generate this ID but
+            // not impossible.
             id: assertId<AccountId>("nnkn0wnacc0nnt000000000000"),
             version: 0,
             name: "Unknown",
