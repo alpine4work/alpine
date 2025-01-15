@@ -21,6 +21,7 @@ export function useSpaceContext(): SpaceContext {
  * Context available when we are in a space route. Returns null if we're not in
  * a space route.
  */
+// NOCOMMIT: Document how this'll be null for non-members.
 export function useSpaceContextIfExists(): SpaceContext | null {
     const spaceContext = useContext(SpaceContextDefinition);
     return spaceContext;

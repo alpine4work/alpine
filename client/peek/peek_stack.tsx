@@ -74,7 +74,6 @@ import {
 import {NavigationEventContextProvider, useNavigate} from "~/client/remix/use_navigate.js";
 import {GlobalLoadingIndicatorChip} from "~/client/spaces/global_loading_indicator_context_provider.js";
 import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_types.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
     greyElevated1ClassName,
@@ -98,7 +97,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {generateId} from "~/shared/id/id.js";
-import {PeekId} from "~/shared/id/types/id_types.js";
+import {PeekId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     convertPeekPathToSpacePath,
     convertSpacePathToPeekPath,
@@ -301,9 +300,11 @@ export {PeekStackContextProviderForwardRef as PeekStackContextProvider};
 
 function PeekStackContextProvider(
     {
+        spaceId,
         globalLoadingIndicator,
         children,
     }: {
+        spaceId: SpaceId;
         globalLoadingIndicator: GlobalLoadingIndicator | null;
         children?: ReactNode;
     },
@@ -314,7 +315,6 @@ function PeekStackContextProvider(
 
     const reporter = useReporter();
     const platform = usePlatform();
-    const {space} = useSpaceContext();
 
     const stackRef = useRef<PeekStackRef>(null);
     const peekStackGlobalKeyDownManualContextRef =
@@ -550,7 +550,7 @@ function PeekStackContextProvider(
                         // Don't open a peek if the path is for a different space.
                         if (
                             peekRouteMatches[peekRouteMatches.length - 1]?.params.spaceId !==
-                            space.id
+                            spaceId
                         ) {
                             return;
                         }

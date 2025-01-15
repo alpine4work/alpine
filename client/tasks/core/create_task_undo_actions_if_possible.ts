@@ -1,6 +1,7 @@
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/core/create_get_task_action_referenced_sortable_account.js";
 import {TaskClientStore, TaskClientStoreTaskEntry} from "~/client/tasks/core/task_client_store.js";
+import {UnauthenticatedError} from "~/shared/error/error.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -20,7 +21,7 @@ import {upcastTaskStatusWithSortableAccount} from "~/shared/tasks/task_status.js
 // store or accessing `store.clock`.
 interface TaskClientStoreInterface {
     readonly spaceId: SpaceId;
-    readonly currentAccountId: AccountId;
+    readonly currentAccountId: AccountId | null;
     readonly accountStore: AccountClientStore;
     getTaskEntryStoreIfExists(task: TaskId): Store<TaskClientStoreTaskEntry> | null;
 }
@@ -93,6 +94,10 @@ export function createTaskUndoActionsIfPossible(
     store: TaskClientStoreInterface,
     actions: ReadonlyArray<TaskAction>,
 ): TaskUndoActions | null {
+    if (store.currentAccountId === null) {
+        throw new UnauthenticatedError("Must authenticate to update tasks");
+    }
+
     // The new actions that are returned will have identical `time`s to the
     // `action`s you passed in. Before applying the undo actions you must replace
     // all action times with new ones. The new times you generate must preserve the
