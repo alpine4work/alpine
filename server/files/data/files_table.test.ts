@@ -6951,9 +6951,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(
-        new PermissionDeniedError("Account doesn't have access to space (and 1 other error)"),
-    );
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 
     await expect(
         getFileFromAttachment(
@@ -7010,9 +7008,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(
-        new PermissionDeniedError("Account doesn't have access to space (and 1 other error)"),
-    );
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 
     await expect(
         getFileFromAttachment(
@@ -7066,9 +7062,7 @@ test("can't attach file as uploader if not the uploader", async () => {
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(
-        new PermissionDeniedError("Account doesn't have access to space (and 1 other error)"),
-    );
+    ).rejects.toThrow(new PermissionDeniedError("Account didn't upload file (and 1 other error)"));
 
     await expect(
         attachFileAsUploader(
@@ -7619,9 +7613,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(
-        new PermissionDeniedError("Account doesn't have access to space (and 1 other error)"),
-    );
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 
     await expect(
         getFileFromAttachment(

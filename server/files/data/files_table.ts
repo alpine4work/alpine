@@ -437,6 +437,8 @@ export async function startUploadingFile(
         attachTargetAuthorizer?: FileAuthorizer | null;
     },
 ): Promise<{fileId: FileId}> {
+    await authorizeSpaceAccess(context, spaceId);
+
     // If we're attaching the file to a target as a part of the upload, verify we
     // have edit access to the target.
     await attachTargetAuthorizer?.authorizeTargetAccess(context, spaceId, "Edit");
@@ -1482,9 +1484,6 @@ function getFileItemIfExistsWithCache(
         );
 
         if (!item) return null;
-
-        await authorizeSpaceAccess(context, item.spaceId);
-
         return item;
     };
 
@@ -1510,12 +1509,10 @@ async function getFileItemIfExistsAsUploader(
 
     switch (context.actor.type) {
         case "System": {
-            // System actors have access to all files in the space. We already validated
-            // above that we have access to the space.
+            await authorizeSpaceAccess(context, spaceId);
             break;
         }
         case "Session": {
-            // other than the uploader to read a file.
             if (item.uploaderId !== context.actor.getAccountId()) {
                 throw new PermissionDeniedError("Account didn't upload file");
             }
@@ -1757,14 +1754,12 @@ export async function getFileIfExistsFromAttachment(
     }: {consistency?: DynamoReadConsistency; accessLevel?: "View" | "Edit"} = {},
 ): Promise<FileModel | null> {
     const [item, , targetItem] = await runAllPromises([
-        // 1. Make sure we have access to the space the file is in
-        //    (`authorizeSpaceAccess()` is called by this function)
         getFileItemIfExistsWithCache(context, spaceId, fileId, {consistency}),
 
-        // 2. Make sure we have access to the file's attachment target
+        // 1. Make sure we have access to the file's attachment target
         targetAuthorizer.authorizeTargetAccess(context, spaceId, accessLevel),
 
-        // 3. Make sure the file is actually attached to the provided target
+        // 2. Make sure the file is actually attached to the provided target
         (async () => {
             let targetItem = await FilesTable.getItemIfExists(
                 context,
