@@ -14,19 +14,24 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getWebMobileTabFromPathname} from "~/client/spaces/layout/web_mobile_tab.js";
 import {useRouteErrorTitle} from "~/client/spaces/route_metadata.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     spaceLayoutErrorRendererPaddingX,
     spaceLayoutErrorRendererPaddingY,
 } from "~/client/styles/space_layout_shared_styles.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
-export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
+export function SpaceRouteErrorRenderer({
+    currentAccount,
+    error: unstableError,
+}: {
+    currentAccount: AccountModel | null;
+    error: unknown;
+}) {
     const platform = usePlatform();
     const {isNativeMobile} = useClientInfo();
     const navigate = useNavigate();
     const location = useLocation();
-    const {currentAccount} = useSpaceContext();
 
     // Is this the initial location for a tab? If so we don't want to render the
     // back button since there's nothing to go back to.
@@ -42,7 +47,7 @@ export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
     // It appears that Remix does not `useMemo()` its error object. So stabilize
     // the object reference here. Our error rendering components use referential
     // identity to determine whether we need to log the error.
-    const error = useStableValue(ErrorSchema, _error);
+    const error = useStableValue(ErrorSchema, unstableError);
 
     return (
         <Box width="full" paddingY="safe-area-inset">

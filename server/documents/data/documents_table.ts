@@ -46,6 +46,7 @@ import {
     dangerouslyGetAccountStubIfExistsWithoutAuthorization,
     getAccount,
     isAccountMemberOfSpace,
+    isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
 import {
     AccessLevel,
@@ -80,6 +81,7 @@ import {
     getDocumentContentTitleWithoutFallback,
 } from "~/shared/documents/document_model.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
+import {spaceAccessPermissionDeniedErrorDisplayMessage} from "~/shared/error/common_error_display_messages.js";
 import {
     DataLossError,
     ErrorBase,
@@ -998,6 +1000,20 @@ async function authorizeDocumentItemAccessIfPossible(
     // NOCOMMIT: Test this
     if (context.actor.type === "Anonymous") {
         return {ok: false, error: unauthenticatedSessionError()};
+    } else if (
+        !(await isAccountMemberOfSpaceWithoutAuthorization(
+            context,
+            documentItem.spaceId,
+            context.actor.getAccountId(),
+        ))
+    ) {
+        return {
+            ok: false,
+            error: new PermissionDeniedError(
+                quote`Actor doesn't have ${expectedAccessLevel} access level to document`,
+                {displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage},
+            ),
+        };
     } else {
         return {
             ok: false,

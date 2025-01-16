@@ -75,7 +75,11 @@ import {
 } from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {getAccount, getSpace} from "~/server/spaces/spaces_table.js";
+import {
+    authorizeSpaceAccessIfPossible,
+    getAccount,
+    getSpace,
+} from "~/server/spaces/spaces_table.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
@@ -197,8 +201,8 @@ export async function loader({context: loaderContext, params}: LoaderArgs) {
             const propagateEventData: TracerEventData = {
                 context: {
                     isAnonymous: true,
-                    withoutSpaceAccess: true,
                     spaceId,
+                    withoutSpaceAccess: true,
                 },
             };
 
@@ -209,34 +213,74 @@ export async function loader({context: loaderContext, params}: LoaderArgs) {
             );
         }
 
-        // NOCOMMIT: Session actor from a different space? Remember to set
-        // `propagateEventData` appropriately.
         case "Session": {
-            const [space, currentAccount, {hasInternalAccess}, inbox] = await runAllPromises([
-                getSpace(context, spaceId),
-                getAccount(context, spaceId, context.actor.getAccountId()),
-                context.actor.getAccountAndHasInternalAccess(),
-                getInbox(context as InboxSessionActionContextWithBroadcast, {spaceId}),
-            ]);
+            try {
+                const [space, currentAccount, {hasInternalAccess}, inbox] = await runAllPromises([
+                    getSpace(context, spaceId),
+                    getAccount(context, spaceId, context.actor.getAccountId()),
+                    context.actor.getAccountAndHasInternalAccess(),
+                    getInbox(context as InboxSessionActionContextWithBroadcast, {spaceId}),
+                ]);
 
-            const propagateEventData: TracerEventData = {
-                context: {
-                    accountId: currentAccount.id,
-                    spaceId: space.id,
-                },
-            };
+                const propagateEventData: TracerEventData = {
+                    context: {
+                        accountId: currentAccount.id,
+                        spaceId: space.id,
+                    },
+                };
 
-            return jsonWithSchema(
-                LoaderSchema,
-                {
-                    type: "WithAccess",
-                    space,
-                    currentAccount,
-                    hasInternalAccess,
-                    inbox,
-                },
-                {propagateEventData},
-            );
+                return jsonWithSchema(
+                    LoaderSchema,
+                    {
+                        type: "WithAccess",
+                        space,
+                        currentAccount,
+                        hasInternalAccess,
+                        inbox,
+                    },
+                    {propagateEventData},
+                );
+            } catch (error) {
+                // If we failed to load the space route because the session actor doesn't have
+                // access to the space then we still want to attempt to load the page in
+                // `WithoutAccess` mode. In case the underlying content has URL sharing turned
+                // on.
+                //
+                // In order to figure out if the error was a space authorization issue, we call
+                // `authorizeSpaceAccessIfPossible()` and rethrow the error if that succeeds.
+                // That function only returns an error result if the session actor doesn't have
+                // space access.
+                //
+                // NOCOMMIT: Test
+                const spaceAuthorizationResult = await authorizeSpaceAccessIfPossible(
+                    context,
+                    spaceId,
+                );
+                if (spaceAuthorizationResult.ok) throw error;
+
+                const {account} = await context.actor.getAccountAndHasInternalAccess();
+
+                const space = new SpaceModel({
+                    id: spaceId,
+                    // If you don't have space access, you're not allowed to see the space's name.
+                    // Use an empty string as a placeholder.
+                    name: "",
+                });
+
+                const propagateEventData: TracerEventData = {
+                    context: {
+                        accountId: account.id,
+                        spaceId,
+                        withoutSpaceAccess: true,
+                    },
+                };
+
+                return jsonWithSchema(
+                    LoaderSchema,
+                    {type: "WithoutAccess", space, currentAccountWithoutSpace: account},
+                    {propagateEventData},
+                );
+            }
         }
         default:
             throw exhaustive(context.actor);
@@ -298,7 +342,7 @@ export default function SpaceLayoutRoute() {
     // If it's our `/s/:spaceId` route itself throwing then we won't be able to
     // render the space chrome. So render our root error renderer.
     if (!loaderData) {
-        return <SpaceRouteErrorRenderer error={error} />;
+        return <SpaceRouteErrorRenderer currentAccount={null} error={error} />;
     }
 
     return (
@@ -417,10 +461,13 @@ function SpaceLayoutRouteInner({
     // If we switch to mobile then clear the `search` URL parameter
     // since mobile can't render the search modal.
     useEffect(() => {
-        if (platform !== "mobile") return;
-        if (searchParams.get("search") === null) return;
-        setSearchQueryText(null);
-    }, [platform, searchParams, setSearchQueryText]);
+        if (
+            (loaderData.type !== "WithAccess" || platform === "mobile") &&
+            searchParams.get("search") !== null
+        ) {
+            setSearchQueryText(null);
+        }
+    }, [loaderData.type, platform, searchParams, setSearchQueryText]);
 
     const [debugOptions, setDebugOptions] = useLocalStorage(
         "cyberworlds/searchDebugOptions",
@@ -506,6 +553,7 @@ function SpaceLayoutRouteInner({
     for (const [searchParamName, searchParamValue] of searchParams) {
         switch (searchParamName) {
             case "search": {
+                if (loaderData.type !== "WithAccess") continue;
                 if (platform === "mobile") continue;
                 if (isInitialAppRender) continue;
 
@@ -637,7 +685,9 @@ function SpaceLayoutRouteInner({
                             event.preventDefault();
                             event.stopPropagation();
 
-                            setSearchQueryText("");
+                            if (loaderData.type === "WithAccess") {
+                                setSearchQueryText("");
+                            }
                         }
                         break;
                     }
@@ -840,7 +890,14 @@ function SpaceLayoutRouteOutlet({
                                 />
                             )}
                             {error !== undefined ? (
-                                <SpaceRouteErrorRenderer error={error} />
+                                <SpaceRouteErrorRenderer
+                                    currentAccount={
+                                        loaderData.type === "WithAccess"
+                                            ? loaderData.currentAccount
+                                            : null
+                                    }
+                                    error={error}
+                                />
                             ) : (
                                 <LoadingIndicatorSpaceOutletContainer
                                     routeId="routes/s.$spaceId"
@@ -932,7 +989,12 @@ function SpaceLayoutRouteOutlet({
                         className={outletContainerClassName}
                         style={outletContainerStyle}
                     >
-                        <SpaceRouteErrorRenderer error={error} />
+                        <SpaceRouteErrorRenderer
+                            currentAccount={
+                                loaderData.type === "WithAccess" ? loaderData.currentAccount : null
+                            }
+                            error={error}
+                        />
                     </div>
                 ) : (
                     <NativeMobileOutlet

@@ -25,7 +25,7 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {pointerEventsNoneNotInheritedClassName} from "~/client/styles/styles.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
 import {
@@ -98,7 +98,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     const {isNativeMobile} = useClientInfo();
     const navigate = useNavigate();
     const reporter = useReporter();
-    const {currentAccount} = useSpaceContext();
+    const spaceContext = useSpaceContextIfExists();
 
     const isMobile = platform === "mobile";
 
@@ -229,7 +229,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                   //
                                   // TODO(calebmer): Maybe put an Alpine logo here instead? When `currentAccount`
                                   // does not exist. Or put the space logo.
-                                  (currentAccount || isNativeMobile) && (
+                                  (spaceContext?.currentAccount || isNativeMobile) && (
                                       <IconButton
                                           size="base"
                                           description="Go back"
