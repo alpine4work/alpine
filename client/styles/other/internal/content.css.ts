@@ -2328,7 +2328,7 @@ globalStyle(`${darkColorSchemeSelector} .${gripColumnClassName}:hover::before`, 
 });
 
 globalStyle(`.${gripColumnClassName}.first`, {
-    borderColor: "transparent",
+    borderLeft: "none",
     borderTopLeftRadius: borderRadius["0.5"],
 });
 
@@ -2395,7 +2395,7 @@ globalStyle(`${darkColorSchemeSelector} .${gripRowClassName}:hover::before`, {
 });
 
 globalStyle(`.${gripRowClassName}.first`, {
-    borderColor: "transparent",
+    borderTop: "none",
     borderTopLeftRadius: borderRadius["0.5"],
 });
 
@@ -2491,4 +2491,85 @@ export const tableAddRowGripClassName = style({
         backgroundColor: colorSchemeVars["grey-20"],
         color: colorSchemeVars["grey-100"],
     },
+});
+
+export const betweenColumnGripClassName = style({
+    position: "absolute",
+    top: "-36px",
+    height: "24px",
+    width: "16px",
+    cursor: "pointer",
+    backgroundColor: "transparent",
+    zIndex: 11,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transform: "translateX(-50%)",
+    "::before": {
+        content: '""',
+        zIndex: 12,
+        position: "absolute",
+        width: "4px",
+        height: "4px",
+        borderRadius: "50%",
+        backgroundColor: colorSchemeVars["grey-60"],
+        opacity: 0.6,
+    },
+});
+
+globalStyle(`${betweenColumnGripClassName}:hover`, {
+    backgroundColor: colorSchemeVars["theme-60"],
+});
+
+globalStyle(`${betweenColumnGripClassName}:hover::before`, {
+    display: "none",
+});
+
+globalStyle(`${betweenColumnGripClassName}:hover > span`, {
+    display: "flex",
+    color: colorSchemeVars["grey-100"],
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    height: "100%",
+});
+
+export const betweenRowGripClassName = style({
+    position: "absolute",
+    left: "-36px",
+    width: "24px",
+    height: "16px",
+    cursor: "pointer",
+    backgroundColor: "transparent",
+    zIndex: 11,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transform: "translateY(-50%)",
+    "::before": {
+        content: '""',
+        position: "absolute",
+        width: "4px",
+        height: "4px",
+        borderRadius: "50%",
+        backgroundColor: colorSchemeVars["grey-60"],
+        opacity: 0.6,
+    },
+});
+
+globalStyle(`${betweenRowGripClassName}:hover`, {
+    backgroundColor: colorSchemeVars["theme-60"],
+});
+
+globalStyle(`${betweenRowGripClassName}:hover::before`, {
+    display: "none",
+});
+
+globalStyle(`${betweenRowGripClassName}:hover > span`, {
+    display: "flex",
+    color: colorSchemeVars["grey-100"],
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    height: "100%",
 });

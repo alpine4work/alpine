@@ -16,7 +16,7 @@ import {
     addContentTableColumnAfter,
     addRowAfter,
 } from "~/client/content/internal/table/content_table_commands.js";
-import {contentStyles} from "~/client/styles/styles.js";
+import {colorSchemeVars, contentStyles} from "~/client/styles/styles.js";
 
 // NOCOMMIT: update the names of the grips, all of them seems confusing
 // because of similar functionalities.
@@ -73,6 +73,36 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                 const rowCells = getCellsInColumn(0)(selection);
                 if (rowCells) {
                     rowCells.forEach(({pos}: {pos: number}, index: number) => {
+                        // Add between row grip for all rows except last
+                        if (index < rowCells.length - 1) {
+                            decorations.push(
+                                Decoration.widget(pos + 1, () => {
+                                    const betweenGrip = document.createElement("div");
+                                    betweenGrip.className = contentStyles.betweenRowGripClassName;
+                                    betweenGrip.title = "Add row";
+
+                                    const plusSign = document.createElement("span");
+                                    plusSign.innerHTML = "+";
+                                    plusSign.style.display = "none";
+                                    plusSign.style.color = colorSchemeVars["grey-100"];
+                                    betweenGrip.appendChild(plusSign);
+
+                                    betweenGrip.style.top = "100%";
+
+                                    betweenGrip.addEventListener("mousedown", event => {
+                                        event.preventDefault();
+                                        event.stopImmediatePropagation();
+                                        if (view) {
+                                            addRowAfter(view.state, view.dispatch);
+                                            view.dispatch(selectRow(index)(view.state.tr));
+                                        }
+                                    });
+
+                                    return betweenGrip;
+                                }),
+                            );
+                        }
+
                         decorations.push(
                             Decoration.widget(pos + 1, () => {
                                 const rowSelected = isRowSelected(index)(selection);
@@ -147,6 +177,38 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                 const colCells = getCellsInRow(0)(selection);
                 if (colCells) {
                     colCells.forEach(({pos}: {pos: number}, index: number) => {
+                        // Add between column grip for all columns except last
+                        if (index < colCells.length - 1) {
+                            const nextCell = colCells[index + 1];
+                            decorations.push(
+                                Decoration.widget(pos + 1, () => {
+                                    const betweenGrip = document.createElement("div");
+                                    betweenGrip.className =
+                                        contentStyles.betweenColumnGripClassName;
+                                    betweenGrip.title = "Add column";
+
+                                    const plusSign = document.createElement("span");
+                                    plusSign.innerHTML = "+";
+                                    plusSign.style.display = "none";
+                                    plusSign.style.color = colorSchemeVars["grey-100"];
+                                    betweenGrip.appendChild(plusSign);
+
+                                    betweenGrip.style.left = "100%";
+
+                                    betweenGrip.addEventListener("mousedown", event => {
+                                        event.preventDefault();
+                                        event.stopImmediatePropagation();
+                                        if (view) {
+                                            addContentTableColumnAfter(view.state, view.dispatch);
+                                            view.dispatch(selectColumn(index)(view.state.tr));
+                                        }
+                                    });
+
+                                    return betweenGrip;
+                                }),
+                            );
+                        }
+
                         decorations.push(
                             Decoration.widget(pos + 1, () => {
                                 const colSelected = isColumnSelected(index)(selection);
