@@ -48,6 +48,9 @@ export type AccessPolicyAction =
     | {
           readonly type: "SetUrlGrantLevel";
           readonly level: "View";
+      }
+    | {
+          readonly type: "DeleteDefaultGrantAndUrlGrant";
       };
 
 export function reduceAccessPolicy(
@@ -164,6 +167,13 @@ export function reduceAccessPolicy(
                     accessPolicy.urlGrant?.level !== action.level
                         ? {level: action.level}
                         : accessPolicy.urlGrant,
+            };
+        }
+        case "DeleteDefaultGrantAndUrlGrant": {
+            return {
+                ...accessPolicy,
+                defaultGrant: null,
+                urlGrant: null,
             };
         }
         default:

@@ -117,12 +117,9 @@ export function ShareOverlayAccountGrantInput({
         const selectedAccountIds = new Set<AccountId>(selectedAccounts.map(account => account.id));
 
         return itemsWithGrantedAccounts.filter(
-            item =>
-                item.key !== currentAccount?.id &&
-                !accountGrantById.has(item.key) &&
-                !selectedAccountIds.has(item.key),
+            item => !accountGrantById.has(item.key) && !selectedAccountIds.has(item.key),
         );
-    }, [selectedAccounts, itemsWithGrantedAccounts, currentAccount?.id, accountGrantById]);
+    }, [selectedAccounts, itemsWithGrantedAccounts, accountGrantById]);
 
     const itemsSearchIndex = useMemo(
         () =>
@@ -487,7 +484,7 @@ export function ShareOverlayAccountGrantInput({
                     style={{
                         // Use `box-shadow` instead of `border` so drawing the border doesn't take
                         // space in the layout.
-                        boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-20"]}`,
+                        boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                     }}
                 >
                     <Box
