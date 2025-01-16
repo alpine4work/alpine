@@ -22,7 +22,6 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {accessLevelText} from "~/client/navigation/internal/access_level_text.js";
-import {AccessPolicyAction} from "~/client/navigation/internal/access_policy_action.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -38,6 +37,7 @@ import {
     AccessPolicy,
     AccessPolicyAccountGrant,
 } from "~/shared/access/access_policy.js";
+import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";

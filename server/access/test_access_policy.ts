@@ -1,12 +1,16 @@
+import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
+import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {
     AccessLevel,
     AccessPolicy,
     AccessPolicyAccountGrant,
+    AccessPolicyUrlGrant,
 } from "~/shared/access/access_policy.js";
-import {emptyMap} from "~/shared/helpers/array/empty_map.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {reduceAccessPolicy} from "~/shared/access/access_policy_action.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 // Can only be imported in a test environment. We put this directly in the
@@ -15,109 +19,160 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 // need any other test helper dependencies.
 assert(process.env.NODE_ENV === "test");
 
-export type TestAccessPolicyOption = AccessPolicy | TestAccessPolicy | "public" | "private";
-
-export function buildTestAccessPolicyOption(
-    option: TestAccessPolicyOption,
-    actorAccountId: AccountId,
-): AccessPolicy {
-    if (typeof option === "string") {
-        return TestAccessPolicy[option].build(actorAccountId);
-    }
-
-    if (option instanceof TestAccessPolicy) {
-        return option.build(actorAccountId);
-    }
-
-    return option;
-}
-
-type TestAccessPolicyAccount = AccountId | {id: AccountId} | {account: {id: AccountId}};
-
-type TestAccessPolicyAccountGrant =
-    | TestAccessPolicyAccount
-    | readonly [TestAccessPolicyAccount, AccessLevel];
-
-function getTestAccessPolicyAccountId(account: TestAccessPolicyAccount): AccountId {
-    if (typeof account === "string") return account;
-    if ("account" in account) return account.account.id;
-    return account.id;
-}
-
-function getTestAccessPolicyAccountGrant(
-    accountGrant: TestAccessPolicyAccountGrant,
-): [AccountId, AccessPolicyAccountGrant] {
-    if (!isReadonlyArray(accountGrant))
-        return [getTestAccessPolicyAccountId(accountGrant), {level: "Edit"}];
-
-    return [
-        getTestAccessPolicyAccountId(accountGrant[0]),
-        accountGrant[1] === "Manage"
-            ? {level: accountGrant[1], generation: 0}
-            : {level: accountGrant[1]},
-    ];
-}
-
 export class TestAccessPolicy {
-    public static readonly public = new TestAccessPolicy(() => ({
-        accountGrantById: emptyMap,
-        defaultGrant: {level: "Manage", generation: 0},
-        urlGrant: null,
-    }));
+    public readonly get: () => Promise<AccessPolicy>;
+    public readonly set: (session: TestSpaceSession, accessPolicy: AccessPolicy) => Promise<void>;
 
-    public static readonly private = new TestAccessPolicy(actorAccountId => ({
-        accountGrantById: new Map([[actorAccountId, {level: "Manage", generation: 0}]]),
-        defaultGrant: null,
-        urlGrant: null,
-    }));
-
-    public readonly build: (actorAccountId: AccountId) => AccessPolicy;
-
-    private constructor(build: (actorAccountId: AccountId) => AccessPolicy) {
-        this.build = build;
+    constructor({
+        get,
+        set,
+    }: {
+        get: () => Promise<AccessPolicy>;
+        set: (session: TestSpaceSession, accessPolicy: AccessPolicy) => Promise<void>;
+    }) {
+        this.get = get;
+        this.set = set;
     }
 
-    public with(account: TestAccessPolicyAccount, level: AccessLevel): TestAccessPolicy;
-    public with(...accountGrants: Array<TestAccessPolicyAccountGrant>): TestAccessPolicy;
-    public with(
-        ...accountGrants:
-            | Array<TestAccessPolicyAccountGrant>
-            | [TestAccessPolicyAccount, AccessLevel]
-    ): TestAccessPolicy {
-        let actualAccountGrants: Array<TestAccessPolicyAccountGrant>;
+    public async grant(
+        session: TestSpaceSession,
+        account: AccountId | TestAccount | TestSession,
+        level: AccessLevel = "Manage",
+    ) {
+        const accountId: AccountId =
+            "account" in account ? account.account.id : "id" in account ? account.id : account;
 
-        if (typeof accountGrants[1] === "string") {
-            actualAccountGrants = [accountGrants as [TestAccessPolicyAccount, AccessLevel]];
-        } else {
-            actualAccountGrants = accountGrants as Array<TestAccessPolicyAccountGrant>;
-        }
+        const oldAccessPolicy = await this.get();
 
-        return new TestAccessPolicy(actorAccountId => {
-            const accessPolicy = this.build(actorAccountId);
+        const oldAccountGrant = oldAccessPolicy.accountGrantById.get(accountId);
 
-            return {
-                accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>(
-                    concatIterables(
-                        accessPolicy.accountGrantById,
-                        actualAccountGrants.map(getTestAccessPolicyAccountGrant),
-                    ),
-                ),
-                defaultGrant: accessPolicy.defaultGrant,
-                urlGrant: accessPolicy.urlGrant,
-            };
-        });
+        const newAccessPolicy = reduceAccessPolicy(
+            session.account.id,
+            oldAccessPolicy,
+            oldAccountGrant === undefined
+                ? {
+                      type: "AddAccountGrants",
+                      accountGrantById: new Map([[accountId, {level}]]),
+                  }
+                : {
+                      type: "SetAccountGrantLevel",
+                      accountId,
+                      level,
+                  },
+        );
+
+        await this.set(session, newAccessPolicy);
     }
 
-    public withDefault(level: AccessLevel | null) {
-        return new TestAccessPolicy(actorAccountId => {
-            const accessPolicy = this.build(actorAccountId);
+    public async grantAccounts(
+        session: TestSpaceSession,
+        accounts: Iterable<AccountId | TestAccount | TestSession>,
+        level: AccessLevel = "Manage",
+    ) {
+        const oldAccessPolicy = await this.get();
 
-            return {
-                accountGrantById: accessPolicy.accountGrantById,
-                defaultGrant:
-                    level !== null ? (level === "Manage" ? {level, generation: 0} : {level}) : null,
-                urlGrant: accessPolicy.urlGrant,
-            };
+        const accountGrantById = new Map<
+            AccountId,
+            DistributiveOmit<AccessPolicyAccountGrant, "generation">
+        >(
+            mapIterable(accounts, account => {
+                const accountId: AccountId =
+                    "account" in account
+                        ? account.account.id
+                        : "id" in account
+                        ? account.id
+                        : account;
+
+                // The `AddAccountGrants` action noops if the account is already granted. Don't
+                // support granting an account that was already granted.
+                assert(!oldAccessPolicy.accountGrantById.has(accountId));
+
+                return [accountId, {level}];
+            }),
+        );
+
+        const newAccessPolicy = reduceAccessPolicy(session.account.id, oldAccessPolicy, {
+            type: "AddAccountGrants",
+            accountGrantById,
         });
+
+        await this.set(session, newAccessPolicy);
+    }
+
+    public async revoke(session: TestSpaceSession, account: AccountId | TestAccount | TestSession) {
+        const accountId: AccountId =
+            "account" in account ? account.account.id : "id" in account ? account.id : account;
+
+        const oldAccessPolicy = await this.get();
+
+        const newAccessPolicy = reduceAccessPolicy(session.account.id, oldAccessPolicy, {
+            type: "DeleteAccountGrant",
+            accountId,
+        });
+
+        await this.set(session, newAccessPolicy);
+    }
+
+    public async grantDefault(session: TestSpaceSession, level: AccessLevel = "Manage") {
+        const oldAccessPolicy = await this.get();
+
+        const newAccessPolicy = reduceAccessPolicy(
+            session.account.id,
+            oldAccessPolicy,
+            oldAccessPolicy.defaultGrant === null
+                ? {
+                      type: "AddDefaultGrant",
+                      defaultGrant: {level},
+                  }
+                : {
+                      type: "SetDefaultGrantLevel",
+                      level,
+                  },
+        );
+
+        await this.set(session, newAccessPolicy);
+    }
+
+    public async revokeDefault(session: TestSpaceSession) {
+        const oldAccessPolicy = await this.get();
+
+        const newAccessPolicy = reduceAccessPolicy(session.account.id, oldAccessPolicy, {
+            type: "DeleteDefaultGrant",
+        });
+
+        await this.set(session, newAccessPolicy);
+    }
+
+    public async grantUrl(
+        session: TestSpaceSession,
+        level: AccessPolicyUrlGrant["level"] = "View",
+    ) {
+        const oldAccessPolicy = await this.get();
+
+        const newAccessPolicy = reduceAccessPolicy(
+            session.account.id,
+            oldAccessPolicy,
+            oldAccessPolicy.urlGrant === null
+                ? {
+                      type: "AddUrlGrant",
+                      urlGrant: {level},
+                  }
+                : {
+                      type: "SetUrlGrantLevel",
+                      level,
+                  },
+        );
+
+        await this.set(session, newAccessPolicy);
+    }
+
+    public async revokeUrl(session: TestSpaceSession) {
+        const oldAccessPolicy = await this.get();
+
+        const newAccessPolicy = reduceAccessPolicy(session.account.id, oldAccessPolicy, {
+            type: "DeleteUrlGrant",
+        });
+
+        await this.set(session, newAccessPolicy);
     }
 }

@@ -220,9 +220,12 @@ test("loads multiple queries", async () => {
         TestTask.create(session1),
         TestTask.create(session1),
         TestTask.create(session1),
-        TestTaskCollection.create(session1, {access: "public"}),
-        TestTaskCollection.create(session1, {access: "public"}),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
     ]);
+
+    await collection1.access.grantDefault(session1);
+    await collection2.access.grantDefault(session1);
 
     await runAllPromises([
         task1.addCollection(session1, collection1),
@@ -792,10 +795,14 @@ test("loads referenced collections", async () => {
             TestTask.create(session),
             TestTask.create(session),
             TestTask.create(session),
-            TestTaskCollection.create(session, {access: "public"}),
-            TestTaskCollection.create(session, {access: "public"}),
-            TestTaskCollection.create(session, {access: "public"}),
+            TestTaskCollection.create(session),
+            TestTaskCollection.create(session),
+            TestTaskCollection.create(session),
         ]);
+
+    await collection1.access.grantDefault(session);
+    await collection2.access.grantDefault(session);
+    await collection3.access.grantDefault(session);
 
     await runAllPromises([
         task2.updateParentTask(session, parentTask1),
@@ -867,8 +874,10 @@ test("loads unauthorized parent tasks", async () => {
             TestTask.create(session1),
             TestTask.create(session2),
             TestTask.create(session2),
-            TestTaskCollection.create(session1, {access: "public"}),
+            TestTaskCollection.create(session1),
         ]);
+
+    await collection.access.grantDefault(session1);
 
     await task1.addCollection(session1, collection);
     await parentTask2.addCollection(session1, collection);
@@ -952,12 +961,14 @@ test("loads unauthorized collections", async () => {
         TestTask.create(session1),
         TestTask.create(session2),
         TestTask.create(session2),
-        TestTaskCollection.create(session1, {access: "public"}),
+        TestTaskCollection.create(session1),
         TestTaskCollection.create(session2),
         TestTaskCollection.create(session2),
         TestTaskCollection.create(session2),
         TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session1);
 
     await task1.addCollection(session1, collection1);
     await parentTask2.addCollection(session1, collection1);

@@ -13419,7 +13419,8 @@ test("can't update task in a deleted public collection", async () => {
         space.createSession(),
     ]);
 
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     const task = await TestTask.create(session1);
 
     await expect(task.updatePriority(session2, "High")).rejects.toThrow(PermissionDeniedError);
@@ -13440,7 +13441,8 @@ test("can't update task in a deleted public collection", async () => {
 test("can't add task to a deleted public collection", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
-    const collection = await TestTaskCollection.create(session, {access: "public"});
+    const collection = await TestTaskCollection.create(session);
+    await collection.access.grantDefault(session);
     const [task1, task2, task3] = await runAllPromises([
         TestTask.create(session),
         TestTask.create(session),
@@ -13461,7 +13463,8 @@ test("can't add task to a deleted public collection", async () => {
 test("can't remove task from a deleted public collection", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
-    const collection = await TestTaskCollection.create(session, {access: "public"});
+    const collection = await TestTaskCollection.create(session);
+    await collection.access.grantDefault(session);
     const task = await TestTask.create(session);
 
     await task.addCollection(session, collection);
@@ -13483,7 +13486,8 @@ test("can't update collection name in a deleted public collection", async () => 
         space.createSession(),
     ]);
 
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
 
     await collection.updateName(session2, "Test 1");
 
@@ -13913,7 +13917,8 @@ test("can authorize a query with a collection you have access to", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
         filters: [
@@ -13955,7 +13960,8 @@ test("can't authorize an excludes all of query with a collection you have access
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
@@ -14002,9 +14008,12 @@ test("can authorize a query with one of three collections you have access to", a
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.create(session1, {access: "public"});
-    const collection2 = await TestTaskCollection.create(session1, {access: "public"});
-    const collection3 = await TestTaskCollection.create(session1, {access: "public"});
+    const collection1 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    const collection2 = await TestTaskCollection.create(session1);
+    await collection2.access.grantDefault(session1);
+    const collection3 = await TestTaskCollection.create(session1);
+    await collection3.access.grantDefault(session1);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
         filters: [
@@ -14023,9 +14032,11 @@ test("can't authorize a query with one of two collections you have access to and
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.create(session1, {access: "public"});
+    const collection1 = await TestTaskCollection.create(session1);
     const collection2 = await TestTaskCollection.create(session1);
-    const collection3 = await TestTaskCollection.create(session1, {access: "public"});
+    const collection3 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    await collection3.access.grantDefault(session1);
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
@@ -14048,9 +14059,12 @@ test("can authorize a query with all of three collections you have access to", a
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.create(session1, {access: "public"});
-    const collection2 = await TestTaskCollection.create(session1, {access: "public"});
-    const collection3 = await TestTaskCollection.create(session1, {access: "public"});
+    const collection1 = await TestTaskCollection.create(session1);
+    const collection2 = await TestTaskCollection.create(session1);
+    const collection3 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    await collection2.access.grantDefault(session1);
+    await collection3.access.grantDefault(session1);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
         filters: [
@@ -14069,9 +14083,11 @@ test("can't authorize a query with all of two collections you have access to and
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.create(session1, {access: "public"});
+    const collection1 = await TestTaskCollection.create(session1);
     const collection2 = await TestTaskCollection.create(session1);
-    const collection3 = await TestTaskCollection.create(session1, {access: "public"});
+    const collection3 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    await collection3.access.grantDefault(session1);
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
@@ -14094,9 +14110,12 @@ test("can't authorize a query with excludes all of three collections you have ac
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.create(session1, {access: "public"});
-    const collection2 = await TestTaskCollection.create(session1, {access: "public"});
-    const collection3 = await TestTaskCollection.create(session1, {access: "public"});
+    const collection1 = await TestTaskCollection.create(session1);
+    const collection2 = await TestTaskCollection.create(session1);
+    const collection3 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    await collection2.access.grantDefault(session1);
+    await collection3.access.grantDefault(session1);
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
@@ -14121,9 +14140,11 @@ test("can't authorize a query with excludes all of two collections you have acce
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.create(session1, {access: "public"});
+    const collection1 = await TestTaskCollection.create(session1);
     const collection2 = await TestTaskCollection.create(session1);
-    const collection3 = await TestTaskCollection.create(session1, {access: "public"});
+    const collection3 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    await collection3.access.grantDefault(session1);
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
@@ -14146,9 +14167,11 @@ test("can authorize a query when filtering by a collection you don't have access
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.create(session1, {access: "public"});
+    const collection1 = await TestTaskCollection.create(session1);
     const collection2 = await TestTaskCollection.create(session1);
-    const collection3 = await TestTaskCollection.create(session1, {access: "public"});
+    const collection3 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    await collection3.access.grantDefault(session1);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
         filters: [
@@ -14216,7 +14239,8 @@ test("can't authorize is empty collection filter with an accessible collection f
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
@@ -14258,9 +14282,12 @@ test("can authorize a query when filtering by a collection filter merged by bool
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.create(session1, {access: "public"});
-    const collection2 = await TestTaskCollection.create(session1, {access: "public"});
-    const collection3 = await TestTaskCollection.create(session1, {access: "public"});
+    const collection1 = await TestTaskCollection.create(session1);
+    const collection2 = await TestTaskCollection.create(session1);
+    const collection3 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    await collection2.access.grantDefault(session1);
+    await collection3.access.grantDefault(session1);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
         filters: [
@@ -14286,8 +14313,10 @@ test("can authorize an excludes collections query when with a passing filter", a
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.create(session1, {access: "public"});
-    const collection2 = await TestTaskCollection.create(session1, {access: "public"});
+    const collection1 = await TestTaskCollection.create(session1);
+    const collection2 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    await collection2.access.grantDefault(session1);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
         filters: [
@@ -14332,7 +14361,8 @@ test("can authorize a query with a parent filter for a task you have access to",
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     const task = await TestTask.create(session1);
 
     await task.addCollection(session1, collection);
@@ -14372,7 +14402,8 @@ test("can authorize a query with a parent filter for a task you have access to t
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     const task1 = await TestTask.create(session1);
     const task2 = await TestTask.create(session1);
 
@@ -14416,7 +14447,8 @@ test("can authorize a query with a parent filter for a deleted task", async () =
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     const task = await TestTask.create(session1);
 
     await task.addCollection(session1, collection);
@@ -14481,7 +14513,8 @@ test("must be allowed to access collection to sort by collection position", asyn
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.create(session1, {access: "public"});
+    const collection1 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
     const collection2 = await TestTaskCollection.create(session1);
 
     await expect(
@@ -14544,7 +14577,8 @@ test("must be allowed to access collection to sort by collection position with c
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.create(session1, {access: "public"});
+    const collection1 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
     const collection2 = await TestTaskCollection.create(session1);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
@@ -14816,7 +14850,7 @@ test("can delete a task and all its children when you have access to the task th
     const collection = await TestTaskCollection.create(session1);
     await task.addCollection(session1, collection);
 
-    await collection.updateAccess(session1, {
+    await collection.access.set(session1, {
         accountGrantById: new Map([
             [session1.account.id, {level: "Manage", generation: 0}],
             [session3.account.id, {level: "Manage", generation: 0}],
@@ -15714,7 +15748,8 @@ test("can't get notes for task in the wrong space", async () => {
     const otherSession = await otherSpace.createSession();
 
     const task = await TestTask.create(session);
-    const collection = await TestTaskCollection.create(session, {access: "public"});
+    const collection = await TestTaskCollection.create(session);
+    await collection.access.grantDefault(session);
     await task.addCollection(session, collection);
 
     await expect(getTaskNotesContent(otherSession.action(), task.id)).rejects.toThrow(
@@ -15732,7 +15767,8 @@ test("can get notes for task in public collection", async () => {
     const session2 = await space.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     expect(await getTaskNotesContent(session2.action(), task.id)).toEqual({
@@ -15903,7 +15939,8 @@ test("can't update task notes in a different space", async () => {
     const otherSession = await otherSpace.createSession();
 
     const task = await TestTask.create(session);
-    const collection = await TestTaskCollection.create(session, {access: "public"});
+    const collection = await TestTaskCollection.create(session);
+    await collection.access.grantDefault(session);
     await task.addCollection(session, collection);
 
     expect(await getTaskNotesContent(session.action(), task.id)).toEqual({
@@ -15940,7 +15977,8 @@ test("can update task notes in a public collection", async () => {
     const session2 = await space.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     expect(await getTaskNotesContent(session1.action(), task.id)).toEqual({
@@ -16748,8 +16786,10 @@ test("race condition: update collection task count is recognized if it conflicts
 
     const [task, collection] = await runAllPromises([
         TestTask.create(session1),
-        TestTaskCollection.create(session2, {access: "public"}),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection.access.grantDefault(session2);
 
     expect(await collection.getItem()).toEqual(
         expect.objectContaining({
@@ -16763,7 +16803,7 @@ test("race condition: update collection task count is recognized if it conflicts
         session2.account.id,
     );
 
-    const updatePromise = collection.updateAccess(session2, "private");
+    const updatePromise = collection.access.revokeDefault(session2);
     const {unpause} = await pausePromise;
 
     expect(await collection.getItem()).toEqual(
@@ -16804,8 +16844,10 @@ test("race condition: update collection task count is recognized if it conflicts
 
     const [task, collection] = await runAllPromises([
         TestTask.create(session1),
-        TestTaskCollection.create(session2, {access: "public"}),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection.access.grantDefault(session2);
 
     expect(await collection.getItem()).toEqual(
         expect.objectContaining({
@@ -16831,7 +16873,7 @@ test("race condition: update collection task count is recognized if it conflicts
         }),
     );
 
-    await collection.updateAccess(session2, "private");
+    await collection.access.revokeDefault(session2);
 
     expect(await collection.getItem()).toEqual(
         expect.objectContaining({
@@ -16862,8 +16904,10 @@ test("multiple actions that update collection item count in one transaction", as
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session),
     ]);
+
+    await collection.access.grantDefault(session);
 
     await task3.updateStatus(session, "Closed");
 
@@ -16938,8 +16982,10 @@ test("multiple actions that update collection item count in one transaction and 
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session),
     ]);
+
+    await collection.access.grantDefault(session);
 
     await task3.updateStatus(session, "Closed");
 
@@ -17029,8 +17075,10 @@ test("multiple actions that update collection item count in one transaction and 
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session),
     ]);
+
+    await collection.access.grantDefault(session);
 
     await task3.updateStatus(session, "Closed");
 
@@ -17120,8 +17168,10 @@ test("multiple actions that update collection item count in one transaction and 
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session),
     ]);
+
+    await collection.access.grantDefault(session);
 
     await task3.updateStatus(session, "Closed");
 
@@ -17208,8 +17258,10 @@ test("a collection action and an action that indirectly updates collection task 
 
     const [task, collection] = await runAllPromises([
         TestTask.create(session),
-        TestTaskCollection.create(session, {access: "public"}),
+        TestTaskCollection.create(session),
     ]);
+
+    await collection.access.grantDefault(session);
 
     expect(await collection.getItem()).toEqual(
         expect.objectContaining({
@@ -17317,8 +17369,10 @@ test("account can remove access from itself", async () => {
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.create(session2, {access: "public"}),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     await task1.addCollection(session2, collection1);
 
@@ -17368,8 +17422,10 @@ test("can authorize task with system actor and anonymous actor", async () => {
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.create(session2, {access: "public"}),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     await task1.addCollection(session2, collection1);
 
@@ -17448,8 +17504,10 @@ test("account can remove access from itself then grant it back with lease", asyn
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.create(session2, {access: "public"}),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -17541,8 +17599,10 @@ test("account can remove access from itself but can't grant it back with an inva
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.create(session2, {access: "public"}),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -17639,8 +17699,10 @@ test("account can remove access from itself but can't use another account's leas
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.create(session2, {access: "public"}),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -17736,9 +17798,11 @@ test("account can remove access from itself but can't grant itself access back w
 
     const [task1, collection1, collection2] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.create(session2, {access: "public"}),
+        TestTaskCollection.create(session2),
         TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -17861,8 +17925,10 @@ test("account can remove access from itself but can't grant itself access back w
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.create(session2, {access: "public"}),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -17966,8 +18032,10 @@ test("won't create lease if committed action doesn't remove access", async () =>
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.create(session2, {access: "public"}),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -18078,8 +18146,10 @@ test("can't create lease with actions you aren't allowed to commit", async () =>
     const [task1, task2, collection1] = await runAllPromises([
         TestTask.create(session2),
         TestTask.create(session2),
-        TestTaskCollection.create(session2, {access: "public"}),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -18152,8 +18222,10 @@ test("account can't remove access from itself then grant it back with lease that
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.create(session2, {access: "public"}),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -18403,8 +18475,10 @@ test("account can remove access from itself but can't grant it back if another u
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.create(session2, {access: "public"}),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -18502,8 +18576,10 @@ test("account can remove access from itself but can't grant it back if another u
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.create(session2, {access: "public"}),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -18601,8 +18677,10 @@ test("account can remove access from itself but can't grant it back if another u
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.create(session2, {access: "public"}),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -18705,7 +18783,8 @@ test("counts notes step count contributions for each account", async () => {
     const session3 = await space.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     expect(
@@ -18842,7 +18921,7 @@ test("throws error for users that only have view access when trying to access ta
 
     const collection = await TestTaskCollection.create(creatorSession);
 
-    await collection.updateAccess(creatorSession, {
+    await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 0}],
@@ -18947,7 +19026,7 @@ test("throws error for users that only have view access when trying to create ta
     const collection = await TestTaskCollection.create(creatorSession);
     await task.addCollection(creatorSession, collection);
 
-    await collection.updateAccess(creatorSession, {
+    await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 0}],
@@ -19004,7 +19083,8 @@ test("throws error for users that only have view access when trying to update ta
 
     const task = await TestTask.create(creatorSession);
 
-    const collection = await TestTaskCollection.create(creatorSession, {access: "public"});
+    const collection = await TestTaskCollection.create(creatorSession);
+    await collection.access.grantDefault(creatorSession);
     await task.addCollection(creatorSession, collection);
 
     const creatorTaskComment = await task.createComment(creatorSession, "test1");
@@ -19083,7 +19163,7 @@ test("throws error for users that only have view access when trying to update ta
         updateTaskCommentContent(manageSession.action(), updatedManageTaskCommentDetails),
     ).resolves.not.toBeNull();
 
-    await collection.updateAccess(creatorSession, {
+    await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 0}],
@@ -19191,7 +19271,8 @@ test("throws error for users that only have view access when trying to delete ta
     ]);
 
     const task = await TestTask.create(creatorSession);
-    const collection = await TestTaskCollection.create(creatorSession, {access: "public"});
+    const collection = await TestTaskCollection.create(creatorSession);
+    await collection.access.grantDefault(creatorSession);
     await task.addCollection(creatorSession, collection);
 
     await task.updateAssignee(creatorSession, assigneeSession);
@@ -19205,7 +19286,7 @@ test("throws error for users that only have view access when trying to delete ta
     const unauthorizedTaskComment = await task.createComment(unauthorizedSession, "test1");
     const assigneeTaskComment = await task.createComment(assigneeSession, "test1");
 
-    await collection.updateAccess(creatorSession, {
+    await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 0}],
@@ -19285,14 +19366,15 @@ test("throws error for users that only have view access when trying to get task 
 
     const task = await TestTask.create(creatorSession);
 
-    const collection = await TestTaskCollection.create(creatorSession, {access: "public"});
+    const collection = await TestTaskCollection.create(creatorSession);
+    await collection.access.grantDefault(creatorSession);
     await task.addCollection(creatorSession, collection);
 
     await task.createComment(creatorSession, "test1");
     await task.createComment(creatorSession, "test2");
     await task.createComment(creatorSession, "test3");
 
-    await collection.updateAccess(creatorSession, {
+    await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 0}],
@@ -19393,14 +19475,15 @@ test("throws error for users that only have view access when trying to get task 
 
     const task = await TestTask.create(creatorSession);
 
-    const collection = await TestTaskCollection.create(creatorSession, {access: "public"});
+    const collection = await TestTaskCollection.create(creatorSession);
+    await collection.access.grantDefault(creatorSession);
     await task.addCollection(creatorSession, collection);
 
     await task.createComment(creatorSession, "test1");
     await task.createComment(creatorSession, "test2");
     await task.createComment(creatorSession, "test3");
 
-    await collection.updateAccess(creatorSession, {
+    await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 0}],
@@ -19501,14 +19584,15 @@ test("throws error for users that only have view access when trying to get initi
 
     const task = await TestTask.create(creatorSession);
 
-    const collection = await TestTaskCollection.create(creatorSession, {access: "public"});
+    const collection = await TestTaskCollection.create(creatorSession);
+    await collection.access.grantDefault(creatorSession);
     await task.addCollection(creatorSession, collection);
 
     await task.createComment(creatorSession, "test1");
     await task.createComment(creatorSession, "test2");
     await task.createComment(creatorSession, "test3");
 
-    await collection.updateAccess(creatorSession, {
+    await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 0}],
@@ -19595,7 +19679,8 @@ test("throws error for users that only have view access when trying to get task 
 
     const task = await TestTask.create(creatorSession);
 
-    const collection = await TestTaskCollection.create(creatorSession, {access: "public"});
+    const collection = await TestTaskCollection.create(creatorSession);
+    await collection.access.grantDefault(creatorSession);
     await task.addCollection(creatorSession, collection);
 
     const creatorTaskComment = await task.createComment(creatorSession, "test1");
@@ -19604,7 +19689,7 @@ test("throws error for users that only have view access when trying to get task 
 
     await task.createComment(manageSession, "test1");
 
-    await collection.updateAccess(creatorSession, {
+    await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 0}],
@@ -19748,10 +19833,11 @@ test("throws error for users without proper access trying to get the Task Owner"
 
     const task = await TestTask.create(creatorSession);
 
-    const collection = await TestTaskCollection.create(creatorSession, {access: "public"});
+    const collection = await TestTaskCollection.create(creatorSession);
+    await collection.access.grantDefault(creatorSession);
     await task.addCollection(creatorSession, collection);
 
-    await collection.updateAccess(creatorSession, {
+    await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 0}],
@@ -19792,7 +19878,8 @@ test("authorizing task access as session actor is cached", async () => {
     const [session1, session2] = await space.createSessions(2);
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     await ProcessContextModule.waitForTestTasks();
@@ -19850,7 +19937,8 @@ test("authorizing task access as system actor is cached", async () => {
     const [session1] = await space.createSessions(2);
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     await ProcessContextModule.waitForTestTasks();
@@ -19908,7 +19996,8 @@ test("authorizing task access after getting task as session actor is cached", as
     const [session1, session2] = await space.createSessions(2);
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     await ProcessContextModule.waitForTestTasks();
@@ -20023,7 +20112,8 @@ test("authorizing task access after getting task as system actor is cached", asy
     const [session1] = await space.createSessions(2);
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     await ProcessContextModule.waitForTestTasks();

@@ -89,7 +89,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             const collection = await TestTaskCollection.create(scenario.session1);
 
-            await collection.updateAccess(scenario.session1, {
+            await collection.access.set(scenario.session1, {
                 accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                     [scenario.session1.account.id, {level: "Manage", generation: 0}],
                     [scenario.session2.account.id, {level: "Edit"}],
@@ -334,7 +334,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             const collection = await TestTaskCollection.create(scenario.session1);
 
-            await collection.updateAccess(scenario.session1, {
+            await collection.access.set(scenario.session1, {
                 accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                     [scenario.session1.account.id, {level: "Manage", generation: 0}],
                     [scenario.session2.account.id, {level: "Edit"}],
@@ -498,7 +498,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             const collection = await TestTaskCollection.create(scenario.session1);
 
-            await collection.updateAccess(scenario.session1, {
+            await collection.access.set(scenario.session1, {
                 accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                     [scenario.session1.account.id, {level: "Manage", generation: 0}],
                     [scenario.session2.account.id, {level: "Edit"}],
@@ -672,7 +672,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             const collection = await TestTaskCollection.create(scenario.session1);
 
-            await collection.updateAccess(scenario.session1, {
+            await collection.access.set(scenario.session1, {
                 accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                     [scenario.session1.account.id, {level: "Manage", generation: 0}],
                     [scenario.session2.account.id, {level: "Edit"}],
@@ -935,7 +935,7 @@ for (const [currentProcessingType, processingMultiple] of [
             const collectionInSession1 = await TestTaskCollection.create(scenario.session1);
             const collectionInOtherSession = await TestTaskCollection.create(scenario.otherSession);
 
-            await collectionInSession1.updateAccess(scenario.session1, {
+            await collectionInSession1.access.set(scenario.session1, {
                 accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                     [scenario.session1.account.id, {level: "Manage", generation: 0}],
                     [scenario.session2.account.id, {level: "Edit"}],
@@ -945,7 +945,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 urlGrant: null,
             });
 
-            await collectionInOtherSession.updateAccess(scenario.otherSession, {
+            await collectionInOtherSession.access.set(scenario.otherSession, {
                 accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                     [scenario.otherSession.account.id, {level: "Manage", generation: 0}],
                     [scenario.sharedSession.account.id, {level: "Edit"}],
@@ -1119,7 +1119,7 @@ for (const [currentProcessingType, processingMultiple] of [
             const collectionInSession1 = await TestTaskCollection.create(scenario.session1);
             const collectionInOtherSession = await TestTaskCollection.create(scenario.otherSession);
 
-            await collectionInSession1.updateAccess(scenario.session1, {
+            await collectionInSession1.access.set(scenario.session1, {
                 accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                     [scenario.session1.account.id, {level: "Manage", generation: 0}],
                     [scenario.session2.account.id, {level: "Edit"}],
@@ -1129,7 +1129,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 urlGrant: null,
             });
 
-            await collectionInOtherSession.updateAccess(scenario.otherSession, {
+            await collectionInOtherSession.access.set(scenario.otherSession, {
                 accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                     [scenario.otherSession.account.id, {level: "Manage", generation: 0}],
                 ]),

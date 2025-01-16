@@ -106,8 +106,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 scenario.session3.account.id,
             );
 
-            const document1 = await TestDocument.create(scenario.session1, {access: "public"});
-            const document2 = await TestDocument.create(scenario.session2, {access: "public"});
+            const document1 = await TestDocument.create(scenario.session1);
+            await document1.access.grantDefault(scenario.session1);
+            const document2 = await TestDocument.create(scenario.session2);
+            await document2.access.grantDefault(scenario.session2);
 
             await updateDocumentContent(context.action(scenario.session1), {
                 id: document1.id,
@@ -170,6 +172,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 2,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 1,
@@ -251,6 +254,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 2,
@@ -332,6 +336,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 4,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 3,
@@ -413,6 +418,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 4,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 3,
@@ -494,6 +500,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 4,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 3,
@@ -529,6 +536,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 1,
@@ -563,7 +571,8 @@ for (const [currentProcessingType, processingMultiple] of [
         test("mentioning a user in the initial comment thread creates a comment thread entry", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const document = await TestDocument.create(scenario.session1, {access: "public"});
+            const document = await TestDocument.create(scenario.session1);
+            await document.access.grantDefault(scenario.session1);
 
             await updateDocumentContent(context.action(scenario.session1), {
                 id: document.id,
@@ -619,6 +628,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 2,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     commentThreadId: commentThread1Id,
                     firstCommentAuthor: await scenario.session2.get(),
@@ -705,6 +715,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     commentThreadId: commentThread1Id,
                     firstCommentAuthor: await scenario.session2.get(),
@@ -735,6 +746,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 1,
@@ -784,6 +796,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     commentThreadId: commentThread2Id,
                     firstCommentAuthor: await scenario.session2.get(),
@@ -809,7 +822,8 @@ for (const [currentProcessingType, processingMultiple] of [
         test("replying creates an inbox entry for subscribers", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const document = await TestDocument.create(scenario.session1, {access: "public"});
+            const document = await TestDocument.create(scenario.session1);
+            await document.access.grantDefault(scenario.session1);
 
             await updateDocumentContent(context.action(scenario.session1), {
                 id: document.id,
@@ -865,6 +879,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 2,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 1,
@@ -928,6 +943,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 2,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 1,
@@ -963,6 +979,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 2,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     commentThreadId,
                     firstCommentAuthor: await scenario.session2.get(),
@@ -1017,6 +1034,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 2,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 1,
@@ -1061,6 +1079,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 2,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     commentThreadId,
                     firstCommentAuthor: await scenario.session2.get(),
@@ -1106,6 +1125,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 2,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 1,
@@ -1141,6 +1161,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 2,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     commentThreadId,
                     firstCommentAuthor: await scenario.session2.get(),
@@ -1176,6 +1197,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 2,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     commentThreadId,
                     firstCommentAuthor: await scenario.session2.get(),
@@ -1196,7 +1218,8 @@ for (const [currentProcessingType, processingMultiple] of [
         test("comment notification events processed out of order result in the same latest comment", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const document = await TestDocument.create(scenario.session3, {access: "public"});
+            const document = await TestDocument.create(scenario.session3);
+            await document.access.grantDefault(scenario.session3);
 
             await updateDocumentContent(context.action(scenario.session3), {
                 id: document.id,
@@ -1306,6 +1329,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 2,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     commentThreadId,
                     loudNotificationCount: 0,
@@ -1341,6 +1365,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 2,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     commentThreadId,
                     loudNotificationCount: 0,
@@ -1379,6 +1404,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 2,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     commentThreadId,
                     loudNotificationCount: 0,
@@ -1414,6 +1440,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 2,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     commentThreadId,
                     loudNotificationCount: 1,
@@ -1439,7 +1466,8 @@ for (const [currentProcessingType, processingMultiple] of [
         const session1 = await space.createSession({hasInternalAccess: true});
         const session2 = await space.createSession();
 
-        const document = await TestDocument.create(session1, {access: "public"});
+        const document = await TestDocument.create(session1);
+        await document.access.grantDefault(session1);
 
         await updateDocumentContent(session1.action(), {
             id: document.id,

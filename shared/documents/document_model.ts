@@ -1,3 +1,4 @@
+import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {
     DocumentContentWithReferencesSchema,
     DocumentWithOptionalTitleContentWithReferencesSchema,
@@ -177,6 +178,7 @@ export class DocumentPreviewModel
             spaceId: Schema.id<SpaceId>(),
             version: Schema.integer,
             titleWithoutFallback: Schema.string,
+            accessPolicy: AccessPolicySchema,
         }),
     )
     implements DocumentPreviewInterface

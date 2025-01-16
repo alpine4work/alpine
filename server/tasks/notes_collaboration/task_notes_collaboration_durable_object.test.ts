@@ -40,7 +40,8 @@ test("can connect to a task in a public collection", async () => {
     const session2 = await space.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     await connectForTest(context.action(session2), task.id);
@@ -62,7 +63,8 @@ test("can't connect to a task in a different space", async () => {
     const session2 = await otherSpace.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     await expect(connectForTest(context.action(session2), task.id)).rejects.toThrow(
@@ -91,7 +93,8 @@ test("can't connect to a task in a different space after durable object has been
     const session2 = await otherSpace.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     await connectForTest(context.action(session1), task.id);
@@ -123,7 +126,8 @@ test("can update a task's notes", async () => {
     const session2 = await space.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     const client1Id = generateId<ContentEditorClientId>();
@@ -206,7 +210,8 @@ test("can update a task's notes with out-of-order updates", async () => {
     const session2 = await space.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     const client1Id = generateId<ContentEditorClientId>();
@@ -289,7 +294,8 @@ test("can't update a task's notes with out-of-order updates if our durable objec
     const session2 = await space.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     await updateTaskNotesContent(session1.action(), {
@@ -325,7 +331,8 @@ test("can update a task's notes when our durable object doesn't remember earlier
     const session2 = await space.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     await updateTaskNotesContent(session1.action(), {
@@ -381,7 +388,8 @@ test("can backfill task notes steps our durable object remembers", async () => {
     const session2 = await space.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     const client1Id = generateId<ContentEditorClientId>();
@@ -439,7 +447,8 @@ test("can't backfill task notes steps our durable object doesn't remember", asyn
     const session2 = await space.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     await updateTaskNotesContent(session1.action(), {
@@ -477,7 +486,8 @@ test("can current task notes version", async () => {
     const session2 = await space.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.create(session1, {access: "public"});
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     await updateTaskNotesContent(session1.action(), {
@@ -517,7 +527,7 @@ test("can backfill task note steps but can't update if you only have view access
     const collection = await TestTaskCollection.create(session1);
     await task.addCollection(session1, collection);
 
-    await collection.updateAccess(session1, {
+    await collection.access.set(session1, {
         accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: {level: "View"},
         urlGrant: null,

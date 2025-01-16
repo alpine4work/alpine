@@ -50,10 +50,8 @@ const testCasesBySearchEntityType: {[Key in SearchEntityIdObject["type"]]: () =>
             const session3 = await space.createSession();
             const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
-            const document = await TestDocument.create(session1, {
-                title: "Lorem Ipsum",
-                access: "public",
-            });
+            const document = await TestDocument.create(session1, {title: "Lorem Ipsum"});
+            await document.access.grantDefault(session1);
 
             const documentBody =
                 "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque ultricies mattis pharetra. Phasellus pulvinar vitae mauris sed sollicitudin. Vestibulum in tortor vel magna iaculis sagittis. Nunc tempor sodales velit ut posuere. Quisque venenatis bibendum risus ac consequat. Pellentesque ornare mauris nec dolor cursus imperdiet. Sed finibus pellentesque mauris ut dapibus. Duis non lorem lacus.";
@@ -106,10 +104,8 @@ const testCasesBySearchEntityType: {[Key in SearchEntityIdObject["type"]]: () =>
             const session2 = await space.createSession();
             const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
-            const document = await TestDocument.create(session1, {
-                title: "Test Document",
-                access: "public",
-            });
+            const document = await TestDocument.create(session1, {title: "Test Document"});
+            await document.access.grantDefault(session1);
 
             await document.type(session1, "foo");
 

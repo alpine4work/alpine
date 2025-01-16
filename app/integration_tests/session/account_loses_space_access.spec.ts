@@ -17,7 +17,8 @@ test("account can lose access to space", async ({page, context: browserContext})
     await space2.addAccount(session1);
     await space2.addAccount(session2);
 
-    const document = await TestDocument.create(session1, {body: "foobar", access: "public"});
+    const document = await TestDocument.create(session1, {body: "foobar"});
+    await document.access.grantDefault(session1);
 
     await services.signIn(browserContext, session2);
     await page.goto(`/s/${space1.id}/documents/${document.id}`);

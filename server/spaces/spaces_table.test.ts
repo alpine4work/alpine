@@ -13,6 +13,7 @@ import {createTestSession} from "~/server/dynamo/test_helpers/create_test_sessio
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {
     authorizeSpaceAccess,
+    authorizeSpaceAccessIfPossible,
     dangerouslyAddSpaceAccountAsAdmin,
     expensivelyGetAllSpaceAccounts,
     getAccount,
@@ -351,12 +352,16 @@ test("can remove account from space as admin", async () => {
         const result2 = await captureResultPromise(() =>
             authorizeSpaceAccess(session.action(), space.id),
         );
+        const result3 = await authorizeSpaceAccessIfPossible(session.action(), space.id);
 
         if (result1) {
             expect(result2).toEqual({ok: true});
+            expect(result3).toEqual({ok: true});
         } else {
             expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
             expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+            expect(result3).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result3).not.toEqual({ok: false, error: expect.any(InternalError)});
         }
 
         return result1;
@@ -453,12 +458,16 @@ test("can't remove account from space as non-admin", async () => {
         const result2 = await captureResultPromise(() =>
             authorizeSpaceAccess(session.action(), space.id),
         );
+        const result3 = await authorizeSpaceAccessIfPossible(session.action(), space.id);
 
         if (result1) {
             expect(result2).toEqual({ok: true});
+            expect(result3).toEqual({ok: true});
         } else {
             expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
             expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+            expect(result3).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result3).not.toEqual({ok: false, error: expect.any(InternalError)});
         }
 
         return result1;
@@ -515,12 +524,16 @@ test("can't remove account from space that doesn't exist as admin", async () => 
         const result2 = await captureResultPromise(() =>
             authorizeSpaceAccess(session.action(), space.id),
         );
+        const result3 = await authorizeSpaceAccessIfPossible(session.action(), space.id);
 
         if (result1) {
             expect(result2).toEqual({ok: true});
+            expect(result3).toEqual({ok: true});
         } else {
             expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
             expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+            expect(result3).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result3).not.toEqual({ok: false, error: expect.any(InternalError)});
         }
 
         return result1;
@@ -577,12 +590,16 @@ test("can't remove account that doesn't exist from space as admin", async () => 
         const result2 = await captureResultPromise(() =>
             authorizeSpaceAccess(session.action(), space.id),
         );
+        const result3 = await authorizeSpaceAccessIfPossible(session.action(), space.id);
 
         if (result1) {
             expect(result2).toEqual({ok: true});
+            expect(result3).toEqual({ok: true});
         } else {
             expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
             expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+            expect(result3).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result3).not.toEqual({ok: false, error: expect.any(InternalError)});
         }
 
         return result1;
@@ -639,12 +656,16 @@ test("can't remove account from space that account is not a member of as admin",
         const result2 = await captureResultPromise(() =>
             authorizeSpaceAccess(session.action(), space.id),
         );
+        const result3 = await authorizeSpaceAccessIfPossible(session.action(), space.id);
 
         if (result1) {
             expect(result2).toEqual({ok: true});
+            expect(result3).toEqual({ok: true});
         } else {
             expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
             expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+            expect(result3).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result3).not.toEqual({ok: false, error: expect.any(InternalError)});
         }
 
         return result1;
@@ -701,12 +722,16 @@ test("can't remove account from space if it's already been removed as admin", as
         const result2 = await captureResultPromise(() =>
             authorizeSpaceAccess(session.action(), space.id),
         );
+        const result3 = await authorizeSpaceAccessIfPossible(session.action(), space.id);
 
         if (result1) {
             expect(result2).toEqual({ok: true});
+            expect(result3).toEqual({ok: true});
         } else {
             expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
             expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+            expect(result3).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result3).not.toEqual({ok: false, error: expect.any(InternalError)});
         }
 
         return result1;
@@ -777,12 +802,16 @@ test("removing an account from a space updates the account's space ids", async (
         const result2 = await captureResultPromise(() =>
             authorizeSpaceAccess(session.action(), space.id),
         );
+        const result3 = await authorizeSpaceAccessIfPossible(session.action(), space.id);
 
         if (result1) {
             expect(result2).toEqual({ok: true});
+            expect(result3).toEqual({ok: true});
         } else {
             expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
             expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+            expect(result3).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result3).not.toEqual({ok: false, error: expect.any(InternalError)});
         }
 
         return result1;
@@ -947,12 +976,19 @@ test("`isAccountMemberOfSpace()` caches a true result in context", async () => {
                 space.id,
             ),
         );
+        const result3 = await authorizeSpaceAccessIfPossible(
+            session.action().clone({cache: context.cache.dangerouslyForkWithSharedCaches()}),
+            space.id,
+        );
 
         if (result1) {
             expect(result2).toEqual({ok: true});
+            expect(result3).toEqual({ok: true});
         } else {
             expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
             expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+            expect(result3).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result3).not.toEqual({ok: false, error: expect.any(InternalError)});
         }
 
         return result1;
@@ -1023,12 +1059,16 @@ test("`isAccountMemberOfSpace()` uses the `getAccountIfExists()` cache in contex
             const result2 = await captureResultPromise(() =>
                 authorizeSpaceAccess(context, space.id),
             );
+            const result3 = await authorizeSpaceAccessIfPossible(context, space.id);
 
             if (result1) {
                 expect(result2).toEqual({ok: true});
+                expect(result3).toEqual({ok: true});
             } else {
                 expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
                 expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+                expect(result3).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+                expect(result3).not.toEqual({ok: false, error: expect.any(InternalError)});
             }
         }
 
@@ -1109,12 +1149,16 @@ test("`isAccountMemberOfSpace()` uses `spaceAccountsCache` to return true", asyn
         const result2 = await captureResultPromise(() =>
             authorizeSpaceAccess(session.action(), space.id),
         );
+        const result3 = await authorizeSpaceAccessIfPossible(session.action(), space.id);
 
         if (result1) {
             expect(result2).toEqual({ok: true});
+            expect(result3).toEqual({ok: true});
         } else {
             expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
             expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+            expect(result3).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result3).not.toEqual({ok: false, error: expect.any(InternalError)});
         }
 
         return result1;
@@ -1181,12 +1225,19 @@ test("`isAccountMemberOfSpace()` ignores cached false result in context", async 
                 space.id,
             ),
         );
+        const result3 = await authorizeSpaceAccessIfPossible(
+            session.action().clone({cache: context.cache.dangerouslyForkWithSharedCaches()}),
+            space.id,
+        );
 
         if (result1) {
             expect(result2).toEqual({ok: true});
+            expect(result3).toEqual({ok: true});
         } else {
             expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
             expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+            expect(result3).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result3).not.toEqual({ok: false, error: expect.any(InternalError)});
         }
 
         return result1;
@@ -1250,12 +1301,16 @@ test("`isAccountMemberOfSpace()` ignores the `getAccountIfExists()` cache if acc
             const result2 = await captureResultPromise(() =>
                 authorizeSpaceAccess(context, space.id),
             );
+            const result3 = await authorizeSpaceAccessIfPossible(context, space.id);
 
             if (result1) {
                 expect(result2).toEqual({ok: true});
+                expect(result3).toEqual({ok: true});
             } else {
                 expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
                 expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+                expect(result3).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+                expect(result3).not.toEqual({ok: false, error: expect.any(InternalError)});
             }
         }
 
@@ -1340,12 +1395,16 @@ test("`isAccountMemberOfSpace()` ignores the `spaceAccountsCache` cache if accou
         const result2 = await captureResultPromise(() =>
             authorizeSpaceAccess(session.action(), space.id),
         );
+        const result3 = await authorizeSpaceAccessIfPossible(session.action(), space.id);
 
         if (result1) {
             expect(result2).toEqual({ok: true});
+            expect(result3).toEqual({ok: true});
         } else {
             expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
             expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+            expect(result3).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result3).not.toEqual({ok: false, error: expect.any(InternalError)});
         }
 
         return result1;
@@ -2419,4 +2478,43 @@ test("can't authorize space access for anonymous actor", async () => {
     await expect(authorizeSpaceAccess(context.anonymousAction(), otherSpace.id)).rejects.toThrow(
         UnauthenticatedError,
     );
+
+    expect(await authorizeSpaceAccessIfPossible(session.action(), space.id)).toEqual({ok: true});
+    expect(await authorizeSpaceAccessIfPossible(session.action(), otherSpace.id)).toEqual({
+        ok: false,
+        error: expect.any(PermissionDeniedError),
+    });
+
+    expect(await authorizeSpaceAccessIfPossible(otherSession.action(), space.id)).toEqual({
+        ok: false,
+        error: expect.any(PermissionDeniedError),
+    });
+    expect(await authorizeSpaceAccessIfPossible(otherSession.action(), otherSpace.id)).toEqual({
+        ok: true,
+    });
+
+    expect(await authorizeSpaceAccessIfPossible(space.systemAction(), space.id)).toEqual({
+        ok: true,
+    });
+    expect(await authorizeSpaceAccessIfPossible(space.systemAction(), otherSpace.id)).toEqual({
+        ok: false,
+        error: expect.any(PermissionDeniedError),
+    });
+
+    expect(await authorizeSpaceAccessIfPossible(otherSpace.systemAction(), space.id)).toEqual({
+        ok: false,
+        error: expect.any(PermissionDeniedError),
+    });
+    expect(await authorizeSpaceAccessIfPossible(otherSpace.systemAction(), otherSpace.id)).toEqual({
+        ok: true,
+    });
+
+    expect(await authorizeSpaceAccessIfPossible(context.anonymousAction(), space.id)).toEqual({
+        ok: false,
+        error: expect.any(UnauthenticatedError),
+    });
+    expect(await authorizeSpaceAccessIfPossible(context.anonymousAction(), otherSpace.id)).toEqual({
+        ok: false,
+        error: expect.any(UnauthenticatedError),
+    });
 });

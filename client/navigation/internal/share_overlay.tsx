@@ -18,10 +18,6 @@ import {
     noAccessLevelText,
     removeAccessLevelText,
 } from "~/client/navigation/internal/access_level_text.js";
-import {
-    AccessPolicyAction,
-    reduceAccessPolicy,
-} from "~/client/navigation/internal/access_policy_action.js";
 import {ShareOverlayAccountGrantInput} from "~/client/navigation/internal/share_overlay_account_grant_input.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
@@ -45,6 +41,7 @@ import {
     hasAccessLevel,
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
+import {AccessPolicyAction, reduceAccessPolicy} from "~/shared/access/access_policy_action.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";

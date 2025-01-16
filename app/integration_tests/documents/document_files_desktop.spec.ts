@@ -855,8 +855,10 @@ test("can copy/paste a file within the same space", async ({
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document1 = await TestDocument.create(session1, {access: "public"});
-    const document2 = await TestDocument.create(session2, {access: "public"});
+    const document1 = await TestDocument.create(session1);
+    await document1.access.grantDefault(session1);
+    const document2 = await TestDocument.create(session2);
+    await document2.access.grantDefault(session2);
 
     await browserContext1.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext1, session1);
@@ -952,8 +954,10 @@ test("can copy/paste a file across spaces", async ({
     const session1 = await space1.createSession();
     const session2 = await space2.createSession();
 
-    const document1 = await TestDocument.create(session1, {access: "public"});
-    const document2 = await TestDocument.create(session2, {access: "public"});
+    const document1 = await TestDocument.create(session1);
+    await document1.access.grantDefault(session1);
+    const document2 = await TestDocument.create(session2);
+    await document2.access.grantDefault(session2);
 
     await browserContext1.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext1, session1);

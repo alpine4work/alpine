@@ -1,7 +1,6 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {TextSelection} from "prosemirror-state";
 import {AddMarkStep, DocAttrStep, RemoveMarkStep, ReplaceStep} from "prosemirror-transform";
-import {TestAccessPolicy} from "~/server/access/test_access_policy.js";
 import {WorkerSessionActionContextModules} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContextModules} from "~/server/cloudflare/context/worker_process_context.js";
 import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
@@ -108,7 +107,8 @@ test("can not connect to a document in a different space", async () => {
     const otherSpace = await TestSpace.create(context);
     const otherSession = await otherSpace.createSession();
 
-    const document = await TestDocument.create(session, {access: "public"});
+    const document = await TestDocument.create(session);
+    await document.access.grantDefault(session, "Manage");
 
     await expect(connectForTest(context.action(otherSession), document.id)).rejects.toThrow(
         PermissionDeniedError,
@@ -121,7 +121,8 @@ test("can not connect to an existing document durable object in a different spac
     const otherSpace = await TestSpace.create(context);
     const otherSession = await otherSpace.createSession();
 
-    const document = await TestDocument.create(session, {access: "public"});
+    const document = await TestDocument.create(session);
+    await document.access.grantDefault(session, "Manage");
 
     await connectForTest(context.action(session), document.id);
 
@@ -219,7 +220,8 @@ test("can update document content", async () => {
 test("will optimistically update the document and then persist later", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
-    const document = await TestDocument.create(session1, {access: "public"});
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1, "Manage");
 
     const client1Id = generateId<ContentEditorClientId>();
     const connection1 = await connectForTest(context.action(session1), document.id);
@@ -339,7 +341,8 @@ test("will not batch updates from different accounts when persisting", async () 
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1, {access: "public"});
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1, "Manage");
 
     const client1Id = generateId<ContentEditorClientId>();
     const client3Id = generateId<ContentEditorClientId>();
@@ -466,7 +469,8 @@ test("will respond optimistically with a comment thread even if it has not been 
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1, {access: "public"});
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1, "Manage");
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -729,7 +733,8 @@ test("will respond optimistically to backfills with a comment thread even if it 
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1, {access: "public"});
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1, "Manage");
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -869,7 +874,8 @@ test("will respond optimistically with a comment thread with files even if it ha
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1, {access: "public"});
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1, "Manage");
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -1244,7 +1250,8 @@ test("when comment threads are added back to the document they will be loaded", 
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const document = await TestDocument.create(session1, {access: "public"});
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1, "Manage");
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -1384,7 +1391,8 @@ test("comment thread can be optimistic at first and then loaded from the databas
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const document = await TestDocument.create(session1, {access: "public"});
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1, "Manage");
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -1617,7 +1625,8 @@ test("can create comments in comment threads", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1, {access: "public"});
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1, "Manage");
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -1978,7 +1987,8 @@ test("if comment thread is persisting we will wait to create messages but respon
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1, {access: "public"});
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1, "Manage");
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -2241,7 +2251,8 @@ test("if comment thread update message hasn't been processed we will wait to res
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1, {access: "public"});
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1, "Manage");
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -2526,7 +2537,8 @@ test("while comment thread is persisting we will respond to comment load request
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1, {access: "public"});
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1, "Manage");
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -3386,8 +3398,11 @@ test("will cleanup comment thread marks if from a different document", async () 
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document1 = await TestDocument.create(session1, {access: "public"});
-    const document2 = await TestDocument.create(session1, {access: "public"});
+    const document1 = await TestDocument.create(session1);
+    await document1.access.grantDefault(session1, "Manage");
+
+    const document2 = await TestDocument.create(session1);
+    await document2.access.grantDefault(session1, "Manage");
 
     await updateDocumentContent(session1.action(), {
         id: document1.id,
@@ -3773,7 +3788,8 @@ test("can add comment thread marks back to document after they've been removed",
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1, {access: "public"});
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1, "Manage");
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -4067,7 +4083,8 @@ test("can resolve a comment thread", async () => {
     const session1 = await space.createSession();
     const session2 = await space.createSession();
 
-    const document = await TestDocument.create(session1, {access: "public"});
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1, "Manage");
 
     const {range} = await document.type(session1, "Hello");
     await document.type(session1, ", world!");
@@ -4167,7 +4184,8 @@ test("can unresolve a comment thread", async () => {
     const session1 = await space.createSession();
     const session2 = await space.createSession();
 
-    const document = await TestDocument.create(session1, {access: "public"});
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1, "Manage");
 
     const {range} = await document.type(session1, "Hello");
     await document.type(session1, ", world!");
@@ -4284,9 +4302,8 @@ test("can connect and backfill as a viewer", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1, {
-        access: TestAccessPolicy.private.with(session2, "View"),
-    });
+    const document = await TestDocument.create(session1);
+    await document.access.grant(session1, session2, "View");
 
     await document.type(session1, "Hello, ");
     const {range} = await document.type(session1, "world");
@@ -4387,9 +4404,8 @@ test("can't connect as a viewer and ask for comments", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1, {
-        access: TestAccessPolicy.private.with(session2, "View"),
-    });
+    const document = await TestDocument.create(session1);
+    await document.access.grant(session1, session2, "View");
 
     await document.type(session1, "Hello, ");
     const {range} = await document.type(session1, "world");
@@ -4459,9 +4475,8 @@ test("can connect and backfill as a viewer when there are remembered steps", asy
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1, {
-        access: TestAccessPolicy.private.with(session2, "View"),
-    });
+    const document = await TestDocument.create(session1);
+    await document.access.grant(session1, session2, "View");
 
     await document.type(session1, "Hello, ");
     const {range} = await document.type(session1, "world");
@@ -4522,9 +4537,8 @@ test("can't update content as a viewer", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1, {
-        access: TestAccessPolicy.private.with(session2, "View"),
-    });
+    const document = await TestDocument.create(session1);
+    await document.access.grant(session1, session2, "View");
 
     await document.type(session1, "Hello, ");
     const {range} = await document.type(session1, "world");
@@ -4601,9 +4615,8 @@ test("can't call comment procedures as viewer", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1, {
-        access: TestAccessPolicy.private.with(session2, "View"),
-    });
+    const document = await TestDocument.create(session1);
+    await document.access.grant(session1, session2, "View");
 
     await document.type(session1, "Hello, ");
     const {range} = await document.type(session1, "world");
@@ -4771,9 +4784,9 @@ test("viewer receives update events without comment data", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const document = await TestDocument.create(session1, {
-        access: TestAccessPolicy.private.with([session2, "Comment"], [session3, "View"]),
-    });
+    const document = await TestDocument.create(session1);
+    await document.access.grant(session1, session2, "Comment");
+    await document.access.grant(session1, session3, "View");
 
     const client1Id = generateId<ContentEditorClientId>();
 
@@ -5585,9 +5598,8 @@ test("can get presence updates across viewer/editor connections", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1, {
-        access: TestAccessPolicy.private.with(session2, "View"),
-    });
+    const document = await TestDocument.create(session1);
+    await document.access.grant(session1, session2, "View");
 
     await document.type(session1, "Hello, ");
     const {range} = await document.type(session1, "world");

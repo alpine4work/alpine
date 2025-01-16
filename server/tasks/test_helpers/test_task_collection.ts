@@ -1,7 +1,4 @@
-import {
-    TestAccessPolicyOption,
-    buildTestAccessPolicyOption,
-} from "~/server/access/test_access_policy.js";
+import {TestAccessPolicy} from "~/server/access/test_access_policy.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -45,10 +42,8 @@ export class TestTaskCollection {
         session: TestSpaceSession,
         {
             name = TestTaskCollection.getNewName(),
-            access = "private",
         }: {
             name?: string;
-            access?: TestAccessPolicyOption;
         } = {},
     ) {
         const id = generateId<TaskCollectionId>();
@@ -64,7 +59,13 @@ export class TestTaskCollection {
                     type: "Create",
                     creatorId: session.account.id,
                     name,
-                    accessPolicy: buildTestAccessPolicyOption(access, session.account.id),
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: null,
+                        urlGrant: null,
+                    },
                 },
             },
         ]);
@@ -75,6 +76,26 @@ export class TestTaskCollection {
     public getItem(): Promise<TaskCollectionEssentialAttributesItem> {
         return getTaskCollectionItemForTest(this.context, this.id);
     }
+
+    public readonly access = new TestAccessPolicy({
+        get: async () => {
+            const item = await this.getItem();
+            return item.accessPolicy.value;
+        },
+        set: async (session, accessPolicy) => {
+            await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+                {
+                    type: "UpdateCollection",
+                    time: testClock.nowLogical(),
+                    collectionId: this.id,
+                    collectionAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy,
+                    },
+                },
+            ]);
+        },
+    });
 
     public async delete(session: TestSpaceSession) {
         await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
@@ -125,20 +146,6 @@ export class TestTaskCollection {
                 collectionAction: {
                     type: "UpdateColor",
                     color,
-                },
-            },
-        ]);
-    }
-
-    public async updateAccess(session: TestSpaceSession, access: TestAccessPolicyOption) {
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
-            {
-                type: "UpdateCollection",
-                time: testClock.nowLogical(),
-                collectionId: this.id,
-                collectionAction: {
-                    type: "UpdateAccessPolicy",
-                    accessPolicy: buildTestAccessPolicyOption(access, session.account.id),
                 },
             },
         ]);

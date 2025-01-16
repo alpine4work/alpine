@@ -554,7 +554,8 @@ test("can drag file we didn't upload from document into new chat", async ({
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const document = await TestDocument.create(session2, {access: "public"});
+    const document = await TestDocument.create(session2);
+    await document.access.grantDefault(session2);
 
     // Make sure the viewport size never changes since we'll need precise pixel
     // placement when dropping an image.

@@ -16,7 +16,8 @@ test("can resolve document comment threads", async ({
     const session1 = await space.createSession();
     const session2 = await space.createSession();
 
-    const document = await TestDocument.create(session1, {access: "public"});
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1);
 
     await document.type(session1, "Hello, world!");
 
@@ -190,7 +191,8 @@ test("will preserve document comment snippet even after comment is removed from 
     const session1 = await space.createSession();
     const session2 = await space.createSession();
 
-    const document = await TestDocument.create(session1, {access: "public"});
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1);
 
     await document.type(session1, "Hello, world!");
 
@@ -326,7 +328,8 @@ test("will preserve document comment snippet even after resolved comment thread 
     const session1 = await space.createSession();
     const session2 = await space.createSession();
 
-    const document = await TestDocument.create(session1, {access: "public"});
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1);
 
     await document.type(session1, "Hello, world!");
 

@@ -4650,7 +4650,8 @@ test("query after closer account name update applied and refreshed", async () =>
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -4748,7 +4749,8 @@ test("query after closer account name update applied but not refreshed", async (
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -4847,7 +4849,8 @@ test("query before closer account name update applied but not refreshed", async 
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -4988,7 +4991,8 @@ test("update introduces task with closer account name update to query when index
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -5253,7 +5257,8 @@ test("query after assignee account name update applied and refreshed", async () 
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -5339,7 +5344,8 @@ test("query after assignee account name update applied but not refreshed", async
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -5426,7 +5432,8 @@ test("query before assignee account name update applied but not refreshed", asyn
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -5543,7 +5550,8 @@ test("update introduces task with assignee account name update to query when ind
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -5787,7 +5795,8 @@ test("query after assigner account name update applied and refreshed", async () 
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -5873,7 +5882,8 @@ test("query after assigner account name update applied but not refreshed", async
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -5960,7 +5970,8 @@ test("query before assigner account name update applied but not refreshed", asyn
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -6077,7 +6088,8 @@ test("update introduces task with assigner account name update to query when ind
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -6605,7 +6617,8 @@ test("referenced closer gets correct account name when query is loaded before", 
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -6715,7 +6728,8 @@ test("referenced closer gets correct account name when query is loaded after", a
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -6795,7 +6809,8 @@ test("referenced assignee gets correct account name when query is loaded before"
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -6881,7 +6896,8 @@ test("referenced assignee gets correct account name when query is loaded after",
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -6949,7 +6965,8 @@ test("referenced assigner gets correct account name when query is loaded before"
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -7035,7 +7052,8 @@ test("referenced assigner gets correct account name when query is loaded after",
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -7179,7 +7197,8 @@ test("tasks reorder when assignee account name changes", async () => {
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
@@ -7280,7 +7299,8 @@ test("tasks reorder when assigner account name changes", async () => {
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.create(session2, {access: "public"});
+    const collection = await TestTaskCollection.create(session2);
+    await collection.access.grantDefault(session2);
     await runAllPromises([
         task1.addCollection(session2, collection),
         task2.addCollection(session2, collection),
