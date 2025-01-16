@@ -42,7 +42,7 @@ import {MenuButton} from "~/client/design/menu_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
-import {useOverlayRootBlockingPortalElement} from "~/client/design/overlay_helpers.js";
+import {useOverlayBlockingPortalElement} from "~/client/design/overlay_helpers.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
@@ -824,7 +824,7 @@ function ContentEditorCommentInputDragOverlay({
 }) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
-    const rootBlockingPortalElement = useOverlayRootBlockingPortalElement();
+    const rootBlockingPortalElement = useOverlayBlockingPortalElement();
 
     const [rect, setRect] = useState<{
         top: number;

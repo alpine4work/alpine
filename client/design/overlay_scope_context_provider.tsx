@@ -35,15 +35,20 @@ export function RootOverlayScopeContextProvider({
 
     const portalRef = useRef<HTMLDivElement>(null);
     const blockingPortalRef = useRef<HTMLDivElement>(null);
+    const contextMenuBlockingPortalRef = useRef<HTMLDivElement>(null);
 
     const overlaySink = useMemo(
         (): OverlaySinkContext => ({
             getRootPortalElement: () =>
                 portalRef.current ?? parentOverlaySink?.getRootPortalElement() ?? null,
-            getRootBlockingPortalElement: () =>
-                blockingPortalRef.current ??
-                parentOverlaySink?.getRootBlockingPortalElement() ??
-                null,
+            getBlockingPortalElement: () =>
+                blockingPortalRef.current ?? parentOverlaySink?.getBlockingPortalElement() ?? null,
+            // Unlike the root portal element and blocking portal element, the context menu
+            // blocking portal element isn't overridden by nested
+            // `<RootOverlayScopeContextProvider>`s.
+            getContextMenuBlockingPortalElement: () =>
+                parentOverlaySink?.getContextMenuBlockingPortalElement() ??
+                contextMenuBlockingPortalRef.current,
             getPortalElement: () =>
                 portalRef.current ?? parentOverlaySink?.getPortalElement() ?? null,
             insetLeft: null,
@@ -75,6 +80,14 @@ export function RootOverlayScopeContextProvider({
                     blockingPortalRef,
                     // Render at the absolute top of the page. Even over other overlays.
                     "70",
+                )}
+            {!isDisabled &&
+                !parentOverlaySink &&
+                renderOverlayPortal(
+                    // eslint-disable-next-line react-compiler/react-compiler
+                    contextMenuBlockingPortalRef,
+                    // An additional blocking layer on top of our existing blocking layer.
+                    "80",
                 )}
         </OverlaySinkContext.Provider>
     );
@@ -108,7 +121,9 @@ export function OverlayScopeContextProvider({
     const overlaySink = useMemo(
         (): OverlaySinkContext => ({
             getRootPortalElement: parentOverlaySink.getRootPortalElement,
-            getRootBlockingPortalElement: parentOverlaySink.getRootBlockingPortalElement,
+            getBlockingPortalElement: parentOverlaySink.getBlockingPortalElement,
+            getContextMenuBlockingPortalElement:
+                parentOverlaySink.getContextMenuBlockingPortalElement,
             getPortalElement: () => portalRef.current,
             insetLeft: insetLeft ?? null,
             insetRight: insetRight ?? null,
@@ -116,7 +131,8 @@ export function OverlayScopeContextProvider({
         [
             insetLeft,
             insetRight,
-            parentOverlaySink.getRootBlockingPortalElement,
+            parentOverlaySink.getBlockingPortalElement,
+            parentOverlaySink.getContextMenuBlockingPortalElement,
             parentOverlaySink.getRootPortalElement,
         ],
     );

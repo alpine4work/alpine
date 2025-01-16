@@ -503,7 +503,9 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
             {instance &&
                 createPortal(
                     <OverlayAnimated
-                        isBlocking={true}
+                        // The context menu needs to render over other blocking overlays (e.g.
+                        // `<Modal>`s) so it gets its own special blocking level.
+                        isBlocking="ContextMenu"
                         isVisible={contextMenuState.isOpen}
                         placement="bottom-start"
                         disableAnimationIn={true}

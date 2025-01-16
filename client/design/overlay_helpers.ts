@@ -30,17 +30,17 @@ export function useOverlayRootPortalElement() {
  * have nested portal overlay elements in, for instance, scroll views so
  * overlays move with the scroll view and can't escape.
  */
-export function useOverlayRootBlockingPortalElement() {
+export function useOverlayBlockingPortalElement() {
     const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
     assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
 
     const [rootBlockingPortalElement, setRootBlockingPortalElement] = useState(
-        overlaySink.getRootBlockingPortalElement,
+        overlaySink.getBlockingPortalElement,
     );
 
     useEffect(() => {
-        setRootBlockingPortalElement(overlaySink.getRootBlockingPortalElement);
-    }, [overlaySink.getRootBlockingPortalElement]);
+        setRootBlockingPortalElement(overlaySink.getBlockingPortalElement);
+    }, [overlaySink.getBlockingPortalElement]);
 
     return rootBlockingPortalElement;
 }

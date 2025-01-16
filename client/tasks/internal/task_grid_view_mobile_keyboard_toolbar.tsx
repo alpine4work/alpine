@@ -16,7 +16,7 @@ import {
     mobileBottomBarKeyboardToolbarHeight,
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
-import {useOverlayRootBlockingPortalElement} from "~/client/design/overlay_helpers.js";
+import {useOverlayBlockingPortalElement} from "~/client/design/overlay_helpers.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {
     useRegisterBottomBarMobileKeyboardToolbarFrame,
@@ -157,7 +157,7 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
         // Render in the blocking portal element so that we render over blocking
         // covers! So you can still interact with the keyboard toolbar even if an
         // `<Overlay isBlocking={true}>` overlay is visible.
-        useOverlayRootBlockingPortalElement(),
+        useOverlayBlockingPortalElement(),
         "Can't server render `<TaskGridViewMobileKeyboardToolbarContainer>`",
     );
 

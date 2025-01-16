@@ -13,8 +13,8 @@ import {FocusScope} from "react-aria";
 import {createPortal} from "react-dom";
 import {BottomBarFrameContextProvider} from "~/client/design/bottom_bar_frame_context_provider.js";
 import {Box} from "~/client/design/box.js";
-import {MobileFullScreenModalContext} from "~/client/design/internal/modal_full_screen_modal_context.js";
-import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";
+import {MobileFullScreenModalContext} from "~/client/design/internal/mobile_full_screen_modal_context.js";
+import {useOverlayBlockingPortalElement} from "~/client/design/overlay_helpers.js";
 import {RootOverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {
     trackNavigationAnimationFinish,
@@ -119,7 +119,7 @@ export function MobileFullScreenModal({
         "Expected parent `<MobileFullScreenModalContextProvider>` component",
     );
     const portalElement = assertExists(
-        useOverlayRootPortalElement(),
+        useOverlayBlockingPortalElement(),
         "Can not render modal before portal element is available",
     );
 

@@ -183,9 +183,13 @@ export type OverlayProps = {
      * true then we render in the root overlay boundary and render a cover
      * across the entire DOM.
      *
+     * The string `"ContextMenu"` is a special blocking level above everything
+     * else. Since the context menu needs to render on top of absolutely
+     * everything, even when there's another blocking modal.
+     *
      * Defaults to `false`.
      */
-    isBlocking?: boolean;
+    isBlocking?: boolean | "ContextMenu";
 
     /**
      * When `isBlocking` is true if you don't want to render in the root overlay
@@ -307,13 +311,18 @@ function Overlay(
     const defaultTargetElementId = useId();
 
     const getPortalElement =
-        isBlocking && !withoutRootBlockingScope
-            ? overlaySink.getRootBlockingPortalElement
+        isBlocking !== false && !withoutRootBlockingScope
+            ? isBlocking === "ContextMenu"
+                ? overlaySink.getContextMenuBlockingPortalElement
+                : overlaySink.getBlockingPortalElement
             : overlaySink.getPortalElement;
 
-    const getBlockingCoverPortalElement = isBlocking
-        ? overlaySink.getRootBlockingPortalElement
-        : null;
+    const getBlockingCoverPortalElement =
+        isBlocking !== false
+            ? isBlocking === "ContextMenu"
+                ? overlaySink.getContextMenuBlockingPortalElement
+                : overlaySink.getBlockingPortalElement
+            : null;
 
     const [elementState, setElementState] = useState<{
         portalElement: HTMLDivElement | null;
@@ -377,7 +386,8 @@ function Overlay(
                 "Expected the overlay prop of an `<Overlay>` component to render an element with a ref to an HTML element",
             );
             const overlayElement = overlayRef.current;
-            const blockingCover = isBlocking ? assertExists(blockingCoverRef.current) : null;
+            const blockingCover =
+                isBlocking !== false ? assertExists(blockingCoverRef.current) : null;
 
             const getOptions = () => {
                 // Getting the value of 1rem without subscribing so that all our `<Overlay>`
@@ -514,7 +524,8 @@ function Overlay(
                         {
                             name: "updateBlockingCoverRead",
                             enabled:
-                                isBlocking && (withoutRootBlockingScope || withoutBlockingTarget),
+                                isBlocking !== false &&
+                                (withoutRootBlockingScope || withoutBlockingTarget),
                             phase: "main" as const,
                             requires: ["hide"],
                             fn: ({state}: {state: State}) => {
@@ -532,7 +543,8 @@ function Overlay(
                         {
                             name: "updateBlockingCoverWrite",
                             enabled:
-                                isBlocking && (withoutRootBlockingScope || withoutBlockingTarget),
+                                isBlocking !== false &&
+                                (withoutRootBlockingScope || withoutBlockingTarget),
                             phase: "write" as const,
                             fn: ({state}: {state: State}) => {
                                 const popperRelativeCoord: {x: number; y: number} | undefined =
@@ -623,7 +635,7 @@ function Overlay(
                 if (
                     sameWidth ||
                     sameHeight ||
-                    (isBlocking && (withoutRootBlockingScope || withoutBlockingTarget))
+                    (isBlocking !== false && (withoutRootBlockingScope || withoutBlockingTarget))
                 ) {
                     addSuppressResizeLoopErrorNotificationForElement(targetElement);
                 }
@@ -679,7 +691,8 @@ function Overlay(
                     if (
                         sameWidth ||
                         sameHeight ||
-                        (isBlocking && (withoutRootBlockingScope || withoutBlockingTarget))
+                        (isBlocking !== false &&
+                            (withoutRootBlockingScope || withoutBlockingTarget))
                     ) {
                         removeSuppressResizeLoopErrorNotificationForElement(targetElement);
                     }
@@ -739,7 +752,7 @@ function Overlay(
                 // This intentionally comes before `children` so that React executes
                 // `overlayRef` before `targetRef`.
                 createPortal(
-                    !isBlocking ? (
+                    isBlocking === false ? (
                         overlay
                     ) : (
                         // If a blocking overlay itself renders overlays then those need to go in the
@@ -751,7 +764,7 @@ function Overlay(
                     portalElement,
                 )}
             {isVisible &&
-                isBlocking &&
+                isBlocking !== false &&
                 blockingCoverPortalElement &&
                 // When we have a blocking overlay add a cover to the document to prevent
                 // scrolling, hover effects, and any other interaction while the context menu
@@ -781,13 +794,15 @@ function BlockingOverlayScopeContextProvider({children}: {children: ReactNode}) 
         <OverlaySinkContext.Provider
             value={useMemo(
                 () => ({
-                    getRootPortalElement: parentOverlaySink.getRootBlockingPortalElement,
+                    getRootPortalElement: parentOverlaySink.getBlockingPortalElement,
                     // If you render another blocking overlay inside of a blocking overlay then the
                     // first blocking overlay must be covered. To do this we create a new portal
                     // location for new blocking overlays that will render on top of old blocking
                     // overlays.
-                    getRootBlockingPortalElement: () => blockingPortalRef.current,
-                    getPortalElement: parentOverlaySink.getRootBlockingPortalElement,
+                    getBlockingPortalElement: () => blockingPortalRef.current,
+                    getContextMenuBlockingPortalElement:
+                        parentOverlaySink.getContextMenuBlockingPortalElement,
+                    getPortalElement: parentOverlaySink.getBlockingPortalElement,
                     insetLeft: null,
                     insetRight: null,
                 }),
