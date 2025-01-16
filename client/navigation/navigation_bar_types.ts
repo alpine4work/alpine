@@ -1,4 +1,4 @@
-import {ReactElement, ReactNode, Ref, RefCallback, RefObject} from "react";
+import {Memo, ReactElement, ReactNode, Ref, RefCallback} from "react";
 import {MenuAction} from "~/client/design/menu.js";
 import {OverlayTriggerButtonState} from "~/client/design/overlay_trigger_button.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
@@ -28,7 +28,7 @@ export type NavigationBarShareButtonProps = {
     readonly onCopyLink: () => MaybePromise<void>;
 };
 
-export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDivElement> = {
+export type NavigationBarProps = {
     /**
      * A ref for interacting with the navigation bar when mounted.
      */
@@ -76,7 +76,7 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
      * The title only displays once the user has scrolled past this element. When
      * crossing this boundary the title animates in/out.
      */
-    readonly titleBoundaryRef?: RefObject<TitleBoundaryElement>;
+    readonly getTitleBoundaryElement?: Memo<() => HTMLElement>;
 
     /**
      * The title only displays once the user has scrolled this distance past the

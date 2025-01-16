@@ -708,7 +708,7 @@ export function TaskDetailView({
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         title: <TaskDetailViewNavigationBarTitle taskSubscription={taskSubscription} />,
-        titleBoundaryRef: titleInputElementRef,
+        getTitleBoundaryElement: useCallback(() => assertExists(titleInputElementRef.current), []),
         titleBoundaryMarginTop: spacing["4"],
         menuActions: contextMenuActions,
         extraIconButton: openTaskCommentsExtraAction,

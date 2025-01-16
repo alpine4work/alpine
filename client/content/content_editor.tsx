@@ -251,7 +251,8 @@ const historyPluginKey = new Lazy((): PluginKey => {
 });
 
 export type ContentEditorRef<Content extends ContentWithReferences> = {
-    getContainer(): HTMLDivElement;
+    getContainerElement(): HTMLDivElement;
+    getEditorElement(): HTMLDivElement;
     getState(): ContentEditorState<Content>;
     isFocused(): boolean;
     focus(options?: FocusOptions): void;
@@ -675,7 +676,9 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
             };
 
             return {
-                getContainer: () => assertExists(containerRef.current),
+                getContainerElement: () => assertExists(containerRef.current),
+                getEditorElement: () =>
+                    assertExists(containerRef.current?.firstElementChild) as HTMLDivElement,
                 getState: () => state,
                 isFocused: () => false,
                 focus: () => {
@@ -908,8 +911,11 @@ function ContentEditor<Content extends ContentWithReferences>(
     useImperativeHandle(
         editorRef,
         () => ({
-            getContainer: () => {
+            getContainerElement: () => {
                 return assertExists(containerRef.current);
+            },
+            getEditorElement: () => {
+                return assertExists(viewRef.current).dom as HTMLDivElement;
             },
             getState: () => {
                 return propsRef.current.state;

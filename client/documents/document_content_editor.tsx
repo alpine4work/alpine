@@ -67,7 +67,6 @@ import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_rend
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
@@ -107,7 +106,7 @@ import {
     spinAnimationClassName,
 } from "~/client/styles/styles.js";
 import {hasAccessLevel} from "~/shared/access/access_policy.js";
-import {paragraphClassName, titleClassName} from "~/shared/content/content_styles.js";
+import {paragraphClassName} from "~/shared/content/content_styles.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {
@@ -1502,7 +1501,6 @@ export function DocumentContentEditor({
     \* ========================================================================== */
 
     const navigationBarRef = useRef<NavigationBarRef>(null);
-    const titleBoundaryRef = useRef<HTMLElement | null>(null);
 
     const isUndoDisabled = editorState.undoDepth() === 0;
     const isRedoDisabled = editorState.redoDepth() === 0;
@@ -1515,7 +1513,12 @@ export function DocumentContentEditor({
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         ref: navigationBarRef,
         title: getDocumentContentTitle(content.doc),
-        titleBoundaryRef,
+        getTitleBoundaryElement: useCallback(() => {
+            // Assume the title `<h1>` element is always the first element in the
+            // ProseMirror DOM.
+            const editor = assertExists(editorRef.current);
+            return editor.getEditorElement().firstElementChild! as HTMLHeadingElement;
+        }, []),
         titleBoundaryMarginTop: useMemo(
             () =>
                 addRemLengths(
@@ -1636,24 +1639,7 @@ export function DocumentContentEditor({
                 <OverlayScopeContextProvider>
                     <Box className={contentEditorStyles.containerClassName}>
                         <ContentEditor
-                            ref={useMergedRefs(
-                                editorRef,
-                                useLifecycleRef(
-                                    useCallback(editor => {
-                                        const titleBoundaryElement = assertExists(
-                                            editor
-                                                .getContainer()
-                                                .querySelector(`.${titleClassName}`),
-                                        );
-                                        assert(titleBoundaryElement instanceof HTMLElement);
-
-                                        titleBoundaryRef.current = titleBoundaryElement;
-                                        return () => {
-                                            titleBoundaryRef.current = null;
-                                        };
-                                    }, []),
-                                ),
-                            )}
+                            ref={editorRef}
                             state={editorState}
                             onChange={(state, transaction) => {
                                 onEditorStateChange(state);

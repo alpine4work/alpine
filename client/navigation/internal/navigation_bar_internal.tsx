@@ -16,15 +16,7 @@
 // and native code so we can use that. Touch events are more dicey.
 
 import {AnimationControls, timeline} from "motion";
-import {
-    MutableRefObject,
-    ReactNode,
-    Ref,
-    RefObject,
-    useImperativeHandle,
-    useRef,
-    useState,
-} from "react";
+import {Memo, MutableRefObject, ReactNode, Ref, useImperativeHandle, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {MenuAction} from "~/client/design/menu.js";
@@ -137,12 +129,12 @@ const initialScrollDirectionState: ScrollDirectionState = {
     animateNavigationBar: null,
 };
 
-export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
+export function NavigationBar({
     handleRef,
     navigationBarRef: externalNavigationBarRef,
     withScrollAway,
     title,
-    titleBoundaryRef,
+    getTitleBoundaryElement,
     titleBoundaryMarginTop,
     withoutDisappearingTitle,
     subtitle,
@@ -172,7 +164,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     navigationBarRef: Ref<NavigationBarRef> | undefined;
     withScrollAway: boolean;
     title: ReactNode;
-    titleBoundaryRef: RefObject<TitleBoundaryElement> | undefined;
+    getTitleBoundaryElement: Memo<() => HTMLElement> | undefined;
     titleBoundaryMarginTop: Spacing | RemLength | undefined;
     withoutDisappearingTitle: boolean;
     subtitle: ReactNode | undefined;
@@ -287,9 +279,9 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 navigationBarContentElement ??= navigationBarContent.getElement();
 
                 if (withoutDisappearingTitle) return null;
-                if (!titleBoundaryRef?.current) return null;
+                if (getTitleBoundaryElement === undefined) return null;
 
-                let titleBoundaryParentElement: HTMLElement = titleBoundaryRef.current;
+                let titleBoundaryParentElement = getTitleBoundaryElement();
 
                 let titleBoundaryOffset =
                     Math.max(
@@ -832,7 +824,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 onPrepareSmoothScrollTo,
             };
         },
-        [titleBoundaryMarginTop, titleBoundaryRef, withScrollAway, withoutDisappearingTitle],
+        [getTitleBoundaryElement, titleBoundaryMarginTop, withScrollAway, withoutDisappearingTitle],
     );
 
     const lastAnimatedScrollDirectionStateRef = useRef(scrollDirectionState);

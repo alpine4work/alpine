@@ -39,12 +39,12 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
  * Our native mobile apps implement tab bar UI which uses the same logic as our
  * web code navigation bar. As the user scrolls down, the tab bar disappears.
  */
-export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
+export function useNavigationBar({
     ref,
     isDisabled = false,
     withScrollAway,
     title = null,
-    titleBoundaryRef,
+    getTitleBoundaryElement,
     titleBoundaryMarginTop,
     withoutDisappearingTitle = false,
     subtitle,
@@ -64,7 +64,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleLeftSlop,
     withoutMobileBackButton = false,
     onMobileCancel,
-}: NavigationBarProps<TitleBoundaryElement>): NavigationBarResult {
+}: NavigationBarProps): NavigationBarResult {
     const platform = usePlatform();
 
     withScrollAway ??= platform === "mobile";
@@ -170,7 +170,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             navigationBarRef={ref}
             withScrollAway={withScrollAway}
             title={title}
-            titleBoundaryRef={titleBoundaryRef}
+            getTitleBoundaryElement={getTitleBoundaryElement}
             titleBoundaryMarginTop={titleBoundaryMarginTop}
             withoutDisappearingTitle={withoutDisappearingTitle}
             subtitle={subtitle}
