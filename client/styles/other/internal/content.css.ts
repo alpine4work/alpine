@@ -2495,9 +2495,11 @@ export const tableAddRowGripClassName = style({
 
 export const betweenColumnGripClassName = style({
     position: "absolute",
-    top: "-36px",
+    top: "-31px",
     height: "24px",
-    width: "16px",
+    left: "100%",
+    borderRadius: "100%",
+    width: "24px",
     cursor: "pointer",
     backgroundColor: "transparent",
     zIndex: 11,
@@ -2505,16 +2507,17 @@ export const betweenColumnGripClassName = style({
     alignItems: "center",
     justifyContent: "center",
     transform: "translateX(-50%)",
-    "::before": {
-        content: '""',
-        zIndex: 12,
-        position: "absolute",
-        width: "4px",
-        height: "4px",
-        borderRadius: "50%",
-        backgroundColor: colorSchemeVars["grey-60"],
-        opacity: 0.6,
-    },
+});
+
+globalStyle(`${betweenColumnGripClassName}::before`, {
+    content: '""',
+    zIndex: 12,
+    position: "absolute",
+    width: "4px",
+    height: "4px",
+    borderRadius: "50%",
+    backgroundColor: colorSchemeVars["grey-60"],
+    opacity: 0.6,
 });
 
 globalStyle(`${betweenColumnGripClassName}:hover`, {
@@ -2536,9 +2539,10 @@ globalStyle(`${betweenColumnGripClassName}:hover > span`, {
 
 export const betweenRowGripClassName = style({
     position: "absolute",
-    left: "-36px",
+    left: "-31px",
     width: "24px",
-    height: "16px",
+    height: "24px",
+    borderRadius: "100%",
     cursor: "pointer",
     backgroundColor: "transparent",
     zIndex: 11,
@@ -2546,15 +2550,16 @@ export const betweenRowGripClassName = style({
     alignItems: "center",
     justifyContent: "center",
     transform: "translateY(-50%)",
-    "::before": {
-        content: '""',
-        position: "absolute",
-        width: "4px",
-        height: "4px",
-        borderRadius: "50%",
-        backgroundColor: colorSchemeVars["grey-60"],
-        opacity: 0.6,
-    },
+});
+
+globalStyle(`${betweenRowGripClassName}::before`, {
+    content: '""',
+    position: "absolute",
+    width: "4px",
+    height: "4px",
+    borderRadius: "50%",
+    backgroundColor: colorSchemeVars["grey-60"],
+    opacity: 0.6,
 });
 
 globalStyle(`${betweenRowGripClassName}:hover`, {

@@ -125,6 +125,10 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                     event.stopImmediatePropagation();
                                     if (view) {
                                         view.dispatch(selectRow(index)(view.state.tr));
+                                        // Then add a new row after it
+                                        addRowAfter(view.state, view.dispatch);
+                                        // Finally select the newly added row
+                                        view.dispatch(selectRow(index + 1)(view.state.tr));
                                     }
                                 });
                                 return grip;
@@ -199,8 +203,11 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                         event.preventDefault();
                                         event.stopImmediatePropagation();
                                         if (view) {
-                                            addContentTableColumnAfter(view.state, view.dispatch);
                                             view.dispatch(selectColumn(index)(view.state.tr));
+                                            // Then add a new column after it
+                                            addContentTableColumnAfter(view.state, view.dispatch);
+                                            // Finally select the newly added column
+                                            view.dispatch(selectColumn(index + 1)(view.state.tr));
                                         }
                                     });
 
