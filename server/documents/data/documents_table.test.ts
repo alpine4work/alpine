@@ -273,6 +273,7 @@ test("can read a created document", async () => {
         createdTime: expect.any(Date),
         version: 0,
         titleWithoutFallback: "Foo bar",
+        accessPolicy: content.attrs.accessPolicy,
     });
 });
 
@@ -1778,6 +1779,7 @@ test("updates the document title whenever it changes", async () => {
         createdTime: expect.any(Date),
         version: 0,
         titleWithoutFallback: "",
+        accessPolicy: document.initialAccessPolicy,
     });
 
     await updateDocumentContent(session.action(), {
@@ -1802,6 +1804,7 @@ test("updates the document title whenever it changes", async () => {
         createdTime: expect.any(Date),
         version: 1,
         titleWithoutFallback: "",
+        accessPolicy: document.initialAccessPolicy,
     });
 
     await updateDocumentContent(session.action(), {
@@ -1826,6 +1829,7 @@ test("updates the document title whenever it changes", async () => {
         createdTime: expect.any(Date),
         version: 2,
         titleWithoutFallback: "f",
+        accessPolicy: document.initialAccessPolicy,
     });
 
     await updateDocumentContent(session.action(), {
@@ -1850,6 +1854,7 @@ test("updates the document title whenever it changes", async () => {
         createdTime: expect.any(Date),
         version: 3,
         titleWithoutFallback: "f",
+        accessPolicy: document.initialAccessPolicy,
     });
 
     await updateDocumentContent(session.action(), {
@@ -1874,6 +1879,7 @@ test("updates the document title whenever it changes", async () => {
         createdTime: expect.any(Date),
         version: 5,
         titleWithoutFallback: "foo",
+        accessPolicy: document.initialAccessPolicy,
     });
 
     await updateDocumentContent(session.action(), {
@@ -1898,6 +1904,7 @@ test("updates the document title whenever it changes", async () => {
         createdTime: expect.any(Date),
         version: 6,
         titleWithoutFallback: "foo",
+        accessPolicy: document.initialAccessPolicy,
     });
 
     await updateDocumentContent(session.action(), {
@@ -1934,6 +1941,7 @@ test("updates the document title whenever it changes", async () => {
         createdTime: expect.any(Date),
         version: 7,
         titleWithoutFallback: "foo",
+        accessPolicy: document.initialAccessPolicy,
     });
 
     await updateDocumentContent(session.action(), {
@@ -1958,6 +1966,7 @@ test("updates the document title whenever it changes", async () => {
         createdTime: expect.any(Date),
         version: 8,
         titleWithoutFallback: "foobar",
+        accessPolicy: document.initialAccessPolicy,
     });
 });
 
@@ -3159,8 +3168,14 @@ test("counts step count contributions for each account", async () => {
     const session2 = await space.createSession();
     const session3 = await space.createSession();
 
-    const document = await TestDocument.create(session1, {body: "Starts with some content."});
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        body: "Starts with some content.",
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     expect(
         await DocumentsTable.getItem(context, {
@@ -3289,8 +3304,14 @@ test("counts step count contributions for each account with alternating cache", 
     const session2 = await space.createSession();
     const session3 = await space.createSession();
 
-    const document = await TestDocument.create(session1, {body: "Starts with some content."});
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        body: "Starts with some content.",
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     expect(
         await DocumentsTable.getItem(context, {
@@ -3418,8 +3439,14 @@ test("authorizing document access as session actor is cached", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1, {title: "Test Document"});
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        title: "Test Document",
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -3475,8 +3502,14 @@ test("authorizing document access as system actor is cached", async () => {
     const space = await TestSpace.create(context);
     const [session1] = await space.createSessions(1);
 
-    const document = await TestDocument.create(session1, {title: "Test Document"});
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        title: "Test Document",
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -3532,8 +3565,14 @@ test("authorizing document access after getting document as session actor is cac
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1, {title: "Test Document"});
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        title: "Test Document",
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     const commentThread = await document.createCommentThread(
         session1,
@@ -3745,8 +3784,14 @@ test("authorizing document access after getting document as system actor is cach
     const space = await TestSpace.create(context);
     const [session1] = await space.createSessions(1);
 
-    const document = await TestDocument.create(session1, {title: "Test Document"});
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        title: "Test Document",
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     const commentThread = await document.createCommentThread(
         session1,
@@ -4133,8 +4178,13 @@ test("authorization succeeds if session has access to document", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
         authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
@@ -4154,8 +4204,16 @@ test("authorization succeeds at view level when session has view access to docum
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grant(session1, session2, "View");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([
+                [session1.account.id, {level: "Manage", generation: 0}],
+                [session2.account.id, {level: "View"}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        },
+    });
 
     const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
         authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
@@ -4180,8 +4238,16 @@ test("authorization succeeds at comment level and below when session has comment
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grant(session1, session2, "Comment");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([
+                [session1.account.id, {level: "Manage", generation: 0}],
+                [session2.account.id, {level: "Comment"}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        },
+    });
 
     const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
         authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
@@ -4206,8 +4272,16 @@ test("authorization succeeds at edit level and below when session has edit acces
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grant(session1, session2, "Edit");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([
+                [session1.account.id, {level: "Manage", generation: 0}],
+                [session2.account.id, {level: "Edit"}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        },
+    });
 
     const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
         authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
@@ -4232,8 +4306,16 @@ test("authorization succeeds at manage level and below when session has manage a
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grant(session1, session2, "Manage");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([
+                [session1.account.id, {level: "Manage", generation: 0}],
+                [session2.account.id, {level: "Manage", generation: 1}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        },
+    });
 
     const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
         authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
@@ -4258,8 +4340,13 @@ test("authorization succeeds at view level when default grant has view access to
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "View");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "View"},
+            urlGrant: null,
+        },
+    });
 
     const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
         authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
@@ -4284,8 +4371,13 @@ test("authorization succeeds at comment level and below when default grant has v
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Comment");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Comment"},
+            urlGrant: null,
+        },
+    });
 
     const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
         authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
@@ -4310,8 +4402,13 @@ test("authorization succeeds at edit level and below when default grant has view
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Edit");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Edit"},
+            urlGrant: null,
+        },
+    });
 
     const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
         authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
@@ -4336,8 +4433,13 @@ test("authorization succeeds at manage level and below when default grant has vi
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
         authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
@@ -4364,8 +4466,13 @@ test("authorization fails for session in another space", async () => {
     const otherSpace = await TestSpace.create(context);
     const otherSession = await otherSpace.createSession();
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
         authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
@@ -4445,9 +4552,17 @@ test("getting document with comments requires comment access level", async () =>
     const otherSpace = await TestSpace.create(context);
     const otherSession = await otherSpace.createSession();
 
-    const document = await TestDocument.create(session1);
-    await document.access.grant(session1, session2, "Comment");
-    await document.access.grant(session1, session3, "View");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([
+                [session1.account.id, {level: "Manage", generation: 0}],
+                [session2.account.id, {level: "Comment"}],
+                [session3.account.id, {level: "View"}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        },
+    });
 
     await document.type(session1, "Hello, ");
     const {range} = await document.type(session1, "world");
@@ -4855,9 +4970,17 @@ test("getting document with resolved comment thread requires comment access leve
     const otherSpace = await TestSpace.create(context);
     const otherSession = await otherSpace.createSession();
 
-    const document = await TestDocument.create(session1);
-    await document.access.grant(session1, session2, "Comment");
-    await document.access.grant(session1, session3, "View");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([
+                [session1.account.id, {level: "Manage", generation: 0}],
+                [session2.account.id, {level: "Comment"}],
+                [session3.account.id, {level: "View"}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        },
+    });
 
     await document.type(session1, "Hello, ");
     const {range} = await document.type(session1, "world");
@@ -4903,9 +5026,17 @@ test("getting document without comments requires view access level", async () =>
     const otherSpace = await TestSpace.create(context);
     const otherSession = await otherSpace.createSession();
 
-    const document = await TestDocument.create(session1);
-    await document.access.grant(session1, session2, "Comment");
-    await document.access.grant(session1, session3, "View");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([
+                [session1.account.id, {level: "Manage", generation: 0}],
+                [session2.account.id, {level: "Comment"}],
+                [session3.account.id, {level: "View"}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        },
+    });
 
     await document.type(session1, "Hello, ");
     const {range} = await document.type(session1, "world");
@@ -5136,8 +5267,13 @@ test("must have edit access to edit a document and can change the document's acc
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Comment");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Comment"},
+            urlGrant: null,
+        },
+    });
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -5221,8 +5357,13 @@ test("can't update access policy unintentionally", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Comment");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Comment"},
+            urlGrant: null,
+        },
+    });
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -5311,8 +5452,13 @@ test("can't update access policy with a mismatched intentional access policy", a
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Comment");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Comment"},
+            urlGrant: null,
+        },
+    });
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -5412,8 +5558,16 @@ test("can't update the access policy without the manage access level", async () 
         const space = await TestSpace.create(context);
         const [session1, session2] = await space.createSessions(2);
 
-        const document = await TestDocument.create(session1);
-        await document.access.grant(session1, session2, "Comment");
+        const document = await TestDocument.create(session1, {
+            access: {
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                    [session2.account.id, {level: "Comment"}],
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+        });
 
         await updateDocumentContent(session1.action(), {
             id: document.id,
@@ -5501,8 +5655,16 @@ test("can't update the access policy without the manage access level", async () 
         const space = await TestSpace.create(context);
         const [session1, session2, session3] = await space.createSessions(3);
 
-        const document = await TestDocument.create(session1);
-        await document.access.grant(session1, session2, "Edit");
+        const document = await TestDocument.create(session1, {
+            access: {
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                    [session2.account.id, {level: "Edit"}],
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+        });
 
         await updateDocumentContent(session1.action(), {
             id: document.id,
@@ -5590,8 +5752,16 @@ test("can't update the access policy without the manage access level", async () 
         const space = await TestSpace.create(context);
         const [session1, session2, session3] = await space.createSessions(3);
 
-        const document = await TestDocument.create(session1);
-        await document.access.grant(session1, session2, "Manage");
+        const document = await TestDocument.create(session2, {
+            access: {
+                accountGrantById: new Map([
+                    [session2.account.id, {level: "Manage", generation: 0}],
+                    [session1.account.id, {level: "Manage", generation: 1}],
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+        });
 
         await updateDocumentContent(session1.action(), {
             id: document.id,
@@ -5676,8 +5846,16 @@ test("can't update the access policy without the manage access level even if the
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grant(session1, session2, "Edit");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([
+                [session1.account.id, {level: "Manage", generation: 0}],
+                [session2.account.id, {level: "Edit"}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        },
+    });
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -5760,8 +5938,17 @@ test("can handle conflicting access policy changes", async () => {
         const space = await TestSpace.create(context);
         const [session1, session2, session3] = await space.createSessions(3);
 
-        const document = await TestDocument.create(session1);
-        await document.access.grant(session1, session2, "Manage");
+        const document = await TestDocument.create(session1, {
+            access: {
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                    [session2.account.id, {level: "Manage", generation: 1}],
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+        });
+
         const accessPolicy = await document.access.get();
 
         await updateDocumentContent(session1.action(), {
@@ -5873,8 +6060,17 @@ test("can handle conflicting access policy changes", async () => {
         const space = await TestSpace.create(context);
         const [session1, session2, session3] = await space.createSessions(3);
 
-        const document = await TestDocument.create(session1);
-        await document.access.grant(session1, session2, "Manage");
+        const document = await TestDocument.create(session1, {
+            access: {
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                    [session2.account.id, {level: "Manage", generation: 1}],
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+        });
+
         const accessPolicy = await document.access.get();
 
         await updateDocumentContent(session1.action(), {
@@ -5986,8 +6182,17 @@ test("can handle conflicting access policy changes within a single update call",
         const space = await TestSpace.create(context);
         const [session1, session2, session3] = await space.createSessions(3);
 
-        const document = await TestDocument.create(session1);
-        await document.access.grant(session1, session2, "Manage");
+        const document = await TestDocument.create(session1, {
+            access: {
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                    [session2.account.id, {level: "Manage", generation: 1}],
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+        });
+
         const accessPolicy = await document.access.get();
 
         await updateDocumentContent(session1.action(), {
@@ -6090,8 +6295,17 @@ test("can handle conflicting access policy changes within a single update call",
         const space = await TestSpace.create(context);
         const [session1, session2, session3] = await space.createSessions(3);
 
-        const document = await TestDocument.create(session1);
-        await document.access.grant(session1, session2, "Manage");
+        const document = await TestDocument.create(session1, {
+            access: {
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                    [session2.account.id, {level: "Manage", generation: 1}],
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+        });
+
         const accessPolicy = await document.access.get();
 
         await updateDocumentContent(session1.action(), {
@@ -6190,8 +6404,17 @@ test("can handle conflicting access policy changes within a single update call",
         const space = await TestSpace.create(context);
         const [session1, session2, session3] = await space.createSessions(3);
 
-        const document = await TestDocument.create(session1);
-        await document.access.grant(session1, session2, "Manage");
+        const document = await TestDocument.create(session1, {
+            access: {
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                    [session2.account.id, {level: "Manage", generation: 1}],
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+        });
+
         const accessPolicy = await document.access.get();
 
         await updateDocumentContent(session1.action(), {
@@ -6498,9 +6721,17 @@ test("getting a document with optional comments strips comments if the actor onl
     const [editorSession, commenterSession, viewerSession, otherSession] =
         await space.createSessions(4);
 
-    const document = await TestDocument.create(editorSession);
-    await document.access.grant(editorSession, commenterSession, "Comment");
-    await document.access.grant(editorSession, viewerSession, "View");
+    const document = await TestDocument.create(editorSession, {
+        access: {
+            accountGrantById: new Map([
+                [editorSession.account.id, {level: "Manage", generation: 0}],
+                [commenterSession.account.id, {level: "Comment"}],
+                [viewerSession.account.id, {level: "View"}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        },
+    });
 
     await document.type(editorSession, "Hello, ");
     const {range} = await document.type(editorSession, "world");
@@ -7153,8 +7384,13 @@ test("can make updates to comment marks with comment access", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Comment");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Comment"},
+            urlGrant: null,
+        },
+    });
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -7425,8 +7661,16 @@ test("can add comment mark to `file` node in a document with comment access leve
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grant(session1, session2, "Comment");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([
+                [session1.account.id, {level: "Manage", generation: 0}],
+                [session2.account.id, {level: "Comment"}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        },
+    });
 
     const file = await TestFile.create(session1);
 
@@ -10123,8 +10367,15 @@ describe("Comments", () => {
             const otherSpace = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
             const otherSession = await otherSpace.createSession();
-            const document = await TestDocument.create(session1);
-            await document.access.grantDefault(session1, "Manage");
+            const document = await TestDocument.create(session1, {
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: {level: "Manage", generation: 1},
+                    urlGrant: null,
+                },
+            });
 
             await updateDocumentContent(session1.action(), {
                 id: document.id,
@@ -10169,8 +10420,15 @@ describe("Comments", () => {
         test("the document owner is a subscriber for the first comment on their document", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
-            const document = await TestDocument.create(session1);
-            await document.access.grantDefault(session1, "Manage");
+            const document = await TestDocument.create(session1, {
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: {level: "Manage", generation: 1},
+                    urlGrant: null,
+                },
+            });
 
             await updateDocumentContent(session1.action(), {
                 id: document.id,
@@ -10231,8 +10489,15 @@ describe("Comments", () => {
         test("an account that comments on a comment thread is subscribed to notifications", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2, session3, session4] = await space.createSessions(4);
-            const document = await TestDocument.create(session1);
-            await document.access.grantDefault(session1, "Manage");
+            const document = await TestDocument.create(session1, {
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: {level: "Manage", generation: 1},
+                    urlGrant: null,
+                },
+            });
 
             await updateDocumentContent(session1.action(), {
                 id: document.id,
@@ -10477,8 +10742,15 @@ describe("Comments", () => {
         test("an account that comments on a comment thread is subscribed to notifications even if the comment is deleted", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2, session3, session4] = await space.createSessions(4);
-            const document = await TestDocument.create(session1);
-            await document.access.grantDefault(session1, "Manage");
+            const document = await TestDocument.create(session1, {
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: {level: "Manage", generation: 1},
+                    urlGrant: null,
+                },
+            });
 
             await updateDocumentContent(session1.action(), {
                 id: document.id,
@@ -10641,8 +10913,15 @@ describe("Comments", () => {
         test("an account that is mentioned in a comment thread is subscribed to notifications", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2, session3, session4] = await space.createSessions(4);
-            const document = await TestDocument.create(session1);
-            await document.access.grantDefault(session1, "Manage");
+            const document = await TestDocument.create(session1, {
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: {level: "Manage", generation: 1},
+                    urlGrant: null,
+                },
+            });
 
             await updateDocumentContent(session1.action(), {
                 id: document.id,
@@ -10763,8 +11042,15 @@ describe("Comments", () => {
         test("an unknown account that is mentioned in a comment thread is not subscribed to notifications", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2, session3, session4] = await space.createSessions(4);
-            const document = await TestDocument.create(session1);
-            await document.access.grantDefault(session1, "Manage");
+            const document = await TestDocument.create(session1, {
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: {level: "Manage", generation: 1},
+                    urlGrant: null,
+                },
+            });
 
             await updateDocumentContent(session1.action(), {
                 id: document.id,
@@ -10877,8 +11163,15 @@ describe("Comments", () => {
             const otherSpace = await TestSpace.create(context);
             const [session1, session2, session3, session4] = await space.createSessions(4);
             const otherSession = await otherSpace.createSession();
-            const document = await TestDocument.create(session1);
-            await document.access.grantDefault(session1, "Manage");
+            const document = await TestDocument.create(session1, {
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: {level: "Manage", generation: 1},
+                    urlGrant: null,
+                },
+            });
 
             await updateDocumentContent(session1.action(), {
                 id: document.id,
@@ -10999,8 +11292,15 @@ describe("Comments", () => {
         test("an account that is mentioned in a comment thread is subscribed to notifications even if the message is updated to remove the mention", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2, session3, session4] = await space.createSessions(4);
-            const document = await TestDocument.create(session1);
-            await document.access.grantDefault(session1, "Manage");
+            const document = await TestDocument.create(session1, {
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: {level: "Manage", generation: 1},
+                    urlGrant: null,
+                },
+            });
 
             await updateDocumentContent(session1.action(), {
                 id: document.id,
@@ -11176,8 +11476,15 @@ describe("Comments", () => {
         test("an account that is mentioned in a comment thread is subscribed to notifications even if the message is deleted", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2, session3, session4] = await space.createSessions(4);
-            const document = await TestDocument.create(session1);
-            await document.access.grantDefault(session1, "Manage");
+            const document = await TestDocument.create(session1, {
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: {level: "Manage", generation: 1},
+                    urlGrant: null,
+                },
+            });
 
             await updateDocumentContent(session1.action(), {
                 id: document.id,
@@ -11346,8 +11653,15 @@ describe("Comments", () => {
         test("an account that is mentioned in a comment thread after it is updated is subscribed to notifications", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2, session3, session4] = await space.createSessions(4);
-            const document = await TestDocument.create(session1);
-            await document.access.grantDefault(session1, "Manage");
+            const document = await TestDocument.create(session1, {
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: {level: "Manage", generation: 1},
+                    urlGrant: null,
+                },
+            });
 
             await updateDocumentContent(session1.action(), {
                 id: document.id,
@@ -11506,8 +11820,15 @@ describe("Comments", () => {
             const space = await TestSpace.create(context);
             const [session1, session2, session3, session4, session5, session6, session7] =
                 await space.createSessions(7);
-            const document = await TestDocument.create(session1);
-            await document.access.grantDefault(session1, "Manage");
+            const document = await TestDocument.create(session1, {
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: {level: "Manage", generation: 1},
+                    urlGrant: null,
+                },
+            });
 
             await updateDocumentContent(session1.action(), {
                 id: document.id,
@@ -14934,7 +15255,7 @@ describe("Comments", () => {
                 commentThreadId: commentThread.id,
             }),
         ).toEqual({
-            version: 4,
+            version: 5,
             ranges: [{...range, isNode: false}],
         });
 

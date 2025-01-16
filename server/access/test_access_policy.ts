@@ -38,7 +38,7 @@ export class TestAccessPolicy {
         session: TestSpaceSession,
         account: AccountId | TestAccount | TestSession,
         level: AccessLevel = "Manage",
-    ) {
+    ): Promise<AccessPolicy> {
         const accountId: AccountId =
             "account" in account ? account.account.id : "id" in account ? account.id : account;
 
@@ -62,13 +62,15 @@ export class TestAccessPolicy {
         );
 
         await this.set(session, newAccessPolicy);
+
+        return newAccessPolicy;
     }
 
     public async grantAccounts(
         session: TestSpaceSession,
         accounts: Iterable<AccountId | TestAccount | TestSession>,
         level: AccessLevel = "Manage",
-    ) {
+    ): Promise<AccessPolicy> {
         const oldAccessPolicy = await this.get();
 
         const accountGrantById = new Map<
@@ -97,9 +99,14 @@ export class TestAccessPolicy {
         });
 
         await this.set(session, newAccessPolicy);
+
+        return newAccessPolicy;
     }
 
-    public async revoke(session: TestSpaceSession, account: AccountId | TestAccount | TestSession) {
+    public async revoke(
+        session: TestSpaceSession,
+        account: AccountId | TestAccount | TestSession,
+    ): Promise<AccessPolicy> {
         const accountId: AccountId =
             "account" in account ? account.account.id : "id" in account ? account.id : account;
 
@@ -111,9 +118,14 @@ export class TestAccessPolicy {
         });
 
         await this.set(session, newAccessPolicy);
+
+        return newAccessPolicy;
     }
 
-    public async grantDefault(session: TestSpaceSession, level: AccessLevel = "Manage") {
+    public async grantDefault(
+        session: TestSpaceSession,
+        level: AccessLevel = "Manage",
+    ): Promise<AccessPolicy> {
         const oldAccessPolicy = await this.get();
 
         const newAccessPolicy = reduceAccessPolicy(
@@ -131,9 +143,11 @@ export class TestAccessPolicy {
         );
 
         await this.set(session, newAccessPolicy);
+
+        return newAccessPolicy;
     }
 
-    public async revokeDefault(session: TestSpaceSession) {
+    public async revokeDefault(session: TestSpaceSession): Promise<AccessPolicy> {
         const oldAccessPolicy = await this.get();
 
         const newAccessPolicy = reduceAccessPolicy(session.account.id, oldAccessPolicy, {
@@ -141,12 +155,14 @@ export class TestAccessPolicy {
         });
 
         await this.set(session, newAccessPolicy);
+
+        return newAccessPolicy;
     }
 
     public async grantUrl(
         session: TestSpaceSession,
         level: AccessPolicyUrlGrant["level"] = "View",
-    ) {
+    ): Promise<AccessPolicy> {
         const oldAccessPolicy = await this.get();
 
         const newAccessPolicy = reduceAccessPolicy(
@@ -164,9 +180,11 @@ export class TestAccessPolicy {
         );
 
         await this.set(session, newAccessPolicy);
+
+        return newAccessPolicy;
     }
 
-    public async revokeUrl(session: TestSpaceSession) {
+    public async revokeUrl(session: TestSpaceSession): Promise<AccessPolicy> {
         const oldAccessPolicy = await this.get();
 
         const newAccessPolicy = reduceAccessPolicy(session.account.id, oldAccessPolicy, {
@@ -174,5 +192,7 @@ export class TestAccessPolicy {
         });
 
         await this.set(session, newAccessPolicy);
+
+        return newAccessPolicy;
     }
 }

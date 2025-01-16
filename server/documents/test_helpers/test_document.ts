@@ -77,6 +77,7 @@ export class TestDocument {
             | {
                   title?: string;
                   body?: string;
+                  access?: AccessPolicy;
                   content?: undefined;
               }
             | {
@@ -92,13 +93,15 @@ export class TestDocument {
                   schema.node(
                       "doc",
                       {
-                          accessPolicy: cast<AccessPolicy>({
-                              accountGrantById: new Map([
-                                  [session.account.id, {level: "Manage", generation: 0}],
-                              ]),
-                              defaultGrant: null,
-                              urlGrant: null,
-                          }),
+                          accessPolicy:
+                              options.access ??
+                              cast<AccessPolicy>({
+                                  accountGrantById: new Map([
+                                      [session.account.id, {level: "Manage", generation: 0}],
+                                  ]),
+                                  defaultGrant: null,
+                                  urlGrant: null,
+                              }),
                       },
                       [
                           schema.node(
