@@ -352,7 +352,7 @@ export class TracerRoot extends TracerBase {
         // in the app. So log uncaught exceptions in development.
         if (!disableConsoleLog && process.env.NODE_ENV !== "production") {
             // eslint-disable-next-line no-console
-            console.error(`${name}:`, error);
+            console.error(`${name}:`, error instanceof Error ? error.stack : error);
         }
 
         const originalSpan = getErrorOriginalTracerSpan(error);
