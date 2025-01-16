@@ -58,8 +58,6 @@ import {attachFileAsUploader} from "~/server/files/data/files_table.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
 import {removeSpaceAccountAsAdmin} from "~/server/spaces/spaces_table.js";
-import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
-import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {
@@ -6842,6 +6840,313 @@ test("getting a document with optional comments strips comments if the actor onl
     await expect(
         getDocumentContentForCollaborationServiceInitialization(otherSession.action(), document.id),
     ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can get a document with references as an anonymous user", async () => {
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession({hasInternalAccess: true});
+
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const document = await TestDocument.create(session1);
+
+    await document.type(session1, "Hello, ");
+    const {range} = await document.type(session1, "world");
+    await document.type(session1, "!");
+
+    await document.type(session1, " Hello, ");
+    await document.type(
+        session1,
+        schema.node("mention", {mention: {accountId: session2.account.id, isShort: false}}),
+    );
+    await document.type(session1, "!");
+
+    await document.type(session1, " Hello, ");
+    await document.type(
+        session1,
+        schema.node("mention", {mention: {accountId: session3.account.id, isShort: false}}),
+    );
+    await document.type(session1, "!");
+
+    await document.type(session1, " Hello, ");
+    await document.type(
+        session1,
+        schema.node("mention", {mention: {accountId: otherSession.account.id, isShort: false}}),
+    );
+    await document.type(session1, "!");
+
+    const file = await TestFile.create(session1);
+
+    await document.attachFile(session1, file);
+
+    const commentThread = await document.createCommentThread(session1, range);
+
+    await removeSpaceAccountAsAdmin(otherSession.action(), {
+        spaceId: space.id,
+        accountId: session3.account.id,
+    });
+
+    expect(await getDocumentWithOptionalComments(session1.action(), document.id)).toEqual(
+        new DocumentModel({
+            id: document.id,
+            spaceId: space.id,
+            createdTime: expect.any(Date),
+            version: 14,
+            content: {
+                doc: assertDocumentContent(
+                    schema.node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                        schema.node("title"),
+                        schema.node("paragraph", {}, [
+                            schema.text("Hello, "),
+                            schema.text("world", [
+                                schema.mark("comment", {commentThreadId: commentThread.id}),
+                            ]),
+                            schema.text("! Hello, "),
+                            schema.node("mention", {
+                                mention: {accountId: session2.account.id, isShort: false},
+                            }),
+                            schema.text("! Hello, "),
+                            schema.node("mention", {
+                                mention: {accountId: session3.account.id, isShort: false},
+                            }),
+                            schema.text("! Hello, "),
+                            schema.node("mention", {
+                                mention: {accountId: otherSession.account.id, isShort: false},
+                            }),
+                            schema.text("!"),
+                        ]),
+                        schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
+                    ]),
+                ),
+                references: {
+                    ...emptyDocumentContentReferences,
+                    accountById: new Map([
+                        [
+                            session2.account.id,
+                            new AccountModel({
+                                id: session2.account.id,
+                                version: 0,
+                                name: session2.account.initialName,
+                                nameVersion: 0,
+                                space: {
+                                    version: 0,
+                                    joinedTime: expect.any(Date),
+                                    wasRemoved: false,
+                                },
+                            }),
+                        ],
+                        [
+                            session3.account.id,
+                            new AccountModel({
+                                id: session3.account.id,
+                                version: 0,
+                                name: session3.account.initialName,
+                                nameVersion: 0,
+                                space: {
+                                    version: 1,
+                                    joinedTime: expect.any(Date),
+                                    wasRemoved: true,
+                                },
+                            }),
+                        ],
+                    ]),
+                    fileById: new Map([
+                        [file.id, {signedUrlSearch: expect.any(String), file: await file.get()}],
+                    ]),
+                    commentThreadById: new Map([
+                        [
+                            commentThread.id,
+                            {
+                                commentCount: 1,
+                                commentAuthors: [await session1.get()],
+                            },
+                        ],
+                    ]),
+                },
+            },
+        }),
+    );
+
+    await expect(
+        getDocumentWithOptionalComments(context.anonymousAction(), document.id),
+    ).rejects.toThrow(UnauthenticatedError);
+
+    await document.access.grantUrl(session1);
+
+    expect(await getDocumentWithOptionalComments(session1.action(), document.id)).toEqual(
+        new DocumentModel({
+            id: document.id,
+            spaceId: space.id,
+            createdTime: expect.any(Date),
+            version: 15,
+            content: {
+                doc: assertDocumentContent(
+                    schema.node(
+                        "doc",
+                        {
+                            accessPolicy: {
+                                ...document.initialAccessPolicy,
+                                urlGrant: {level: "View"},
+                            },
+                        },
+                        [
+                            schema.node("title"),
+                            schema.node("paragraph", {}, [
+                                schema.text("Hello, "),
+                                schema.text("world", [
+                                    schema.mark("comment", {commentThreadId: commentThread.id}),
+                                ]),
+                                schema.text("! Hello, "),
+                                schema.node("mention", {
+                                    mention: {accountId: session2.account.id, isShort: false},
+                                }),
+                                schema.text("! Hello, "),
+                                schema.node("mention", {
+                                    mention: {accountId: session3.account.id, isShort: false},
+                                }),
+                                schema.text("! Hello, "),
+                                schema.node("mention", {
+                                    mention: {accountId: otherSession.account.id, isShort: false},
+                                }),
+                                schema.text("!"),
+                            ]),
+                            schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
+                        ],
+                    ),
+                ),
+                references: {
+                    ...emptyDocumentContentReferences,
+                    accountById: new Map([
+                        [
+                            session2.account.id,
+                            new AccountModel({
+                                id: session2.account.id,
+                                version: 0,
+                                name: session2.account.initialName,
+                                nameVersion: 0,
+                                space: {
+                                    version: 0,
+                                    joinedTime: expect.any(Date),
+                                    wasRemoved: false,
+                                },
+                            }),
+                        ],
+                        [
+                            session3.account.id,
+                            new AccountModel({
+                                id: session3.account.id,
+                                version: 0,
+                                name: session3.account.initialName,
+                                nameVersion: 0,
+                                space: {
+                                    version: 1,
+                                    joinedTime: expect.any(Date),
+                                    wasRemoved: true,
+                                },
+                            }),
+                        ],
+                    ]),
+                    fileById: new Map([
+                        [file.id, {signedUrlSearch: expect.any(String), file: await file.get()}],
+                    ]),
+                    commentThreadById: new Map([
+                        [
+                            commentThread.id,
+                            {
+                                commentCount: 1,
+                                commentAuthors: [await session1.get()],
+                            },
+                        ],
+                    ]),
+                },
+            },
+        }),
+    );
+
+    expect(await getDocumentWithOptionalComments(context.anonymousAction(), document.id)).toEqual(
+        new DocumentModel({
+            id: document.id,
+            spaceId: space.id,
+            createdTime: expect.any(Date),
+            version: 15,
+            content: {
+                doc: assertDocumentContent(
+                    schema.node(
+                        "doc",
+                        {
+                            accessPolicy: {
+                                ...document.initialAccessPolicy,
+                                urlGrant: {level: "View"},
+                            },
+                        },
+                        [
+                            schema.node("title"),
+                            schema.node("paragraph", {}, [
+                                schema.text("Hello, world! Hello, "),
+                                schema.node("mention", {
+                                    mention: {accountId: session2.account.id, isShort: false},
+                                }),
+                                schema.text("! Hello, "),
+                                schema.node("mention", {
+                                    mention: {accountId: session3.account.id, isShort: false},
+                                }),
+                                schema.text("! Hello, "),
+                                schema.node("mention", {
+                                    mention: {accountId: otherSession.account.id, isShort: false},
+                                }),
+                                schema.text("!"),
+                            ]),
+                            schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
+                        ],
+                    ),
+                ),
+                references: {
+                    ...emptyDocumentContentReferences,
+                    accountById: new Map([
+                        [
+                            session2.account.id,
+                            new AccountModel({
+                                id: session2.account.id,
+                                version: -1073741824,
+                                name: session2.account.initialName,
+                                nameVersion: 0,
+                                space: {
+                                    version: -1073741824,
+                                    joinedTime: new Date(0),
+                                    wasRemoved: false,
+                                },
+                            }),
+                        ],
+                        [
+                            session3.account.id,
+                            new AccountModel({
+                                id: session3.account.id,
+                                version: -1073741824,
+                                name: session3.account.initialName,
+                                nameVersion: 0,
+                                space: {
+                                    version: -1073741823,
+                                    joinedTime: new Date(0),
+                                    wasRemoved: false,
+                                },
+                            }),
+                        ],
+                    ]),
+                    fileById: new Map([
+                        [file.id, {signedUrlSearch: expect.any(String), file: await file.get()}],
+                    ]),
+                    commentThreadById: new Map([]),
+                },
+            },
+        }),
+    );
+
+    await document.access.revokeUrl(session1);
+
+    await expect(
+        getDocumentWithOptionalComments(context.anonymousAction(), document.id),
+    ).rejects.toThrow(UnauthenticatedError);
 });
 
 test("can make updates to comment marks with comment access", async () => {
