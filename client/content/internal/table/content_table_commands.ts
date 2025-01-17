@@ -30,6 +30,8 @@
 import {Node, ResolvedPos, Slice} from "prosemirror-model";
 import {Command, EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {
+    findTable,
+    getCellsInRow,
     getContentTableColumnWidths,
     isInContentTable,
     moveContentTableCellForward,
@@ -165,7 +167,10 @@ export function deleteContentTableColumn(
     return true;
 }
 
-function addContentTableRow(
+/**
+ * Add a table row at the given position
+ */
+export function addContentTableRow(
     tr: Transaction,
     {map, tableStart, table}: TableRect,
     row: number,

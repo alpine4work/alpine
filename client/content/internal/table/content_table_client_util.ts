@@ -563,3 +563,15 @@ export const getSelectedTableGripInContentTable = ({
     const grip = table.querySelector("a.grip-button.selected");
     return grip;
 };
+
+/**
+ * Gets information about the selected table area including position and dimensions
+ */
+export function selectedRect(state: EditorState) {
+    const $pos = selectionContentTableCell(state);
+    const table = $pos.node(-1);
+    const tableStart = $pos.start(-1);
+    const map = ContentTableMap.get(table);
+    const rect = map.findCell($pos.pos - tableStart);
+    return {...rect, tableStart, map, table};
+}

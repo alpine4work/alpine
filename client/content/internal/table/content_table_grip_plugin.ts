@@ -4,6 +4,7 @@ import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {
     getCellsInColumn,
     getCellsInRow,
+    getContentTableColumnWidths,
     isColumnSelected,
     isInContentTable,
     isRowSelected,
@@ -11,12 +12,14 @@ import {
     selectColumn,
     selectRow,
     selectTable,
+    selectionContentTableCell,
 } from "~/client/content/internal/table/content_table_client_util.js";
 import {
     addContentTableColumnAfter,
     addRowAfter,
 } from "~/client/content/internal/table/content_table_commands.js";
 import {colorSchemeVars, contentStyles} from "~/client/styles/styles.js";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 
 // NOCOMMIT: update the names of the grips, all of them seems confusing
 // because of similar functionalities.
@@ -93,8 +96,32 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                         event.preventDefault();
                                         event.stopImmediatePropagation();
                                         if (view) {
-                                            addRowAfter(view.state, view.dispatch);
-                                            view.dispatch(selectRow(index)(view.state.tr));
+                                            const tr = view.state.tr;
+                                            const $cell = selectionContentTableCell(view.state);
+                                            const table = $cell.node(-1);
+                                            const tableStart = $cell.start(-1);
+                                            const map = ContentTableMap.get(table);
+
+                                            let rowPos = tableStart;
+                                            for (let i = 0; i < index + 1; i++) {
+                                                rowPos += table.child(i).nodeSize;
+                                            }
+
+                                            const cells = [];
+                                            for (let col = 0; col < map.width; col++) {
+                                                const type = table.type.schema.nodes.tableCell!;
+                                                const node = type.createAndFill();
+                                                if (node) cells.push(node);
+                                            }
+
+                                            tr.insert(
+                                                rowPos,
+                                                table.type.schema.nodes.tableRow!.create(
+                                                    null,
+                                                    cells,
+                                                ),
+                                            );
+                                            view.dispatch(tr);
                                         }
                                     });
 
@@ -199,11 +226,34 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                         event.preventDefault();
                                         event.stopImmediatePropagation();
                                         if (view) {
-                                            view.dispatch(selectColumn(index)(view.state.tr));
-                                            // Then add a new column after it
-                                            addContentTableColumnAfter(view.state, view.dispatch);
-                                            // Finally select the newly added column
-                                            view.dispatch(selectColumn(index + 1)(view.state.tr));
+                                            const tr = view.state.tr;
+                                            const $cell = selectionContentTableCell(view.state);
+                                            const table = $cell.node(-1);
+                                            const tableStart = $cell.start(-1);
+                                            const map = ContentTableMap.get(table);
+
+                                            // Update columnWidths array
+                                            const columnWidths = [
+                                                ...getContentTableColumnWidths(table),
+                                            ];
+                                            columnWidths.splice(index + 1, 0, 1);
+                                            tr.setNodeAttribute(
+                                                tableStart - 1,
+                                                "columnWidths",
+                                                columnWidths,
+                                            );
+
+                                            // Add cells to each row
+                                            for (let row = 0; row < map.height; row++) {
+                                                const pos = map.positionAt(row, index + 1, table);
+                                                const type = table.type.schema.nodes.tableCell!;
+                                                tr.insert(
+                                                    tr.mapping.map(tableStart + pos),
+                                                    type.createAndFill()!,
+                                                );
+                                            }
+
+                                            view.dispatch(tr);
                                         }
                                     });
 
