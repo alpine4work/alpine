@@ -65,6 +65,12 @@ export class WorkerRpcContextModule extends RpcContextModuleBase<{
                     };
                     break;
                 }
+                case "Anonymous": {
+                    tokenPayload = {
+                        type: "Anonymous",
+                    };
+                    break;
+                }
                 default:
                     throw exhaustive(context.actor);
             }

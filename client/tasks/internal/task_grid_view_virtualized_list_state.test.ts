@@ -12,7 +12,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {StoreMap} from "~/shared/store/store_map.js";
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
@@ -36,7 +36,9 @@ afterEach(() => {
     assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
 });
 
-const accountStore = getAccountClientStore(generateId());
+const spaceId = generateId<SpaceId>();
+const currentAccountId = generateId<AccountId>();
+const accountStore = getAccountClientStore(spaceId);
 
 const account1 = new AccountModel({
     id: generateId(),
@@ -155,8 +157,8 @@ function expectItems(
 test("can represent items of an empty query", () => {
     const store = new TaskClientStore({
         accountStore,
-        spaceId: generateId(),
-        currentAccountId: generateId(),
+        spaceId,
+        currentAccountId,
         onError: handleError,
     });
 
@@ -204,8 +206,8 @@ test("can represent items of an empty query", () => {
 test("can represent items of a query", () => {
     const store = new TaskClientStore({
         accountStore,
-        spaceId: generateId(),
-        currentAccountId: generateId(),
+        spaceId,
+        currentAccountId,
         onError: handleError,
     });
 
@@ -297,8 +299,8 @@ test("can represent items of a query", () => {
 test("can represent items of a query with some expanded unloaded child tasks", () => {
     const store = new TaskClientStore({
         accountStore,
-        spaceId: generateId(),
-        currentAccountId: generateId(),
+        spaceId,
+        currentAccountId,
         onError: handleError,
     });
 
@@ -601,8 +603,8 @@ test("can represent items of a query with some expanded unloaded child tasks", (
 test("can represent items of a query with some expanded child tasks", () => {
     const store = new TaskClientStore({
         accountStore,
-        spaceId: generateId(),
-        currentAccountId: generateId(),
+        spaceId,
+        currentAccountId,
         onError: handleError,
     });
 
@@ -1098,8 +1100,8 @@ test("can represent items of a query with some expanded child tasks", () => {
 test("can represent items of a query with some expanded child tasks and extra unloaded child tasks", () => {
     const store = new TaskClientStore({
         accountStore,
-        spaceId: generateId(),
-        currentAccountId: generateId(),
+        spaceId,
+        currentAccountId,
         onError: handleError,
     });
 
@@ -1685,8 +1687,8 @@ test("can represent items of a query with some expanded child tasks and extra un
 test("can represent items of a query with some expanded child tasks where task reports fewer than query", () => {
     const store = new TaskClientStore({
         accountStore,
-        spaceId: generateId(),
-        currentAccountId: generateId(),
+        spaceId,
+        currentAccountId,
         onError: handleError,
     });
 
@@ -2158,8 +2160,8 @@ test("can represent items of a query with some expanded child tasks where task r
 test("can represent items of a query with some double nested expanded child tasks", () => {
     const store = new TaskClientStore({
         accountStore,
-        spaceId: generateId(),
-        currentAccountId: generateId(),
+        spaceId,
+        currentAccountId,
         onError: handleError,
     });
 
@@ -2666,8 +2668,8 @@ test("can represent items of a query with some double nested expanded child task
 test("can get the index of items including nested items if the path to the task is known", () => {
     const store = new TaskClientStore({
         accountStore,
-        spaceId: generateId(),
-        currentAccountId: generateId(),
+        spaceId,
+        currentAccountId,
         onError: handleError,
     });
 

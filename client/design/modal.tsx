@@ -4,7 +4,6 @@ import {ReactNode, useEffect, useRef, useState} from "react";
 import {FocusScope} from "react-aria";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box.js";
-import {ContextMenuContextProvider} from "~/client/design/context_menu.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {useOverlayBlockingPortalElement} from "~/client/design/overlay_helpers.js";
 import {

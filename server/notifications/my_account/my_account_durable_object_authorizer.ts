@@ -1,5 +1,6 @@
 import {differenceInMinutes} from "date-fns";
 import {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
+import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -60,6 +61,9 @@ export class MyAccountDurableObjectAuthorizer {
                     await cacheValue.promise;
                 }
                 break;
+            }
+            case "Anonymous": {
+                throw unauthenticatedSessionError();
             }
             default:
                 throw exhaustive(context.actor);

@@ -24,7 +24,6 @@ import {useStore} from "~/client/helpers/use_store.js";
 import {accessLevelText} from "~/client/navigation/internal/access_level_text.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     colorSchemeVars,
     greyElevated2ClassName,
@@ -78,7 +77,6 @@ export function ShareOverlayAccountGrantInput({
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const accountStore = useAccountClientStore();
-    const {currentAccount} = useSpaceContext();
 
     const inputRef = useRef<HTMLInputElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);

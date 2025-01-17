@@ -21,7 +21,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
@@ -50,7 +50,9 @@ afterAll(() => {
 
 const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
-const accountStore = getAccountClientStore(generateId());
+const spaceId = generateId<SpaceId>();
+const currentAccountId = generateId<AccountId>();
+const accountStore = getAccountClientStore(spaceId);
 
 const account1 = new AccountModel({
     id: generateId(),
@@ -197,8 +199,8 @@ afterEach(() => {
 function createAutoRetainStore() {
     const store = new TaskClientStore({
         accountStore,
-        spaceId: generateId(),
-        currentAccountId: generateId(),
+        spaceId,
+        currentAccountId,
         onError: handleError,
     });
 

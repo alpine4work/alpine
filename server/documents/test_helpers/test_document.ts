@@ -1,6 +1,6 @@
 import {Fragment, Node, Slice} from "prosemirror-model";
 import {DocAttrStep, ReplaceStep, Step} from "prosemirror-transform";
-import {TestAccessPolicy} from "~/server/access/test_access_policy.js";
+import {TestAccessPolicy} from "~/server/access/test_helpers/test_access_policy.js";
 import {
     DocumentContentCacheForUpdate,
     FileDocumentAuthorizer,

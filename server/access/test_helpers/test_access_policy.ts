@@ -13,12 +13,6 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
-// Can only be imported in a test environment. We put this directly in the
-// `//server/access` module instead of creating a new `testonly = True`
-// `//server/access:test_helpers` module for simplicity. This module doesn't
-// need any other test helper dependencies.
-assert(process.env.NODE_ENV === "test");
-
 export class TestAccessPolicy {
     public readonly get: () => Promise<AccessPolicy>;
     public readonly set: (session: TestSpaceSession, accessPolicy: AccessPolicy) => Promise<void>;

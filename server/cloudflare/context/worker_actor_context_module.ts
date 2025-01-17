@@ -1,8 +1,10 @@
 import {
     ActorContextModuleBase,
+    AnonymousActorContextModule,
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
+import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {Context} from "~/shared/context/context.js";
@@ -14,7 +16,8 @@ import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export type WorkerActorContextModule =
     | WorkerSessionActorContextModule
-    | WorkerSystemActorContextModule;
+    | WorkerSystemActorContextModule
+    | WorkerAnonymousActorContextModule;
 
 /**
  * Verify the token and return an actor context module corresponding to
@@ -36,6 +39,9 @@ export async function createWorkerActorContextModule(
         }
         case "System": {
             return WorkerSystemActorContextModule.dangerouslyNew(serviceName, payload.spaceId);
+        }
+        case "Anonymous": {
+            return WorkerAnonymousActorContextModule.dangerouslyNew(serviceName);
         }
         default:
             throw exhaustive(payload);
@@ -186,5 +192,48 @@ export class WorkerSystemActorContextModule
 
     public fork() {
         return new WorkerSystemActorContextModule(this.serviceName, this._spaceId);
+    }
+}
+
+export class WorkerAnonymousActorContextModule
+    extends ContextModuleBase
+    implements WorkerActorContextModuleBase, AnonymousActorContextModule
+{
+    public readonly type = "Anonymous";
+
+    /**
+     * Name of the service which initiated the current action. If the browser
+     * initiated an action the service name is `AppClient`.
+     */
+    public readonly serviceName: TokenServiceName;
+
+    private constructor(serviceName: TokenServiceName) {
+        super();
+        this.serviceName = serviceName;
+    }
+
+    /**
+     * Dangerous since you can pass in an arbitrary `serviceName` here. You need to
+     * make sure to pass in the right one so you only get access to the procedures
+     * made available to your service.
+     */
+    public static dangerouslyNew(serviceName: TokenServiceName) {
+        return new WorkerAnonymousActorContextModule(serviceName);
+    }
+
+    public authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: WorkerSessionActorContextModule}>> {
+        throw unauthenticatedSessionError();
+    }
+
+    public authorizeSystem<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: WorkerSystemActorContextModule}>> {
+        throw new PermissionDeniedError("Anonymous actor is not a system actor");
+    }
+
+    public fork() {
+        return new WorkerAnonymousActorContextModule(this.serviceName);
     }
 }
