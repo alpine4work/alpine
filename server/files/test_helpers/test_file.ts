@@ -37,29 +37,23 @@ const fileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
     ],
 ]);
 
-export async function uploadTestFile(session: TestSpaceSession, spaceId: SpaceId) {
-    const {fileId} = await startUploadingFile(
-        session.context.action(session, {serviceName: "EdgeService"}),
-        {
-            spaceId,
-            contentType: "image/png",
-            contentLength: 100,
-        },
-    );
+export async function uploadTestFile(context: TestSessionActionContext, spaceId: SpaceId) {
+    const {fileId} = await startUploadingFile(context, {
+        spaceId,
+        contentType: "image/png",
+        contentLength: 100,
+    });
 
-    await finishUploadingAndStartProcessingFile(
-        session.context.action(session, {serviceName: "EdgeService"}),
-        {
-            spaceId,
-            fileId,
-            // We manually finish processing the file below.
-            withoutProcessJobForTest: true,
-        },
-    );
+    await finishUploadingAndStartProcessingFile(context, {
+        spaceId,
+        fileId,
+        // We manually finish processing the file below.
+        withoutProcessJobForTest: true,
+    });
 
-    const fileUploader = await getFileUploaderAsUploader(session.action(), spaceId, fileId);
+    const fileUploader = await getFileUploaderAsUploader(context, spaceId, fileId);
 
-    await fileUploader.finishProcessingImagePreviewSize(session.action(), {
+    await fileUploader.finishProcessingImagePreviewSize(context, {
         width: 1000,
         height: 1000,
         scale: 1,
@@ -67,7 +61,7 @@ export async function uploadTestFile(session: TestSpaceSession, spaceId: SpaceId
     });
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
-        session.action(),
+        context,
         fileImagePreviewPlaceholder,
     );
 
@@ -93,7 +87,10 @@ export class TestFile {
     }
 
     public static async create(session: TestSpaceSession): Promise<TestFile> {
-        const {fileId} = await uploadTestFile(session, session.space.id);
+        const {fileId} = await uploadTestFile(
+            session.context.action(session, {serviceName: "EdgeService"}),
+            session.space.id,
+        );
 
         return new TestFile(session.context, session.space, fileId, null);
     }

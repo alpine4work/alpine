@@ -4580,7 +4580,7 @@ test("getting document with comments requires comment access level", async () =>
             'Actor doesn\'t have "View" access level to document',
         );
         await expect(getDocument(otherSession.action(), document.id)).rejects.toThrow(
-            'Actor doesn\'t have "View" access level to document',
+            "Actor doesn't have access to document's space",
         );
     }
 
@@ -4594,7 +4594,7 @@ test("getting document with comments requires comment access level", async () =>
             'Actor doesn\'t have "View" access level to document',
         );
         await expect(getDocumentContent(otherSession.action(), document.id)).rejects.toThrow(
-            'Actor doesn\'t have "View" access level to document',
+            "Actor doesn't have access to document's space",
         );
     }
 
@@ -4618,7 +4618,7 @@ test("getting document with comments requires comment access level", async () =>
                 otherSession.action(),
                 document.id,
             ),
-        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
+        ).rejects.toThrow("Actor doesn't have access to document's space");
     }
 
     {
@@ -4657,9 +4657,7 @@ test("getting document with comments requires comment access level", async () =>
                 commentLimit: 100,
                 commentThreadCountAgainstLimit: 0,
             }),
-        ).rejects.toThrow(
-            'Actor doesn\'t have "View" access level to document (and 1 other error)',
-        );
+        ).rejects.toThrow("Actor doesn't have access to document's space (and 1 other error)");
     }
 
     // Check that even when `commentThreadIds` is empty we still throw if the actor
@@ -4700,7 +4698,7 @@ test("getting document with comments requires comment access level", async () =>
                 commentLimit: 100,
                 commentThreadCountAgainstLimit: 0,
             }),
-        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
+        ).rejects.toThrow("Actor doesn't have access to document's space");
     }
 
     {
@@ -4734,7 +4732,7 @@ test("getting document with comments requires comment access level", async () =>
                 commentThreadId: commentThread.id,
                 isFirstComment: true,
             }),
-        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
+        ).rejects.toThrow("Actor doesn't have access to document's space");
     }
 
     {
@@ -4763,7 +4761,7 @@ test("getting document with comments requires comment access level", async () =>
                 documentId: document.id,
                 commentThreadId: commentThread.id,
             }),
-        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
+        ).rejects.toThrow("Actor doesn't have access to document's space");
     }
 
     {
@@ -4797,7 +4795,7 @@ test("getting document with comments requires comment access level", async () =>
                 commentThreadId: commentThread.id,
                 commentIndex: 0,
             }),
-        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
+        ).rejects.toThrow("Actor doesn't have access to document's space");
     }
 
     {
@@ -4826,7 +4824,7 @@ test("getting document with comments requires comment access level", async () =>
                 documentId: document.id,
                 commentThreadIds: [commentThread.id],
             }),
-        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
+        ).rejects.toThrow("Actor doesn't have access to document's space");
     }
 
     {
@@ -4860,7 +4858,7 @@ test("getting document with comments requires comment access level", async () =>
                 commentThreadId: commentThread.id,
                 limit: 100,
             }),
-        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
+        ).rejects.toThrow("Actor doesn't have access to document's space");
     }
 
     {
@@ -4894,7 +4892,7 @@ test("getting document with comments requires comment access level", async () =>
                 commentThreadId: commentThread.id,
                 limit: 100,
             }),
-        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
+        ).rejects.toThrow("Actor doesn't have access to document's space");
     }
 
     {
@@ -4926,7 +4924,7 @@ test("getting document with comments requires comment access level", async () =>
                     commentThreadIds: [commentThread.id],
                 },
             ),
-        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
+        ).rejects.toThrow("Actor doesn't have access to document's space");
     }
 
     {
@@ -4960,7 +4958,7 @@ test("getting document with comments requires comment access level", async () =>
                 startVersion: 0,
                 endVersion: 4,
             }),
-        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
+        ).rejects.toThrow("Actor doesn't have access to document's space");
     }
 });
 
@@ -5016,7 +5014,7 @@ test("getting document with resolved comment thread requires comment access leve
                 documentId: document.id,
                 commentThreadId: commentThread.id,
             }),
-        ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
+        ).rejects.toThrow("Actor doesn't have access to document's space");
     }
 });
 
@@ -5053,7 +5051,7 @@ test("getting document without comments requires view access level", async () =>
         ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
         await expect(
             getDocumentWithOptionalComments(otherSession.action(), document.id),
-        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
+        ).rejects.toThrow("Actor doesn't have access to document's space");
     }
 
     {
@@ -5065,7 +5063,7 @@ test("getting document without comments requires view access level", async () =>
         ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
         await expect(
             getDocumentWithOptionalCommentsIfExists(otherSession.action(), document.id),
-        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
+        ).rejects.toThrow("Actor doesn't have access to document's space");
     }
 
     {
@@ -5077,7 +5075,7 @@ test("getting document without comments requires view access level", async () =>
         ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
         await expect(
             getDocumentContentWithOptionalComments(otherSession.action(), document.id),
-        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
+        ).rejects.toThrow("Actor doesn't have access to document's space");
     }
 
     {
@@ -5104,7 +5102,7 @@ test("getting document without comments requires view access level", async () =>
                 context.action(otherSession, {serviceName: "DocumentCollaborationService"}),
                 document.id,
             ),
-        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
+        ).rejects.toThrow("Actor doesn't have access to document's space");
     }
 
     {
@@ -5115,7 +5113,7 @@ test("getting document without comments requires view access level", async () =>
             'Actor doesn\'t have "View" access level to document',
         );
         await expect(getDocumentPreview(otherSession.action(), document.id)).rejects.toThrow(
-            'Actor doesn\'t have "View" access level to document',
+            "Actor doesn't have access to document's space",
         );
     }
 
@@ -5128,7 +5126,7 @@ test("getting document without comments requires view access level", async () =>
         );
         await expect(
             getDocumentPreviewIfExists(otherSession.action(), document.id),
-        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
+        ).rejects.toThrow("Actor doesn't have access to document's space");
     }
 
     {
@@ -5139,7 +5137,7 @@ test("getting document without comments requires view access level", async () =>
             'Actor doesn\'t have "View" access level to document',
         );
         await expect(getDocumentTitle(otherSession.action(), document.id)).rejects.toThrow(
-            'Actor doesn\'t have "View" access level to document',
+            "Actor doesn't have access to document's space",
         );
     }
 });
@@ -7073,7 +7071,7 @@ test("getting a document with optional comments strips comments if the actor onl
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("can get a document with references as an anonymous user", async () => {
+test("can get a document with references as actors that don't have access to the space", async () => {
     const otherSpace = await TestSpace.create(context);
     const otherSession = await otherSpace.createSession({hasInternalAccess: true});
 
@@ -7201,7 +7199,19 @@ test("can get a document with references as an anonymous user", async () => {
 
     await expect(
         getDocumentWithOptionalComments(context.anonymousAction(), document.id),
-    ).rejects.toThrow(UnauthenticatedError);
+    ).rejects.toThrow(new UnauthenticatedError("Unauthenticated session"));
+
+    await expect(
+        getDocumentWithOptionalComments(otherSession.action(), document.id),
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn't have access to document's space"));
+
+    await expect(getDocumentWithOptionalComments(session2.action(), document.id)).rejects.toThrow(
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to document'),
+    );
+
+    await expect(getDocumentWithOptionalComments(session3.action(), document.id)).rejects.toThrow(
+        new PermissionDeniedError("Actor doesn't have access to document's space"),
+    );
 
     await document.access.grantUrl(session1);
 
@@ -7373,11 +7383,257 @@ test("can get a document with references as an anonymous user", async () => {
         }),
     );
 
+    expect(await getDocumentWithOptionalComments(otherSession.action(), document.id)).toEqual(
+        new DocumentModel({
+            id: document.id,
+            spaceId: space.id,
+            createdTime: expect.any(Date),
+            version: 15,
+            content: {
+                doc: assertDocumentContent(
+                    schema.node(
+                        "doc",
+                        {
+                            accessPolicy: {
+                                ...document.initialAccessPolicy,
+                                urlGrant: {level: "View"},
+                            },
+                        },
+                        [
+                            schema.node("title"),
+                            schema.node("paragraph", {}, [
+                                schema.text("Hello, world! Hello, "),
+                                schema.node("mention", {
+                                    mention: {accountId: session2.account.id, isShort: false},
+                                }),
+                                schema.text("! Hello, "),
+                                schema.node("mention", {
+                                    mention: {accountId: session3.account.id, isShort: false},
+                                }),
+                                schema.text("! Hello, "),
+                                schema.node("mention", {
+                                    mention: {accountId: otherSession.account.id, isShort: false},
+                                }),
+                                schema.text("!"),
+                            ]),
+                            schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
+                        ],
+                    ),
+                ),
+                references: {
+                    ...emptyDocumentContentReferences,
+                    accountById: new Map([
+                        [
+                            session2.account.id,
+                            new AccountModel({
+                                id: session2.account.id,
+                                version: -1073741824,
+                                name: session2.account.initialName,
+                                nameVersion: 0,
+                                space: {
+                                    version: -1073741824,
+                                    joinedTime: new Date(0),
+                                    wasRemoved: false,
+                                },
+                            }),
+                        ],
+                        [
+                            session3.account.id,
+                            new AccountModel({
+                                id: session3.account.id,
+                                version: -1073741824,
+                                name: session3.account.initialName,
+                                nameVersion: 0,
+                                space: {
+                                    version: -1073741823,
+                                    joinedTime: new Date(0),
+                                    wasRemoved: false,
+                                },
+                            }),
+                        ],
+                    ]),
+                    fileById: new Map([
+                        [file.id, {signedUrlSearch: expect.any(String), file: await file.get()}],
+                    ]),
+                    commentThreadById: new Map([]),
+                },
+            },
+        }),
+    );
+
+    expect(await getDocumentWithOptionalComments(session2.action(), document.id)).toEqual(
+        new DocumentModel({
+            id: document.id,
+            spaceId: space.id,
+            createdTime: expect.any(Date),
+            version: 15,
+            content: {
+                doc: assertDocumentContent(
+                    schema.node(
+                        "doc",
+                        {
+                            accessPolicy: {
+                                ...document.initialAccessPolicy,
+                                urlGrant: {level: "View"},
+                            },
+                        },
+                        [
+                            schema.node("title"),
+                            schema.node("paragraph", {}, [
+                                schema.text("Hello, world! Hello, "),
+                                schema.node("mention", {
+                                    mention: {accountId: session2.account.id, isShort: false},
+                                }),
+                                schema.text("! Hello, "),
+                                schema.node("mention", {
+                                    mention: {accountId: session3.account.id, isShort: false},
+                                }),
+                                schema.text("! Hello, "),
+                                schema.node("mention", {
+                                    mention: {accountId: otherSession.account.id, isShort: false},
+                                }),
+                                schema.text("!"),
+                            ]),
+                            schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
+                        ],
+                    ),
+                ),
+                references: {
+                    ...emptyDocumentContentReferences,
+                    accountById: new Map([
+                        [
+                            session2.account.id,
+                            new AccountModel({
+                                id: session2.account.id,
+                                version: 0,
+                                name: session2.account.initialName,
+                                nameVersion: 0,
+                                space: {
+                                    version: 0,
+                                    joinedTime: expect.any(Date),
+                                    wasRemoved: false,
+                                },
+                            }),
+                        ],
+                        [
+                            session3.account.id,
+                            new AccountModel({
+                                id: session3.account.id,
+                                version: 0,
+                                name: session3.account.initialName,
+                                nameVersion: 0,
+                                space: {
+                                    version: 1,
+                                    joinedTime: expect.any(Date),
+                                    wasRemoved: true,
+                                },
+                            }),
+                        ],
+                    ]),
+                    fileById: new Map([
+                        [file.id, {signedUrlSearch: expect.any(String), file: await file.get()}],
+                    ]),
+                    commentThreadById: new Map([]),
+                },
+            },
+        }),
+    );
+
+    expect(await getDocumentWithOptionalComments(session3.action(), document.id)).toEqual(
+        new DocumentModel({
+            id: document.id,
+            spaceId: space.id,
+            createdTime: expect.any(Date),
+            version: 15,
+            content: {
+                doc: assertDocumentContent(
+                    schema.node(
+                        "doc",
+                        {
+                            accessPolicy: {
+                                ...document.initialAccessPolicy,
+                                urlGrant: {level: "View"},
+                            },
+                        },
+                        [
+                            schema.node("title"),
+                            schema.node("paragraph", {}, [
+                                schema.text("Hello, world! Hello, "),
+                                schema.node("mention", {
+                                    mention: {accountId: session2.account.id, isShort: false},
+                                }),
+                                schema.text("! Hello, "),
+                                schema.node("mention", {
+                                    mention: {accountId: session3.account.id, isShort: false},
+                                }),
+                                schema.text("! Hello, "),
+                                schema.node("mention", {
+                                    mention: {accountId: otherSession.account.id, isShort: false},
+                                }),
+                                schema.text("!"),
+                            ]),
+                            schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
+                        ],
+                    ),
+                ),
+                references: {
+                    ...emptyDocumentContentReferences,
+                    accountById: new Map([
+                        [
+                            session2.account.id,
+                            new AccountModel({
+                                id: session2.account.id,
+                                version: -1073741824,
+                                name: session2.account.initialName,
+                                nameVersion: 0,
+                                space: {
+                                    version: -1073741824,
+                                    joinedTime: new Date(0),
+                                    wasRemoved: false,
+                                },
+                            }),
+                        ],
+                        [
+                            session3.account.id,
+                            new AccountModel({
+                                id: session3.account.id,
+                                version: -1073741824,
+                                name: session3.account.initialName,
+                                nameVersion: 0,
+                                space: {
+                                    version: -1073741823,
+                                    joinedTime: new Date(0),
+                                    wasRemoved: false,
+                                },
+                            }),
+                        ],
+                    ]),
+                    fileById: new Map([
+                        [file.id, {signedUrlSearch: expect.any(String), file: await file.get()}],
+                    ]),
+                    commentThreadById: new Map([]),
+                },
+            },
+        }),
+    );
+
     await document.access.revokeUrl(session1);
 
     await expect(
         getDocumentWithOptionalComments(context.anonymousAction(), document.id),
-    ).rejects.toThrow(UnauthenticatedError);
+    ).rejects.toThrow(new UnauthenticatedError("Unauthenticated session"));
+
+    await expect(
+        getDocumentWithOptionalComments(otherSession.action(), document.id),
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn't have access to document's space"));
+
+    await expect(getDocumentWithOptionalComments(session2.action(), document.id)).rejects.toThrow(
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to document'),
+    );
+
+    await expect(getDocumentWithOptionalComments(session3.action(), document.id)).rejects.toThrow(
+        new PermissionDeniedError("Actor doesn't have access to document's space"),
+    );
 });
 
 test("can make updates to comment marks with comment access", async () => {
@@ -16010,6 +16266,6 @@ describe("Comments", () => {
                 messageChangesResult: commentChangesResult,
             };
         },
-        spacePermissionDeniedErrorMessage: 'Actor doesn\'t have "Comment" access level to document',
+        spacePermissionDeniedErrorMessage: "Actor doesn't have access to document's space",
     });
 });

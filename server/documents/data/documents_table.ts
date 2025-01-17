@@ -996,8 +996,6 @@ async function authorizeDocumentItemAccessIfPossible(
     // Throw an unauthenticated error if this is an anonymous user instead of
     // returning false. We want to show the user the unauthenticated error display
     // message when they don't have access.
-    //
-    // NOCOMMIT: Test this
     if (context.actor.type === "Anonymous") {
         return {ok: false, error: unauthenticatedSessionError()};
     } else if (
@@ -1009,10 +1007,9 @@ async function authorizeDocumentItemAccessIfPossible(
     ) {
         return {
             ok: false,
-            error: new PermissionDeniedError(
-                quote`Actor doesn't have ${expectedAccessLevel} access level to document`,
-                {displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage},
-            ),
+            error: new PermissionDeniedError("Actor doesn't have access to document's space", {
+                displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
+            }),
         };
     } else {
         return {

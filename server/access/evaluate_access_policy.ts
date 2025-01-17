@@ -27,9 +27,6 @@ export async function evaluateAccessPolicy(
 ): Promise<boolean> {
     // If there's a `urlGrant` then everyone has access at this level. Even when
     // `accountId` is null or `accountId` does not have space access.
-    //
-    // NOCOMMIT: Test this. Also test that removed accounts fail this check even if
-    // the access policy gives them access.
     if (
         accessPolicy.urlGrant !== null &&
         hasAccessLevel(accessPolicy.urlGrant.level, expectedAccessLevel)
