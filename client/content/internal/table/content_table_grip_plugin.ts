@@ -125,10 +125,6 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                     event.stopImmediatePropagation();
                                     if (view) {
                                         view.dispatch(selectRow(index)(view.state.tr));
-                                        // Then add a new row after it
-                                        addRowAfter(view.state, view.dispatch);
-                                        // Finally select the newly added row
-                                        view.dispatch(selectRow(index + 1)(view.state.tr));
                                     }
                                 });
                                 return grip;
