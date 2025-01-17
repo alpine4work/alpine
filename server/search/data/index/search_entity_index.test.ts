@@ -1519,7 +1519,7 @@ test("search by keywords only sees entities the account has access to", async ()
     await collection1.access.grantDefault(session2);
     const collection2 = await TestTaskCollection.create(session2, {name: "test"});
     const collection3 = await TestTaskCollection.create(session2, {name: "test"});
-    await collection1.access.grant(session2, session1);
+    await collection3.access.grant(session2, session1);
 
     await task3.addCollection(session2, collection1);
     await task4.addCollection(session2, collection2);
@@ -1624,7 +1624,7 @@ test("search by semantics only sees entities the account has access to", async (
     const document = await TestDocument.create(session1, {body: testBody});
     await document.access.grantDefault(session1);
     const otherDocument = await TestDocument.create(otherSession, {body: testBody});
-    await document.access.grantDefault(otherSession);
+    await otherDocument.access.grantDefault(otherSession);
     const task1 = await TestTask.create(session1);
     const task2 = await TestTask.create(session2);
     const task3 = await TestTask.create(session2);
@@ -1634,7 +1634,7 @@ test("search by semantics only sees entities the account has access to", async (
     await collection1.access.grantDefault(session2);
     const collection2 = await TestTaskCollection.create(session2);
     const collection3 = await TestTaskCollection.create(session2);
-    await collection1.access.grant(session2, session1);
+    await collection3.access.grant(session2, session1);
 
     for (const taskId of [task1.id, task2.id, task3.id, task4.id, task5.id]) {
         await updateTaskNotesContent(task1.id === taskId ? session1.action() : session2.action(), {
@@ -1910,7 +1910,7 @@ test("searches with natural language parsing works", async () => {
         title: "Test 2",
         body: "By: John. Trains!",
     });
-    await document1.access.grantDefault(session2);
+    await document2.access.grantDefault(session2);
 
     // So the next `createdTime` is larger...
     import.meta.jest.advanceTimersByTime(1000);
@@ -1919,7 +1919,7 @@ test("searches with natural language parsing works", async () => {
         title: "Test 3",
         body: "By: Sara",
     });
-    await document1.access.grantDefault(session1);
+    await document3.access.grantDefault(session1);
 
     // So the next `createdTime` is larger...
     import.meta.jest.advanceTimersByTime(1000);
@@ -1928,7 +1928,7 @@ test("searches with natural language parsing works", async () => {
         title: "Test 4",
         body: "By: John. Trains! Trains!",
     });
-    await document1.access.grantDefault(session1);
+    await document4.access.grantDefault(session1);
 
     // So the next `createdTime` is larger...
     import.meta.jest.advanceTimersByTime(1000);
@@ -1937,7 +1937,7 @@ test("searches with natural language parsing works", async () => {
         title: "Test 5",
         body: "By: Sara",
     });
-    await document1.access.grantDefault(session2);
+    await document5.access.grantDefault(session2);
 
     // So the next `createdTime` is larger...
     import.meta.jest.advanceTimersByTime(1000);

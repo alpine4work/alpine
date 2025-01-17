@@ -9,6 +9,7 @@ import {
     getTaskCollectionItemForTest,
 } from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {generateId} from "~/shared/id/id.js";
@@ -42,8 +43,10 @@ export class TestTaskCollection {
         session: TestSpaceSession,
         {
             name = TestTaskCollection.getNewName(),
+            access,
         }: {
             name?: string;
+            access?: AccessPolicy;
         } = {},
     ) {
         const id = generateId<TaskCollectionId>();
@@ -59,7 +62,7 @@ export class TestTaskCollection {
                     type: "Create",
                     creatorId: session.account.id,
                     name,
-                    accessPolicy: {
+                    accessPolicy: access ?? {
                         accountGrantById: new Map([
                             [session.account.id, {level: "Manage", generation: 0}],
                         ]),

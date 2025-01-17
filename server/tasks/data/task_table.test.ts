@@ -9514,7 +9514,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(new FailedPreconditionError("Task does not have a parent"));
+        ).rejects.toThrow(new FailedPreconditionError("Task doesn't have a parent"));
     });
 
     test("can update task parent order key", async () => {
@@ -11701,7 +11701,7 @@ describe("old style", () => {
                 },
             ]),
         ).rejects.toThrow(
-            new PermissionDeniedError('Actor does not have "Edit" access level to task'),
+            new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'),
         );
     });
 
@@ -13952,7 +13952,7 @@ test("can't authorize a query with a collection you don't have access to", async
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
     );
 });
 
@@ -14051,7 +14051,7 @@ test("can't authorize a query with one of two collections you have access to and
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
     );
 });
 
@@ -14102,7 +14102,7 @@ test("can't authorize a query with all of two collections you have access to and
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
     );
 });
 
@@ -14159,7 +14159,7 @@ test("can't authorize a query with excludes all of two collections you have acce
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
     );
 });
 
@@ -14231,7 +14231,7 @@ test("can authorize a query when filtering by a collection you don't have access
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
     );
 });
 
@@ -14395,7 +14395,7 @@ test("can't authorize a query with a parent filter for a task you don't have acc
                 },
             },
         }),
-    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "View" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "View" access level to task'));
 });
 
 test("can authorize a query with a parent filter for a task you have access to transitively", async () => {
@@ -14440,7 +14440,7 @@ test("can't authorize a query with a parent filter for a task you don't have acc
                 },
             },
         }),
-    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "View" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "View" access level to task'));
 });
 
 test("can authorize a query with a parent filter for a deleted task", async () => {
@@ -14569,7 +14569,7 @@ test("must be allowed to access collection to sort by collection position", asyn
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
     );
 });
 
@@ -14622,7 +14622,7 @@ test("must be allowed to access collection to sort by collection position with c
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
     );
 });
 
@@ -17684,7 +17684,7 @@ test("account can remove access from itself but can't grant it back with an inva
             ],
             {leaseId: generateId<TaskActionTransactionLeaseId>()},
         ),
-    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -17784,7 +17784,7 @@ test("account can remove access from itself but can't use another account's leas
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -18014,7 +18014,7 @@ test("account can remove access from itself but can't grant itself access back w
                 {leaseId},
             ),
         ).rejects.toThrow(
-            new PermissionDeniedError('Actor does not have "Edit" access level to task'),
+            new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'),
         );
 
         await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
@@ -18131,7 +18131,7 @@ test("won't create lease if committed action doesn't remove access", async () =>
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -18207,8 +18207,8 @@ test("can't create lease with actions you aren't allowed to commit", async () =>
         ),
     ).rejects.toThrow(
         new PermissionDeniedError(
-            'Couldn\'t apply lease actions: Actor does not have "Edit" access level to task',
-            {cause: new PermissionDeniedError('Actor does not have "Edit" access level to task')},
+            "Couldn't apply lease actions: Actor doesn't have \"Edit\" access level to task",
+            {cause: new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task')},
         ),
     );
 
@@ -18562,7 +18562,7 @@ test("account can remove access from itself but can't grant it back if another u
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -18663,7 +18663,7 @@ test("account can remove access from itself but can't grant it back if another u
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -18769,7 +18769,7 @@ test("account can remove access from itself but can't grant it back if another u
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,

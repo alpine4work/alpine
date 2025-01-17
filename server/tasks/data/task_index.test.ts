@@ -1447,44 +1447,53 @@ test("excludes collections account doesn't have access to when searching", async
     const session3 = await space.createSession();
     const otherSession = await otherSpace.createSession();
 
-    const [, , , , collection5, collection6, collection7, collection8, collection9, collection10] =
-        await runAllPromises([
-            TestTaskCollection.create(session1),
-            TestTaskCollection.create(session2),
-            TestTaskCollection.create(session1),
-            TestTaskCollection.create(session2),
-            TestTaskCollection.create(session1),
-            TestTaskCollection.create(session2),
-            TestTaskCollection.create(session1),
-            TestTaskCollection.create(session2),
-            TestTaskCollection.create(session1),
-            TestTaskCollection.create(session1),
-            TestTaskCollection.create(otherSession),
-        ]);
-
-    await runAllPromises([
-        collection8.access.grantDefault(session1),
-        collection9.access.grantDefault(session1),
-        collection10.access.grantDefault(otherSession),
+    const [
+        ,
+        ,
+        ,
+        ,
+        collection5,
+        collection6,
+        collection7,
+        collection8,
+        collection9,
+        collection10,
+        collection11,
+    ] = await runAllPromises([
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session2),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session2),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session2),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session2),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(otherSession),
     ]);
 
-    await collection5.access.set(session1, {
-        accountGrantById: new Map([
-            [session1.account.id, {level: "Manage", generation: 0}],
-            [session3.account.id, {level: "Manage", generation: 0}],
-        ]),
-        defaultGrant: null,
-        urlGrant: null,
-    });
-
-    await collection6.access.set(session2, {
-        accountGrantById: new Map([
-            [session2.account.id, {level: "Manage", generation: 0}],
-            [session3.account.id, {level: "Manage", generation: 0}],
-        ]),
-        defaultGrant: null,
-        urlGrant: null,
-    });
+    await runAllPromises([
+        collection5.access.set(session1, {
+            accountGrantById: new Map([
+                [session1.account.id, {level: "Manage", generation: 0}],
+                [session3.account.id, {level: "Manage", generation: 0}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        }),
+        collection6.access.set(session2, {
+            accountGrantById: new Map([
+                [session2.account.id, {level: "Manage", generation: 0}],
+                [session3.account.id, {level: "Manage", generation: 0}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        }),
+        collection9.access.grantDefault(session1),
+        collection10.access.grantDefault(session1),
+        collection11.access.grantDefault(otherSession),
+    ]);
 
     await collection10.delete(session1);
 

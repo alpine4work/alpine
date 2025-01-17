@@ -1956,6 +1956,11 @@ exports[`file float (left direction) 1`] = `
       class="content_file"
       data-testid="ContentFilePreview:image/jpeg"
     >
+      <span
+        style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+      >
+         
+      </span>
       <img
         aria-hidden="true"
         src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
@@ -2001,6 +2006,11 @@ exports[`file float (right direction) 1`] = `
       class="content_file"
       data-testid="ContentFilePreview:image/jpeg"
     >
+      <span
+        style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+      >
+         
+      </span>
       <img
         aria-hidden="true"
         src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
@@ -2046,6 +2056,11 @@ exports[`file row (one file) 1`] = `
       class="content_file"
       data-testid="ContentFilePreview:image/jpeg"
     >
+      <span
+        style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+      >
+         
+      </span>
       <img
         aria-hidden="true"
         src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
@@ -2091,6 +2106,11 @@ exports[`file row (one file, audio type) 1`] = `
       class="content_file"
       data-testid="ContentFilePreview:audio/mp4"
     >
+      <span
+        style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+      >
+         
+      </span>
       <div>
         <audio
           preload="none"
@@ -2206,6 +2226,11 @@ exports[`file row (one file, image type) 1`] = `
       class="content_file"
       data-testid="ContentFilePreview:image/jpeg"
     >
+      <span
+        style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+      >
+         
+      </span>
       <img
         aria-hidden="true"
         src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
@@ -2250,6 +2275,11 @@ exports[`file row (one file, null reference) 1`] = `
     <div
       class="content_file"
     >
+      <span
+        style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+      >
+         
+      </span>
       <div>
         <img
           aria-hidden="true"
@@ -2294,6 +2324,11 @@ exports[`file row (one file, video type) 1`] = `
       class="content_file"
       data-testid="ContentFilePreview:video/mp4"
     >
+      <span
+        style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+      >
+         
+      </span>
       <img
         aria-hidden="true"
         src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
@@ -2424,6 +2459,11 @@ exports[`file row (three files) 1`] = `
       class="content_file"
       data-testid="ContentFilePreview:image/jpeg"
     >
+      <span
+        style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+      >
+         
+      </span>
       <img
         aria-hidden="true"
         src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
@@ -2434,6 +2474,11 @@ exports[`file row (three files) 1`] = `
       class="content_file"
       data-testid="ContentFilePreview:image/heif"
     >
+      <span
+        style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+      >
+         
+      </span>
       <img
         aria-hidden="true"
         src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
@@ -2444,6 +2489,11 @@ exports[`file row (three files) 1`] = `
       class="content_file"
       data-testid="ContentFilePreview:image/png"
     >
+      <span
+        style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+      >
+         
+      </span>
       <img
         aria-hidden="true"
         src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
@@ -2504,6 +2554,11 @@ exports[`file row (two files) 1`] = `
       class="content_file"
       data-testid="ContentFilePreview:image/jpeg"
     >
+      <span
+        style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+      >
+         
+      </span>
       <img
         aria-hidden="true"
         src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
@@ -2514,6 +2569,11 @@ exports[`file row (two files) 1`] = `
       class="content_file"
       data-testid="ContentFilePreview:image/heif"
     >
+      <span
+        style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+      >
+         
+      </span>
       <img
         aria-hidden="true"
         src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"

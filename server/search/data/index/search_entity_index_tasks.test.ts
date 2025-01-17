@@ -2016,7 +2016,7 @@ describe("getSearchEntity", () => {
         const publicCollection = await TestTaskCollection.create(session3, {
             name: "Public Test Task Collection",
         });
-        await privateCollection.access.grantDefault(session3);
+        await publicCollection.access.grantDefault(session3);
 
         await publicCollection.updateColor(session3, "purple");
 

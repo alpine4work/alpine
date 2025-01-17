@@ -108,8 +108,14 @@ function createWebSocketServer(space: TestSpace) {
 }
 
 async function createPublicTestTaskCollection(session: TestSpaceSession) {
-    const collection = await TestTaskCollection.create(session);
-    await collection.access.grantDefault(session);
+    const collection = await TestTaskCollection.create(session, {
+        access: {
+            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
+
     return collection;
 }
 
@@ -10271,8 +10277,8 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
             actions: [],
             backfillTasks: [expectAuthorizedTask(task1.id), expectAuthorizedTask(task2.id)],
             backfillCollections: [
-                expectUnauthorizedCollection(collection2.id),
                 expectAuthorizedCollection(collection1.id),
+                expectUnauthorizedCollection(collection2.id),
             ],
             referencedAccounts: [await session1.get()],
         },
@@ -10439,7 +10445,9 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
         },
     ]);
 
+    await collection2.access.grant(session2, session2);
     await collection2.access.revokeDefault(session2);
+    await collection2.access.revoke(session1, session1);
     await server.wait();
 
     expect(connection.takeEvents()).toEqual([
@@ -10452,9 +10460,68 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
                     type: "UpdateCollection",
                     time: expect.any(Array),
                     collectionId: collection2.id,
-                    collectionAction: expect.objectContaining({
+                    collectionAction: {
                         type: "UpdateAccessPolicy",
-                    }),
+                        accessPolicy: {
+                            accountGrantById: new Map([
+                                [session1.account.id, {level: "Manage", generation: 0}],
+                                [session2.account.id, {level: "Manage", generation: 2}],
+                            ]),
+                            defaultGrant: {level: "Manage", generation: 1},
+                            urlGrant: null,
+                        },
+                    },
+                },
+            ],
+            backfillTasks: [],
+            backfillCollections: [],
+            referencedAccounts: [],
+        },
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: expect.any(Array),
+                    collectionId: collection2.id,
+                    collectionAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: {
+                            accountGrantById: new Map([
+                                [session1.account.id, {level: "Manage", generation: 0}],
+                                [session2.account.id, {level: "Manage", generation: 2}],
+                            ]),
+                            defaultGrant: null,
+                            urlGrant: null,
+                        },
+                    },
+                },
+            ],
+            backfillTasks: [],
+            backfillCollections: [],
+            referencedAccounts: [],
+        },
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: expect.any(Array),
+                    collectionId: collection2.id,
+                    collectionAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: {
+                            accountGrantById: new Map([
+                                [session2.account.id, {level: "Manage", generation: 2}],
+                            ]),
+                            defaultGrant: null,
+                            urlGrant: null,
+                        },
+                    },
                 },
             ],
             backfillTasks: [],
@@ -10537,8 +10604,8 @@ test("reauthorize will noop if an unauthorized referenced collection is still un
             actions: [],
             backfillTasks: [expectAuthorizedTask(task1.id), expectAuthorizedTask(task2.id)],
             backfillCollections: [
-                expectUnauthorizedCollection(collection2.id),
                 expectAuthorizedCollection(collection1.id),
+                expectUnauthorizedCollection(collection2.id),
             ],
             referencedAccounts: [await session1.get()],
         },

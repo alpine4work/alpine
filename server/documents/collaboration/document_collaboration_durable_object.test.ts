@@ -107,8 +107,13 @@ test("can not connect to a document in a different space", async () => {
     const otherSpace = await TestSpace.create(context);
     const otherSession = await otherSpace.createSession();
 
-    const document = await TestDocument.create(session);
-    await document.access.grantDefault(session, "Manage");
+    const document = await TestDocument.create(session, {
+        access: {
+            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     await expect(connectForTest(context.action(otherSession), document.id)).rejects.toThrow(
         PermissionDeniedError,
@@ -121,8 +126,13 @@ test("can not connect to an existing document durable object in a different spac
     const otherSpace = await TestSpace.create(context);
     const otherSession = await otherSpace.createSession();
 
-    const document = await TestDocument.create(session);
-    await document.access.grantDefault(session, "Manage");
+    const document = await TestDocument.create(session, {
+        access: {
+            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     await connectForTest(context.action(session), document.id);
 
@@ -220,8 +230,13 @@ test("can update document content", async () => {
 test("will optimistically update the document and then persist later", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     const client1Id = generateId<ContentEditorClientId>();
     const connection1 = await connectForTest(context.action(session1), document.id);
@@ -341,8 +356,13 @@ test("will not batch updates from different accounts when persisting", async () 
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     const client1Id = generateId<ContentEditorClientId>();
     const client3Id = generateId<ContentEditorClientId>();
@@ -469,8 +489,13 @@ test("will respond optimistically with a comment thread even if it has not been 
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -733,8 +758,13 @@ test("will respond optimistically to backfills with a comment thread even if it 
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -874,8 +904,13 @@ test("will respond optimistically with a comment thread with files even if it ha
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -1250,8 +1285,13 @@ test("when comment threads are added back to the document they will be loaded", 
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -1391,8 +1431,13 @@ test("comment thread can be optimistic at first and then loaded from the databas
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -1625,8 +1670,13 @@ test("can create comments in comment threads", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -1987,8 +2037,13 @@ test("if comment thread is persisting we will wait to create messages but respon
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -2251,8 +2306,13 @@ test("if comment thread update message hasn't been processed we will wait to res
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -2537,8 +2597,13 @@ test("while comment thread is persisting we will respond to comment load request
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -3398,11 +3463,21 @@ test("will cleanup comment thread marks if from a different document", async () 
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document1 = await TestDocument.create(session1);
-    await document1.access.grantDefault(session1, "Manage");
+    const document1 = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
-    const document2 = await TestDocument.create(session1);
-    await document2.access.grantDefault(session1, "Manage");
+    const document2 = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     await updateDocumentContent(session1.action(), {
         id: document1.id,
@@ -3788,8 +3863,13 @@ test("can add comment thread marks back to document after they've been removed",
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     await updateDocumentContent(session1.action(), {
         id: document.id,
@@ -4083,8 +4163,13 @@ test("can resolve a comment thread", async () => {
     const session1 = await space.createSession();
     const session2 = await space.createSession();
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     const {range} = await document.type(session1, "Hello");
     await document.type(session1, ", world!");
@@ -4184,8 +4269,13 @@ test("can unresolve a comment thread", async () => {
     const session1 = await space.createSession();
     const session2 = await space.createSession();
 
-    const document = await TestDocument.create(session1);
-    await document.access.grantDefault(session1, "Manage");
+    const document = await TestDocument.create(session1, {
+        access: {
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 
     const {range} = await document.type(session1, "Hello");
     await document.type(session1, ", world!");
@@ -4324,11 +4414,11 @@ test("can connect and backfill as a viewer", async () => {
 
     expect(
         await connection1.procedures.backfill({
-            version: 0,
+            version: 1,
         }),
     ).toEqual({
-        newVersion: 4,
-        persistedVersion: 4,
+        newVersion: 5,
+        persistedVersion: 5,
         steps: [
             {
                 clientId: expect.any(String),
@@ -4367,11 +4457,11 @@ test("can connect and backfill as a viewer", async () => {
 
     expect(
         await connection2.procedures.backfill({
-            version: 0,
+            version: 1,
         }),
     ).toEqual({
-        newVersion: 4,
-        persistedVersion: 4,
+        newVersion: 5,
+        persistedVersion: 5,
         steps: [
             {
                 clientId: expect.any(String),
@@ -4429,11 +4519,11 @@ test("can't connect as a viewer and ask for comments", async () => {
 
     expect(
         await connection1.procedures.backfill({
-            version: 0,
+            version: 1,
         }),
     ).toEqual({
-        newVersion: 4,
-        persistedVersion: 4,
+        newVersion: 5,
+        persistedVersion: 5,
         steps: [
             {
                 clientId: expect.any(String),
@@ -4491,11 +4581,11 @@ test("can connect and backfill as a viewer when there are remembered steps", asy
 
     expect(
         await connection1.procedures.backfill({
-            version: 4,
+            version: 5,
         }),
     ).toEqual({
-        newVersion: 4,
-        persistedVersion: 4,
+        newVersion: 5,
+        persistedVersion: 5,
         steps: [],
         stepsContentReferences: emptyDocumentContentReferences,
         presenceStates: [],
@@ -4519,11 +4609,11 @@ test("can connect and backfill as a viewer when there are remembered steps", asy
 
     expect(
         await connection2.procedures.backfill({
-            version: 5,
+            version: 6,
         }),
     ).toEqual({
-        newVersion: 5,
-        persistedVersion: 4,
+        newVersion: 6,
+        persistedVersion: 5,
         steps: [],
         stepsContentReferences: emptyDocumentContentReferences,
         presenceStates: [],
@@ -4559,11 +4649,11 @@ test("can't update content as a viewer", async () => {
 
     expect(
         await connection1.procedures.backfill({
-            version: 4,
+            version: 5,
         }),
     ).toEqual({
-        newVersion: 4,
-        persistedVersion: 4,
+        newVersion: 5,
+        persistedVersion: 5,
         steps: [],
         stepsContentReferences: emptyDocumentContentReferences,
         presenceStates: [],
@@ -4572,11 +4662,11 @@ test("can't update content as a viewer", async () => {
 
     expect(
         await connection2.procedures.backfill({
-            version: 4,
+            version: 5,
         }),
     ).toEqual({
-        newVersion: 4,
-        persistedVersion: 4,
+        newVersion: 5,
+        persistedVersion: 5,
         steps: [],
         stepsContentReferences: emptyDocumentContentReferences,
         presenceStates: [],
@@ -4585,7 +4675,7 @@ test("can't update content as a viewer", async () => {
 
     await expect(
         connection2.procedures.updateContent({
-            version: 0,
+            version: 1,
             steps: [new ReplaceStep(3, 3, textSlice("a"))],
             clientId: generateId(),
             createCommentThreads: [],
@@ -4596,7 +4686,7 @@ test("can't update content as a viewer", async () => {
 
     await expect(
         connection2.procedures.updateContent({
-            version: 4,
+            version: 5,
             steps: [new ReplaceStep(3, 3, textSlice("a"))],
             clientId: generateId(),
             createCommentThreads: [],
@@ -4809,11 +4899,11 @@ test("viewer receives update events without comment data", async () => {
 
     expect(
         await connection1.procedures.backfill({
-            version: 0,
+            version: 2,
         }),
     ).toEqual({
-        newVersion: 0,
-        persistedVersion: 0,
+        newVersion: 2,
+        persistedVersion: 2,
         steps: [],
         stepsContentReferences: emptyDocumentContentReferences,
         presenceStates: [],
@@ -4822,11 +4912,11 @@ test("viewer receives update events without comment data", async () => {
 
     expect(
         await connection2.procedures.backfill({
-            version: 0,
+            version: 2,
         }),
     ).toEqual({
-        newVersion: 0,
-        persistedVersion: 0,
+        newVersion: 2,
+        persistedVersion: 2,
         steps: [],
         stepsContentReferences: emptyDocumentContentReferences,
         presenceStates: [],
@@ -4835,11 +4925,11 @@ test("viewer receives update events without comment data", async () => {
 
     expect(
         await connection3.procedures.backfill({
-            version: 0,
+            version: 2,
         }),
     ).toEqual({
-        newVersion: 0,
-        persistedVersion: 0,
+        newVersion: 2,
+        persistedVersion: 2,
         steps: [],
         stepsContentReferences: emptyDocumentContentReferences,
         presenceStates: [],
@@ -4853,7 +4943,7 @@ test("viewer receives update events without comment data", async () => {
     expect(connection3.takeEvents()).toEqual([]);
 
     await connection1.procedures.updateContent({
-        version: 0,
+        version: 2,
         steps: [new ReplaceStep(3, 3, textSlice("Hello, "))],
         clientId: client1Id,
         createCommentThreads: [],
@@ -4870,12 +4960,12 @@ test("viewer receives update events without comment data", async () => {
     ).toEqual([
         {
             type: "PersistedContent",
-            newVersion: 1,
+            newVersion: 3,
             updatedCommentThreads: emptyArray,
         },
         {
             type: "UpdateContentWithoutPersistence",
-            newVersion: 1,
+            newVersion: 3,
             steps: [new ReplaceStep(3, 3, textSlice("Hello, "))],
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
@@ -4892,12 +4982,12 @@ test("viewer receives update events without comment data", async () => {
     ).toEqual([
         {
             type: "PersistedContent",
-            newVersion: 1,
+            newVersion: 3,
             updatedCommentThreads: emptyArray,
         },
         {
             type: "UpdateContentWithoutPersistence",
-            newVersion: 1,
+            newVersion: 3,
             steps: [new ReplaceStep(3, 3, textSlice("Hello, "))],
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
@@ -4914,12 +5004,12 @@ test("viewer receives update events without comment data", async () => {
     ).toEqual([
         {
             type: "PersistedContent",
-            newVersion: 1,
+            newVersion: 3,
             updatedCommentThreads: emptyArray,
         },
         {
             type: "UpdateContentWithoutPersistence",
-            newVersion: 1,
+            newVersion: 3,
             steps: [new ReplaceStep(3, 3, textSlice("Hello, "))],
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
@@ -4930,7 +5020,7 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     await connection1.procedures.updateContent({
-        version: 1,
+        version: 3,
         steps: [new ReplaceStep(7, 7, textSlice("world!"))],
         clientId: client1Id,
         createCommentThreads: [],
@@ -4947,12 +5037,12 @@ test("viewer receives update events without comment data", async () => {
     ).toEqual([
         {
             type: "PersistedContent",
-            newVersion: 2,
+            newVersion: 4,
             updatedCommentThreads: emptyArray,
         },
         {
             type: "UpdateContentWithoutPersistence",
-            newVersion: 2,
+            newVersion: 4,
             steps: [new ReplaceStep(7, 7, textSlice("world!"))],
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
@@ -4969,12 +5059,12 @@ test("viewer receives update events without comment data", async () => {
     ).toEqual([
         {
             type: "PersistedContent",
-            newVersion: 2,
+            newVersion: 4,
             updatedCommentThreads: emptyArray,
         },
         {
             type: "UpdateContentWithoutPersistence",
-            newVersion: 2,
+            newVersion: 4,
             steps: [new ReplaceStep(7, 7, textSlice("world!"))],
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
@@ -4991,12 +5081,12 @@ test("viewer receives update events without comment data", async () => {
     ).toEqual([
         {
             type: "PersistedContent",
-            newVersion: 2,
+            newVersion: 4,
             updatedCommentThreads: emptyArray,
         },
         {
             type: "UpdateContentWithoutPersistence",
-            newVersion: 2,
+            newVersion: 4,
             steps: [new ReplaceStep(7, 7, textSlice("world!"))],
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
@@ -5009,7 +5099,7 @@ test("viewer receives update events without comment data", async () => {
     const commentThreadId = generateId<DocumentCommentThreadId>();
 
     await connection1.procedures.updateContent({
-        version: 2,
+        version: 4,
         steps: [new AddMarkStep(7, 12, schema.mark("comment", {commentThreadId}))],
         clientId: client1Id,
         createCommentThreads: [
@@ -5032,12 +5122,12 @@ test("viewer receives update events without comment data", async () => {
     ).toEqual([
         {
             type: "PersistedContent",
-            newVersion: 3,
+            newVersion: 5,
             updatedCommentThreads: emptyArray,
         },
         {
             type: "UpdateContentWithoutPersistence",
-            newVersion: 3,
+            newVersion: 5,
             steps: [new AddMarkStep(7, 12, schema.mark("comment", {commentThreadId}))],
             stepsContentReferences: {
                 ...emptyDocumentContentReferences,
@@ -5059,12 +5149,12 @@ test("viewer receives update events without comment data", async () => {
     ).toEqual([
         {
             type: "PersistedContent",
-            newVersion: 3,
+            newVersion: 5,
             updatedCommentThreads: emptyArray,
         },
         {
             type: "UpdateContentWithoutPersistence",
-            newVersion: 3,
+            newVersion: 5,
             steps: [new AddMarkStep(7, 12, schema.mark("comment", {commentThreadId}))],
             stepsContentReferences: {
                 ...emptyDocumentContentReferences,
@@ -5086,12 +5176,12 @@ test("viewer receives update events without comment data", async () => {
     ).toEqual([
         {
             type: "PersistedContent",
-            newVersion: 3,
+            newVersion: 5,
             updatedCommentThreads: emptyArray,
         },
         {
             type: "UpdateContentWithoutPersistence",
-            newVersion: 3,
+            newVersion: 5,
             steps: [new RemoveMarkStep(0, 0, schema.mark("bold"))],
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
@@ -5161,12 +5251,12 @@ test("viewer receives update events without comment data", async () => {
     ).toEqual([
         {
             type: "PersistedContent",
-            newVersion: 4,
+            newVersion: 6,
             updatedCommentThreads: [expect.any(DocumentCommentThreadModel)],
         },
         {
             type: "UpdateContentWithoutPersistence",
-            newVersion: 4,
+            newVersion: 6,
             steps: [new RemoveAllMarksStep(schema.mark("comment", {commentThreadId}))],
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: expect.any(String),
@@ -5183,12 +5273,12 @@ test("viewer receives update events without comment data", async () => {
     ).toEqual([
         {
             type: "PersistedContent",
-            newVersion: 4,
+            newVersion: 6,
             updatedCommentThreads: [expect.any(DocumentCommentThreadModel)],
         },
         {
             type: "UpdateContentWithoutPersistence",
-            newVersion: 4,
+            newVersion: 6,
             steps: [new RemoveAllMarksStep(schema.mark("comment", {commentThreadId}))],
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: expect.any(String),
@@ -5205,12 +5295,12 @@ test("viewer receives update events without comment data", async () => {
     ).toEqual([
         {
             type: "PersistedContent",
-            newVersion: 4,
+            newVersion: 6,
             updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
-            newVersion: 4,
+            newVersion: 6,
             steps: [new RemoveMarkStep(0, 0, schema.mark("bold"))],
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: expect.any(String),
@@ -5233,12 +5323,12 @@ test("viewer receives update events without comment data", async () => {
     ).toEqual([
         {
             type: "PersistedContent",
-            newVersion: 5,
+            newVersion: 7,
             updatedCommentThreads: [expect.any(DocumentCommentThreadModel)],
         },
         {
             type: "UpdateContentWithoutPersistence",
-            newVersion: 5,
+            newVersion: 7,
             steps: [
                 new AddMarksAfterRemoveAllStep(schema.mark("comment", {commentThreadId}), [
                     {from: 7, to: 12, isNode: false},
@@ -5270,12 +5360,12 @@ test("viewer receives update events without comment data", async () => {
     ).toEqual([
         {
             type: "PersistedContent",
-            newVersion: 5,
+            newVersion: 7,
             updatedCommentThreads: [expect.any(DocumentCommentThreadModel)],
         },
         {
             type: "UpdateContentWithoutPersistence",
-            newVersion: 5,
+            newVersion: 7,
             steps: [
                 new AddMarksAfterRemoveAllStep(schema.mark("comment", {commentThreadId}), [
                     {from: 7, to: 12, isNode: false},
@@ -5307,12 +5397,12 @@ test("viewer receives update events without comment data", async () => {
     ).toEqual([
         {
             type: "PersistedContent",
-            newVersion: 5,
+            newVersion: 7,
             updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
-            newVersion: 5,
+            newVersion: 7,
             steps: [new RemoveMarkStep(0, 0, schema.mark("bold"))],
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: expect.any(String),
@@ -5620,11 +5710,11 @@ test("can get presence updates across viewer/editor connections", async () => {
 
     expect(
         await connection1.procedures.backfill({
-            version: 4,
+            version: 5,
         }),
     ).toEqual({
-        newVersion: 4,
-        persistedVersion: 4,
+        newVersion: 5,
+        persistedVersion: 5,
         steps: [],
         stepsContentReferences: emptyDocumentContentReferences,
         presenceStates: [],
@@ -5633,11 +5723,11 @@ test("can get presence updates across viewer/editor connections", async () => {
 
     expect(
         await connection2.procedures.backfill({
-            version: 4,
+            version: 5,
         }),
     ).toEqual({
-        newVersion: 4,
-        persistedVersion: 4,
+        newVersion: 5,
+        persistedVersion: 5,
         steps: [],
         stepsContentReferences: emptyDocumentContentReferences,
         presenceStates: [],
@@ -5649,7 +5739,7 @@ test("can get presence updates across viewer/editor connections", async () => {
 
     await connection1.procedures.updateOurPresenceState({
         state: {
-            version: 4,
+            version: 5,
             selection: ProsemirrorSelectionWrapper.new(
                 TextSelection.near((await document.get()).content.doc.resolve(5)),
             ),
@@ -5663,7 +5753,7 @@ test("can get presence updates across viewer/editor connections", async () => {
             type: "UpdateOtherPresenceState",
             connectionId: connection1.id,
             state: {
-                version: 4,
+                version: 5,
                 selection: ProsemirrorSelectionWrapper.fromJSON({type: "text", anchor: 5, head: 5}),
             },
         },
@@ -5671,7 +5761,7 @@ test("can get presence updates across viewer/editor connections", async () => {
 
     await connection2.procedures.updateOurPresenceState({
         state: {
-            version: 4,
+            version: 5,
             selection: ProsemirrorSelectionWrapper.new(
                 TextSelection.near((await document.get()).content.doc.resolve(7)),
             ),
@@ -5683,7 +5773,7 @@ test("can get presence updates across viewer/editor connections", async () => {
             type: "UpdateOtherPresenceState",
             connectionId: connection2.id,
             state: {
-                version: 4,
+                version: 5,
                 selection: ProsemirrorSelectionWrapper.fromJSON({type: "text", anchor: 7, head: 7}),
             },
         },
@@ -5693,18 +5783,18 @@ test("can get presence updates across viewer/editor connections", async () => {
 
     expect(
         await connection1.procedures.backfill({
-            version: 4,
+            version: 5,
         }),
     ).toEqual({
-        newVersion: 4,
-        persistedVersion: 4,
+        newVersion: 5,
+        persistedVersion: 5,
         steps: [],
         stepsContentReferences: emptyDocumentContentReferences,
         presenceStates: [
             {
                 connectionId: connection2.id,
                 state: {
-                    version: 4,
+                    version: 5,
                     selection: ProsemirrorSelectionWrapper.new(
                         TextSelection.near((await document.get()).content.doc.resolve(7)),
                     ),
@@ -5716,18 +5806,18 @@ test("can get presence updates across viewer/editor connections", async () => {
 
     expect(
         await connection2.procedures.backfill({
-            version: 4,
+            version: 5,
         }),
     ).toEqual({
-        newVersion: 4,
-        persistedVersion: 4,
+        newVersion: 5,
+        persistedVersion: 5,
         steps: [],
         stepsContentReferences: emptyDocumentContentReferences,
         presenceStates: [
             {
                 connectionId: connection1.id,
                 state: {
-                    version: 4,
+                    version: 5,
                     selection: ProsemirrorSelectionWrapper.new(
                         TextSelection.near((await document.get()).content.doc.resolve(5)),
                     ),
