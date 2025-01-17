@@ -638,6 +638,7 @@ export function ShareOverlayAccountGrantInput({
                             </Button>
                         </MenuButton>
                         <Button
+                            isDisabled={selectedAccounts.length === 0}
                             variant="neutral"
                             height="6"
                             paddingX="3"

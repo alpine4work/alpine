@@ -22,7 +22,7 @@ export type SpaceContext = {
      *    non-null with the account.
      *
      * If an account used to be a member of the space but was removed then this
-     * will be null. (NOCOMMIT: Test this case?)
+     * will be null.
      */
     readonly currentAccount: AccountModel | null;
 

@@ -48,6 +48,7 @@ ts_playwright_tests(
         "chat/chat_files_desktop.spec.ts": ["webkit_mobile"],
         "documents/content_editor_file_drop_desktop.spec.ts": ["webkit_mobile"],
         "documents/document_files_desktop.spec.ts": ["webkit_mobile"],
+        "documents/document_share_desktop.spec.ts": ["webkit_mobile"],
         "inbox/inbox_chat_desktop.spec.ts": ["webkit_mobile"],
         # Peeks only work on desktop.
         "chat/chat_peek.spec.ts": ["webkit_mobile"],

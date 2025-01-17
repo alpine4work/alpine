@@ -250,8 +250,6 @@ export async function loader({context: loaderContext, params}: LoaderArgs) {
                 // `authorizeSpaceAccessIfPossible()` and rethrow the error if that succeeds.
                 // That function only returns an error result if the session actor doesn't have
                 // space access.
-                //
-                // NOCOMMIT: Test
                 const spaceAuthorizationResult = await authorizeSpaceAccessIfPossible(
                     context,
                     spaceId,

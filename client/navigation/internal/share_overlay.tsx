@@ -385,7 +385,13 @@ function ShareOverlayAccountGrant({
     const {currentAccount} = useSpaceContext();
 
     return (
-        <Box height={shareOverlayAccountGrantHeight} display="flex" alignItems="center" gap="2.5">
+        <Box
+            data-testid={`ShareOverlayAccountGrant:${accountId}`}
+            height={shareOverlayAccountGrantHeight}
+            display="flex"
+            alignItems="center"
+            gap="2.5"
+        >
             {!accountData ? (
                 <>
                     <Box
@@ -503,7 +509,7 @@ function ShareOverlayDefaultGrant({
     const {space} = useSpaceContext();
 
     return (
-        <Box display="flex" alignItems="center">
+        <Box data-testid="ShareOverlayDefaultGrant" display="flex" alignItems="center">
             <SpaceAvatar size="6" space={space} />
             <Spacer space="2.5" />
             <Box fontStyle="truncate" color="grey-80">
@@ -637,7 +643,7 @@ function ShareOverlayUrlGrant({
     isReadOnly: boolean;
 }) {
     return (
-        <Box display="flex" alignItems="center">
+        <Box data-testid="ShareOverlayUrlGrant" display="flex" alignItems="center">
             <Box
                 width="6"
                 height="6"

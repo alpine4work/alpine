@@ -339,6 +339,20 @@ export function useDocumentContentEditorWebSocket(
         [contentWithoutSendableSteps.attrs.accessPolicy, currentAccount?.id],
     );
 
+    const persistedContentAccessLevel = useMemo(
+        () =>
+            getAccountAccessLevelAssumingSpaceAccess(
+                persistedContent.attrs.accessPolicy,
+                currentAccount?.id,
+            ),
+        [currentAccount?.id, persistedContent.attrs.accessPolicy],
+    );
+
+    const acknowledgedAccessLevel = useMemo(
+        () => minAccessLevel(contentWithoutSendableStepsAccessLevel, persistedContentAccessLevel),
+        [contentWithoutSendableStepsAccessLevel, persistedContentAccessLevel],
+    );
+
     // The current account's access level. We take the minimum access level of
     // what's currently in state and what's persisted in our database. Ultimately,
     // the access level persisted in our database is what we evaluate permission
@@ -347,24 +361,13 @@ export function useDocumentContentEditorWebSocket(
     const accessLevel = useMemo(
         () =>
             minAccessLevel(
-                minAccessLevel(
-                    getAccountAccessLevelAssumingSpaceAccess(
-                        content.doc.attrs.accessPolicy,
-                        currentAccount?.id,
-                    ),
-                    contentWithoutSendableStepsAccessLevel,
-                ),
+                acknowledgedAccessLevel,
                 getAccountAccessLevelAssumingSpaceAccess(
-                    persistedContent.attrs.accessPolicy,
+                    content.doc.attrs.accessPolicy,
                     currentAccount?.id,
                 ),
             ),
-        [
-            content.doc.attrs.accessPolicy,
-            contentWithoutSendableStepsAccessLevel,
-            currentAccount?.id,
-            persistedContent.attrs.accessPolicy,
-        ],
+        [acknowledgedAccessLevel, content.doc.attrs.accessPolicy, currentAccount?.id],
     );
 
     if (accessLevel === null) {
@@ -373,25 +376,13 @@ export function useDocumentContentEditorWebSocket(
         });
     }
 
-    // Use the access level from `state.editorState.getDocWithoutSendableSteps()`.
-    // We want to reconnect our WebSocket client AFTER the durable object has
-    // confirmed the access policy update but before the change has been persisted.
-    // This way we don't get in a weird state where when we reconnect with the
-    // durable object it tells us we do have comment access since the access policy
-    // change hasn't been accepted yet.
-    //
-    // NOCOMMIT: Test! To test this we should decrease our own access level from
-    // "edit" to "view".
     const withoutComments = useMemo(
-        () => !hasAccessLevel(contentWithoutSendableStepsAccessLevel, "Comment"),
-        [contentWithoutSendableStepsAccessLevel],
+        () => !hasAccessLevel(acknowledgedAccessLevel, "Comment"),
+        [acknowledgedAccessLevel],
     );
 
     // Re-initialize client if `withoutComments` changes to true. This will happen
     // when going from `Comment` (or higher) access level to `View`.
-    //
-    // NOCOMMIT: Integration test that switching between with and without comments
-    // in realtime hides/shows comment marks.
     if (clientState.type === "Exists" && withoutComments && !clientState.client.withoutComments) {
         setClientState({
             type: "Exists",

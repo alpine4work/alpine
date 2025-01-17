@@ -41,7 +41,6 @@ const LoaderSchema = Schema.object({
     }).nullable(),
 });
 
-// NOCOMMIT: Test that you can open this route with view access only
 export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
     const context = await unauthenticatedContext.actor.authenticate();
 

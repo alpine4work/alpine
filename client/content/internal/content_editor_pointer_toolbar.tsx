@@ -1008,6 +1008,7 @@ function ContentEditorPointerToolbarButtons({
 
 function ContentEditorPointerToolbarButton({
     description,
+    withoutDescriptionTooltip,
     keyboardShortcutHint,
     viewRef,
     isTooltipDisabledWithoutAnimation,
@@ -1019,7 +1020,8 @@ function ContentEditorPointerToolbarButton({
     dividerRight,
     onTooltipStateChange,
 }: {
-    description: string | null;
+    description: string;
+    withoutDescriptionTooltip?: boolean;
     keyboardShortcutHint: string;
     viewRef: RefObject<EditorView | null>;
     isTooltipDisabledWithoutAnimation: boolean;
@@ -1061,13 +1063,13 @@ function ContentEditorPointerToolbarButton({
             // Don't allow flipping the tooltip down into selection content.
             fallbackPlacements={emptyArray}
             content={
-                description !== null ? (
+                withoutDescriptionTooltip ? (
+                    <Box color="grey-50">{keyboardShortcutHint}</Box>
+                ) : (
                     <Box paddingY="0.5">
                         {description}
                         <Box color="grey-50">{keyboardShortcutHint}</Box>
                     </Box>
-                ) : (
-                    <Box color="grey-50">{keyboardShortcutHint}</Box>
                 )
             }
             onStateChange={onTooltipStateChange}
@@ -1075,7 +1077,7 @@ function ContentEditorPointerToolbarButton({
             <div
                 {...mergeProps(pressProps, hoverProps)}
                 ref={localRef}
-                aria-label={description ?? undefined}
+                aria-label={description}
                 // Disable the ability to focus this icon button! The icon buttons in the
                 // selection toolbar are only mouse accessible. They are not keyboard
                 // accessible. By being focusable then the button steals focus when you click
@@ -1400,7 +1402,6 @@ function isNodeBoundarySlice(slice: Slice): boolean {
     return firstNode.childCount === 0 && secondNode.childCount === 0;
 }
 
-// NOCOMMIT: Test creating a comment as a comment only user
 function ContentEditorPointerToolbarButtonsCommentOnly({
     viewRef,
     sharedTooltipLifecycleRef,
@@ -1412,8 +1413,8 @@ function ContentEditorPointerToolbarButtonsCommentOnly({
 
     return (
         <ContentEditorPointerToolbarButton
-            // It's fine setting `description` to null since we render it in text.
-            description={null}
+            description="Comment"
+            withoutDescriptionTooltip={true}
             keyboardShortcutHint={isAppleDevice ? "⌘+Shift+C" : "Ctrl+Shift+C"}
             viewRef={viewRef}
             isTooltipDisabledWithoutAnimation={false}

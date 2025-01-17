@@ -602,14 +602,20 @@ export async function finishUploadingAndStartProcessingFile(
         spaceId,
         fileId,
         validateContentLength,
+        withoutProcessJobForTest,
     }: {
         spaceId: SpaceId;
         fileId: FileId;
         validateContentLength?: number;
+        withoutProcessJobForTest?: boolean;
     },
 ): Promise<FileModel> {
     if (!import.meta.jest && context.actor.serviceName !== "EdgeService") {
         throw new PermissionDeniedError('Only "EdgeService" can upload files');
+    }
+
+    if (withoutProcessJobForTest) {
+        assert(process.env.NODE_ENV === "test");
     }
 
     return context.dynamo.retryTransaction(async context => {
@@ -651,7 +657,7 @@ export async function finishUploadingAndStartProcessingFile(
         const {hasAlternative, hasPreview} =
             fileProcessorDeclarationByContentType[item.contentType];
 
-        if (hasAlternative || hasPreview) {
+        if (!withoutProcessJobForTest && (hasAlternative || hasPreview)) {
             // Now that the file has finished uploading we can start processing it. Wait
             // for the message to be added to our queue. If sending the process file
             // message fails we want to fail the entire upload.
