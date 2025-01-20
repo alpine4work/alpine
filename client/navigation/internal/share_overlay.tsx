@@ -617,7 +617,7 @@ function ShareOverlayDefaultGrant({
                     ]}
                 >
                     <Button
-                        variant={defaultGrant === null ? "quieter" : "quiet"}
+                        variant={defaultGrant === null ? "quietest" : "quiet"}
                         height="6"
                         paddingX="2"
                         icon={<CaretDown />}
@@ -698,7 +698,7 @@ function ShareOverlayUrlGrant({
                     ]}
                 >
                     <Button
-                        variant={urlGrant === null ? "quieter" : "quiet"}
+                        variant={urlGrant === null ? "quietest" : "quiet"}
                         height="6"
                         paddingX="2"
                         icon={<CaretDown />}

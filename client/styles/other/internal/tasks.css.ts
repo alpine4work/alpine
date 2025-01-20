@@ -58,7 +58,7 @@ export const rowTitleInputIsNotEditableClassName = style({});
 // `sprinkles({userSelect: "text"})`.
 globalStyle(`${rowTitleInputIsNotEditableClassName}${rowTitleInputIsNotEditableClassName}`, {
     userSelect: "text",
-    cursor: "text",
+    cursor: "auto",
 });
 
 export const detailTitleInputEmptyContainerClassName = style({});

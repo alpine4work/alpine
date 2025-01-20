@@ -8,7 +8,7 @@ import {
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
 import {TaskGridViewDroppableData} from "~/client/tasks/task_grid_view_dnd_context.js";
-import {parseRemLength, screenPaddingXRem} from "~/shared/design/core/spacing.js";
+import {parseRemLength, screenPaddingXRem, spacing} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -58,7 +58,6 @@ const droppableClassName = sprinkles({
 const droppableHorizontalOverIndicatorClassName = sprinkles({
     position: "absolute",
     right: "5",
-    bottom: "3",
     height: "border",
     pointerEvents: "none",
     backgroundColor: {light: "theme-30", dark: "theme-60"},
@@ -66,7 +65,6 @@ const droppableHorizontalOverIndicatorClassName = sprinkles({
 
 const droppableVerticalOverIndicatorClassName = sprinkles({
     position: "absolute",
-    bottom: "3",
     height: "2",
     pointerEvents: "none",
     backgroundColor: {light: "theme-30", dark: "theme-60"},
@@ -74,7 +72,6 @@ const droppableVerticalOverIndicatorClassName = sprinkles({
 
 const droppableVerticalOverIndicatorFlippedClassName = sprinkles({
     position: "absolute",
-    bottom: "1",
     height: "2",
     pointerEvents: "none",
     backgroundColor: {light: "theme-30", dark: "theme-60"},
@@ -166,6 +163,7 @@ export function TaskRowViewDroppable({
                 ref={setDroppableNodeRef}
                 className={droppableClassName}
                 style={{
+                    top: 1,
                     left:
                         previousAdjacentIndentation !== null
                             ? `${droppableListItemIndent * indentation}rem`
@@ -189,6 +187,7 @@ export function TaskRowViewDroppable({
                 <div
                     className={droppableHorizontalOverIndicatorClassName}
                     style={{
+                        bottom: `calc(${spacing["3"]} - 1px)`,
                         left: `${screenPaddingXRem[platform] + listItemIndent * indentation}rem`,
                     }}
                 />
@@ -202,6 +201,9 @@ export function TaskRowViewDroppable({
                     }
                     style={{
                         width: 1,
+                        bottom: isVerticallyFlipped
+                            ? `calc(${spacing["1"]} - 1px)`
+                            : `calc(${spacing["3"]} - 1px)`,
                         left: `${screenPaddingXRem[platform] + listItemIndent * indentation}rem`,
                     }}
                 />

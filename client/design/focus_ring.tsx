@@ -104,7 +104,7 @@ function FocusRing(
          * This will be subtracted from `offset`. So the true offset on the top is
          * `offset - insetTop`.
          */
-        insetTop?: Spacing;
+        insetTop?: Spacing | "border";
 
         /**
          * How far from the bottom should we inset our focus ring?
@@ -246,7 +246,7 @@ export function FocusRingBox({
     inset?: Spacing;
     insetX?: Spacing;
     insetY?: Spacing;
-    insetTop?: Spacing;
+    insetTop?: Spacing | "border";
     insetBottom?: Spacing | "border";
     insetLeft?: Spacing;
     insetRight?: Spacing;
@@ -280,7 +280,7 @@ export function FocusRingBox({
     // inside the element.
     if (offset === "inset") ringOffsetBasePx = -ringWidthPx;
 
-    const ringInsetTopPx = convertRemLengthToPx(insetTop, spacingScale);
+    const ringInsetTopPx = insetTop === "border" ? 1 : convertRemLengthToPx(insetTop, spacingScale);
     const ringInsetBottomPx =
         insetBottom === "border" ? 1 : convertRemLengthToPx(insetBottom, spacingScale);
     const ringInsetLeftPx = convertRemLengthToPx(insetLeft, spacingScale);

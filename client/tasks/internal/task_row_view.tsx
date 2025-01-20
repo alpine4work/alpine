@@ -182,20 +182,10 @@ const borderCoverClassName = sprinkles({
     zIndex: "-10",
     top: "0",
     bottom: "0",
+    left: screenPaddingX,
     right: screenPaddingX,
     pointerEvents: "none",
     backgroundColor: "grey-0",
-});
-
-const borderCoverWithColumnsClassName = sprinkles({
-    // We let the task row border run to the left edge in a column layout since the
-    // space sidebar has no right border. So our border is implicitly stopped by
-    // the margin of the space sidebar.
-    left: "0",
-});
-
-const borderCoverWithoutColumnsClassName = sprinkles({
-    left: screenPaddingX,
 });
 
 const marginLeftContainerClassName = sprinkles({
@@ -1289,12 +1279,7 @@ function TaskRowView(
 
     const borderCoverNode = (
         <div
-            className={classNames(
-                borderCoverClassName,
-                capabilities.hasColumns
-                    ? borderCoverWithColumnsClassName
-                    : borderCoverWithoutColumnsClassName,
-            )}
+            className={borderCoverClassName}
             style={{
                 // Draw the top and bottom border with a shadow so it:
                 //
@@ -1526,7 +1511,7 @@ function TaskRowView(
             <FocusRing
                 isVisibleFromAnyFocus={!capabilities.isReadOnly}
                 offset="0"
-                insetBottom="border"
+                insetTop="border"
             >
                 <div
                     ref={titleCellRef}

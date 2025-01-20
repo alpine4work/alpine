@@ -1,5 +1,5 @@
 import {Globe, Lock} from "phosphor-react";
-import {useId, useState} from "react";
+import {useId, useMemo, useState} from "react";
 import {usePress} from "react-aria";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {Box} from "~/client/design/box.js";
@@ -37,17 +37,34 @@ export function ShareButton({
     entityNoun,
     accessPolicy,
     onAccessPolicyChange: onAccessPolicyChangeWithoutValidations,
-    isReadOnly,
+    isReadOnly: isReadOnlyProp,
     onCopyLink,
 }: {
     entityNoun: string;
     accessPolicy: AccessPolicy;
     onAccessPolicyChange: (accessPolicy: AccessPolicy) => void;
-    isReadOnly: boolean;
+    isReadOnly?: boolean;
     onCopyLink: () => MaybePromise<void>;
 }) {
     const {space, currentAccount} = useSpaceContext();
     const accountStore = useAccountClientStore();
+
+    // The share button must be read-only if we don't have the `Manage` access
+    // level. Parent components may additionally make other considerations when
+    // deciding if the share button is read-only.
+    //
+    // For example, in documents the `accessPolicy` prop is optimistic. If the
+    // persisted `accessPolicy` doesn't have the `Manage` access level then we want
+    // the share dialog to be read-only.
+    const isReadOnly = useMemo(
+        () =>
+            isReadOnlyProp ||
+            !hasAccessLevel(
+                getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
+                "Manage",
+            ),
+        [accessPolicy, currentAccount?.id, isReadOnlyProp],
+    );
 
     const overlayId = useId();
 

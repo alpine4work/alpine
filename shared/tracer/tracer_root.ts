@@ -351,8 +351,23 @@ export class TracerRoot extends TracerBase {
         // occurred. However, uncaught exceptions may not be associated with anything
         // in the app. So log uncaught exceptions in development.
         if (!disableConsoleLog && process.env.NODE_ENV !== "production") {
-            // eslint-disable-next-line no-console
-            console.error(`${name}:`, error instanceof Error ? error.stack : error);
+            const extra: {[key: string]: unknown} = {};
+
+            if (error instanceof Error && error.cause) {
+                extra.cause = error.cause;
+            }
+
+            if (error instanceof AggregateError) {
+                extra.errors = error.errors;
+            }
+
+            if (Object.keys(extra).length === 0) {
+                // eslint-disable-next-line no-console
+                console.error(`${name}:`, error instanceof Error ? error.stack : error);
+            } else {
+                // eslint-disable-next-line no-console
+                console.error(`${name}:`, error instanceof Error ? error.stack : error, extra);
+            }
         }
 
         const originalSpan = getErrorOriginalTracerSpan(error);

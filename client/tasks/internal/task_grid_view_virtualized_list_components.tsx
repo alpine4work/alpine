@@ -134,7 +134,7 @@ function TaskGridViewColumnHeader(
                 <Box zIndex="-10" position="absolute" inset="0" backgroundColor="grey-0">
                     <Box
                         position="absolute"
-                        left="0"
+                        left={screenPaddingX}
                         right={screenPaddingX}
                         height="border"
                         backgroundColor="grey-5"
@@ -307,8 +307,7 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
 
         return (
             <Box
-                paddingLeft={!capabilities.hasColumns ? screenPaddingX : undefined}
-                paddingRight={screenPaddingX}
+                paddingX={screenPaddingX}
                 maxWidth={rowMaxWidth ?? undefined}
                 marginX="center"
                 // Create an illusion that the text editor extends into the margins by giving

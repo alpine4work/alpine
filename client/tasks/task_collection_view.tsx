@@ -1,4 +1,4 @@
-import {IconContext, Lock, LockOpen, Trash} from "phosphor-react";
+import {IconContext, Trash} from "phosphor-react";
 import {
     Memo,
     ReactNode,
@@ -68,7 +68,7 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {hasAccessLevel} from "~/shared/access/access_policy.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -76,7 +76,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
-import {ConstStore, falseStore} from "~/shared/store/const_store.js";
+import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
@@ -137,7 +137,7 @@ export function TaskCollectionView({
     const {space, currentAccount} = useSpaceContext();
     const currentDate = useCurrentDate();
 
-    const [{filters, filterReferences}, _setFiltersState] = useState({
+    const [{filters, filterReferences}, actuallySetFiltersState] = useState({
         filters: initialFilters,
         filterReferences: initialFilterReferences,
     });
@@ -155,7 +155,7 @@ export function TaskCollectionView({
             ? "Tasks are ordered by created date."
             : "You can order tasks by dragging them.";
 
-    const [sorts, _setSorts] = useState(initialSorts);
+    const [sorts, actuallySetSorts] = useState(initialSorts);
 
     const {undoEvent, redoEvent, updateFilters, setSorts} = useEvents({
         undoEvent: () => undo(),
@@ -168,7 +168,7 @@ export function TaskCollectionView({
                 mergeFilterReferences?: TaskQueryFilterReferences;
             } = {},
         ) => {
-            _setFiltersState(({filterReferences}) => {
+            actuallySetFiltersState(({filterReferences}) => {
                 const newFilterReferences = mergeFilterReferences
                     ? mergeTaskQueryFilterReferences(filterReferences, mergeFilterReferences)
                     : filterReferences;
@@ -182,7 +182,7 @@ export function TaskCollectionView({
             onFiltersChange(filters);
         },
         setSorts: (sorts: ReadonlyArray<TaskQuerySort>) => {
-            _setSorts(sorts);
+            actuallySetSorts(sorts);
             onSortsChange(sorts);
         },
     });
@@ -242,11 +242,19 @@ export function TaskCollectionView({
     });
 
     const readOnlyReason1 = useStore(
-        useMemo((): Store<{icon: ReactNode; message: string | null} | null> => {
+        useMemo((): Store<{
+            accessLevel: AccessLevel | null;
+            reason: {
+                icon: ReactNode;
+                message: string | null;
+            } | null;
+        }> => {
             // If we're creating a new collection, it shouldn't be editable. But we don't
             // want to show a message.
-            if (!collectionSubscription) return new ConstStore({icon: null, message: null});
-            if (!queryState.activeQuery) return new ConstStore({icon: null, message: null});
+            if (!collectionSubscription)
+                return new ConstStore({accessLevel: null, reason: {icon: null, message: null}});
+            if (!queryState.activeQuery)
+                return new ConstStore({accessLevel: null, reason: {icon: null, message: null}});
 
             return collectionSubscription.collectionEntryStore
                 .map(collectionEntry =>
@@ -257,29 +265,44 @@ export function TaskCollectionView({
                         case "Deleted": {
                             // TODO(calebmer): Add an "undelete" button when we support undo?
                             return {
-                                icon: <Trash />,
-                                message: "This collection was deleted. You can’t make changes",
+                                accessLevel: null,
+                                reason: {
+                                    icon: <Trash />,
+                                    message: "This collection was deleted. You can’t make changes",
+                                },
                             };
                         }
                         case "PermissionDenied": {
                             // TODO(calebmer): If the user removed their own access by removing a
                             // collection or changing the assignee, we should hint to them that they're
                             // allowed to undo and give them an undo button.
+                            //
+                            // TODO(calebmer, 2025-01-20): I believe our `<ShareButton>` says if you lower
+                            // your own access you won't be able to undo. We'll need to change the language
+                            // of this error message too.
                             return {
-                                icon: <PencilSimpleSlashIcon />,
-                                message:
-                                    "You’ve lost access to this collection. You can’t make changes",
+                                accessLevel: null,
+                                reason: {
+                                    icon: <PencilSimpleSlashIcon />,
+                                    message:
+                                        "You’ve lost access to this collection. You can’t make changes",
+                                },
                             };
                         }
                         case "PermissionGranted": {
-                            if (hasAccessLevel(access.level, "Edit")) return null;
+                            if (hasAccessLevel(access.level, "Edit"))
+                                return {accessLevel: access.level, reason: null};
 
                             // TODO(calebmer): If the user removed their own access by removing a
                             // collection or changing the assignee, we should hint to them that they're
                             // allowed to undo and give them an undo button.
                             return {
-                                icon: <PencilSimpleSlashIcon />,
-                                message: "You’re aren’t allowed to make changes to this collection",
+                                accessLevel: access.level,
+                                reason: {
+                                    icon: <PencilSimpleSlashIcon />,
+                                    message:
+                                        "You’re aren’t allowed to make changes to this collection",
+                                },
                             };
                         }
                         default:
@@ -302,18 +325,9 @@ export function TaskCollectionView({
         ),
     );
 
-    const readOnlyReason = readOnlyReason1 ?? readOnlyReason2;
+    const {accessLevel} = readOnlyReason1;
+    const readOnlyReason = readOnlyReason1.reason ?? readOnlyReason2;
     const isReadOnly = readOnlyReason !== null;
-
-    const isPrivate = useStore(
-        useMemo(
-            () =>
-                collectionSubscription?.collectionEntryStore.map(
-                    collectionEntry => !collectionEntry.collection?.getAccessPolicy().defaultGrant,
-                ) ?? falseStore,
-            [collectionSubscription?.collectionEntryStore],
-        ),
-    );
 
     const desktopHeaderRef = useRef<TaskCollectionViewDesktopHeaderRef>(null);
     const navigationBarDesktopNameRef = useRef<TaskCollectionViewDesktopHeaderNameRef>(null);
@@ -360,7 +374,7 @@ export function TaskCollectionView({
             },
         ]);
 
-        if (!isReadOnly) {
+        if (hasAccessLevel(accessLevel, "Manage")) {
             // Even though you can edit the collection name by double clicking and the
             // color by clicking on the dot, we still include menu items since these
             // interactions aren't necessarily obvious.
@@ -398,21 +412,6 @@ export function TaskCollectionView({
         }
 
         if (!isReadOnly) {
-            // TODO(calebmer): Collections support more involved permission rules than just
-            // public/private. Eventually I want a full sharing dialog (like in Google
-            // Docs) but I want that sharing dialog to work across all stuff in the space.
-            // Including docs and channels.
-            //
-            // NOCOMMIT: Remove this
-            menuActions.push([
-                {
-                    label: isPrivate ? "Make public" : "Make private",
-                    icon: isPrivate ? <LockOpen /> : <Lock />,
-                    iconPlacement: "end",
-                    onPress: () => {},
-                },
-            ]);
-
             if (routeLayout === "narrow") {
                 // eslint-disable-next-line react-compiler/react-compiler
                 menuActions.push([
@@ -461,52 +460,56 @@ export function TaskCollectionView({
                 ]);
             }
 
-            menuActions.push([
-                {
-                    label: "Undo",
-                    keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
-                    onPress: undoEvent,
-                },
-                {
-                    label: "Redo",
-                    keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
-                    onPress: redoEvent,
-                },
-            ]);
-
-            menuActions.push([
-                {
-                    label: "Delete",
-                    onPress: () => {
-                        store.commitTaskActionTransaction(
-                            context,
-                            [
-                                {
-                                    type: "UpdateCollection",
-                                    time: store.clock.now(),
-                                    collectionId,
-                                    collectionAction: {type: "Delete"},
-                                },
-                            ],
-                            // Collection changes can't be undone.
-                            {undoManager: null, affinityManager},
-                        );
-
-                        void navigate(-1);
+            if (!isReadOnly) {
+                menuActions.push([
+                    {
+                        label: "Undo",
+                        keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
+                        onPress: undoEvent,
                     },
-                },
-            ]);
+                    {
+                        label: "Redo",
+                        keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
+                        onPress: redoEvent,
+                    },
+                ]);
+            }
+
+            if (hasAccessLevel(accessLevel, "Manage")) {
+                menuActions.push([
+                    {
+                        label: "Delete",
+                        onPress: () => {
+                            store.commitTaskActionTransaction(
+                                context,
+                                [
+                                    {
+                                        type: "UpdateCollection",
+                                        time: store.clock.now(),
+                                        collectionId,
+                                        collectionAction: {type: "Delete"},
+                                    },
+                                ],
+                                // Collection changes can't be undone.
+                                {undoManager: null, affinityManager},
+                            );
+
+                            void navigate(-1);
+                        },
+                    },
+                ]);
+            }
         }
 
         return menuActions;
     }, [
+        accessLevel,
         affinityManager,
         collectionId,
         context,
         customizationState,
         filters,
         isAppleDevice,
-        isPrivate,
         isReadOnly,
         navigate,
         platform,
@@ -744,7 +747,7 @@ export function TaskCollectionView({
                             }
                             affinityManager={affinityManager}
                             createCollection={createCollection}
-                            isReadOnly={isReadOnly}
+                            accessLevel={accessLevel}
                             defaultOrderSentence={defaultOrderSentence}
                             menuActions={menuActions}
                             filters={filters}
@@ -757,6 +760,7 @@ export function TaskCollectionView({
                 ),
             };
         }, [
+            accessLevel,
             affinityManager,
             collectionId,
             collectionSubscription,
@@ -764,7 +768,6 @@ export function TaskCollectionView({
             defaultOrderSentence,
             filterReferences,
             filters,
-            isReadOnly,
             menuActions,
             readOnlyStickyBanner,
             routeLayout,
@@ -781,7 +784,7 @@ export function TaskCollectionView({
         withoutDisappearingTitle: true,
         title: (
             <TaskCollectionViewMobileNavigationBarTitle
-                isReadOnly={isReadOnly}
+                accessLevel={accessLevel}
                 store={store}
                 collectionId={collectionId}
                 collectionSubscription={collectionSubscription}
@@ -991,7 +994,7 @@ export function TaskCollectionView({
 }
 
 function TaskCollectionViewMobileNavigationBarTitle({
-    isReadOnly,
+    accessLevel,
     store,
     collectionId,
     collectionSubscription,
@@ -1000,7 +1003,7 @@ function TaskCollectionViewMobileNavigationBarTitle({
     affinityManager,
     desktopNameRef,
 }: {
-    isReadOnly: boolean;
+    accessLevel: AccessLevel | null;
     store: TaskClientStore;
     collectionId: TaskCollectionId;
     collectionSubscription: TaskClientCollectionSubscription | null;
@@ -1038,7 +1041,7 @@ function TaskCollectionViewMobileNavigationBarTitle({
     return (
         <TaskCollectionViewDesktopHeaderName
             ref={desktopNameRef}
-            isReadOnly={isReadOnly}
+            accessLevel={accessLevel}
             store={store}
             collectionId={collectionId}
             isCreatingCollection={!collectionSubscription}

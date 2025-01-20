@@ -1,5 +1,6 @@
 import {DotsThreeVertical} from "phosphor-react";
 import {Memo, Ref, forwardRef, useImperativeHandle, useMemo, useRef} from "react";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu.js";
@@ -8,6 +9,7 @@ import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {ShareButton} from "~/client/navigation/share_button.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {backgroundFontSizePercentage} from "~/client/styles/styles.js";
 import {taskQueryViewCustomizationBarDesktopMarginY} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
@@ -20,9 +22,11 @@ import {
     TaskCollectionViewDesktopHeaderNameRef,
 } from "~/client/tasks/internal/task_collection_view_desktop_header_name.js";
 import {TaskQueryViewCustomizationBar} from "~/client/tasks/internal/task_query_view_customization_bar.js";
+import {AccessLevel} from "~/shared/access/access_policy.js";
 import {interFontAscender, interFontDescender} from "~/shared/design/core/font_metrics.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
+import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
@@ -45,7 +49,7 @@ function TaskCollectionViewDesktopHeader(
         shouldInitiallyFocusEditableCollectionName,
         affinityManager,
         createCollection,
-        isReadOnly,
+        accessLevel,
         defaultOrderSentence,
         menuActions,
         filters,
@@ -62,7 +66,7 @@ function TaskCollectionViewDesktopHeader(
         shouldInitiallyFocusEditableCollectionName: boolean;
         affinityManager: TaskClientStoreSearchAffinityManager;
         createCollection: Memo<(name: string) => Promise<void>>;
-        isReadOnly: boolean;
+        accessLevel: AccessLevel | null;
         defaultOrderSentence: string;
         menuActions: ReadonlyArray<ReadonlyArray<MenuAction>>;
         filters: ReadonlyArray<TaskQueryFilter>;
@@ -76,7 +80,9 @@ function TaskCollectionViewDesktopHeader(
     },
     ref: Ref<TaskCollectionViewDesktopHeaderRef>,
 ) {
+    const context = useAppContext();
     const spacingScale = useSpacingScale();
+    const {currentAccount} = useSpaceContext();
 
     const nameRef = useRef<TaskCollectionViewDesktopHeaderNameRef>(null);
 
@@ -131,7 +137,7 @@ function TaskCollectionViewDesktopHeader(
             >
                 <TaskCollectionViewDesktopHeaderName
                     ref={nameRef}
-                    isReadOnly={isReadOnly}
+                    accessLevel={accessLevel}
                     store={store}
                     affinityManager={affinityManager}
                     collectionId={collectionId}
@@ -182,10 +188,46 @@ function TaskCollectionViewDesktopHeader(
             >
                 <Box paddingRight="3">
                     <ShareButton
-                        {
+                        entityNoun="task collection"
+                        accessPolicy={useMemo(
+                            () =>
+                                collection?.getAccessPolicy() ?? {
+                                    accountGrantById: currentAccount
+                                        ? new Map([
+                                              [currentAccount.id, {level: "Manage", generation: 0}],
+                                          ])
+                                        : emptyMap,
+                                    defaultGrant: null,
+                                    urlGrant: null,
+                                },
+                            [collection, currentAccount],
+                        )}
+                        onAccessPolicyChange={accessPolicy => {
+                            // NOCOMMIT: Make sure you can't update name, update color, or delete on mobile
+                            // if not a manager.
+                            store.commitTaskActionTransaction(
+                                context,
+                                [
+                                    {
+                                        type: "UpdateCollection",
+                                        time: store.clock.now(),
+                                        collectionId,
+                                        collectionAction: {
+                                            type: "UpdateAccessPolicy",
+                                            accessPolicy,
+                                        },
+                                    },
+                                ],
+                                {
+                                    // Collection access policy changes can't be undone.
+                                    undoManager: null,
+                                    affinityManager,
+                                },
+                            );
+                        }}
+                        onCopyLink={() => {
                             // NOCOMMIT
-                            ...(null as any)
-                        }
+                        }}
                     />
                 </Box>
                 <MenuButton actions={menuActions}>

@@ -211,7 +211,7 @@ function TaskRowAssigneeCell(
     };
 
     return (
-        <FocusRing isVisibleFromAnyFocus={!isActuallyReadOnly} offset="0" insetBottom="border">
+        <FocusRing isVisibleFromAnyFocus={!isActuallyReadOnly} offset="0" insetTop="border">
             <div
                 ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
                 data-testid={

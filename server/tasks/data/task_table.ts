@@ -3694,6 +3694,7 @@ export async function authorizeTaskCollectionAccess(
         throw new PermissionDeniedError(
             quote`Actor doesn't have ${expectedAccessLevel} access level to task collection`,
             {
+                aggregateDedupeKey: collectionId,
                 displayMessage: getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
                     collectionItem,
                     expectedAccessLevel,
