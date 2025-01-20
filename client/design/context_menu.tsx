@@ -23,6 +23,7 @@ import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.j
 import {Menu, MenuAction, MenuItem, MenuStandardAction} from "~/client/design/menu.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {setElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -867,55 +868,57 @@ const ContextMenu = forwardRef(function ContextMenu(
     }, [handleGlobalKeyDown]);
 
     return (
-        <div
-            ref={useMergedRefs<HTMLDivElement>(ref, useOutsidePress(onCloseWithAnimation))}
-            data-testid="ContextMenu"
-            className={classNames(
-                greyElevated2ClassName,
-                sprinkles({
-                    minWidth: Menu.sizeConstants.base.desktop.width,
-                    borderRadius: "1.5",
-                    padding: "1",
-                    backgroundColor: "grey-0",
-                    boxShadow: "elevation-20",
-                }),
-            )}
-        >
-            {flattenedActions.map((action, index) => {
-                switch (action.type) {
-                    case "Divider": {
-                        return (
-                            <Box key={index} paddingX="1" paddingY="1">
-                                <Box width="full" borderBottom="grey-5" />
-                            </Box>
-                        );
+        <OverlayScopeContextProvider>
+            <div
+                ref={useMergedRefs<HTMLDivElement>(ref, useOutsidePress(onCloseWithAnimation))}
+                data-testid="ContextMenu"
+                className={classNames(
+                    greyElevated2ClassName,
+                    sprinkles({
+                        minWidth: Menu.sizeConstants.base.desktop.width,
+                        borderRadius: "1.5",
+                        padding: "1",
+                        backgroundColor: "grey-0",
+                        boxShadow: "elevation-20",
+                    }),
+                )}
+            >
+                {flattenedActions.map((action, index) => {
+                    switch (action.type) {
+                        case "Divider": {
+                            return (
+                                <Box key={index} paddingX="1" paddingY="1">
+                                    <Box width="full" borderBottom="grey-5" />
+                                </Box>
+                            );
+                        }
+                        case "Action": {
+                            return (
+                                <MenuItem
+                                    key={index}
+                                    ref={menuItemRefs[index]}
+                                    action={action.action}
+                                    onCloseWithAnimation={onCloseWithAnimation}
+                                    onCloseWithoutAnimation={onCloseWithoutAnimation}
+                                    isNotFocusable={true}
+                                    isFocusRingVisible={focusedMenuItemIndex === index}
+                                    openedActionKey={openedActionKey}
+                                    onActionOpen={action => setOpenedActionKey(action.key)}
+                                    onActionClose={action =>
+                                        setOpenedActionKey(openedActionKey =>
+                                            openedActionKey === action.key ? null : openedActionKey,
+                                        )
+                                    }
+                                />
+                            );
+                        }
+                        default:
+                            throw exhaustive(action);
                     }
-                    case "Action": {
-                        return (
-                            <MenuItem
-                                key={index}
-                                ref={menuItemRefs[index]}
-                                action={action.action}
-                                onCloseWithAnimation={onCloseWithAnimation}
-                                onCloseWithoutAnimation={onCloseWithoutAnimation}
-                                isNotFocusable={true}
-                                isFocusRingVisible={focusedMenuItemIndex === index}
-                                openedActionKey={openedActionKey}
-                                onActionOpen={action => setOpenedActionKey(action.key)}
-                                onActionClose={action =>
-                                    setOpenedActionKey(openedActionKey =>
-                                        openedActionKey === action.key ? null : openedActionKey,
-                                    )
-                                }
-                            />
-                        );
-                    }
-                    default:
-                        throw exhaustive(action);
-                }
-            })}
-            {extraBottom}
-        </div>
+                })}
+                {extraBottom}
+            </div>
+        </OverlayScopeContextProvider>
     );
 });
 
