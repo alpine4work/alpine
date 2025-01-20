@@ -96,7 +96,6 @@ function TaskRowCollectionsCellOverlay(
                     >
                         <TaskCollectionsInput
                             isReadOnly={isReadOnly}
-                            shouldNotRenderInput={isReadOnly}
                             aria-label="Collections"
                             referencesSubscription={query}
                             undoManager={undoManager}

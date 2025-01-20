@@ -114,7 +114,6 @@ function TaskCollectionsInput(
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
         isReadOnly = false,
-        shouldNotRenderInput = false,
         areMarginsClickable = false,
         paddingX,
         paddingY,
@@ -1131,7 +1130,7 @@ function TaskCollectionsInput(
                     />
                 </Box>
             )}
-            {!shouldNotRenderInput && (
+            {!isReadOnly && (
                 <OverlayAnimated
                     isVisible={comboBoxState.isOpen}
                     // Mobile collection chips are bigger so add more offset.

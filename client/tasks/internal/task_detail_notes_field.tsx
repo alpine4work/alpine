@@ -102,7 +102,6 @@ function TaskDetailNotesField(
                         <ContentView
                             aria-labelledby={labelId}
                             content={state.editorState.getContent()}
-                            placeholder="Add more details…"
                             fileAttachmentTarget={fileAttachmentTarget}
                             className={sprinkles({paddingX: screenPaddingX})}
                         />
