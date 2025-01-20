@@ -116,13 +116,6 @@ export type NavigationBarProps = {
     readonly shareButton?: NavigationBarShareButtonProps;
 
     /**
-     * The sticky banner element will be rendered underneath the navigation bar and
-     * will continue to be visible as the user scrolls.
-     */
-    // NOCOMMIT: Remove this altogether?
-    readonly stickyBanner?: ReactNode;
-
-    /**
      * If provided, completely replace the actions in this navigation bar's content
      * (which includes `menuActions` and `shareButton`) with the contents of this
      * node.

@@ -51,7 +51,6 @@ export function useNavigationBar({
     menuActions = emptyArray,
     onMenuStateChange,
     shareButton,
-    stickyBanner,
     replaceActions,
     extraIconButton,
     titleJustifyContent,
@@ -177,7 +176,6 @@ export function useNavigationBar({
             menuActions={menuActions}
             onMenuStateChange={onMenuStateChange}
             shareButton={shareButton}
-            stickyBanner={stickyBanner}
             replaceActions={replaceActions}
             extraIconButton={extraIconButton}
             titleJustifyContent={titleJustifyContent}

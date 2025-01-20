@@ -452,13 +452,10 @@ function TaskRowView(
     //   if you can't edit the contents of a task, if you can edit the collection
     //   then you can change the task's position in the collection. (NOCOMMIT: Test this)
     //
-    // - `capabilities.isReadOnly` for enabling/disabling
-    //   `useOutOfBoundsClickSelection()`. We want editing a task collection to
-    //   feel like editing a document. These interactions are controlled at the
-    //   view level for consistency.
-    //
     // `hasEditAccessLevel` will never be true if `capabilities.isReadOnly` is
-    // true.
+    // true. Can get into this scenario if you're looking at a `<TaskDetailView>`
+    // read-only task which has a child task you can edit (because it's in an
+    // editable collection).
     const hasEditAccessLevel = useMemo(
         () => !capabilities.isReadOnly && hasAccessLevel(access.level, "Edit"),
         [access.level, capabilities.isReadOnly],

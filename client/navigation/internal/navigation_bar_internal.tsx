@@ -141,7 +141,6 @@ export function NavigationBar({
     menuActions,
     onMenuStateChange,
     shareButton,
-    stickyBanner,
     replaceActions,
     extraIconButton,
     titleJustifyContent,
@@ -171,7 +170,6 @@ export function NavigationBar({
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
     onMenuStateChange: ((state: OverlayTriggerButtonState) => void) | undefined;
     shareButton: NavigationBarShareButtonProps | undefined;
-    stickyBanner: ReactNode;
     replaceActions: ReactNode;
     extraIconButton?: {
         icon: ReactNode;
@@ -983,7 +981,6 @@ export function NavigationBar({
                             withoutMobileBackButton={withoutMobileBackButton}
                             onMobileCancel={onMobileCancel}
                         />
-                        {stickyBanner}
                     </Box>
                 </div>
             </div>
