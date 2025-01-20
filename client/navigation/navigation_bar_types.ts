@@ -119,6 +119,7 @@ export type NavigationBarProps = {
      * The sticky banner element will be rendered underneath the navigation bar and
      * will continue to be visible as the user scrolls.
      */
+    // NOCOMMIT: Remove this altogether?
     readonly stickyBanner?: ReactNode;
 
     /**

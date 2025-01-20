@@ -1,4 +1,4 @@
-import {IconContext, Plus} from "phosphor-react";
+import {Plus} from "phosphor-react";
 import {useCallback, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
@@ -11,7 +11,6 @@ import {Spacer} from "~/client/design/spacer.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useStore} from "~/client/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -21,11 +20,7 @@ import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {
-    inputPlaceholderStyles,
-    invertSelectionColorsClassName,
-    tasksStyles,
-} from "~/client/styles/styles.js";
+import {inputPlaceholderStyles, tasksStyles} from "~/client/styles/styles.js";
 import {
     defaultTaskQueryViewName,
     taskQueryViewCustomizationMobileLayoutMarginTop,
@@ -36,7 +31,6 @@ import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/core/task_client_store.js";
-import {createTaskQueryViewReadOnlyReasonStore} from "~/client/tasks/internal/create_task_query_view_read_only_reason_store.js";
 import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskGridViewVirtualizedListViewRef} from "~/client/tasks/internal/task_grid_view_virtualized_list_types.js";
 import {TaskQueryMobileEditor} from "~/client/tasks/internal/task_query_mobile_editor.js";
@@ -116,16 +110,16 @@ export function TaskQueryView({
     const mobileCustomizationSectionRef = useRef<TaskQueryViewCustomizationMobileSectionRef>(null);
     const desktopCustomizationSectionRef = useRef<TaskQueryViewCustomizationBarRef>(null);
 
-    const [name, _setName] = useState(initialName);
+    const [name, actuallySetName] = useState(initialName);
 
     const setName = useEvent((name: string) => {
-        _setName(name);
+        actuallySetName(name);
         onNameChange(name);
     });
 
     const [
         {filters, filterReferences, shouldOpenFirstCollectionsFilterOperationValueRef},
-        _setFiltersState,
+        actuallySetFiltersState,
     ] = useState({
         filters: initialFilters,
         filterReferences: initialFilterReferences,
@@ -152,7 +146,7 @@ export function TaskQueryView({
         }
     }, [platform, routeLayout, shouldOpenFirstCollectionsFilterOperationValueRef]);
 
-    const [sorts, _setSorts] = useState(initialSorts);
+    const [sorts, actuallySetSorts] = useState(initialSorts);
 
     const {undoEvent, redoEvent, updateFilters, setSorts} = useEvents({
         undoEvent: () => undo(),
@@ -168,7 +162,7 @@ export function TaskQueryView({
                 shouldOpenFirstCollectionsFilterOperationValue?: boolean;
             } = {},
         ) => {
-            _setFiltersState(({filterReferences}) => {
+            actuallySetFiltersState(({filterReferences}) => {
                 const newFilterReferences = mergeFilterReferences
                     ? mergeTaskQueryFilterReferences(filterReferences, mergeFilterReferences)
                     : filterReferences;
@@ -186,7 +180,7 @@ export function TaskQueryView({
             onFiltersChange(filters);
         },
         setSorts: (sorts: ReadonlyArray<TaskQuerySort>) => {
-            _setSorts(sorts);
+            actuallySetSorts(sorts);
             onSortsChange(sorts);
         },
     });
@@ -201,21 +195,6 @@ export function TaskQueryView({
     );
 
     const normalizedSorts = useMemo(() => normalizeTaskQuerySorts(sorts), [sorts]);
-
-    const readOnlyReason = useStore(
-        useMemo(
-            () =>
-                createTaskQueryViewReadOnlyReasonStore({
-                    store,
-                    filters,
-                    filterReferences,
-                    currentAccount,
-                }),
-            [currentAccount, filterReferences, filters, store],
-        ),
-    );
-
-    const isReadOnly = readOnlyReason !== null;
 
     const queryState = useTaskQueryState({
         store,
@@ -299,30 +278,6 @@ export function TaskQueryView({
         space.id,
         undoEvent,
     ]);
-
-    const readOnlyStickyBannerHeight = "8";
-
-    const readOnlyStickyBanner = useMemo(
-        () =>
-            readOnlyReason?.message && (
-                <Box
-                    className={invertSelectionColorsClassName}
-                    height="8"
-                    paddingX="2"
-                    color="grey-0"
-                    backgroundColor="grey-90"
-                    display="flex"
-                    alignItems="center"
-                    gap="1.5"
-                >
-                    <IconContext.Provider value={{color: "currentColor", size: spacing["4"]}}>
-                        {readOnlyReason.icon}
-                    </IconContext.Provider>
-                    <Box userSelect="text">{readOnlyReason.message}</Box>
-                </Box>
-            ),
-        [readOnlyReason],
-    );
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
@@ -413,7 +368,7 @@ export function TaskQueryView({
         capabilities: useMemo(() => {
             if (routeLayout !== "narrow") {
                 return {
-                    isReadOnly,
+                    isReadOnly: false,
                     hasParentTaskTitle: true,
                     hasMultilineTitle: false,
                     hasDenseFields: false,
@@ -421,14 +376,14 @@ export function TaskQueryView({
                 };
             } else {
                 return {
-                    isReadOnly,
+                    isReadOnly: false,
                     hasParentTaskTitle: true,
                     hasMultilineTitle: true,
                     hasDenseFields: true,
                     hasColumns: false,
                 };
             }
-        }, [isReadOnly, routeLayout]),
+        }, [routeLayout]),
         viewRef: itemCountBeforeGridView !== 0 ? gridViewRef : viewRef,
         store,
         affinityManager,
@@ -492,22 +447,19 @@ export function TaskQueryView({
             return {
                 minHeight: spacing[navigationBarHeight],
                 node: (
-                    <>
-                        {readOnlyStickyBanner}
-                        <TaskQueryViewDesktopHeader
-                            ref={desktopHeaderRef}
-                            store={store}
-                            menuActions={menuActions}
-                            defaultOrderSentence={defaultOrderSentence}
-                            name={name}
-                            onNameChange={setName}
-                            filters={filters}
-                            filterReferences={filterReferences}
-                            onFiltersChange={updateFilters}
-                            sorts={sorts}
-                            onSortsChange={setSorts}
-                        />
-                    </>
+                    <TaskQueryViewDesktopHeader
+                        ref={desktopHeaderRef}
+                        store={store}
+                        menuActions={menuActions}
+                        defaultOrderSentence={defaultOrderSentence}
+                        name={name}
+                        onNameChange={setName}
+                        filters={filters}
+                        filterReferences={filterReferences}
+                        onFiltersChange={updateFilters}
+                        sorts={sorts}
+                        onSortsChange={setSorts}
+                    />
                 ),
             };
         }, [
@@ -515,7 +467,6 @@ export function TaskQueryView({
             filters,
             menuActions,
             name,
-            readOnlyStickyBanner,
             routeLayout,
             setName,
             setSorts,
@@ -539,7 +490,6 @@ export function TaskQueryView({
                 />
             ),
         menuActions,
-        stickyBanner: readOnlyStickyBanner,
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -551,7 +501,6 @@ export function TaskQueryView({
                     node: (
                         <Box paddingTop="safe-area-inset">
                             <Box height={navigationBarHeight} />
-                            {readOnlyReason?.message && <Box height={readOnlyStickyBannerHeight} />}
                             {platform === "mobile" ? (
                                 <TaskQueryViewCustomizationMobileSection
                                     ref={mobileCustomizationSectionRef}
@@ -599,7 +548,6 @@ export function TaskQueryView({
             filters,
             itemCountBeforeGridView,
             platform,
-            readOnlyReason?.message,
             renderGridViewItem,
             routeLayout,
             setSorts,

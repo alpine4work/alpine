@@ -1,7 +1,5 @@
-import {IconContext, Trash} from "phosphor-react";
 import {
     Memo,
-    ReactNode,
     RefObject,
     useCallback,
     useEffect,
@@ -20,7 +18,6 @@ import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
-import {PencilSimpleSlashIcon} from "~/client/icons/pencil_simple_slash_icon.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
@@ -29,15 +26,17 @@ import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
-import {invertSelectionColorsClassName, tasksStyles} from "~/client/styles/styles.js";
+import {tasksStyles} from "~/client/styles/styles.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/core/task_client_store.js";
-import {getTaskCollectionEntryAccess} from "~/client/tasks/internal/create_task_entry_access_store.js";
-import {createTaskQueryViewReadOnlyReasonStore} from "~/client/tasks/internal/create_task_query_view_read_only_reason_store.js";
+import {
+    TaskAccess,
+    getTaskCollectionEntryAccess,
+} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {
     TaskCollectionViewDesktopHeader,
@@ -70,15 +69,16 @@ import {
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/tasks/task_error_messages.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
     TaskQueryFilter,
@@ -136,6 +136,27 @@ export function TaskCollectionView({
     const {isAppleDevice} = useClientInfo();
     const {space, currentAccount} = useSpaceContext();
     const currentDate = useCurrentDate();
+
+    const access = useStore(
+        useMemo((): Store<TaskAccess> => {
+            // If there's no `collectionSubscription` it means we're creating the
+            // collection. When the user creates a collection they get the manage access
+            // level.
+            if (!collectionSubscription)
+                return new ConstStore({type: "PermissionGranted", level: "Manage"});
+
+            return collectionSubscription.collectionEntryStore.map(collectionEntry =>
+                getTaskCollectionEntryAccess(currentAccount?.id, collectionEntry),
+            );
+        }, [collectionSubscription, currentAccount?.id]),
+    );
+
+    if (access.level === null) {
+        throw new PermissionDeniedError("Current account lost access to task collection", {
+            displayMessage:
+                taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
+        });
+    }
 
     const [{filters, filterReferences}, actuallySetFiltersState] = useState({
         filters: initialFilters,
@@ -241,93 +262,46 @@ export function TaskCollectionView({
         sorts: normalizedSorts,
     });
 
-    const readOnlyReason1 = useStore(
-        useMemo((): Store<{
-            accessLevel: AccessLevel | null;
-            reason: {
-                icon: ReactNode;
-                message: string | null;
-            } | null;
-        }> => {
-            // If we're creating a new collection, it shouldn't be editable. But we don't
-            // want to show a message.
-            if (!collectionSubscription)
-                return new ConstStore({accessLevel: null, reason: {icon: null, message: null}});
-            if (!queryState.activeQuery)
-                return new ConstStore({accessLevel: null, reason: {icon: null, message: null}});
+    // NOCOMMIT: // The minimum access level of a filtered colllection
+    // const collectionsFilterMinAccessLevel = useStore(
+    //     useMemo((): Store<AccessLevel | null> => {
+    //         if (
+    //             normalizedFiltersResult?.type !== "Possible" ||
+    //             !normalizedFiltersResult.normalizedFilters.collectionsFilter
+    //         ) {
+    //             return new ConstStore("Manage");
+    //         }
 
-            return collectionSubscription.collectionEntryStore
-                .map(collectionEntry =>
-                    getTaskCollectionEntryAccess(currentAccount?.id, collectionEntry),
-                )
-                .map(access => {
-                    switch (access.type) {
-                        case "Deleted": {
-                            // TODO(calebmer): Add an "undelete" button when we support undo?
-                            return {
-                                accessLevel: null,
-                                reason: {
-                                    icon: <Trash />,
-                                    message: "This collection was deleted. You can’t make changes",
-                                },
-                            };
-                        }
-                        case "PermissionDenied": {
-                            // TODO(calebmer): If the user removed their own access by removing a
-                            // collection or changing the assignee, we should hint to them that they're
-                            // allowed to undo and give them an undo button.
-                            //
-                            // TODO(calebmer, 2025-01-20): I believe our `<ShareButton>` says if you lower
-                            // your own access you won't be able to undo. We'll need to change the language
-                            // of this error message too.
-                            return {
-                                accessLevel: null,
-                                reason: {
-                                    icon: <PencilSimpleSlashIcon />,
-                                    message:
-                                        "You’ve lost access to this collection. You can’t make changes",
-                                },
-                            };
-                        }
-                        case "PermissionGranted": {
-                            if (hasAccessLevel(access.level, "Edit"))
-                                return {accessLevel: access.level, reason: null};
+    //         const accessLevelStores: Array<Store<AccessLevel | null>> = [];
 
-                            // TODO(calebmer): If the user removed their own access by removing a
-                            // collection or changing the assignee, we should hint to them that they're
-                            // allowed to undo and give them an undo button.
-                            return {
-                                accessLevel: access.level,
-                                reason: {
-                                    icon: <PencilSimpleSlashIcon />,
-                                    message:
-                                        "You’re aren’t allowed to make changes to this collection",
-                                },
-                            };
-                        }
-                        default:
-                            throw exhaustive(access);
-                    }
-                });
-        }, [collectionSubscription, currentAccount?.id, queryState.activeQuery]),
-    );
+    //         for (const clause of normalizedFiltersResult.normalizedFilters.collectionsFilter) {
+    //             for (const [term, not] of clause) {
+    //                 if (term === collectionId) continue;
+    //                 if (term === "IsEmpty") continue;
+    //                 if (not) continue;
 
-    const readOnlyReason2 = useStore(
-        useMemo(
-            () =>
-                createTaskQueryViewReadOnlyReasonStore({
-                    store,
-                    filters,
-                    filterReferences,
-                    currentAccount,
-                }),
-            [currentAccount, filterReferences, filters, store],
-        ),
-    );
+    //                 accessLevelStores.push(
+    //                     createTaskQueryCollectionsFilterCollectionResultStore({
+    //                         store,
+    //                         filterReferences,
+    //                         collectionId: term,
+    //                     }).map(collectionResult =>
+    //                         getAccountAccessLevelAssumingSpaceAccess(
+    //                             collectionResult.collection.getAccessPolicy(),
+    //                             currentAccount?.id,
+    //                         ),
+    //                     ),
+    //                 );
+    //             }
+    //         }
 
-    const {accessLevel} = readOnlyReason1;
-    const readOnlyReason = readOnlyReason1.reason ?? readOnlyReason2;
-    const isReadOnly = readOnlyReason !== null;
+    //         return Store.mapMany(accessLevelStores, accessLevels =>
+    //             accessLevels.reduce(minAccessLevel, "Manage"),
+    //         );
+    //     }, [collectionId, currentAccount?.id, filterReferences, normalizedFiltersResult, store]),
+    // );
+
+    const hasEditAccessLevel = useMemo(() => hasAccessLevel(access.level, "Edit"), [access.level]);
 
     const desktopHeaderRef = useRef<TaskCollectionViewDesktopHeaderRef>(null);
     const navigationBarDesktopNameRef = useRef<TaskCollectionViewDesktopHeaderNameRef>(null);
@@ -374,7 +348,7 @@ export function TaskCollectionView({
             },
         ]);
 
-        if (hasAccessLevel(accessLevel, "Manage")) {
+        if (hasAccessLevel(access.level, "Manage")) {
             // Even though you can edit the collection name by double clicking and the
             // color by clicking on the dot, we still include menu items since these
             // interactions aren't necessarily obvious.
@@ -411,7 +385,7 @@ export function TaskCollectionView({
             ]);
         }
 
-        if (!isReadOnly) {
+        if (hasEditAccessLevel) {
             if (routeLayout === "narrow") {
                 // eslint-disable-next-line react-compiler/react-compiler
                 menuActions.push([
@@ -460,7 +434,7 @@ export function TaskCollectionView({
                 ]);
             }
 
-            if (!isReadOnly) {
+            if (hasEditAccessLevel) {
                 menuActions.push([
                     {
                         label: "Undo",
@@ -475,7 +449,7 @@ export function TaskCollectionView({
                 ]);
             }
 
-            if (hasAccessLevel(accessLevel, "Manage")) {
+            if (hasAccessLevel(access.level, "Manage")) {
                 menuActions.push([
                     {
                         label: "Delete",
@@ -503,14 +477,14 @@ export function TaskCollectionView({
 
         return menuActions;
     }, [
-        accessLevel,
+        access.level,
         affinityManager,
         collectionId,
         context,
         customizationState,
         filters,
+        hasEditAccessLevel,
         isAppleDevice,
-        isReadOnly,
         navigate,
         platform,
         redoEvent,
@@ -520,32 +494,6 @@ export function TaskCollectionView({
         store,
         undoEvent,
     ]);
-
-    const readOnlyStickyBannerHeight = "8";
-
-    const readOnlyStickyBanner = useMemo(
-        () =>
-            readOnlyReason?.message && (
-                <Box
-                    className={invertSelectionColorsClassName}
-                    height={readOnlyStickyBannerHeight}
-                    paddingX="2"
-                    color="grey-0"
-                    backgroundColor="grey-90"
-                    display="flex"
-                    alignItems="center"
-                    gap="1.5"
-                >
-                    <IconContext.Provider value={{color: "currentColor", size: spacing["4"]}}>
-                        {readOnlyReason.icon}
-                    </IconContext.Provider>
-                    <Box userSelect="text" fontStyle="truncate">
-                        {readOnlyReason.message}
-                    </Box>
-                </Box>
-            ),
-        [readOnlyReason],
-    );
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
@@ -634,7 +582,7 @@ export function TaskCollectionView({
         capabilities: useMemo(() => {
             if (routeLayout !== "narrow") {
                 return {
-                    isReadOnly,
+                    isReadOnly: !hasEditAccessLevel,
                     hasParentTaskTitle: true,
                     hasMultilineTitle: false,
                     hasDenseFields: false,
@@ -642,14 +590,14 @@ export function TaskCollectionView({
                 };
             } else {
                 return {
-                    isReadOnly,
+                    isReadOnly: !hasEditAccessLevel,
                     hasParentTaskTitle: true,
                     hasMultilineTitle: true,
                     hasDenseFields: true,
                     hasColumns: false,
                 };
             }
-        }, [isReadOnly, routeLayout]),
+        }, [hasEditAccessLevel, routeLayout]),
         viewRef: itemCountBeforeGridView !== 0 ? gridViewRef : viewRef,
         store,
         query: queryState.activeQuery.query,
@@ -735,32 +683,29 @@ export function TaskCollectionView({
             return {
                 minHeight: spacing[navigationBarHeight],
                 node: (
-                    <>
-                        {readOnlyStickyBanner}
-                        <TaskCollectionViewDesktopHeader
-                            ref={desktopHeaderRef}
-                            store={store}
-                            collectionId={collectionId}
-                            collectionSubscription={collectionSubscription}
-                            shouldInitiallyFocusEditableCollectionName={
-                                shouldInitiallyFocusEditableCollectionName
-                            }
-                            affinityManager={affinityManager}
-                            createCollection={createCollection}
-                            accessLevel={accessLevel}
-                            defaultOrderSentence={defaultOrderSentence}
-                            menuActions={menuActions}
-                            filters={filters}
-                            filterReferences={filterReferences}
-                            onFiltersChange={updateFilters}
-                            sorts={sorts}
-                            onSortsChange={setSorts}
-                        />
-                    </>
+                    <TaskCollectionViewDesktopHeader
+                        ref={desktopHeaderRef}
+                        store={store}
+                        collectionId={collectionId}
+                        collectionSubscription={collectionSubscription}
+                        shouldInitiallyFocusEditableCollectionName={
+                            shouldInitiallyFocusEditableCollectionName
+                        }
+                        affinityManager={affinityManager}
+                        createCollection={createCollection}
+                        accessLevel={access.level}
+                        defaultOrderSentence={defaultOrderSentence}
+                        menuActions={menuActions}
+                        filters={filters}
+                        filterReferences={filterReferences}
+                        onFiltersChange={updateFilters}
+                        sorts={sorts}
+                        onSortsChange={setSorts}
+                    />
                 ),
             };
         }, [
-            accessLevel,
+            access.level,
             affinityManager,
             collectionId,
             collectionSubscription,
@@ -769,7 +714,6 @@ export function TaskCollectionView({
             filterReferences,
             filters,
             menuActions,
-            readOnlyStickyBanner,
             routeLayout,
             setSorts,
             shouldInitiallyFocusEditableCollectionName,
@@ -784,7 +728,7 @@ export function TaskCollectionView({
         withoutDisappearingTitle: true,
         title: (
             <TaskCollectionViewMobileNavigationBarTitle
-                accessLevel={accessLevel}
+                accessLevel={access.level}
                 store={store}
                 collectionId={collectionId}
                 collectionSubscription={collectionSubscription}
@@ -800,7 +744,6 @@ export function TaskCollectionView({
         // NOCOMMIT
         shareButton: {} as any,
         menuActions,
-        stickyBanner: readOnlyStickyBanner,
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -812,7 +755,6 @@ export function TaskCollectionView({
                     node: (
                         <Box paddingTop="safe-area-inset">
                             <Box height={navigationBarHeight} />
-                            {readOnlyReason?.message && <Box height={readOnlyStickyBannerHeight} />}
                             {customizationState &&
                                 (platform === "mobile" ? (
                                     <TaskQueryViewCustomizationMobileSection
@@ -854,7 +796,6 @@ export function TaskCollectionView({
             renderGridViewItem,
             itemCountBeforeGridView,
             platform,
-            readOnlyReason?.message,
             customizationState,
             store,
             defaultOrderSentence,
@@ -872,9 +813,11 @@ export function TaskCollectionView({
             width="full"
             overflow="hidden"
             backgroundColor="grey-0"
-            className={!isReadOnly ? tasksStyles.textCursorNotInherited2ClassName : undefined}
+            className={
+                hasEditAccessLevel ? tasksStyles.textCursorNotInherited2ClassName : undefined
+            }
             {...useOutOfBoundsClickSelection({
-                isDisabled: isReadOnly,
+                isDisabled: !hasEditAccessLevel,
                 // Accept clicks on our `<VirtualizedScrollView>` child too.
                 accept: event =>
                     event.target === event.currentTarget ||

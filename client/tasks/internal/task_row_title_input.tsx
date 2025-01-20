@@ -1,3 +1,4 @@
+import {setInteractionModality} from "@react-aria/interactions";
 import {useGlobalListeners} from "@react-aria/utils";
 import classNames from "classnames";
 import {CaretLeft, Lock} from "phosphor-react";
@@ -6,6 +7,7 @@ import {EditorView} from "prosemirror-view";
 import {
     CSSProperties,
     Key,
+    Memo,
     Ref,
     forwardRef,
     useCallback,
@@ -54,6 +56,7 @@ import {
     TaskRowTitleChildTasksButton,
     TaskRowTitleChildTasksButtonRef,
 } from "~/client/tasks/internal/task_row_title_child_tasks_button.js";
+import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
 import {RemLength, Spacing, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
@@ -237,6 +240,7 @@ let scheduledDestroyTaskRowTitleInputEditorViewCallbacks: Array<() => void> | nu
 function TaskRowTitleInput(
     {
         capabilities,
+        hasEditAccessLevel,
         maxGridExpandableTaskDepth,
         stateKey,
         query,
@@ -258,6 +262,7 @@ function TaskRowTitleInput(
         preserveLastTaskTitleArrowNavigationCoord,
         focusFirstVisibleTaskTitleStart,
         focusLastVisibleTaskTitleEnd,
+        focusCell,
         focusNextCell,
         focusPreviousCell,
         pushUndoStackYDocEntry,
@@ -265,6 +270,7 @@ function TaskRowTitleInput(
         pushRedoStackYDocEntry,
     }: {
         capabilities: TaskGridViewCapabilities;
+        hasEditAccessLevel: boolean;
         maxGridExpandableTaskDepth: number;
         stateKey: Key | undefined;
         query: TaskClientQuery;
@@ -286,8 +292,9 @@ function TaskRowTitleInput(
         preserveLastTaskTitleArrowNavigationCoord: () => void;
         focusFirstVisibleTaskTitleStart: () => void;
         focusLastVisibleTaskTitleEnd: () => void;
-        focusNextCell: () => void;
-        focusPreviousCell: () => void;
+        focusCell: Memo<(column: TaskGridViewColumn) => void>;
+        focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
+        focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
         pushUndoStackYDocEntry: (entry: {yUndoManager: Y.UndoManager; release: () => void}) => void;
         pushUndoStackYDocEntryFromRedo: (entry: {
             yUndoManager: Y.UndoManager;
@@ -436,7 +443,7 @@ function TaskRowTitleInput(
                     const height = coords.bottom - coords.top;
 
                     // Only navigate to the next task if our selection is at the bottom of
-                    // the view.
+                    // the view. Matters for multi-line inputs.
                     if (coords.bottom + height >= viewRect.bottom) {
                         event.preventDefault();
                         event.stopPropagation();
@@ -454,7 +461,11 @@ function TaskRowTitleInput(
                 ) {
                     event.preventDefault();
                     event.stopPropagation();
-                    focusPreviousCell();
+
+                    // Navigating between cells changes the interaction modality to keyboard.
+                    setInteractionModality("keyboard");
+
+                    focusPreviousCell("Title");
                 }
                 break;
             }
@@ -466,15 +477,18 @@ function TaskRowTitleInput(
                     event.preventDefault();
                     event.stopPropagation();
 
+                    // Navigating between cells changes the interaction modality to keyboard.
+                    setInteractionModality("keyboard");
+
                     if ((task?.getChildTaskCount() ?? 0) > 0) {
                         const childTasksButton = assertExists(childTasksButtonRef.current);
                         if (childTasksButton.isFocusable()) {
                             childTasksButton.focus();
                         } else {
-                            focusNextCell();
+                            focusNextCell("Title");
                         }
                     } else {
-                        focusNextCell();
+                        focusNextCell("Title");
                     }
                 }
                 break;
@@ -498,13 +512,13 @@ function TaskRowTitleInput(
 
     const titleRef = useRef(title);
     const handleKeyDownRef = useRef(handleKeyDown);
-    const isReadOnlyRef = useRef(capabilities.isReadOnly);
+    const hasEditAccessLevelRef = useRef(hasEditAccessLevel);
     const spacingScaleRef = useRef(spacingScale);
     const isDualModalityRef = useRef(isDualModality);
     useInsertionEffect(() => {
         titleRef.current = title;
         handleKeyDownRef.current = handleKeyDown;
-        isReadOnlyRef.current = capabilities.isReadOnly;
+        hasEditAccessLevelRef.current = hasEditAccessLevel;
         spacingScaleRef.current = spacingScale;
         isDualModalityRef.current = isDualModality;
     });
@@ -678,8 +692,8 @@ function TaskRowTitleInput(
             viewElement.dataset.scrollbar = "false";
 
             const initialIsDualModality = isDualModalityRef.current;
-            const initialIsReadOnly = isReadOnlyRef.current;
-            const initialIsEditable = !initialIsDualModality && !initialIsReadOnly;
+            const initialHasEditAccessLevel = hasEditAccessLevelRef.current;
+            const initialIsEditable = !initialIsDualModality && initialHasEditAccessLevel;
 
             const view = new EditorView(
                 {mount: viewElement},
@@ -711,7 +725,7 @@ function TaskRowTitleInput(
                     // selection currently in state.
                     shouldUseDOMSelectionOnFocus: true,
 
-                    // Disable editing when the `isReadOnly` prop is set.
+                    // Disable editing when the `hasEditAccessLevel` prop is false.
                     //
                     // Or if we're in dual modality mode on mobile/touch devices.
                     editable: () => initialIsEditable,
@@ -1111,7 +1125,7 @@ function TaskRowTitleInput(
         assert(viewRef.current.isReady);
         const {view} = viewRef.current;
 
-        const isEditable = (!isDualModality || isFocused) && !capabilities.isReadOnly;
+        const isEditable = (!isDualModality || isFocused) && hasEditAccessLevel;
 
         // Optimization: Don't update editor if editable state equals what we expect.
         // It'll be initialized to the correct value when constructed.
@@ -1133,7 +1147,7 @@ function TaskRowTitleInput(
         } else {
             view.dom.classList.remove(tasksStyles.rowTitleInputIsNotEditableClassName);
         }
-    }, [capabilities.isReadOnly, isDualModality, isFocused, isInitialAppRender]);
+    }, [hasEditAccessLevel, isDualModality, isFocused, isInitialAppRender]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (isInitialAppRender) return;
@@ -1211,6 +1225,11 @@ function TaskRowTitleInput(
                 return viewRef.current.view.dom === document.activeElement;
             },
             focusStart: () => {
+                if (!hasEditAccessLevelRef.current) {
+                    focusCell("Title");
+                    return;
+                }
+
                 runWhenViewIsReady(view => {
                     const selection = Selection.atStart(view.state.doc);
 
@@ -1225,6 +1244,11 @@ function TaskRowTitleInput(
                 });
             },
             focusEnd: () => {
+                if (!hasEditAccessLevelRef.current) {
+                    focusCell("Title");
+                    return;
+                }
+
                 runWhenViewIsReady(view => {
                     const selection = Selection.atEnd(view.state.doc);
 
@@ -1239,6 +1263,11 @@ function TaskRowTitleInput(
                 });
             },
             focusAll: () => {
+                if (!hasEditAccessLevelRef.current) {
+                    focusCell("Title");
+                    return;
+                }
+
                 runWhenViewIsReady(view => {
                     const selection = new AllSelection(view.state.doc);
 
@@ -1253,6 +1282,11 @@ function TaskRowTitleInput(
                 });
             },
             focusCoord: (coord: number, side: "top" | "bottom") => {
+                if (!hasEditAccessLevelRef.current) {
+                    focusCell("Title");
+                    return;
+                }
+
                 runWhenViewIsReady(view => {
                     const viewRect = view.dom.getBoundingClientRect();
 
@@ -1285,6 +1319,11 @@ function TaskRowTitleInput(
                 });
             },
             focusSelection: (selection: Selection) => {
+                if (!hasEditAccessLevelRef.current) {
+                    focusCell("Title");
+                    return;
+                }
+
                 runWhenViewIsReady(view => {
                     // When in dual modality, the `isFocused` state must be true for the editor to
                     // be `contenteditable="true"` and thus focusable.
@@ -1332,7 +1371,7 @@ function TaskRowTitleInput(
                 });
             },
         }),
-        [runWhenViewIsReady],
+        [focusCell, runWhenViewIsReady],
     );
 
     useImperativeHandle(ref, () => ({
@@ -1433,9 +1472,7 @@ function TaskRowTitleInput(
             )}
             <div
                 className={classNames(
-                    !capabilities.isReadOnly
-                        ? tasksStyles.textCursorNotInheritedClassName
-                        : undefined,
+                    hasEditAccessLevel ? tasksStyles.textCursorNotInheritedClassName : undefined,
                     marginRightContainerClassName,
                 )}
                 style={{
@@ -1591,7 +1628,7 @@ function TaskRowTitleInput(
                                         event.preventDefault();
                                         event.stopPropagation();
 
-                                        focusNextCell();
+                                        focusNextCell("Title");
                                         break;
                                     }
                                 }

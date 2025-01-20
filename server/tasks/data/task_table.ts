@@ -135,6 +135,7 @@ import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {printTaskCollectionSearchResultBodyTextSnippet} from "~/shared/tasks/print_task_collection_search_result_body_text_snippet.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
+import {taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/tasks/task_error_messages.js";
 import {
     TaskGridViewExpansionState,
     TaskGridViewExpansionStateSchema,
@@ -5371,7 +5372,9 @@ function getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
         return errorDisplayMessage`This collection was deleted.`;
     }
 
-    return errorDisplayMessage`You aren’t allowed to access this collection. Ask someone with access to share it with you.`;
+    return taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
+        expectedAccessLevel
+    ];
 }
 
 /**

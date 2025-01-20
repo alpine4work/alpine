@@ -211,7 +211,13 @@ function TaskRowAssigneeCell(
     };
 
     return (
-        <FocusRing isVisibleFromAnyFocus={!isActuallyReadOnly} offset="0" insetTop="border">
+        <FocusRing
+            isVisibleFromAnyFocus={true}
+            offset="0"
+            insetTop="border"
+            // Render underneath the combobox overlay.
+            overlayZIndex="-10"
+        >
             <div
                 ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
                 data-testid={
@@ -263,7 +269,7 @@ function TaskRowAssigneeCell(
                             className={previewClassName}
                             style={{
                                 // Get around the `textCursorNotInheritedClassName` reset.
-                                cursor: "text",
+                                cursor: !isReadOnly ? "text" : "auto",
                                 // `display: inline-flex` creates an inline layout which adds extra space
                                 // below the element. Adding `vertical-align` stops the space from being added.
                                 // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue

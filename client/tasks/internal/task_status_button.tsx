@@ -61,6 +61,7 @@ function TaskStatusButton(
         task,
         size = "4",
         isDisabled = false,
+        isDisabledButStillFocusable = false,
         isFocusable = true,
         isTabbable = true,
         onKeyDown,
@@ -74,6 +75,7 @@ function TaskStatusButton(
         task: TaskModel;
         size?: "4" | "5" | "6" | "7";
         isDisabled?: boolean;
+        isDisabledButStillFocusable?: boolean;
         isFocusable?: boolean;
         isTabbable?: boolean;
         onKeyDown?: (event: KeyboardEvent) => void;
@@ -106,11 +108,13 @@ function TaskStatusButton(
     const buttonRef = useRef<HTMLElement | null>(null);
     const mergedButtonRef = useMergedRefs(ref, buttonRef);
 
-    const {isPressed, buttonProps} = useButton(
+    const {isPressed: isPressedFromHook, buttonProps} = useButton(
         {
             elementType: isFocusable ? "button" : "div",
             isDisabled,
             onPress: () => {
+                if (isDisabledButStillFocusable) return;
+
                 // Currently, accounts without space access can't edit tasks. The max
                 // permission level of `urlGrant` is `View`.
                 assert(currentAccount);
@@ -178,6 +182,8 @@ function TaskStatusButton(
         },
         buttonRef,
     );
+
+    const isPressed = isPressedFromHook && !isDisabledButStillFocusable;
 
     let displayStatus = task.getDisplayStatus();
 

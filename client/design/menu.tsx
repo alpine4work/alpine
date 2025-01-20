@@ -19,6 +19,7 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {OverlayPlacement} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {Tooltip} from "~/client/design/tooltip.js";
@@ -1718,6 +1719,10 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
             offsetAlong="-1"
             fallbackPlacements={emptyArray}
             onActuallyVisibleChange={action.onOpenChange}
+            // Make sure we render over the item's `<FocusRing>`. For example when the user
+            // presses the left arrow so the child menu animates closed while the
+            // `<FocusRing>` is visible.
+            overlayZIndex="10"
             overlay={
                 <Box ref={overlayRef}>
                     {hoverTriangleState && (
@@ -1731,39 +1736,41 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
                             pointerEvents="none"
                         />
                     )}
-                    <Menu
-                        ref={overlayMenuRef}
-                        size={action.size ?? size}
-                        actions={actions ?? emptyArray}
-                        placement={placement === "left" ? "left-start" : "right-start"}
-                        onCloseWithAnimation={onCloseWithAnimation}
-                        onCloseWithoutAnimation={onCloseWithoutAnimation}
-                        isNotFocusable={isNotFocusable}
-                        shouldNotCloseAfterActionPress={shouldNotCloseAfterPress}
-                        onFocusWithinChange={action.onFocusWithinChange}
-                        onArrowLeftKeyDown={event => {
-                            if (placement !== "right") return;
+                    <OverlayScopeContextProvider>
+                        <Menu
+                            ref={overlayMenuRef}
+                            size={action.size ?? size}
+                            actions={actions ?? emptyArray}
+                            placement={placement === "left" ? "left-start" : "right-start"}
+                            onCloseWithAnimation={onCloseWithAnimation}
+                            onCloseWithoutAnimation={onCloseWithoutAnimation}
+                            isNotFocusable={isNotFocusable}
+                            shouldNotCloseAfterActionPress={shouldNotCloseAfterPress}
+                            onFocusWithinChange={action.onFocusWithinChange}
+                            onArrowLeftKeyDown={event => {
+                                if (placement !== "right") return;
 
-                            event.preventDefault();
-                            event.stopPropagation();
+                                event.preventDefault();
+                                event.stopPropagation();
 
-                            const itemElement = assertExists(itemRef.current);
+                                const itemElement = assertExists(itemRef.current);
 
-                            onClose();
-                            itemElement.focus({preventScroll: true});
-                        }}
-                        onArrowRightKeyDown={event => {
-                            if (placement !== "left") return;
+                                onClose();
+                                itemElement.focus({preventScroll: true});
+                            }}
+                            onArrowRightKeyDown={event => {
+                                if (placement !== "left") return;
 
-                            event.preventDefault();
-                            event.stopPropagation();
+                                event.preventDefault();
+                                event.stopPropagation();
 
-                            const itemElement = assertExists(itemRef.current);
+                                const itemElement = assertExists(itemRef.current);
 
-                            onClose();
-                            itemElement.focus({preventScroll: true});
-                        }}
-                    />
+                                onClose();
+                                itemElement.focus({preventScroll: true});
+                            }}
+                        />
+                    </OverlayScopeContextProvider>
                 </Box>
             }
         >

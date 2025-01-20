@@ -20,6 +20,7 @@ import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_refere
  * the filtered collections is read-only. The user may then remove the
  * collection causing the query to be read-only.
  */
+// NOCOMMIT: Delete?
 export function createTaskQueryViewReadOnlyReasonStore({
     store,
     filters,
@@ -48,8 +49,8 @@ export function createTaskQueryViewReadOnlyReasonStore({
                 ),
             );
         }),
-    ).map(_accesses => {
-        const accesses = _accesses.flat();
+    ).map(nestedAccesses => {
+        const accesses = nestedAccesses.flat();
 
         let lowestAccess: TaskAccess = {type: "PermissionGranted", level: "Manage"};
 

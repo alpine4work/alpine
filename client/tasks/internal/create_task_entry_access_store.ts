@@ -8,6 +8,7 @@ import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_s
 import {
     AccessLevel,
     getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
     maxAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -16,9 +17,9 @@ import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
 
 export type TaskAccess =
-    | {readonly type: "Deleted"}
+    | {readonly type: "Deleted"; readonly level: "View" | "Comment"}
     | {readonly type: "PermissionGranted"; readonly level: AccessLevel}
-    | {readonly type: "PermissionDenied"};
+    | {readonly type: "PermissionDenied"; readonly level: null};
 
 // Used to intern `TaskAccess` objects. Since there are only a small number of
 // `TaskAccess` objects we intern them so we can always return the same
@@ -67,27 +68,31 @@ export function computeTaskEntryAccess(
     const getTaskAccess = (taskEntry: TaskClientStoreTaskEntry): TaskAccess => {
         // The task is not loaded. Assume we don't have permission. Principle of
         // least privilege.
-        if (!taskEntry.task) return {type: "PermissionDenied"};
+        if (!taskEntry.task) return {type: "PermissionDenied", level: null};
 
         // If the task is marked as unauthorized, we don't have permission. Even if the
         // task was previously loaded. Our client might not see the action which makes
         // the task unauthorized.
-        if (taskEntry.authorizationState.value !== "Authorized") return {type: "PermissionDenied"};
-
-        // The task is deleted. Special access rules apply.
-        if (taskEntry.task.isDeleted()) {
-            return {type: "Deleted"};
-        }
+        if (taskEntry.authorizationState.value !== "Authorized")
+            return {type: "PermissionDenied", level: null};
 
         if (currentAccountId) {
             // The task creator has edit access level on their own task.
             if (taskEntry.task.getCreator().accountId === currentAccountId) {
-                return {type: "PermissionGranted", level: "Edit"};
+                if (taskEntry.task.isDeleted()) {
+                    return {type: "Deleted", level: "Comment"};
+                } else {
+                    return {type: "PermissionGranted", level: "Edit"};
+                }
             }
 
             // The task assignee has edit access level on their own task.
             if (taskEntry.task.getAssignee()?.assignee.accountId === currentAccountId) {
-                return {type: "PermissionGranted", level: "Edit"};
+                if (taskEntry.task.isDeleted()) {
+                    return {type: "Deleted", level: "Comment"};
+                } else {
+                    return {type: "PermissionGranted", level: "Edit"};
+                }
             }
         }
 
@@ -121,12 +126,20 @@ export function computeTaskEntryAccess(
             }
         }
 
-        if (accessLevels.length === 0) return {type: "PermissionDenied"};
+        if (accessLevels.length === 0) return {type: "PermissionDenied", level: null};
 
         let accessLevel = accessLevels[0]!;
 
         for (let i = 1; i < accessLevels.length; i++) {
             accessLevel = maxAccessLevel(accessLevel, accessLevels[i]!);
+        }
+
+        // If the task was deleted, you can still see it but you can't edit it.
+        if (taskEntry.task.isDeleted()) {
+            return {
+                type: "Deleted",
+                level: hasAccessLevel(accessLevel, "Comment") ? "Comment" : "View",
+            };
         }
 
         return {
@@ -162,26 +175,26 @@ function computeTaskCollectionEntryAccess(
     // The collection is not loaded. Assume we don't have permission. Principle of
     // least privilege.
     if (!collectionEntry.collection) {
-        return {type: "PermissionDenied"};
+        return {type: "PermissionDenied", level: null};
     }
 
     // If the collection is marked as unauthorized, we don't have permission. Even
     // if the task was previously loaded. Our client might not see the action which
     // makes the task unauthorized.
     if (collectionEntry.authorizationState.value !== "Authorized") {
-        return {type: "PermissionDenied"};
+        return {type: "PermissionDenied", level: null};
     }
 
     // Deleted collections don't grant access.
     if (collectionEntry.collection.isDeleted()) {
-        return {type: "Deleted"};
+        return {type: "Deleted", level: "View"};
     }
 
     const accessPolicy = collectionEntry.collection.getAccessPolicy();
     const accessLevel = getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccountId);
 
     if (accessLevel === null) {
-        return {type: "PermissionDenied"};
+        return {type: "PermissionDenied", level: null};
     }
 
     return {

@@ -60,8 +60,11 @@ export type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly focusPreviousTaskTitleAll: (key: Key) => void;
     readonly focusTaskTitleStart: (gridKey: TaskGridViewTaskKey) => void;
     readonly focusTaskTitleSelection: (gridKey: TaskGridViewTaskKey, selection: Selection) => void;
-    readonly focusNextTaskTitleCoord: (gridKey: TaskGridViewTaskKey, coord: number) => void;
-    readonly focusPreviousTaskTitleCoord: (gridKey: TaskGridViewTaskKey, coord: number) => void;
+    readonly focusNextTaskTitleCoord: (gridKey: TaskGridViewTaskKey, coord: number | null) => void;
+    readonly focusPreviousTaskTitleCoord: (
+        gridKey: TaskGridViewTaskKey,
+        coord: number | null,
+    ) => void;
     readonly focusNextTaskCell: (gridKey: TaskGridViewTaskKey, column: TaskGridViewColumn) => void;
     readonly focusPreviousTaskCell: (
         gridKey: TaskGridViewTaskKey,

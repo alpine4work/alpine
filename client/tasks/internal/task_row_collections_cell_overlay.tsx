@@ -73,12 +73,12 @@ function TaskRowCollectionsCellOverlay(
                     }
                     position="relative"
                     borderRadius="0.5"
+                    backgroundColor="grey-0"
                     boxShadow="elevation-20"
                 >
                     <Box
                         ref={useScrollbar()}
                         position="relative"
-                        backgroundColor="grey-0"
                         overflowY="scroll"
                         borderRadius="0.5"
                         style={{

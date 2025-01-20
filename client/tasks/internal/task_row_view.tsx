@@ -63,6 +63,10 @@ import {
     TaskClientStoreUndoManager,
     TaskClientStoreUpdateTitleActionTransactionBuilder,
 } from "~/client/tasks/core/task_client_store.js";
+import {
+    TaskAccess,
+    createTaskEntryAccessStore,
+} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {TaskCloseConfirmationModalDialog} from "~/client/tasks/internal/task_close_confirmation_modal_dialog.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
@@ -97,6 +101,7 @@ import {renderTaskRowViewDroppableIndentations} from "~/client/tasks/internal/ta
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskGridViewDraggableData} from "~/client/tasks/task_grid_view_dnd_context.js";
+import {hasAccessLevel} from "~/shared/access/access_policy.js";
 import {
     RemLength,
     Spacing,
@@ -110,6 +115,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
@@ -362,8 +368,8 @@ function TaskRowView(
         unnestTaskIfNestedRow: (titleSelection: Selection) => void;
         deleteTaskAndAllChildren: () => void;
         deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
-        focusNextTaskTitleCoord: (coord: number) => void;
-        focusPreviousTaskTitleCoord: (coord: number) => void;
+        focusNextTaskTitleCoord: (coord: number | null) => void;
+        focusPreviousTaskTitleCoord: (coord: number | null) => void;
         focusNextTaskCell: (column: TaskGridViewColumn) => void;
         focusPreviousTaskCell: (column: TaskGridViewColumn) => void;
         preserveLastTaskTitleArrowNavigationCoord: () => void;
@@ -412,13 +418,51 @@ function TaskRowView(
     const {currentAccount} = useSpaceContext();
 
     const taskId = cursor !== null ? getTaskQuerySortCursorTaskId(cursor) : null;
-    const taskEntry = useStore(taskId !== null ? query.getLoadedTaskEntryStore(taskId) : null);
+    const taskEntryStore = taskId !== null ? query.getLoadedTaskEntryStore(taskId) : null;
+    const taskEntry = useStore(taskEntryStore);
     const task = taskEntry?.task ?? null;
     const effectiveTaskId = assertExists(taskId ?? ghostTaskId);
 
     const parentTaskId = task?.getParent()?.taskId ?? null;
     const parentTaskEntryStore =
         parentTaskId !== null ? query.getReferencedTaskEntryStore(parentTaskId) : null;
+
+    const access = useStore(
+        useMemo(
+            (): Store<TaskAccess> =>
+                taskEntryStore
+                    ? createTaskEntryAccessStore(currentAccount?.id, query, taskEntryStore)
+                    : // If this is a ghost task then the current account is the task creator so they
+                      // have edit access.
+                      new ConstStore({type: "PermissionGranted", level: "Edit"}),
+            [currentAccount?.id, query, taskEntryStore],
+        ),
+    );
+
+    // The difference between `hasEditAccessLevel` and `capabilities.isReadOnly` is
+    // that `capabilities.isReadOnly` applies to the entire view whereas
+    // `hasEditAccessLevel` only applies to the current row. Individual rows in a
+    // view may or may not be editable depending on their collections. You may have
+    // a view that has some editable tasks and some non-editable tasks mixed
+    // together. How we decide which one to use:
+    //
+    // - `hasEditAccessLevel` for editing task fields.
+    //
+    // - `capabilities.isReadOnly` for row dragging in manually ordered views. Even
+    //   if you can't edit the contents of a task, if you can edit the collection
+    //   then you can change the task's position in the collection. (NOCOMMIT: Test this)
+    //
+    // - `capabilities.isReadOnly` for enabling/disabling
+    //   `useOutOfBoundsClickSelection()`. We want editing a task collection to
+    //   feel like editing a document. These interactions are controlled at the
+    //   view level for consistency.
+    //
+    // `hasEditAccessLevel` will never be true if `capabilities.isReadOnly` is
+    // true.
+    const hasEditAccessLevel = useMemo(
+        () => !capabilities.isReadOnly && hasAccessLevel(access.level, "Edit"),
+        [access.level, capabilities.isReadOnly],
+    );
 
     // If `cursor` is non-null then we expect `task` to also be non-null and
     // authorized. This component should only be rendered with `TaskId`s in the
@@ -544,23 +588,43 @@ function TaskRowView(
         isFocusWithin: () => assertExists(containerRef.current).contains(document.activeElement),
 
         focusTitleStart: () => {
-            assertExists(titleInputRef.current).focusStart();
+            if (hasEditAccessLevel) {
+                assertExists(titleInputRef.current).focusStart();
+            } else {
+                focusCell("Title");
+            }
         },
 
         focusTitleEnd: () => {
-            assertExists(titleInputRef.current).focusEnd();
+            if (hasEditAccessLevel) {
+                assertExists(titleInputRef.current).focusEnd();
+            } else {
+                focusCell("Title");
+            }
         },
 
         focusTitleAll: () => {
-            assertExists(titleInputRef.current).focusAll();
+            if (hasEditAccessLevel) {
+                assertExists(titleInputRef.current).focusAll();
+            } else {
+                focusCell("Title");
+            }
         },
 
         focusTitleCoord: (coord: number, side: "top" | "bottom") => {
-            assertExists(titleInputRef.current).focusCoord(coord, side);
+            if (hasEditAccessLevel) {
+                assertExists(titleInputRef.current).focusCoord(coord, side);
+            } else {
+                focusCell("Title");
+            }
         },
 
         focusTitleSelection: (selection: Selection) => {
-            assertExists(titleInputRef.current).focusSelection(selection);
+            if (hasEditAccessLevel) {
+                assertExists(titleInputRef.current).focusSelection(selection);
+            } else {
+                focusCell("Title");
+            }
         },
 
         // TODO(calebmer): `focusCell()` is a bit of a misnomer considering this also
@@ -587,6 +651,20 @@ function TaskRowView(
                     if (!capabilities.hasColumns) {
                         assertExists(titleInputRef.current).focusAll();
                     } else {
+                        // I'm finding that if there's a selection when we focus the title element the
+                        // selection sometimes isn't cleared. This fixes that issue.
+                        //
+                        // Two reproductions for this issue:
+                        //
+                        // 1. Try selecting all the text in a row title then hitting escape.
+                        // 2. Try selecting all the text in an editable row title when you have a
+                        //    non-editable row right above it. Hit the up arrow. The above row title's
+                        //    cell should be focused (but not the contents since the row above isn't
+                        //    editable).
+                        //
+                        // In both cases, I'm seeing the original selection still rendered in Chrome.
+                        window.getSelection()?.empty();
+
                         assertExists(titleCellRef.current).focus();
                     }
                     return;
@@ -627,6 +705,11 @@ function TaskRowView(
         },
 
         focusCellInput: (column: TaskGridViewColumn) => {
+            if (!hasEditAccessLevel) {
+                focusCell(column);
+                return;
+            }
+
             // Noop if the column isn't rendered. This means it should be safe for us to
             // assert that the ref for our column exists since it shouldn't be included in
             // `columns` unless it's rendered.
@@ -817,6 +900,16 @@ function TaskRowView(
 
                     if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         focusFirstVisibleTaskCell(column);
+                    } else if (column === "Title") {
+                        // This matters in a view with both editable task rows and non-editable task
+                        // rows. If you start pressing `ArrowUp`/`ArrowDown` in an editable task row,
+                        // move to a non-editable task row, then move to another editable task row then
+                        // we want to preserve the arrow navigation coord across the non-editable task
+                        // row even though it's not used.
+                        //
+                        // By passing null, if there's an arrow navigation coord then we'll use it.
+                        // Otherwise we call `focusPreviousTaskCell("Title")`.
+                        focusPreviousTaskTitleCoord(null);
                     } else {
                         focusPreviousTaskCell(column);
                     }
@@ -845,6 +938,16 @@ function TaskRowView(
 
                     if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         focusLastVisibleTaskCell(column);
+                    } else if (column === "Title") {
+                        // This matters in a view with both editable task rows and non-editable task
+                        // rows. If you start pressing `ArrowUp`/`ArrowDown` in an editable task row,
+                        // move to a non-editable task row, then move to another editable task row then
+                        // we want to preserve the arrow navigation coord across the non-editable task
+                        // row even though it's not used.
+                        //
+                        // By passing null, if there's an arrow navigation coord then we'll use it.
+                        // Otherwise we call `focusNextTaskCell("Title")`.
+                        focusNextTaskTitleCoord(null);
                     } else {
                         focusNextTaskCell(column);
                     }
@@ -946,7 +1049,12 @@ function TaskRowView(
                     event.preventDefault();
                     event.stopPropagation();
 
-                    focusCellInput(column);
+                    // Navigating between cells changes the interaction modality to keyboard.
+                    setInteractionModality("keyboard");
+
+                    if (hasEditAccessLevel) {
+                        focusCellInput(column);
+                    }
                     break;
                 }
             }
@@ -1082,7 +1190,7 @@ function TaskRowView(
             ]);
         }
 
-        if (!capabilities.isReadOnly) {
+        if (hasEditAccessLevel) {
             if (task) {
                 contextMenuActions.push(
                     getTaskStatusMenuActions({
@@ -1330,7 +1438,7 @@ function TaskRowView(
         );
 
     const marginRightOutOfBoundsClickSelectionProps = useOutOfBoundsClickSelection({
-        isDisabled: capabilities.isReadOnly,
+        isDisabled: !hasEditAccessLevel,
         onSelect: focusTitleEnd,
         onSelectAll: focusTitleAll,
     });
@@ -1372,11 +1480,11 @@ function TaskRowView(
                     //
                     // This is an affordance for mouse users, does not need to be usable
                     // by keyboard.
-                    !capabilities.isReadOnly && tasksStyles.textCursorNotInheritedClassName,
+                    hasEditAccessLevel && tasksStyles.textCursorNotInheritedClassName,
                 )}
                 style={{width: marginLeft}}
                 {...useOutOfBoundsClickSelection({
-                    isDisabled: capabilities.isReadOnly,
+                    isDisabled: !hasEditAccessLevel,
                     onSelect: focusTitleStart,
                     onSelectAll: focusTitleAll,
                 })}
@@ -1476,7 +1584,7 @@ function TaskRowView(
                                 // navigation.
                                 isFocusable={true}
                                 isTabbable={false}
-                                isDisabled={capabilities.isReadOnly}
+                                isDisabledButStillFocusable={!hasEditAccessLevel}
                                 onKeyDown={event => handleCellKeyDown("StatusButton", event)}
                                 onKeyDownCapture={event =>
                                     handleCellKeyDownCapture("StatusButton", event)
@@ -1508,11 +1616,7 @@ function TaskRowView(
                     </div>
                 )}
             </div>
-            <FocusRing
-                isVisibleFromAnyFocus={!capabilities.isReadOnly}
-                offset="0"
-                insetTop="border"
-            >
+            <FocusRing isVisibleFromAnyFocus={capabilities.hasColumns} offset="0" insetTop="border">
                 <div
                     ref={titleCellRef}
                     data-testid={
@@ -1528,7 +1632,7 @@ function TaskRowView(
                                     event.preventDefault();
                                     event.stopPropagation();
 
-                                    if (!capabilities.isReadOnly) {
+                                    if (hasEditAccessLevel) {
                                         const titleInput = assertExists(titleInputRef.current);
 
                                         if (titleInput.isEmpty()) {
@@ -1551,6 +1655,7 @@ function TaskRowView(
                     <TaskRowTitleInput
                         ref={titleInputRef}
                         capabilities={capabilities}
+                        hasEditAccessLevel={hasEditAccessLevel}
                         maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
                         stateKey={stateKey}
                         query={query}
@@ -1582,8 +1687,9 @@ function TaskRowView(
                         }
                         focusFirstVisibleTaskTitleStart={focusFirstVisibleTaskTitleStart}
                         focusLastVisibleTaskTitleEnd={focusLastVisibleTaskTitleEnd}
-                        focusNextCell={() => focusNextCell("Title")}
-                        focusPreviousCell={() => focusPreviousCell("Title")}
+                        focusCell={focusCell}
+                        focusNextCell={focusNextCell}
+                        focusPreviousCell={focusPreviousCell}
                         pushUndoStackYDocEntry={pushUndoStackYDocEntry}
                         pushUndoStackYDocEntryFromRedo={pushUndoStackYDocEntryFromRedo}
                         pushRedoStackYDocEntry={pushRedoStackYDocEntry}
@@ -1594,7 +1700,7 @@ function TaskRowView(
                 <>
                     <TaskRowAssigneeCell
                         ref={assigneeCellRef}
-                        isReadOnly={capabilities.isReadOnly}
+                        isReadOnly={!hasEditAccessLevel}
                         store={query.store}
                         task={task}
                         disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
@@ -1607,7 +1713,7 @@ function TaskRowView(
                     />
                     <TaskRowPriorityCell
                         ref={priorityCellRef}
-                        isReadOnly={capabilities.isReadOnly}
+                        isReadOnly={!hasEditAccessLevel}
                         store={query.store}
                         task={task}
                         disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
@@ -1619,7 +1725,7 @@ function TaskRowView(
                     />
                     <TaskRowDueDateCell
                         ref={dueDateCellRef}
-                        isReadOnly={capabilities.isReadOnly}
+                        isReadOnly={!hasEditAccessLevel}
                         store={query.store}
                         task={task}
                         disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
@@ -1631,7 +1737,7 @@ function TaskRowView(
                     />
                     <TaskRowCollectionsCell
                         ref={collectionsCellRef}
-                        isReadOnly={capabilities.isReadOnly}
+                        isReadOnly={!hasEditAccessLevel}
                         query={query}
                         undoManager={undoManager}
                         affinityManager={affinityManager}
@@ -1655,7 +1761,7 @@ function TaskRowView(
                     // by keyboard.
                     cursor: capabilities.hasColumns
                         ? undefined
-                        : !capabilities.isReadOnly
+                        : hasEditAccessLevel
                         ? "text"
                         : undefined,
                     pointerEvents: capabilities.hasColumns ? "none" : undefined,
@@ -1701,7 +1807,7 @@ function TaskRowView(
                             // However, if tasks with many children are common this component may slow
                             // us down.
                             ref={denseFieldsRef}
-                            isReadOnly={capabilities.isReadOnly}
+                            isReadOnly={!hasEditAccessLevel}
                             store={query.store}
                             task={task}
                             marginLeft={marginLeft}
@@ -1717,7 +1823,7 @@ function TaskRowView(
             </ContextMenuActions>
             {withPaddingBottom && (
                 <TaskRowViewPaddingBottom
-                    capabilities={capabilities}
+                    hasEditAccessLevel={hasEditAccessLevel}
                     focusTitleEnd={focusTitleEnd}
                     focusTitleAll={focusTitleAll}
                 />
@@ -1909,11 +2015,11 @@ function TaskRowViewDragAfterLongTouchController({
 }
 
 function TaskRowViewPaddingBottom({
-    capabilities,
+    hasEditAccessLevel,
     focusTitleEnd,
     focusTitleAll,
 }: {
-    capabilities: TaskGridViewCapabilities;
+    hasEditAccessLevel: boolean;
     focusTitleEnd: () => void;
     focusTitleAll: () => void;
 }) {
@@ -1923,14 +2029,14 @@ function TaskRowViewPaddingBottom({
         <div
             className={paddingBottomClassName}
             style={{
-                cursor: !capabilities.isReadOnly ? "text" : undefined,
+                cursor: hasEditAccessLevel ? "text" : undefined,
                 height:
                     platform === "mobile"
                         ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[paddingBottomHeight]})`
                         : undefined,
             }}
             {...useOutOfBoundsClickSelection({
-                isDisabled: capabilities.isReadOnly,
+                isDisabled: !hasEditAccessLevel,
                 onSelect: focusTitleEnd,
                 onSelectAll: focusTitleAll,
             })}
