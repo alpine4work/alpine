@@ -2077,15 +2077,7 @@ class TaskActionTransactionCommitState {
         );
 
         if (!hasAccess) {
-            throw new PermissionDeniedError(
-                quote`Actor doesn't have ${expectedAccessLevel} access level to task`,
-                {
-                    displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
-                        taskItem,
-                        expectedAccessLevel,
-                    ),
-                },
-            );
+            throw createTaskItemPermissionDeniedErrorMessage(taskItem, expectedAccessLevel);
         }
     }
 
@@ -2106,15 +2098,7 @@ class TaskActionTransactionCommitState {
         );
 
         if (!hasAccess) {
-            throw new PermissionDeniedError(
-                quote`Actor doesn't have ${expectedAccessLevel} access level to task`,
-                {
-                    displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
-                        taskItem,
-                        expectedAccessLevel,
-                    ),
-                },
-            );
+            throw createTaskItemPermissionDeniedErrorMessage(taskItem, expectedAccessLevel);
         }
     }
 }
@@ -3946,14 +3930,9 @@ export async function authorizeTaskAccess(
             );
 
             if (!hasAccess) {
-                throw new PermissionDeniedError(
-                    quote`Actor doesn't have ${expectedAccessLevel} access level to task`,
-                    {
-                        displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
-                            await getTaskItemForAuthorization(context, taskId, loaders),
-                            expectedAccessLevel,
-                        ),
-                    },
+                throw createTaskItemPermissionDeniedErrorMessage(
+                    await getTaskItemForAuthorization(context, taskId, loaders),
+                    expectedAccessLevel,
                 );
             }
 
@@ -4041,15 +4020,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
             );
 
             if (!hasAccess) {
-                throw new PermissionDeniedError(
-                    quote`Actor doesn't have ${expectedAccessLevel} access level to task`,
-                    {
-                        displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
-                            taskItem,
-                            expectedAccessLevel,
-                        ),
-                    },
-                );
+                throw createTaskItemPermissionDeniedErrorMessage(taskItem, expectedAccessLevel);
             }
 
             return {
@@ -4155,15 +4126,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
             ]);
 
             if (!hasAccess) {
-                throw new PermissionDeniedError(
-                    quote`Actor doesn't have ${expectedAccessLevel} access level to task`,
-                    {
-                        displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
-                            item,
-                            expectedAccessLevel,
-                        ),
-                    },
-                );
+                throw createTaskItemPermissionDeniedErrorMessage(item, expectedAccessLevel);
             }
 
             return value;
@@ -4209,15 +4172,7 @@ async function authorizeTaskItemAccess(
     );
 
     if (!hasAccess) {
-        throw new PermissionDeniedError(
-            quote`Actor doesn't have ${expectedAccessLevel} access level to task`,
-            {
-                displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
-                    taskItem,
-                    expectedAccessLevel,
-                ),
-            },
-        );
+        throw createTaskItemPermissionDeniedErrorMessage(taskItem, expectedAccessLevel);
     }
 }
 
@@ -5368,22 +5323,31 @@ async function queryTaskCommentChangeLogAssumingAuthorizedTask(
     return {type: "Available", changes};
 }
 
-function getTaskItemPermissionDeniedErrorDisplayMessage(
+function createTaskItemPermissionDeniedErrorMessage(
     taskItem: TaskEssentialAttributesItemBase,
     expectedAccessLevel: AccessLevel,
 ) {
+    let displayMessage;
+
     // If the user can't view a deleted task it's because they don't have view
     // access. If a task is deleted, you can still view it but you can't edit it.
     if (taskItem.deletedTime && hasAccessLevel(expectedAccessLevel, "Edit")) {
         // TODO(calebmer): In the future we should have some kind of task trash
         // feature. When we add trash we should direct the user to restore tasks from
         // their trash in the "hint" part of the error message.
-        return errorDisplayMessage`This task was deleted.`;
+        displayMessage = errorDisplayMessage`This task was deleted.`;
     }
 
-    return taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
-        expectedAccessLevel
-    ];
+    displayMessage =
+        taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[expectedAccessLevel];
+
+    return new PermissionDeniedError(
+        quote`Actor doesn't have ${expectedAccessLevel} access level to task`,
+        {
+            aggregateDedupeKey: taskItem.taskId,
+            displayMessage,
+        },
+    );
 }
 
 function getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
@@ -5868,14 +5832,9 @@ export function updateTaskNotesContent(
                     );
 
                     if (!hasAccess) {
-                        throw new PermissionDeniedError(
-                            quote`Actor doesn't have ${expectedAccessLevel} access level to task`,
-                            {
-                                displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
-                                    taskItem,
-                                    expectedAccessLevel,
-                                ),
-                            },
+                        throw createTaskItemPermissionDeniedErrorMessage(
+                            taskItem,
+                            expectedAccessLevel,
                         );
                     }
 
