@@ -95,6 +95,7 @@ export class DocumentCollaborationContentManager {
         context: WorkerProcessContext,
         event: DocumentCollaborationEvent,
     ) => void;
+    private readonly _resetAllAuthorizationTimers: (context: WorkerProcessContext) => void;
     private readonly _killProcess: (context: WorkerProcessContext) => void;
 
     private _state: MutexValue<{
@@ -161,6 +162,7 @@ export class DocumentCollaborationContentManager {
         initialVersion,
         initialContent,
         sendEventToAll,
+        resetAllAuthorizationTimers,
         killProcess,
     }: {
         spaceId: SpaceId;
@@ -168,6 +170,7 @@ export class DocumentCollaborationContentManager {
         initialVersion: number;
         initialContent: DocumentContent;
         sendEventToAll: (context: WorkerProcessContext, event: DocumentCollaborationEvent) => void;
+        resetAllAuthorizationTimers: (context: WorkerProcessContext) => void;
         killProcess: (context: WorkerProcessContext) => void;
     }) {
         this.spaceId = spaceId;
@@ -179,6 +182,7 @@ export class DocumentCollaborationContentManager {
         this._persistedVersion = initialVersion;
         this.stepCache = new DocumentCollaborationStepCache(id, initialVersion);
         this._sendEventToAll = sendEventToAll;
+        this._resetAllAuthorizationTimers = resetAllAuthorizationTimers;
         this._killProcess = killProcess;
     }
 
@@ -454,6 +458,9 @@ export class DocumentCollaborationContentManager {
                                     this.id,
                                 );
 
+                                const intentionallyUpdateAccessPolicy =
+                                    nextIntentionallyUpdateAccessPolicyRef.current ?? undefined;
+
                                 const {conflictingSteps, updatedCommentThreads} =
                                     await updateDocumentContent(context, {
                                         documentId: this.id,
@@ -461,9 +468,7 @@ export class DocumentCollaborationContentManager {
                                         steps: nextSteps,
                                         clientId: update.clientId,
                                         createCommentThreads: nextCreateCommentThreads,
-                                        intentionallyUpdateAccessPolicy:
-                                            nextIntentionallyUpdateAccessPolicyRef.current ??
-                                            undefined,
+                                        intentionallyUpdateAccessPolicy,
                                         resolveCommentThreadIds: nextResolveCommentThreadIds,
                                         unresolveCommentThreadIds: nextUnresolveCommentThreadIds,
                                     });
@@ -494,6 +499,10 @@ export class DocumentCollaborationContentManager {
                                     this._optimisticCommentThreadById.delete(commentThreadId);
                                     optimisticCommentThread.persistedPromiseResolver.resolve();
                                 }
+
+                                // Immediately reauthorize all connections after the access policy changes.
+                                if (intentionallyUpdateAccessPolicy)
+                                    this._resetAllAuthorizationTimers(context);
 
                                 this._sendEventToAll(context, {
                                     type: "PersistedContent",

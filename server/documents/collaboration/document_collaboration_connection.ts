@@ -85,6 +85,7 @@ export class DocumentCollaborationConnection {
         message: DocumentCollaborationEvent,
     ) => void;
     private readonly _iterateOtherConnections: () => Iterable<DocumentCollaborationConnection>;
+    public readonly resetAuthorizationTimer: (context: WorkerProcessContext) => void;
     private readonly _killProcess: (context: WorkerProcessContext) => void;
 
     private _state = new MutexValue<{
@@ -100,6 +101,7 @@ export class DocumentCollaborationConnection {
         sendEvent,
         sendEventToOthers,
         iterateOtherConnections,
+        resetAuthorizationTimer,
         killProcess,
     }: {
         withoutComments: boolean;
@@ -111,6 +113,7 @@ export class DocumentCollaborationConnection {
             message: DocumentCollaborationEvent,
         ) => void;
         iterateOtherConnections: () => Iterable<DocumentCollaborationConnection>;
+        resetAuthorizationTimer: (context: WorkerProcessContext) => void;
         killProcess: (context: WorkerProcessContext) => void;
     }) {
         this.withoutComments = withoutComments;
@@ -119,6 +122,7 @@ export class DocumentCollaborationConnection {
         this._sendEvent = sendEvent;
         this._sendEventToOthers = sendEventToOthers;
         this._iterateOtherConnections = iterateOtherConnections;
+        this.resetAuthorizationTimer = resetAuthorizationTimer;
         this._killProcess = killProcess;
     }
 

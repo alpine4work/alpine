@@ -108,6 +108,14 @@ class DocumentCollaborationDurableObject {
             initialVersion,
             initialContent,
             killProcess: context => this._destroy(context),
+            resetAllAuthorizationTimers: context => {
+                for (const connection of concatIterables(
+                    this._webSocketServer.iterateAllConnections(),
+                    this._webSocketServerWithoutComments.iterateAllConnections(),
+                )) {
+                    connection.resetAuthorizationTimer(context);
+                }
+            },
             sendEventToAll: this._sendEventToAll.bind(this),
         });
         this._destroyCallback = destroy;
@@ -120,7 +128,13 @@ class DocumentCollaborationDurableObject {
         >(
             this._processContext,
             DocumentCollaborationProtocol,
-            ({connectionId, sendEvent, sendEventToOthers, iterateOtherConnections}) => {
+            ({
+                connectionId,
+                sendEvent,
+                sendEventToOthers,
+                iterateOtherConnections,
+                resetAuthorizationTimer,
+            }) => {
                 return new DocumentCollaborationConnection({
                     withoutComments: false,
                     connectionId,
@@ -146,6 +160,7 @@ class DocumentCollaborationDurableObject {
                             iterateOtherConnections(),
                             this._webSocketServerWithoutComments.iterateAllConnections(),
                         ),
+                    resetAuthorizationTimer,
                     killProcess: context => this._destroy(context),
                 });
             },
@@ -159,7 +174,13 @@ class DocumentCollaborationDurableObject {
         >(
             this._processContext,
             DocumentCollaborationProtocol,
-            ({connectionId, sendEvent, sendEventToOthers, iterateOtherConnections}) => {
+            ({
+                connectionId,
+                sendEvent,
+                sendEventToOthers,
+                iterateOtherConnections,
+                resetAuthorizationTimer,
+            }) => {
                 return new DocumentCollaborationConnection({
                     withoutComments: true,
                     connectionId,
@@ -174,6 +195,7 @@ class DocumentCollaborationDurableObject {
                             this._webSocketServer.iterateAllConnections(),
                             iterateOtherConnections(),
                         ),
+                    resetAuthorizationTimer,
                     killProcess: context => this._destroy(context),
                 });
             },
