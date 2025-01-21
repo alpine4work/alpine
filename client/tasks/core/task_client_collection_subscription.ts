@@ -18,7 +18,7 @@ export class TaskClientCollectionSubscription {
     private readonly _store: TaskClientStoreInternal;
     public readonly store: TaskClientStore;
     public readonly collectionId: TaskCollectionId;
-    private readonly _collectionEntryStore: Store<TaskClientStoreCollectionEntry>;
+    private readonly _collectionEntryStoreWithoutError: Store<TaskClientStoreCollectionEntry>;
 
     private readonly _errorStateStore = new ValueStore<
         {hasError: false} | {hasError: true; error: unknown}
@@ -42,10 +42,10 @@ export class TaskClientCollectionSubscription {
         this._store = store;
         this.store = store.external;
         this.collectionId = collectionId;
-        this._collectionEntryStore = collectionEntryStore;
+        this._collectionEntryStoreWithoutError = collectionEntryStore;
 
         this.collectionEntryStore = Store.map(
-            this._collectionEntryStore,
+            this._collectionEntryStoreWithoutError,
             this._errorStateStore,
             (collectionEntry, errorState) => {
                 if (errorState.hasError) throw errorState.error;

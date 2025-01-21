@@ -160,50 +160,88 @@ export class TaskRealtimeConnection {
     }
 
     public async authorize(context: ServerSessionActionContext) {
-        const [eventBuilder] = await runAllPromises([
-            // 1. Reauthorize the referenced tasks within a query subscription:
-            this._dangerouslyEscalateToSystemContext(context, this.spaceId, context =>
-                this._authorizeReferencedTasksAndCollections(context),
-            ),
-
-            // 2. Authorize that we still have access to the space:
+        await runAllPromises([
+            // 1. Authorize that we still have access to the space:
             authorizeSpaceAccess(context, this.spaceId),
 
-            // 3. Authorize that we still have access to each query subscription:
+            // 2. Authorize that we still have access to each query subscription:
             runAllPromises(
-                Array.from(this._querySubscriptionById.values(), querySubscription =>
-                    this._server.authorizeQueryAccess(context, {
-                        spaceId: this.spaceId,
-                        filters: querySubscription.getFilters(),
-                        sorts: querySubscription.getSorts(),
-                    }),
-                ),
+                Array.from(this._querySubscriptionById, async ([id, querySubscription]) => {
+                    try {
+                        await this._server.authorizeQueryAccess(context, {
+                            spaceId: this.spaceId,
+                            filters: querySubscription.getFilters(),
+                            sorts: querySubscription.getSorts(),
+                        });
+                    } catch (error) {
+                        await this._unsubscribeFromQuery(context, id);
+
+                        this.sendEvent(context, {
+                            type: "QuerySubscriptionError",
+                            id,
+                            error,
+                        });
+                    }
+                }),
             ),
 
-            // 4. Authorize that we still have access to each task subscription:
+            // 3. Authorize that we still have access to each task subscription:
             runAllPromises(
-                Array.from(this._taskSubscriptionById.values(), taskSubscription =>
-                    this._server.authorizeTaskAccess(
-                        context,
-                        this.spaceId,
-                        taskSubscription.getTaskId(),
-                        "View",
-                    ),
-                ),
+                Array.from(this._taskSubscriptionById, async ([id, taskSubscription]) => {
+                    try {
+                        await this._server.authorizeTaskAccess(
+                            context,
+                            this.spaceId,
+                            taskSubscription.getTaskId(),
+                            "View",
+                        );
+                    } catch (error) {
+                        await this._unsubscribeFromTask(context, id);
+
+                        this.sendEvent(context, {
+                            type: "TaskSubscriptionError",
+                            id,
+                            error,
+                        });
+                    }
+                }),
             ),
 
-            // 5. Authorize that we still have access to each collection subscription:
+            // 4. Authorize that we still have access to each collection subscription:
             runAllPromises(
-                Array.from(this._collectionSubscriptionById.values(), collectionSubscription =>
-                    this._server.authorizeCollectionAccess(
-                        context,
-                        this.spaceId,
-                        collectionSubscription.getCollectionId(),
-                        "View",
-                    ),
+                Array.from(
+                    this._collectionSubscriptionById,
+                    async ([id, collectionSubscription]) => {
+                        try {
+                            await this._server.authorizeCollectionAccess(
+                                context,
+                                this.spaceId,
+                                collectionSubscription.getCollectionId(),
+                                "View",
+                            );
+                        } catch (error) {
+                            await this._unsubscribeFromCollection(id);
+
+                            this.sendEvent(context, {
+                                type: "CollectionSubscriptionError",
+                                id,
+                                error,
+                            });
+                        }
+                    },
                 ),
             ),
         ]);
+
+        // 5. Reauthorize the referenced tasks within a query subscription.
+        //
+        // This happens after authorizing subscriptions in case we need to unsubscribe
+        // any of our subscriptions first.
+        const eventBuilder = await this._dangerouslyEscalateToSystemContext(
+            context,
+            this.spaceId,
+            context => this._authorizeReferencedTasksAndCollections(context),
+        );
 
         // If authorization changed then we'll have a realtime event to send.
         const event = await eventBuilder.finishAndBuildEvent(context);
@@ -448,7 +486,11 @@ export class TaskRealtimeConnection {
         querySubscriptionId: TaskRealtimeQuerySubscriptionId,
     ) {
         const querySubscription = this._querySubscriptionById.get(querySubscriptionId);
-        if (!querySubscription) throw new NotFoundError("Query subscription not found");
+
+        // Noop if we've already unsubscribed. If authorization for a subscription
+        // fails then we immediately unsubscribe but the client may continue to think
+        // it's subscribed.
+        if (!querySubscription) return;
 
         this._querySubscriptionById.delete(querySubscriptionId);
 
@@ -495,7 +537,11 @@ export class TaskRealtimeConnection {
         taskSubscriptionId: TaskRealtimeTaskSubscriptionId,
     ) {
         const taskSubscription = this._taskSubscriptionById.get(taskSubscriptionId);
-        if (!taskSubscription) throw new NotFoundError("Task subscription not found");
+
+        // Noop if we've already unsubscribed. If authorization for a subscription
+        // fails then we immediately unsubscribe but the client may continue to think
+        // it's subscribed.
+        if (!taskSubscription) return;
 
         this._taskSubscriptionById.delete(taskSubscriptionId);
 
@@ -553,7 +599,11 @@ export class TaskRealtimeConnection {
     ) {
         const collectionSubscription =
             this._collectionSubscriptionById.get(collectionSubscriptionId);
-        if (!collectionSubscription) throw new NotFoundError("Collection subscription not found");
+
+        // Noop if we've already unsubscribed. If authorization for a subscription
+        // fails then we immediately unsubscribe but the client may continue to think
+        // it's subscribed.
+        if (!collectionSubscription) return;
 
         this._collectionSubscriptionById.delete(collectionSubscriptionId);
 

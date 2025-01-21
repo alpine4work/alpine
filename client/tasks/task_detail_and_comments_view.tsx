@@ -29,12 +29,14 @@ import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
 import {hasAccessLevel} from "~/shared/access/access_policy.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
+import {taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/tasks/task_error_messages.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 
@@ -90,6 +92,12 @@ export function TaskDetailAndCommentsView({
             [currentAccount?.id, taskSubscription],
         ),
     );
+
+    if (taskAccess.level === null) {
+        throw new PermissionDeniedError("Current account lost access to task", {
+            displayMessage: taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
+        });
+    }
 
     const hasCommentAccessLevel = useMemo(
         () => hasAccessLevel(taskAccess.level, "Comment"),

@@ -138,7 +138,10 @@ import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {printTaskCollectionSearchResultBodyTextSnippet} from "~/shared/tasks/print_task_collection_search_result_body_text_snippet.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
-import {taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/tasks/task_error_messages.js";
+import {
+    taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
+    taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
+} from "~/shared/tasks/task_error_messages.js";
 import {
     TaskGridViewExpansionState,
     TaskGridViewExpansionStateSchema,
@@ -5339,7 +5342,7 @@ function createTaskItemPermissionDeniedErrorMessage(
     }
 
     displayMessage =
-        taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[expectedAccessLevel];
+        taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[expectedAccessLevel];
 
     return new PermissionDeniedError(
         quote`Actor doesn't have ${expectedAccessLevel} access level to task`,

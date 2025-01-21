@@ -18,7 +18,7 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
     public readonly store: TaskClientStore;
     private readonly _store: TaskClientStoreInternal;
     public readonly taskId: TaskId;
-    private readonly _taskEntryStore: Store<TaskClientStoreTaskEntry>;
+    private readonly _taskEntryStoreWithoutError: Store<TaskClientStoreTaskEntry>;
 
     private readonly _errorStateStore = new ValueStore<
         {hasError: false} | {hasError: true; error: unknown}
@@ -43,10 +43,10 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
         this.store = store.external;
         this._store = store;
         this.taskId = taskId;
-        this._taskEntryStore = taskEntryStore;
+        this._taskEntryStoreWithoutError = taskEntryStore;
 
         this.taskEntryStore = Store.map(
-            this._taskEntryStore,
+            this._taskEntryStoreWithoutError,
             this._errorStateStore,
             (taskEntry, errorState) => {
                 if (errorState.hasError) throw errorState.error;
@@ -55,7 +55,7 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
         );
 
         // Add dependencies...
-        this._trackTaskDependenciesFromAdd(taskEntryStore.getSnapshot());
+        this._trackTaskDependenciesFromAdd(this._taskEntryStoreWithoutError.getSnapshot());
     }
 
     protected override _getStore() {
@@ -106,7 +106,10 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
         assert(internal instanceof TaskClientStoreInternal);
 
         // Remove dependencies...
-        this._trackTaskDependenciesFromRemove(this.taskEntryStore.getSnapshot());
+        //
+        // It's important that we use `taskEntryStoreWithoutError` instead of
+        // `taskEntryStore` so unsubscribing due to an error doesn't break.
+        this._trackTaskDependenciesFromRemove(this._taskEntryStoreWithoutError.getSnapshot());
 
         // Should have been cleared by removing all our loaded tasks.
         assert(this._referencedTaskEntryStoreById.size === 0);

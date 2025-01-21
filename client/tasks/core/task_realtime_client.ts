@@ -8,8 +8,10 @@ import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_s
 import {WebSocketClient, WebSocketClientState} from "~/client/web_socket/web_socket_client.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
@@ -126,16 +128,16 @@ export class TaskRealtimeClient {
 
         const subscribedQueries = new Set<{
             query: TaskClientQuery;
-            querySubscriptionIdPromise: Promise<TaskRealtimeQuerySubscriptionId>;
+            querySubscriptionIdPromise: PromiseImmediate<TaskRealtimeQuerySubscriptionId>;
             unsubscribeFromLoadMoreTaskCount: () => void;
         }>();
         const subscribedTasks = new Set<{
             taskSubscription: TaskClientTaskSubscription;
-            taskSubscriptionIdPromise: Promise<TaskRealtimeTaskSubscriptionId>;
+            taskSubscriptionIdPromise: PromiseImmediate<TaskRealtimeTaskSubscriptionId>;
         }>();
         const subscribedCollections = new Set<{
             collectionSubscription: TaskClientCollectionSubscription;
-            collectionSubscriptionIdPromise: Promise<TaskRealtimeCollectionSubscriptionId>;
+            collectionSubscriptionIdPromise: PromiseImmediate<TaskRealtimeCollectionSubscriptionId>;
         }>();
 
         const clearSubscriptions = (
@@ -204,7 +206,44 @@ export class TaskRealtimeClient {
         });
 
         const unsubscribeFromEvents = this._client.subscribeToEvents(event => {
-            this.store.applyUpdateEvent(event);
+            switch (event.type) {
+                case "Update": {
+                    this.store.applyUpdateEvent(event);
+                    break;
+                }
+                case "QuerySubscriptionError": {
+                    for (const subscription of subscribedQueries) {
+                        if (subscription.querySubscriptionIdPromise.getIfAvailable() === event.id) {
+                            subscription.query.setError(event.error);
+                        }
+                    }
+                    break;
+                }
+                // NOCOMMIT: Test losing access to task in realtime. Ideally we open a
+                // collection the account has access to and a task they don't have access to
+                // and we unshare the task.
+                case "TaskSubscriptionError": {
+                    for (const subscription of subscribedTasks) {
+                        if (subscription.taskSubscriptionIdPromise.getIfAvailable() === event.id) {
+                            subscription.taskSubscription.setError(event.error);
+                        }
+                    }
+                    break;
+                }
+                case "CollectionSubscriptionError": {
+                    for (const subscription of subscribedCollections) {
+                        if (
+                            subscription.collectionSubscriptionIdPromise.getIfAvailable() ===
+                            event.id
+                        ) {
+                            subscription.collectionSubscription.setError(event.error);
+                        }
+                    }
+                    break;
+                }
+                default:
+                    throw exhaustive(event);
+            }
         });
 
         const updateSubscribedQueries = () => {
@@ -239,16 +278,16 @@ export class TaskRealtimeClient {
 
             const oldSubscribedQueries = new Set<{
                 query: TaskClientQuery;
-                querySubscriptionIdPromise: Promise<TaskRealtimeQuerySubscriptionId>;
+                querySubscriptionIdPromise: PromiseImmediate<TaskRealtimeQuerySubscriptionId>;
                 unsubscribeFromLoadMoreTaskCount: () => void;
             }>();
             const oldSubscribedTasks = new Set<{
                 taskSubscription: TaskClientTaskSubscription;
-                taskSubscriptionIdPromise: Promise<TaskRealtimeTaskSubscriptionId>;
+                taskSubscriptionIdPromise: PromiseImmediate<TaskRealtimeTaskSubscriptionId>;
             }>();
             const oldSubscribedCollections = new Set<{
                 collectionSubscription: TaskClientCollectionSubscription;
-                collectionSubscriptionIdPromise: Promise<TaskRealtimeCollectionSubscriptionId>;
+                collectionSubscriptionIdPromise: PromiseImmediate<TaskRealtimeCollectionSubscriptionId>;
             }>();
 
             for (const subscribedQuery of subscribedQueries) {
@@ -405,9 +444,10 @@ export class TaskRealtimeClient {
                                         subscribedQueries.add(
                                             createQuerySubscription({
                                                 query: extraQuery,
-                                                querySubscriptionIdPromise: Promise.resolve(
-                                                    extraQueryResult.querySubscriptionId,
-                                                ),
+                                                querySubscriptionIdPromise:
+                                                    PromiseImmediate.resolve(
+                                                        extraQueryResult.querySubscriptionId,
+                                                    ),
                                             }),
                                         );
 
@@ -465,7 +505,9 @@ export class TaskRealtimeClient {
                     subscribedQueries.add(
                         createQuerySubscription({
                             query,
-                            querySubscriptionIdPromise,
+                            querySubscriptionIdPromise: PromiseImmediate.resolve(
+                                querySubscriptionIdPromise,
+                            ),
                         }),
                     );
                 }
@@ -486,7 +528,8 @@ export class TaskRealtimeClient {
 
                     subscribedTasks.add({
                         taskSubscription: newTaskSubscription,
-                        taskSubscriptionIdPromise,
+                        taskSubscriptionIdPromise:
+                            PromiseImmediate.resolve(taskSubscriptionIdPromise),
                     });
                 }
 
@@ -506,7 +549,9 @@ export class TaskRealtimeClient {
 
                     subscribedCollections.add({
                         collectionSubscription: newCollectionSubscription,
-                        collectionSubscriptionIdPromise,
+                        collectionSubscriptionIdPromise: PromiseImmediate.resolve(
+                            collectionSubscriptionIdPromise,
+                        ),
                     });
                 }
 
@@ -663,17 +708,54 @@ export class TaskRealtimeClient {
                     // If there was an error the server may not have actually unsubscribed us but we
                     // still cleanup our store in case the server partially succeeded.
                     .finally(() => {
-                        for (const {query} of oldSubscribedQueries) {
-                            this.store._onQueryUnsubscribed(query);
-                        }
+                        batchStoreUpdates(() => {
+                            for (const {query} of oldSubscribedQueries) {
+                                try {
+                                    this.store._onQueryUnsubscribed(query);
+                                } catch (error) {
+                                    // It's most likely a bug if our store cleanup fails. Log the error and
+                                    // continue cleaning up.
+                                    this._getContext()
+                                        .tracer.getRoot()
+                                        .logUncaughtException(
+                                            "Task client store cleanup query subscription failed",
+                                            error,
+                                        );
+                                }
+                            }
 
-                        for (const {taskSubscription} of oldSubscribedTasks) {
-                            this.store._onTaskSubscriptionUnsubscribed(taskSubscription);
-                        }
+                            for (const {taskSubscription} of oldSubscribedTasks) {
+                                try {
+                                    this.store._onTaskSubscriptionUnsubscribed(taskSubscription);
+                                } catch (error) {
+                                    // It's most likely a bug if our store cleanup fails. Log the error and
+                                    // continue cleaning up.
+                                    this._getContext()
+                                        .tracer.getRoot()
+                                        .logUncaughtException(
+                                            "Task client store cleanup task subscription failed",
+                                            error,
+                                        );
+                                }
+                            }
 
-                        for (const {collectionSubscription} of oldSubscribedCollections) {
-                            this.store.onCollectionSubscriptionUnsubscribed(collectionSubscription);
-                        }
+                            for (const {collectionSubscription} of oldSubscribedCollections) {
+                                try {
+                                    this.store.onCollectionSubscriptionUnsubscribed(
+                                        collectionSubscription,
+                                    );
+                                } catch (error) {
+                                    // It's most likely a bug if our store cleanup fails. Log the error and
+                                    // continue cleaning up.
+                                    this._getContext()
+                                        .tracer.getRoot()
+                                        .logUncaughtException(
+                                            "Task client store cleanup collection subscription failed",
+                                            error,
+                                        );
+                                }
+                            }
+                        });
                     })
                     .catch(error => {
                         // All of the subscriptions the client has unsubscribed. So we only log an
@@ -704,10 +786,10 @@ export class TaskRealtimeClient {
             querySubscriptionIdPromise,
         }: {
             query: TaskClientQuery;
-            querySubscriptionIdPromise: Promise<TaskRealtimeQuerySubscriptionId>;
+            querySubscriptionIdPromise: PromiseImmediate<TaskRealtimeQuerySubscriptionId>;
         }): {
             query: TaskClientQuery;
-            querySubscriptionIdPromise: Promise<TaskRealtimeQuerySubscriptionId>;
+            querySubscriptionIdPromise: PromiseImmediate<TaskRealtimeQuerySubscriptionId>;
             unsubscribeFromLoadMoreTaskCount: () => void;
         } => {
             const loadMoreTasksMutex = new Mutex();
