@@ -21,7 +21,7 @@ import {
 } from "~/client/styles/core/styles_core.js";
 import {buttonPressedOverlayOpacity} from "~/client/styles/other/internal/button.css.js";
 import * as contentFileVideoPlayerStyles from "~/client/styles/other/internal/content_file_video_player.css.js";
-import {grey5SemiTransparentColorVar} from "~/client/styles/other/internal/grey_5_semi_transparent_color.css.js";
+import {grey5SemiTransparentColorVar} from "~/client/styles/other/internal/grey_semi_transparent_colors.css.js";
 import {
     extrapolateHighlightColor,
     extrapolateHighlightRawColorWithoutBounds,
