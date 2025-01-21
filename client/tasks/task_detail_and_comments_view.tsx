@@ -367,7 +367,7 @@ export function TaskDetailAndCommentsView({
                             : undefined
                     }
                     flexShrink="0"
-                    borderLeft="grey-10"
+                    borderLeft="grey-5"
                     width={taskDetailViewCommentSidebarWidth}
                     height="full"
                     overflow="hidden"

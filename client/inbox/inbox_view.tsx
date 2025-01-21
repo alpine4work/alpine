@@ -244,8 +244,8 @@ export function InboxView({
                     width={inboxEntryWidth}
                     overflow="hidden"
                     backgroundColor="grey-0"
-                    borderLeft="grey-10"
-                    borderRight="grey-10"
+                    borderLeft="grey-5"
+                    borderRight="grey-5"
                 >
                     <InboxViewTopBar filter={filter} />
                     {query.getItemCount() === 0 ? (

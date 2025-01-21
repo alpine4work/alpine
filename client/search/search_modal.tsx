@@ -331,7 +331,7 @@ export function SearchModal({
                         overflow="hidden"
                         display="flex"
                         flexDirection="row"
-                        borderTop="grey-10"
+                        borderTop="grey-5"
                     >
                         {useMemo(
                             () => (
@@ -430,7 +430,7 @@ export function SearchModal({
                                     width={peekMobileLayoutWidth}
                                     height="full"
                                     overflow="hidden"
-                                    borderLeft="grey-10"
+                                    borderLeft="grey-5"
                                 >
                                     {activePeek ? (
                                         <SearchModalPeekContent

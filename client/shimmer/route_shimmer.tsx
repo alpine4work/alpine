@@ -1089,8 +1089,8 @@ function InboxRouteShimmer() {
                     <Box
                         flexShrink="0"
                         width="96"
-                        borderRight="grey-10"
-                        borderLeft="grey-10"
+                        borderRight="grey-5"
+                        borderLeft="grey-5"
                         paddingY="1"
                     >
                         <Box flexShrink="0" height="12" />
@@ -1544,7 +1544,7 @@ function TaskDetailRouteShimmer({searchParams}: {searchParams: URLSearchParams})
                     <Box
                         flexShrink="0"
                         width={taskDetailViewCommentSidebarWidth}
-                        borderLeft="grey-10"
+                        borderLeft="grey-5"
                         overflow="hidden"
                     >
                         <TaskCommentsViewShimmer />

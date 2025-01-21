@@ -1777,7 +1777,7 @@ export function DocumentContentEditor({
                             ref={sidebarRef}
                             width="full"
                             height="full"
-                            borderLeft={routeLayout !== "narrow" ? "grey-10" : undefined}
+                            borderLeft={routeLayout !== "narrow" ? "grey-5" : undefined}
                             backgroundColor="grey-0"
                             borderTopRadius={routeLayout !== "narrow" ? undefined : "3"}
                             boxShadow={
