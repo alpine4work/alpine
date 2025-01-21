@@ -76,7 +76,7 @@ import {
     contentStyles,
     contentViewStyles,
     emojiFontFamily,
-    messagingStyles,
+    grey5SemiTransparentColorVar,
     pulseAnimationWithReducedOpacityClassName,
     sprinkles,
     wiggleAnimation,
@@ -1381,21 +1381,22 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                 }}
             >
                 <div
-                    className={classNames(
+                    className={sprinkles({
+                        pointerEvents: "none",
+                        position: "absolute",
+                        borderLeftWidth: "thick",
+                        borderTopWidth: "thick",
+                        borderTopLeftRadius: "2.5",
+                    })}
+                    style={{
                         // We render the border left/top color as a white with some opacity (which when
                         // blended results in `grey-5`) so that when we render the context menu (right
                         // click) `grey-5` background the border is rendered on top of the background
                         // color.
-                        messagingStyles.parentMessageConnectorClassName,
-                        sprinkles({
-                            pointerEvents: "none",
-                            position: "absolute",
-                            borderLeftWidth: "thick",
-                            borderTopWidth: "thick",
-                            borderTopLeftRadius: "2.5",
-                        }),
-                    )}
-                    style={{
+                        borderLeftColor: grey5SemiTransparentColorVar,
+                        borderTopColor: grey5SemiTransparentColorVar,
+                        borderStyle: "solid",
+
                         top: `calc(${
                             messageViewParentAvatarOffsetYRem +
                             parentMessageAccountAvatarSizeRem / 2

@@ -1,6 +1,5 @@
 import {keyframes, style} from "@vanilla-extract/css";
-import {colorSchemeVars, darkColorSchemeSelector} from "~/client/styles/core/styles_core.js";
-import {fileBorderColor} from "~/client/styles/other/internal/content.css.js";
+import {colorSchemeVars} from "~/client/styles/core/styles_core.js";
 
 const backdropFadeInKeyframes = keyframes({
     "0%": {
@@ -40,16 +39,4 @@ export const backdropFadeInClassName = style({
 
 export const backdropFadeOutClassName = style({
     animation: `${backdropFadeOutKeyframes} ${backdropFadeAnimationDurationMs}ms ease-in both`,
-});
-
-export const parentMessageConnectorClassName = style({
-    borderStyle: "solid",
-    borderLeftColor: fileBorderColor.light,
-    borderTopColor: fileBorderColor.light,
-    selectors: {
-        [`${darkColorSchemeSelector} &`]: {
-            borderLeftColor: fileBorderColor.dark,
-            borderTopColor: fileBorderColor.dark,
-        },
-    },
 });

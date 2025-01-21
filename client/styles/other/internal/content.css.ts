@@ -21,7 +21,7 @@ import {
 } from "~/client/styles/core/styles_core.js";
 import {buttonPressedOverlayOpacity} from "~/client/styles/other/internal/button.css.js";
 import * as contentFileVideoPlayerStyles from "~/client/styles/other/internal/content_file_video_player.css.js";
-import {approximateOpacityForShiftingGreyColor} from "~/client/styles/other/internal/helpers/approximate_opacity_for_shifting_grey_color.js";
+import {grey5SemiTransparentColorVar} from "~/client/styles/other/internal/grey_5_semi_transparent_color.css.js";
 import {
     extrapolateHighlightColor,
     extrapolateHighlightRawColorWithoutBounds,
@@ -1210,37 +1210,6 @@ export const selectionFileClassNameByColor = createObjectFromKeys(themeColors, c
     }),
 );
 
-// The darker the shade, the lower the opacity, the less the border will show
-// up when rendered on top of an image.
-const fileBorderColorShade = "100";
-
-const fileBorderColorOpacity = approximateOpacityForShiftingGreyColor(
-    fileBorderColorShade,
-    "5",
-    "5",
-    "0",
-);
-
-const fileBorderColorWithoutOpacity = {
-    light: Color(colors[`grey-${fileBorderColorShade}`]),
-    dark: Color(invertedColorsWithShade[`grey-${fileBorderColorShade}`]),
-};
-
-export const fileBorderColor = {
-    light: Color.rgb(
-        fileBorderColorWithoutOpacity.light.red(),
-        fileBorderColorWithoutOpacity.light.green(),
-        fileBorderColorWithoutOpacity.light.blue(),
-        fileBorderColorOpacity.light,
-    ).hexa(),
-    dark: Color.rgb(
-        fileBorderColorWithoutOpacity.dark.red(),
-        fileBorderColorWithoutOpacity.dark.green(),
-        fileBorderColorWithoutOpacity.dark.blue(),
-        fileBorderColorOpacity.dark,
-    ).hexa(),
-};
-
 // We add a border around images to prevent images from bleeding into the
 // background. Say you have a screenshot of a web design with an off white
 // background. Rendering that without a border on our pure white background
@@ -1258,12 +1227,8 @@ globalStyle(`${fileClassName}:not(${fileImageViewerClassName})::before`, {
     zIndex: "40",
     position: "absolute",
     inset: "0",
-    boxShadow: `inset 0 0 0 1px ${fileBorderColor.light}`,
+    boxShadow: `inset 0 0 0 1px ${grey5SemiTransparentColorVar}`,
     borderRadius: spacing[fileBorderRadius],
-});
-
-globalStyle(`${darkColorSchemeSelector} ${fileClassName}::before`, {
-    boxShadow: `inset 0 0 0 1px ${fileBorderColor.dark}`,
 });
 
 // Turn off borders for files with a transparent background.
@@ -1310,10 +1275,7 @@ export const pressedFileClassName = style({
         // `grey-0`. So apply a color that should change the background color to
         // `grey-5` on press.
         [`&:not(:has(${fileImagePreviewContentClassName}))::before`]: {
-            backgroundColor: fileBorderColor.light,
-        },
-        [`${darkColorSchemeSelector} &:not(:has(${fileImagePreviewContentClassName}))::before`]: {
-            backgroundColor: fileBorderColor.dark,
+            backgroundColor: grey5SemiTransparentColorVar,
         },
     },
 });

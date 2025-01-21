@@ -19,7 +19,7 @@ import {
     messageViewAccountAvatarSize,
     messageViewRailGap,
 } from "~/client/styles/messaging_shared_styles.js";
-import {contentStyles, sprinkles} from "~/client/styles/styles.js";
+import {contentStyles, grey5SemiTransparentColorVar, sprinkles} from "~/client/styles/styles.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
@@ -74,6 +74,8 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
 
     return (
         <Box
+            position="relative"
+            zIndex="10"
             data-testid="ChatViewTopBar"
             flexShrink="0"
             width="full"
@@ -94,6 +96,9 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
                 paddingBottom={
                     withInboxBanner ? chatViewTopBarWithInboxBannerAdjustmentY[platform] : undefined
                 }
+                style={{
+                    boxShadow: `0 1px 0 0 ${grey5SemiTransparentColorVar}`,
+                }}
             >
                 {platform === "mobile" && (
                     <Box flexShrink="0" paddingLeft="3">
