@@ -2,6 +2,7 @@ import {ArrowLeft, DotsThreeVertical} from "phosphor-react";
 import {ReactNode, Ref, forwardRef, useCallback, useImperativeHandle, useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
+import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
@@ -51,10 +52,10 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         withoutFocusedTextInputDoneButton = false,
         subtitle,
         menuActions = emptyArray,
+        contextMenuActions = emptyArray,
         onMenuStateChange,
         shareButton,
         replaceActions,
-        extraIconButton,
         titleJustifyContent,
         desktopControls,
         desktopMaxWidth: desktopMaxWidthProp,
@@ -71,15 +72,10 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         withoutFocusedTextInputDoneButton?: boolean;
         subtitle?: ReactNode;
         menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+        contextMenuActions?: ReadonlyArray<ReadonlyArray<MenuAction>>;
         onMenuStateChange?: (state: OverlayTriggerButtonState) => void;
         shareButton?: NavigationBarShareButtonProps;
         replaceActions?: ReactNode;
-        extraIconButton?: {
-            icon: ReactNode;
-            pressErrorTitle: string;
-            description: string;
-            onPress: () => Promise<void>;
-        };
         titleJustifyContent?: "center" | "flex-start";
         desktopControls?: ReactNode;
         desktopMaxWidth?: Spacing | RemLength;
@@ -169,11 +165,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     const hasLeftActions: boolean = isMobile && (!!onMobileCancel || !withoutMobileBackButton);
 
     const hasRightActions: boolean =
-        !!replaceActions ||
-        !!shareButton ||
-        isTextInputFocused ||
-        menuActions.length > 0 ||
-        !!extraIconButton;
+        !!replaceActions || !!shareButton || isTextInputFocused || menuActions.length > 0;
 
     return (
         <Box
@@ -189,6 +181,11 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
             style={{
                 maxWidth: !isMobile ? desktopMaxWidth : undefined,
                 margin: !isMobile ? "0 auto" : undefined,
+            }}
+            onContextMenu={event => {
+                if (contextMenuActions !== undefined && contextMenuActions.length > 0) {
+                    addContextMenuActions(event.nativeEvent, contextMenuActions);
+                }
             }}
         >
             <OverlayScopeContextProvider>
@@ -424,46 +421,33 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                         </Button>
                                     </Box>
                                 ) : (
-                                    <>
-                                        {extraIconButton && (
+                                    (menuActions.length > 0 ||
+                                        (shareButton && routeLayout === "narrow")) && (
+                                        <MenuButton
+                                            placement="bottom-end"
+                                            actions={
+                                                shareButton && routeLayout === "narrow"
+                                                    ? addShareMenuItem(reporter, menuActions)
+                                                    : menuActions
+                                            }
+                                            onStateChange={onMenuStateChange}
+                                        >
                                             <IconButton
-                                                description={extraIconButton.description}
                                                 size={isMobile ? "base" : "md"}
-                                                pressErrorTitle={extraIconButton.pressErrorTitle}
+                                                description="More"
                                                 withoutTooltip={true}
-                                                onPress={extraIconButton.onPress}
                                             >
-                                                {extraIconButton.icon}
+                                                <DotsThreeVertical
+                                                // Vertical dots create better visual balance on mobile because:
+                                                //
+                                                // 1. On mobile we have a back button on the left and we want this button to
+                                                //    look aligned with that
+                                                // 2. The title might be truncated with ellipsis which looks like horizontal
+                                                //    dots
+                                                />
                                             </IconButton>
-                                        )}
-                                        {(menuActions.length > 0 ||
-                                            (shareButton && routeLayout === "narrow")) && (
-                                            <MenuButton
-                                                placement="bottom-end"
-                                                actions={
-                                                    shareButton && routeLayout === "narrow"
-                                                        ? addShareMenuItem(reporter, menuActions)
-                                                        : menuActions
-                                                }
-                                                onStateChange={onMenuStateChange}
-                                            >
-                                                <IconButton
-                                                    size={isMobile ? "base" : "md"}
-                                                    description="More"
-                                                    withoutTooltip={true}
-                                                >
-                                                    <DotsThreeVertical
-                                                    // Vertical dots create better visual balance on mobile because:
-                                                    //
-                                                    // 1. On mobile we have a back button on the left and we want this button to
-                                                    //    look aligned with that
-                                                    // 2. The title might be truncated with ellipsis which looks like horizontal
-                                                    //    dots
-                                                    />
-                                                </IconButton>
-                                            </MenuButton>
-                                        )}
-                                    </>
+                                        </MenuButton>
+                                    )
                                 )}
                             </>
                         )}

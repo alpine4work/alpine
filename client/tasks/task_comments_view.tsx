@@ -24,7 +24,7 @@ import {
 } from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 
-type TaskCommentsViewInitialComments = {
+export type TaskCommentsViewInitialComments = {
     commentCount: number;
     lastCommentChangeTime: Date | null;
     comments: ReadonlyArray<TaskCommentModel>;
@@ -36,6 +36,7 @@ export function TaskCommentsView({
     initialScrollToCommentIndex,
     getCommentUrl,
     initialComments: initialCommentsFromProps,
+    onInitialCommentsAvailable,
     scrollViewRef,
     extraChildren,
     scrollbarInsetTop,
@@ -48,6 +49,7 @@ export function TaskCommentsView({
     initialScrollToCommentIndex: number | null;
     getCommentUrl: Memo<(messageIndex: number) => URL>;
     initialComments: TaskCommentsViewInitialComments | null;
+    onInitialCommentsAvailable?: Memo<() => void>;
     scrollViewRef?: Ref<HTMLDivElement>;
     extraChildren?: ReactNode;
     scrollbarInsetTop?: ScrollbarInsetDynamic;
@@ -68,8 +70,15 @@ export function TaskCommentsView({
     const clientInfo = useClientInfo();
 
     const isLoadingInitialCommentsRef = useRef(false);
+    const hasCalledInitialCommentsAvailableRef = useRef(false);
     useEffect(() => {
-        if (initialComments) return;
+        if (initialComments) {
+            if (!hasCalledInitialCommentsAvailableRef.current) {
+                hasCalledInitialCommentsAvailableRef.current = true;
+                onInitialCommentsAvailable?.();
+            }
+            return;
+        }
 
         if (isLoadingInitialCommentsRef.current) return;
         isLoadingInitialCommentsRef.current = true;

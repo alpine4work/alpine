@@ -119,12 +119,16 @@ export function TaskDetailView({
     affinityManager,
     initialChildrenGridViewExpansionState,
     notesClient,
+    showComments,
+    onShowCommentsChange,
 }: {
     taskSubscription: TaskClientTaskSubscription;
     childrenQuery: TaskClientQuery;
     affinityManager: TaskClientStoreSearchAffinityManager;
     initialChildrenGridViewExpansionState: TaskGridViewExpansionState;
     notesClient: TaskDetailNotesContentEditorWebSocketClient;
+    showComments: boolean;
+    onShowCommentsChange: Memo<(showComments: boolean) => void>;
 }) {
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
@@ -560,7 +564,7 @@ export function TaskDetailView({
         [pushUndoStackEntry, taskId],
     );
 
-    const contextMenuActions = useMemo(() => {
+    const {menuActions, contextMenuActions} = useMemo(() => {
         const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
 
         contextMenuActions.push([
@@ -636,7 +640,28 @@ export function TaskDetailView({
             ]);
         }
 
-        return contextMenuActions;
+        const menuActions = [...contextMenuActions];
+
+        menuActions.unshift([
+            {
+                icon: <ChatCircleDots />,
+                iconPlacement: "end",
+                label: "Comments",
+                pressErrorTitle: "Couldn't open comments",
+                onPress: async () => {
+                    if (routeLayout === "narrow") {
+                        await navigate(`/s/${spaceId}/tasks/${taskId}/comments?from=task`);
+                    } else {
+                        onShowCommentsChange(!showComments);
+                    }
+                },
+            },
+        ]);
+
+        return {menuActions, contextMenuActions} as any as {
+            menuActions: Memo<ReadonlyArray<ReadonlyArray<MenuAction>>>;
+            contextMenuActions: Memo<ReadonlyArray<ReadonlyArray<MenuAction>>>;
+        };
     }, [
         affinityManager,
         context,
@@ -648,8 +673,11 @@ export function TaskDetailView({
         hasEditAccessLevel,
         isAppleDevice,
         navigate,
+        onShowCommentsChange,
         priorityInputState.isVisible,
         redoEvent,
+        routeLayout,
+        showComments,
         spaceId,
         store,
         taskEntryStore,
@@ -659,24 +687,12 @@ export function TaskDetailView({
         undoManager,
     ]);
 
-    const openTaskCommentsExtraAction =
-        routeLayout === "narrow"
-            ? {
-                  icon: <ChatCircleDots />,
-                  description: "Open comments",
-                  onPress: async () => {
-                      await navigate(`/s/${spaceId}/tasks/${taskId}/comments?from=task`);
-                  },
-                  pressErrorTitle: "Couldn't open comments",
-              }
-            : undefined;
-
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         title: <TaskDetailViewNavigationBarTitle taskSubscription={taskSubscription} />,
         getTitleBoundaryElement: useCallback(() => assertExists(titleInputElementRef.current), []),
         titleBoundaryMarginTop: spacing["4"],
-        menuActions: contextMenuActions,
-        extraIconButton: openTaskCommentsExtraAction,
+        menuActions,
+        contextMenuActions,
         desktopMaxWidth: contentStyles.contentMaxWidth,
         desktopControls: (
             <TaskDetailViewStatusButton
@@ -694,7 +710,20 @@ export function TaskDetailView({
     return (
         <>
             {childrenGridViewModals}
-            <GlobalKeyDownEvent onGlobalKeyDown={onChildrenGridViewGlobalKeyDown}>
+            <GlobalKeyDownEvent
+                onGlobalKeyDown={event => {
+                    if (event.key === "Escape") {
+                        if (showComments) {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            onShowCommentsChange(false);
+                        }
+                    } else {
+                        onChildrenGridViewGlobalKeyDown(event);
+                    }
+                }}
+            >
                 <VirtualizedScrollView
                     ref={viewRef}
                     elementRef={scrollViewRef}

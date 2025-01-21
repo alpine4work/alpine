@@ -104,6 +104,11 @@ export type NavigationBarProps = {
     readonly menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
 
     /**
+     * Actions that the user sees if they right click on the navigation bar.
+     */
+    readonly contextMenuActions?: ReadonlyArray<ReadonlyArray<MenuAction>>;
+
+    /**
      * Called whenever the menu opens/closes. Useful if you want to change how
      * something is rendered when the menu navigation bar is open.
      */
@@ -124,19 +129,6 @@ export type NavigationBarProps = {
      * editing modality.
      */
     readonly replaceActions?: ReactNode;
-
-    /**
-     * If provided, allows for another action and icon button in the navigation
-     * bar's content. Rendered with the `<IconButton>` component. Allows us to
-     * configure a subset of the `<IconButton>`'s props, but not modify
-     * size or layout.
-     */
-    readonly extraIconButton?: {
-        readonly icon: ReactNode;
-        readonly description: string;
-        readonly pressErrorTitle: string;
-        readonly onPress: () => Promise<void>;
-    };
 
     /**
      * How do we justify title contents? Defaults to `center` on mobile and

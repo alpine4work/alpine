@@ -1,5 +1,5 @@
 import {ArrowLeft, Check, SpinnerGap} from "phosphor-react";
-import {ComponentType, ReactNode, memo} from "react";
+import {ComponentType, ReactNode, memo, useMemo} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -66,6 +66,8 @@ import {
     messageViewAccountAvatarSize,
     messageViewMarginY,
     messageViewRailGap,
+    messageViewTimestampDividerHeight,
+    messageViewTimestampDividerMarginY,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     minSearchMobileInputHeight,
@@ -145,6 +147,7 @@ const shimmerOptionsByRouteId: {
         | {
               inboxBannerMaxWidth?: Spacing | "full";
               component: ComponentType<{
+                  searchParams: URLSearchParams;
                   withInboxBanner: boolean;
                   // Avoid TypeScript error "object has no properties in common" error.
                   withBackButton?: undefined;
@@ -213,9 +216,11 @@ export {RouteShimmerMemo as RouteShimmer};
 
 function RouteShimmer({
     routeId,
+    searchParams,
     withInboxBanner,
 }: {
     routeId: string | null;
+    searchParams: URLSearchParams;
     withInboxBanner: boolean;
 }) {
     const routeLayout = useRouteLayout();
@@ -248,7 +253,10 @@ function RouteShimmer({
     if (!withInboxBanner) {
         return (
             <Box ref={containerRef} width="full" height="full" overflow="hidden">
-                <shimmerOptions.component withInboxBanner={withInboxBanner} />
+                <shimmerOptions.component
+                    searchParams={searchParams}
+                    withInboxBanner={withInboxBanner}
+                />
             </Box>
         );
     } else {
@@ -309,7 +317,10 @@ function RouteShimmer({
                     </Box>
                 </Box>
                 <Box width="full" height="full" overflow="hidden">
-                    <shimmerOptions.component withInboxBanner={withInboxBanner} />
+                    <shimmerOptions.component
+                        searchParams={searchParams}
+                        withInboxBanner={withInboxBanner}
+                    />
                 </Box>
             </Box>
         );
@@ -693,7 +704,13 @@ function MessagingViewShimmer({
                 }
             >
                 {withTopAlignedMessages && messages === "few" && (
-                    <Box display="flex" justifyContent="center" paddingBottom={messageViewMarginY}>
+                    <Box
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                        height={messageViewTimestampDividerHeight}
+                        marginBottom={messageViewTimestampDividerMarginY}
+                    >
                         <TextShimmer width="16" fontSize="50" />
                     </Box>
                 )}
@@ -1017,6 +1034,8 @@ function DocumentCommentThreadRouteShimmer() {
 function InboxRouteShimmer() {
     const platform = usePlatform();
 
+    const emptySearchParams = useMemo(() => new URLSearchParams(), []);
+
     if (platform === "mobile") {
         return (
             <Box width="full">
@@ -1067,7 +1086,13 @@ function InboxRouteShimmer() {
         return (
             <Box width="full" height="full" display="flex" flexDirection="column">
                 <Box flexGrow="1" display="flex" flexDirection="row">
-                    <Box flexShrink="0" width="96" borderRight="grey-10" paddingY="1">
+                    <Box
+                        flexShrink="0"
+                        width="96"
+                        borderRight="grey-10"
+                        borderLeft="grey-10"
+                        paddingY="1"
+                    >
                         <Box flexShrink="0" height="12" />
                         <InboxEntryShimmer titleRagRight="0" subtitleRagRight="8" />
                         <InboxEntryShimmer titleRagRight="6" subtitleRagRight="4" />
@@ -1078,6 +1103,7 @@ function InboxRouteShimmer() {
                     <Box flexGrow="1" overflow="hidden">
                         <RouteShimmer
                             routeId="routes/s.$spaceId.notifications.channel-posts.$channelIdAndBucketGeneration"
+                            searchParams={emptySearchParams}
                             withInboxBanner={true}
                         />
                     </Box>
@@ -1419,7 +1445,7 @@ function SearchRouteShimmer() {
     );
 }
 
-function TaskDetailRouteShimmer() {
+function TaskDetailRouteShimmer({searchParams}: {searchParams: URLSearchParams}) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
@@ -1496,25 +1522,25 @@ function TaskDetailRouteShimmer() {
                     <Box
                         className={pulseAnimationClassName}
                         height={taskDetailViewSubtasksFieldLabelPaddingBottom}
-                        borderBottom="grey-5"
                     />
                     <Box
                         className={pulseAnimationClassName}
                         height={taskRowViewMinHeight}
-                        borderBottom="grey-5"
+                        borderTop="grey-5"
                     />
                     <Box
                         className={pulseAnimationClassName}
                         height={taskRowViewMinHeight}
-                        borderBottom="grey-5"
+                        borderTop="grey-5"
                     />
                     <Box
                         className={pulseAnimationClassName}
                         height={taskRowViewMinHeight}
-                        borderBottom="grey-5"
+                        borderTop="grey-5"
                     />
+                    <Box className={pulseAnimationClassName} height="border" borderTop="grey-5" />
                 </Box>
-                {routeLayout !== "narrow" && (
+                {routeLayout !== "narrow" && searchParams.get("comments") === "show" && (
                     <Box
                         flexShrink="0"
                         width={taskDetailViewCommentSidebarWidth}

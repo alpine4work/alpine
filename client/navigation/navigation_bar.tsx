@@ -49,10 +49,10 @@ export function useNavigationBar({
     withoutDisappearingTitle = false,
     subtitle,
     menuActions = emptyArray,
+    contextMenuActions = emptyArray,
     onMenuStateChange,
     shareButton,
     replaceActions,
-    extraIconButton,
     titleJustifyContent,
     desktopControls = null,
     desktopMaxWidth,
@@ -174,10 +174,10 @@ export function useNavigationBar({
             withoutDisappearingTitle={withoutDisappearingTitle}
             subtitle={subtitle}
             menuActions={menuActions}
+            contextMenuActions={contextMenuActions}
             onMenuStateChange={onMenuStateChange}
             shareButton={shareButton}
             replaceActions={replaceActions}
-            extraIconButton={extraIconButton}
             titleJustifyContent={titleJustifyContent}
             desktopControls={desktopControls}
             desktopMaxWidth={desktopMaxWidth}

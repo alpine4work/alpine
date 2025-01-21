@@ -67,6 +67,8 @@ import {
     messageViewParentFontSize,
     messageViewParentLineHeightPx,
     messageViewRailGap,
+    messageViewTimestampDividerHeight,
+    messageViewTimestampDividerMarginY,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     backgroundColorVar,
@@ -966,8 +968,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         return (
             <div
                 className={sprinkles({
-                    paddingTop: !isFirstMessage ? "2" : undefined,
-                    paddingBottom: "2",
+                    paddingTop: !isFirstMessage ? messageViewTimestampDividerMarginY : undefined,
+                    paddingBottom: messageViewTimestampDividerMarginY,
                     display: "flex",
                     justifyContent: "center",
                     fontSize: "50",
@@ -977,7 +979,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 style={{
                     // Use a spacing value that evaluates to a whole pixel number on all spacing
                     // scales. This way `<MessageView>` heights can be measured in whole pixels.
-                    lineHeight: spacing["4"],
+                    lineHeight: spacing[messageViewTimestampDividerHeight],
                 }}
             >
                 {formattedDate}

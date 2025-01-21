@@ -1,12 +1,7 @@
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useEffect} from "react";
 import {useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
-import {useAppContext} from "~/client/context/app_context.js";
-import {Box} from "~/client/design/box.js";
-import {useReporter} from "~/client/design/reporter.js";
-import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
-import {useStore} from "~/client/helpers/use_store.js";
 import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -14,15 +9,10 @@ import {getInitialAppRenderPlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
-import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {taskDetailViewCommentSidebarWidth} from "~/client/styles/tasks_shared_styles.js";
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/tasks/core/task_realtime_client_context_provider.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
-import {TaskCommentsView} from "~/client/tasks/task_comments_view.js";
-import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
-import {TaskDetailView} from "~/client/tasks/task_detail_view.js";
-import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
-import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
+import {TaskDetailAndCommentsView} from "~/client/tasks/task_detail_and_comments_view.js";
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -30,7 +20,6 @@ import {
     getTaskNotesContent,
     getTaskNotesContentAndInitialComments,
 } from "~/server/tasks/data/task_table.js";
-import {spacing} from "~/shared/design/core/spacing.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -38,7 +27,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
-import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
@@ -112,6 +100,8 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
         shouldLoadGridViewExpandedChildTasksForBrowserId: context.loader.getBrowserId(),
     };
 
+    const showComments = url.searchParams.get("comments") === "show";
+
     const [
         {queries, extraQueries, updateEvent},
         {
@@ -125,12 +115,12 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
             taskIds: [taskId],
             collectionIds: [],
         }),
-        platform === "mobile"
-            ? getTaskNotesContent(context, taskId).then(notes => ({notes, initialComments: null}))
-            : getTaskNotesContentAndInitialComments(context, {
+        showComments && platform !== "mobile"
+            ? getTaskNotesContentAndInitialComments(context, {
                   taskId,
                   commentsLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
-              }),
+              })
+            : getTaskNotesContent(context, taskId).then(notes => ({notes, initialComments: null})),
         url.searchParams.get("inbox") === "show"
             ? getInboxEntry(context, {
                   spaceId,
@@ -181,12 +171,12 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
 
 export default function TaskRoute() {
     const {taskId, spaceId} = useParams();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     assert(taskId && isId<TaskId>(taskId));
     assert(spaceId && isId<SpaceId>(spaceId));
 
     const {
-        childrenGridViewExpansionState,
+        childrenGridViewExpansionState: initialChildrenGridViewExpansionState,
         notesVersion: initialNotesVersion,
         notesContent: initialNotesContent,
         initialComments,
@@ -234,119 +224,66 @@ export default function TaskRoute() {
     }, [taskSubscription.taskEntryStore, updateMetaTitle]);
 
     const commentIndexString = searchParams.get("comment");
-    const commentIndex = commentIndexString ? parseInt(commentIndexString, 10) : null;
+    const initialScrollToCommentIndex = commentIndexString
+        ? parseInt(commentIndexString, 10)
+        : null;
 
     const affinityManager = useTaskClientStoreSearchAffinityManager(`Task:${taskId}`);
 
-    const getCommentUrl = useCallback(
-        (commentIndex: number) =>
-            new URL(`/s/${spaceId}/tasks/${taskId}?comment=${commentIndex}`, window.location.href),
-        [taskId, spaceId],
-    );
-    const context = useAppContext();
-    const reporter = useReporter();
-    const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
+    // NOCOMMIT: Save in `localStorage` tasks with open comments? When navigating
+    // to these tasks we should add `?comments=show`.
+    const showComments = searchParams.get("comments") === "show";
 
-    const events = useEvents({
-        getContext: () => context,
-        getReporter: () => reporter,
-        addGlobalLoadingIndicator,
-    });
+    const setShowComments = useCallback(
+        (showComments: boolean) => {
+            setSearchParams(
+                searchParams => {
+                    const newSearchParams = new URLSearchParams(searchParams);
 
-    const [notesClient, setNotesClient] = useState(() => {
-        return new TaskDetailNotesContentEditorWebSocketClient({
-            getContext: events.getContext,
-            addGlobalLoadingIndicator: events.addGlobalLoadingIndicator,
-            taskId,
-            initialNotesVersion,
-            initialNotesContent,
-            displayError: (title, error) => events.getReporter().displayError(title, error),
-        });
-    });
+                    if (showComments) {
+                        newSearchParams.set("comments", "show");
+                    } else {
+                        newSearchParams.delete("comments");
+                    }
 
-    // Re-initialize state if the `TaskId` changes.
-    if (notesClient.taskId !== taskId) {
-        setNotesClient(() => {
-            return new TaskDetailNotesContentEditorWebSocketClient({
-                getContext: events.getContext,
-                addGlobalLoadingIndicator: events.addGlobalLoadingIndicator,
-                taskId,
-                initialNotesVersion,
-                initialNotesContent,
-                displayError: (title, error) => events.getReporter().displayError(title, error),
-            });
-        });
-    }
-
-    const [shouldConnect] = useState(true);
-
-    useEffect(() => {
-        if (!shouldConnect) return;
-
-        notesClient.connect();
-        return () => {
-            notesClient.disconnect();
-        };
-    }, [notesClient, shouldConnect]);
-
-    const webSocketState = useStore(notesClient.webSocketState);
-
-    // Show the "Lost connection" error dialog if any error occurs in our WebSocket
-    // connection.
-    useWebSocketErrorDialog(notesClient, webSocketState);
-
-    const subscribeToCommentsEvents = useCallback(
-        (subscriber: (event: MessagingRealtimeEvent<TaskCommentModel>) => void) => {
-            return notesClient.subscribeToCommentEvents(subscriber);
+                    return newSearchParams;
+                },
+                {
+                    replace: true,
+                    // Don't revalidate when updating search params from here. We can't use the
+                    // stable `shouldRevalidate` route function because if the user navigates to
+                    // a new URL we want to load new data and re-render the route.
+                    unstable_shouldRevalidate: false,
+                },
+            );
         },
-        [notesClient],
+        [setSearchParams],
     );
 
-    const node = (
-        <Box
-            flexGrow="1"
-            overflow="hidden"
-            position="relative"
-            zIndex="0"
-            display="flex"
-            justifyContent="center"
-            flexDirection="row"
-        >
-            <TaskGridViewDndContext store={taskSubscription.store}>
-                <TaskDetailView
-                    // Remount when the `TaskId` changes.
-                    key={taskSubscription.taskId}
-                    taskSubscription={taskSubscription}
-                    childrenQuery={childrenQuery}
-                    affinityManager={affinityManager}
-                    initialChildrenGridViewExpansionState={childrenGridViewExpansionState}
-                    notesClient={notesClient}
-                />
-            </TaskGridViewDndContext>
-            {routeLayout !== "narrow" && (
-                <Box
-                    flexShrink="0"
-                    borderLeft="grey-10"
-                    width={taskDetailViewCommentSidebarWidth}
-                    height="full"
-                    overflow="hidden"
-                >
-                    <TaskCommentsView
-                        key={taskId}
-                        taskId={taskId}
-                        initialComments={initialComments}
-                        initialScrollToCommentIndex={commentIndex}
-                        getCommentUrl={getCommentUrl}
-                        isConnected={webSocketState.isConnected}
-                        procedures={notesClient.procedures}
-                        subscribeToEvents={subscribeToCommentsEvents}
-                        // Provide the sidebar width for better layout results when previewing files.
-                        fileLayoutScreenWidth={spacing[taskDetailViewCommentSidebarWidth]}
-                    />
-                </Box>
-            )}
-        </Box>
-    );
+    // Can't show comments in narrow route layouts. So clear the `showComments`
+    // search param if we have it.
+    useEffect(() => {
+        if (showComments && routeLayout === "narrow") {
+            setShowComments(false);
+        }
+    }, [routeLayout, setShowComments, showComments]);
+
+    // We keep track in `localStorage` of whether comments were opened in wide
+    // `routeLayout` task detail views so that when the user navigates back to the
+    // task detail view we can preserve the comment open/close state.
+    //
+    // We read this state in `convertPeekPathToSpacePath()`.
+    //
+    // NOCOMMIT: Consider testing this?
+    useEffect(() => {
+        if (routeLayout === "narrow") return;
+
+        if (!showComments) {
+            localStorage.removeItem(`cyberworlds/taskShowComments/${taskSubscription.taskId}`);
+        } else {
+            localStorage.setItem(`cyberworlds/taskShowComments/${taskSubscription.taskId}`, "true");
+        }
+    }, [routeLayout, showComments, taskSubscription.taskId]);
 
     return useInboxBannerOutletContainer(
         {
@@ -354,6 +291,19 @@ export default function TaskRoute() {
             maxWidth: "full",
             sidebarRightWidth: taskDetailViewCommentSidebarWidth,
         },
-        node,
+        <TaskDetailAndCommentsView
+            // Remount when the `TaskId` changes.
+            key={taskSubscription.taskId}
+            taskSubscription={taskSubscription}
+            childrenQuery={childrenQuery}
+            affinityManager={affinityManager}
+            initialChildrenGridViewExpansionState={initialChildrenGridViewExpansionState}
+            initialNotesVersion={initialNotesVersion}
+            initialNotesContent={initialNotesContent}
+            showComments={showComments && routeLayout !== "narrow"}
+            onShowCommentsChange={setShowComments}
+            initialComments={initialComments}
+            initialScrollToCommentIndex={initialScrollToCommentIndex}
+        />,
     );
 }

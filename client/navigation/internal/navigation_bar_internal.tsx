@@ -139,10 +139,10 @@ export function NavigationBar({
     withoutDisappearingTitle,
     subtitle,
     menuActions,
+    contextMenuActions,
     onMenuStateChange,
     shareButton,
     replaceActions,
-    extraIconButton,
     titleJustifyContent,
     desktopControls,
     desktopMaxWidth,
@@ -168,15 +168,10 @@ export function NavigationBar({
     withoutDisappearingTitle: boolean;
     subtitle: ReactNode | undefined;
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+    contextMenuActions: ReadonlyArray<ReadonlyArray<MenuAction>>;
     onMenuStateChange: ((state: OverlayTriggerButtonState) => void) | undefined;
     shareButton: NavigationBarShareButtonProps | undefined;
     replaceActions: ReactNode;
-    extraIconButton?: {
-        icon: ReactNode;
-        description: string;
-        pressErrorTitle: string;
-        onPress: () => Promise<void>;
-    };
     titleJustifyContent: "center" | "flex-start" | undefined;
     desktopControls: ReactNode;
     desktopMaxWidth: Spacing | RemLength | undefined;
@@ -218,7 +213,7 @@ export function NavigationBar({
     const lastScrollHeightRef = useRef(0);
     const lastScrollDirectionRef = useRef(scrollDirectionState.scrollDirection);
     const lastNavigationBarTopOffsetRef = useRef(scrollDirectionState.navigationBarTopOffset);
-    const lastIsNavigationBarTitleVisibleRef = useRef(false);
+    const lastIsNavigationBarTitleVisibleRef = useRef<boolean | null>(null);
 
     useImperativeHandle(
         externalNavigationBarRef,
@@ -379,13 +374,27 @@ export function NavigationBar({
                     navigationBarTitleElement.style.pointerEvents = isNavigationBarTitleVisible
                         ? "auto"
                         : "none";
-                    navigationBarTitleElement.classList.remove(
-                        navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
-                    );
-                    if (!withScrollAway && !withoutDisappearingTitle) {
-                        navigationBarTitleElement.classList.add(
-                            navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
-                        );
+
+                    if (lastIsNavigationBarTitleVisible !== null) {
+                        if (isNavigationBarTitleVisible) {
+                            navigationBarTitleElement.classList.remove(
+                                navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
+                            );
+                            if (!withScrollAway && !withoutDisappearingTitle) {
+                                navigationBarTitleElement.classList.add(
+                                    navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
+                                );
+                            }
+                        } else {
+                            navigationBarTitleElement.classList.add(
+                                navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
+                            );
+                            if (!withScrollAway && !withoutDisappearingTitle) {
+                                navigationBarTitleElement.classList.remove(
+                                    navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
+                                );
+                            }
+                        }
                     }
                 }
             };
@@ -550,13 +559,25 @@ export function NavigationBar({
                         navigationBarTitleElement.style.pointerEvents = isNavigationBarTitleVisible
                             ? "auto"
                             : "none";
-                        navigationBarTitleElement.classList.remove(
-                            navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
-                        );
-                        if (!withScrollAway && !withoutDisappearingTitle) {
-                            navigationBarTitleElement.classList.add(
-                                navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
+
+                        if (isNavigationBarTitleVisible) {
+                            navigationBarTitleElement.classList.remove(
+                                navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
                             );
+                            if (!withScrollAway && !withoutDisappearingTitle) {
+                                navigationBarTitleElement.classList.add(
+                                    navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
+                                );
+                            }
+                        } else {
+                            navigationBarTitleElement.classList.add(
+                                navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
+                            );
+                            if (!withScrollAway && !withoutDisappearingTitle) {
+                                navigationBarTitleElement.classList.remove(
+                                    navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
+                                );
+                            }
                         }
                     }
                 }
@@ -696,8 +717,11 @@ export function NavigationBar({
 
                         const remPx = getRemPxWithoutListening();
 
-                        const lastIsNavigationBarTitleVisible =
-                            lastIsNavigationBarTitleVisibleRef.current;
+                        // Assert is ok since this ref should be initialized by the `initialize()`
+                        // function.
+                        const lastIsNavigationBarTitleVisible = assertExists(
+                            lastIsNavigationBarTitleVisibleRef.current,
+                        );
 
                         // Reveal the navigation bar if:
                         //
@@ -966,10 +990,10 @@ export function NavigationBar({
                             withDisappearingTitle={!withoutDisappearingTitle}
                             subtitle={subtitle}
                             menuActions={menuActions}
+                            contextMenuActions={contextMenuActions}
                             onMenuStateChange={onMenuStateChange}
                             shareButton={shareButton}
                             replaceActions={replaceActions}
-                            extraIconButton={extraIconButton}
                             titleJustifyContent={titleJustifyContent}
                             desktopControls={desktopControls}
                             desktopMaxWidth={desktopMaxWidth}
