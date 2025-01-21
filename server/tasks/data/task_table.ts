@@ -17,7 +17,10 @@ import {
     ServerSessionActionContextModules,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
-import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
+import {
+    ServerContentActionContext,
+    ServerContentSessionActionContext,
+} from "~/server/context/server_content_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -4067,8 +4070,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
     taskId: TaskId,
     expectedAccessLevel: AccessLevel,
     process: (options: {
-        spaceId: SpaceId;
-        createdTime: HybridLogicalTime;
+        item: TaskEssentialAttributesItem;
         commentsSummaryItem: TaskCommentsSummaryItem | null;
         notesItem: TaskNotesItem | null;
     }) => Promise<Value>,
@@ -4120,8 +4122,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
             const [, value] = await runAllPromises([
                 authorizeSpaceAccess(context, item.spaceId),
                 process({
-                    spaceId: item.spaceId,
-                    createdTime: item.createdTime,
+                    item,
                     commentsSummaryItem,
                     notesItem,
                 }),
@@ -4147,8 +4148,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
                     },
                 ),
                 process({
-                    spaceId: item.spaceId,
-                    createdTime: item.createdTime,
+                    item,
                     commentsSummaryItem,
                     notesItem,
                 }),
@@ -4882,9 +4882,13 @@ async function getTaskCommentsFromStartAssumingAuthorizedTask(
 
 /**
  * Efficiently load a task's notes and initial comments at the same time.
+ *
+ * If the actor doesn't have comment access to the task then `initialComments`
+ * will be null. We'll still return the task's notes though. Hence when the
+ * function name says "optional" initial comments.
  */
-export async function getTaskNotesContentAndInitialComments(
-    context: ServerContentActionContext,
+export async function getTaskNotesContentAndOptionalInitialComments(
+    context: ServerContentSessionActionContext,
     {taskId, commentsLimit}: {taskId: TaskId; commentsLimit: number},
 ): Promise<{
     notes: {
@@ -4896,27 +4900,28 @@ export async function getTaskNotesContentAndInitialComments(
         comments: ReadonlyArray<TaskCommentModel>;
         otherReferencedComments: ReadonlyArray<TaskCommentModel>;
         lastCommentChangeTime: Date | null;
-    };
+    } | null;
 }> {
     const spaceIdPromiseResolver = createPromiseResolver<SpaceId>();
 
-    const [{notes, commentsSummaryItem}, {comments, otherReferencedComments}] =
+    const [{item, notes, commentsSummaryItem}, {comments, otherReferencedComments}] =
         await runAllPromises([
             authorizeTaskAccessAndGetCommentsSummaryAndNotesItems(
                 context,
                 taskId,
-                "Comment",
-                async ({spaceId, notesItem, commentsSummaryItem}) => {
-                    spaceIdPromiseResolver.resolve(spaceId);
+                "View",
+                async ({item, notesItem, commentsSummaryItem}) => {
+                    spaceIdPromiseResolver.resolve(item.spaceId);
 
                     return {
+                        item,
                         notes: {
                             version: notesItem?.version ?? 0,
                             content: {
                                 doc: notesItem?.content ?? emptyTaskNotesContent,
                                 references: await getContentReferencesForNode(
                                     context,
-                                    spaceId,
+                                    item.spaceId,
                                     FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
                                     notesItem?.content ?? emptyTaskNotesContent,
                                 ),
@@ -4943,23 +4948,47 @@ export async function getTaskNotesContentAndInitialComments(
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
 
+    const hasCommentAccessLevel = await isTaskItemAccessAuthorized(
+        context,
+        context.actor.getAccountId(),
+        item,
+        "Comment",
+        {
+            getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null),
+            getCollectionItem: collectionId =>
+                getTaskCollectionItemForAuthorization(
+                    context as ServerSessionActionContext,
+                    collectionId,
+                    null,
+                ),
+        },
+    );
+
     return {
         notes,
-        initialComments: {
-            commentCount: Math.max(
-                reduceIterable(
-                    commentsSummaryItem?.commentCountByAuthorId.values() ?? [],
-                    (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                    0,
-                ),
-                // Make sure `commentCount` is consistent with `comments` in case of eventual
-                // consistency race conditions.
-                lastCommentIndex + 1,
-            ),
-            comments,
-            otherReferencedComments,
-            lastCommentChangeTime: commentsSummaryItem?.lastChangeTime ?? null,
-        },
+
+        // Only return the comments we fetched if the session actor has access to
+        // comments. Otherwise we return null. A little wasteful since we will have
+        // fetched all the comments before deciding to return null. But we expect the
+        // code path where `hasCommentAccessLevel` is false to be much less common than
+        // the code path where we need comments so we're ok being a little wasteful.
+        initialComments: hasCommentAccessLevel
+            ? {
+                  commentCount: Math.max(
+                      reduceIterable(
+                          commentsSummaryItem?.commentCountByAuthorId.values() ?? [],
+                          (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                          0,
+                      ),
+                      // Make sure `commentCount` is consistent with `comments` in case of eventual
+                      // consistency race conditions.
+                      lastCommentIndex + 1,
+                  ),
+                  comments,
+                  otherReferencedComments,
+                  lastCommentChangeTime: commentsSummaryItem?.lastChangeTime ?? null,
+              }
+            : null,
     };
 }
 
@@ -5352,7 +5381,9 @@ function getTaskItemPermissionDeniedErrorDisplayMessage(
         return errorDisplayMessage`This task was deleted.`;
     }
 
-    return errorDisplayMessage`You aren’t allowed to access this task. Ask someone with access share it with you.`;
+    return taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
+        expectedAccessLevel
+    ];
 }
 
 function getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
@@ -5745,8 +5776,8 @@ export function getTaskNotesContentWithoutReferences(
         context,
         taskId,
         "View",
-        async ({spaceId, notesItem}) => ({
-            spaceId,
+        async ({item, notesItem}) => ({
+            spaceId: item.spaceId,
             version: notesItem?.version ?? 0,
             content: notesItem?.content ?? emptyTaskNotesContent,
             stepCountByNonCreatorAccountId:
@@ -5771,14 +5802,14 @@ export function getTaskNotesContent(
         context,
         taskId,
         "View",
-        async ({spaceId, notesItem}) => ({
-            spaceId,
+        async ({item, notesItem}) => ({
+            spaceId: item.spaceId,
             version: notesItem?.version ?? 0,
             content: {
                 doc: notesItem?.content ?? emptyTaskNotesContent,
                 references: await getContentReferencesForNode(
                     context,
-                    spaceId,
+                    item.spaceId,
                     FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
                     notesItem?.content ?? emptyTaskNotesContent,
                 ),

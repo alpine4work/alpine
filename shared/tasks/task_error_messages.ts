@@ -11,3 +11,13 @@ export const taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLe
     Edit: errorDisplayMessage`You aren’t allowed to edit this task. Ask someone who can share a collection the task is in to give you edit access.`,
     Manage: errorDisplayMessage`You aren’t allowed to share this collection. Ask someone who can share the collection to give you share access.`,
 };
+
+export const taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: Record<
+    AccessLevel,
+    ErrorDisplayMessage
+> = {
+    View: errorDisplayMessage`You aren’t allowed to access this task. Ask someone with access to share it with you.`,
+    Comment: taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.Comment,
+    Edit: taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.Edit,
+    Manage: errorDisplayMessage`You aren’t allowed to share this task. Ask someone who can share the task to give you share access.`,
+};

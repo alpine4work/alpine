@@ -34,7 +34,7 @@ import {
     getTaskCommentsFromEnd,
     getTaskCommentsFromStart,
     getTaskNotesContent,
-    getTaskNotesContentAndInitialComments,
+    getTaskNotesContentAndOptionalInitialComments,
     getTaskNotesContentWithoutReferences,
     getTaskNotificationSubscribers,
     getTaskOwner,
@@ -75,9 +75,11 @@ import {
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
+import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {
+    createSimpleTaskNotesContent,
     emptyTaskNotesContent,
     TaskNotesContentProsemirrorSchema as schema,
 } from "~/shared/tasks/task_notes_content_schema.js";
@@ -19561,7 +19563,7 @@ test("throws error for users that only have view access when trying to get task 
     ).resolves.not.toBeNull();
 });
 
-test("throws error for users that only have view access when trying to get initial task comments", async () => {
+test("returns null for users that only have view access when trying to get initial task comments", async () => {
     const space = await TestSpace.create(context);
 
     const [
@@ -19584,13 +19586,11 @@ test("throws error for users that only have view access when trying to get initi
 
     const task = await TestTask.create(creatorSession);
 
+    await task.typeNotes(creatorSession, "Test notes");
+
     const collection = await TestTaskCollection.create(creatorSession);
     await collection.access.grantDefault(creatorSession);
     await task.addCollection(creatorSession, collection);
-
-    await task.createComment(creatorSession, "test1");
-    await task.createComment(creatorSession, "test2");
-    await task.createComment(creatorSession, "test3");
 
     await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
@@ -19606,54 +19606,382 @@ test("throws error for users that only have view access when trying to get initi
 
     await task.updateAssignee(creatorSession, assigneeSession);
 
+    const comment0 = await task.createComment(creatorSession, "test1");
+    const comment1 = await task.createComment(assigneeSession, "test2");
+    const comment2 = await task.createComment(creatorSession, "test3");
+
     await expect(
-        getTaskNotesContentAndInitialComments(assigneeSession.action(), {
+        getTaskNotesContentAndOptionalInitialComments(assigneeSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
-    ).resolves.not.toBeNull();
+    ).resolves.toEqual({
+        notes: {
+            version: 1,
+            content: {
+                doc: createSimpleTaskNotesContent("Test notes"),
+                references: emptyContentReferences,
+            },
+        },
+        initialComments: {
+            commentCount: 3,
+            otherReferencedComments: [],
+            lastCommentChangeTime: null,
+            comments: [
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 0,
+                    author: await creatorSession.get(),
+                    createdTime: comment0.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test1"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 1,
+                    author: await assigneeSession.get(),
+                    createdTime: comment1.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test2"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 2,
+                    author: await creatorSession.get(),
+                    createdTime: comment2.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test3"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+            ],
+        },
+    });
 
     await expect(
-        getTaskNotesContentAndInitialComments(unauthorizedSession.action(), {
+        getTaskNotesContentAndOptionalInitialComments(unauthorizedSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        getTaskNotesContentAndInitialComments(viewerSession.action(), {
+        getTaskNotesContentAndOptionalInitialComments(viewerSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
-    ).rejects.toThrow(PermissionDeniedError);
+    ).resolves.toEqual({
+        notes: {
+            version: 1,
+            content: {
+                doc: createSimpleTaskNotesContent("Test notes"),
+                references: emptyContentReferences,
+            },
+        },
+        initialComments: null,
+    });
 
     await expect(
-        getTaskNotesContentAndInitialComments(commenterSession.action(), {
+        getTaskNotesContentAndOptionalInitialComments(commenterSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
-    ).resolves.not.toBeNull();
+    ).resolves.toEqual({
+        notes: {
+            version: 1,
+            content: {
+                doc: createSimpleTaskNotesContent("Test notes"),
+                references: emptyContentReferences,
+            },
+        },
+        initialComments: {
+            commentCount: 3,
+            otherReferencedComments: [],
+            lastCommentChangeTime: null,
+            comments: [
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 0,
+                    author: await creatorSession.get(),
+                    createdTime: comment0.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test1"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 1,
+                    author: await assigneeSession.get(),
+                    createdTime: comment1.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test2"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 2,
+                    author: await creatorSession.get(),
+                    createdTime: comment2.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test3"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+            ],
+        },
+    });
 
     await expect(
-        getTaskNotesContentAndInitialComments(editorSession.action(), {
+        getTaskNotesContentAndOptionalInitialComments(editorSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
-    ).resolves.not.toBeNull();
+    ).resolves.toEqual({
+        notes: {
+            version: 1,
+            content: {
+                doc: createSimpleTaskNotesContent("Test notes"),
+                references: emptyContentReferences,
+            },
+        },
+        initialComments: {
+            commentCount: 3,
+            otherReferencedComments: [],
+            lastCommentChangeTime: null,
+            comments: [
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 0,
+                    author: await creatorSession.get(),
+                    createdTime: comment0.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test1"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 1,
+                    author: await assigneeSession.get(),
+                    createdTime: comment1.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test2"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 2,
+                    author: await creatorSession.get(),
+                    createdTime: comment2.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test3"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+            ],
+        },
+    });
 
     await expect(
-        getTaskNotesContentAndInitialComments(manageSession.action(), {
+        getTaskNotesContentAndOptionalInitialComments(manageSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
-    ).resolves.not.toBeNull();
+    ).resolves.toEqual({
+        notes: {
+            version: 1,
+            content: {
+                doc: createSimpleTaskNotesContent("Test notes"),
+                references: emptyContentReferences,
+            },
+        },
+        initialComments: {
+            commentCount: 3,
+            otherReferencedComments: [],
+            lastCommentChangeTime: null,
+            comments: [
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 0,
+                    author: await creatorSession.get(),
+                    createdTime: comment0.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test1"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 1,
+                    author: await assigneeSession.get(),
+                    createdTime: comment1.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test2"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 2,
+                    author: await creatorSession.get(),
+                    createdTime: comment2.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test3"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+            ],
+        },
+    });
 
     await expect(
-        getTaskNotesContentAndInitialComments(creatorSession.action(), {
+        getTaskNotesContentAndOptionalInitialComments(creatorSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
-    ).resolves.not.toBeNull();
+    ).resolves.toEqual({
+        notes: {
+            version: 1,
+            content: {
+                doc: createSimpleTaskNotesContent("Test notes"),
+                references: emptyContentReferences,
+            },
+        },
+        initialComments: {
+            commentCount: 3,
+            otherReferencedComments: [],
+            lastCommentChangeTime: null,
+            comments: [
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 0,
+                    author: await creatorSession.get(),
+                    createdTime: comment0.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test1"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 1,
+                    author: await assigneeSession.get(),
+                    createdTime: comment1.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test2"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 2,
+                    author: await creatorSession.get(),
+                    createdTime: comment2.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test3"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+            ],
+        },
+    });
 });
 
 test("throws error for users that only have view access when trying to get task comments from backfill", async () => {
@@ -20010,7 +20338,7 @@ test("authorizing task access after getting task as session actor is cached", as
 
         expect(getCount()).toEqual(0);
 
-        await getTaskNotesContentAndInitialComments(actionContext, {
+        await getTaskNotesContentAndOptionalInitialComments(actionContext, {
             taskId: task.id,
             commentsLimit: 100,
         });
@@ -20147,39 +20475,6 @@ test("authorizing task access after getting task as system actor is cached", asy
         }
 
         expect(getCount()).toEqual(1);
-    }
-
-    dynamoClientExecuteActionTestCounter.resetForTest();
-
-    {
-        const actionContext = space.systemAction();
-
-        expect(getCount()).toEqual(0);
-
-        await getTaskNotesContentAndInitialComments(actionContext, {
-            taskId: task.id,
-            commentsLimit: 100,
-        });
-
-        expect(getCount()).toEqual(2);
-
-        await authorizeTaskAccess(actionContext, task.id, "View");
-
-        expect(getCount()).toEqual(2);
-
-        await authorizeTaskAccess(actionContext, task.id, "View");
-
-        expect(getCount()).toEqual(2);
-
-        for (let i = 0; i < 5; i++) {
-            await runAllPromises([
-                authorizeTaskAccess(actionContext, task.id, "View"),
-                authorizeTaskAccess(actionContext, task.id, "View"),
-                authorizeTaskAccess(actionContext, task.id, "View"),
-            ]);
-        }
-
-        expect(getCount()).toEqual(2);
     }
 
     dynamoClientExecuteActionTestCounter.resetForTest();

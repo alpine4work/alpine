@@ -103,7 +103,6 @@ function TaskGridViewColumnHeader(
                 shouldRenderWithRelativePositioning
                     ? {
                           position: "relative",
-                          backgroundColor: "grey-0",
                       }
                     : {
                           position: "absolute",

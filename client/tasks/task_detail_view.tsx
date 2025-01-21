@@ -56,8 +56,8 @@ import {
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
 import {
+    TaskAccess,
     computeTaskEntryAccess,
-    createTaskEntryAccessStore,
 } from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskStatusMenuActionsWithoutFullTask} from "~/client/tasks/internal/get_task_status_menu_actions.js";
@@ -115,6 +115,7 @@ import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
 export function TaskDetailView({
     taskSubscription,
+    taskAccess: access,
     childrenQuery,
     affinityManager,
     initialChildrenGridViewExpansionState,
@@ -123,6 +124,7 @@ export function TaskDetailView({
     onShowCommentsChange,
 }: {
     taskSubscription: TaskClientTaskSubscription;
+    taskAccess: TaskAccess;
     childrenQuery: TaskClientQuery;
     affinityManager: TaskClientStoreSearchAffinityManager;
     initialChildrenGridViewExpansionState: TaskGridViewExpansionState;
@@ -148,18 +150,6 @@ export function TaskDetailView({
         useMemo(
             () => taskSubscription.taskEntryStore.map(({task}) => !task?.isDeleted()),
             [taskSubscription.taskEntryStore],
-        ),
-    );
-
-    const access = useStore(
-        useMemo(
-            () =>
-                createTaskEntryAccessStore(
-                    currentAccount?.id,
-                    taskSubscription,
-                    taskSubscription.taskEntryStore,
-                ),
-            [currentAccount?.id, taskSubscription],
         ),
     );
 
@@ -642,27 +632,30 @@ export function TaskDetailView({
 
         const menuActions = [...contextMenuActions];
 
-        menuActions.unshift([
-            {
-                icon: <ChatCircleDots />,
-                iconPlacement: "end",
-                label: "Comments",
-                pressErrorTitle: "Couldn't open comments",
-                onPress: async () => {
-                    if (routeLayout === "narrow") {
-                        await navigate(`/s/${spaceId}/tasks/${taskId}/comments?from=task`);
-                    } else {
-                        onShowCommentsChange(!showComments);
-                    }
+        if (hasAccessLevel(access.level, "Comment")) {
+            menuActions.unshift([
+                {
+                    icon: <ChatCircleDots />,
+                    iconPlacement: "end",
+                    label: "Comments",
+                    pressErrorTitle: "Couldn't open comments",
+                    onPress: async () => {
+                        if (routeLayout === "narrow") {
+                            await navigate(`/s/${spaceId}/tasks/${taskId}/comments?from=task`);
+                        } else {
+                            onShowCommentsChange(!showComments);
+                        }
+                    },
                 },
-            },
-        ]);
+            ]);
+        }
 
         return {menuActions, contextMenuActions} as any as {
             menuActions: Memo<ReadonlyArray<ReadonlyArray<MenuAction>>>;
             contextMenuActions: Memo<ReadonlyArray<ReadonlyArray<MenuAction>>>;
         };
     }, [
+        access.level,
         affinityManager,
         context,
         currentAccount,

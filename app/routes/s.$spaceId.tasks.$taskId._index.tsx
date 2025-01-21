@@ -18,7 +18,7 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {
     getTaskNotesContent,
-    getTaskNotesContentAndInitialComments,
+    getTaskNotesContentAndOptionalInitialComments,
 } from "~/server/tasks/data/task_table.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -116,7 +116,8 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
             collectionIds: [],
         }),
         showComments && platform !== "mobile"
-            ? getTaskNotesContentAndInitialComments(context, {
+            ? // NOCOMMIT: Test view access with `comments=show`.
+              getTaskNotesContentAndOptionalInitialComments(context, {
                   taskId,
                   commentsLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
               })
@@ -230,8 +231,6 @@ export default function TaskRoute() {
 
     const affinityManager = useTaskClientStoreSearchAffinityManager(`Task:${taskId}`);
 
-    // NOCOMMIT: Save in `localStorage` tasks with open comments? When navigating
-    // to these tasks we should add `?comments=show`.
     const showComments = searchParams.get("comments") === "show";
 
     const setShowComments = useCallback(

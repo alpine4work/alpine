@@ -1,5 +1,5 @@
 import {animate, spring, timeline} from "motion";
-import {Memo, useCallback, useEffect, useRef, useState} from "react";
+import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {useReporter} from "~/client/design/reporter.js";
@@ -17,6 +17,7 @@ import {taskDetailViewCommentSidebarWidth} from "~/client/styles/tasks_shared_st
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {TaskClientStoreSearchAffinityManager} from "~/client/tasks/core/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
+import {createTaskEntryAccessStore} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {
     TaskCommentsView,
     TaskCommentsViewInitialComments,
@@ -25,6 +26,7 @@ import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/task_d
 import {TaskDetailView} from "~/client/tasks/task_detail_view.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
+import {hasAccessLevel} from "~/shared/access/access_policy.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -43,7 +45,7 @@ export function TaskDetailAndCommentsView({
     initialChildrenGridViewExpansionState,
     initialNotesVersion,
     initialNotesContent,
-    showComments,
+    showComments: showCommentsFromProps,
     onShowCommentsChange,
     initialComments,
     initialScrollToCommentIndex,
@@ -59,7 +61,7 @@ export function TaskDetailAndCommentsView({
     initialComments: TaskCommentsViewInitialComments | null;
     initialScrollToCommentIndex: number | null;
 }) {
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
     const routeLayout = useRouteLayout();
 
     const detailRef = useRef<HTMLDivElement>(null);
@@ -76,6 +78,34 @@ export function TaskDetailAndCommentsView({
     const context = useAppContext();
     const reporter = useReporter();
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
+
+    const taskAccess = useStore(
+        useMemo(
+            () =>
+                createTaskEntryAccessStore(
+                    currentAccount?.id,
+                    taskSubscription,
+                    taskSubscription.taskEntryStore,
+                ),
+            [currentAccount?.id, taskSubscription],
+        ),
+    );
+
+    const hasCommentAccessLevel = useMemo(
+        () => hasAccessLevel(taskAccess.level, "Comment"),
+        [taskAccess.level],
+    );
+
+    // Don't show comments if we don't have comment access to the task.
+    const showComments = showCommentsFromProps && hasCommentAccessLevel;
+
+    // If we don't have access to the task we want to clear `comments=show` from
+    // our URL.
+    useEffect(() => {
+        if (showComments !== showCommentsFromProps) {
+            onShowCommentsChange(showComments);
+        }
+    }, [onShowCommentsChange, showComments, showCommentsFromProps]);
 
     const events = useEvents({
         getContext: () => context,
@@ -344,6 +374,7 @@ export function TaskDetailAndCommentsView({
                 <TaskGridViewDndContext store={taskSubscription.store}>
                     <TaskDetailView
                         taskSubscription={taskSubscription}
+                        taskAccess={taskAccess}
                         childrenQuery={childrenQuery}
                         affinityManager={affinityManager}
                         initialChildrenGridViewExpansionState={
