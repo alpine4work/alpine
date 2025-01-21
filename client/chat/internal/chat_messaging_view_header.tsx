@@ -1,4 +1,5 @@
 import {Ref, useRef} from "react";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {
     getElementSafeAreaInsetBottomPx,
     getElementWindowSafeAreaInsetBottomPx,
@@ -17,6 +18,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 // It's ok to export this since it's a constant string.
 // eslint-disable-next-line react-refresh/only-export-components
 export const chatMessagingViewHeaderMinHeight = addRemLengths(
+    navigationBarHeight,
     messageViewMarginY,
     messageViewMarginY,
 );

@@ -77,6 +77,7 @@ import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_t
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
+    frostedGlassChromeBuggedContainerClassName,
     greyElevated1ClassName,
     spaceLayoutStyles,
     wiggleAnimation,
@@ -856,6 +857,11 @@ function PeekStackDraggable({
                         onInsideInteraction: () => dispatch({type: "InsideInteraction"}),
                     }),
                 )}
+                // TODO(calebmer): Chrome doesn't respect `mask-image` for our frosted glass
+                // effect's `backdrop-filter` in peek stacks for some reason. It works in
+                // Safari. Try to produce a minimal reproduction for the Chrome team and report
+                // the bug. For now, we use a workaround.
+                className={frostedGlassChromeBuggedContainerClassName}
                 position="absolute"
                 bottom="0"
                 zIndex="20"

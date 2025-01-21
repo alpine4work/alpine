@@ -41,7 +41,7 @@ import {
     getRemPxWithoutListening,
     getSpacingScaleWithoutListening,
 } from "~/client/remix/spacing_scale_context.js";
-import {navigationBarStyles, sprinkles} from "~/client/styles/styles.js";
+import {frostedGlassClassName, navigationBarStyles, sprinkles} from "~/client/styles/styles.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
 import {
     RemLength,
@@ -971,12 +971,12 @@ export function NavigationBar({
                     <Box position="relative" zIndex="0" paddingTop="safe-area-inset">
                         <Box
                             ref={navigationBarBackgroundRef}
+                            className={frostedGlassClassName}
                             position="absolute"
                             zIndex="-10"
                             top="0"
                             left="0"
                             right="0"
-                            backgroundColor="grey-0"
                             display="flex"
                             justifyContent="center"
                             pointerEvents="auto"
