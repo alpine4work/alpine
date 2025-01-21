@@ -657,13 +657,33 @@ export function NavigationBar({
                         // thread and not the web thread. This causes some jankiness as JavaScript is
                         // behind native so opacity may not be updated in a timely manner.
                         //
-                        // I'd love to move these opacity updates to [CSS scroll-driven animations][1]
-                        // when they're available in WebKit.
+                        // I'd love to move these opacity updates (this opacity update and the
+                        // `navigationBarBackgroundElement` opacity update) to [CSS scroll-driven
+                        // animations][1] when they're available in WebKit.
                         //
                         // [1]: https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_scroll-driven_animations
                         navigationBarContentElement.style.opacity = `${
                             1 - Math.min(1, navigationBarScrollPercentage * 2)
                         }`;
+                    }
+
+                    // We don't want our navigation bar to be visible when the user has scrolled to
+                    // the top of the view. Because the frosted glass effect will show a blur for
+                    // content immediately underneath the navigation bar. For example, the task
+                    // title in a `<TaskDetailView>`.
+                    {
+                        const lastIsNavigationBarBackgroundVisible =
+                            lastScrollOffset - lastNavigationBarScrollOffset >= 1;
+                        const isNavigationBarBackgroundVisible =
+                            scrollOffset - navigationBarScrollOffset >= 1;
+
+                        if (
+                            lastIsNavigationBarBackgroundVisible !==
+                            isNavigationBarBackgroundVisible
+                        ) {
+                            navigationBarBackgroundElement.style.display =
+                                isNavigationBarBackgroundVisible ? "block" : "none";
+                        }
                     }
 
                     // Handle the transition from a visible navigation bar title to a hidden
@@ -977,9 +997,9 @@ export function NavigationBar({
                             top="0"
                             left="0"
                             right="0"
-                            display="flex"
-                            justifyContent="center"
-                            pointerEvents="auto"
+                            // Start with `display: none`. `onScroll` will change it to `display: block`
+                            // when we scroll.
+                            display="none"
                             style={{
                                 height: `calc(${spacing[navigationBarHeight]} + var(--safe-area-inset-top, 0px))`,
                             }}
