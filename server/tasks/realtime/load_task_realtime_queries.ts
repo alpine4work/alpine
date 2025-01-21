@@ -364,21 +364,10 @@ export async function loadTaskRealtimeQueries(
             mapIterable(backfillAuthorizedTaskSet, task => {
                 const taskModel = prepareTaskForClient(actor, task);
 
-                // If this is an anonymous actor, we only load account models for the assignee.
-                // We don't load account models for the creator, closer, or assigner since
-                // those won't be visible in the UI.
-                //
-                // NOCOMMIT: Test
-                if (context.actor.type === "Anonymous") {
-                    if (task.assignee.value) {
-                        referencedAccountIds.add(task.assignee.value.assignee.accountId);
-                    }
-                } else {
-                    collectReferencedAccountIdsFromTaskModelData(
-                        referencedAccountIds,
-                        taskModel.rawData,
-                    );
-                }
+                collectReferencedAccountIdsFromTaskModelData(
+                    referencedAccountIds,
+                    taskModel.rawData,
+                );
 
                 return {
                     type: "Authorized",
