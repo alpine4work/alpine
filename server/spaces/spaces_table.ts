@@ -48,6 +48,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {generateId, getMaxId, getMinId} from "~/shared/id/id.js";
@@ -1141,7 +1142,7 @@ export async function authorizeSpaceAccessIfPossible(
                     }),
                 };
             }
-            return {ok: true, value: undefined};
+            return okResult;
         }
         case "System": {
             if (context.actor.getSpaceId() !== spaceId) {
@@ -1152,7 +1153,7 @@ export async function authorizeSpaceAccessIfPossible(
                     }),
                 };
             }
-            return {ok: true, value: undefined};
+            return okResult;
         }
         case "Anonymous": {
             return {ok: false, error: unauthenticatedSessionError()};
@@ -1461,7 +1462,7 @@ export async function getSpaceIfPossible(
 ): Promise<Result<SpaceModel, PermissionDeniedError> | null> {
     const [authorizationResult, spaceItem] = await runAllPromises([
         authorizeSpaceAccess(context, spaceId).then(
-            (): Result<void, never> => ({ok: true, value: undefined}),
+            (): Result<void, never> => okResult,
             (error): Result<never, PermissionDeniedError> => {
                 if (!(error instanceof PermissionDeniedError)) throw error;
                 return {ok: false, error};

@@ -1,4 +1,4 @@
-import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {getTaskCollectionSearchResult} from "~/server/tasks/data/task_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -13,7 +13,7 @@ import {
  * Load all the data referenced in our task query filters.
  */
 export async function getTaskQueryFilterReferences(
-    context: ServerSessionActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     filters: ReadonlyArray<TaskQueryFilter>,
 ): Promise<TaskQueryFilterReferences> {

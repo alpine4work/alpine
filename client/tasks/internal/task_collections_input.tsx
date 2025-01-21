@@ -190,7 +190,7 @@ function TaskCollectionsInput(
 
     // Preload task collections the account has an affinity for in case they open
     // the collections dropdown.
-    usePreloadSearchTaskCollectionsByAffinity();
+    usePreloadSearchTaskCollectionsByAffinity({isDisabled: isReadOnly});
 
     const [shouldLoadItems, setShouldLoadItems] = useState(false);
 

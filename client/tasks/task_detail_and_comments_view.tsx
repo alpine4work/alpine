@@ -151,11 +151,15 @@ export function TaskDetailAndCommentsView({
     useEffect(() => {
         if (!shouldConnect) return;
 
+        // Accounts without space access aren't allowed to connect to our realtime
+        // service. We'd constantly get authorization errors.
+        if (!currentAccount) return;
+
         notesClient.connect();
         return () => {
             notesClient.disconnect();
         };
-    }, [notesClient, shouldConnect]);
+    }, [currentAccount, notesClient, shouldConnect]);
 
     const webSocketState = useStore(notesClient.webSocketState);
 

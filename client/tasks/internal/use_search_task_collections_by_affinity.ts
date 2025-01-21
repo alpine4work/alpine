@@ -26,11 +26,18 @@ export function useSearchTaskCollectionsByAffinity({
  * `useSearchTaskCollectionsByAffinity()` and you don't have to wait for a
  * network request.
  */
-export function usePreloadSearchTaskCollectionsByAffinity() {
-    const {space} = useSpaceContext();
+export function usePreloadSearchTaskCollectionsByAffinity({
+    isDisabled,
+}: {isDisabled?: boolean} = {}) {
+    const {space, currentAccount} = useSpaceContext();
 
-    useIdlyPreloadRpc(searchTaskCollectionsByAffinity, {
-        spaceId: space.id,
-        limit: taskCollectionSearchResultLimit,
-    });
+    useIdlyPreloadRpc(
+        searchTaskCollectionsByAffinity,
+        !isDisabled && currentAccount
+            ? {
+                  spaceId: space.id,
+                  limit: taskCollectionSearchResultLimit,
+              }
+            : null,
+    );
 }

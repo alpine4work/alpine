@@ -313,6 +313,14 @@ export function TaskRealtimeClientContextProvider({
         );
         clientEntry.isMounted = true;
 
+        // Accounts without space access aren't allowed to connect to our realtime
+        // service. We'd constantly get authorization errors.
+        if (!currentAccount) {
+            return () => {
+                clientEntry.isMounted = false;
+            };
+        }
+
         const subscriptionsStore = client.store.getSubscriptionsStore();
 
         const getSubscriptionCount = () => {
@@ -353,7 +361,7 @@ export function TaskRealtimeClientContextProvider({
                 client.disconnect();
             }
         };
-    }, [client, spaceId]);
+    }, [client, currentAccount, spaceId]);
 
     useDevConsoleTool("tasks", () => ({store: client.store}));
 

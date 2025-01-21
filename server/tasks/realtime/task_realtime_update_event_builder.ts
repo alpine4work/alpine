@@ -10,6 +10,7 @@ import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_c
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {TaskAuthorizationActor} from "~/server/tasks/data/task_table.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -40,6 +41,7 @@ export interface TaskRealtimeUpdateEventConnection {
     readonly clock: HybridLogicalClock;
     readonly spaceId: SpaceId;
     readonly accountId: AccountId;
+    readonly actor: TaskAuthorizationActor;
     sendEvent(context: ServerProcessContext, event: TaskRealtimeEvent): void;
 }
 
@@ -343,7 +345,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
         const backfillTasks = event.backfillTasks.map(backfillTask => {
             if (backfillTask.type === "Unauthorized") return backfillTask;
 
-            const task = prepareTaskForClient(connection.accountId, backfillTask.task);
+            const task = prepareTaskForClient(connection.actor, backfillTask.task);
 
             collectReferencedAccountIdsFromTaskModelData(accountIds, task.rawData);
 

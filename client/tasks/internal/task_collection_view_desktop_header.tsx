@@ -22,7 +22,7 @@ import {
     TaskCollectionViewDesktopHeaderNameRef,
 } from "~/client/tasks/internal/task_collection_view_desktop_header_name.js";
 import {TaskQueryViewCustomizationBar} from "~/client/tasks/internal/task_query_view_customization_bar.js";
-import {AccessLevel} from "~/shared/access/access_policy.js";
+import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {interFontAscender, interFontDescender} from "~/shared/design/core/font_metrics.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
@@ -123,6 +123,18 @@ function TaskCollectionViewDesktopHeader(
         return -fontSize200BottomHalfHeight + fontSize75BottomHalfHeight;
     }, [spacingScale]);
 
+    const accessPolicy: AccessPolicy = useMemo(
+        () =>
+            collection?.getAccessPolicy() ?? {
+                accountGrantById: currentAccount
+                    ? new Map([[currentAccount.id, {level: "Manage", generation: 0}]])
+                    : emptyMap,
+                defaultGrant: null,
+                urlGrant: null,
+            },
+        [collection, currentAccount],
+    );
+
     return (
         <Box minHeight={navigationBarHeight} display="flex" paddingX={screenPaddingX}>
             <Box
@@ -186,50 +198,40 @@ function TaskCollectionViewDesktopHeader(
                 alignItems="center"
                 gap="2"
             >
-                <Box paddingRight="3">
-                    <ShareButton
-                        entityNoun="task collection"
-                        accessPolicy={useMemo(
-                            () =>
-                                collection?.getAccessPolicy() ?? {
-                                    accountGrantById: currentAccount
-                                        ? new Map([
-                                              [currentAccount.id, {level: "Manage", generation: 0}],
-                                          ])
-                                        : emptyMap,
-                                    defaultGrant: null,
-                                    urlGrant: null,
-                                },
-                            [collection, currentAccount],
-                        )}
-                        onAccessPolicyChange={accessPolicy => {
-                            // NOCOMMIT: Make sure you can't update name, update color, or delete on mobile
-                            // if not a manager.
-                            store.commitTaskActionTransaction(
-                                context,
-                                [
-                                    {
-                                        type: "UpdateCollection",
-                                        time: store.clock.now(),
-                                        collectionId,
-                                        collectionAction: {
-                                            type: "UpdateAccessPolicy",
-                                            accessPolicy,
+                {currentAccount && (
+                    <Box paddingRight="3">
+                        <ShareButton
+                            entityNoun="task collection"
+                            accessPolicy={accessPolicy}
+                            onAccessPolicyChange={accessPolicy => {
+                                // NOCOMMIT: Make sure you can't update name, update color, or delete on mobile
+                                // if not a manager.
+                                store.commitTaskActionTransaction(
+                                    context,
+                                    [
+                                        {
+                                            type: "UpdateCollection",
+                                            time: store.clock.now(),
+                                            collectionId,
+                                            collectionAction: {
+                                                type: "UpdateAccessPolicy",
+                                                accessPolicy,
+                                            },
                                         },
+                                    ],
+                                    {
+                                        // Collection access policy changes can't be undone.
+                                        undoManager: null,
+                                        affinityManager,
                                     },
-                                ],
-                                {
-                                    // Collection access policy changes can't be undone.
-                                    undoManager: null,
-                                    affinityManager,
-                                },
-                            );
-                        }}
-                        onCopyLink={() => {
-                            // NOCOMMIT
-                        }}
-                    />
-                </Box>
+                                );
+                            }}
+                            onCopyLink={() => {
+                                // NOCOMMIT
+                            }}
+                        />
+                    </Box>
+                )}
                 <MenuButton actions={menuActions}>
                     <IconButton size="sm" description="More" withoutTooltip>
                         <DotsThreeVertical />

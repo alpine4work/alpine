@@ -84,7 +84,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {collectionState}})
 ]);
 
 export async function loader({request, params, context: unauthenticatedContext}: LoaderArgs) {
-    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
+    const context = await unauthenticatedContext.actor.authenticate();
 
     const url = new URL(request.url);
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
@@ -111,6 +111,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
     }
 
     if (createSearchParam !== null) {
+        const sessionContext = context.actor.authorizeSession();
+
         try {
             const colorSearchParam = url.searchParams.get("color");
 
@@ -123,11 +125,14 @@ export async function loader({request, params, context: unauthenticatedContext}:
                     collectionId,
                     collectionAction: {
                         type: "Create",
-                        creatorId: context.actor.getAccountId(),
+                        creatorId: sessionContext.actor.getAccountId(),
                         name: createSearchParam,
                         accessPolicy: {
                             accountGrantById: new Map([
-                                [context.actor.getAccountId(), {level: "Manage", generation: 0}],
+                                [
+                                    sessionContext.actor.getAccountId(),
+                                    {level: "Manage", generation: 0},
+                                ],
                             ]),
                             defaultGrant: null,
                             urlGrant: null,
@@ -148,13 +153,13 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 });
             }
 
-            await commitTaskActionTransaction(context, spaceId, actions);
+            await commitTaskActionTransaction(sessionContext, spaceId, actions);
 
             // NOTE(calebmer): Normally affinity points for committing task actions is
             // added on the client through the `affinityManager` object. Since we create
             // the collection on the server here, we need to manually add affinity points.
-            context.process.waitUntil(
-                markSearchAffinityInteraction(context, {
+            sessionContext.process.waitUntil(
+                markSearchAffinityInteraction(sessionContext, {
                     spaceId,
                     affinityId: `TaskCollection:${collectionId}`,
                     interaction: {type: "HighIntentUpdate"},
@@ -172,7 +177,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
             // This check makes this `GET` endpoint idempotent. You can hit the endpoint
             // multiple times and if our collection is already created we'll noop.
             try {
-                await authorizeTaskCollectionAccess(context, collectionId, "View", null);
+                await authorizeTaskCollectionAccess(sessionContext, collectionId, "View", null);
             } catch {
                 throw error;
             }
@@ -195,7 +200,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
         ],
         {
             currentDate: getCurrentDate(context),
-            currentAccountId: context.actor.getAccountId(),
+            currentAccountId:
+                context.actor.type === "Session" ? context.actor.getAccountId() : null,
         },
     );
 

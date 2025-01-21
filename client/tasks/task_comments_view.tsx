@@ -105,7 +105,7 @@ export function TaskCommentsView({
                 setErrorState(error);
             },
         );
-    }, [initialComments, context, taskId, clientInfo, setErrorState]);
+    }, [initialComments, context, taskId, clientInfo, setErrorState, onInitialCommentsAvailable]);
 
     const hasInitializedRef = useRef(false);
 

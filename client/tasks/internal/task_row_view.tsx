@@ -1613,7 +1613,12 @@ function TaskRowView(
                     </div>
                 )}
             </div>
-            <FocusRing isVisibleFromAnyFocus={capabilities.hasColumns} offset="0" insetTop="border">
+            <FocusRing
+                isVisibleFromAnyFocus={capabilities.hasColumns}
+                offset="0"
+                insetLeft="-1"
+                insetTop="border"
+            >
                 <div
                     ref={titleCellRef}
                     data-testid={

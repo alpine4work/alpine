@@ -1,8 +1,9 @@
 import {TaskIndexDocBase} from "~/server/tasks/data/task_index_doc.js";
+import {TaskAuthorizationActor} from "~/server/tasks/data/task_table.js";
 import {maxHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
-import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
@@ -21,7 +22,7 @@ import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_po
  * you're using a system context.
  */
 export function prepareTaskForClient(
-    actorAccountId: AccountId | null,
+    actor: TaskAuthorizationActor,
     task: TaskIndexDocBase & {id: TaskId},
 ): TaskModel {
     return new TaskModel({
@@ -80,7 +81,9 @@ export function prepareTaskForClient(
         positionByAccountIdAndNotepadPageId: reduceIterable(
             filterIterable(
                 task.notepadPages.raw.positionById.actualEntries(),
-                ([key]) => actorAccountId !== null && key.startsWith(actorAccountId),
+                ([key]) =>
+                    actor.type === "System" ||
+                    (actor.type === "Session" && key.startsWith(actor.getAccountId())),
             ),
             (positionById, [key, {value, version}]) =>
                 value !== null
@@ -100,7 +103,9 @@ export function prepareTaskForClient(
         // aren't allowed to see.
         assigneeActivePosition:
             task.rawAssigneeActivePosition.value &&
-            task.rawAssigneeActivePosition.value.accountId !== actorAccountId
+            (actor.type === "System" ||
+                (actor.type === "Session" &&
+                    task.rawAssigneeActivePosition.value.accountId !== actor.getAccountId()))
                 ? new TaskAssigneeActivePositionRegister(
                       null,
                       maxHybridLogicalTime(

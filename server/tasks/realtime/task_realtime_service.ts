@@ -5,7 +5,7 @@ import {
     DynamoSystemActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
 import {
-    ServerSessionActionContext,
+    ServerActionContext,
     ServerSessionActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
@@ -339,13 +339,9 @@ export async function run({
                     throw new PermissionDeniedError("Only `AppService` can load queries");
                 }
 
-                if (!(actorContextModule instanceof DynamoSessionActorContextModule)) {
-                    throw new PermissionDeniedError("Only session actors can load queries");
-                }
-
                 return baseActionContext.with(
                     {actor: actorContextModule},
-                    async (context: ServerSessionActionContext) => {
+                    async (context: ServerActionContext) => {
                         const input = TaskRealtimeLoadQueriesInputSchema.deserialize(
                             await request.json(),
                         );
@@ -388,20 +384,13 @@ export async function run({
                     throw new PermissionDeniedError("Only `AppService` can load queries");
                 }
 
-                if (!(actorContextModule instanceof DynamoSessionActorContextModule)) {
-                    throw new PermissionDeniedError("Only session actors can load queries");
-                }
-
                 return baseActionContext.with({actor: actorContextModule}, async context => {
                     await server.authorizeTaskAccess(context, spaceId, route.taskId, "View");
 
                     return dangerouslyEscalateToSystemContext(context, spaceId, async context => {
                         const task = await server.getTask(context, spaceId, route.taskId);
 
-                        const taskModel = prepareTaskForClient(
-                            actorContextModule.getAccountId(),
-                            task,
-                        );
+                        const taskModel = prepareTaskForClient(actorContextModule, task);
 
                         return new Response(
                             JSON.stringify(

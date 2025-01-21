@@ -279,22 +279,23 @@ export class TaskContextModule extends TaskContextModuleBase {
             ContextModuleBase<{
                 process: ProcessContextModule;
                 tracer: TracerContextModule;
-                actor: DynamoSessionActorContextModule;
+                actor: DynamoActorContextModule;
             }>,
         spaceId: SpaceId,
         input: SchemaType<typeof TaskRealtimeLoadQueriesInputSchema>,
     ): Promise<SchemaType<typeof TaskRealtimeLoadQueriesOutputSchema>> {
         const [host, token] = await runAllPromises([
-            this.router.getStickySessionHost(
-                this._context,
-                spaceId,
-                this._context.actor.getSessionId(),
+            this._context.actor.type === "Session"
+                ? this.router.getStickySessionHost(
+                      this._context,
+                      spaceId,
+                      this._context.actor.getSessionId(),
+                  )
+                : this.router.getRandomHost(this._context, spaceId),
+            this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
+                "TaskRealtimeService",
+                this._context.actor.getTokenPayload(),
             ),
-            this._tokenAgent.privateSide.dangerouslySignShortLivedToken("TaskRealtimeService", {
-                type: "Session",
-                sessionId: this._context.actor.getSessionId(),
-                accountId: this._context.actor.getAccountId(),
-            }),
         ]);
 
         return fetchWithTracer(

@@ -1,4 +1,4 @@
-import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
@@ -514,7 +514,7 @@ export class TaskRealtimeServer {
      * from DynamoDB.
      */
     public async authorizeQueryAccess(
-        context: ServerSessionActionContext,
+        context: ServerActionContext,
         {
             spaceId,
             filters,
@@ -525,24 +525,19 @@ export class TaskRealtimeServer {
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
         },
     ) {
-        await runAllPromises([
-            // Authorize space access in parallel...
-            authorizeSpaceAccess(context, spaceId),
-
-            authorizeTaskQueryAccess(
-                context,
-                {
-                    filters,
-                    sorts,
-                },
-                {
-                    getTaskIndexDocIfExists: taskId =>
-                        this._storeBySpaceId.get(spaceId)?.getTaskIfLoaded(taskId),
-                    getCollectionIndexDocIfExists: collectionId =>
-                        this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
-                },
-            ),
-        ]);
+        await authorizeTaskQueryAccess(
+            context,
+            {
+                filters,
+                sorts,
+            },
+            {
+                getTaskIndexDocIfExists: taskId =>
+                    this._storeBySpaceId.get(spaceId)?.getTaskIfLoaded(taskId),
+                getCollectionIndexDocIfExists: collectionId =>
+                    this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
+            },
+        );
     }
 
     /**
@@ -553,22 +548,17 @@ export class TaskRealtimeServer {
      * from DynamoDB.
      */
     public async authorizeTaskAccess(
-        context: ServerSessionActionContext,
+        context: ServerActionContext,
         spaceId: SpaceId,
         taskId: TaskId,
         expectedAccessLevel: AccessLevel,
     ) {
-        await runAllPromises([
-            // Authorize space access in parallel...
-            authorizeSpaceAccess(context, spaceId),
-
-            authorizeTaskAccess(context, taskId, expectedAccessLevel, {
-                getTaskIndexDocIfExists: taskId =>
-                    this._storeBySpaceId.get(spaceId)?.getTaskIfLoaded(taskId),
-                getCollectionIndexDocIfExists: collectionId =>
-                    this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
-            }),
-        ]);
+        await authorizeTaskAccess(context, taskId, expectedAccessLevel, {
+            getTaskIndexDocIfExists: taskId =>
+                this._storeBySpaceId.get(spaceId)?.getTaskIfLoaded(taskId),
+            getCollectionIndexDocIfExists: collectionId =>
+                this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
+        });
     }
 
     /**
@@ -579,19 +569,14 @@ export class TaskRealtimeServer {
      * from DynamoDB.
      */
     public async authorizeCollectionAccess(
-        context: ServerSessionActionContext,
+        context: ServerActionContext,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
         expectedAccessLevel: AccessLevel,
     ) {
-        await runAllPromises([
-            // Authorize space access in parallel...
-            authorizeSpaceAccess(context, spaceId),
-
-            authorizeTaskCollectionAccess(context, collectionId, expectedAccessLevel, {
-                getCollectionIndexDocIfExists: collectionId =>
-                    this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
-            }),
-        ]);
+        await authorizeTaskCollectionAccess(context, collectionId, expectedAccessLevel, {
+            getCollectionIndexDocIfExists: collectionId =>
+                this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
+        });
     }
 }

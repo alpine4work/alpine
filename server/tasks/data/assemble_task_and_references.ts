@@ -37,11 +37,11 @@ export async function assembleTaskAndReferences(
 }> {
     const task = await getTaskIndexDoc(taskId);
 
-    // NOTE(calebmer): Passing in null will wipe all private data from the task.
-    // Given this is a system context a better approach may be to include all
+    // NOTE(calebmer): Passing in anonymous will wipe all private data from the
+    // task. Given this is a system context a better approach may be to include all
     // private data. Wiping is the safer option and nothing downstream needs the
     // data at the moment.
-    const taskModel = prepareTaskForClient(null, task);
+    const taskModel = prepareTaskForClient({type: "Anonymous"}, task);
 
     const promiseWaiter = new PromiseWaiter();
     const loadingTaskIds = new Set<TaskId>();
@@ -58,11 +58,11 @@ export async function assembleTaskAndReferences(
             promiseWaiter.waitUntil(
                 getTaskIndexDoc(parentTaskId).then(parentTask => {
                     referencedTaskModels.push(
-                        // NOTE(calebmer): Passing in null will wipe all private data from the task.
-                        // Given this is a system context a better approach may be to include all
+                        // NOTE(calebmer): Passing in anonymous will wipe all private data from the
+                        // task. Given this is a system context a better approach may be to include all
                         // private data. Wiping is the safer option and nothing downstream needs the
                         // data at the moment.
-                        prepareTaskForClient(null, parentTask),
+                        prepareTaskForClient({type: "Anonymous"}, parentTask),
                     );
                     trackTaskDependencies(parentTask);
                 }),

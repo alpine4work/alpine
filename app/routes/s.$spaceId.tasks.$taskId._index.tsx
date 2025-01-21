@@ -13,6 +13,7 @@ import {taskDetailViewCommentSidebarWidth} from "~/client/styles/tasks_shared_st
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/tasks/core/task_realtime_client_context_provider.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskDetailAndCommentsView} from "~/client/tasks/task_detail_and_comments_view.js";
+import {ServerContentSessionActionContext} from "~/server/context/server_content_action_context.js";
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -57,7 +58,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {initialMetaTitleTe
 ]);
 
 export async function loader({params, context: _context, request}: LoaderArgs) {
-    const context = (await _context.actor.authenticate()).actor.authorizeSession();
+    const context = await _context.actor.authenticate();
     const taskId = Schema.id<TaskId>().deserialize(params.taskId ?? null);
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
 
@@ -122,8 +123,8 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
                   commentsLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
               })
             : getTaskNotesContent(context, taskId).then(notes => ({notes, initialComments: null})),
-        url.searchParams.get("inbox") === "show"
-            ? getInboxEntry(context, {
+        context.actor.type === "Session" && url.searchParams.get("inbox") === "show"
+            ? getInboxEntry(context.actor.authorizeSession(), {
                   spaceId,
                   key: {type: "Task", taskId},
               })

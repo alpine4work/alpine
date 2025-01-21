@@ -103,6 +103,7 @@ import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
@@ -970,60 +971,71 @@ async function authorizeDocumentItemAccessIfPossible(
     documentItem: {spaceId: SpaceId; accessPolicy: AccessPolicy},
     expectedAccessLevel: AccessLevel,
 ): Promise<Result<void, ErrorBase>> {
-    // System actors can read all documents in the space they have access to.
-    if (context.actor.type === "System") {
-        if (context.actor.getSpaceId() !== documentItem.spaceId) {
-            return {
-                ok: false,
-                error: new PermissionDeniedError("System actor doesn't have access to space"),
-            };
+    switch (context.actor.type) {
+        // System actors can read all documents in the space they have access to.
+        case "System": {
+            if (context.actor.getSpaceId() !== documentItem.spaceId) {
+                return {
+                    ok: false,
+                    error: new PermissionDeniedError(
+                        "System actor doesn't have access to document's space",
+                    ),
+                };
+            }
+
+            return okResult;
         }
+        case "Session":
+        case "Anonymous": {
+            // Evaluate the document access policy.
+            const isAccessAuthorized = await evaluateAccessPolicy(
+                context,
+                documentItem.spaceId,
+                context.actor.type === "Session" ? context.actor.getAccountId() : null,
+                documentItem.accessPolicy,
+                expectedAccessLevel,
+            );
 
-        return {ok: true, value: undefined};
-    }
+            if (isAccessAuthorized) return okResult;
 
-    // Evaluate the document access policy.
-    const isAccessAuthorized = await evaluateAccessPolicy(
-        context,
-        documentItem.spaceId,
-        context.actor.type === "Session" ? context.actor.getAccountId() : null,
-        documentItem.accessPolicy,
-        expectedAccessLevel,
-    );
-
-    if (isAccessAuthorized) return {ok: true, value: undefined};
-
-    // Throw an unauthenticated error if this is an anonymous user instead of
-    // returning false. We want to show the user the unauthenticated error display
-    // message when they don't have access.
-    if (context.actor.type === "Anonymous") {
-        return {ok: false, error: unauthenticatedSessionError()};
-    } else if (
-        !(await isAccountMemberOfSpaceWithoutAuthorization(
-            context,
-            documentItem.spaceId,
-            context.actor.getAccountId(),
-        ))
-    ) {
-        return {
-            ok: false,
-            error: new PermissionDeniedError("Actor doesn't have access to document's space", {
-                displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
-            }),
-        };
-    } else {
-        return {
-            ok: false,
-            error: new PermissionDeniedError(
-                quote`Actor doesn't have ${expectedAccessLevel} access level to document`,
-                {
-                    displayMessage:
-                        documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
-                            expectedAccessLevel
-                        ],
-                },
-            ),
-        };
+            // Throw an unauthenticated error if this is an anonymous user instead of
+            // returning false. We want to show the user the unauthenticated error display
+            // message when they don't have access.
+            if (context.actor.type === "Anonymous") {
+                return {ok: false, error: unauthenticatedSessionError()};
+            } else if (
+                !(await isAccountMemberOfSpaceWithoutAuthorization(
+                    context,
+                    documentItem.spaceId,
+                    context.actor.getAccountId(),
+                ))
+            ) {
+                return {
+                    ok: false,
+                    error: new PermissionDeniedError(
+                        "Actor doesn't have access to document's space",
+                        {
+                            displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
+                        },
+                    ),
+                };
+            } else {
+                return {
+                    ok: false,
+                    error: new PermissionDeniedError(
+                        quote`Actor doesn't have ${expectedAccessLevel} access level to document`,
+                        {
+                            displayMessage:
+                                documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
+                                    expectedAccessLevel
+                                ],
+                        },
+                    ),
+                };
+            }
+        }
+        default:
+            throw exhaustive(context.actor);
     }
 }
 
