@@ -8,12 +8,10 @@ import {
 import {RemLength, Spacing, parseRemLength, screenPaddingX} from "~/shared/design/core/spacing.js";
 
 export function TaskRowShimmer({
-    hasColumns,
     width,
     ragRight,
     indentation = 0,
 }: {
-    hasColumns: boolean;
     width: Spacing;
     ragRight?: Spacing;
     indentation?: number;
@@ -36,7 +34,7 @@ export function TaskRowShimmer({
         >
             <Box
                 position="absolute"
-                left={!hasColumns ? screenPaddingX : "0"}
+                left={screenPaddingX}
                 right={screenPaddingX}
                 height="border"
                 backgroundColor="grey-5"

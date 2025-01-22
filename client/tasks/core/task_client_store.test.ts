@@ -246,7 +246,7 @@ function createAutoRetainStore() {
         for (const collectionSubscriptions of subscriptions.collectionSubscriptionsById.values()) {
             for (const [subscription, {isUnsubscribing}] of collectionSubscriptions) {
                 if (!isUnsubscribing) continue;
-                store.onCollectionSubscriptionUnsubscribed(subscription);
+                store._onCollectionSubscriptionUnsubscribed(subscription);
             }
         }
     });

@@ -30,6 +30,7 @@ import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
@@ -53,6 +54,7 @@ type EdgeServiceRoute =
     | {type: "MyAccountService"; accountId: string; pathname: string}
     | {type: "TaskNotesCollaborationService"; taskId: string; pathname: string}
     | {type: "TaskRealtimeService"; spaceId: SpaceId}
+    | {type: "LoadTaskQueries"; spaceId: SpaceId}
     | {type: "UploadFile"; spaceId: SpaceId}
     | {type: "CreateFileMultipartUpload"; spaceId: SpaceId}
     | {type: "PutFileMultipartUploadPart"; spaceId: SpaceId; fileId: FileId; partNumber: string}
@@ -292,6 +294,14 @@ async function handleFetch(
             if (isId<SpaceId>(spaceId)) {
                 routeString = "/api/task-realtime/:spaceId";
                 route = {type: "TaskRealtimeService", spaceId};
+            }
+        }
+
+        if (pathSegments.length === 2 && pathSegments[1] === "loadQueries") {
+            const spaceId = pathSegments[0]!;
+            if (isId<SpaceId>(spaceId)) {
+                routeString = "/api/task-realtime/:spaceId/loadQueries";
+                route = {type: "LoadTaskQueries", spaceId};
             }
         }
     } else if (url.pathname.startsWith("/api/files/")) {
@@ -575,6 +585,84 @@ async function actuallyHandleFetch(
                 return fetch(
                     `http://${taskRealtimeServiceHostname}:80/${taskRealtimeServicePort}/${spaceId}`,
                     {headers},
+                );
+            }
+
+            case "LoadTaskQueries": {
+                // Can't forward a request to upgrade to a WebSocket connection to
+                // this endpoint of `TaskRealtimeService`.
+                if (request.headers.has("upgrade"))
+                    throw new InvalidArgumentError("Can't upgrade to WebSocket connection");
+
+                if (request.method !== "POST") {
+                    throw new InvalidArgumentError(quote`Invalid request method ${request.method}`);
+                }
+
+                const {spaceId} = route;
+                const taskRealtimeServiceRouter =
+                    await sharedResources.taskRealtimeServiceRouterPromise;
+
+                const headers = new Headers(request.headers);
+                addTracerPropagationContextHeader(headers, span);
+
+                // We authenticate with an `Authorization` not a `Cookie` header.
+                headers.delete("cookie");
+
+                // When connecting to `TaskRealtimeService` via the edge, you must authenticate
+                // with a session cookie. `Authorization` headers are ignored.
+                const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
+
+                const requestToken = await tokenAgent.privateSide.dangerouslySignShortLivedToken(
+                    "TaskRealtimeService",
+                    sessionCookieToken ?? {type: "Anonymous"},
+                );
+                headers.set("authorization", `bearer ${requestToken}`);
+
+                const routerContext = Context.new({
+                    process: new ProcessContextModule({
+                        waitUntil: promise => executionContext.waitUntil(promise),
+                    }),
+                    tracer: new TracerContextModule(span),
+                });
+
+                const taskRealtimeServiceHost = sessionCookieToken
+                    ? await taskRealtimeServiceRouter.getStickySessionHost(
+                          routerContext,
+                          spaceId,
+                          sessionCookieToken.sessionId,
+                      )
+                    : // TODO(calebmer): Probably better to send anonymous actors to a sticky host as
+                      // well based on `BrowserId`. Maybe we should always use `BrowserId` actually
+                      // to simplify code.
+                      await taskRealtimeServiceRouter.getRandomHost(routerContext, spaceId);
+
+                if (process.env.NODE_ENV !== "production") {
+                    // eslint-disable-next-line no-global-fetch
+                    return fetch(`http://${taskRealtimeServiceHost}/${spaceId}/loadQueries`, {
+                        method: "POST",
+                        headers,
+                        body: request.body,
+                    });
+                }
+
+                const [taskRealtimeServiceHostname = "", taskRealtimeServicePort = ""] =
+                    taskRealtimeServiceHost.split(":");
+
+                // Proxy a WebSocket connection through Cloudflare. Notice we're using `http`
+                // instead of `https`! Cloudflare is responsible for encrypting.
+                //
+                // Frustratingly, in production Cloudflare ignores non-default ports. So we run
+                // a small proxy server in `TaskRealtimeService` on port 80 that redirects to
+                // the right port.
+                //
+                // eslint-disable-next-line no-global-fetch
+                return fetch(
+                    `http://${taskRealtimeServiceHostname}:80/${taskRealtimeServicePort}/${spaceId}/loadQueries`,
+                    {
+                        method: "POST",
+                        headers,
+                        body: request.body,
+                    },
                 );
             }
 

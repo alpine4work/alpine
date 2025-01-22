@@ -10,7 +10,7 @@ import {
     TaskRealtimeGetTaskWithoutDependenciesOutputSchema,
     TaskRealtimeLoadQueriesInputSchema,
     TaskRealtimeLoadQueriesOutputSchema,
-} from "~/server/tasks/router/task_realtime_service_procedure_schemas.js";
+} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 import {TaskRealtimeServiceRouterBase} from "~/server/tasks/router/task_realtime_service_router_base.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -291,7 +291,10 @@ export class TaskContextModule extends TaskContextModuleBase {
                       spaceId,
                       this._context.actor.getSessionId(),
                   )
-                : this.router.getRandomHost(this._context, spaceId),
+                : // TODO(calebmer): Probably better to send anonymous actors to a sticky host as
+                  // well based on `BrowserId`. Maybe we should always use `BrowserId` actually
+                  // to simplify code.
+                  this.router.getRandomHost(this._context, spaceId),
             this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
                 "TaskRealtimeService",
                 this._context.actor.getTokenPayload(),

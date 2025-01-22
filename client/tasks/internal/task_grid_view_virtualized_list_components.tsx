@@ -496,12 +496,7 @@ function TaskGridViewRowShimmer({
                 onSelectAll: focusPreviousTaskTitleAll,
             })}
         >
-            <TaskRowShimmer
-                hasColumns={capabilities.hasColumns}
-                width={width}
-                ragRight={ragRight}
-                indentation={indentation}
-            />
+            <TaskRowShimmer width={width} ragRight={ragRight} indentation={indentation} />
         </Box>
     );
 }

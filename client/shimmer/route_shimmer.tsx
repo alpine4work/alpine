@@ -1715,22 +1715,22 @@ function TaskGridRouteShimmer({
                     </Box>
                 </Box>
             )}
-            <TaskRowShimmer hasColumns={routeLayout !== "narrow"} width="128" ragRight="2" />
-            <TaskRowShimmer hasColumns={routeLayout !== "narrow"} width="64" ragRight="6" />
-            <TaskRowShimmer hasColumns={routeLayout !== "narrow"} width="96" ragRight="4" />
-            <TaskRowShimmer hasColumns={routeLayout !== "narrow"} width="128" ragRight="12" />
-            <TaskRowShimmer hasColumns={routeLayout !== "narrow"} width="64" ragRight="10" />
-            <TaskRowShimmer hasColumns={routeLayout !== "narrow"} width="160" />
-            <TaskRowShimmer hasColumns={routeLayout !== "narrow"} width="96" ragRight="8" />
+            <TaskRowShimmer width="128" ragRight="2" />
+            <TaskRowShimmer width="64" ragRight="6" />
+            <TaskRowShimmer width="96" ragRight="4" />
+            <TaskRowShimmer width="128" ragRight="12" />
+            <TaskRowShimmer width="64" ragRight="10" />
+            <TaskRowShimmer width="160" />
+            <TaskRowShimmer width="96" ragRight="8" />
             {routeLayout !== "narrow" && (
                 <>
-                    <TaskRowShimmer hasColumns={true} width="128" ragRight="2" />
-                    <TaskRowShimmer hasColumns={true} width="64" ragRight="6" />
-                    <TaskRowShimmer hasColumns={true} width="96" ragRight="4" />
-                    <TaskRowShimmer hasColumns={true} width="128" ragRight="12" />
-                    <TaskRowShimmer hasColumns={true} width="64" ragRight="10" />
-                    <TaskRowShimmer hasColumns={true} width="160" />
-                    <TaskRowShimmer hasColumns={true} width="96" ragRight="8" />
+                    <TaskRowShimmer width="128" ragRight="2" />
+                    <TaskRowShimmer width="64" ragRight="6" />
+                    <TaskRowShimmer width="96" ragRight="4" />
+                    <TaskRowShimmer width="128" ragRight="12" />
+                    <TaskRowShimmer width="64" ragRight="10" />
+                    <TaskRowShimmer width="160" />
+                    <TaskRowShimmer width="96" ragRight="8" />
                 </>
             )}
         </Box>

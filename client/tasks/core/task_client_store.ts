@@ -462,7 +462,11 @@ export class TaskClientStore {
         return this._internal.createAndRetainCollectionSubscription(collectionId);
     }
 
-    public onCollectionSubscriptionUnsubscribed(subscription: TaskClientCollectionSubscription) {
+    /**
+     * Only `TaskRealtimeClient` should call this function. Which is why it's
+     * prefixed with an underscore.
+     */
+    public _onCollectionSubscriptionUnsubscribed(subscription: TaskClientCollectionSubscription) {
         this._internal.onCollectionSubscriptionUnsubscribed(subscription);
     }
 }

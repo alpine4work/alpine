@@ -41,7 +41,7 @@ import {
     TaskRealtimeGetTaskWithoutDependenciesOutputSchema,
     TaskRealtimeLoadQueriesInputSchema,
     TaskRealtimeLoadQueriesOutputSchema,
-} from "~/server/tasks/router/task_realtime_service_procedure_schemas.js";
+} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 import {taskRealtimeServiceDiscoveryWaitMs} from "~/server/tasks/router/task_realtime_service_router_base.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -335,8 +335,13 @@ export async function run({
                     throw new InvalidArgumentError(quote`Invalid request method ${request.method}`);
                 }
 
-                if (actorContextModule.serviceName !== "AppService") {
-                    throw new PermissionDeniedError("Only `AppService` can load queries");
+                if (
+                    actorContextModule.serviceName !== "AppService" &&
+                    actorContextModule.serviceName !== "EdgeService"
+                ) {
+                    throw new PermissionDeniedError(
+                        "Only `AppService` or `EdgeService` can load queries",
+                    );
                 }
 
                 return baseActionContext.with(

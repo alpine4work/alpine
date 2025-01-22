@@ -741,7 +741,7 @@ export class TaskRealtimeClient {
 
                             for (const {collectionSubscription} of oldSubscribedCollections) {
                                 try {
-                                    this.store.onCollectionSubscriptionUnsubscribed(
+                                    this.store._onCollectionSubscriptionUnsubscribed(
                                         collectionSubscription,
                                     );
                                 } catch (error) {

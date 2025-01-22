@@ -196,6 +196,7 @@ export default implementRpcs(definitions, {
             return {comment};
         },
     },
+
     updateTaskCommentContent: {
         visibility: ["TaskNotesCollaborationService"],
         execute: async (context, input) => {
@@ -213,12 +214,14 @@ export default implementRpcs(definitions, {
             return {contentUpdatedTime, contentReferences};
         },
     },
+
     deleteTaskComment: {
         visibility: ["TaskNotesCollaborationService"],
         execute: (context, input) => {
             return deleteTaskComment(context.actor.authorizeSession(), input);
         },
     },
+
     backfillTaskComments: {
         visibility: ["TaskNotesCollaborationService"],
         execute: (context, input) => {
