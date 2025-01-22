@@ -17,6 +17,22 @@ import {
 } from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
+/**
+ * Accounts which don't have access to the space aren't allowed to connect to a
+ * `TaskRealtimeService` WebSocket. So instead of using `TaskRealtimeClient`
+ * which keeps task data up to date in realtime and manages subscriptions with
+ * our backend we use this function which doesn't connect to realtime and
+ * instead issues `loadQueries` requests whenever `TaskClientStore` needs new
+ * data.
+ *
+ * This function is used for anonymous users accessing a task collection with a
+ * `urlGrant`. This function:
+ *
+ * - Makes sure to load queries when new query subscriptions are created (e.g.
+ *   when expanding a tasks children or changing filters/sorts).
+ *
+ * - Loads more tasks when scrolling to the bottom of a long task collection.
+ */
 // NOCOMMIT: Document
 // NOCOMMIT: Test expanding tasks, scrolling to load more tasks, and changing filters/sorts
 export function subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable(
