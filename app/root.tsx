@@ -32,6 +32,7 @@ import {ReporterContextProvider} from "~/client/design/reporter_context_provider
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip_coordination_context_provider.js";
 import {getColorSchemeWithoutListeningIfBrowser} from "~/client/helpers/color_scheme.js";
 import {ColorSchemeManager} from "~/client/helpers/color_scheme_manager.js";
+import {ErrorBoundary} from "~/client/helpers/error_boundary.js";
 import {useGlobalContextProvider} from "~/client/helpers/global_context.js";
 import {GlobalKeyDownRootContextProvider} from "~/client/helpers/global_key_down_event.js";
 import {useAppInitialRenderContextProvider} from "~/client/helpers/lifecycle/initial_app_render.js";
@@ -297,6 +298,26 @@ export default function Root() {
         minHeight: "100svh",
     };
 
+    const renderOutlet = (outlet: ReactElement | null) => (
+        // We add an `<ErrorBoundary>` around the outlet so that if a child component
+        // throws an error, we don't re-render the entire document. Which can cause CSS
+        // in the `<head>` to reload causing a flash of unstyled content.
+        <ErrorBoundary
+            fallback={({error}) => (
+                <RootErrorRenderer
+                    error={error}
+                    title={
+                        isRouteErrorResponse(routeError) && routeError.status === 404
+                            ? "Couldn’t find page"
+                            : undefined
+                    }
+                />
+            )}
+        >
+            {outlet}
+        </ErrorBoundary>
+    );
+
     if (!nativeMobileRouterState) {
         nodes.push(
             // Render a `<div>` around children even when we're not rendering in the
@@ -318,7 +339,7 @@ export default function Root() {
                             }
                         />
                     ) : (
-                        <Outlet />
+                        renderOutlet(<Outlet />)
                     )}
                 </UpdateMetaTitleContextProvider>
             </div>,
@@ -354,6 +375,7 @@ export default function Root() {
                     onUpdateMetaTitle={onUpdateMetaTitle}
                     globalLoadingIndicator={null}
                     style={outletContainerStyle}
+                    renderOutlet={renderOutlet}
                 />
             );
 
@@ -425,6 +447,7 @@ export default function Root() {
                         onUpdateMetaTitle={onUpdateMetaTitle}
                         globalLoadingIndicator={null}
                         style={outletContainerStyle}
+                        renderOutlet={renderOutlet}
                     />,
                 );
             }
@@ -647,7 +670,7 @@ function RootErrorRenderer({error: _error, title}: {error: unknown; title?: stri
     );
 }
 
-// We use the same `<Root>` component for the error boundary component so that
-// if Remix navigates between root and error boundary we don't remount the
-// HTML. (Which appears to cause CSS to flash off.)
-export const ErrorBoundary = Root;
+// We use the same `<Root>` component for the error boundary component. This
+// way navigation errors like 404 errors will be rendered by our root
+// component.
+export {Root as ErrorBoundary};
