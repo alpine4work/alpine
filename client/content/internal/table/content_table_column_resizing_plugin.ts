@@ -553,10 +553,7 @@ function getEdgeContentTableCell(
  * 2. Dragging a column drag handle should only change the size of the
  *    column(s) adjacent to the drag handle.
  *
- * 3. Dragging an interior column drag handle shouldn’t change the width of the
- *    table.
- *
- * 4. Dragging an edge column drag handle (left or right) can change the width
+ * 3. Dragging an edge column drag handle (left or right) can change the width
  *    of the table.
  *
  * Some ideas for another day:
@@ -786,42 +783,55 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
     } else {
         const column2Index = column1Index + 1;
         const oldColumn2Width = oldColumnWidths[column2Index]!;
-
         const oldColumn1Width = oldColumnWidths[column1Index]!;
         const oldColumn1WidthPx = oldTotalColumnWidthPx * (oldColumn1Width / oldTotalColumnWidth);
+        const oldColumn2WidthPx = oldTotalColumnWidthPx * (oldColumn2Width / oldTotalColumnWidth);
 
-        // Make sure the new column 1 width is in our min/max bounds.
-        let newColumn1WidthPx = clamp(
+        // Calculate new width for column 1 based on drag offset
+        const newColumn1WidthPx = clamp(
             columnMinWidthPx,
             oldColumn1WidthPx + offsetPx,
             columnMaxWidthPx,
         );
-        let newColumn1Width = (newColumn1WidthPx / oldTotalColumnWidthPx) * oldTotalColumnWidth;
-        let newColumn2Width = oldColumn1Width + oldColumn2Width - newColumn1Width;
-        let newColumn2WidthPx = (newColumn2Width / oldTotalColumnWidth) * oldTotalColumnWidthPx;
 
-        // Make sure the new column 2 width is in our min/max bounds.
-        if (newColumn2WidthPx < columnMinWidthPx) {
-            newColumn2WidthPx = columnMinWidthPx;
-            newColumn2Width = (newColumn2WidthPx / oldTotalColumnWidthPx) * oldTotalColumnWidth;
-            newColumn1Width = oldColumn1Width + oldColumn2Width - newColumn2Width;
-            newColumn1WidthPx = (newColumn1Width / oldTotalColumnWidth) * oldTotalColumnWidthPx;
-        } else if (newColumn2WidthPx > columnMaxWidthPx) {
-            newColumn2WidthPx = columnMaxWidthPx;
-            newColumn2Width = (newColumn2WidthPx / oldTotalColumnWidthPx) * oldTotalColumnWidth;
-            newColumn1Width = oldColumn1Width + oldColumn2Width - newColumn2Width;
-            newColumn1WidthPx = (newColumn1Width / oldTotalColumnWidth) * oldTotalColumnWidthPx;
-        }
+        // Only shrink column2 if column1 is growing, don't grow column2 if column1 is shrinking
+        const column2Offset = offsetPx > 0 ? -offsetPx : Math.min(0, -offsetPx);
+        const newColumn2WidthPx = clamp(
+            columnMinWidthPx,
+            oldColumn2WidthPx + column2Offset,
+            columnMaxWidthPx,
+        );
+
+        // Calculate how much the total width changed
+        const widthChangePx =
+            newColumn1WidthPx + newColumn2WidthPx - (oldColumn1WidthPx + oldColumn2WidthPx);
+        const newTotalColumnWidthPx = oldTotalColumnWidthPx + widthChangePx;
+
+        // Convert pixel widths back to relative widths
+        const newColumn1Width = (newColumn1WidthPx / oldTotalColumnWidthPx) * oldTotalColumnWidth;
+        const newColumn2Width = (newColumn2WidthPx / oldTotalColumnWidthPx) * oldTotalColumnWidth;
 
         const newColumnWidths: Array<number> = [];
-
         for (let columnIndex = 0; columnIndex < oldColumnWidths.length; columnIndex++) {
-            if (columnIndex === column1Index) newColumnWidths.push(newColumn1Width);
-            else if (columnIndex === column2Index) newColumnWidths.push(newColumn2Width);
-            else newColumnWidths.push(oldColumnWidths[columnIndex]!);
+            if (columnIndex === column1Index) {
+                newColumnWidths.push(newColumn1Width);
+            } else if (columnIndex === column2Index) {
+                newColumnWidths.push(newColumn2Width);
+            } else {
+                // Keep other columns' widths exactly the same
+                newColumnWidths.push(oldColumnWidths[columnIndex]!);
+            }
         }
 
+        // Calculate new table width based on the width change
+        const oldTableWidth = Math.max(1, oldTableWidthPx / blockWidthPx);
+        const newTableWidth = Math.max(
+            1,
+            oldTableWidth * (newTotalColumnWidthPx / oldTotalColumnWidthPx),
+        );
+
         return {
+            tableWidth: newTableWidth,
             columnWidths: newColumnWidths,
         };
     }
