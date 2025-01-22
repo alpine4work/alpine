@@ -1,6 +1,7 @@
 import classNames from "classnames";
 import {Plus} from "phosphor-react";
 import {
+    FocusEvent,
     KeyboardEvent,
     Memo,
     Ref,
@@ -40,7 +41,6 @@ import {TaskRowCollectionsCellOverlay} from "~/client/tasks/internal/task_row_co
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {emptySet} from "~/shared/helpers/array/empty_set.js";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
@@ -220,16 +220,16 @@ function TaskRowCollectionsCell(
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
     const [isFocusWithin, setIsFocusWithin] = useState(false);
 
-    const getIsFocusWithin = () =>
-        !!document.activeElement &&
-        isElementOwnedBy(assertExists(cellRef.current), document.activeElement);
+    const getIsFocusWithin = (activeElement: Element | null) =>
+        !!activeElement && isElementOwnedBy(assertExists(cellRef.current), activeElement);
 
-    const handleFocusChange = () => {
-        // Wait a microtask to make sure `document.activeElement` is updated. It may
-        // not be updated in `onFocus` or `onBlur`.
-        scheduleMicrotask(() => {
-            setIsFocusWithin(getIsFocusWithin());
-        });
+    const handleFocusChange = (event: FocusEvent) => {
+        const activeElement =
+            event.type === "blur"
+                ? event.relatedTarget ?? document.activeElement
+                : document.activeElement;
+
+        setIsFocusWithin(getIsFocusWithin(activeElement));
     };
 
     useImperativeHandle(
@@ -237,7 +237,7 @@ function TaskRowCollectionsCell(
         () => ({
             focusCell: () => assertExists(cellRef.current).focus(),
             focusCellInputStart: () => {
-                if (!getIsFocusWithin()) {
+                if (!getIsFocusWithin(document.activeElement)) {
                     shouldFocusStartNextRenderRef.current = true;
                     assertExists(cellRef.current).focus();
                 } else {
