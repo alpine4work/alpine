@@ -38,9 +38,9 @@ export function TaskRowShimmer({
                 position="absolute"
                 left={!hasColumns ? screenPaddingX : "0"}
                 right={screenPaddingX}
-                bottom="0"
                 height="border"
                 backgroundColor="grey-5"
+                style={{bottom: -1}}
             />
             <Box
                 flexShrink="0"
