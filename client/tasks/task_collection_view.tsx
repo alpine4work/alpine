@@ -262,45 +262,6 @@ export function TaskCollectionView({
         sorts: normalizedSorts,
     });
 
-    // NOCOMMIT: // The minimum access level of a filtered colllection
-    // const collectionsFilterMinAccessLevel = useStore(
-    //     useMemo((): Store<AccessLevel | null> => {
-    //         if (
-    //             normalizedFiltersResult?.type !== "Possible" ||
-    //             !normalizedFiltersResult.normalizedFilters.collectionsFilter
-    //         ) {
-    //             return new ConstStore("Manage");
-    //         }
-
-    //         const accessLevelStores: Array<Store<AccessLevel | null>> = [];
-
-    //         for (const clause of normalizedFiltersResult.normalizedFilters.collectionsFilter) {
-    //             for (const [term, not] of clause) {
-    //                 if (term === collectionId) continue;
-    //                 if (term === "IsEmpty") continue;
-    //                 if (not) continue;
-
-    //                 accessLevelStores.push(
-    //                     createTaskQueryCollectionsFilterCollectionResultStore({
-    //                         store,
-    //                         filterReferences,
-    //                         collectionId: term,
-    //                     }).map(collectionResult =>
-    //                         getAccountAccessLevelAssumingSpaceAccess(
-    //                             collectionResult.collection.getAccessPolicy(),
-    //                             currentAccount?.id,
-    //                         ),
-    //                     ),
-    //                 );
-    //             }
-    //         }
-
-    //         return Store.mapMany(accessLevelStores, accessLevels =>
-    //             accessLevels.reduce(minAccessLevel, "Manage"),
-    //         );
-    //     }, [collectionId, currentAccount?.id, filterReferences, normalizedFiltersResult, store]),
-    // );
-
     const hasEditAccessLevel = useMemo(() => hasAccessLevel(access.level, "Edit"), [access.level]);
 
     const desktopHeaderRef = useRef<TaskCollectionViewDesktopHeaderRef>(null);

@@ -1,11 +1,14 @@
 import {ReactElement, Ref, forwardRef} from "react";
+import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {OverlayPlacement} from "~/client/design/overlay.js";
 import {
     OverlayTriggerButtonRef,
     OverlayTriggerButtonState,
 } from "~/client/design/overlay_trigger_button.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 const TaskQueryAddSortMenuButtonForwardRef = forwardRef(TaskQueryAddSortMenuButton);
@@ -29,6 +32,8 @@ function TaskQueryAddSortMenuButton(
     },
     ref: Ref<OverlayTriggerButtonRef>,
 ) {
+    const {currentAccount} = useSpaceContext();
+
     return (
         <MenuButton
             ref={ref}
@@ -67,21 +72,25 @@ function TaskQueryAddSortMenuButton(
                             });
                         },
                     },
-                    {
-                        label: "Creator",
-                        onPress: () => {
-                            onAddSort({type: "Creator"});
-                        },
-                    },
-                    {
-                        label: "Assigner",
-                        onPress: () => {
-                            onAddSort({
-                                type: "Assigner",
-                                missing: "Last",
-                            });
-                        },
-                    },
+                    ...(currentAccount
+                        ? cast<Array<MenuAction>>([
+                              {
+                                  label: "Creator",
+                                  onPress: () => {
+                                      onAddSort({type: "Creator"});
+                                  },
+                              },
+                              {
+                                  label: "Assigner",
+                                  onPress: () => {
+                                      onAddSort({
+                                          type: "Assigner",
+                                          missing: "Last",
+                                      });
+                                  },
+                              },
+                          ])
+                        : []),
                 ],
                 [
                     {

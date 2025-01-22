@@ -528,6 +528,7 @@ export class TaskRealtimeServer {
         await authorizeTaskQueryAccess(
             context,
             {
+                spaceId,
                 filters,
                 sorts,
             },

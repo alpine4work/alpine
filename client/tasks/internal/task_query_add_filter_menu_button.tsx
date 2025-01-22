@@ -1,11 +1,14 @@
 import {ReactElement, Ref, forwardRef} from "react";
+import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {OverlayPlacement} from "~/client/design/overlay.js";
 import {
     OverlayTriggerButtonRef,
     OverlayTriggerButtonState,
 } from "~/client/design/overlay_trigger_button.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 
 const TaskQueryAddFilterMenuButtonForwardRef = forwardRef(TaskQueryAddFilterMenuButton);
@@ -29,6 +32,8 @@ function TaskQueryAddFilterMenuButton(
     },
     ref: Ref<OverlayTriggerButtonRef>,
 ) {
+    const {currentAccount} = useSpaceContext();
+
     return (
         <MenuButton
             ref={ref}
@@ -100,30 +105,36 @@ function TaskQueryAddFilterMenuButton(
                             });
                         },
                     },
-                    {
-                        label: "Creator",
-                        onPress: () => {
-                            onAddFilter({
-                                type: "Creator",
-                                operation: {
-                                    type: "OneOf",
-                                    accounts: [{type: "CurrentAccount"}],
-                                },
-                            });
-                        },
-                    },
-                    {
-                        label: "Assigner",
-                        onPress: () => {
-                            onAddFilter({
-                                type: "Assigner",
-                                operation: {
-                                    type: "OneOf",
-                                    accounts: [{type: "CurrentAccount"}],
-                                },
-                            });
-                        },
-                    },
+                    // Accounts without space access aren't allowed to filter by creator or
+                    // assigner.
+                    ...(currentAccount
+                        ? cast<Array<MenuAction>>([
+                              {
+                                  label: "Creator",
+                                  onPress: () => {
+                                      onAddFilter({
+                                          type: "Creator",
+                                          operation: {
+                                              type: "OneOf",
+                                              accounts: [{type: "CurrentAccount"}],
+                                          },
+                                      });
+                                  },
+                              },
+                              {
+                                  label: "Assigner",
+                                  onPress: () => {
+                                      onAddFilter({
+                                          type: "Assigner",
+                                          operation: {
+                                              type: "OneOf",
+                                              accounts: [{type: "CurrentAccount"}],
+                                          },
+                                      });
+                                  },
+                              },
+                          ])
+                        : []),
                 ],
                 [
                     {

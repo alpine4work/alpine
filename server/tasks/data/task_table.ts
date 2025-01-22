@@ -89,6 +89,7 @@ import {
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
@@ -164,7 +165,10 @@ import {
     emptyTaskNotesContent,
     isTaskNotesContent,
 } from "~/shared/tasks/task_notes_content_schema.js";
-import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
+import {
+    TaskQueryAccountNormalizedFilter,
+    TaskQueryNormalizedFilters,
+} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskStatus} from "~/shared/tasks/task_status.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -5509,9 +5513,11 @@ export function authorizeTaskIndexDocAccessIfPossibleForActor(
 export async function authorizeTaskQueryAccess(
     context: ServerActionContext,
     {
+        spaceId,
         filters,
         sorts,
     }: {
+        spaceId: SpaceId;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     },
@@ -5530,7 +5536,16 @@ export async function authorizeTaskQueryAccess(
         context.actor.type === "Session" &&
         filters.creatorFilter?.accountIds.size === 1 &&
         filters.creatorFilter.type === "OneOf" &&
-        filters.creatorFilter.accountIds.has(context.actor.getAccountId())
+        filters.creatorFilter.accountIds.has(context.actor.getAccountId()) &&
+        // You must be a space member to filter for tasks you created. If you lost
+        // access to a space you can't filter for your own tasks anymore.
+        //
+        // NOCOMMIT: Test!
+        (await isAccountMemberOfSpaceWithoutAuthorization(
+            context,
+            spaceId,
+            context.actor.getAccountId(),
+        ))
     ) {
         hasAccess = true;
     }
@@ -5541,7 +5556,16 @@ export async function authorizeTaskQueryAccess(
         context.actor.type === "Session" &&
         filters.assigneeFilter?.accountIds.size === 1 &&
         filters.assigneeFilter.type === "OneOf" &&
-        filters.assigneeFilter.accountIds.has(context.actor.getAccountId())
+        filters.assigneeFilter.accountIds.has(context.actor.getAccountId()) &&
+        // You must be a space member to filter for tasks you're assigned. If you lost
+        // access to a space you can't filter for your own tasks anymore.
+        //
+        // NOCOMMIT: Test!
+        (await isAccountMemberOfSpaceWithoutAuthorization(
+            context,
+            spaceId,
+            context.actor.getAccountId(),
+        ))
     ) {
         hasAccess = true;
     }
@@ -5550,7 +5574,16 @@ export async function authorizeTaskQueryAccess(
     // an account implies a task creator filter.
     if (
         context.actor.type === "Session" &&
-        filters.notepadPageFilter?.accountId === context.actor.getAccountId()
+        filters.notepadPageFilter?.accountId === context.actor.getAccountId() &&
+        // You must be a space member to filter for tasks in your notepad. If you lost
+        // access to a space you can't filter for your own tasks anymore.
+        //
+        // NOCOMMIT: Test!
+        (await isAccountMemberOfSpaceWithoutAuthorization(
+            context,
+            spaceId,
+            context.actor.getAccountId(),
+        ))
     ) {
         hasAccess = true;
     }
@@ -5590,6 +5623,18 @@ export async function authorizeTaskQueryAccess(
             await authorizeTaskAccess(context, filters.parentFilter.parentTaskId, "View", loaders);
 
             hasAccess = true;
+        },
+        async () => {
+            // Must have space access to filter by hidden accounts. We only send account
+            // information for assignees to actors without space access (e.g. anonymous
+            // actors viewing a collection they have access to via `urlGrant`). Allowing an
+            // actor without space access to filter by hidden accounts could reveal
+            // information we don't want them to see.
+            //
+            // NOCOMMIT: Test
+            if (filters.creatorFilter || filters.assignerFilter) {
+                await authorizeSpaceAccess(context, spaceId);
+            }
         },
         async () => {
             await runAllPromises(
@@ -5651,6 +5696,18 @@ export async function authorizeTaskQueryAccess(
                             throw new PermissionDeniedError(
                                 "Must filter assignee to session account to sort by active position",
                             );
+                        }
+                        case "Creator":
+                        case "Assigner": {
+                            // Must have space access to sort by hidden accounts. We only send account
+                            // information for assignees to actors without space access (e.g. anonymous
+                            // actors viewing a collection they have access to via `urlGrant`). Allowing an
+                            // actor without space access to sort by hidden accounts could reveal
+                            // information we don't want them to see.
+                            //
+                            // NOCOMMIT: Test
+                            await authorizeSpaceAccess(context, spaceId);
+                            break;
                         }
                         default:
                             break;
