@@ -6,6 +6,7 @@ import {
     Ref,
     forwardRef,
     memo,
+    useId,
     useImperativeHandle,
     useMemo,
     useRef,
@@ -158,6 +159,7 @@ function TaskRowCollectionsCell(
 
     const {currentAccount, space} = useSpaceContext();
     const navigate = useNavigate();
+    const cellId = useId();
 
     const collections = task?.getCollections() ?? TaskCollectionSet.empty;
 
@@ -284,6 +286,7 @@ function TaskRowCollectionsCell(
             data-testid={
                 process.env.NODE_ENV !== "production" ? "TaskRowCollectionsCell" : undefined
             }
+            id={cellId}
             tabIndex={-1}
             className={classNames(
                 !isReadOnly && tasksStyles.textCursorNotInheritedClassName,
@@ -425,6 +428,7 @@ function TaskRowCollectionsCell(
             ) : (
                 <TaskRowCollectionsCellOverlay
                     ref={cellOverlayRef}
+                    cellId={cellId}
                     isReadOnly={isReadOnly}
                     query={query}
                     undoManager={undoManager}
