@@ -794,17 +794,11 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
             columnMaxWidthPx,
         );
 
-        // Only shrink column2 if column1 is growing, don't grow column2 if column1 is shrinking
-        const column2Offset = offsetPx > 0 ? -offsetPx : Math.min(0, -offsetPx);
-        const newColumn2WidthPx = clamp(
-            columnMinWidthPx,
-            oldColumn2WidthPx + column2Offset,
-            columnMaxWidthPx,
-        );
+        // Keep column 2 at its current width - only adjust if it would go below min width
+        const newColumn2WidthPx = clamp(columnMinWidthPx, oldColumn2WidthPx, columnMaxWidthPx);
 
-        // Calculate how much the total width changed
-        const widthChangePx =
-            newColumn1WidthPx + newColumn2WidthPx - (oldColumn1WidthPx + oldColumn2WidthPx);
+        // Calculate total width change based only on column 1's change
+        const widthChangePx = newColumn1WidthPx - oldColumn1WidthPx;
         const expectedNewTotalColumnWidthPx = oldTotalColumnWidthPx + widthChangePx;
 
         const newTotalColumnWidthPx = clamp(
@@ -812,11 +806,11 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
             expectedNewTotalColumnWidthPx,
             maxTotalColumnWidthPx,
         );
-        // Convert pixel widths back to relative widths
-        const newColumn1Width = (newColumn1WidthPx / oldTotalColumnWidthPx) * oldTotalColumnWidth;
-        const newColumn2Width = (newColumn2WidthPx / oldTotalColumnWidthPx) * oldTotalColumnWidth;
 
-        // making column widths attribute array
+        // Convert pixel widths back to relative widths while preserving ratios
+        const newColumn1Width = (newColumn1WidthPx / newTotalColumnWidthPx) * oldTotalColumnWidth;
+        const newColumn2Width = (newColumn2WidthPx / newTotalColumnWidthPx) * oldTotalColumnWidth;
+
         const newColumnWidths: Array<number> = [];
         for (let columnIndex = 0; columnIndex < oldColumnWidths.length; columnIndex++) {
             if (columnIndex === column1Index) {
@@ -825,7 +819,9 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
                 newColumnWidths.push(newColumn2Width);
             } else {
                 // Keep other columns' widths exactly the same
-                newColumnWidths.push(oldColumnWidths[columnIndex]!);
+                const oldWidth = oldColumnWidths[columnIndex]!;
+                const oldWidthPx = oldTotalColumnWidthPx * (oldWidth / oldTotalColumnWidth);
+                newColumnWidths.push((oldWidthPx / newTotalColumnWidthPx) * oldTotalColumnWidth);
             }
         }
 
