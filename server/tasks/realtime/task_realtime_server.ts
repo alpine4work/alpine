@@ -48,7 +48,7 @@ import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protoco
 // query store is made evictable it is guaranteed to survive at least one
 // eviction call. This means items will be evicted from the query store at most
 // within two minutes of becoming evictable.
-const taskRealtimeServerEvictionInterval = 1000 * 60;
+const taskRealtimeServerEvictionMs = 1000 * 60;
 
 /**
  * The horizontally scalable task realtime server. We don't actually run the
@@ -161,7 +161,7 @@ export class TaskRealtimeServer {
             const endTime = Date.now();
             state.evictTimeout = createTimeout(
                 evict,
-                taskRealtimeServerEvictionInterval - (endTime - startTime),
+                taskRealtimeServerEvictionMs - (endTime - startTime),
             );
         };
 
@@ -169,7 +169,7 @@ export class TaskRealtimeServer {
             discoveredPromise: discoveredPromise.then(() => ({
                 discoveredTime: Date.now(),
             })),
-            evictTimeout: createTimeout(evict, taskRealtimeServerEvictionInterval),
+            evictTimeout: createTimeout(evict, taskRealtimeServerEvictionMs),
         };
 
         this._state = state;
