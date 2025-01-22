@@ -1072,8 +1072,14 @@ function TaskRowView(
                 // Being in the `keydown` capture phase is essential. In case the cell input has
                 // an `Escape` handler that simply closes a dropdown or blurs the input.
                 case "Escape": {
-                    // Only refocus the cell if we got this `keydown` from a child.
-                    if (event.target === event.currentTarget) break;
+                    // If the escape key is pressed while a cell is directly focused then unfocus
+                    // the cell.
+                    if (event.target === event.currentTarget) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        (event.currentTarget as HTMLElement).blur();
+                        break;
+                    }
 
                     // Don't focus the title cell when hitting "Escape". You can enter cell
                     // navigation easily enough by using the arrow keys. We've found that consuming
