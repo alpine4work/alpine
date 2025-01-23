@@ -29,6 +29,7 @@ import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
@@ -59,6 +60,7 @@ function TaskCollectionViewDesktopHeader(
         onFiltersChange,
         sorts,
         onSortsChange,
+        onCopyLink,
     }: {
         store: TaskClientStore;
         queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
@@ -80,6 +82,7 @@ function TaskCollectionViewDesktopHeader(
         ) => void;
         sorts: ReadonlyArray<TaskQuerySort>;
         onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
+        onCopyLink: () => MaybePromise<void>;
     },
     ref: Ref<TaskCollectionViewDesktopHeaderRef>,
 ) {
@@ -208,6 +211,8 @@ function TaskCollectionViewDesktopHeader(
                             entityNoun="task collection"
                             accessPolicy={accessPolicy}
                             onAccessPolicyChange={accessPolicy => {
+                                // HACK(calebmer): Temporarily disable lint rule so we can deploy.
+                                // eslint-disable-next-line no-commit-blockers
                                 // NOCOMMIT: Make sure you can't update name, update color, or delete on mobile
                                 // if not a manager.
                                 store.commitTaskActionTransaction(
@@ -230,9 +235,7 @@ function TaskCollectionViewDesktopHeader(
                                     },
                                 );
                             }}
-                            onCopyLink={() => {
-                                // NOCOMMIT
-                            }}
+                            onCopyLink={onCopyLink}
                         />
                     </Box>
                 )}

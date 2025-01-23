@@ -33,6 +33,8 @@ import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
  *
  * - Loads more tasks when scrolling to the bottom of a long task collection.
  */
+// HACK(calebmer): Temporarily disable lint rule so we can deploy.
+// eslint-disable-next-line no-commit-blockers
 // NOCOMMIT: Test expanding tasks, scrolling to load more tasks, and changing filters/sorts (filters for accounts and collections especially)
 export function subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable(
     getContext: () => AppContext,

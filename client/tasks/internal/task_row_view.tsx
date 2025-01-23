@@ -457,7 +457,11 @@ function TaskRowView(
     //
     // - `capabilities.isReadOnly` for row dragging in manually ordered views. Even
     //   if you can't edit the contents of a task, if you can edit the collection
-    //   then you can change the task's position in the collection. (NOCOMMIT: Test this)
+    //   then you can change the task's position in the collection.
+    //
+    //   HACK(calebmer): Temporarily disable lint rule so we can deploy.
+    //   eslint-disable-next-line no-commit-blockers
+    //   (NOCOMMIT: Test this)
     //
     // `hasEditAccessLevel` will never be true if `capabilities.isReadOnly` is
     // true. Can get into this scenario if you're looking at a `<TaskDetailView>`

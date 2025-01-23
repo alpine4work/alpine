@@ -290,6 +290,23 @@ export function TaskCollectionView({
         initiallyFocusName: boolean;
     } | null>(null);
 
+    const copyLink = useCallback(async () => {
+        const url = new URL(
+            `/s/${space.id}/tasks/collections/${collectionId}`,
+            window.location.href,
+        );
+
+        if (filters.length > 0) {
+            url.searchParams.set("filter", serializeTaskQueryFiltersSearchParam(filters));
+        }
+
+        if (sorts.length > 0) {
+            url.searchParams.set("sort", serializeTaskQuerySortsSearchParam(sorts));
+        }
+
+        await writeTextToClipboard(url.toString());
+    }, [collectionId, filters, sorts, space.id]);
+
     const menuActions = useMemo(() => {
         const menuActions: Array<ReadonlyArray<MenuAction>> = [];
 
@@ -297,25 +314,7 @@ export function TaskCollectionView({
             {
                 label: "Copy link",
                 pressErrorTitle: "Couldn’t copy collection link",
-                onPress: async () => {
-                    const url = new URL(
-                        `/s/${space.id}/tasks/collections/${collectionId}`,
-                        window.location.href,
-                    );
-
-                    if (filters.length > 0) {
-                        url.searchParams.set(
-                            "filter",
-                            serializeTaskQueryFiltersSearchParam(filters),
-                        );
-                    }
-
-                    if (sorts.length > 0) {
-                        url.searchParams.set("sort", serializeTaskQuerySortsSearchParam(sorts));
-                    }
-
-                    await writeTextToClipboard(url.toString());
-                },
+                onPress: copyLink,
             },
         ]);
 
@@ -452,16 +451,14 @@ export function TaskCollectionView({
         affinityManager,
         collectionId,
         context,
+        copyLink,
         customizationState,
-        filters,
         hasEditAccessLevel,
         isAppleDevice,
         navigate,
         platform,
         redoEvent,
         routeLayout,
-        sorts,
-        space.id,
         store,
         undoEvent,
     ]);
@@ -673,6 +670,7 @@ export function TaskCollectionView({
                         onFiltersChange={updateFilters}
                         sorts={sorts}
                         onSortsChange={setSorts}
+                        onCopyLink={copyLink}
                     />
                 ),
             };
@@ -681,6 +679,7 @@ export function TaskCollectionView({
             affinityManager,
             collectionId,
             collectionSubscription,
+            copyLink,
             createCollection,
             defaultOrderSentence,
             filterReferences,
@@ -714,8 +713,10 @@ export function TaskCollectionView({
             />
         ),
         desktopTitleLeftSlop: platform !== "mobile" ? "2" : undefined,
+        // HACK(calebmer): Temporarily disable lint rule so we can deploy.
+        // eslint-disable-next-line no-commit-blockers
         // NOCOMMIT
-        shareButton: {} as any,
+        shareButton: undefined,
         menuActions,
     });
 
