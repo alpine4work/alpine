@@ -89,7 +89,6 @@ import {
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
@@ -165,10 +164,7 @@ import {
     emptyTaskNotesContent,
     isTaskNotesContent,
 } from "~/shared/tasks/task_notes_content_schema.js";
-import {
-    TaskQueryAccountNormalizedFilter,
-    TaskQueryNormalizedFilters,
-} from "~/shared/tasks/task_query_normalized_filters.js";
+import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskStatus} from "~/shared/tasks/task_status.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -3772,7 +3768,7 @@ export async function authorizeTaskCollectionAccess(
             taskId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null,
-) {
+): Promise<{spaceId: SpaceId}> {
     const collectionItem = await getTaskCollectionItemForAuthorization(
         context,
         collectionId,
@@ -3780,6 +3776,8 @@ export async function authorizeTaskCollectionAccess(
     );
 
     await authorizeTaskCollectionItemAccess(context, collectionItem, expectedAccessLevel);
+
+    return {spaceId: collectionItem.spaceId};
 }
 
 /**
@@ -5598,7 +5596,16 @@ export async function authorizeTaskQueryAccess(
                     await runAllPromises(
                         Array.from(clause.keys(), async term => {
                             if (term === "IsEmpty") return;
-                            await authorizeTaskCollectionAccess(context, term, "View", loaders);
+
+                            const {spaceId: collectionSpaceId} =
+                                await authorizeTaskCollectionAccess(context, term, "View", loaders);
+
+                            // NOCOMMIT: Test!
+                            if (spaceId !== collectionSpaceId) {
+                                throw new PermissionDeniedError(
+                                    "Task collection is in the wrong space",
+                                );
+                            }
                         }),
                     );
 
@@ -5620,7 +5627,17 @@ export async function authorizeTaskQueryAccess(
             if (!filters.parentFilter) return;
 
             // View access on the parent task is inherited to child tasks.
-            await authorizeTaskAccess(context, filters.parentFilter.parentTaskId, "View", loaders);
+            const {spaceId: taskSpaceId} = await authorizeTaskAccess(
+                context,
+                filters.parentFilter.parentTaskId,
+                "View",
+                loaders,
+            );
+
+            // NOCOMMIT: Test!
+            if (spaceId !== taskSpaceId) {
+                throw new PermissionDeniedError("Parent task is in the wrong space");
+            }
 
             hasAccess = true;
         },
@@ -5661,12 +5678,20 @@ export async function authorizeTaskQueryAccess(
                                 break;
                             }
 
-                            await authorizeTaskCollectionAccess(
-                                context,
-                                sort.collectionId,
-                                "View",
-                                loaders,
-                            );
+                            const {spaceId: collectionSpaceId} =
+                                await authorizeTaskCollectionAccess(
+                                    context,
+                                    sort.collectionId,
+                                    "View",
+                                    loaders,
+                                );
+
+                            // NOCOMMIT: Test!
+                            if (spaceId !== collectionSpaceId) {
+                                throw new PermissionDeniedError(
+                                    "Task collection is in the wrong space",
+                                );
+                            }
                             break;
                         }
                         case "NotepadPagePosition": {
@@ -5688,7 +5713,18 @@ export async function authorizeTaskQueryAccess(
                             if (
                                 context.actor.type === "Session" &&
                                 filters.assigneeFilter?.accountIds.size === 1 &&
-                                filters.assigneeFilter.accountIds.has(context.actor.getAccountId())
+                                filters.assigneeFilter.accountIds.has(
+                                    context.actor.getAccountId(),
+                                ) &&
+                                // You must be a space member to sort by assigned position. If you lost
+                                // access to a space you can't filter for your own tasks anymore.
+                                //
+                                // NOCOMMIT: Test!
+                                (await isAccountMemberOfSpaceWithoutAuthorization(
+                                    context,
+                                    spaceId,
+                                    context.actor.getAccountId(),
+                                ))
                             ) {
                                 break;
                             }

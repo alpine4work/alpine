@@ -7167,14 +7167,14 @@ test("race condition: parent task can change before previous parent task has loa
     await waitPromise2;
 
     expect(
-        connection1
-            .takeEvents()
-            .sort((a, b) =>
-                compareHybridLogicalTimes(
-                    a.defaultAuthorizationStateVersion,
-                    b.defaultAuthorizationStateVersion,
-                ),
-            ),
+        connection1.takeEvents().sort((a, b) => {
+            assert(a.type === "Update");
+            assert(b.type === "Update");
+            return compareHybridLogicalTimes(
+                a.defaultAuthorizationStateVersion,
+                b.defaultAuthorizationStateVersion,
+            );
+        }),
     ).toEqual([
         {
             type: "Update",
@@ -7370,14 +7370,14 @@ test("race condition: parent task can change before previous grandparent task ha
     await waitPromise2;
 
     expect(
-        connection1
-            .takeEvents()
-            .sort((a, b) =>
-                compareHybridLogicalTimes(
-                    a.defaultAuthorizationStateVersion,
-                    b.defaultAuthorizationStateVersion,
-                ),
-            ),
+        connection1.takeEvents().sort((a, b) => {
+            assert(a.type === "Update");
+            assert(b.type === "Update");
+            return compareHybridLogicalTimes(
+                a.defaultAuthorizationStateVersion,
+                b.defaultAuthorizationStateVersion,
+            );
+        }),
     ).toEqual([
         {
             type: "Update",
@@ -7548,14 +7548,14 @@ test("race condition: parent task is removed before it's loaded", async () => {
     await waitPromise2;
 
     expect(
-        connection
-            .takeEvents()
-            .sort((a, b) =>
-                compareHybridLogicalTimes(
-                    a.defaultAuthorizationStateVersion,
-                    b.defaultAuthorizationStateVersion,
-                ),
-            ),
+        connection.takeEvents().sort((a, b) => {
+            assert(a.type === "Update");
+            assert(b.type === "Update");
+            return compareHybridLogicalTimes(
+                a.defaultAuthorizationStateVersion,
+                b.defaultAuthorizationStateVersion,
+            );
+        }),
     ).toEqual([
         {
             type: "Update",

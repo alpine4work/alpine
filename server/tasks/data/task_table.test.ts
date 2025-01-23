@@ -4,7 +4,6 @@ import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {updateOurAccountNameBeforeExecuteTestCheckpoint} from "~/server/accounts/accounts_table.js";
 import {updateOurAccountName} from "~/server/accounts/update_name/update_our_account_name.js";
-import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
@@ -17,6 +16,7 @@ import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {
     authorizeTaskAccess,
@@ -104,14 +104,14 @@ const context = createTestContext();
 const baseContext = context;
 
 function testAuthorizeTaskQueryAccess(
-    context: ServerSessionActionContext,
+    session: TestSpaceSession,
     options?: {
         filters?: ReadonlyArray<TaskQueryFilter> | TaskQueryNormalizedFilters;
         sorts?: ReadonlyArray<TaskQuerySort> | ReadonlyArray<TaskQueryNormalizedSort>;
     },
 ) {
     const evaluationContext: TaskQueryEvaluationContext = {
-        currentAccountId: context.actor.getAccountId(),
+        currentAccountId: session.account.id,
         currentDate: toCalendarDate(
             parseAbsolute(testClock.nowDate().toISOString(), defaultTimeZone),
         ),
@@ -128,8 +128,9 @@ function testAuthorizeTaskQueryAccess(
     }
 
     return authorizeTaskQueryAccess(
-        context,
+        session.action(),
         {
+            spaceId: session.space.id,
             filters: filters.normalizedFilters,
             sorts: normalizeTaskQuerySorts(options?.sorts ?? []),
         },
@@ -13529,7 +13530,7 @@ test("can't authorize query with no filters", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    await expect(testAuthorizeTaskQueryAccess(session.action())).rejects.toThrow(
+    await expect(testAuthorizeTaskQueryAccess(session)).rejects.toThrow(
         new PermissionDeniedError(
             "Query may reveal tasks the session account is not allowed to see",
         ),
@@ -13540,13 +13541,13 @@ test("authorizes a query with creator filter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    await testAuthorizeTaskQueryAccess(session.action(), {
+    await testAuthorizeTaskQueryAccess(session, {
         filters: [
             {type: "Creator", operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]}},
         ],
     });
 
-    await testAuthorizeTaskQueryAccess(session.action(), {
+    await testAuthorizeTaskQueryAccess(session, {
         filters: [
             {
                 type: "Creator",
@@ -13564,7 +13565,7 @@ test("doesn't authorize a query that only excludes creator in filter", async () 
     const session = await space.createSession();
 
     await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
+        testAuthorizeTaskQueryAccess(session, {
             filters: [
                 {
                     type: "Creator",
@@ -13579,7 +13580,7 @@ test("doesn't authorize a query that only excludes creator in filter", async () 
     );
 
     await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
+        testAuthorizeTaskQueryAccess(session, {
             filters: [
                 {
                     type: "Creator",
@@ -13603,7 +13604,7 @@ test("can't authorize a query with other accounts in creator filter", async () =
     const otherSession = await space.createSession();
 
     await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
+        testAuthorizeTaskQueryAccess(session, {
             filters: [
                 {
                     type: "Creator",
@@ -13624,7 +13625,7 @@ test("can't authorize a query with other accounts in creator filter", async () =
     );
 
     await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
+        testAuthorizeTaskQueryAccess(session, {
             filters: [
                 {
                     type: "Creator",
@@ -13650,7 +13651,7 @@ test("can't authorize a query with missing creator filter", async () => {
     const session = await space.createSession();
 
     await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
+        testAuthorizeTaskQueryAccess(session, {
             filters: [
                 {
                     type: "Creator",
@@ -13668,7 +13669,7 @@ test("can't authorize a query with missing creator filter", async () => {
     );
 
     await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
+        testAuthorizeTaskQueryAccess(session, {
             filters: [
                 {
                     type: "Creator",
@@ -13686,7 +13687,7 @@ test("can't authorize a query with missing creator filter", async () => {
     );
 
     await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
+        testAuthorizeTaskQueryAccess(session, {
             filters: [
                 {
                     type: "Creator",
@@ -13711,13 +13712,13 @@ test("authorizes a query with assignee filter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    await testAuthorizeTaskQueryAccess(session.action(), {
+    await testAuthorizeTaskQueryAccess(session, {
         filters: [
             {type: "Assignee", operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]}},
         ],
     });
 
-    await testAuthorizeTaskQueryAccess(session.action(), {
+    await testAuthorizeTaskQueryAccess(session, {
         filters: [
             {
                 type: "Assignee",
@@ -13735,7 +13736,7 @@ test("doesn't authorize a query that only excludes assignee in filter", async ()
     const session = await space.createSession();
 
     await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
+        testAuthorizeTaskQueryAccess(session, {
             filters: [
                 {
                     type: "Assignee",
@@ -13750,7 +13751,7 @@ test("doesn't authorize a query that only excludes assignee in filter", async ()
     );
 
     await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
+        testAuthorizeTaskQueryAccess(session, {
             filters: [
                 {
                     type: "Assignee",
@@ -13774,7 +13775,7 @@ test("can't authorize a query with other accounts in assignee filter", async () 
     const otherSession = await space.createSession();
 
     await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
+        testAuthorizeTaskQueryAccess(session, {
             filters: [
                 {
                     type: "Assignee",
@@ -13795,7 +13796,7 @@ test("can't authorize a query with other accounts in assignee filter", async () 
     );
 
     await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
+        testAuthorizeTaskQueryAccess(session, {
             filters: [
                 {
                     type: "Assignee",
@@ -13821,7 +13822,7 @@ test("can't authorize a query with missing assignee filter", async () => {
     const session = await space.createSession();
 
     await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
+        testAuthorizeTaskQueryAccess(session, {
             filters: [
                 {
                     type: "Assignee",
@@ -13839,7 +13840,7 @@ test("can't authorize a query with missing assignee filter", async () => {
     );
 
     await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
+        testAuthorizeTaskQueryAccess(session, {
             filters: [
                 {
                     type: "Assignee",
@@ -13857,7 +13858,7 @@ test("can't authorize a query with missing assignee filter", async () => {
     );
 
     await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
+        testAuthorizeTaskQueryAccess(session, {
             filters: [
                 {
                     type: "Assignee",
@@ -13882,7 +13883,7 @@ test("can authorize a query with notepad page filter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    await testAuthorizeTaskQueryAccess(session.action(), {
+    await testAuthorizeTaskQueryAccess(session, {
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             notepadPageFilter: {
@@ -13899,7 +13900,7 @@ test("can't authorize a query with other account's notepad page filter", async (
     const session2 = await space.createSession();
 
     await expect(
-        testAuthorizeTaskQueryAccess(session1.action(), {
+        testAuthorizeTaskQueryAccess(session1, {
             filters: {
                 ...defaultTaskQueryNormalizedFilters,
                 notepadPageFilter: {
@@ -13922,7 +13923,7 @@ test("can authorize a query with a collection you have access to", async () => {
     const collection = await TestTaskCollection.create(session1);
     await collection.access.grantDefault(session1);
 
-    await testAuthorizeTaskQueryAccess(session2.action(), {
+    await testAuthorizeTaskQueryAccess(session2, {
         filters: [
             {
                 type: "Collections",
@@ -13942,7 +13943,7 @@ test("can't authorize a query with a collection you don't have access to", async
     const collection = await TestTaskCollection.create(session1);
 
     await expect(
-        testAuthorizeTaskQueryAccess(session2.action(), {
+        testAuthorizeTaskQueryAccess(session2, {
             filters: [
                 {
                     type: "Collections",
@@ -13966,7 +13967,7 @@ test("can't authorize an excludes all of query with a collection you have access
     await collection.access.grantDefault(session1);
 
     await expect(
-        testAuthorizeTaskQueryAccess(session2.action(), {
+        testAuthorizeTaskQueryAccess(session2, {
             filters: [
                 {
                     type: "Collections",
@@ -13989,7 +13990,7 @@ test("can't authorize an is empty collection query", async () => {
     const session = await space.createSession();
 
     await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
+        testAuthorizeTaskQueryAccess(session, {
             filters: [
                 {
                     type: "Collections",
@@ -14017,7 +14018,7 @@ test("can authorize a query with one of three collections you have access to", a
     const collection3 = await TestTaskCollection.create(session1);
     await collection3.access.grantDefault(session1);
 
-    await testAuthorizeTaskQueryAccess(session2.action(), {
+    await testAuthorizeTaskQueryAccess(session2, {
         filters: [
             {
                 type: "Collections",
@@ -14041,7 +14042,7 @@ test("can't authorize a query with one of two collections you have access to and
     await collection3.access.grantDefault(session1);
 
     await expect(
-        testAuthorizeTaskQueryAccess(session2.action(), {
+        testAuthorizeTaskQueryAccess(session2, {
             filters: [
                 {
                     type: "Collections",
@@ -14068,7 +14069,7 @@ test("can authorize a query with all of three collections you have access to", a
     await collection2.access.grantDefault(session1);
     await collection3.access.grantDefault(session1);
 
-    await testAuthorizeTaskQueryAccess(session2.action(), {
+    await testAuthorizeTaskQueryAccess(session2, {
         filters: [
             {
                 type: "Collections",
@@ -14092,7 +14093,7 @@ test("can't authorize a query with all of two collections you have access to and
     await collection3.access.grantDefault(session1);
 
     await expect(
-        testAuthorizeTaskQueryAccess(session2.action(), {
+        testAuthorizeTaskQueryAccess(session2, {
             filters: [
                 {
                     type: "Collections",
@@ -14120,7 +14121,7 @@ test("can't authorize a query with excludes all of three collections you have ac
     await collection3.access.grantDefault(session1);
 
     await expect(
-        testAuthorizeTaskQueryAccess(session2.action(), {
+        testAuthorizeTaskQueryAccess(session2, {
             filters: [
                 {
                     type: "Collections",
@@ -14149,7 +14150,7 @@ test("can't authorize a query with excludes all of two collections you have acce
     await collection3.access.grantDefault(session1);
 
     await expect(
-        testAuthorizeTaskQueryAccess(session2.action(), {
+        testAuthorizeTaskQueryAccess(session2, {
             filters: [
                 {
                     type: "Collections",
@@ -14175,7 +14176,7 @@ test("can authorize a query when filtering by a collection you don't have access
     await collection1.access.grantDefault(session1);
     await collection3.access.grantDefault(session1);
 
-    await testAuthorizeTaskQueryAccess(session2.action(), {
+    await testAuthorizeTaskQueryAccess(session2, {
         filters: [
             {
                 type: "Collections",
@@ -14194,7 +14195,7 @@ test("can authorize a query when filtering by a collection you don't have access
         ],
     });
 
-    await testAuthorizeTaskQueryAccess(session2.action(), {
+    await testAuthorizeTaskQueryAccess(session2, {
         filters: [
             {
                 type: "Collections",
@@ -14214,7 +14215,7 @@ test("can authorize a query when filtering by a collection you don't have access
     });
 
     await expect(
-        testAuthorizeTaskQueryAccess(session2.action(), {
+        testAuthorizeTaskQueryAccess(session2, {
             filters: [
                 {
                     type: "Collections",
@@ -14245,7 +14246,7 @@ test("can't authorize is empty collection filter with an accessible collection f
     await collection.access.grantDefault(session1);
 
     await expect(
-        testAuthorizeTaskQueryAccess(session2.action(), {
+        testAuthorizeTaskQueryAccess(session2, {
             filters: {
                 ...defaultTaskQueryNormalizedFilters,
                 collectionsFilter: [
@@ -14265,7 +14266,7 @@ test("can't authorize is empty collection filter with an accessible collection f
     );
 
     // This is an impossible filter which will return no results.
-    await testAuthorizeTaskQueryAccess(session2.action(), {
+    await testAuthorizeTaskQueryAccess(session2, {
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             collectionsFilter: [
@@ -14291,7 +14292,7 @@ test("can authorize a query when filtering by a collection filter merged by bool
     await collection2.access.grantDefault(session1);
     await collection3.access.grantDefault(session1);
 
-    await testAuthorizeTaskQueryAccess(session2.action(), {
+    await testAuthorizeTaskQueryAccess(session2, {
         filters: [
             {
                 type: "Collections",
@@ -14320,7 +14321,7 @@ test("can authorize an excludes collections query when with a passing filter", a
     await collection1.access.grantDefault(session1);
     await collection2.access.grantDefault(session1);
 
-    await testAuthorizeTaskQueryAccess(session2.action(), {
+    await testAuthorizeTaskQueryAccess(session2, {
         filters: [
             {
                 type: "Collections",
@@ -14339,7 +14340,7 @@ test("can authorize an excludes collections query when with a passing filter", a
         ],
     });
 
-    await testAuthorizeTaskQueryAccess(session2.action(), {
+    await testAuthorizeTaskQueryAccess(session2, {
         filters: [
             {
                 type: "Creator",
@@ -14369,7 +14370,7 @@ test("can authorize a query with a parent filter for a task you have access to",
 
     await task.addCollection(session1, collection);
 
-    await testAuthorizeTaskQueryAccess(session2.action(), {
+    await testAuthorizeTaskQueryAccess(session2, {
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             parentFilter: {
@@ -14389,7 +14390,7 @@ test("can't authorize a query with a parent filter for a task you don't have acc
     await task.addCollection(session1, collection);
 
     await expect(
-        testAuthorizeTaskQueryAccess(session2.action(), {
+        testAuthorizeTaskQueryAccess(session2, {
             filters: {
                 ...defaultTaskQueryNormalizedFilters,
                 parentFilter: {
@@ -14412,7 +14413,7 @@ test("can authorize a query with a parent filter for a task you have access to t
     await task1.addCollection(session1, collection);
     await task2.updateParentTask(session1, task1);
 
-    await testAuthorizeTaskQueryAccess(session2.action(), {
+    await testAuthorizeTaskQueryAccess(session2, {
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             parentFilter: {
@@ -14434,7 +14435,7 @@ test("can't authorize a query with a parent filter for a task you don't have acc
     await task2.updateParentTask(session1, task1);
 
     await expect(
-        testAuthorizeTaskQueryAccess(session2.action(), {
+        testAuthorizeTaskQueryAccess(session2, {
             filters: {
                 ...defaultTaskQueryNormalizedFilters,
                 parentFilter: {
@@ -14455,7 +14456,7 @@ test("can authorize a query with a parent filter for a deleted task", async () =
 
     await task.addCollection(session1, collection);
 
-    await testAuthorizeTaskQueryAccess(session2.action(), {
+    await testAuthorizeTaskQueryAccess(session2, {
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             parentFilter: {
@@ -14466,7 +14467,7 @@ test("can authorize a query with a parent filter for a deleted task", async () =
 
     await task.delete(session1);
 
-    await testAuthorizeTaskQueryAccess(session2.action(), {
+    await testAuthorizeTaskQueryAccess(session2, {
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             parentFilter: {
@@ -14477,7 +14478,7 @@ test("can authorize a query with a parent filter for a deleted task", async () =
 
     await task.undelete(session1);
 
-    await testAuthorizeTaskQueryAccess(session2.action(), {
+    await testAuthorizeTaskQueryAccess(session2, {
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             parentFilter: {
@@ -14493,14 +14494,14 @@ test("must have a parent filter to sort by parent position", async () => {
     const task = await TestTask.create(session);
 
     await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
+        testAuthorizeTaskQueryAccess(session, {
             sorts: [{type: "ParentPosition", direction: "Ascending", missing: "Last"}],
         }),
     ).rejects.toThrow(
         new PermissionDeniedError("Must filter by a parent task to sort by parent position"),
     );
 
-    await testAuthorizeTaskQueryAccess(session.action(), {
+    await testAuthorizeTaskQueryAccess(session, {
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             parentFilter: {
@@ -14520,7 +14521,7 @@ test("must be allowed to access collection to sort by collection position", asyn
     const collection2 = await TestTaskCollection.create(session1);
 
     await expect(
-        testAuthorizeTaskQueryAccess(session2.action(), {
+        testAuthorizeTaskQueryAccess(session2, {
             sorts: [
                 {
                     type: "CollectionPosition",
@@ -14536,7 +14537,7 @@ test("must be allowed to access collection to sort by collection position", asyn
         ),
     );
 
-    await testAuthorizeTaskQueryAccess(session2.action(), {
+    await testAuthorizeTaskQueryAccess(session2, {
         filters: [
             {
                 type: "Creator",
@@ -14554,7 +14555,7 @@ test("must be allowed to access collection to sort by collection position", asyn
     });
 
     await expect(
-        testAuthorizeTaskQueryAccess(session2.action(), {
+        testAuthorizeTaskQueryAccess(session2, {
             filters: [
                 {
                     type: "Creator",
@@ -14583,7 +14584,7 @@ test("must be allowed to access collection to sort by collection position with c
     await collection1.access.grantDefault(session1);
     const collection2 = await TestTaskCollection.create(session1);
 
-    await testAuthorizeTaskQueryAccess(session2.action(), {
+    await testAuthorizeTaskQueryAccess(session2, {
         filters: [
             {
                 type: "Collections",
@@ -14604,7 +14605,7 @@ test("must be allowed to access collection to sort by collection position with c
     });
 
     await expect(
-        testAuthorizeTaskQueryAccess(session2.action(), {
+        testAuthorizeTaskQueryAccess(session2, {
             filters: [
                 {
                     type: "Collections",
@@ -14634,7 +14635,7 @@ test("can only sort by your notepad page positions", async () => {
     const session2 = await space.createSession();
 
     await expect(
-        testAuthorizeTaskQueryAccess(session1.action(), {
+        testAuthorizeTaskQueryAccess(session1, {
             sorts: [
                 {
                     type: "NotepadPagePosition",
@@ -14651,7 +14652,7 @@ test("can only sort by your notepad page positions", async () => {
         ),
     );
 
-    await testAuthorizeTaskQueryAccess(session1.action(), {
+    await testAuthorizeTaskQueryAccess(session1, {
         filters: [
             {
                 type: "Creator",
@@ -14670,7 +14671,7 @@ test("can only sort by your notepad page positions", async () => {
     });
 
     await expect(
-        testAuthorizeTaskQueryAccess(session2.action(), {
+        testAuthorizeTaskQueryAccess(session2, {
             filters: [
                 {
                     type: "Creator",
@@ -14695,7 +14696,7 @@ test("must filter by assignee to sort by active position", async () => {
     const session = await space.createSession();
 
     await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
+        testAuthorizeTaskQueryAccess(session, {
             sorts: [
                 {
                     type: "AssigneeActivePosition",
@@ -14710,7 +14711,7 @@ test("must filter by assignee to sort by active position", async () => {
         ),
     );
 
-    await testAuthorizeTaskQueryAccess(session.action(), {
+    await testAuthorizeTaskQueryAccess(session, {
         filters: [
             {
                 type: "Assignee",
@@ -14730,7 +14731,7 @@ test("must filter by assignee to sort by active position", async () => {
     });
 
     await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
+        testAuthorizeTaskQueryAccess(session, {
             filters: [
                 {
                     type: "Creator",
@@ -14751,7 +14752,7 @@ test("must filter by assignee to sort by active position", async () => {
         ),
     );
 
-    await testAuthorizeTaskQueryAccess(session.action(), {
+    await testAuthorizeTaskQueryAccess(session, {
         filters: [
             {
                 type: "Creator",
