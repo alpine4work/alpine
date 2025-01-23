@@ -272,7 +272,9 @@ export async function loader({request, params, context: unauthenticatedContext}:
             backfillCollection.type === "Authorized" &&
             backfillCollection.collection.id === collectionId,
     );
-    const queryOutput = loadQueryResult ? assertExists(loadQueryResult.queries[0]) : null;
+    const queryOutput = loadQueryResult.input.query
+        ? assertExists(loadQueryResult.queries[0])
+        : null;
 
     return jsonWithSchema(
         LoaderSchema,

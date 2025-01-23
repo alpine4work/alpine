@@ -21,6 +21,7 @@ import {
     TaskCollectionViewDesktopHeaderName,
     TaskCollectionViewDesktopHeaderNameRef,
 } from "~/client/tasks/internal/task_collection_view_desktop_header_name.js";
+import {TaskQueryReferencesForUrlGrantFilterEditor} from "~/client/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {TaskQueryViewCustomizationBar} from "~/client/tasks/internal/task_query_view_customization_bar.js";
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {interFontAscender, interFontDescender} from "~/shared/design/core/font_metrics.js";
@@ -44,6 +45,7 @@ export {TaskCollectionViewDesktopHeaderForwardRef as TaskCollectionViewDesktopHe
 function TaskCollectionViewDesktopHeader(
     {
         store,
+        queryReferencesForUrlGrant,
         collectionId,
         collectionSubscription,
         shouldInitiallyFocusEditableCollectionName,
@@ -59,6 +61,7 @@ function TaskCollectionViewDesktopHeader(
         onSortsChange,
     }: {
         store: TaskClientStore;
+        queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
         collectionId: TaskCollectionId;
         // If `collectionSubscription` is null, that means we are creating a
         // new collection.
@@ -175,6 +178,7 @@ function TaskCollectionViewDesktopHeader(
             >
                 <TaskQueryViewCustomizationBar
                     store={store}
+                    queryReferencesForUrlGrant={queryReferencesForUrlGrant}
                     shouldCollapseWhenFiltersAreEmpty={true}
                     defaultOrderSentence={defaultOrderSentence}
                     filters={filters}

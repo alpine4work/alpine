@@ -24,6 +24,7 @@ import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {TaskQueryAddFilterMenuButton} from "~/client/tasks/internal/task_query_add_filter_menu_button.js";
 import {TaskQueryAddSortMenuButton} from "~/client/tasks/internal/task_query_add_sort_menu_button.js";
 import {TaskQueryFilterEditor} from "~/client/tasks/internal/task_query_filter_editor.js";
+import {TaskQueryReferencesForUrlGrantFilterEditor} from "~/client/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {TaskQuerySortsEditor} from "~/client/tasks/internal/task_query_sorts_editor.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -46,6 +47,7 @@ export {TaskQueryViewCustomizationBarForwardRef as TaskQueryViewCustomizationBar
 function TaskQueryViewCustomizationBar(
     {
         store,
+        queryReferencesForUrlGrant,
         filters,
         filterReferences,
         onFiltersChange,
@@ -56,6 +58,7 @@ function TaskQueryViewCustomizationBar(
         initiallyFocus = null,
     }: {
         store: TaskClientStore;
+        queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
         filters: ReadonlyArray<TaskQueryFilter>;
         filterReferences: TaskQueryFilterReferences;
         onFiltersChange: (
@@ -153,6 +156,7 @@ function TaskQueryViewCustomizationBar(
                         <TaskQueryFilterEditor
                             key={index}
                             store={store}
+                            queryReferencesForUrlGrant={queryReferencesForUrlGrant}
                             filter={filter}
                             filterReferences={filterReferences}
                             onFilterChange={(filter, options) => {

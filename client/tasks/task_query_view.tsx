@@ -34,6 +34,7 @@ import {
 import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskGridViewVirtualizedListViewRef} from "~/client/tasks/internal/task_grid_view_virtualized_list_types.js";
 import {TaskQueryMobileEditor} from "~/client/tasks/internal/task_query_mobile_editor.js";
+import {useTaskQueryReferencesForUrlGrantFilterEditor} from "~/client/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {
     TaskQueryViewCustomizationBar,
     TaskQueryViewCustomizationBarRef,
@@ -205,6 +206,13 @@ export function TaskQueryView({
                 : null,
         sorts: normalizedSorts,
     });
+
+    // If the actor doesn't have space access then we need to keep track of any
+    // accounts/collections referenced by the query. This is expensive (O(tasks))
+    // so it's important to only run this when `currentAccount` is null.
+    const queryReferencesForUrlGrant = useTaskQueryReferencesForUrlGrantFilterEditor(
+        !currentAccount ? queryState.activeQuery.query?.query ?? null : null,
+    );
 
     const [shouldShowEditNameMobileModal, setShouldShowEditNameMobileModal] = useState(false);
 
@@ -450,6 +458,7 @@ export function TaskQueryView({
                     <TaskQueryViewDesktopHeader
                         ref={desktopHeaderRef}
                         store={store}
+                        queryReferencesForUrlGrant={queryReferencesForUrlGrant}
                         menuActions={menuActions}
                         defaultOrderSentence={defaultOrderSentence}
                         name={name}
@@ -467,6 +476,7 @@ export function TaskQueryView({
             filters,
             menuActions,
             name,
+            queryReferencesForUrlGrant,
             routeLayout,
             setName,
             setSorts,
@@ -505,6 +515,7 @@ export function TaskQueryView({
                                 <TaskQueryViewCustomizationMobileSection
                                     ref={mobileCustomizationSectionRef}
                                     store={store}
+                                    queryReferencesForUrlGrant={queryReferencesForUrlGrant}
                                     // Filters and sorts are always visible in a query view.
                                     initialAreFiltersVisible={true}
                                     initialAreSortsVisible={true}
@@ -526,6 +537,7 @@ export function TaskQueryView({
                                     <TaskQueryViewCustomizationBar
                                         ref={desktopCustomizationSectionRef}
                                         store={store}
+                                        queryReferencesForUrlGrant={queryReferencesForUrlGrant}
                                         shouldCollapseWhenFiltersAreEmpty={false}
                                         defaultOrderSentence={defaultOrderSentence}
                                         filters={filters}
@@ -548,6 +560,7 @@ export function TaskQueryView({
             filters,
             itemCountBeforeGridView,
             platform,
+            queryReferencesForUrlGrant,
             renderGridViewItem,
             routeLayout,
             setSorts,

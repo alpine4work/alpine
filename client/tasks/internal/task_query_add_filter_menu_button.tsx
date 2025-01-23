@@ -100,7 +100,7 @@ function TaskQueryAddFilterMenuButton(
                                 type: "Assignee",
                                 operation: {
                                     type: "OneOf",
-                                    accounts: [{type: "CurrentAccount"}],
+                                    accounts: currentAccount ? [{type: "CurrentAccount"}] : [],
                                 },
                             });
                         },

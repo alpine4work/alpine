@@ -341,6 +341,10 @@ export class TaskClientStore {
         return this._internal.getTaskAssigneeAccountStore(task);
     }
 
+    public getReferencedAccountStoreIfExists(accountId: AccountId): Store<AccountModelData> | null {
+        return this._internal.getReferencedAccountStoreIfExists(accountId);
+    }
+
     public getSubscriptionsStore() {
         return this._internal.getSubscriptionsStore();
     }
@@ -680,6 +684,15 @@ export class TaskClientStoreInternal {
 
         return assertExists(this._referencedAccountStoreById.get(assignee.assignee.accountId))
             .store;
+    }
+
+    /**
+     * Gets an account store referenced by a task if the account is actually
+     * referenced by one of our tasks. Returns null if the account isn't referenced
+     * by one of our tasks.
+     */
+    public getReferencedAccountStoreIfExists(accountId: AccountId): Store<AccountModelData> | null {
+        return this._referencedAccountStoreById.get(accountId)?.store ?? null;
     }
 
     public retainTaskEntryStore(taskId: TaskId) {

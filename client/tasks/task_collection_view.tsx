@@ -51,6 +51,7 @@ import {
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskGridViewVirtualizedListViewRef} from "~/client/tasks/internal/task_grid_view_virtualized_list_types.js";
+import {useTaskQueryReferencesForUrlGrantFilterEditor} from "~/client/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {
     TaskQueryViewCustomizationBar,
     TaskQueryViewCustomizationBarRef,
@@ -171,11 +172,6 @@ export function TaskCollectionView({
         }
     }, [filters, onFiltersChange]);
 
-    const defaultOrderSentence =
-        filters.length > 0
-            ? "Tasks are ordered by created date."
-            : "You can order tasks by dragging them.";
-
     const [sorts, actuallySetSorts] = useState(initialSorts);
 
     const {undoEvent, redoEvent, updateFilters, setSorts} = useEvents({
@@ -264,6 +260,13 @@ export function TaskCollectionView({
 
     const hasEditAccessLevel = useMemo(() => hasAccessLevel(access.level, "Edit"), [access.level]);
 
+    const defaultOrderSentence =
+        filters.length > 0
+            ? "Tasks are ordered by created date."
+            : hasEditAccessLevel
+            ? "You can change the order of tasks by dragging them."
+            : "Tasks are ordered manually.";
+
     const desktopHeaderRef = useRef<TaskCollectionViewDesktopHeaderRef>(null);
     const navigationBarDesktopNameRef = useRef<TaskCollectionViewDesktopHeaderNameRef>(null);
 
@@ -275,6 +278,13 @@ export function TaskCollectionView({
     if (!customizationState && (filters.length > 0 || sorts.length > 0)) {
         setCustomizationState({initiallyFocus: null});
     }
+
+    // If the actor doesn't have space access then we need to keep track of any
+    // accounts/collections referenced by the query. This is expensive (O(tasks))
+    // so it's important to only run this when `currentAccount` is null.
+    const queryReferencesForUrlGrant = useTaskQueryReferencesForUrlGrantFilterEditor(
+        !currentAccount ? queryState.activeQuery.query?.query ?? null : null,
+    );
 
     const [editNameMobileModalState, setEditNameMobileModalState] = useState<{
         initiallyFocusName: boolean;
@@ -647,6 +657,7 @@ export function TaskCollectionView({
                     <TaskCollectionViewDesktopHeader
                         ref={desktopHeaderRef}
                         store={store}
+                        queryReferencesForUrlGrant={queryReferencesForUrlGrant}
                         collectionId={collectionId}
                         collectionSubscription={collectionSubscription}
                         shouldInitiallyFocusEditableCollectionName={
@@ -675,6 +686,7 @@ export function TaskCollectionView({
             filterReferences,
             filters,
             menuActions,
+            queryReferencesForUrlGrant,
             routeLayout,
             setSorts,
             shouldInitiallyFocusEditableCollectionName,
@@ -721,6 +733,7 @@ export function TaskCollectionView({
                                     <TaskQueryViewCustomizationMobileSection
                                         ref={mobileCustomizationSectionRef}
                                         store={store}
+                                        queryReferencesForUrlGrant={queryReferencesForUrlGrant}
                                         initiallyFocus={customizationState.initiallyFocus}
                                         defaultOrderSentence={defaultOrderSentence}
                                         filters={filters}
@@ -734,6 +747,7 @@ export function TaskCollectionView({
                                         <TaskQueryViewCustomizationBar
                                             ref={desktopCustomizationBarRef}
                                             store={store}
+                                            queryReferencesForUrlGrant={queryReferencesForUrlGrant}
                                             shouldCollapseWhenFiltersAreEmpty={true}
                                             defaultOrderSentence={defaultOrderSentence}
                                             filters={filters}
@@ -756,9 +770,10 @@ export function TaskCollectionView({
             routeLayout,
             renderGridViewItem,
             itemCountBeforeGridView,
-            platform,
             customizationState,
+            platform,
             store,
+            queryReferencesForUrlGrant,
             defaultOrderSentence,
             filters,
             filterReferences,
