@@ -517,6 +517,23 @@ class SearchEntityReadState {
     }
 }
 
+function getSearchEntityIndexAccessPolicy(
+    accessPolicy: AccessPolicy,
+): SearchEntityIndexAccessPolicy {
+    const defaultGrantType: SearchEntityIndexDefaultGrantType | null =
+        accessPolicy.defaultGrant !== null ? "Space" : null;
+    let accountGrantAccountIds = new Set(accessPolicy.accountGrantById.keys());
+
+    // If we have a space default grant then the individual account grants don't
+    // matter for the search entity. Lets exclude them to save space in the index.
+    if (defaultGrantType !== null) {
+        cast<"Space">(defaultGrantType);
+        accountGrantAccountIds = new Set();
+    }
+
+    return {accountGrantAccountIds, defaultGrantType};
+}
+
 /**
  * Gets a `SearchEntity` object for any searchable thing in our system. This
  * function guarantees read-after-write consistency. If you've waited for a
@@ -606,7 +623,6 @@ async function getAccountSearchEntity(
 
 export const getDocumentSearchEntityTestCheckpoint = new TestCheckpoint<DocumentId>();
 
-// NOCOMMIT: Documents and document comments need to be secured!
 async function getDocumentSearchEntity(
     state: SearchEntityReadState,
     documentId: DocumentId,
@@ -640,15 +656,8 @@ async function getDocumentSearchEntity(
 
     return {
         id: `Document:${documentId}`,
-
-        // TODO(calebmer): Documents are currently accessible to everyone in a space.
-        // When we add access controls we need to update this with proper access policy
-        // information.
-        accessPolicy: {
-            accountGrantAccountIds: new Set(),
-            defaultGrantType: "Space",
-        },
-
+        // NOCOMMIT: Test!!
+        accessPolicy: getSearchEntityIndexAccessPolicy(content.attrs.accessPolicy),
         createdTime,
         title,
         body: getFullText(),
@@ -1291,17 +1300,6 @@ async function getTaskCollectionSearchEntity(
     const collection = await state.getTaskCollection(collectionId);
     const accessPolicy = collection.getAccessPolicy();
 
-    const defaultGrantType: SearchEntityIndexDefaultGrantType | null =
-        accessPolicy.defaultGrant !== null ? "Space" : null;
-    let accountGrantAccountIds = new Set(accessPolicy.accountGrantById.keys());
-
-    // If we have a space default grant then the individual account grants don't
-    // matter for the search entity. Lets exclude them to save space in the index.
-    if (defaultGrantType !== null) {
-        cast<"Space">(defaultGrantType);
-        accountGrantAccountIds = new Set();
-    }
-
     // Index no content for deleted collections.
     if (collection.isDeleted()) {
         return {
@@ -1319,7 +1317,7 @@ async function getTaskCollectionSearchEntity(
 
     return {
         id: `TaskCollection:${collectionId}`,
-        accessPolicy: {accountGrantAccountIds, defaultGrantType},
+        accessPolicy: getSearchEntityIndexAccessPolicy(accessPolicy),
         createdTime: new Date(collection.getCreatedTime()[0]),
         title: collection.getName(),
         body: null,
