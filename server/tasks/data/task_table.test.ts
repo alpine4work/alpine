@@ -444,7 +444,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(PermissionDeniedError);
+        ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
     });
 
     test("can't delete a task with the same time as task creation", async () => {
@@ -1339,7 +1339,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(PermissionDeniedError);
+        ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
     });
 
     test("can't update a task title that's not yours", async () => {

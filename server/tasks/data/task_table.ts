@@ -60,7 +60,6 @@ import {
     AccessPolicy,
     AccessPolicyRegister,
     hasAccessLevel,
-    maxAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -3659,7 +3658,7 @@ async function authorizeTaskCollectionItemAccessIfPossibleForActor(
             };
         }
 
-        if (maxAccessLevel(expectedAccessLevel, "View") === "View") {
+        if (!hasAccessLevel("View", expectedAccessLevel)) {
             return {
                 ok: false,
                 error: new PermissionDeniedError(
@@ -3981,7 +3980,7 @@ async function authorizeTaskItemAccessIfPossibleForActor(
             };
         }
 
-        if (maxAccessLevel(expectedAccessLevel, "View") === "View") {
+        if (!hasAccessLevel("View", expectedAccessLevel)) {
             return {
                 ok: false,
                 error: new PermissionDeniedError(
