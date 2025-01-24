@@ -1064,6 +1064,16 @@ function SpaceLayoutRouteOutlet({
 //
 // Making sure there's no remount on error requires careful patching to Remix
 // and React Router.
+//
+// TODO(calebmer): This approach means we get stuck in an infinite loop when an
+// error is thrown by `s.$spaceId.tsx` itself. Since an error will be thrown,
+// and we'll re-render the space layout component and the same error will be
+// thrown again. We need a better way to handle errors. Errors in
+// `s.$spaceId.documents.$documentId._index.tsx`'s loader should continue
+// rendering the space sidebar. We don't want to define an `ErrorBoundary`
+// component for each of our child routes. I think what we want is a Remix
+// `OutletErrorBoundary` feature that only catches errors from an outlet and
+// renders the error boundary in the `<Outlet>` component.
 export const ErrorBoundary = SpaceLayoutRoute;
 
 /**

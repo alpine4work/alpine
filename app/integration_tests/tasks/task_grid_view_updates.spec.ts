@@ -223,7 +223,9 @@ test("can delete when title cell is focused with backspace", async ({
 
     await page.getByTestId(`TaskRowView:${task.id}`).getByRole("textbox", {name: "Title"}).click();
 
-    await page.keyboard.press("Escape");
+    await page.keyboard.press("End");
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("ArrowLeft");
 
     await expectTaskGridView(page, [[true, "test"]]);
 
@@ -381,7 +383,9 @@ test("can delete when title cell is focused with backspace (with children)", asy
         ],
     ]);
 
-    await page.keyboard.press("Escape");
+    await page.keyboard.press("End");
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("ArrowLeft");
     await page.keyboard.press("ArrowUp");
     await page.keyboard.press("ArrowUp");
     await page.keyboard.press("Backspace");
