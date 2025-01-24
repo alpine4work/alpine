@@ -1,6 +1,7 @@
 import {Outlet, ShouldRevalidateFunction, useSearchParams} from "@remix-run/react";
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {
+    Component,
     ContextType,
     ReactElement,
     ReactNode,
@@ -12,7 +13,12 @@ import {
     useState,
 } from "react";
 import {flushSync} from "react-dom";
-import {UNSAFE_DataRouterStateContext as DataRouterStateContext, To, useParams} from "react-router";
+import {
+    UNSAFE_DataRouterStateContext as DataRouterStateContext,
+    To,
+    useParams,
+    useRouteError,
+} from "react-router";
 import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicator_space_outlet_container.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
@@ -36,15 +42,14 @@ import {
     isTextInputElement,
     textInputTypes,
 } from "~/client/helpers/elements/is_text_input_element.js";
-import {ErrorBoundary} from "~/client/helpers/error_boundary.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLocalStorage} from "~/client/helpers/use_local_storage.js";
 import {PeekStackContextProvider, PeekStackContextProviderRef} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {SearchModal} from "~/client/search/search_modal.js";
 import {
@@ -78,7 +83,7 @@ import {
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError, UnknownError} from "~/shared/error/error.js";
 import {
     FileAttachmentTarget,
     deserializeFileAttachmentTargetString,
@@ -88,6 +93,8 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -317,7 +324,43 @@ SpaceLayoutRoute.clientLoaderTaskStoreLoaderData = clientLoaderTaskStoreLoaderDa
  */
 export default function SpaceLayoutRoute() {
     const dataRouterStateContext = assertExists(useContext(DataRouterStateContext));
-    const loaderData = useLoaderDataWithSchema(LoaderSchema);
+    const rawLoaderData = dataRouterStateContext.loaderData["routes/s.$spaceId"];
+
+    // `useLoaderData()` doesn't work in an error boundary. We use this exact
+    // component for error and catch boundaries to avoid remounting when navigating
+    // between errors and non-errors. So manually deserialize the data for this
+    // route.
+    const loaderData = useMemo(
+        () => (rawLoaderData ? getLoaderDataWithSchema(LoaderSchema, rawLoaderData) : null),
+        [rawLoaderData],
+    );
+
+    const error = useRouteError();
+
+    // If it's our `/s/:spaceId` route itself throwing then we won't be able to
+    // render the space chrome. So render our root error renderer.
+    if (!loaderData) {
+        return <SpaceRouteErrorRenderer currentAccount={null} error={error} />;
+    }
+
+    return (
+        <SpaceLayoutRouteInner
+            dataRouterStateContext={dataRouterStateContext}
+            loaderData={loaderData}
+            error={error}
+        />
+    );
+}
+
+function SpaceLayoutRouteInner({
+    dataRouterStateContext,
+    loaderData,
+    error,
+}: {
+    dataRouterStateContext: NonNullable<ContextType<typeof DataRouterStateContext>>;
+    loaderData: SchemaType<typeof LoaderSchema>;
+    error: unknown;
+}) {
     const params = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     const context = useAppContext();
@@ -516,11 +559,15 @@ export default function SpaceLayoutRoute() {
                 hasAddedSearchModal = true;
 
                 modals.push(
-                    <SearchModal
-                        onClose={handleSearchModalClose}
-                        pushPeekStack={handleSearchModalPushPeekStack}
-                        debugOptions={debugOptions.isDebugModeEnabled ? debugOptions.options : null}
-                    />,
+                    <ModalErrorBoundary key={searchParamName} type="search" error={error}>
+                        <SearchModal
+                            onClose={handleSearchModalClose}
+                            pushPeekStack={handleSearchModalPushPeekStack}
+                            debugOptions={
+                                debugOptions.isDebugModeEnabled ? debugOptions.options : null
+                            }
+                        />
+                    </ModalErrorBoundary>,
                 );
                 break;
             }
@@ -564,11 +611,17 @@ export default function SpaceLayoutRoute() {
                 };
 
                 modals.push(
-                    <ContentFileViewerModal
-                        fileId={fileId}
-                        attachmentTarget={fileAttachmentTarget}
-                        onClose={handleClose}
-                    />,
+                    <ModalErrorBoundary
+                        key={`${searchParamName}-${fileId}-${platform}`}
+                        type="file"
+                        error={error}
+                    >
+                        <ContentFileViewerModal
+                            fileId={fileId}
+                            attachmentTarget={fileAttachmentTarget}
+                            onClose={handleClose}
+                        />
+                    </ModalErrorBoundary>,
                 );
                 break;
             }
@@ -669,6 +722,7 @@ export default function SpaceLayoutRoute() {
                                 >
                                     <SpaceLayoutRouteOutlet
                                         dataRouterStateContext={dataRouterStateContext}
+                                        error={error}
                                         loaderData={loaderData}
                                         setSearchQueryText={setSearchQueryText}
                                         globalLoadingIndicator={globalLoadingIndicator}
@@ -698,11 +752,13 @@ export default function SpaceLayoutRoute() {
 
 function SpaceLayoutRouteOutlet({
     dataRouterStateContext,
+    error,
     loaderData,
     setSearchQueryText,
     globalLoadingIndicator,
 }: {
     dataRouterStateContext: NonNullable<ContextType<typeof DataRouterStateContext>>;
+    error: unknown;
     loaderData: SchemaType<typeof LoaderSchema>;
     setSearchQueryText: (queryText: string) => void;
     globalLoadingIndicator: GlobalLoadingIndicator | null;
@@ -773,26 +829,6 @@ function SpaceLayoutRouteOutlet({
     const nodes = useMemo(() => {
         const nodes = [];
 
-        const renderOutlet = (outlet: ReactElement | null) => (
-            <ErrorBoundary
-                fallback={({error}) => (
-                    <SpaceRouteErrorRenderer
-                        currentAccount={
-                            loaderData.type === "WithAccess" ? loaderData.currentAccount : null
-                        }
-                        error={error}
-                    />
-                )}
-            >
-                <LoadingIndicatorSpaceOutletContainer
-                    routeId="routes/s.$spaceId"
-                    hasSpaceLayoutSidebar={platform !== "mobile"}
-                >
-                    {outlet}
-                </LoadingIndicatorSpaceOutletContainer>
-            </ErrorBoundary>
-        );
-
         if (!nativeMobileRouterState) {
             nodes.push(
                 <div
@@ -851,7 +887,23 @@ function SpaceLayoutRouteOutlet({
                                     onSearchPress={() => setSearchQueryText("")}
                                 />
                             )}
-                            {renderOutlet(<Outlet />)}
+                            {error !== undefined ? (
+                                <SpaceRouteErrorRenderer
+                                    currentAccount={
+                                        loaderData.type === "WithAccess"
+                                            ? loaderData.currentAccount
+                                            : null
+                                    }
+                                    error={error}
+                                />
+                            ) : (
+                                <LoadingIndicatorSpaceOutletContainer
+                                    routeId="routes/s.$spaceId"
+                                    hasSpaceLayoutSidebar={platform !== "mobile"}
+                                >
+                                    <Outlet />
+                                </LoadingIndicatorSpaceOutletContainer>
+                            )}
                             {globalLoadingIndicatorForMobile && (
                                 <Box
                                     pointerEvents="none"
@@ -916,24 +968,50 @@ function SpaceLayoutRouteOutlet({
                         globalLoadingIndicator={null}
                         className={outletContainerClassName}
                         style={outletContainerStyle}
-                        renderOutlet={renderOutlet}
+                        renderOutlet={outlet => (
+                            <LoadingIndicatorSpaceOutletContainer routeId="routes/s.$spaceId">
+                                {outlet}
+                            </LoadingIndicatorSpaceOutletContainer>
+                        )}
                     />,
                 );
             }
 
             nodes.push(
-                <NativeMobileOutlet
-                    key={nativeMobileRouterState.entryKey}
-                    parentRouteIds={spaceNativeMobileOutletParentRouteIds}
-                    tracer={context.tracer.getRoot()}
-                    isInert={isInert}
-                    inertRouterState={null}
-                    onUpdateMetaTitle={updateMetaTitle}
-                    globalLoadingIndicator={globalLoadingIndicatorForMobile}
-                    className={outletContainerClassName}
-                    style={outletContainerStyle}
-                    renderOutlet={renderOutlet}
-                />,
+                // NOTE(calebmer): There may be a cleaner way to handle errors. Since error
+                // handling only happens for the primary route, if an inert route has an error
+                // then nothing will be rendered in the inert route? That's probably fine.
+                error !== undefined ? (
+                    <div
+                        key={nativeMobileRouterState.entryKey}
+                        className={outletContainerClassName}
+                        style={outletContainerStyle}
+                    >
+                        <SpaceRouteErrorRenderer
+                            currentAccount={
+                                loaderData.type === "WithAccess" ? loaderData.currentAccount : null
+                            }
+                            error={error}
+                        />
+                    </div>
+                ) : (
+                    <NativeMobileOutlet
+                        key={nativeMobileRouterState.entryKey}
+                        parentRouteIds={spaceNativeMobileOutletParentRouteIds}
+                        tracer={context.tracer.getRoot()}
+                        isInert={isInert}
+                        inertRouterState={null}
+                        onUpdateMetaTitle={updateMetaTitle}
+                        globalLoadingIndicator={globalLoadingIndicatorForMobile}
+                        className={outletContainerClassName}
+                        style={outletContainerStyle}
+                        renderOutlet={outlet => (
+                            <LoadingIndicatorSpaceOutletContainer routeId="routes/s.$spaceId">
+                                {outlet}
+                            </LoadingIndicatorSpaceOutletContainer>
+                        )}
+                    />
+                ),
             );
         }
 
@@ -965,6 +1043,7 @@ function SpaceLayoutRouteOutlet({
         return nodes;
     }, [
         context.tracer,
+        error,
         globalLoadingIndicatorForMobile,
         isInert,
         loaderData,
@@ -979,6 +1058,13 @@ function SpaceLayoutRouteOutlet({
     // React supports rendering an array as children but TypeScript gets confused.
     return nodes as any as ReactElement;
 }
+
+// We use the same component for the error boundary so we don't remount the
+// space context and top bar if an error in a child component occurs.
+//
+// Making sure there's no remount on error requires careful patching to Remix
+// and React Router.
+export const ErrorBoundary = SpaceLayoutRoute;
 
 /**
  * Handle `Home` or `End` keyboard presses. Moving the cursor to the start or
@@ -1087,6 +1173,47 @@ function handleHomeOrEndKeyDownForTextInputElement(event: KeyboardEvent) {
                 selection.addRange(range);
             }
         }
+    }
+}
+
+let modalErrorBoundaryTypesByError: WeakMap<object, Set<string>> | null = null;
+
+/**
+ * Protect against infinite error loops with `<SearchModal>`. If
+ * `<SearchModal>` errs on initial render while rendering we'll re-render at
+ * the nearest error boundary which will attempt to render `<SearchModal>`
+ * again because `search` is in the URL causing an infinite error loop. With
+ * this error boundary if `<SearchModal>` errs, we make sure not to render it
+ * again by clearing `search` from the URL.
+ */
+class ModalErrorBoundary extends Component<{
+    type: string;
+    error: unknown;
+    children: ReactNode;
+}> {
+    public override componentDidCatch(error: unknown) {
+        if (!isObject(error)) error = new UnknownError(String(error));
+
+        modalErrorBoundaryTypesByError ??= new WeakMap();
+
+        getOrSetDefaultMapValue(
+            modalErrorBoundaryTypesByError,
+            error as object,
+            () => new Set(),
+        ).add(this.props.type);
+
+        throw error;
+    }
+
+    public override render() {
+        if (
+            isObject(this.props.error) &&
+            modalErrorBoundaryTypesByError?.get(this.props.error)?.has(this.props.type)
+        ) {
+            return null;
+        }
+
+        return this.props.children;
     }
 }
 
