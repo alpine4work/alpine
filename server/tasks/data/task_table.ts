@@ -3626,9 +3626,6 @@ async function authorizeTaskCollectionItemAccessIfPossibleForActor(
     if (result.ok && isTaskCollectionItemDeleted(collectionItem)) {
         let isMemberOfSpace = false;
 
-        // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-        // eslint-disable-next-line no-commit-blockers
-        // NOCOMMIT: Test
         switch (actor.type) {
             case "System": {
                 isMemberOfSpace = true;
@@ -3686,9 +3683,6 @@ async function authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossibleFo
     expectedAccessLevel: AccessLevel,
 ): Promise<Result<void, ErrorBase>> {
     switch (actor.type) {
-        // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-        // eslint-disable-next-line no-commit-blockers
-        // NOCOMMIT: Test
         case "System": {
             if (actor.getSpaceId() !== collectionItem.spaceId) {
                 return {
@@ -3706,9 +3700,6 @@ async function authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossibleFo
             const isAccessAuthorized = await evaluateAccessPolicy(
                 context,
                 collectionItem.spaceId,
-                // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-                // eslint-disable-next-line no-commit-blockers
-                // NOCOMMIT: Test
                 actor.type === "Session" ? actor.getAccountId() : null,
                 collectionItem.accessPolicy.value,
                 expectedAccessLevel,
@@ -3772,7 +3763,7 @@ export async function authorizeTaskCollectionAccess(
         getCollectionIndexDocIfExists: (
             taskId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
-    } | null,
+    } | null = null,
 ): Promise<{spaceId: SpaceId}> {
     const collectionItem = await getTaskCollectionItemForAuthorization(
         context,
@@ -3955,9 +3946,6 @@ async function authorizeTaskItemAccessIfPossibleForActor(
     if (result.ok && taskItem.deletedTime) {
         let isMemberOfSpace = false;
 
-        // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-        // eslint-disable-next-line no-commit-blockers
-        // NOCOMMIT: Test
         switch (actor.type) {
             case "System": {
                 isMemberOfSpace = true;
@@ -4020,9 +4008,6 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
     },
 ): Promise<Result<void, ErrorBase>> {
     switch (actor.type) {
-        // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-        // eslint-disable-next-line no-commit-blockers
-        // NOCOMMIT: Test
         case "System": {
             if (actor.getSpaceId() !== taskItem.spaceId) {
                 return {
@@ -4037,9 +4022,6 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
         }
         case "Session":
         case "Anonymous": {
-            // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-            // eslint-disable-next-line no-commit-blockers
-            // NOCOMMIT: Test
             const accountId = actor.type === "Session" ? actor.getAccountId() : null;
 
             if (accountId !== null) {
@@ -4047,9 +4029,6 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
                 if (
                     accountId === taskItem.creatorId &&
                     hasAccessLevel("Edit", expectedAccessLevel) &&
-                    // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-                    // eslint-disable-next-line no-commit-blockers
-                    // NOCOMMIT: Test this
                     (await isAccountMemberOfSpaceWithoutAuthorization(
                         context,
                         taskItem.spaceId,
@@ -4064,9 +4043,6 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
                     taskItem.assigneeId.value &&
                     accountId === taskItem.assigneeId.value &&
                     hasAccessLevel("Edit", expectedAccessLevel) &&
-                    // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-                    // eslint-disable-next-line no-commit-blockers
-                    // NOCOMMIT: Test this
                     (await isAccountMemberOfSpaceWithoutAuthorization(
                         context,
                         taskItem.spaceId,
@@ -5552,10 +5528,6 @@ export async function authorizeTaskQueryAccess(
         filters.creatorFilter.accountIds.has(context.actor.getAccountId()) &&
         // You must be a space member to filter for tasks you created. If you lost
         // access to a space you can't filter for your own tasks anymore.
-        //
-        // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-        // eslint-disable-next-line no-commit-blockers
-        // NOCOMMIT: Test!
         (await isAccountMemberOfSpaceWithoutAuthorization(
             context,
             spaceId,
@@ -5574,10 +5546,6 @@ export async function authorizeTaskQueryAccess(
         filters.assigneeFilter.accountIds.has(context.actor.getAccountId()) &&
         // You must be a space member to filter for tasks you're assigned. If you lost
         // access to a space you can't filter for your own tasks anymore.
-        //
-        // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-        // eslint-disable-next-line no-commit-blockers
-        // NOCOMMIT: Test!
         (await isAccountMemberOfSpaceWithoutAuthorization(
             context,
             spaceId,
@@ -5594,10 +5562,6 @@ export async function authorizeTaskQueryAccess(
         filters.notepadPageFilter?.accountId === context.actor.getAccountId() &&
         // You must be a space member to filter for tasks in your notepad. If you lost
         // access to a space you can't filter for your own tasks anymore.
-        //
-        // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-        // eslint-disable-next-line no-commit-blockers
-        // NOCOMMIT: Test!
         (await isAccountMemberOfSpaceWithoutAuthorization(
             context,
             spaceId,
@@ -5621,9 +5585,6 @@ export async function authorizeTaskQueryAccess(
                             const {spaceId: collectionSpaceId} =
                                 await authorizeTaskCollectionAccess(context, term, "View", loaders);
 
-                            // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-                            // eslint-disable-next-line no-commit-blockers
-                            // NOCOMMIT: Test!
                             if (spaceId !== collectionSpaceId) {
                                 throw new PermissionDeniedError(
                                     "Task collection is in the wrong space",
@@ -5657,9 +5618,6 @@ export async function authorizeTaskQueryAccess(
                 loaders,
             );
 
-            // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-            // eslint-disable-next-line no-commit-blockers
-            // NOCOMMIT: Test!
             if (spaceId !== taskSpaceId) {
                 throw new PermissionDeniedError("Parent task is in the wrong space");
             }
@@ -5713,9 +5671,6 @@ export async function authorizeTaskQueryAccess(
                                     loaders,
                                 );
 
-                            // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-                            // eslint-disable-next-line no-commit-blockers
-                            // NOCOMMIT: Test!
                             if (spaceId !== collectionSpaceId) {
                                 throw new PermissionDeniedError(
                                     "Task collection is in the wrong space",

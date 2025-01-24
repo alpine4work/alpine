@@ -1,5 +1,5 @@
 import {createSessionForTest} from "~/server/accounts/accounts_table.js";
-import {getAccount} from "~/server/spaces/spaces_table.js";
+import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -32,6 +32,11 @@ export class TestSpaceSession extends TestSession {
         });
 
         return new TestSpaceSession(space, account, id, createdTime);
+    }
+
+    public async forSpace(space: TestSpace) {
+        await authorizeSpaceAccess(this.action(), space.id);
+        return new TestSpaceSession(space, this.account, this.id, this.createdTime);
     }
 
     /**

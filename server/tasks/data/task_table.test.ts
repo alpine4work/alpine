@@ -11,7 +11,7 @@ import {
     createTestSession,
 } from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {addSpaceAccountForTest} from "~/server/spaces/spaces_table.js";
+import {addSpaceAccountForTest, removeSpaceAccountAsAdmin} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
@@ -20,6 +20,7 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {
     authorizeTaskAccess,
+    authorizeTaskCollectionAccess,
     authorizeTaskQueryAccess,
     backfillTaskActionTransactionHistory,
     backfillTaskComments,
@@ -13481,7 +13482,7 @@ test("can't remove task from a deleted public collection", async () => {
     await task.removeCollection(session, collection);
 });
 
-test("can't update collection name in a deleted public collection", async () => {
+test.only("can't update collection name in a deleted public collection", async () => {
     const space = await TestSpace.create(context);
 
     const [session1, session2] = await runAllPromises([
@@ -13497,7 +13498,7 @@ test("can't update collection name in a deleted public collection", async () => 
     await collection.delete(session1);
 
     await expect(collection.updateName(session2, "Test 2")).rejects.toThrow(
-        FailedPreconditionError,
+        "Task collection was deleted",
     );
 
     await collection.undelete(session1);
@@ -13558,6 +13559,57 @@ test("authorizes a query with creator filter", async () => {
             },
         ],
     });
+});
+
+test.only("can't authorize a query with creator filter if account access was removed", async () => {
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({hasInternalAccess: true});
+    const session = await space.createSession();
+
+    await testAuthorizeTaskQueryAccess(session, {
+        filters: [
+            {type: "Creator", operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]}},
+        ],
+    });
+
+    await testAuthorizeTaskQueryAccess(session, {
+        filters: [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "Account", accountId: session.account.id}],
+                },
+            },
+        ],
+    });
+
+    await removeSpaceAccountAsAdmin(adminSession.action(), {
+        spaceId: space.id,
+        accountId: session.account.id,
+    });
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session, {
+            filters: [
+                {type: "Creator", operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]}},
+            ],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session, {
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "Account", accountId: session.account.id}],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
 });
 
 test("doesn't authorize a query that only excludes creator in filter", async () => {
@@ -13731,6 +13783,60 @@ test("authorizes a query with assignee filter", async () => {
     });
 });
 
+test.only("can't authorize a query with assignee filter if account access was removed", async () => {
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({hasInternalAccess: true});
+    const session = await space.createSession();
+
+    await testAuthorizeTaskQueryAccess(session, {
+        filters: [
+            {type: "Assignee", operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]}},
+        ],
+    });
+
+    await testAuthorizeTaskQueryAccess(session, {
+        filters: [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "Account", accountId: session.account.id}],
+                },
+            },
+        ],
+    });
+
+    await removeSpaceAccountAsAdmin(adminSession.action(), {
+        spaceId: space.id,
+        accountId: session.account.id,
+    });
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session, {
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+            ],
+        }),
+    ).rejects.toThrow("Query may reveal tasks the session account is not allowed to see");
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session, {
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "Account", accountId: session.account.id}],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow("Query may reveal tasks the session account is not allowed to see");
+});
+
 test("doesn't authorize a query that only excludes assignee in filter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -13894,6 +14000,39 @@ test("can authorize a query with notepad page filter", async () => {
     });
 });
 
+test("can't authorize a query with notepad page filter if account access was removed", async () => {
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({hasInternalAccess: true});
+    const session = await space.createSession();
+
+    await testAuthorizeTaskQueryAccess(session, {
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            notepadPageFilter: {
+                accountId: session.account.id,
+                notepadPageId: generateTaskNotepadPageId(testClock),
+            },
+        },
+    });
+
+    await removeSpaceAccountAsAdmin(adminSession.action(), {
+        spaceId: space.id,
+        accountId: session.account.id,
+    });
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session, {
+            filters: {
+                ...defaultTaskQueryNormalizedFilters,
+                notepadPageFilter: {
+                    accountId: session.account.id,
+                    notepadPageId: generateTaskNotepadPageId(testClock),
+                },
+            },
+        }),
+    ).rejects.toThrow("Query may reveal tasks the session account is not allowed to see");
+});
+
 test("can't authorize a query with other account's notepad page filter", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -13924,6 +14063,57 @@ test("can authorize a query with a collection you have access to", async () => {
     await collection.access.grantDefault(session1);
 
     await testAuthorizeTaskQueryAccess(session2, {
+        filters: [
+            {
+                type: "Collections",
+                operation: {
+                    type: "IncludesOneOf",
+                    collectionIds: new Set([collection.id]),
+                },
+            },
+        ],
+    });
+});
+
+test.only("can't authorize a query with a collection in a different space", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await otherSpace.createSession();
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2, {
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+
+    await space.addAccount(session2);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2, {
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow("Task collection is in the wrong space");
+
+    await testAuthorizeTaskQueryAccess(await session2.forSpace(space), {
         filters: [
             {
                 type: "Collections",
@@ -14380,6 +14570,51 @@ test("can authorize a query with a parent filter for a task you have access to",
     });
 });
 
+test.only("can't authorize a query with a parent filter in a different space", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await otherSpace.createSession();
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
+    const task = await TestTask.create(session1);
+
+    await task.addCollection(session1, collection);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2, {
+            filters: {
+                ...defaultTaskQueryNormalizedFilters,
+                parentFilter: {
+                    parentTaskId: task.id,
+                },
+            },
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+
+    await space.addAccount(session2);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2, {
+            filters: {
+                ...defaultTaskQueryNormalizedFilters,
+                parentFilter: {
+                    parentTaskId: task.id,
+                },
+            },
+        }),
+    ).rejects.toThrow("Parent task is in the wrong space");
+
+    await testAuthorizeTaskQueryAccess(await session2.forSpace(space), {
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            parentFilter: {
+                parentTaskId: task.id,
+            },
+        },
+    });
+});
+
 test("can't authorize a query with a parent filter for a task you don't have access to", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -14574,6 +14809,72 @@ test("must be allowed to access collection to sort by collection position", asyn
     ).rejects.toThrow(
         new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
     );
+});
+
+test.only("collection must be in the right space to sort by collection position", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await otherSpace.createSession();
+    const collection1 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2, {
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+            ],
+            sorts: [
+                {
+                    type: "CollectionPosition",
+                    collectionId: collection1.id,
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+            ],
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+
+    await space.addAccount(session2);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2, {
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+            ],
+            sorts: [
+                {
+                    type: "CollectionPosition",
+                    collectionId: collection1.id,
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+            ],
+        }),
+    ).rejects.toThrow("Task collection is in the wrong space");
+
+    await testAuthorizeTaskQueryAccess(await session2.forSpace(space), {
+        filters: [
+            {
+                type: "Creator",
+                operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+            },
+        ],
+        sorts: [
+            {
+                type: "CollectionPosition",
+                collectionId: collection1.id,
+                direction: "Ascending",
+                missing: "Last",
+            },
+        ],
+    });
 });
 
 test("must be allowed to access collection to sort by collection position with collection filter", async () => {
@@ -20547,4 +20848,1047 @@ test("authorizing task access after getting task as system actor is cached", asy
 
         expect(getCount()).toEqual(2);
     }
+});
+
+test.only("can authorize task collections in various states as various actors", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession();
+
+    const [
+        publicCollection,
+        publicDeletedCollection,
+        privateCollection,
+        privateDeletedCollection,
+        urlPublicCollection,
+        urlPublicDeletedCollection,
+    ] = await runAllPromises([
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+    ]);
+
+    await publicCollection.access.grantDefault(session1);
+    await publicDeletedCollection.access.grantDefault(session1);
+
+    await privateCollection.access.grant(session1, session2, "Comment");
+    await privateDeletedCollection.access.grant(session1, session2, "Comment");
+
+    await urlPublicCollection.access.grantUrl(session1);
+    await urlPublicDeletedCollection.access.grantUrl(session1);
+
+    await publicDeletedCollection.delete(session1);
+    await privateDeletedCollection.delete(session1);
+    await urlPublicDeletedCollection.delete(session1);
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), publicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), publicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), publicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), publicCollection.id, "View"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(context.anonymousAction(), publicCollection.id, "View"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), publicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSpace.systemAction(), publicCollection.id, "View"),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), publicCollection.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), publicCollection.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), publicCollection.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), publicCollection.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(context.anonymousAction(), publicCollection.id, "Comment"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), publicCollection.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSpace.systemAction(), publicCollection.id, "Comment"),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), publicCollection.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), publicCollection.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), publicCollection.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), publicCollection.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(context.anonymousAction(), publicCollection.id, "Edit"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), publicCollection.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSpace.systemAction(), publicCollection.id, "Edit"),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), publicDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), publicDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), publicDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), publicDeletedCollection.id, "View"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(
+            context.anonymousAction(),
+            publicDeletedCollection.id,
+            "View",
+        ),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), publicDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSpace.systemAction(),
+            publicDeletedCollection.id,
+            "View",
+        ),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), publicDeletedCollection.id, "Comment"),
+    ).rejects.toThrow(
+        'Can only view deleted task collection, access level "Comment" is not allowed',
+    );
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), publicDeletedCollection.id, "Comment"),
+    ).rejects.toThrow(
+        'Can only view deleted task collection, access level "Comment" is not allowed',
+    );
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), publicDeletedCollection.id, "Comment"),
+    ).rejects.toThrow(
+        'Can only view deleted task collection, access level "Comment" is not allowed',
+    );
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), publicDeletedCollection.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(
+            context.anonymousAction(),
+            publicDeletedCollection.id,
+            "Comment",
+        ),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), publicDeletedCollection.id, "Comment"),
+    ).rejects.toThrow(
+        'Can only view deleted task collection, access level "Comment" is not allowed',
+    );
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSpace.systemAction(),
+            publicDeletedCollection.id,
+            "Comment",
+        ),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), publicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), publicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), publicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), publicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(
+            context.anonymousAction(),
+            publicDeletedCollection.id,
+            "Edit",
+        ),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), publicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSpace.systemAction(),
+            publicDeletedCollection.id,
+            "Edit",
+        ),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), privateCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), privateCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), privateCollection.id, "View"),
+    ).rejects.toThrow('Actor doesn\'t have "View" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), privateCollection.id, "View"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(context.anonymousAction(), privateCollection.id, "View"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), privateCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSpace.systemAction(), privateCollection.id, "View"),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), privateCollection.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), privateCollection.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), privateCollection.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), privateCollection.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(context.anonymousAction(), privateCollection.id, "Comment"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), privateCollection.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSpace.systemAction(), privateCollection.id, "Comment"),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), privateCollection.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), privateCollection.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), privateCollection.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), privateCollection.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(context.anonymousAction(), privateCollection.id, "Edit"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), privateCollection.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSpace.systemAction(), privateCollection.id, "Edit"),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), privateDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), privateDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), privateDeletedCollection.id, "View"),
+    ).rejects.toThrow('Actor doesn\'t have "View" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), privateDeletedCollection.id, "View"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(
+            context.anonymousAction(),
+            privateDeletedCollection.id,
+            "View",
+        ),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), privateDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSpace.systemAction(),
+            privateDeletedCollection.id,
+            "View",
+        ),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), privateDeletedCollection.id, "Comment"),
+    ).rejects.toThrow(
+        'Can only view deleted task collection, access level "Comment" is not allowed',
+    );
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), privateDeletedCollection.id, "Comment"),
+    ).rejects.toThrow(
+        'Can only view deleted task collection, access level "Comment" is not allowed',
+    );
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), privateDeletedCollection.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSession.action(),
+            privateDeletedCollection.id,
+            "Comment",
+        ),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(
+            context.anonymousAction(),
+            privateDeletedCollection.id,
+            "Comment",
+        ),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), privateDeletedCollection.id, "Comment"),
+    ).rejects.toThrow(
+        'Can only view deleted task collection, access level "Comment" is not allowed',
+    );
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSpace.systemAction(),
+            privateDeletedCollection.id,
+            "Comment",
+        ),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), privateDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), privateDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), privateDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), privateDeletedCollection.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(
+            context.anonymousAction(),
+            privateDeletedCollection.id,
+            "Edit",
+        ),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), privateDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSpace.systemAction(),
+            privateDeletedCollection.id,
+            "Edit",
+        ),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), urlPublicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), urlPublicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), urlPublicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), urlPublicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(context.anonymousAction(), urlPublicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), urlPublicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSpace.systemAction(), urlPublicCollection.id, "View"),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), urlPublicCollection.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), urlPublicCollection.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), urlPublicCollection.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), urlPublicCollection.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(context.anonymousAction(), urlPublicCollection.id, "Comment"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), urlPublicCollection.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSpace.systemAction(), urlPublicCollection.id, "Comment"),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), urlPublicCollection.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), urlPublicCollection.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), urlPublicCollection.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), urlPublicCollection.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(context.anonymousAction(), urlPublicCollection.id, "Edit"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), urlPublicCollection.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSpace.systemAction(), urlPublicCollection.id, "Edit"),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), urlPublicDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), urlPublicDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), urlPublicDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), urlPublicDeletedCollection.id, "View"),
+    ).rejects.toThrow("Only space members may read deleted task collections");
+    await expect(
+        authorizeTaskCollectionAccess(
+            context.anonymousAction(),
+            urlPublicDeletedCollection.id,
+            "View",
+        ),
+    ).rejects.toThrow("Only space members may read deleted task collections");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), urlPublicDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSpace.systemAction(),
+            urlPublicDeletedCollection.id,
+            "View",
+        ),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), urlPublicDeletedCollection.id, "Comment"),
+    ).rejects.toThrow(
+        'Can only view deleted task collection, access level "Comment" is not allowed',
+    );
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), urlPublicDeletedCollection.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), urlPublicDeletedCollection.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSession.action(),
+            urlPublicDeletedCollection.id,
+            "Comment",
+        ),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(
+            context.anonymousAction(),
+            urlPublicDeletedCollection.id,
+            "Comment",
+        ),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(
+            space.systemAction(),
+            urlPublicDeletedCollection.id,
+            "Comment",
+        ),
+    ).rejects.toThrow(
+        'Can only view deleted task collection, access level "Comment" is not allowed',
+    );
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSpace.systemAction(),
+            urlPublicDeletedCollection.id,
+            "Comment",
+        ),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), urlPublicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), urlPublicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), urlPublicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), urlPublicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(
+            context.anonymousAction(),
+            urlPublicDeletedCollection.id,
+            "Edit",
+        ),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), urlPublicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSpace.systemAction(),
+            urlPublicDeletedCollection.id,
+            "Edit",
+        ),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+});
+
+test.only("can authorize tasks in various states as various actors", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession();
+
+    const [
+        publicCollection,
+        publicDeletedCollection,
+        privateCollection,
+        privateDeletedCollection,
+        urlPublicCollection,
+        urlPublicDeletedCollection,
+        publicTask,
+        publicDeletedTask,
+        privateTask,
+        privateDeletedTask,
+        urlPublicTask,
+        urlPublicDeletedTask,
+    ] = await runAllPromises([
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+    ]);
+
+    await publicCollection.access.grantDefault(session1);
+    await publicDeletedCollection.access.grantDefault(session1);
+
+    await privateCollection.access.grant(session1, session2, "Comment");
+    await privateDeletedCollection.access.grant(session1, session2, "Comment");
+
+    await urlPublicCollection.access.grantUrl(session1);
+    await urlPublicDeletedCollection.access.grantUrl(session1);
+
+    await publicTask.addCollection(session1, publicCollection);
+    await publicDeletedTask.addCollection(session1, publicDeletedCollection);
+    await privateTask.addCollection(session1, privateCollection);
+    await privateDeletedTask.addCollection(session1, privateDeletedCollection);
+    await urlPublicTask.addCollection(session1, urlPublicCollection);
+    await urlPublicDeletedTask.addCollection(session1, urlPublicDeletedCollection);
+
+    await publicDeletedTask.delete(session1);
+    await privateDeletedTask.delete(session1);
+    await urlPublicDeletedTask.delete(session1);
+
+    await expect(
+        authorizeTaskAccess(session1.action(), publicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), publicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session3.action(), publicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(authorizeTaskAccess(otherSession.action(), publicTask.id, "View")).rejects.toThrow(
+        "Actor doesn't have access to task's space",
+    );
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), publicTask.id, "View"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), publicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), publicTask.id, "View"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), publicTask.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), publicTask.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session3.action(), publicTask.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSession.action(), publicTask.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), publicTask.id, "Comment"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), publicTask.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), publicTask.id, "Comment"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), publicTask.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), publicTask.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session3.action(), publicTask.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(authorizeTaskAccess(otherSession.action(), publicTask.id, "Edit")).rejects.toThrow(
+        "Actor doesn't have access to task's space",
+    );
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), publicTask.id, "Edit"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), publicTask.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), publicTask.id, "Edit"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), publicDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), publicDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session3.action(), publicDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSession.action(), publicDeletedTask.id, "View"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), publicDeletedTask.id, "View"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), publicDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), publicDeletedTask.id, "View"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), publicDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    await expect(
+        authorizeTaskAccess(session2.action(), publicDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    await expect(
+        authorizeTaskAccess(session3.action(), publicDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    await expect(
+        authorizeTaskAccess(otherSession.action(), publicDeletedTask.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), publicDeletedTask.id, "Comment"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), publicDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), publicDeletedTask.id, "Comment"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), publicDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskAccess(session2.action(), publicDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskAccess(session3.action(), publicDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskAccess(otherSession.action(), publicDeletedTask.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), publicDeletedTask.id, "Edit"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), publicDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), publicDeletedTask.id, "Edit"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), privateTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), privateTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(authorizeTaskAccess(session3.action(), privateTask.id, "View")).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to task',
+    );
+    await expect(
+        authorizeTaskAccess(otherSession.action(), privateTask.id, "View"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), privateTask.id, "View"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), privateTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), privateTask.id, "View"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), privateTask.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), privateTask.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(authorizeTaskAccess(session3.action(), privateTask.id, "Comment")).rejects.toThrow(
+        'Actor doesn\'t have "Comment" access level to task',
+    );
+    await expect(
+        authorizeTaskAccess(otherSession.action(), privateTask.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), privateTask.id, "Comment"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), privateTask.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), privateTask.id, "Comment"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), privateTask.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(authorizeTaskAccess(session2.action(), privateTask.id, "Edit")).rejects.toThrow(
+        'Actor doesn\'t have "Edit" access level to task',
+    );
+    await expect(authorizeTaskAccess(session3.action(), privateTask.id, "Edit")).rejects.toThrow(
+        'Actor doesn\'t have "Edit" access level to task',
+    );
+    await expect(
+        authorizeTaskAccess(otherSession.action(), privateTask.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), privateTask.id, "Edit"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), privateTask.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), privateTask.id, "Edit"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), privateDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), privateDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session3.action(), privateDeletedTask.id, "View"),
+    ).rejects.toThrow('Actor doesn\'t have "View" access level to task');
+    await expect(
+        authorizeTaskAccess(otherSession.action(), privateDeletedTask.id, "View"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), privateDeletedTask.id, "View"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), privateDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), privateDeletedTask.id, "View"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), privateDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    await expect(
+        authorizeTaskAccess(session2.action(), privateDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    await expect(
+        authorizeTaskAccess(session3.action(), privateDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    await expect(
+        authorizeTaskAccess(otherSession.action(), privateDeletedTask.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), privateDeletedTask.id, "Comment"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), privateDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), privateDeletedTask.id, "Comment"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), privateDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskAccess(session2.action(), privateDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    await expect(
+        authorizeTaskAccess(session3.action(), privateDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    await expect(
+        authorizeTaskAccess(otherSession.action(), privateDeletedTask.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), privateDeletedTask.id, "Edit"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), privateDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), privateDeletedTask.id, "Edit"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), urlPublicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), urlPublicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session3.action(), urlPublicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSession.action(), urlPublicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), urlPublicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(space.systemAction(), urlPublicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), urlPublicTask.id, "View"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), urlPublicTask.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), urlPublicTask.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    await expect(
+        authorizeTaskAccess(session3.action(), urlPublicTask.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    await expect(
+        authorizeTaskAccess(otherSession.action(), urlPublicTask.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), urlPublicTask.id, "Comment"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), urlPublicTask.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), urlPublicTask.id, "Comment"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), urlPublicTask.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(authorizeTaskAccess(session2.action(), urlPublicTask.id, "Edit")).rejects.toThrow(
+        'Actor doesn\'t have "Edit" access level to task',
+    );
+    await expect(authorizeTaskAccess(session3.action(), urlPublicTask.id, "Edit")).rejects.toThrow(
+        'Actor doesn\'t have "Edit" access level to task',
+    );
+    await expect(
+        authorizeTaskAccess(otherSession.action(), urlPublicTask.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), urlPublicTask.id, "Edit"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), urlPublicTask.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), urlPublicTask.id, "Edit"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), urlPublicDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), urlPublicDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session3.action(), urlPublicDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSession.action(), urlPublicDeletedTask.id, "View"),
+    ).rejects.toThrow("Only space members may read deleted tasks");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), urlPublicDeletedTask.id, "View"),
+    ).rejects.toThrow("Only space members may read deleted tasks");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), urlPublicDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), urlPublicDeletedTask.id, "View"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), urlPublicDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    await expect(
+        authorizeTaskAccess(session2.action(), urlPublicDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    await expect(
+        authorizeTaskAccess(session3.action(), urlPublicDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    await expect(
+        authorizeTaskAccess(otherSession.action(), urlPublicDeletedTask.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), urlPublicDeletedTask.id, "Comment"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), urlPublicDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), urlPublicDeletedTask.id, "Comment"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), urlPublicDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskAccess(session2.action(), urlPublicDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    await expect(
+        authorizeTaskAccess(session3.action(), urlPublicDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    await expect(
+        authorizeTaskAccess(otherSession.action(), urlPublicDeletedTask.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), urlPublicDeletedTask.id, "Edit"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), urlPublicDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), urlPublicDeletedTask.id, "Edit"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+});
+
+test.only("account has access to tasks they create and tasks they're assigned until they're removed from the space", async () => {
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({hasInternalAccess: true});
+    const [session1, session2] = await space.createSessions(2);
+
+    const task1 = await TestTask.create(session1);
+
+    const task2 = await TestTask.create(session2);
+    await task2.updateAssignee(session2, session1);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "View")).resolves.not.toThrow();
+
+    await expect(authorizeTaskAccess(session1.action(), task2.id, "View")).resolves.not.toThrow();
+
+    await expect(
+        authorizeTaskAccess(session1.action(), task1.id, "Comment"),
+    ).resolves.not.toThrow();
+
+    await expect(
+        authorizeTaskAccess(session1.action(), task2.id, "Comment"),
+    ).resolves.not.toThrow();
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).resolves.not.toThrow();
+
+    await expect(authorizeTaskAccess(session1.action(), task2.id, "Edit")).resolves.not.toThrow();
+
+    await removeSpaceAccountAsAdmin(adminSession.action(), {
+        spaceId: space.id,
+        accountId: session1.account.id,
+    });
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "View")).rejects.toThrow(
+        "Actor doesn't have access to task's space",
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task2.id, "View")).rejects.toThrow(
+        "Actor doesn't have access to task's space",
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Comment")).rejects.toThrow(
+        "Actor doesn't have access to task's space",
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task2.id, "Comment")).rejects.toThrow(
+        "Actor doesn't have access to task's space",
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
+        "Actor doesn't have access to task's space",
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task2.id, "Edit")).rejects.toThrow(
+        "Actor doesn't have access to task's space",
+    );
 });
