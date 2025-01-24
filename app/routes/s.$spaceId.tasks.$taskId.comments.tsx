@@ -116,19 +116,25 @@ export default function TaskCommentsRoute() {
 
     useEffect(() => {
         if (routeLayout === "narrow") return;
-        const inboxParam = searchParams.get("inbox") === "show" ? "inbox=show" : "";
 
-        if (commentIndex === null) {
-            void navigate(`/s/${spaceId}/tasks/${taskId}?${inboxParam}`, {
-                replace: true,
-                stopPropagation: true,
-            });
-        } else {
-            void navigate(`/s/${spaceId}/tasks/${taskId}?comment=${commentIndex}?${inboxParam}`, {
-                replace: true,
-                stopPropagation: true,
-            });
+        const newSearchParams = new URLSearchParams();
+        newSearchParams.set("comments", "show");
+
+        if (commentIndex !== null) {
+            newSearchParams.set("comment", String(commentIndex));
         }
+
+        if (searchParams.get("inbox") === "show") {
+            newSearchParams.set("inbox", "show");
+        }
+
+        const newSearchParamsString =
+            newSearchParams.size > 0 ? `?${newSearchParams.toString()}` : "";
+
+        void navigate(`/s/${spaceId}/tasks/${taskId}${newSearchParamsString}`, {
+            replace: true,
+            stopPropagation: true,
+        });
     }, [spaceId, taskId, navigate, searchParams, commentIndex, routeLayout]);
 
     useSearchAffinityViewInteraction(`Task:${taskId}`);

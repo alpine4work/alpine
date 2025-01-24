@@ -3526,7 +3526,10 @@ function ContentEditor<Content extends ContentWithReferences>(
         // React will log a warning.
         let withoutFlushSync = true;
 
-        const handleFocus = () => {
+        const handleFocusChange = (event?: globalThis.FocusEvent) => {
+            const focusedElement =
+                event?.type === "focusout" ? event.relatedTarget : document.activeElement;
+
             const run: (action: () => void) => void = withoutFlushSync
                 ? action => action()
                 : // We frequently call `focus()` in a `useEffect()`. It's fine if we don't
@@ -3534,47 +3537,41 @@ function ContentEditor<Content extends ContentWithReferences>(
                   flushSyncIfNotRendering;
 
             run(() => {
-                setIsFocused(true);
+                if (focusedElement === viewElement) {
+                    setIsFocused(true);
 
-                setDecorationCallbacks(decorationCallbacks => {
-                    const newDecorationCallbacks = new Set(decorationCallbacks);
-                    newDecorationCallbacks.delete(blurDecorationCallback);
-                    return newDecorationCallbacks;
-                });
+                    setDecorationCallbacks(decorationCallbacks => {
+                        if (!decorationCallbacks.has(blurDecorationCallback))
+                            return decorationCallbacks;
+
+                        const newDecorationCallbacks = new Set(decorationCallbacks);
+                        newDecorationCallbacks.delete(blurDecorationCallback);
+                        return newDecorationCallbacks;
+                    });
+                } else {
+                    setIsFocused(false);
+
+                    setDecorationCallbacks(decorationCallbacks => {
+                        if (decorationCallbacks.has(blurDecorationCallback))
+                            return decorationCallbacks;
+
+                        const newDecorationCallbacks = new Set(decorationCallbacks);
+                        newDecorationCallbacks.add(blurDecorationCallback);
+                        return newDecorationCallbacks;
+                    });
+                }
             });
         };
 
-        const handleBlur = () => {
-            const run: (action: () => void) => void = withoutFlushSync
-                ? action => action()
-                : // We frequently call `focus()` in a `useEffect()`. It's fine if we don't
-                  // immediately flush our `isFocused` update in this context.
-                  flushSyncIfNotRendering;
-
-            run(() => {
-                setIsFocused(false);
-
-                setDecorationCallbacks(decorationCallbacks => {
-                    const newDecorationCallbacks = new Set(decorationCallbacks);
-                    newDecorationCallbacks.add(blurDecorationCallback);
-                    return newDecorationCallbacks;
-                });
-            });
-        };
-
-        if (document.activeElement === viewElement) {
-            handleFocus();
-        } else {
-            handleBlur();
-        }
+        handleFocusChange();
 
         withoutFlushSync = false;
 
-        viewElement.addEventListener("focus", handleFocus);
-        viewElement.addEventListener("blur", handleBlur);
+        viewElement.addEventListener("focusin", handleFocusChange);
+        viewElement.addEventListener("focusout", handleFocusChange);
         return () => {
-            viewElement.addEventListener("focus", handleFocus);
-            viewElement.addEventListener("blur", handleBlur);
+            viewElement.addEventListener("focusin", handleFocusChange);
+            viewElement.addEventListener("focusout", handleFocusChange);
 
             setDecorationCallbacks(decorationCallbacks => {
                 if (!decorationCallbacks.has(blurDecorationCallback)) return decorationCallbacks;

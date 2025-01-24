@@ -590,12 +590,12 @@ test("can drag file we didn't upload from document into new chat", async ({
     }, file1Contents.toString("hex"));
 
     await expect(
-        page1.getByLabel("Document").getByTestId("ContentFilePreview:image/jpeg"),
+        page1.getByRole("textbox", {name: "Document"}).getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeHidden();
 
     await expect(page2.getByTestId(/^ContentEditorFileDropTargetIndicator:/)).toBeHidden();
 
-    await page2.getByLabel("Document").dispatchEvent("dragenter", {
+    await page2.getByRole("textbox", {name: "Document"}).dispatchEvent("dragenter", {
         clientX: 640,
         clientY: 360,
         dataTransfer: file1DataTransfer,
@@ -603,13 +603,15 @@ test("can drag file we didn't upload from document into new chat", async ({
 
     await expect(page2.getByTestId(/^ContentEditorFileDropTargetIndicator:/)).toBeVisible();
 
-    await page2.getByLabel("Document").dispatchEvent("drop", {
+    await page2.getByRole("textbox", {name: "Document"}).dispatchEvent("drop", {
         clientX: 640,
         clientY: 360,
         dataTransfer: file1DataTransfer,
     });
 
     await expect(page2.getByTestId(/^ContentEditorFileDropTargetIndicator:/)).toBeHidden();
+
+    await expect(page1.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
 
     await page1.getByLabel("Create").click();
     await page1.getByLabel("Message").click();
@@ -623,9 +625,7 @@ test("can drag file we didn't upload from document into new chat", async ({
     // complete within 200ms of browser time.
     await page1.waitForTimeout(400);
 
-    await expect(
-        page1.getByLabel("Document").getByTestId("ContentFilePreview:image/jpeg"),
-    ).toBeVisible();
+    await expect(page1.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
 
     await browserContext2.close();
 
@@ -633,14 +633,11 @@ test("can drag file we didn't upload from document into new chat", async ({
         return new DataTransfer();
     });
 
-    await page1
-        .getByLabel("Document")
-        .getByTestId("ContentFilePreview:image/jpeg")
-        .dispatchEvent("dragstart", {
-            clientX: 474,
-            clientY: 296,
-            dataTransfer: file2DataTransfer,
-        });
+    await page1.getByTestId("ContentFilePreview:image/jpeg").dispatchEvent("dragstart", {
+        clientX: 474,
+        clientY: 296,
+        dataTransfer: file2DataTransfer,
+    });
 
     await expect(page1.getByTestId("MessagingViewDragOverlay")).toBeHidden();
     await expect(

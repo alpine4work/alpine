@@ -970,7 +970,7 @@ export async function getTaskCollectionItemForTest(
     context: DynamoContext,
     collectionId: TaskCollectionId,
 ): Promise<TaskCollectionEssentialAttributesItem> {
-    assert(import.meta.jest);
+    assert(process.env.NODE_ENV === "test");
 
     return TaskTable.getItem(context, {
         partitionType: "TaskCollection",

@@ -42,7 +42,8 @@ test("can navigate to task comments and add comment from peek", async ({
 
     await expect(page.getByTestId("PeekStackOverlay").getByLabel("New comment")).toBeHidden();
 
-    await page.getByLabel("Open comments").click();
+    await page.getByLabel("More").click();
+    await page.getByRole("menuitem", {name: "Comments"}).click();
 
     await expect(page.getByTestId("PeekStackOverlay").getByLabel("New comment")).toBeVisible();
     await expect(page.getByTestId("PeekStackOverlay").getByLabel("New comment")).toHaveText("");
@@ -101,7 +102,9 @@ test("expanding task from peek opens task detail view", async ({page, context: b
 
     await expect(page.getByTestId("TaskDetailViewMain").getByText("unique task 1")).toBeHidden();
 
-    await expect(page.getByLabel("Open comments")).toBeHidden();
+    await page.getByLabel("More").click();
+    await page.getByRole("menuitem", {name: "Comments"}).click();
+
     await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
 
     await page.getByRole("button", {name: "Create"}).click();
@@ -121,12 +124,18 @@ test("expanding task from peek opens task detail view", async ({page, context: b
     await expect(
         page.getByTestId("PeekStackOverlay").getByTestId("TaskDetailViewMain").getByLabel("Title"),
     ).toHaveText("unique task 1");
-    await expect(page.getByTestId("PeekStackOverlay").getByLabel("Open comments")).toBeVisible();
+    await expect(
+        page.getByTestId("PeekStackOverlay").getByTestId("TaskStatusButton"),
+    ).toBeVisible();
     await expect(page.getByTestId("TaskDetailViewMain").getByText("new task")).toBeVisible();
 
     await page.getByLabel("Expand").click();
 
-    await expect(page.getByTestId("PeekStackOverlay").getByLabel("Open comments")).toBeHidden();
+    await expect(page.getByTestId("PeekStackOverlay").getByTestId("TaskStatusButton")).toBeHidden();
+
+    await page.getByLabel("More").click();
+    await page.getByRole("menuitem", {name: "Comments"}).click();
+
     await expect(page.getByRole("textbox", {name: "New comment"})).toBeVisible();
     await expect(
         page.getByTestId("MessageViewContent").getByText("1st task comment"),
@@ -154,7 +163,7 @@ test("task comments are visible in task detail view and can add comments", async
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/s/${space.id}/tasks/${task.id}?comments=show`);
 
     await expect(page.getByText("1st task comment")).toBeVisible();
 
@@ -169,42 +178,6 @@ test("task comments are visible in task detail view and can add comments", async
 
     await expect(page.getByText("1st task comment")).toBeVisible();
     await expect(page.getByText("Added task comment 1")).toBeVisible();
-});
-
-test("mobile task detail view loads comments when window size change", async ({
-    page,
-    context: browserContext,
-    viewport,
-}) => {
-    assert(viewport);
-    const initialDesktopViewportWidth = viewport.width;
-
-    const space = await TestSpace.create(context);
-    const session = await space.createSession({name: "Logan Roy"});
-    const task = await TestTask.create(session, {title: "unique task 1"});
-
-    const content1 = createSimpleMessageContent("1st task comment");
-    await createTaskComment(context.action(session), {
-        taskId: task.id,
-        parentCommentIndex: null,
-        content: content1,
-        fileIds: [],
-    });
-
-    await ProcessContextModule.waitForTestTasks();
-    await page.setViewportSize({width: mobilePlatformMaxWindowWidth, height: viewport.height});
-
-    await services.signIn(browserContext, session);
-
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
-
-    await expect(page.getByLabel("Open comments")).toBeVisible();
-    await expect(page.getByText("1st task comment")).toBeHidden();
-
-    await page.setViewportSize({width: initialDesktopViewportWidth, height: viewport.height});
-
-    await expect(page.getByLabel("Open comments")).toBeHidden();
-    await expect(page.getByText("1st task comment")).toBeVisible();
 });
 
 test("mobile task comments route navigates to task detail view when window size change", async ({
@@ -232,19 +205,20 @@ test("mobile task comments route navigates to task detail view when window size 
     await page.setViewportSize({width: mobilePlatformMaxWindowWidth, height: viewport.height});
     await services.signIn(browserContext, session);
 
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
-    await expect(page.getByLabel("Open comments")).toBeVisible();
+    await page.goto(`/s/${space.id}/tasks/${task.id}?comments=show`);
+    await expect(page.getByTestId("TaskStatusButton")).toBeVisible();
 
-    await page.getByLabel("Open comments").click();
+    await page.getByLabel("More").click();
+    await page.getByRole("menuitem", {name: "Comments"}).click();
 
-    await expect(page.getByLabel("Open comments")).toBeHidden();
+    await expect(page.getByTestId("TaskStatusButton")).toBeHidden();
     await expect(page.getByText("unique task 1")).toBeVisible();
     await expect(page.getByText("Comments")).toBeVisible();
     await expect(page.getByText("1st task comment")).toBeVisible();
 
     await page.setViewportSize({width: initialDesktopViewportWidth, height: viewport.height});
 
-    await expect(page.getByLabel("Open comments")).toBeHidden();
+    await expect(page.getByTestId("TaskStatusButton")).toBeVisible();
     await expect(page.getByText("Comments")).toBeHidden();
     await expect(page.getByText("1st task comment")).toBeVisible();
 });
