@@ -311,17 +311,8 @@ for (const testCase of testCases) {
 
         await expect(toolbarLocator.getByLabel("Bold")).toBeVisible();
 
-        if (
-            !isMobile ||
-            (await toolbarLocator
-                .getByTestId("ContentEditorPointerToolbar")
-                .getByLabel("Link")
-                .isVisible())
-        ) {
-            await toolbarLocator
-                .getByTestId("ContentEditorPointerToolbar")
-                .getByLabel("Link")
-                .click();
+        if (!isMobile || (await toolbarLocator.getByLabel("Link", {exact: true}).isVisible())) {
+            await toolbarLocator.getByLabel("Link", {exact: true}).click();
         } else {
             await toolbarLocator.getByLabel("More").click();
             await page
