@@ -52,6 +52,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//client/web_socket:web_socket",
     "//native/mobile/ios/Resources/Assets.xcassets:assets_lib",
     "//server/access:access",
+    "//server/access/test_helpers:test_helpers",
     "//server/accounts:accounts",
     "//server/accounts/update_name:update_name",
     "//server/alpha:alpha",
