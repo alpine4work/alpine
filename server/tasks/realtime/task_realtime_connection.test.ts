@@ -278,7 +278,7 @@ test("can load a query with some tasks", async () => {
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -334,7 +334,7 @@ test("can paginate a query with many tasks", async () => {
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -360,7 +360,7 @@ test("can paginate a query with many tasks", async () => {
                 expectAuthorizedTask(task6.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -382,7 +382,7 @@ test("can paginate a query with many tasks", async () => {
             actions: [],
             backfillTasks: [expectAuthorizedTask(task7.id), expectAuthorizedTask(task8.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -446,7 +446,7 @@ test("can load a query with filters", async () => {
                 expectAuthorizedTask(task5.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -480,7 +480,7 @@ test("can load a query with filters", async () => {
             actions: [],
             backfillTasks: [expectAuthorizedTask(task2.id), expectAuthorizedTask(task4.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -543,7 +543,7 @@ test("can load a query with sorts", async () => {
                 expectAuthorizedTask(task4.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -617,7 +617,7 @@ test("two subscriptions with identical queries use the same underlying query", a
                 expectAuthorizedTask(task5.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -655,7 +655,7 @@ test("two subscriptions with identical queries use the same underlying query", a
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -681,7 +681,7 @@ test("two subscriptions with identical queries use the same underlying query", a
             actions: [],
             backfillTasks: [expectAuthorizedTask(task4.id), expectAuthorizedTask(task5.id)],
             backfillCollections: [],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -762,7 +762,7 @@ test("two subscriptions with different queries load different queries", async ()
                 expectAuthorizedTask(task5.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection1.id)],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -799,7 +799,7 @@ test("two subscriptions with different queries load different queries", async ()
             actions: [],
             backfillTasks: [expectAuthorizedTask(task2.id), expectAuthorizedTask(task4.id)],
             backfillCollections: [expectAuthorizedCollection(collection2.id)],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -869,7 +869,7 @@ test("will send actions for updated tasks in the subscription's loaded range", a
                 expectAuthorizedTask(task5.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -990,7 +990,7 @@ test("will send actions for removed tasks in the subscription's loaded range", a
                 expectAuthorizedTask(task5.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -1111,7 +1111,7 @@ test("will backfill added tasks in the subscription's loaded range", async () =>
                 expectAuthorizedTask(task5.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -1133,7 +1133,7 @@ test("will backfill added tasks in the subscription's loaded range", async () =>
             actions: [],
             backfillTasks: [expectAuthorizedTask(task2.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -1242,7 +1242,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -1281,7 +1281,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -1320,7 +1320,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -1359,7 +1359,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -1390,7 +1390,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
             actions: [],
             backfillTasks: [expectAuthorizedTask(task5.id)],
             backfillCollections: [],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -1692,7 +1692,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -1731,7 +1731,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -1770,7 +1770,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -1809,7 +1809,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -1840,7 +1840,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
             actions: [],
             backfillTasks: [expectAuthorizedTask(task5.id)],
             backfillCollections: [],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -2002,7 +2002,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
             actions: [],
             backfillTasks: [expectAuthorizedTask(task5.id)],
             backfillCollections: [],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -2226,7 +2226,7 @@ test("visible task added out of loaded range ignored", async () => {
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -2286,7 +2286,7 @@ test("visible task added out of loaded range ignored", async () => {
                 expectAuthorizedTask(task5.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -2309,7 +2309,7 @@ test("visible task added out of loaded range ignored", async () => {
             actions: [],
             backfillTasks: [expectAuthorizedTask(task4.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 });
@@ -2374,7 +2374,7 @@ test("visible task updated out of loaded range ignored", async () => {
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -2435,7 +2435,7 @@ test("visible task updated out of loaded range ignored", async () => {
                 expectAuthorizedTask(task5.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -2533,7 +2533,7 @@ test("visible task removed out of loaded range ignored", async () => {
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -2594,7 +2594,7 @@ test("visible task removed out of loaded range ignored", async () => {
                 expectAuthorizedTask(task5.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -2699,7 +2699,7 @@ test("visible task moved into loaded range", async () => {
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -2762,7 +2762,7 @@ test("visible task moved into loaded range", async () => {
                 expectAuthorizedTask(task5.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -2781,7 +2781,7 @@ test("visible task moved into loaded range", async () => {
             actions: [],
             backfillTasks: [expectAuthorizedTask(task4.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -2877,7 +2877,7 @@ test("visible task moved out of loaded range", async () => {
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -2940,7 +2940,7 @@ test("visible task moved out of loaded range", async () => {
                 expectAuthorizedTask(task5.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -3048,7 +3048,7 @@ test("unsubscribe stops sending actions to connection", async () => {
                 expectAuthorizedTask(task5.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -3085,7 +3085,7 @@ test("unsubscribe stops sending actions to connection", async () => {
                 expectAuthorizedTask(task5.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -3369,7 +3369,7 @@ test("all referenced collections will be backfilled in the query when loaded", a
                 expectAuthorizedCollection(collection3a.id),
                 expectAuthorizedCollection(collection3b.id),
             ],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -3396,7 +3396,7 @@ test("all referenced collections will be backfilled in the query when loaded", a
                 expectAuthorizedCollection(collection5a.id),
                 expectAuthorizedCollection(collection5b.id),
             ],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -3500,7 +3500,7 @@ test("all referenced collections will be backfilled in the query when added", as
                 expectAuthorizedCollection(collection4a.id),
                 expectAuthorizedCollection(collection4b.id),
             ],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -3520,7 +3520,7 @@ test("all referenced collections will be backfilled in the query when added", as
                 expectAuthorizedCollection(collection3a.id),
                 expectAuthorizedCollection(collection3b.id),
             ],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -3639,7 +3639,7 @@ test("when a collection is added it will be backfilled", async () => {
                 expectAuthorizedCollection(collection4a.id),
                 expectAuthorizedCollection(collection4b.id),
             ],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -3759,7 +3759,7 @@ test("if a collection is referenced then the connection will receive actions for
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection3.id),
             ],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -3888,7 +3888,7 @@ test("if a collection is referenced then the all references must be removed to n
                 expectAuthorizedTask(task4.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -4120,7 +4120,7 @@ test("collections unreferenced by removing loaded task do not receive actions", 
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -4245,7 +4245,7 @@ test("collections can be referenced, unreferenced, then referenced again", async
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -4317,7 +4317,7 @@ test("collections can be referenced, unreferenced, then referenced again", async
             actions: [],
             backfillTasks: [expectAuthorizedTask(task1.id)],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -4408,7 +4408,7 @@ test("parent tasks are backfilled when query is initially loaded", async () => {
                 expectAuthorizedTask(parentTask2.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -4483,7 +4483,7 @@ test("parent tasks are backfilled when more is loaded from query", async () => {
                 expectAuthorizedTask(parentTask2.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -4509,7 +4509,7 @@ test("parent tasks are backfilled when more is loaded from query", async () => {
                 expectAuthorizedTask(parentTask5.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -4568,7 +4568,7 @@ test("parent tasks are backfilled when task is made visible", async () => {
             actions: [],
             backfillTasks: [expectAuthorizedTask(task2.id), expectAuthorizedTask(task3.id)],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -4585,7 +4585,7 @@ test("parent tasks are backfilled when task is made visible", async () => {
             actions: [],
             backfillTasks: [expectAuthorizedTask(task1.id), expectAuthorizedTask(parentTask1.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 });
@@ -4647,7 +4647,7 @@ test("parent tasks is backfilled when task is updated", async () => {
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -4674,7 +4674,7 @@ test("parent tasks is backfilled when task is updated", async () => {
             ],
             backfillTasks: [expectAuthorizedTask(parentTask1.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -4707,7 +4707,7 @@ test("parent tasks is backfilled when task is updated", async () => {
             ],
             backfillTasks: [expectAuthorizedTask(parentTask2.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 });
@@ -4770,7 +4770,7 @@ test("parents of loaded tasks receive update actions", async () => {
                 expectAuthorizedTask(parentTask1.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -4860,7 +4860,7 @@ test("parents of loaded tasks receive update actions", async () => {
             ],
             backfillTasks: [expectAuthorizedTask(parentTask1.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -4949,7 +4949,7 @@ test("parents of loaded tasks receive update actions until all references are re
                 expectAuthorizedTask(parentTask1.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -5097,7 +5097,7 @@ test("parents of loaded tasks receive update actions until all references are re
             ],
             backfillTasks: [expectAuthorizedTask(parentTask1.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -5192,7 +5192,7 @@ test("grandparent tasks are backfilled when query is initially loaded", async ()
                 expectAuthorizedTask(parentTask3.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -5265,7 +5265,7 @@ test("grandparent tasks are backfilled when more is loaded from query", async ()
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -5293,7 +5293,7 @@ test("grandparent tasks are backfilled when more is loaded from query", async ()
                 expectAuthorizedTask(parentTask3.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -5357,7 +5357,7 @@ test("grandparent tasks are backfilled when task is made visible", async () => {
             actions: [],
             backfillTasks: [expectAuthorizedTask(task2.id), expectAuthorizedTask(task3.id)],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -5379,7 +5379,7 @@ test("grandparent tasks are backfilled when task is made visible", async () => {
                 expectAuthorizedTask(parentTask3.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 });
@@ -5445,7 +5445,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -5476,7 +5476,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                 expectAuthorizedTask(parentTask3.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -5532,7 +5532,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                 expectAuthorizedTask(parentTask2.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -5566,7 +5566,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
             ],
             backfillTasks: [expectAuthorizedTask(parentTask1.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -5678,7 +5678,7 @@ test("grandparents of loaded tasks receive update actions", async () => {
                 expectAuthorizedTask(parentTask3.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -5771,7 +5771,7 @@ test("grandparents of loaded tasks receive update actions", async () => {
                 expectAuthorizedTask(parentTask2.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -5867,7 +5867,7 @@ test("grandparents of loaded tasks receive update actions until all references a
                 expectAuthorizedTask(parentTask3.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -6019,7 +6019,7 @@ test("grandparents of loaded tasks receive update actions until all references a
                 expectAuthorizedTask(parentTask1.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -6152,7 +6152,7 @@ test("collections of parent tasks are backfilled when query is initially loaded"
             ]
                 .sort(({id: id1}, {id: id2}) => defaultCompareStrings(id1, id2))
                 .map(({id, build}) => build(id)),
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -6240,7 +6240,7 @@ test("collections of parent tasks are backfilled when more is loaded from query"
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection1.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -6271,7 +6271,7 @@ test("collections of parent tasks are backfilled when more is loaded from query"
                 expectAuthorizedCollection(collection3.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -6335,7 +6335,7 @@ test("collections of parent tasks are backfilled when task is made visible", asy
             actions: [],
             backfillTasks: [expectAuthorizedTask(task2.id), expectAuthorizedTask(task3.id)],
             backfillCollections: [expectAuthorizedCollection(collection1.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -6356,7 +6356,7 @@ test("collections of parent tasks are backfilled when task is made visible", asy
                 expectAuthorizedTask(parentTask2.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection2.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 });
@@ -6422,7 +6422,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection1.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -6452,7 +6452,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                 expectAuthorizedTask(parentTask2.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection2.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -6505,7 +6505,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
             ],
             backfillTasks: [expectAuthorizedTask(parentTask2.id)],
             backfillCollections: [expectAuthorizedCollection(collection2.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -6539,7 +6539,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
             ],
             backfillTasks: [expectAuthorizedTask(parentTask1.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -6656,7 +6656,7 @@ test("collections of parents of loaded tasks receive update actions", async () =
                 expectAuthorizedCollection(collection2.id),
                 expectAuthorizedCollection(collection3.id),
             ],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -6771,7 +6771,7 @@ test("collections of parents of loaded tasks receive update actions", async () =
             ],
             backfillTasks: [expectAuthorizedTask(parentTask2.id)],
             backfillCollections: [expectAuthorizedCollection(collection3.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -6874,7 +6874,7 @@ test("collections of parents of loaded tasks receive update actions until all re
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -7025,7 +7025,7 @@ test("collections of parents of loaded tasks receive update actions until all re
                 expectAuthorizedTask(parentTask1.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection2.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -7193,7 +7193,7 @@ test("race condition: parent task can change before previous parent task has loa
             ],
             backfillTasks: [expectAuthorizedTask(task2.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
         {
             type: "Update",
@@ -7212,7 +7212,7 @@ test("race condition: parent task can change before previous parent task has loa
             ],
             backfillTasks: [expectAuthorizedTask(task3.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -7396,7 +7396,7 @@ test("race condition: parent task can change before previous grandparent task ha
             ],
             backfillTasks: [expectAuthorizedTask(task2.id), expectAuthorizedTask(task4.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
         {
             type: "Update",
@@ -7423,7 +7423,7 @@ test("race condition: parent task can change before previous grandparent task ha
             ],
             backfillTasks: [expectAuthorizedTask(task3.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -7574,7 +7574,7 @@ test("race condition: parent task is removed before it's loaded", async () => {
             ],
             backfillTasks: [expectAuthorizedTask(task2.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
         {
             type: "Update",
@@ -7887,7 +7887,7 @@ test("race condition: parent task can change before previous collection of paren
                 ],
                 backfillTasks: [expectAuthorizedTask(task2.id)],
                 backfillCollections: [expectAuthorizedCollection(collection.id)],
-                referencedAccounts: [await session.get()],
+                referencedAccounts: [],
             },
             {
                 type: "Update",
@@ -7979,7 +7979,7 @@ test("multiple subscriptions that receive the same actions only show action once
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -8012,7 +8012,7 @@ test("multiple subscriptions that receive the same actions only show action once
             actions: [],
             backfillTasks: [expectAuthorizedTask(task2.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -8150,7 +8150,7 @@ test("referenced task may be unauthorized", async () => {
                 expectUnauthorizedTask(parentTask1.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -8243,7 +8243,7 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
                 expectUnauthorizedTask(parentTask1.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -8290,7 +8290,7 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
             actions: [],
             backfillTasks: [expectAuthorizedTask(parentTask1.id)],
             backfillCollections: [],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -8420,7 +8420,7 @@ test("authorized referenced task may be loaded later", async () => {
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -8613,7 +8613,7 @@ test("a loaded task may then become referenced", async () => {
                 expectAuthorizedTask(parentTask1.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -8804,7 +8804,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
             actions: [],
             backfillTasks: [expectAuthorizedTask(task3.id)],
             backfillCollections: [],
-            referencedAccounts: [await session2.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -9106,7 +9106,7 @@ test("authorized referenced task may be referenced multiple times", async () => 
             ],
             backfillTasks: [expectAuthorizedTask(parentTask1.id)],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session2.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -9819,7 +9819,7 @@ test("will reauthorize an unauthorized referenced task to authorized", async () 
                 expectUnauthorizedTask(parentTask1.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -9850,7 +9850,7 @@ test("will reauthorize an unauthorized referenced task to authorized", async () 
             actions: [],
             backfillTasks: [expectAuthorizedTask(parentTask1.id)],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session2.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -9935,7 +9935,7 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
                 expectAuthorizedTask(parentTask1.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session1.get(), await session2.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -10090,7 +10090,7 @@ test("reauthorize will noop if an unauthorized referenced task is still unauthor
                 expectUnauthorizedTask(parentTask1.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -10166,7 +10166,7 @@ test("reauthorize will noop if an authorized referenced task is still authorized
                 expectAuthorizedTask(parentTask1.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session1.get(), await session2.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -10280,7 +10280,7 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
                 expectAuthorizedCollection(collection1.id),
                 expectUnauthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -10414,7 +10414,7 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -10607,7 +10607,7 @@ test("reauthorize will noop if an unauthorized referenced collection is still un
                 expectAuthorizedCollection(collection1.id),
                 expectUnauthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -10681,7 +10681,7 @@ test("reauthorize will noop if an authorized referenced collection is still auth
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -10808,7 +10808,7 @@ test("referenced data is not evicted", async () => {
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -10915,7 +10915,7 @@ test("referenced data is not evicted", async () => {
                 expectAuthorizedCollection(collection2.id),
                 expectAuthorizedCollection(collection1.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -10989,7 +10989,7 @@ test("unreferenced data is evicted", async () => {
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -11062,7 +11062,7 @@ test("unreferenced data is evicted", async () => {
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -11136,7 +11136,7 @@ test("unreferenced data can be reused when no eviction", async () => {
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -11205,7 +11205,7 @@ test("unreferenced data can be reused when no eviction", async () => {
                 expectAuthorizedCollection(collection2.id),
                 expectAuthorizedCollection(collection1.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -11270,7 +11270,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
                 expectAuthorizedTask(task2.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -11364,7 +11364,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
                 expectAuthorizedTask(task1.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -11450,7 +11450,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -11664,7 +11664,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
                 expectAuthorizedTask(task4.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -11752,7 +11752,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
                 expectAuthorizedTask(task4.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -12024,7 +12024,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
             expectAuthorizedTask(task2.id),
         ],
         backfillCollections: [],
-        referencedAccounts: [await session.get()],
+        referencedAccounts: [],
     });
 
     expect(connection2.takeEvents()).toEqual([]);
@@ -12248,7 +12248,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
             expectAuthorizedTask(task2.id),
         ],
         backfillCollections: [],
-        referencedAccounts: [await session.get()],
+        referencedAccounts: [],
     });
 
     expect(connection2.takeEvents()).toEqual([
@@ -12309,7 +12309,7 @@ test("can subscribe to task", async () => {
         actions: [],
         backfillTasks: [expectAuthorizedTask(task1.id)],
         backfillCollections: [],
-        referencedAccounts: [await session.get()],
+        referencedAccounts: [],
     });
 
     await task1.updatePriority(session, "High");
@@ -12414,7 +12414,7 @@ test("will lose access to subscribed task upon reauthorization", async () => {
 
     expect(connection.takeEvents()).toEqual([]);
 
-    const {updateEvent} = await connection.procedures.subscribeToTask({
+    const {taskSubscriptionId, updateEvent} = await connection.procedures.subscribeToTask({
         clientTime: testClock.nowLogical(),
         taskId: task1.id,
     });
@@ -12426,7 +12426,7 @@ test("will lose access to subscribed task upon reauthorization", async () => {
         actions: [],
         backfillTasks: [expectAuthorizedTask(task1.id)],
         backfillCollections: [expectAuthorizedCollection(collection1.id)],
-        referencedAccounts: [await session1.get()],
+        referencedAccounts: [],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -12464,8 +12464,7 @@ test("will lose access to subscribed task upon reauthorization", async () => {
     await collection1.access.revokeDefault(session1);
     await server.wait();
 
-    expect(connection.isClosed()).toEqual(true);
-    expect(connection.getCloseError()).toBeInstanceOf(PermissionDeniedError);
+    expect(connection.isClosed()).toEqual(false);
 
     expect(connection.takeEvents()).toEqual([
         {
@@ -12486,6 +12485,11 @@ test("will lose access to subscribed task upon reauthorization", async () => {
             backfillTasks: [],
             backfillCollections: [],
             referencedAccounts: [],
+        },
+        {
+            type: "TaskSubscriptionError",
+            id: taskSubscriptionId,
+            error: new PermissionDeniedError('Actor doesn\'t have "View" access level to task'),
         },
     ]);
 
@@ -12513,7 +12517,7 @@ test("will lose access to subscribed task upon reauthorization if account remove
 
     expect(connection.takeEvents()).toEqual([]);
 
-    const {updateEvent} = await connection.procedures.subscribeToTask({
+    const {taskSubscriptionId, updateEvent} = await connection.procedures.subscribeToTask({
         clientTime: testClock.nowLogical(),
         taskId: task1.id,
     });
@@ -12525,7 +12529,7 @@ test("will lose access to subscribed task upon reauthorization if account remove
         actions: [],
         backfillTasks: [expectAuthorizedTask(task1.id)],
         backfillCollections: [expectAuthorizedCollection(collection1.id)],
-        referencedAccounts: [await session1.get()],
+        referencedAccounts: [],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -12565,16 +12569,20 @@ test("will lose access to subscribed task upon reauthorization if account remove
         accountId: session2.account.id,
     });
 
-    await expect(connection.authorize()).rejects.toThrow(
-        "Account doesn't have access to space (and 1 other error)",
-    );
+    await expect(connection.authorize()).rejects.toThrow("Account doesn't have access to space");
 
     expect(connection.isClosed()).toEqual(true);
     expect((connection.getCloseError() as any).message).toEqual(
-        "Account doesn't have access to space (and 1 other error)",
+        "Account doesn't have access to space",
     );
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "TaskSubscriptionError",
+            id: taskSubscriptionId,
+            error: new PermissionDeniedError("Actor doesn't have access to task's space"),
+        },
+    ]);
 
     await task1.updatePriority(session1, "Medium");
     await server.wait();
@@ -12635,7 +12643,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
             expectAuthorizedCollection(collection2.id),
             expectAuthorizedCollection(collection3.id),
         ],
-        referencedAccounts: [await session.get()],
+        referencedAccounts: [],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -12947,7 +12955,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                 expectAuthorizedCollection(collection2.id),
                 expectAuthorizedCollection(collection3.id),
             ],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     ]);
 
@@ -13090,7 +13098,7 @@ test("subscribed task will become unauthorized after unsubscribed", async () => 
         actions: [],
         backfillTasks: [expectAuthorizedTask(task1.id)],
         backfillCollections: [expectAuthorizedCollection(collection1.id)],
-        referencedAccounts: [await session1.get()],
+        referencedAccounts: [],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -13132,7 +13140,7 @@ test("subscribed task will become unauthorized after unsubscribed", async () => 
         actions: [],
         backfillTasks: [expectAuthorizedTask(task2.id)],
         backfillCollections: [expectAuthorizedCollection(collection1.id)],
-        referencedAccounts: [await session1.get()],
+        referencedAccounts: [],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -13293,10 +13301,11 @@ test("will lose access to subscribed collection upon reauthorization", async () 
 
     expect(connection.takeEvents()).toEqual([]);
 
-    const {updateEvent} = await connection.procedures.subscribeToCollection({
-        clientTime: testClock.nowLogical(),
-        collectionId: collection1.id,
-    });
+    const {collectionSubscriptionId, updateEvent} =
+        await connection.procedures.subscribeToCollection({
+            clientTime: testClock.nowLogical(),
+            collectionId: collection1.id,
+        });
 
     expect(updateEvent).toEqual({
         type: "Update",
@@ -13390,9 +13399,18 @@ test("will lose access to subscribed collection upon reauthorization", async () 
     ]);
 
     expect(connection.isClosed()).toEqual(false);
-    await expect(connection.authorize()).rejects.toThrow(PermissionDeniedError);
-    expect(connection.isClosed()).toEqual(true);
-    expect(connection.getCloseError()).toBeInstanceOf(PermissionDeniedError);
+    await connection.authorize();
+    expect(connection.isClosed()).toEqual(false);
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "CollectionSubscriptionError",
+            id: collectionSubscriptionId,
+            error: new PermissionDeniedError(
+                'Actor doesn\'t have "View" access level to task collection',
+            ),
+        },
+    ]);
 
     await collection1.updateName(session1, "Test Test 3");
     await server.wait();
@@ -13424,10 +13442,11 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
 
     expect(connection.takeEvents()).toEqual([]);
 
-    const {updateEvent: updateEvent1} = await connection.procedures.subscribeToCollection({
-        clientTime: testClock.nowLogical(),
-        collectionId: collection2.id,
-    });
+    const {collectionSubscriptionId, updateEvent: updateEvent1} =
+        await connection.procedures.subscribeToCollection({
+            clientTime: testClock.nowLogical(),
+            collectionId: collection2.id,
+        });
 
     expect(updateEvent1).toEqual({
         type: "Update",
@@ -13453,7 +13472,7 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
         actions: [],
         backfillTasks: [expectAuthorizedTask(task1.id)],
         backfillCollections: [expectAuthorizedCollection(collection1.id)],
-        referencedAccounts: [await session1.get()],
+        referencedAccounts: [],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -13463,9 +13482,6 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
 
     await collection2.access.revokeDefault(session2);
     await server.wait();
-
-    expect(connection.isClosed()).toEqual(true);
-    expect(connection.getCloseError()).toBeInstanceOf(PermissionDeniedError);
 
     expect(connection.takeEvents()).toEqual([
         {
@@ -13486,7 +13502,25 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
             backfillCollections: [],
             referencedAccounts: [],
         },
+        {
+            type: "CollectionSubscriptionError",
+            id: collectionSubscriptionId,
+            error: new PermissionDeniedError(
+                'Actor doesn\'t have "View" access level to task collection',
+            ),
+        },
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [],
+            backfillCollections: [{type: "Unauthorized", collectionId: collection2.id}],
+            referencedAccounts: [],
+        },
     ]);
+
+    expect(connection.isClosed()).toEqual(false);
 });
 
 test("deleting task and all children when subscribed to task and its children", async () => {
@@ -13562,7 +13596,7 @@ test("deleting task and all children when subscribed to task and its children", 
             .sort(defaultCompareStrings)
             .map(expectAuthorizedTask),
         backfillCollections: [expectAuthorizedCollection(collection.id)],
-        referencedAccounts: [await session.get()],
+        referencedAccounts: [],
     });
 
     await deleteTaskAndAllChildren(TestTask.action(session), task1.id, testClock.nowLogical());
@@ -13700,7 +13734,7 @@ test("will load some expanded task queries if requested", async () => {
                     expectAuthorizedTask(task6.id),
                 ],
                 backfillCollections: [],
-                referencedAccounts: [await session1.get()],
+                referencedAccounts: [],
             },
         });
 
@@ -13832,7 +13866,7 @@ test("will load some expanded task queries if requested", async () => {
                     .sort(defaultCompareStrings)
                     .map(expectAuthorizedTask),
                 backfillCollections: [expectAuthorizedCollection(collection.id)],
-                referencedAccounts: [await session1.get(), await session2.get()],
+                referencedAccounts: [],
             },
         });
 
@@ -14056,7 +14090,7 @@ test("will load some expanded task queries if requested", async () => {
                     .sort(defaultCompareStrings)
                     .map(expectAuthorizedTask),
                 backfillCollections: [],
-                referencedAccounts: [await session1.get()],
+                referencedAccounts: [],
             },
         });
 
@@ -14207,7 +14241,7 @@ test("will load some expanded task queries if requested", async () => {
                     .sort(defaultCompareStrings)
                     .map(expectAuthorizedTask),
                 backfillCollections: [],
-                referencedAccounts: [await session1.get()],
+                referencedAccounts: [],
             },
         });
 
@@ -14303,7 +14337,7 @@ test("race condition: extra query task ids includes task from action that happen
             actions: [],
             backfillTasks: [expectAuthorizedTask(task2b.id)],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -14426,7 +14460,7 @@ test("race condition: extra query task ids includes task from action that happen
                 expectAuthorizedTask(task2a.id),
             ],
             backfillCollections: [expectAuthorizedCollection(collection.id)],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 

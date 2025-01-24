@@ -220,5 +220,5 @@ testMessagingImplementation<TaskId>(processContext, {
             messageChangesResult: commentChangesResult,
         };
     },
-    spacePermissionDeniedErrorMessage: 'Actor doesn\'t have "Comment" access level to task',
+    spacePermissionDeniedErrorMessage: "Actor doesn't have access to task's space",
 });

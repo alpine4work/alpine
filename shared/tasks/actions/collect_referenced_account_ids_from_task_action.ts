@@ -24,14 +24,19 @@ export function collectReferencedAccountIdsFromTaskAction(
         case "UpdateTask": {
             switch (action.taskAction.type) {
                 case "Create": {
+                    accountIds.add(action.taskAction.creatorId);
                     return;
                 }
                 case "UpdateStatus": {
+                    if (action.taskAction.status.type === "Closed") {
+                        accountIds.add(action.taskAction.status.closerId);
+                    }
                     return;
                 }
                 case "UpdateAssignee": {
                     if (action.taskAction.assignee) {
                         accountIds.add(action.taskAction.assignee.assigneeId);
+                        accountIds.add(action.taskAction.assignee.assignerId);
                     }
                     return;
                 }

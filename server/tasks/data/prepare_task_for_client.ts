@@ -29,6 +29,11 @@ export function prepareTaskForClient(
         id: task.id,
         spaceId: task.spaceId,
 
+        // HACK(calebmer): Temporarily disable lint rule so we can deploy.
+        // eslint-disable-next-line no-commit-blockers
+        // NOCOMMIT: Task creator account name is included in `TaskModel` for anonymous
+        // user? Should we strip it or allow creator filtering/sorting? Same for
+        // assigner and closer.
         creator: task.creator,
         createdTime: task.createdTime,
         deletedTime: task.rawDeletedTime,

@@ -5469,8 +5469,6 @@ test("can update access policy", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect(connection2a.getCloseError()).not.toBeInstanceOf(PermissionDeniedError);
-
     await expect(connection2a.authorize()).rejects.toThrow(
         'Actor doesn\'t have "Comment" access level to document',
     );

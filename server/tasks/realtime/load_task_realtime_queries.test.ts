@@ -203,7 +203,7 @@ test("loads a query", async () => {
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 });
@@ -271,7 +271,7 @@ test("loads multiple queries", async () => {
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -305,7 +305,7 @@ test("loads multiple queries", async () => {
                 expectAuthorizedCollection(collection2.id),
                 expectAuthorizedCollection(collection1.id),
             ],
-            referencedAccounts: [await session2.get(), await session1.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -355,7 +355,7 @@ test("loads multiple queries", async () => {
                 expectAuthorizedCollection(collection2.id),
                 expectAuthorizedCollection(collection1.id),
             ],
-            referencedAccounts: [await session2.get(), await session1.get()],
+            referencedAccounts: [],
         },
     });
 });
@@ -555,7 +555,7 @@ test("queries may have different pagination states", async () => {
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -625,7 +625,7 @@ test("queries may have different pagination states", async () => {
                 expectAuthorizedTask(task6.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -663,7 +663,7 @@ test("queries may have different pagination states", async () => {
                 expectAuthorizedTask(task5.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 
@@ -713,7 +713,7 @@ test("queries may have different pagination states", async () => {
                 expectAuthorizedTask(task6.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [await session.get()],
+            referencedAccounts: [],
         },
     });
 });

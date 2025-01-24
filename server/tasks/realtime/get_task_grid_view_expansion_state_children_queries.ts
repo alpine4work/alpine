@@ -120,7 +120,7 @@ export function getTaskGridViewExpansionStateChildrenQueries<Result>(
                 const childrenQueryPromise = (async () => {
                     const task = await server.getTask(context, spaceId, taskId);
 
-                    const isAccessAuthorized = await authorizeTaskIndexDocAccessIfPossibleForActor(
+                    const authorizationResult = await authorizeTaskIndexDocAccessIfPossibleForActor(
                         context,
                         actor,
                         task,
@@ -135,7 +135,7 @@ export function getTaskGridViewExpansionStateChildrenQueries<Result>(
                     // We may have tasks in our expansion state that the user lost access too (e.g.
                     // the task was deleted or it moved collections). Since we preload child query
                     // tasks as an optimization, ignore tasks we no longer have access to.
-                    if (!isAccessAuthorized) return null;
+                    if (!authorizationResult.ok) return null;
 
                     return loadQuery({
                         filters: childrenFilters,
