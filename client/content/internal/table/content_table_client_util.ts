@@ -186,38 +186,6 @@ export function nextContentTableCell(
     return moved == null ? null : $pos.node(0).resolve(tableStart + moved);
 }
 
-/**
- * Get the column widths for the table. Makes sure we return a well-formed
- * array even if `node.attrs.columnWidths` is malformed.
- *
- * - If there are more items in `node.attrs.columnWidths` than there are
- *   columns then we truncate the array to the actual table column count.
- *
- * - If there are fewer items in `node.attrs.columnWidths` than there are
- *   columns then we add 1 (the default column width) to the end of the array
- *   until we reach the actual table column count.
- */
-export function getContentTableColumnWidths(table: Node): ReadonlyArray<number> {
-    const tableMap = ContentTableMap.get(table);
-    const {columnWidths = []} = table.attrs;
-
-    if (tableMap.width < columnWidths.length) {
-        return columnWidths.slice(0, tableMap.width);
-    }
-
-    if (tableMap.width > columnWidths.length) {
-        const newColumnWidths = [...columnWidths];
-
-        while (newColumnWidths.length < tableMap.width) {
-            newColumnWidths.push(1);
-        }
-
-        return newColumnWidths;
-    }
-
-    return columnWidths;
-}
-
 // NOCOMMIT: write docs for this function
 // Update the name of this function to be globally unique
 export const isColumnSelected = (columnIndex: number) => (selection: Selection) => {

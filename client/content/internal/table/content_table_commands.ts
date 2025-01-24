@@ -30,9 +30,6 @@
 import {Node, ResolvedPos, Slice} from "prosemirror-model";
 import {Command, EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {
-    findTable,
-    getCellsInRow,
-    getContentTableColumnWidths,
     isInContentTable,
     moveContentTableCellForward,
     selectionContentTableCell,
@@ -73,7 +70,7 @@ function addContentTableColumn(
     col: number,
 ): Transaction {
     // Update columnWidths array
-    const columnWidths = [...getContentTableColumnWidths(table)];
+    const columnWidths = [...map.columnWidths];
     columnWidths.splice(col, 0, 1);
 
     tr.setNodeAttribute(tableStart - 1, "columnWidths", columnWidths);
@@ -124,7 +121,7 @@ function removeContentTableColumn(
     col: number,
 ) {
     // Update columnWidths array
-    const columnWidths = [...getContentTableColumnWidths(table)];
+    const columnWidths = [...map.columnWidths];
     columnWidths.splice(col, 1);
 
     tr.setNodeAttribute(tableStart - 1, "columnWidths", columnWidths);

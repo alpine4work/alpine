@@ -93,21 +93,43 @@ export class ContentTableMap {
         /**
          * The number of columns
          */
-        public width: number,
+        public readonly width: number,
         /**
          * The number of rows
          */
-        public height: number,
+        public readonly height: number,
         /**
          * A width * height array with the start position of
          * the cell covering that part of the table in each slot
          */
-        public map: Array<number>,
+        public readonly map: ReadonlyArray<number>,
         /**
          * An optional array of problems (cell overlap or non-rectangular
          * shape) for the table, used by the table normalizer.
          */
-        public problems: Array<ContentTableMapProblem> | null,
+        public readonly problems: ReadonlyArray<ContentTableMapProblem> | null,
+        /**
+         * The width of the table as a percent of the block width. Will never be less
+         * than 1.
+         */
+        public readonly tableWidth: number,
+        /**
+         * The width of columns in the table in fractional units. Usually the same as
+         * `node.attrs.columnWidths` but we make sure to always have the same number of
+         * columns as the `width` property in this object.
+         *
+         * - If there are more items in `node.attrs.columnWidths` than there are
+         *   columns then we truncate the array to the actual table column count.
+         *
+         * - If there are fewer items in `node.attrs.columnWidths` than there are
+         *   columns then we add 1 (the default column width) to the end of the array
+         *   until we reach the actual table column count.
+         */
+        public readonly columnWidths: ReadonlyArray<number>,
+        /**
+         * The sum of all `columnWidths`.
+         */
+        public readonly totalColumnWidth: number,
     ) {}
 
     // Find the dimensions of the cell at the given position.
@@ -260,7 +282,35 @@ function computeMap(table: Node): ContentTableMap {
         pos++;
     }
 
-    const tableMap = new ContentTableMap(width, height, map, problems);
+    const originalColumnWidths: ReadonlyArray<number> = table.attrs.columnWidths ?? [];
+    let columnWidths: ReadonlyArray<number>;
+
+    if (width < originalColumnWidths.length) {
+        columnWidths = originalColumnWidths.slice(0, width);
+    } else if (width > originalColumnWidths.length) {
+        const newColumnWidths = [...originalColumnWidths];
+
+        while (newColumnWidths.length < width) {
+            newColumnWidths.push(1);
+        }
+
+        columnWidths = newColumnWidths;
+    } else {
+        columnWidths = originalColumnWidths;
+    }
+
+    let totalColumnWidth = 0;
+    for (const columnWidth of columnWidths) totalColumnWidth += columnWidth;
+
+    const tableMap = new ContentTableMap(
+        width,
+        height,
+        map,
+        problems,
+        Math.max(1, table.attrs.tableWidth ?? 1),
+        columnWidths,
+        totalColumnWidth,
+    );
 
     return tableMap;
 }

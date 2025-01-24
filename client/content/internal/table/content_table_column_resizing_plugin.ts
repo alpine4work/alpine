@@ -34,7 +34,6 @@ import {updateContentTableColumnsOnResize} from "~/client/content/internal/table
 import {
     contentTableCellAround,
     contentTableEditingKey,
-    getContentTableColumnWidths,
 } from "~/client/content/internal/table/content_table_client_util.js";
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
@@ -123,10 +122,8 @@ type ContentTableColumnResizeAction =
 type ContentTableColumnResizeDraggingState = {
     readonly tablePos: number;
     readonly oldTable: Node;
-    readonly oldTableWidth: number;
+    readonly oldTableMap: ContentTableMap;
     readonly columnIndex: number;
-    readonly oldColumnWidths: ReadonlyArray<number>;
-    readonly oldTotalColumnWidth: number;
     readonly getTableElement: (view: EditorView) => HTMLTableElement | null;
 };
 
@@ -138,35 +135,30 @@ function getContentTableColumnResizeDraggingState(
 
     let tablePos: number;
     let table: Node;
+    let tableMap: ContentTableMap;
     let columnIndex: number;
 
     if ($cell.parent.type.name === "table") {
         tablePos = $cell.start();
         table = $cell.node();
+        tableMap = ContentTableMap.get(table);
         columnIndex = -1;
     } else {
         assert($cell.parent.type.name === "tableRow");
 
         tablePos = $cell.start(-1);
         table = $cell.node(-1);
-        columnIndex = ContentTableMap.get(table).colCount($cell.pos - tablePos);
+        tableMap = ContentTableMap.get(table);
+        columnIndex = tableMap.colCount($cell.pos - tablePos);
     }
-
-    const columnWidths = getContentTableColumnWidths(table);
-    const totalColumnWidth = columnWidths.reduce(
-        (totalColumnWidth, columnWidth) => totalColumnWidth + columnWidth,
-        0,
-    );
 
     let tableElement: HTMLTableElement | null = null;
 
     return {
         tablePos,
         oldTable: table,
-        oldTableWidth: Math.max(1, table.attrs.tableWidth ?? 1),
+        oldTableMap: tableMap,
         columnIndex,
-        oldColumnWidths: columnWidths,
-        oldTotalColumnWidth: totalColumnWidth,
         getTableElement: (view: EditorView) => {
             if (tableElement === null) {
                 let element: globalThis.Node | null = view.domAtPos(tablePos).node;
@@ -540,6 +532,69 @@ function getEdgeContentTableCell(
 }
 
 /**
+ * Computes the absolute pixel width of each column in a table. Implements the
+ * same algorithm CSS grid will use to layout our table in the DOM.
+ *
+ * `totalColumnWidth` must be the sum of all `columnWidths`. Most of the time
+ * you'll have precomputed this value so pass it in so we don't have to compute
+ * it again.
+ */
+// NOTE(calebmer): Normally, since this has 4 arguments, I'd write this with a
+// named argument object. But since this code will be called in a hot path
+// (every frame) using positional arguments to avoid an extra object
+// allocation.
+export function resolveContentTableColumnWidthPx(
+    totalColumnWidth: number,
+    columnWidths: ReadonlyArray<number>,
+    totalColumnWidthPx: number,
+    columnMinWidthPx: number,
+): Array<number> {
+    let hasNextPass = true;
+    let currentPassTotalColumnWidth = totalColumnWidth;
+    let currentPassTotalColumnWidthPx = totalColumnWidthPx;
+    let nextPassTotalColumnWidth: number;
+    let nextPassTotalColumnWidthPx: number;
+
+    const columnCount = columnWidths.length;
+    const columnWidthPxs: Array<number | undefined> = Array(columnCount);
+
+    while (hasNextPass) {
+        hasNextPass = false;
+        nextPassTotalColumnWidth = 0;
+        nextPassTotalColumnWidthPx = currentPassTotalColumnWidthPx;
+
+        for (let i = 0; i < columnCount; i++) {
+            if (columnWidthPxs[i] !== undefined) continue;
+
+            const columnWidth = columnWidths[i]!;
+
+            const columnWidthPx =
+                (columnWidth / currentPassTotalColumnWidth) * currentPassTotalColumnWidthPx;
+
+            if (columnWidthPx < columnMinWidthPx) {
+                hasNextPass = true;
+                nextPassTotalColumnWidthPx -= columnMinWidthPx;
+                columnWidthPxs[i] = columnMinWidthPx;
+            } else {
+                nextPassTotalColumnWidth += columnWidth;
+            }
+        }
+
+        currentPassTotalColumnWidth = nextPassTotalColumnWidth;
+        currentPassTotalColumnWidthPx = nextPassTotalColumnWidthPx;
+    }
+
+    for (let i = 0; i < columnCount; i++) {
+        if (columnWidthPxs[i] !== undefined) continue;
+
+        columnWidthPxs[i] =
+            (columnWidths[i]! / currentPassTotalColumnWidth) * currentPassTotalColumnWidthPx;
+    }
+
+    return columnWidthPxs as Array<number>;
+}
+
+/**
  * Calculates the new width of the column being dragged.
  *
  * We implement the following UX principles for column resizing. These UX
@@ -580,15 +635,20 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         startX,
         viewWidthPx,
         oldTableWidthPx,
-        state: {columnIndex: column1Index, oldColumnWidths, oldTotalColumnWidth},
+        state: {
+            columnIndex: column1Index,
+            oldTableMap: {columnWidths: oldColumnWidths, totalColumnWidth: oldTotalColumnWidth},
+        },
     }: {
         startX: number;
         viewWidthPx: number;
         oldTableWidthPx: number;
         state: {
             columnIndex: number;
-            oldColumnWidths: ReadonlyArray<number>;
-            oldTotalColumnWidth: number;
+            oldTableMap: {
+                columnWidths: ReadonlyArray<number>;
+                totalColumnWidth: number;
+            };
         };
     },
 ): {
@@ -680,60 +740,12 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         // Our `oldColumnWidths` array may not accurately represent what's in the DOM
         // if some of our columns are running up against their min width. So run the
         // same calculation used by CSS grid to determine the actual column widths.
-        let adjustedOldColumnWidths: ReadonlyArray<number>;
-        {
-            let hasNextPass = true;
-            let currentPassOldTotalColumnWidth = oldTotalColumnWidth;
-            let currentPassOldTotalColumnWidthPx = oldTotalColumnWidthPx;
-            let nextPassOldTotalColumnWidth: number;
-            let nextPassOldTotalColumnWidthPx: number;
-
-            let oldColumnWidthCalculations = oldColumnWidths.map(
-                (oldColumnWidth): {type: "px"; value: number} | {type: "fr"; value: number} => ({
-                    type: "fr",
-                    value: oldColumnWidth,
-                }),
-            );
-
-            while (hasNextPass) {
-                hasNextPass = false;
-                nextPassOldTotalColumnWidth = 0;
-                nextPassOldTotalColumnWidthPx = currentPassOldTotalColumnWidthPx;
-
-                oldColumnWidthCalculations = oldColumnWidthCalculations.map(
-                    oldColumnWidthCalculation => {
-                        if (oldColumnWidthCalculation.type === "px")
-                            return oldColumnWidthCalculation;
-
-                        const oldColumnWidthPx =
-                            (oldColumnWidthCalculation.value / currentPassOldTotalColumnWidth) *
-                            currentPassOldTotalColumnWidthPx;
-
-                        if (oldColumnWidthPx < columnMinWidthPx) {
-                            hasNextPass = true;
-                            nextPassOldTotalColumnWidthPx -= columnMinWidthPx;
-                            return {type: "px", value: columnMinWidthPx};
-                        }
-
-                        nextPassOldTotalColumnWidth += oldColumnWidthCalculation.value;
-                        return {type: "fr", value: oldColumnWidthCalculation.value};
-                    },
-                );
-
-                currentPassOldTotalColumnWidth = nextPassOldTotalColumnWidth;
-                currentPassOldTotalColumnWidthPx = nextPassOldTotalColumnWidthPx;
-            }
-
-            adjustedOldColumnWidths = oldColumnWidthCalculations.map(oldColumnWidth => {
-                const oldColumnWidthPx =
-                    oldColumnWidth.type === "px"
-                        ? oldColumnWidth.value
-                        : (oldColumnWidth.value / currentPassOldTotalColumnWidth) *
-                          currentPassOldTotalColumnWidthPx;
-
-                return (oldColumnWidthPx / oldTotalColumnWidthPx) * oldTotalColumnWidth;
-            });
-        }
+        const oldColumnWidthPxs = resolveContentTableColumnWidthPx(
+            oldTotalColumnWidth,
+            oldColumnWidths,
+            oldTotalColumnWidthPx,
+            columnMinWidthPx,
+        );
 
         for (
             let otherColumnIndex = 0;
@@ -745,7 +757,10 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
                 continue;
             }
 
-            const oldOtherColumnWidth = adjustedOldColumnWidths[otherColumnIndex]!;
+            const oldOtherColumnWidth =
+                (oldColumnWidthPxs[otherColumnIndex]! / oldTotalColumnWidthPx) *
+                oldTotalColumnWidth;
+
             newColumnWidths.push(oldOtherColumnWidth);
             newOtherTotalColumnWidth += oldOtherColumnWidth;
         }

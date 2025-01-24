@@ -10,8 +10,10 @@ test("can make second column in a two column table smaller", () => {
                 oldTableWidthPx: 600,
                 state: {
                     columnIndex: 0,
-                    oldColumnWidths: [1, 1],
-                    oldTotalColumnWidth: 2,
+                    oldTableMap: {
+                        columnWidths: [1, 1],
+                        totalColumnWidth: 2,
+                    },
                 },
             },
         ),
@@ -30,8 +32,10 @@ test("can make first column in a two column table smaller", () => {
                 oldTableWidthPx: 600,
                 state: {
                     columnIndex: 0,
-                    oldColumnWidths: [1, 1],
-                    oldTotalColumnWidth: 2,
+                    oldTableMap: {
+                        columnWidths: [1, 1],
+                        totalColumnWidth: 2,
+                    },
                 },
             },
         ),
@@ -50,8 +54,10 @@ test("can make second column in a two column table smaller after resizing first 
                 oldTableWidthPx: 600,
                 state: {
                     columnIndex: 0,
-                    oldColumnWidths: [0.6582914572864321, 1.341708542713568],
-                    oldTotalColumnWidth: 2,
+                    oldTableMap: {
+                        columnWidths: [0.6582914572864321, 1.341708542713568],
+                        totalColumnWidth: 2,
+                    },
                 },
             },
         ),
@@ -70,8 +76,10 @@ test("can grow middle column in a three column table", () => {
                 oldTableWidthPx: 600,
                 state: {
                     columnIndex: 1,
-                    oldColumnWidths: [1, 1, 1],
-                    oldTotalColumnWidth: 3,
+                    oldTableMap: {
+                        columnWidths: [1, 1, 1],
+                        totalColumnWidth: 3,
+                    },
                 },
             },
         ),
@@ -88,8 +96,10 @@ test("can grow middle column in a three column table", () => {
                 oldTableWidthPx: 600,
                 state: {
                     columnIndex: 0,
-                    oldColumnWidths: [1, 1.1157718120805369, 0.8842281879194631],
-                    oldTotalColumnWidth: 3,
+                    oldTableMap: {
+                        columnWidths: [1, 1.1157718120805369, 0.8842281879194631],
+                        totalColumnWidth: 3,
+                    },
                 },
             },
         ),
@@ -106,7 +116,13 @@ test("can make two column table larger by dragging last column", () => {
                 startX: 914,
                 viewWidthPx: 1123,
                 oldTableWidthPx: 600,
-                state: {columnIndex: 1, oldColumnWidths: [1, 1], oldTotalColumnWidth: 2},
+                state: {
+                    columnIndex: 1,
+                    oldTableMap: {
+                        columnWidths: [1, 1],
+                        totalColumnWidth: 2,
+                    },
+                },
             },
         ),
     ).toEqual({
@@ -126,8 +142,10 @@ test("can make two column table larger by dragging first column", () => {
                 oldTableWidthPx: 600,
                 state: {
                     columnIndex: -1,
-                    oldColumnWidths: [1, 1],
-                    oldTotalColumnWidth: 2,
+                    oldTableMap: {
+                        columnWidths: [1, 1],
+                        totalColumnWidth: 2,
+                    },
                 },
             },
         ),
@@ -146,7 +164,13 @@ test("can't shrink column to less than minimum width", () => {
                 startX: 618,
                 viewWidthPx: 1123,
                 oldTableWidthPx: 600,
-                state: {columnIndex: 0, oldColumnWidths: [1, 1], oldTotalColumnWidth: 2},
+                state: {
+                    columnIndex: 0,
+                    oldTableMap: {
+                        columnWidths: [1, 1],
+                        totalColumnWidth: 2,
+                    },
+                },
             },
         ),
     ).toEqual({
@@ -162,7 +186,13 @@ test("can't grow column to more than maximum width", () => {
                 startX: 315,
                 viewWidthPx: 1123,
                 oldTableWidthPx: 600,
-                state: {columnIndex: -1, oldColumnWidths: [1, 1], oldTotalColumnWidth: 2},
+                state: {
+                    columnIndex: -1,
+                    oldTableMap: {
+                        columnWidths: [1, 1],
+                        totalColumnWidth: 2,
+                    },
+                },
             },
         ),
     ).toEqual({
@@ -182,8 +212,10 @@ test("can grow a table even if it has an inaccurate table width", () => {
                 oldTableWidthPx: 907,
                 state: {
                     columnIndex: 5,
-                    oldColumnWidths: [1, 1, 1, 1, 1, 1],
-                    oldTotalColumnWidth: 6,
+                    oldTableMap: {
+                        columnWidths: [1, 1, 1, 1, 1, 1],
+                        totalColumnWidth: 6,
+                    },
                 },
             },
         ),
@@ -204,8 +236,10 @@ test("can grow a table even if old column widths do not accurately represent wha
                 oldTableWidthPx: 756,
                 state: {
                     columnIndex: 4,
-                    oldColumnWidths: [0.5025125628140703, 1.4974874371859297, 1, 1, 1],
-                    oldTotalColumnWidth: 5,
+                    oldTableMap: {
+                        columnWidths: [0.5025125628140703, 1.4974874371859297, 1, 1, 1],
+                        totalColumnWidth: 5,
+                    },
                 },
             },
         ),
@@ -226,8 +260,10 @@ test("can grow a table when the second to last column is larger than the last co
                 oldTableWidthPx: 877,
                 state: {
                     columnIndex: 4,
-                    oldColumnWidths: [1, 1, 1, 1.8011481056257175, 0.9988518943742825],
-                    oldTotalColumnWidth: 5.8,
+                    oldTableMap: {
+                        columnWidths: [1, 1, 1, 1.8011481056257175, 0.9988518943742825],
+                        totalColumnWidth: 5.8,
+                    },
                 },
             },
         ),

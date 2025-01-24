@@ -4,7 +4,6 @@ import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {
     getCellsInColumn,
     getCellsInRow,
-    getContentTableColumnWidths,
     isColumnSelected,
     isInContentTable,
     isRowSelected,
@@ -233,9 +232,7 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                             const map = ContentTableMap.get(table);
 
                                             // Update columnWidths array
-                                            const columnWidths = [
-                                                ...getContentTableColumnWidths(table),
-                                            ];
+                                            const columnWidths = [...map.columnWidths];
                                             columnWidths.splice(index + 1, 0, 1);
                                             tr.setNodeAttribute(
                                                 tableStart - 1,

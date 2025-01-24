@@ -29,18 +29,16 @@
 
 import {Node} from "prosemirror-model";
 import {NodeViewConstructor} from "prosemirror-view";
-import {getContentTableColumnWidths} from "~/client/content/internal/table/content_table_client_util.js";
+import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/content_table_column_resizing_plugin.js";
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
-import {
-    getSpacingScaleWithoutListening,
-    subscribeToSpacingScaleChange,
-} from "~/client/remix/spacing_scale_context.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {
     tableWrapper2ClassName,
     tableWrapper3ClassName,
     tableWrapperClassName,
 } from "~/shared/content/content_styles.js";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 
@@ -90,6 +88,10 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
     };
 }
 
+function roundToDevicePx(devicePixelRatio: number, px: number): number {
+    return Math.round(px * devicePixelRatio) / devicePixelRatio;
+}
+
 export function updateContentTableColumnsOnResize(
     node: Node,
     tableElement: HTMLTableElement,
@@ -109,18 +111,89 @@ export function updateContentTableColumnsOnResize(
         overrideTableAndColumnWidths?.tableWidth ?? node.attrs.tableWidth ?? 1,
     );
     const columnWidths =
-        overrideTableAndColumnWidths?.columnWidths ?? getContentTableColumnWidths(node);
+        overrideTableAndColumnWidths?.columnWidths ?? ContentTableMap.get(node).columnWidths;
+
+    let totalColumnWidth = 0;
+    for (const columnWidth of columnWidths) totalColumnWidth += columnWidth;
 
     const columnMinWidthPx =
         contentStyles.tableColumnMinWidthRem * remPxBySpacingScale[spacingScale];
+    const columnMaxWidthPx = contentStyles.tableColumnMaxWidthPx[spacingScale];
 
     // The width added to our table for borders. 1px on the left/right added by CSS
     // `padding` and 1px between each column added by CSS `gap`.
     const borderWidthPx = 2 + columnWidths.length - 1;
 
     const tableMinWidthPx = columnMinWidthPx * columnWidths.length + borderWidthPx;
-    const tableMaxWidthPx =
-        contentStyles.tableColumnMaxWidthPx[spacingScale] * columnWidths.length + borderWidthPx;
+
+    const {devicePixelRatio} = window;
+
+    // If you delete a column and `tableWidth` doesn't update then we may be left
+    // in a situation where `tableWidth` exceeds the max possible width for the
+    // table (max possible width being `columnMaxWidthPx * columnWidths.length`).
+    //
+    // The code below computes the max table width while not allowing any
+    // individual column to have a greater width than `columnMaxWidthPx`. It uses
+    // an iterative solution where it tries resolving column widths at the max
+    // width declared by `tableWidth` (`blockMaxWidth * tableWidth`). If any
+    // individual column width is larger than `columnMaxWidthPx` we retry with a
+    // smaller max table width.
+    //
+    // Is there a non-iterative solution where we can figure out
+    // `totalColumnMaxWidthPx` in one attempt? Maybe. I haven't thought too deeply.
+    // The iterative solution works in 1-2 iterations when `tableWidth` is well
+    // formed and ~5 iterations in the edge case we're trying to fix where
+    // `tableWidth` is too large.
+    //
+    // Again, this is a safety measure to get us back in a good state if
+    // `tableWidth` is too large. Ideally, all our editing commands update
+    // `tableWidth` when necessary. For example, when deleting a column
+    // `tableWidth` should shrink. Since ProseMirror can at any time execute
+    // arbitrary commands we'll never be able to perfectly control every table
+    // update path so we need to be resilient in the face of non-ideal states
+    // in our data structure.
+    let totalColumnMaxWidthPx: number;
+    {
+        totalColumnMaxWidthPx = roundToDevicePx(
+            devicePixelRatio,
+            contentStyles.blockMaxWidthRem[platform] *
+                remPxBySpacingScale[spacingScale] *
+                tableWidth -
+                borderWidthPx,
+        );
+
+        let hasNextPass = true;
+        while (hasNextPass) {
+            hasNextPass = false;
+
+            const resolvedColumnMaxWidthPxs = resolveContentTableColumnWidthPx(
+                totalColumnWidth,
+                columnWidths,
+                totalColumnMaxWidthPx,
+                columnMinWidthPx,
+            );
+
+            totalColumnMaxWidthPx = 0;
+            for (const resolvedColumnMaxWidthPx of resolvedColumnMaxWidthPxs) {
+                // `resolvedColumnMaxWidthPx` may never exactly reach `columnMaxWidthPx` due to
+                // floating point math. If it never reaches `columnMaxWidthPx` then we'll end
+                // up looping forever. So instead wait until `resolvedColumnMaxWidthPx` will
+                // round down to `columnMaxWidthPx` in device pixels.
+                if (
+                    roundToDevicePx(devicePixelRatio, resolvedColumnMaxWidthPx) > columnMaxWidthPx
+                ) {
+                    hasNextPass = true;
+                    totalColumnMaxWidthPx += columnMaxWidthPx;
+                } else {
+                    totalColumnMaxWidthPx += resolvedColumnMaxWidthPx;
+                }
+            }
+
+            totalColumnMaxWidthPx = roundToDevicePx(devicePixelRatio, totalColumnMaxWidthPx);
+        }
+    }
+
+    const tableMaxWidthPx = totalColumnMaxWidthPx + borderWidthPx;
 
     const tableInnerPaddingXDoubledPx =
         convertRemLengthToPx(contentStyles.tableInnerPaddingX, spacingScale) * 2;

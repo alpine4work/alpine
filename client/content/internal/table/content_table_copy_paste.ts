@@ -42,7 +42,6 @@
 import {Fragment, Node, NodeType, Schema, Slice} from "prosemirror-model";
 import {EditorState, Transaction} from "prosemirror-state";
 import {Transform} from "prosemirror-transform";
-import {getContentTableColumnWidths} from "~/client/content/internal/table/content_table_client_util.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap, ContentTableMapRect} from "~/shared/content/table/content_table_map.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -190,7 +189,7 @@ function growContentTable(
     if (width > tableMap.width) {
         changed = true;
         // First update the columnWidths array
-        const newColumnWidths = [...getContentTableColumnWidths(table)];
+        const newColumnWidths = [...tableMap.columnWidths];
 
         for (let i = tableMap.width; i < width; i++) {
             newColumnWidths.push(1);
