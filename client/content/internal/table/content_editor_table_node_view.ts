@@ -128,6 +128,8 @@ export function updateContentTableColumnsOnResize(
 
     const {devicePixelRatio} = window;
 
+    console.log("START");
+
     // If you delete a column and `tableWidth` doesn't update then we may be left
     // in a situation where `tableWidth` exceeds the max possible width for the
     // table (max possible width being `columnMaxWidthPx * columnWidths.length`).
@@ -189,9 +191,17 @@ export function updateContentTableColumnsOnResize(
                 }
             }
 
+            console.log(resolvedColumnMaxWidthPxs, {
+                totalColumnWidth,
+                columnWidths,
+                totalColumnMaxWidthPx,
+            });
+
             totalColumnMaxWidthPx = roundToDevicePx(devicePixelRatio, totalColumnMaxWidthPx);
         }
     }
+
+    console.log("END");
 
     const tableMaxWidthPx = totalColumnMaxWidthPx + borderWidthPx;
 
