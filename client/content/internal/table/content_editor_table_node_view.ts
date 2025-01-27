@@ -127,8 +127,7 @@ export function updateContentTableColumnsOnResize(
     const tableMinWidthPx = columnMinWidthPx * columnWidths.length + borderWidthPx;
 
     const {devicePixelRatio} = window;
-
-    console.log("START");
+    const columnMaxWidthPxRoundedToDevicePx = roundToDevicePx(devicePixelRatio, columnMaxWidthPx);
 
     // If you delete a column and `tableWidth` doesn't update then we may be left
     // in a situation where `tableWidth` exceeds the max possible width for the
@@ -175,6 +174,7 @@ export function updateContentTableColumnsOnResize(
                 columnMinWidthPx,
             );
 
+            const previousTotalColumnMaxWidthPx = totalColumnMaxWidthPx;
             totalColumnMaxWidthPx = 0;
             for (const resolvedColumnMaxWidthPx of resolvedColumnMaxWidthPxs) {
                 // `resolvedColumnMaxWidthPx` may never exactly reach `columnMaxWidthPx` due to
@@ -182,7 +182,8 @@ export function updateContentTableColumnsOnResize(
                 // up looping forever. So instead wait until `resolvedColumnMaxWidthPx` will
                 // round down to `columnMaxWidthPx` in device pixels.
                 if (
-                    roundToDevicePx(devicePixelRatio, resolvedColumnMaxWidthPx) > columnMaxWidthPx
+                    roundToDevicePx(devicePixelRatio, resolvedColumnMaxWidthPx) >
+                    columnMaxWidthPxRoundedToDevicePx
                 ) {
                     hasNextPass = true;
                     totalColumnMaxWidthPx += columnMaxWidthPx;
@@ -191,17 +192,19 @@ export function updateContentTableColumnsOnResize(
                 }
             }
 
-            console.log(resolvedColumnMaxWidthPxs, {
-                totalColumnWidth,
-                columnWidths,
-                totalColumnMaxWidthPx,
-            });
-
             totalColumnMaxWidthPx = roundToDevicePx(devicePixelRatio, totalColumnMaxWidthPx);
+
+            // Protect against infinite looping: If `totalColumnMaxWidthPx` doesn't change
+            // it means we're going to get stuck in an infinite loop as each iteration will
+            // produce the same `totalColumnMaxWidthPx` which fails our `columnMaxWidthPx`
+            // check.
+            //
+            // If we hit this branch it's likely a symptom of something else being broken.
+            if (hasNextPass && previousTotalColumnMaxWidthPx === totalColumnMaxWidthPx) {
+                hasNextPass = false;
+            }
         }
     }
-
-    console.log("END");
 
     const tableMaxWidthPx = totalColumnMaxWidthPx + borderWidthPx;
 
