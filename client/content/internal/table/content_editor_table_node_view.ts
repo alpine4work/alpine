@@ -41,6 +41,7 @@ import {
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 export function createContentEditorTableNodeView(): NodeViewConstructor {
     return node => {
@@ -194,14 +195,21 @@ export function updateContentTableColumnsOnResize(
 
             totalColumnMaxWidthPx = roundToDevicePx(devicePixelRatio, totalColumnMaxWidthPx);
 
-            // Protect against infinite looping: If `totalColumnMaxWidthPx` doesn't change
-            // it means we're going to get stuck in an infinite loop as each iteration will
-            // produce the same `totalColumnMaxWidthPx` which fails our `columnMaxWidthPx`
-            // check.
-            //
-            // If we hit this branch it's likely a symptom of something else being broken.
-            if (hasNextPass && previousTotalColumnMaxWidthPx === totalColumnMaxWidthPx) {
-                hasNextPass = false;
+            if (hasNextPass) {
+                // If we need another pass, `totalColumnMaxWidthPx` should be less than
+                // `previousTotalColumnMaxWidthPx`. We keep shrinking `totalColumnMaxWidthPx`
+                // until no column violates our maximum width.
+                assert(totalColumnMaxWidthPx <= previousTotalColumnMaxWidthPx);
+
+                // Protect against infinite looping: If `totalColumnMaxWidthPx` doesn't change
+                // it means we're going to get stuck in an infinite loop as each iteration will
+                // produce the same `totalColumnMaxWidthPx` which fails our `columnMaxWidthPx`
+                // check.
+                //
+                // If we hit this branch it's likely a symptom of something else being broken.
+                if (previousTotalColumnMaxWidthPx === totalColumnMaxWidthPx) {
+                    hasNextPass = false;
+                }
             }
         }
     }
