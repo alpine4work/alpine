@@ -799,6 +799,9 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
             scrollTo: isLeftResize ? "left" : "right",
         };
     } else if (oldColumnWidths.length <= 3) {
+        // if the number of columns are less than equal to 3 then make sure the
+        // interior column resizer is affecting both the column width and not the
+        // table width
         const column2Index = column1Index + 1;
         const oldColumn2Width = oldColumnWidths[column2Index]!;
 
@@ -845,16 +848,14 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
             columnMinWidthPx,
         );
 
-        const oldColumn1Width = oldColumnWidths[column1Index]!;
         const oldColumn1WidthPx = oldColumnWidthPxs[column1Index]!;
 
         // Calculate new width based on drag offset
-        let newColumn1WidthPx = clamp(
+        const newColumn1WidthPx = clamp(
             columnMinWidthPx,
             oldColumn1WidthPx + offsetPx,
             columnMaxWidthPx,
         );
-
         // Calculate how much the table needs to grow/shrink
         const widthDifference = newColumn1WidthPx - oldColumn1WidthPx;
         const expectedNewTotalColumnWidthPx = oldTotalColumnWidthPx + widthDifference;
@@ -864,26 +865,19 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
             maxTotalColumnWidthPx,
         );
 
-        // Adjust the column width proportionally if table width was clamped
-        const widthRatio = newTotalColumnWidthPx / oldTotalColumnWidthPx;
-        newColumn1WidthPx = Math.min(columnMaxWidthPx, newColumn1WidthPx * widthRatio);
-
-        // Convert back to relative width
+        // Calculate new relative width for the resized column
         const newColumn1Width = (newColumn1WidthPx / newTotalColumnWidthPx) * oldTotalColumnWidth;
 
-        // Create new column widths array, only changing the resized column
-        const newColumnWidths: Array<number> = [];
-        for (let columnIndex = 0; columnIndex < oldColumnWidths.length; columnIndex++) {
-            if (columnIndex === column1Index) {
-                newColumnWidths.push(newColumn1Width);
-            } else {
-                newColumnWidths.push(oldColumnWidths[columnIndex]!);
-            }
-        }
+        // Keep other columns unchanged
+        const newColumnWidths: Array<number> = [...oldColumnWidths];
+        newColumnWidths[column1Index] = newColumn1Width;
 
         // Update table width
         const oldTableWidth = Math.max(1, oldTableWidthPx / blockWidthPx);
-        const newTableWidth = Math.max(1, oldTableWidth * widthRatio);
+        const newTableWidth = Math.max(
+            1,
+            oldTableWidth * (newTotalColumnWidthPx / oldTotalColumnWidthPx),
+        );
 
         return {
             tableWidth: newTableWidth,
