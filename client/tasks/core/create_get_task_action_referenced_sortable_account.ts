@@ -1,9 +1,11 @@
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
+import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js";
 import {InternalError} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
@@ -67,6 +69,25 @@ export function createGetTaskActionReferencedSortableAccount(
     );
 
     return accountId => {
+        // If the user doesn't have access to an account (e.g. only actors with space
+        // access can know a task's creator) we replace the account with
+        // `unknownAccountId`. `unknownAccountId` won't be present in referenced
+        // accounts so return a value based on our the unknown account's constant
+        // data here.
+        //
+        // See `prepareTaskForClient()`, `prepareTaskActionForClient()`,
+        // `collectReferencedAccountIdsFromTaskModelData()`, and
+        // `collectReferencedAccountIdsFromTaskAction()`.
+        if (accountId === unknownAccountId) {
+            const unknownAccount = AccountModel.getUnknown();
+
+            return {
+                accountId: unknownAccount.id,
+                workingAccountName: unknownAccount.initialData.name,
+                workingAccountNameVersion: unknownAccount.initialData.nameVersion,
+            };
+        }
+
         const accountData = assertExists(
             actionReferencedAccountStoreById.get(accountId),
             "Can't get a `TaskSortableAccount` that wasn't referenced by a `TaskAction`",

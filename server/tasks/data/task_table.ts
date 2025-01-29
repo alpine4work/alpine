@@ -1162,9 +1162,9 @@ function afterCommitTaskActionTransaction(
 
 /**
  * Query our unprocessed action transaction index and process any transactions
- * that have been in there for too long. It's important that we finish
- * processing action transactions within `TaskRealtimeActionHistory`'s 10
- * minute window.
+ * that have been in there for too long. It's important for security that we
+ * finish processing action transactions within `TaskRealtimeActionHistory`'s
+ * 10 minute window.
  *
  * We have a cron job that runs this function once every 3 minutes so we get 3
  * chances in that 10 minute window to process action transactions that failed
@@ -3790,21 +3790,6 @@ export async function authorizeTaskCollectionAccess(
  * responsibilities. Like properly stopping data from being sent to the client
  * when this function returns false.
  */
-// TODO(calebmer, 2023-08-22, #security): For our authorization logic to
-// produce the correct results, it's essential that: 1) every committed action
-// is indexed in a timely fashion, 2) every committed action is seen by
-// realtime servers in a timely fashion. When you remove someone's access in
-// Cyberworlds it may take a little bit for them to actually lose access
-// (3-5min). However we guarantee they do eventually lose access.
-//
-// If we fail to index in OpenSearch an `UpdateAccessPolicy` action or don't
-// send it to one of our realtime servers that's a big problem! Realtime
-// servers will continue returning data in the collection without considering
-// that access may have been removed.
-//
-// We need to set up systems that guarantee every action is indexed. This is
-// probably some CRON job that reapplies actions which haven't been marked as
-// applied. Since actions are CRDTs reapplying is safe.
 export function authorizeTaskCollectionIndexDocAccessIfPossibleForActor(
     context: Context<{
         process: ProcessContextModule;
@@ -5418,21 +5403,6 @@ async function queryTaskCommentChangeLogAssumingAuthorizedTask(
  * responsibilities. Like properly stopping data from being sent to the client
  * when this function returns false.
  */
-// TODO(calebmer, 2023-08-22, #security): For our authorization logic to
-// produce the correct results, it's essential that: 1) every committed action
-// is indexed in a timely fashion, 2) every committed action is seen by
-// realtime servers in a timely fashion. When you remove someone's access in
-// Cyberworlds it may take a little bit for them to actually lose access
-// (3-5min). However we guarantee they do eventually lose access.
-//
-// If we fail to index in OpenSearch an `UpdateAccessPolicy` action or don't
-// send it to one of our realtime servers that's a big problem! Realtime
-// servers will continue returning data in the collection without considering
-// that access may have been removed.
-//
-// We need to set up systems that guarantee every action is indexed. This is
-// probably some CRON job that reapplies actions which haven't been marked as
-// applied. Since actions are CRDTs reapplying is safe.
 export function authorizeTaskIndexDocAccessIfPossibleForActor(
     context: Context<{
         process: ProcessContextModule;
@@ -5484,21 +5454,6 @@ export function authorizeTaskIndexDocAccessIfPossibleForActor(
  * options if you're in `TaskRealtimeService` and have an up-to-date in-memory
  * representation of tasks.
  */
-// TODO(calebmer, 2023-08-22, #security): For our authorization logic to
-// produce the correct results, it's essential that: 1) every committed action
-// is indexed in a timely fashion, 2) every committed action is seen by
-// realtime servers in a timely fashion. When you remove someone's access in
-// Cyberworlds it may take a little bit for them to actually lose access
-// (3-5min). However we guarantee they do eventually lose access.
-//
-// If we fail to index in OpenSearch an `UpdateAccessPolicy` action or don't
-// send it to one of our realtime servers that's a big problem! Realtime
-// servers will continue returning data in the collection without considering
-// that access may have been removed.
-//
-// We need to set up systems that guarantee every action is indexed. This is
-// probably some CRON job that reapplies actions which haven't been marked as
-// applied. Since actions are CRDTs reapplying is safe.
 export async function authorizeTaskQueryAccess(
     context: ServerActionContext,
     {
@@ -5742,6 +5697,10 @@ export async function authorizeTaskQueryAccess(
     );
 
     if (!hasAccess) {
+        // If the actor doesn't have space access then throw an "actor doesn't have
+        // space access" error.
+        await authorizeSpaceAccess(context, spaceId);
+
         throw new PermissionDeniedError(
             "Query may reveal tasks the session account is not allowed to see",
         );

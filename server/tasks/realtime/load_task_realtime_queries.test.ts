@@ -1,5 +1,5 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
-import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {removeSpaceAccountAsAdmin} from "~/server/spaces/spaces_table.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
@@ -8,14 +8,31 @@ import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtim
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    TaskDueDateRegister,
+    TaskParentTaskIdRegister,
+} from "~/shared/tasks/actions/task_task_action.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
+import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
+import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
+import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
+import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
+import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {TaskPositionRegister} from "~/shared/tasks/task_position.js";
+import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
+import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
+import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {
@@ -31,11 +48,13 @@ import {
     TaskRealtimeQueryLoadedState,
     TaskRealtimeUpdateEvent,
 } from "~/shared/tasks/task_realtime_protocol.js";
+import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
+import {emptyTaskTitle} from "~/shared/tasks/task_title.js";
 
 const context = createTestContext({shouldStartOpensearch: true});
 
 async function testLoadTaskRealtimeQueries(
-    actionContext: ServerSessionActionContext,
+    actionContext: ServerActionContext,
     {
         server,
         spaceId,
@@ -63,7 +82,10 @@ async function testLoadTaskRealtimeQueries(
         spaceId,
         queries: queries.map(query => {
             const evaluationContext: TaskQueryEvaluationContext = {
-                currentAccountId: actionContext.actor.getAccountId(),
+                currentAccountId:
+                    actionContext.actor.type === "Session"
+                        ? actionContext.actor.getAccountId()
+                        : null,
                 currentDate: toCalendarDate(
                     parseAbsolute(testClock.nowDate().toISOString(), defaultTimeZone),
                 ),
@@ -98,10 +120,19 @@ async function testLoadTaskRealtimeQueries(
     };
 }
 
-function expectAuthorizedTask(taskId: TaskId) {
+function expectAuthorizedTask(taskId: TaskId, collectionIds: Array<TaskCollectionId> = []) {
     return expect.objectContaining({
         type: "Authorized",
-        task: expect.objectContaining({id: taskId}),
+        task: expect.objectContaining({
+            id: taskId,
+            rawData: expect.objectContaining({
+                collections: expect.objectContaining({
+                    _array: collectionIds.map(collectionId =>
+                        expect.objectContaining({collectionId}),
+                    ),
+                }),
+            }),
+        }),
     });
 }
 
@@ -116,13 +147,6 @@ function expectAuthorizedCollection(collectionId: TaskCollectionId) {
     return expect.objectContaining({
         type: "Authorized",
         collection: expect.objectContaining({id: collectionId}),
-    });
-}
-
-function expectUnauthorizedCollection(collectionId: TaskCollectionId) {
-    return expect.objectContaining({
-        type: "Unauthorized",
-        collectionId,
     });
 }
 
@@ -203,7 +227,7 @@ test("loads a query", async () => {
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
         },
     });
 });
@@ -263,15 +287,15 @@ test("loads multiple queries", async () => {
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
             backfillTasks: [
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(task5.id),
+                expectAuthorizedTask(task1.id, [collection1.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task5.id, [collection1.id]),
             ],
             backfillCollections: [
                 expectAuthorizedCollection(collection1.id),
                 expectAuthorizedCollection(collection2.id),
             ],
-            referencedAccounts: [],
+            referencedAccounts: [await session1.get()],
         },
     });
 
@@ -300,12 +324,15 @@ test("loads multiple queries", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task2.id), expectAuthorizedTask(task3.id)],
+            backfillTasks: [
+                expectAuthorizedTask(task2.id, [collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+            ],
             backfillCollections: [
                 expectAuthorizedCollection(collection2.id),
                 expectAuthorizedCollection(collection1.id),
             ],
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get(), await session1.get()],
         },
     });
 
@@ -346,16 +373,16 @@ test("loads multiple queries", async () => {
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
             backfillTasks: [
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task5.id),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task1.id, [collection1.id]),
+                expectAuthorizedTask(task5.id, [collection1.id]),
             ],
             backfillCollections: [
                 expectAuthorizedCollection(collection2.id),
                 expectAuthorizedCollection(collection1.id),
             ],
-            referencedAccounts: [],
+            referencedAccounts: [await session2.get(), await session1.get()],
         },
     });
 });
@@ -555,7 +582,7 @@ test("queries may have different pagination states", async () => {
                 expectAuthorizedTask(task3.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
         },
     });
 
@@ -625,7 +652,7 @@ test("queries may have different pagination states", async () => {
                 expectAuthorizedTask(task6.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
         },
     });
 
@@ -663,7 +690,7 @@ test("queries may have different pagination states", async () => {
                 expectAuthorizedTask(task5.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
         },
     });
 
@@ -713,7 +740,7 @@ test("queries may have different pagination states", async () => {
                 expectAuthorizedTask(task6.id),
             ],
             backfillCollections: [],
-            referencedAccounts: [],
+            referencedAccounts: [await session.get()],
         },
     });
 });
@@ -843,11 +870,11 @@ test("loads referenced collections", async () => {
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
             backfillTasks: [
-                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
                 expectAuthorizedTask(task2.id),
                 expectAuthorizedTask(task3.id),
                 expectAuthorizedTask(parentTask1.id),
-                expectAuthorizedTask(parentTask2.id),
+                expectAuthorizedTask(parentTask2.id, [collection3.id]),
             ],
             backfillCollections: [
                 expectAuthorizedCollection(collection1.id),
@@ -920,10 +947,10 @@ test("loads unauthorized parent tasks", async () => {
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
             backfillTasks: [
-                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task1.id, [collection.id]),
                 expectAuthorizedTask(task2.id),
                 expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(parentTask2.id),
+                expectAuthorizedTask(parentTask2.id, [collection.id]),
                 expectUnauthorizedTask(parentTask1.id),
                 expectUnauthorizedTask(parentTask4.id),
                 expectUnauthorizedTask(parentTask3.id),
@@ -1034,24 +1061,3046 @@ test("loads unauthorized collections", async () => {
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
             backfillTasks: [
-                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task1.id, [collection1.id]),
                 expectAuthorizedTask(task2.id),
                 expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(parentTask2.id),
+                expectAuthorizedTask(parentTask2.id, [collection1.id]),
                 expectUnauthorizedTask(parentTask1.id),
                 expectUnauthorizedTask(parentTask4.id),
                 expectUnauthorizedTask(parentTask3.id),
             ],
-            backfillCollections: [
-                {id: collection1.id, build: expectAuthorizedCollection},
-                {id: collection2.id, build: expectUnauthorizedCollection},
-                {id: collection3.id, build: expectUnauthorizedCollection},
-                {id: collection4.id, build: expectUnauthorizedCollection},
-                {id: collection5.id, build: expectUnauthorizedCollection},
-            ]
-                .sort(({id: id1}, {id: id2}) => defaultCompareStrings(id1, id2))
-                .map(({id, build}) => build(id)),
+            backfillCollections: [expectAuthorizedCollection(collection1.id)],
             referencedAccounts: [await session1.get()],
+        },
+    });
+});
+
+test("loads a query as an anonymous actor", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession();
+    const server = new TestTaskRealtimeServer(context);
+
+    const [task1, task2, task3, task4, task5, collection1, collection2, collection3, collection4] =
+        await runAllPromises([
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTask.create(session),
+            TestTaskCollection.create(session),
+            TestTaskCollection.create(session),
+            TestTaskCollection.create(session),
+            TestTaskCollection.create(session),
+        ]);
+
+    await task1.addCollection(session, collection1);
+    await task3.addCollection(session, collection1);
+    await task5.addCollection(session, collection1);
+
+    await task1.updateParentTask(session, task2);
+    await task5.updateParentTask(session, task3);
+
+    await task1.addCollection(session, collection2);
+    await task2.addCollection(session, collection2);
+    await task3.addCollection(session, collection2);
+
+    await task1.addCollection(session, collection3);
+    await task5.addCollection(session, collection3);
+
+    await task4.addCollection(session, collection4);
+
+    await task1.updatePriority(session, "Low");
+    await task3.updatePriority(session, "Medium");
+    await task5.updatePriority(session, "High");
+
+    await expect(
+        testLoadTaskRealtimeQueries(session.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection1.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task5.id, [collection1.id, collection3.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection3.id),
+            ],
+            referencedAccounts: [await session.get()],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(session.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection2.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection3.id),
+            ],
+            referencedAccounts: [await session.get()],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(session.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection3.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
+                expectAuthorizedTask(task5.id, [collection1.id, collection3.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection3.id),
+            ],
+            referencedAccounts: [await session.get()],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(session.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection4.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [expectAuthorizedTask(task4.id, [collection4.id])],
+            backfillCollections: [expectAuthorizedCollection(collection4.id)],
+            referencedAccounts: [await session.get()],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(session.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Creator",
+                            operation: {
+                                type: "OneOf",
+                                accounts: [{type: "CurrentAccount"}],
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task4.id, [collection4.id]),
+                expectAuthorizedTask(task5.id, [collection1.id, collection3.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection3.id),
+                expectAuthorizedCollection(collection4.id),
+            ],
+            referencedAccounts: [await session.get()],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection1.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection2.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection3.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection4.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Creator",
+                            operation: {
+                                type: "OneOf",
+                                accounts: [{type: "CurrentAccount"}],
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection1.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection2.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection3.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection4.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Creator",
+                            operation: {
+                                type: "OneOf",
+                                accounts: [{type: "CurrentAccount"}],
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+
+    await collection1.access.grantUrl(session);
+
+    await expect(
+        testLoadTaskRealtimeQueries(session.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection1.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task5.id, [collection1.id, collection3.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection3.id),
+            ],
+            referencedAccounts: [await session.get()],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(session.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection2.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection3.id),
+            ],
+            referencedAccounts: [await session.get()],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(session.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection3.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
+                expectAuthorizedTask(task5.id, [collection1.id, collection3.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection3.id),
+            ],
+            referencedAccounts: [await session.get()],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(session.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection4.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [expectAuthorizedTask(task4.id, [collection4.id])],
+            backfillCollections: [expectAuthorizedCollection(collection4.id)],
+            referencedAccounts: [await session.get()],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(session.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Creator",
+                            operation: {
+                                type: "OneOf",
+                                accounts: [{type: "CurrentAccount"}],
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task4.id, [collection4.id]),
+                expectAuthorizedTask(task5.id, [collection1.id, collection3.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection3.id),
+                expectAuthorizedCollection(collection4.id),
+            ],
+            referencedAccounts: [await session.get()],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection1.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id]),
+                expectAuthorizedTask(task3.id, [collection1.id]),
+                expectAuthorizedTask(task5.id, [collection1.id]),
+                expectUnauthorizedTask(task2.id),
+            ],
+            backfillCollections: [expectAuthorizedCollection(collection1.id)],
+            referencedAccounts: [],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection2.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection3.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection4.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Creator",
+                            operation: {
+                                type: "OneOf",
+                                accounts: [{type: "CurrentAccount"}],
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection1.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id]),
+                expectAuthorizedTask(task3.id, [collection1.id]),
+                expectAuthorizedTask(task5.id, [collection1.id]),
+                expectUnauthorizedTask(task2.id),
+            ],
+            backfillCollections: [expectAuthorizedCollection(collection1.id)],
+            referencedAccounts: [],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection2.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection3.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection4.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Creator",
+                            operation: {
+                                type: "OneOf",
+                                accounts: [{type: "CurrentAccount"}],
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+
+    await collection2.access.grantUrl(session);
+
+    await expect(
+        testLoadTaskRealtimeQueries(session.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection1.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task5.id, [collection1.id, collection3.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection3.id),
+            ],
+            referencedAccounts: [await session.get()],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(session.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection2.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection3.id),
+            ],
+            referencedAccounts: [await session.get()],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(session.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection3.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
+                expectAuthorizedTask(task5.id, [collection1.id, collection3.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection3.id),
+            ],
+            referencedAccounts: [await session.get()],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(session.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection4.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [expectAuthorizedTask(task4.id, [collection4.id])],
+            backfillCollections: [expectAuthorizedCollection(collection4.id)],
+            referencedAccounts: [await session.get()],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(session.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Creator",
+                            operation: {
+                                type: "OneOf",
+                                accounts: [{type: "CurrentAccount"}],
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task4.id, [collection4.id]),
+                expectAuthorizedTask(task5.id, [collection1.id, collection3.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection3.id),
+                expectAuthorizedCollection(collection4.id),
+            ],
+            referencedAccounts: [await session.get()],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection1.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task5.id, [collection1.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+            ],
+            referencedAccounts: [],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection2.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+            ],
+            referencedAccounts: [],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection3.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection4.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Creator",
+                            operation: {
+                                type: "OneOf",
+                                accounts: [{type: "CurrentAccount"}],
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection1.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task5.id, [collection1.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+            ],
+            referencedAccounts: [],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection2.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+            ],
+            referencedAccounts: [],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection3.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection4.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Creator",
+                            operation: {
+                                type: "OneOf",
+                                accounts: [{type: "CurrentAccount"}],
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection1.id, collection2.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+            ],
+            referencedAccounts: [],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesOneOf",
+                                collectionIds: new Set([collection1.id, collection2.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task5.id, [collection1.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+            ],
+            referencedAccounts: [],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesOneOf",
+                                collectionIds: new Set([
+                                    collection1.id,
+                                    collection2.id,
+                                    collection3.id,
+                                ]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([
+                                    collection1.id,
+                                    collection2.id,
+                                    collection3.id,
+                                ]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection1.id]),
+                            },
+                        },
+                        {
+                            type: "Priority",
+                            operation: {
+                                type: "OneOf",
+                                priorities: new Set(["Medium", "High"]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task5.id, [collection1.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+            ],
+            referencedAccounts: [],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Priority",
+                            operation: {
+                                type: "OneOf",
+                                priorities: new Set(["Medium", "High"]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection1.id, collection2.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+            ],
+            referencedAccounts: [],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesOneOf",
+                                collectionIds: new Set([collection1.id, collection2.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task5.id, [collection1.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+            ],
+            referencedAccounts: [],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesOneOf",
+                                collectionIds: new Set([
+                                    collection1.id,
+                                    collection2.id,
+                                    collection3.id,
+                                ]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([
+                                    collection1.id,
+                                    collection2.id,
+                                    collection3.id,
+                                ]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection1.id]),
+                            },
+                        },
+                        {
+                            type: "Priority",
+                            operation: {
+                                type: "OneOf",
+                                priorities: new Set(["Medium", "High"]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
+                expectAuthorizedTask(task5.id, [collection1.id]),
+            ],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+            ],
+            referencedAccounts: [],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Priority",
+                            operation: {
+                                type: "OneOf",
+                                priorities: new Set(["Medium", "High"]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+
+    await collection1.access.revokeUrl(session);
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection1.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection2.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection2.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+                expectAuthorizedTask(task3.id, [collection2.id]),
+            ],
+            backfillCollections: [expectAuthorizedCollection(collection2.id)],
+            referencedAccounts: [],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection3.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection4.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Creator",
+                            operation: {
+                                type: "OneOf",
+                                accounts: [{type: "CurrentAccount"}],
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection1.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection2.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).resolves.toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id, [collection2.id]),
+                expectAuthorizedTask(task2.id, [collection2.id]),
+                expectAuthorizedTask(task3.id, [collection2.id]),
+            ],
+            backfillCollections: [expectAuthorizedCollection(collection2.id)],
+            referencedAccounts: [],
+        },
+    });
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection3.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection4.id]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+
+    await expect(
+        testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Creator",
+                            operation: {
+                                type: "OneOf",
+                                accounts: [{type: "CurrentAccount"}],
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+});
+
+test("task creator, closer and assigner are obfuscated for anonymous actors but assignee is shared", async () => {
+    const space = await TestSpace.create(context);
+    const [creatorSession, closerSession, assignerSession1, assignerSession2, assigneeSession] =
+        await space.createSessions(5);
+
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession();
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const task = await TestTask.create(creatorSession);
+    const collection = await TestTaskCollection.create(creatorSession);
+    await collection.access.grantDefault(creatorSession);
+    await collection.access.grantUrl(creatorSession);
+    const {time: addCollectionTime} = await task.addCollection(creatorSession, collection);
+
+    const {time: updateStatusTime} = await task.updateStatus(closerSession, "Closed");
+    const {time: updateAssigneeTime1} = await task.updateAssignee(
+        assignerSession1,
+        assigneeSession,
+    );
+
+    expect(
+        await testLoadTaskRealtimeQueries(creatorSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection.id]),
+                            },
+                        },
+                        {
+                            type: "DisplayStatus",
+                            operation: {
+                                type: "OneOf",
+                                displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                {
+                    type: "Authorized",
+                    task: new TaskModel({
+                        id: task.id,
+                        spaceId: space.id,
+                        creator: {
+                            accountId: creatorSession.account.id,
+                            workingAccountName: creatorSession.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                        createdTime: new TaskFilterableTime({
+                            absoluteTime: task.createdTime,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                        deletedTime: null,
+                        undeletedTime: null,
+                        parent: {
+                            taskId: new TaskParentTaskIdRegister(null, task.createdTime),
+                            position: new TaskPositionRegister(
+                                {orderTime: task.createdTime, orderKey: initialOrderKey},
+                                task.createdTime,
+                            ),
+                        },
+                        addedChildTaskCount: 0,
+                        removedChildTaskCount: 0,
+                        addedClosedChildTaskCount: 0,
+                        removedClosedChildTaskCount: 0,
+                        collections: TaskCollectionSet.empty.apply({
+                            type: "Set",
+                            key: collection.id,
+                            value: initialOrderKey,
+                            version: addCollectionTime,
+                        }),
+                        positionByCollectionId: TaskPositionByCollectionIdMap.empty,
+                        positionByAccountIdAndNotepadPageId:
+                            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
+                        status: new TaskStatusWithSortableAccountRegister(
+                            {
+                                type: "Closed",
+                                closer: {
+                                    accountId: closerSession.account.id,
+                                    workingAccountName: closerSession.account.initialName,
+                                    workingAccountNameVersion: 0,
+                                },
+                                closedTime: new TaskFilterableTime({
+                                    absoluteTime: updateStatusTime,
+                                    setterTimeZone: defaultTimeZone,
+                                }),
+                            },
+                            updateStatusTime,
+                        ),
+                        assignee: new TaskAssigneeWithSortableAccountRegister(
+                            {
+                                assignee: {
+                                    accountId: assigneeSession.account.id,
+                                    workingAccountName: assigneeSession.account.initialName,
+                                    workingAccountNameVersion: 0,
+                                },
+                                assigner: {
+                                    accountId: assignerSession1.account.id,
+                                    workingAccountName: assignerSession1.account.initialName,
+                                    workingAccountNameVersion: 0,
+                                },
+                                assignedTime: new TaskFilterableTime({
+                                    absoluteTime: updateAssigneeTime1,
+                                    setterTimeZone: defaultTimeZone,
+                                }),
+                            },
+                            updateAssigneeTime1,
+                        ),
+                        assigneeStatus: new TaskAssigneeStatusRegister(
+                            {type: "Inactive"},
+                            updateAssigneeTime1,
+                        ),
+                        assigneeActivePosition: new TaskAssigneeActivePositionRegister(
+                            null,
+                            updateAssigneeTime1,
+                        ),
+                        title: TaskTitleModel.new(emptyTaskTitle.get()),
+                        dueDate: new TaskDueDateRegister(null, task.createdTime),
+                        priority: new TaskPriorityRegister(null, task.createdTime),
+                    }),
+                },
+            ],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            referencedAccounts: await runAllPromises([
+                creatorSession.get(),
+                closerSession.get(),
+                assigneeSession.get(),
+                assignerSession1.get(),
+            ]),
+        },
+    });
+
+    expect(
+        await testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection.id]),
+                            },
+                        },
+                        {
+                            type: "DisplayStatus",
+                            operation: {
+                                type: "OneOf",
+                                displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                {
+                    type: "Authorized",
+                    task: new TaskModel({
+                        id: task.id,
+                        spaceId: space.id,
+                        creator: {
+                            accountId: unknownAccountId,
+                            workingAccountName: "Unknown",
+                            workingAccountNameVersion: 0,
+                        },
+                        createdTime: new TaskFilterableTime({
+                            absoluteTime: task.createdTime,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                        deletedTime: null,
+                        undeletedTime: null,
+                        parent: {
+                            taskId: new TaskParentTaskIdRegister(null, task.createdTime),
+                            position: new TaskPositionRegister(
+                                {orderTime: task.createdTime, orderKey: initialOrderKey},
+                                task.createdTime,
+                            ),
+                        },
+                        addedChildTaskCount: 0,
+                        removedChildTaskCount: 0,
+                        addedClosedChildTaskCount: 0,
+                        removedClosedChildTaskCount: 0,
+                        collections: TaskCollectionSet.empty.apply({
+                            type: "Set",
+                            key: collection.id,
+                            value: initialOrderKey,
+                            version: addCollectionTime,
+                        }),
+                        positionByCollectionId: TaskPositionByCollectionIdMap.empty,
+                        positionByAccountIdAndNotepadPageId:
+                            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
+                        status: new TaskStatusWithSortableAccountRegister(
+                            {
+                                type: "Closed",
+                                closer: {
+                                    accountId: unknownAccountId,
+                                    workingAccountName: "Unknown",
+                                    workingAccountNameVersion: 0,
+                                },
+                                closedTime: new TaskFilterableTime({
+                                    absoluteTime: updateStatusTime,
+                                    setterTimeZone: defaultTimeZone,
+                                }),
+                            },
+                            updateStatusTime,
+                        ),
+                        assignee: new TaskAssigneeWithSortableAccountRegister(
+                            {
+                                assignee: {
+                                    accountId: assigneeSession.account.id,
+                                    workingAccountName: assigneeSession.account.initialName,
+                                    workingAccountNameVersion: 0,
+                                },
+                                assigner: {
+                                    accountId: unknownAccountId,
+                                    workingAccountName: "Unknown",
+                                    workingAccountNameVersion: 0,
+                                },
+                                assignedTime: new TaskFilterableTime({
+                                    absoluteTime: updateAssigneeTime1,
+                                    setterTimeZone: defaultTimeZone,
+                                }),
+                            },
+                            updateAssigneeTime1,
+                        ),
+                        assigneeStatus: new TaskAssigneeStatusRegister(
+                            {type: "Inactive"},
+                            updateAssigneeTime1,
+                        ),
+                        assigneeActivePosition: new TaskAssigneeActivePositionRegister(
+                            null,
+                            updateAssigneeTime1,
+                        ),
+                        title: TaskTitleModel.new(emptyTaskTitle.get()),
+                        dueDate: new TaskDueDateRegister(null, task.createdTime),
+                        priority: new TaskPriorityRegister(null, task.createdTime),
+                    }),
+                },
+            ],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            referencedAccounts: await runAllPromises([assigneeSession.getStub()]),
+        },
+    });
+
+    expect(
+        await testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection.id]),
+                            },
+                        },
+                        {
+                            type: "DisplayStatus",
+                            operation: {
+                                type: "OneOf",
+                                displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                {
+                    type: "Authorized",
+                    task: new TaskModel({
+                        id: task.id,
+                        spaceId: space.id,
+                        creator: {
+                            accountId: unknownAccountId,
+                            workingAccountName: "Unknown",
+                            workingAccountNameVersion: 0,
+                        },
+                        createdTime: new TaskFilterableTime({
+                            absoluteTime: task.createdTime,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                        deletedTime: null,
+                        undeletedTime: null,
+                        parent: {
+                            taskId: new TaskParentTaskIdRegister(null, task.createdTime),
+                            position: new TaskPositionRegister(
+                                {orderTime: task.createdTime, orderKey: initialOrderKey},
+                                task.createdTime,
+                            ),
+                        },
+                        addedChildTaskCount: 0,
+                        removedChildTaskCount: 0,
+                        addedClosedChildTaskCount: 0,
+                        removedClosedChildTaskCount: 0,
+                        collections: TaskCollectionSet.empty.apply({
+                            type: "Set",
+                            key: collection.id,
+                            value: initialOrderKey,
+                            version: addCollectionTime,
+                        }),
+                        positionByCollectionId: TaskPositionByCollectionIdMap.empty,
+                        positionByAccountIdAndNotepadPageId:
+                            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
+                        status: new TaskStatusWithSortableAccountRegister(
+                            {
+                                type: "Closed",
+                                closer: {
+                                    accountId: unknownAccountId,
+                                    workingAccountName: "Unknown",
+                                    workingAccountNameVersion: 0,
+                                },
+                                closedTime: new TaskFilterableTime({
+                                    absoluteTime: updateStatusTime,
+                                    setterTimeZone: defaultTimeZone,
+                                }),
+                            },
+                            updateStatusTime,
+                        ),
+                        assignee: new TaskAssigneeWithSortableAccountRegister(
+                            {
+                                assignee: {
+                                    accountId: assigneeSession.account.id,
+                                    workingAccountName: assigneeSession.account.initialName,
+                                    workingAccountNameVersion: 0,
+                                },
+                                assigner: {
+                                    accountId: unknownAccountId,
+                                    workingAccountName: "Unknown",
+                                    workingAccountNameVersion: 0,
+                                },
+                                assignedTime: new TaskFilterableTime({
+                                    absoluteTime: updateAssigneeTime1,
+                                    setterTimeZone: defaultTimeZone,
+                                }),
+                            },
+                            updateAssigneeTime1,
+                        ),
+                        assigneeStatus: new TaskAssigneeStatusRegister(
+                            {type: "Inactive"},
+                            updateAssigneeTime1,
+                        ),
+                        assigneeActivePosition: new TaskAssigneeActivePositionRegister(
+                            null,
+                            updateAssigneeTime1,
+                        ),
+                        title: TaskTitleModel.new(emptyTaskTitle.get()),
+                        dueDate: new TaskDueDateRegister(null, task.createdTime),
+                        priority: new TaskPriorityRegister(null, task.createdTime),
+                    }),
+                },
+            ],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            referencedAccounts: await runAllPromises([assigneeSession.getStub()]),
+        },
+    });
+
+    const {time: updateAssigneeTime2} = await task.updateAssignee(
+        assignerSession2,
+        assigneeSession,
+    );
+
+    expect(
+        await testLoadTaskRealtimeQueries(creatorSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection.id]),
+                            },
+                        },
+                        {
+                            type: "DisplayStatus",
+                            operation: {
+                                type: "OneOf",
+                                displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                {
+                    type: "Authorized",
+                    task: new TaskModel({
+                        id: task.id,
+                        spaceId: space.id,
+                        creator: {
+                            accountId: creatorSession.account.id,
+                            workingAccountName: creatorSession.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                        createdTime: new TaskFilterableTime({
+                            absoluteTime: task.createdTime,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                        deletedTime: null,
+                        undeletedTime: null,
+                        parent: {
+                            taskId: new TaskParentTaskIdRegister(null, task.createdTime),
+                            position: new TaskPositionRegister(
+                                {orderTime: task.createdTime, orderKey: initialOrderKey},
+                                task.createdTime,
+                            ),
+                        },
+                        addedChildTaskCount: 0,
+                        removedChildTaskCount: 0,
+                        addedClosedChildTaskCount: 0,
+                        removedClosedChildTaskCount: 0,
+                        collections: TaskCollectionSet.empty.apply({
+                            type: "Set",
+                            key: collection.id,
+                            value: initialOrderKey,
+                            version: addCollectionTime,
+                        }),
+                        positionByCollectionId: TaskPositionByCollectionIdMap.empty,
+                        positionByAccountIdAndNotepadPageId:
+                            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
+                        status: new TaskStatusWithSortableAccountRegister(
+                            {
+                                type: "Closed",
+                                closer: {
+                                    accountId: closerSession.account.id,
+                                    workingAccountName: closerSession.account.initialName,
+                                    workingAccountNameVersion: 0,
+                                },
+                                closedTime: new TaskFilterableTime({
+                                    absoluteTime: updateStatusTime,
+                                    setterTimeZone: defaultTimeZone,
+                                }),
+                            },
+                            updateStatusTime,
+                        ),
+                        assignee: new TaskAssigneeWithSortableAccountRegister(
+                            {
+                                assignee: {
+                                    accountId: assigneeSession.account.id,
+                                    workingAccountName: assigneeSession.account.initialName,
+                                    workingAccountNameVersion: 0,
+                                },
+                                assigner: {
+                                    accountId: assignerSession2.account.id,
+                                    workingAccountName: assignerSession2.account.initialName,
+                                    workingAccountNameVersion: 0,
+                                },
+                                assignedTime: new TaskFilterableTime({
+                                    absoluteTime: updateAssigneeTime2,
+                                    setterTimeZone: defaultTimeZone,
+                                }),
+                            },
+                            updateAssigneeTime2,
+                        ),
+                        assigneeStatus: new TaskAssigneeStatusRegister(
+                            {type: "Inactive"},
+                            updateAssigneeTime2,
+                        ),
+                        assigneeActivePosition: new TaskAssigneeActivePositionRegister(
+                            null,
+                            updateAssigneeTime2,
+                        ),
+                        title: TaskTitleModel.new(emptyTaskTitle.get()),
+                        dueDate: new TaskDueDateRegister(null, task.createdTime),
+                        priority: new TaskPriorityRegister(null, task.createdTime),
+                    }),
+                },
+            ],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            referencedAccounts: await runAllPromises([
+                creatorSession.get(),
+                closerSession.get(),
+                assigneeSession.get(),
+                assignerSession2.get(),
+            ]),
+        },
+    });
+
+    expect(
+        await testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection.id]),
+                            },
+                        },
+                        {
+                            type: "DisplayStatus",
+                            operation: {
+                                type: "OneOf",
+                                displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                {
+                    type: "Authorized",
+                    task: new TaskModel({
+                        id: task.id,
+                        spaceId: space.id,
+                        creator: {
+                            accountId: unknownAccountId,
+                            workingAccountName: "Unknown",
+                            workingAccountNameVersion: 0,
+                        },
+                        createdTime: new TaskFilterableTime({
+                            absoluteTime: task.createdTime,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                        deletedTime: null,
+                        undeletedTime: null,
+                        parent: {
+                            taskId: new TaskParentTaskIdRegister(null, task.createdTime),
+                            position: new TaskPositionRegister(
+                                {orderTime: task.createdTime, orderKey: initialOrderKey},
+                                task.createdTime,
+                            ),
+                        },
+                        addedChildTaskCount: 0,
+                        removedChildTaskCount: 0,
+                        addedClosedChildTaskCount: 0,
+                        removedClosedChildTaskCount: 0,
+                        collections: TaskCollectionSet.empty.apply({
+                            type: "Set",
+                            key: collection.id,
+                            value: initialOrderKey,
+                            version: addCollectionTime,
+                        }),
+                        positionByCollectionId: TaskPositionByCollectionIdMap.empty,
+                        positionByAccountIdAndNotepadPageId:
+                            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
+                        status: new TaskStatusWithSortableAccountRegister(
+                            {
+                                type: "Closed",
+                                closer: {
+                                    accountId: unknownAccountId,
+                                    workingAccountName: "Unknown",
+                                    workingAccountNameVersion: 0,
+                                },
+                                closedTime: new TaskFilterableTime({
+                                    absoluteTime: updateStatusTime,
+                                    setterTimeZone: defaultTimeZone,
+                                }),
+                            },
+                            updateStatusTime,
+                        ),
+                        assignee: new TaskAssigneeWithSortableAccountRegister(
+                            {
+                                assignee: {
+                                    accountId: assigneeSession.account.id,
+                                    workingAccountName: assigneeSession.account.initialName,
+                                    workingAccountNameVersion: 0,
+                                },
+                                assigner: {
+                                    accountId: unknownAccountId,
+                                    workingAccountName: "Unknown",
+                                    workingAccountNameVersion: 0,
+                                },
+                                assignedTime: new TaskFilterableTime({
+                                    absoluteTime: updateAssigneeTime2,
+                                    setterTimeZone: defaultTimeZone,
+                                }),
+                            },
+                            updateAssigneeTime2,
+                        ),
+                        assigneeStatus: new TaskAssigneeStatusRegister(
+                            {type: "Inactive"},
+                            updateAssigneeTime2,
+                        ),
+                        assigneeActivePosition: new TaskAssigneeActivePositionRegister(
+                            null,
+                            updateAssigneeTime2,
+                        ),
+                        title: TaskTitleModel.new(emptyTaskTitle.get()),
+                        dueDate: new TaskDueDateRegister(null, task.createdTime),
+                        priority: new TaskPriorityRegister(null, task.createdTime),
+                    }),
+                },
+            ],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            referencedAccounts: await runAllPromises([assigneeSession.getStub()]),
+        },
+    });
+
+    expect(
+        await testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection.id]),
+                            },
+                        },
+                        {
+                            type: "DisplayStatus",
+                            operation: {
+                                type: "OneOf",
+                                displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                {
+                    type: "Authorized",
+                    task: new TaskModel({
+                        id: task.id,
+                        spaceId: space.id,
+                        creator: {
+                            accountId: unknownAccountId,
+                            workingAccountName: "Unknown",
+                            workingAccountNameVersion: 0,
+                        },
+                        createdTime: new TaskFilterableTime({
+                            absoluteTime: task.createdTime,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                        deletedTime: null,
+                        undeletedTime: null,
+                        parent: {
+                            taskId: new TaskParentTaskIdRegister(null, task.createdTime),
+                            position: new TaskPositionRegister(
+                                {orderTime: task.createdTime, orderKey: initialOrderKey},
+                                task.createdTime,
+                            ),
+                        },
+                        addedChildTaskCount: 0,
+                        removedChildTaskCount: 0,
+                        addedClosedChildTaskCount: 0,
+                        removedClosedChildTaskCount: 0,
+                        collections: TaskCollectionSet.empty.apply({
+                            type: "Set",
+                            key: collection.id,
+                            value: initialOrderKey,
+                            version: addCollectionTime,
+                        }),
+                        positionByCollectionId: TaskPositionByCollectionIdMap.empty,
+                        positionByAccountIdAndNotepadPageId:
+                            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
+                        status: new TaskStatusWithSortableAccountRegister(
+                            {
+                                type: "Closed",
+                                closer: {
+                                    accountId: unknownAccountId,
+                                    workingAccountName: "Unknown",
+                                    workingAccountNameVersion: 0,
+                                },
+                                closedTime: new TaskFilterableTime({
+                                    absoluteTime: updateStatusTime,
+                                    setterTimeZone: defaultTimeZone,
+                                }),
+                            },
+                            updateStatusTime,
+                        ),
+                        assignee: new TaskAssigneeWithSortableAccountRegister(
+                            {
+                                assignee: {
+                                    accountId: assigneeSession.account.id,
+                                    workingAccountName: assigneeSession.account.initialName,
+                                    workingAccountNameVersion: 0,
+                                },
+                                assigner: {
+                                    accountId: unknownAccountId,
+                                    workingAccountName: "Unknown",
+                                    workingAccountNameVersion: 0,
+                                },
+                                assignedTime: new TaskFilterableTime({
+                                    absoluteTime: updateAssigneeTime2,
+                                    setterTimeZone: defaultTimeZone,
+                                }),
+                            },
+                            updateAssigneeTime2,
+                        ),
+                        assigneeStatus: new TaskAssigneeStatusRegister(
+                            {type: "Inactive"},
+                            updateAssigneeTime2,
+                        ),
+                        assigneeActivePosition: new TaskAssigneeActivePositionRegister(
+                            null,
+                            updateAssigneeTime2,
+                        ),
+                        title: TaskTitleModel.new(emptyTaskTitle.get()),
+                        dueDate: new TaskDueDateRegister(null, task.createdTime),
+                        priority: new TaskPriorityRegister(null, task.createdTime),
+                    }),
+                },
+            ],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            referencedAccounts: await runAllPromises([assigneeSession.getStub()]),
+        },
+    });
+
+    const {time: updateAssigneeTime3} = await task.updateAssignee(assignerSession1, null);
+
+    expect(
+        await testLoadTaskRealtimeQueries(creatorSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection.id]),
+                            },
+                        },
+                        {
+                            type: "DisplayStatus",
+                            operation: {
+                                type: "OneOf",
+                                displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                {
+                    type: "Authorized",
+                    task: new TaskModel({
+                        id: task.id,
+                        spaceId: space.id,
+                        creator: {
+                            accountId: creatorSession.account.id,
+                            workingAccountName: creatorSession.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                        createdTime: new TaskFilterableTime({
+                            absoluteTime: task.createdTime,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                        deletedTime: null,
+                        undeletedTime: null,
+                        parent: {
+                            taskId: new TaskParentTaskIdRegister(null, task.createdTime),
+                            position: new TaskPositionRegister(
+                                {orderTime: task.createdTime, orderKey: initialOrderKey},
+                                task.createdTime,
+                            ),
+                        },
+                        addedChildTaskCount: 0,
+                        removedChildTaskCount: 0,
+                        addedClosedChildTaskCount: 0,
+                        removedClosedChildTaskCount: 0,
+                        collections: TaskCollectionSet.empty.apply({
+                            type: "Set",
+                            key: collection.id,
+                            value: initialOrderKey,
+                            version: addCollectionTime,
+                        }),
+                        positionByCollectionId: TaskPositionByCollectionIdMap.empty,
+                        positionByAccountIdAndNotepadPageId:
+                            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
+                        status: new TaskStatusWithSortableAccountRegister(
+                            {
+                                type: "Closed",
+                                closer: {
+                                    accountId: closerSession.account.id,
+                                    workingAccountName: closerSession.account.initialName,
+                                    workingAccountNameVersion: 0,
+                                },
+                                closedTime: new TaskFilterableTime({
+                                    absoluteTime: updateStatusTime,
+                                    setterTimeZone: defaultTimeZone,
+                                }),
+                            },
+                            updateStatusTime,
+                        ),
+                        assignee: new TaskAssigneeWithSortableAccountRegister(
+                            null,
+                            updateAssigneeTime3,
+                        ),
+                        assigneeStatus: new TaskAssigneeStatusRegister(
+                            {type: "Inactive"},
+                            updateAssigneeTime3,
+                        ),
+                        assigneeActivePosition: new TaskAssigneeActivePositionRegister(
+                            null,
+                            updateAssigneeTime3,
+                        ),
+                        title: TaskTitleModel.new(emptyTaskTitle.get()),
+                        dueDate: new TaskDueDateRegister(null, task.createdTime),
+                        priority: new TaskPriorityRegister(null, task.createdTime),
+                    }),
+                },
+            ],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            referencedAccounts: await runAllPromises([creatorSession.get(), closerSession.get()]),
+        },
+    });
+
+    expect(
+        await testLoadTaskRealtimeQueries(context.anonymousAction(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection.id]),
+                            },
+                        },
+                        {
+                            type: "DisplayStatus",
+                            operation: {
+                                type: "OneOf",
+                                displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                {
+                    type: "Authorized",
+                    task: new TaskModel({
+                        id: task.id,
+                        spaceId: space.id,
+                        creator: {
+                            accountId: unknownAccountId,
+                            workingAccountName: "Unknown",
+                            workingAccountNameVersion: 0,
+                        },
+                        createdTime: new TaskFilterableTime({
+                            absoluteTime: task.createdTime,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                        deletedTime: null,
+                        undeletedTime: null,
+                        parent: {
+                            taskId: new TaskParentTaskIdRegister(null, task.createdTime),
+                            position: new TaskPositionRegister(
+                                {orderTime: task.createdTime, orderKey: initialOrderKey},
+                                task.createdTime,
+                            ),
+                        },
+                        addedChildTaskCount: 0,
+                        removedChildTaskCount: 0,
+                        addedClosedChildTaskCount: 0,
+                        removedClosedChildTaskCount: 0,
+                        collections: TaskCollectionSet.empty.apply({
+                            type: "Set",
+                            key: collection.id,
+                            value: initialOrderKey,
+                            version: addCollectionTime,
+                        }),
+                        positionByCollectionId: TaskPositionByCollectionIdMap.empty,
+                        positionByAccountIdAndNotepadPageId:
+                            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
+                        status: new TaskStatusWithSortableAccountRegister(
+                            {
+                                type: "Closed",
+                                closer: {
+                                    accountId: unknownAccountId,
+                                    workingAccountName: "Unknown",
+                                    workingAccountNameVersion: 0,
+                                },
+                                closedTime: new TaskFilterableTime({
+                                    absoluteTime: updateStatusTime,
+                                    setterTimeZone: defaultTimeZone,
+                                }),
+                            },
+                            updateStatusTime,
+                        ),
+                        assignee: new TaskAssigneeWithSortableAccountRegister(
+                            null,
+                            updateAssigneeTime3,
+                        ),
+                        assigneeStatus: new TaskAssigneeStatusRegister(
+                            {type: "Inactive"},
+                            updateAssigneeTime3,
+                        ),
+                        assigneeActivePosition: new TaskAssigneeActivePositionRegister(
+                            null,
+                            updateAssigneeTime3,
+                        ),
+                        title: TaskTitleModel.new(emptyTaskTitle.get()),
+                        dueDate: new TaskDueDateRegister(null, task.createdTime),
+                        priority: new TaskPriorityRegister(null, task.createdTime),
+                    }),
+                },
+            ],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            referencedAccounts: [],
+        },
+    });
+
+    expect(
+        await testLoadTaskRealtimeQueries(otherSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Collections",
+                            operation: {
+                                type: "IncludesAllOf",
+                                collectionIds: new Set([collection.id]),
+                            },
+                        },
+                        {
+                            type: "DisplayStatus",
+                            operation: {
+                                type: "OneOf",
+                                displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                            },
+                        },
+                    ],
+                },
+            ],
+        }),
+    ).toEqual({
+        loadedStates: [{type: "Full"}],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                {
+                    type: "Authorized",
+                    task: new TaskModel({
+                        id: task.id,
+                        spaceId: space.id,
+                        creator: {
+                            accountId: unknownAccountId,
+                            workingAccountName: "Unknown",
+                            workingAccountNameVersion: 0,
+                        },
+                        createdTime: new TaskFilterableTime({
+                            absoluteTime: task.createdTime,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                        deletedTime: null,
+                        undeletedTime: null,
+                        parent: {
+                            taskId: new TaskParentTaskIdRegister(null, task.createdTime),
+                            position: new TaskPositionRegister(
+                                {orderTime: task.createdTime, orderKey: initialOrderKey},
+                                task.createdTime,
+                            ),
+                        },
+                        addedChildTaskCount: 0,
+                        removedChildTaskCount: 0,
+                        addedClosedChildTaskCount: 0,
+                        removedClosedChildTaskCount: 0,
+                        collections: TaskCollectionSet.empty.apply({
+                            type: "Set",
+                            key: collection.id,
+                            value: initialOrderKey,
+                            version: addCollectionTime,
+                        }),
+                        positionByCollectionId: TaskPositionByCollectionIdMap.empty,
+                        positionByAccountIdAndNotepadPageId:
+                            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
+                        status: new TaskStatusWithSortableAccountRegister(
+                            {
+                                type: "Closed",
+                                closer: {
+                                    accountId: unknownAccountId,
+                                    workingAccountName: "Unknown",
+                                    workingAccountNameVersion: 0,
+                                },
+                                closedTime: new TaskFilterableTime({
+                                    absoluteTime: updateStatusTime,
+                                    setterTimeZone: defaultTimeZone,
+                                }),
+                            },
+                            updateStatusTime,
+                        ),
+                        assignee: new TaskAssigneeWithSortableAccountRegister(
+                            null,
+                            updateAssigneeTime3,
+                        ),
+                        assigneeStatus: new TaskAssigneeStatusRegister(
+                            {type: "Inactive"},
+                            updateAssigneeTime3,
+                        ),
+                        assigneeActivePosition: new TaskAssigneeActivePositionRegister(
+                            null,
+                            updateAssigneeTime3,
+                        ),
+                        title: TaskTitleModel.new(emptyTaskTitle.get()),
+                        dueDate: new TaskDueDateRegister(null, task.createdTime),
+                        priority: new TaskPriorityRegister(null, task.createdTime),
+                    }),
+                },
+            ],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            referencedAccounts: [],
         },
     });
 });

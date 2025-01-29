@@ -1,6 +1,8 @@
+import {TaskAuthorizationActor} from "~/server/tasks/data/task_table.js";
+import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
 /**
@@ -13,35 +15,99 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
  * If this function returns null then we shouldn't send the action to the
  * client.
  */
-export function prepareTaskActionForClient(
-    accountId: AccountId,
+export async function prepareTaskActionForClient(
     action: TaskAction,
-): TaskAction | null {
+    {
+        actor,
+        isSpaceAccessAuthorized,
+        isCollectionAccessAuthorized,
+    }: {
+        actor: TaskAuthorizationActor;
+        isSpaceAccessAuthorized: boolean;
+        isCollectionAccessAuthorized: (collectionId: TaskCollectionId) => Promise<boolean>;
+    },
+): Promise<TaskAction | null> {
     switch (action.type) {
         case "UpdateTask": {
             switch (action.taskAction.type) {
-                case "Create":
                 case "Delete":
                 case "Undelete":
                 case "UpdateParentTaskId":
                 case "UpdateParentPosition":
                 case "UpdateChildrenCounts":
-                case "AddCollection":
-                case "RemoveCollection":
-                case "UpdateCollectionPosition":
-                case "UpdateStatus":
-                case "UpdateAssignee":
                 case "UpdateTitle":
                 case "UpdateDueDate":
                 case "UpdatePriority":
                 case "UpdateAssigneeStatus":
                     return action;
+                case "Create": {
+                    if (!isSpaceAccessAuthorized) {
+                        return {
+                            ...action,
+                            taskAction: {
+                                ...action.taskAction,
+                                creatorId: unknownAccountId,
+                            },
+                        };
+                    }
+                    return action;
+                }
+                case "UpdateStatus": {
+                    if (!isSpaceAccessAuthorized && action.taskAction.status.type === "Closed") {
+                        return {
+                            ...action,
+                            taskAction: {
+                                ...action.taskAction,
+                                status: {
+                                    type: "Closed",
+                                    closerId: unknownAccountId,
+                                    closedTime: action.taskAction.status.closedTime,
+                                },
+                            },
+                        };
+                    }
+                    return action;
+                }
+                case "UpdateAssignee": {
+                    if (!isSpaceAccessAuthorized && action.taskAction.assignee) {
+                        return {
+                            ...action,
+                            taskAction: {
+                                ...action.taskAction,
+                                assignee: {
+                                    assigneeId: action.taskAction.assignee.assigneeId,
+                                    assignerId: unknownAccountId,
+                                    assignedTime: action.taskAction.assignee.assignedTime,
+                                },
+                            },
+                        };
+                    }
+                    return action;
+                }
+                case "AddCollection":
+                case "RemoveCollection":
+                case "UpdateCollectionPosition": {
+                    if (!(await isCollectionAccessAuthorized(action.taskAction.collectionId))) {
+                        return null;
+                    }
+                    return action;
+                }
                 case "UpdateNotepadPagePosition": {
-                    if (action.taskAction.accountId !== accountId) return null;
+                    if (
+                        actor.type !== "Session" ||
+                        action.taskAction.accountId !== actor.getAccountId()
+                    ) {
+                        return null;
+                    }
                     return action;
                 }
                 case "UpdateAssigneeActivePosition": {
-                    if (action.taskAction.accountId !== accountId) return null;
+                    if (
+                        actor.type !== "Session" ||
+                        action.taskAction.accountId !== actor.getAccountId()
+                    ) {
+                        return null;
+                    }
                     return action;
                 }
                 default:
@@ -62,7 +128,9 @@ export function prepareTaskActionForClient(
             }
         }
         case "UpdateNotepadPage": {
-            if (action.accountId !== accountId) return null;
+            if (actor.type !== "Session" || action.accountId !== actor.getAccountId()) {
+                return null;
+            }
 
             cast<"Create">(action.notepadPageAction.type);
             return action;

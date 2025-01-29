@@ -13482,7 +13482,7 @@ test("can't remove task from a deleted public collection", async () => {
     await task.removeCollection(session, collection);
 });
 
-test.only("can't update collection name in a deleted public collection", async () => {
+test("can't update collection name in a deleted public collection", async () => {
     const space = await TestSpace.create(context);
 
     const [session1, session2] = await runAllPromises([
@@ -13561,7 +13561,7 @@ test("authorizes a query with creator filter", async () => {
     });
 });
 
-test.only("can't authorize a query with creator filter if account access was removed", async () => {
+test("can't authorize a query with creator filter if account access was removed", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({hasInternalAccess: true});
     const session = await space.createSession();
@@ -13783,7 +13783,7 @@ test("authorizes a query with assignee filter", async () => {
     });
 });
 
-test.only("can't authorize a query with assignee filter if account access was removed", async () => {
+test("can't authorize a query with assignee filter if account access was removed", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({hasInternalAccess: true});
     const session = await space.createSession();
@@ -14075,7 +14075,7 @@ test("can authorize a query with a collection you have access to", async () => {
     });
 });
 
-test.only("can't authorize a query with a collection in a different space", async () => {
+test("can't authorize a query with a collection in a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -14570,7 +14570,7 @@ test("can authorize a query with a parent filter for a task you have access to",
     });
 });
 
-test.only("can't authorize a query with a parent filter in a different space", async () => {
+test("can't authorize a query with a parent filter in a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -14811,7 +14811,7 @@ test("must be allowed to access collection to sort by collection position", asyn
     );
 });
 
-test.only("collection must be in the right space to sort by collection position", async () => {
+test("collection must be in the right space to sort by collection position", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -20850,7 +20850,7 @@ test("authorizing task access after getting task as system actor is cached", asy
     }
 });
 
-test.only("can authorize task collections in various states as various actors", async () => {
+test("can authorize task collections in various states as various actors", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
@@ -21385,7 +21385,7 @@ test.only("can authorize task collections in various states as various actors", 
     ).rejects.toThrow("System actor doesn't have access to task collection's space");
 });
 
-test.only("can authorize tasks in various states as various actors", async () => {
+test("can authorize tasks in various states as various actors", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
@@ -21837,7 +21837,7 @@ test.only("can authorize tasks in various states as various actors", async () =>
     ).rejects.toThrow("System actor doesn't have access to task's space");
 });
 
-test.only("account has access to tasks they create and tasks they're assigned until they're removed from the space", async () => {
+test("account has access to tasks they create and tasks they're assigned until they're removed from the space", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({hasInternalAccess: true});
     const [session1, session2] = await space.createSessions(2);

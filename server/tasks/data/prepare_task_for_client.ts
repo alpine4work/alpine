@@ -1,13 +1,33 @@
 import {TaskIndexDocBase} from "~/server/tasks/data/task_index_doc.js";
 import {TaskAuthorizationActor} from "~/server/tasks/data/task_table.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {maxHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
+import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
+import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
+import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
+import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
+import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
+
+const unknownTaskSortableAccount = new Lazy((): TaskSortableAccount => {
+    const unknownAccount = AccountModel.getUnknown();
+
+    return {
+        accountId: unknownAccount.id,
+        workingAccountName: unknownAccount.initialData.name,
+        workingAccountNameVersion: unknownAccount.initialData.nameVersion,
+    };
+});
 
 /**
  * Prepares an authorized task for the client. We assume the task is authorized
@@ -21,20 +41,48 @@ import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_po
  * data from the task as a safety precaution. This may not be what you want if
  * you're using a system context.
  */
-export function prepareTaskForClient(
-    actor: TaskAuthorizationActor,
+export async function prepareTaskForClient(
     task: TaskIndexDocBase & {id: TaskId},
-): TaskModel {
+    {
+        actor,
+        isSpaceAccessAuthorized,
+        isCollectionAccessAuthorized,
+    }: {
+        actor: TaskAuthorizationActor;
+        isSpaceAccessAuthorized: boolean;
+        isCollectionAccessAuthorized: (collectionId: TaskCollectionId) => Promise<boolean>;
+    },
+): Promise<TaskModel> {
+    // Filter out any collections our client doesn't currently have access to. When
+    // the authorization state of a task collection changes we'll backfill all
+    // tasks that include the newly authorized collection. The client will merge in
+    // these changes and now see the newly authorized collection in its various
+    // tasks.
+    //
+    // If a collection was authorized and becomes unauthorized then we don't
+    // actually remove the collections from the client's `TaskCollectionSet` CRDTs.
+    // If the client used to know that a task was part of a collection then it's
+    // not a security threat to leave evidence of this.
+    const filteredCollections = TaskCollectionSet.from(
+        filterMapIterable(
+            await runAllPromises(
+                mapIterable(task.collections.raw.collections.actualEntries(), entry =>
+                    isCollectionAccessAuthorized(entry[0]).then(isAuthorized =>
+                        isAuthorized ? entry : undefined,
+                    ),
+                ),
+            ),
+            entry => entry,
+        ),
+    );
+
     return new TaskModel({
         id: task.id,
         spaceId: task.spaceId,
 
-        // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-        // eslint-disable-next-line no-commit-blockers
-        // NOCOMMIT: Task creator account name is included in `TaskModel` for anonymous
-        // user? Should we strip it or allow creator filtering/sorting? Same for
-        // assigner and closer.
-        creator: task.creator,
+        // Hide the task creator for accounts that don't have space authorization.
+        // It won't be visible to users without space access.
+        creator: isSpaceAccessAuthorized ? task.creator : unknownTaskSortableAccount.get(),
         createdTime: task.createdTime,
         deletedTime: task.rawDeletedTime,
         undeletedTime: task.rawUndeletedTime,
@@ -53,6 +101,10 @@ export function prepareTaskForClient(
         // The exploits you can perform with this information aren't that bad and it
         // would be a real pain to hide this information in realtime so we leave it
         // as is for now.
+        //
+        // NOTE(calebmer, 2025-01-29): To fix this we could follow a similar path to
+        // collections. By emitting an `UpdateParentTask` action if a collection policy
+        // attached to an unauthorized parent task makes the task authorized.
         parent: {
             taskId: task.parent.taskId,
             position: task.parent.rawPosition,
@@ -62,23 +114,12 @@ export function prepareTaskForClient(
         addedClosedChildTaskCount: task.addedClosedChildTaskCount,
         removedClosedChildTaskCount: task.removedClosedChildTaskCount,
 
-        // NOTE(calebmer, #security): If a task has a collection that we're not
-        // authorized to view, we still send the `TaskCollectionId` of the collection
-        // and the `TaskPosition` in the collection. An attacker with technical
-        // sophistication could use this to determine which tasks they *can* view are
-        // in a secret collection.
-        //
-        // Example exploit: A team's manager might have a private "evidence for firing"
-        // collection for an employee. You could observe that multiple tasks in a
-        // shared team collection have this private `TaskCollectionId` and they're all
-        // tasks of a certain employee and you might be able to guess what the
-        // collection is for.
-        //
-        // The exploits you can perform with this information aren't that bad and it
-        // would be a real pain to hide this information in realtime so we leave it
-        // as is for now.
-        collections: task.collections.raw.collections,
-        positionByCollectionId: task.collections.raw.positionById,
+        collections: filteredCollections,
+        positionByCollectionId: TaskPositionByCollectionIdMap.from(
+            filterIterable(task.collections.raw.positionById.actualEntries(), ([collectionId]) =>
+                filteredCollections.has(collectionId),
+            ),
+        ),
 
         // Account is only allowed to see the positions of tasks in their own notepad
         // pages. The session account never changes so this doesn't need to respond in
@@ -99,8 +140,34 @@ export function prepareTaskForClient(
             TaskPositionByAccountIdAndNotepadPageIdMap.empty,
         ),
 
-        status: task.status,
-        assignee: task.assignee,
+        status: isSpaceAccessAuthorized
+            ? task.status
+            : new TaskStatusWithSortableAccountRegister(
+                  task.status.value.type === "Closed"
+                      ? {
+                            type: "Closed",
+                            // Hide the task closer for accounts that don't have space authorization.
+                            // It won't be visible to users without space access.
+                            closer: unknownTaskSortableAccount.get(),
+                            closedTime: task.status.value.closedTime,
+                        }
+                      : task.status.value,
+                  task.status.version,
+              ),
+        assignee: isSpaceAccessAuthorized
+            ? task.assignee
+            : new TaskAssigneeWithSortableAccountRegister(
+                  task.assignee.value
+                      ? {
+                            assignedTime: task.assignee.value.assignedTime,
+                            assignee: task.assignee.value.assignee,
+                            // Hide the task assigner for accounts that don't have space authorization.
+                            // It won't be visible to users without space access.
+                            assigner: unknownTaskSortableAccount.get(),
+                        }
+                      : null,
+                  task.assignee.version,
+              ),
         assigneeStatus: task.rawAssigneeStatus,
         // You are not allowed to see the active task position for other accounts. So
         // replace with a register you'd get on position reset from status, assignee,

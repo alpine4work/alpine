@@ -39,6 +39,7 @@ import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskStatus} from "~/shared/tasks/task_status.js";
 import {
@@ -291,6 +292,8 @@ export class TestTask extends TestCommentRoomBase {
                 },
             },
         ]);
+
+        return {time};
     }
 
     public async updateAssignee(
@@ -321,6 +324,8 @@ export class TestTask extends TestCommentRoomBase {
                 },
             },
         ]);
+
+        return {time};
     }
 
     public async updatePriority(
@@ -358,6 +363,30 @@ export class TestTask extends TestCommentRoomBase {
                 },
             },
         ]);
+
+        return {time};
+    }
+
+    public async updateCollectionPosition(
+        session: TestSpaceSession,
+        collection: TestTaskCollection,
+        position: TaskPosition,
+        {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
+    ) {
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateTask",
+                time,
+                taskId: this.id,
+                taskAction: {
+                    type: "UpdateCollectionPosition",
+                    collectionId: collection.id,
+                    position,
+                },
+            },
+        ]);
+
+        return {time};
     }
 
     public async removeCollection(session: TestSpaceSession, collection: TestTaskCollection) {

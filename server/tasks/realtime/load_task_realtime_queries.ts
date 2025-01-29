@@ -1,6 +1,7 @@
 import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {
+    authorizeSpaceAccessIfPossible,
     dangerouslyGetAccountStubIfExistsWithoutAuthorization,
     getAccount,
 } from "~/server/spaces/spaces_table.js";
@@ -39,7 +40,6 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
 import {
     TaskRealtimeQueryLoadedState,
     TaskRealtimeUpdateEvent,
-    TaskRealtimeUpdateEventBackfillCollection,
     TaskRealtimeUpdateEventBackfillTask,
 } from "~/shared/tasks/task_realtime_protocol.js";
 
@@ -114,6 +114,7 @@ export async function loadTaskRealtimeQueries(
     const backfillAuthorizedTaskSet = new Set<TaskIndexDoc>();
     const backfillUnauthorizedTaskIds = new Set<TaskId>();
     const backfillAuthorizedCollectionSet = new Set<TaskCollectionIndexDoc>();
+    const backfillAuthorizedCollectionIds = new Set<TaskCollectionId>();
     const backfillUnauthorizedCollectionIds = new Set<TaskCollectionId>();
 
     const promiseWaiter = new PromiseWaiter();
@@ -178,6 +179,7 @@ export async function loadTaskRealtimeQueries(
                     // finalization phase.
                 } else {
                     backfillAuthorizedCollectionSet.add(collection);
+                    backfillAuthorizedCollectionIds.add(collection.id);
                     backfillUnauthorizedCollectionIds.delete(collection.id);
                 }
             })();
@@ -335,6 +337,7 @@ export async function loadTaskRealtimeQueries(
                             );
 
                             backfillAuthorizedCollectionSet.add(collection);
+                            backfillAuthorizedCollectionIds.add(collection.id);
                             backfillUnauthorizedCollectionIds.delete(collection.id);
                         })();
 
@@ -359,21 +362,30 @@ export async function loadTaskRealtimeQueries(
 
     const referencedAccountIds = new Set<AccountId>();
 
+    const prepareContext = {
+        actor,
+        isSpaceAccessAuthorized: (await authorizeSpaceAccessIfPossible(originalContext, spaceId))
+            .ok,
+        isCollectionAccessAuthorized: async (collectionId: TaskCollectionId) =>
+            backfillAuthorizedCollectionIds.has(collectionId),
+    };
+
+    const backfillAuthorizedTasks = await runAllPromises(
+        mapIterable(backfillAuthorizedTaskSet, async task => {
+            const taskModel = await prepareTaskForClient(task, prepareContext);
+
+            collectReferencedAccountIdsFromTaskModelData(referencedAccountIds, taskModel.rawData);
+
+            return {
+                type: "Authorized" as const,
+                task: taskModel,
+            };
+        }),
+    );
+
     const backfillTasks = Array.from(
         concatIterables<TaskRealtimeUpdateEventBackfillTask>(
-            mapIterable(backfillAuthorizedTaskSet, task => {
-                const taskModel = prepareTaskForClient(actor, task);
-
-                collectReferencedAccountIdsFromTaskModelData(
-                    referencedAccountIds,
-                    taskModel.rawData,
-                );
-
-                return {
-                    type: "Authorized",
-                    task: taskModel,
-                };
-            }),
+            backfillAuthorizedTasks,
             mapIterable(backfillUnauthorizedTaskIds, taskId => ({
                 type: "Unauthorized",
                 taskId,
@@ -383,7 +395,7 @@ export async function loadTaskRealtimeQueries(
 
     const referencedAccounts = await runAllPromises(
         mapIterable(referencedAccountIds, accountId =>
-            context.actor.type !== "Anonymous"
+            prepareContext.isSpaceAccessAuthorized
                 ? getAccount(context, spaceId, accountId)
                 : // Granting link access to a task collection means the user is implicitly
                   // granting access to the names of all referenced accounts.
@@ -402,19 +414,38 @@ export async function loadTaskRealtimeQueries(
             type: "Update",
             actions: [],
             backfillTasks,
-            backfillCollections: Array.from(
-                concatIterables<TaskRealtimeUpdateEventBackfillCollection>(
-                    mapIterable(backfillAuthorizedCollectionSet, collection => ({
-                        type: "Authorized",
-                        collection: prepareTaskCollectionForClient(collection),
-                    })),
-                    mapIterable(backfillUnauthorizedCollectionIds, collectionId => ({
-                        type: "Unauthorized",
-                        collectionId,
-                    })),
-                ),
-            ),
-            defaultAuthorizationStateVersion: defaultAuthorizationStateVersion,
+            // TODO(calebmer, #task-correctness): There's a correctness bug here. We don't
+            // return unauthorized collections in `backfillCollections`. This is because we
+            // filter out any unauthorized collection references in
+            // `prepareTaskForClient()`. But if the client received the collection in a
+            // previous request, went offline, the collection becomes authorized, then the
+            // client reconnects the client will permanently think the collection is
+            // authorized since `TaskRealtimeService` won't send an update telling the
+            // client the collection is now unauthorized. If we always sent the
+            // unauthorized backfill message that would fix our correctness bug but
+            // introduce a security bug!
+            //
+            // The security bug is an attacker could determine, by loading a query with one
+            // task at a time, the unauthorized `TaskCollectionId`s referenced by a task.
+            // This information could be used maliciously be an attacker (e.g. an attacker
+            // might be able to intuit a manager is collecting evidence for firing someone
+            // in a private collection based on seeing the `TaskCollectionId` on certain
+            // tasks). Right now we're trading a correctness bug for a security bug. In the
+            // future, we should find a way to fix the correctness bug without opening a
+            // security hole.
+            //
+            // My current idea to fix this is when the client starts a realtime connection
+            // for it to send a procedure in the background with all visible
+            // `TaskCollectionId`s and then the server will respond with which are
+            // authorized/unauthorized. This fixes the correctness issue without
+            // introducing a security flaw. The client already knows the
+            // `TaskCollectionId`s so we're not sharing any new information with the
+            // client.
+            backfillCollections: Array.from(backfillAuthorizedCollectionSet, collection => ({
+                type: "Authorized",
+                collection: prepareTaskCollectionForClient(collection),
+            })),
+            defaultAuthorizationStateVersion,
             referencedAccounts: referencedAccounts.filter(isNonNullable),
             originClientId: null,
         },
