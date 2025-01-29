@@ -121,11 +121,7 @@ export function updateContentTableColumnsOnResize(
         contentStyles.tableColumnMinWidthRem * remPxBySpacingScale[spacingScale];
     const columnMaxWidthPx = contentStyles.tableColumnMaxWidthPx[spacingScale];
 
-    // The width added to our table for borders. 1px on the left/right added by CSS
-    // `padding` and 1px between each column added by CSS `gap`.
-    const borderWidthPx = 2 + columnWidths.length - 1;
-
-    const tableMinWidthPx = columnMinWidthPx * columnWidths.length + borderWidthPx;
+    const totalColumnMinWidthPx = columnMinWidthPx * columnWidths.length;
 
     const {devicePixelRatio} = window;
     const columnMaxWidthPxRoundedToDevicePx = roundToDevicePx(devicePixelRatio, columnMaxWidthPx);
@@ -142,7 +138,7 @@ export function updateContentTableColumnsOnResize(
     // smaller max table width.
     //
     // Is there a non-iterative solution where we can figure out
-    // `totalColumnMaxWidthPx` in one attempt? Maybe. I haven't thought too deeply.
+    // `tableMaxWidthPx` in one attempt? Maybe. I haven't thought too deeply.
     // The iterative solution works in 1-2 iterations when `tableWidth` is well
     // formed and ~5 iterations in the edge case we're trying to fix where
     // `tableWidth` is too large.
@@ -155,20 +151,20 @@ export function updateContentTableColumnsOnResize(
     // update path so we need to be resilient in the face of non-ideal states
     // in our data structure.
     let totalColumnMaxWidthPx: number;
+    let resolvedColumnMaxWidthPxsRoundedToDevicePx: Array<number>;
     {
         totalColumnMaxWidthPx = roundToDevicePx(
             devicePixelRatio,
             contentStyles.blockMaxWidthRem[platform] *
                 remPxBySpacingScale[spacingScale] *
-                tableWidth -
-                borderWidthPx,
+                tableWidth,
         );
 
         let hasNextPass = true;
         while (hasNextPass) {
             hasNextPass = false;
 
-            const resolvedColumnMaxWidthPxs = resolveContentTableColumnWidthPx(
+            resolvedColumnMaxWidthPxsRoundedToDevicePx = resolveContentTableColumnWidthPx(
                 totalColumnWidth,
                 columnWidths,
                 totalColumnMaxWidthPx,
@@ -177,19 +173,24 @@ export function updateContentTableColumnsOnResize(
 
             const previousTotalColumnMaxWidthPx = totalColumnMaxWidthPx;
             totalColumnMaxWidthPx = 0;
-            for (const resolvedColumnMaxWidthPx of resolvedColumnMaxWidthPxs) {
-                // `resolvedColumnMaxWidthPx` may never exactly reach `columnMaxWidthPx` due to
-                // floating point math. If it never reaches `columnMaxWidthPx` then we'll end
-                // up looping forever. So instead wait until `resolvedColumnMaxWidthPx` will
-                // round down to `columnMaxWidthPx` in device pixels.
-                if (
-                    roundToDevicePx(devicePixelRatio, resolvedColumnMaxWidthPx) >
-                    columnMaxWidthPxRoundedToDevicePx
-                ) {
+            for (let i = 0; i < resolvedColumnMaxWidthPxsRoundedToDevicePx.length; i++) {
+                const resolvedColumnMaxWidthPxRoundedToDevicePx = roundToDevicePx(
+                    devicePixelRatio,
+                    resolvedColumnMaxWidthPxsRoundedToDevicePx[i]!,
+                );
+                resolvedColumnMaxWidthPxsRoundedToDevicePx[i] =
+                    resolvedColumnMaxWidthPxRoundedToDevicePx;
+
+                // `resolvedColumnMaxWidthPxRoundedToDevicePx` may never exactly reach
+                // `columnMaxWidthPx` due to floating point math. If it never reaches
+                // `columnMaxWidthPx` then we'll end up looping forever. So instead wait until
+                // `resolvedColumnMaxWidthPxRoundedToDevicePx` will round down to
+                // `columnMaxWidthPx` in device pixels.
+                if (resolvedColumnMaxWidthPxRoundedToDevicePx > columnMaxWidthPxRoundedToDevicePx) {
                     hasNextPass = true;
                     totalColumnMaxWidthPx += columnMaxWidthPx;
                 } else {
-                    totalColumnMaxWidthPx += resolvedColumnMaxWidthPx;
+                    totalColumnMaxWidthPx += resolvedColumnMaxWidthPxRoundedToDevicePx;
                 }
             }
 
@@ -214,8 +215,6 @@ export function updateContentTableColumnsOnResize(
         }
     }
 
-    const tableMaxWidthPx = totalColumnMaxWidthPx + borderWidthPx;
-
     const tableInnerPaddingXDoubledPx =
         convertRemLengthToPx(contentStyles.tableInnerPaddingX, spacingScale) * 2;
 
@@ -229,7 +228,9 @@ export function updateContentTableColumnsOnResize(
         (1 - tableWidth)
     )}px, 1px)`;
 
-    tableWrapper3Element.style.minWidth = `${tableInnerPaddingXDoubledPx + tableMinWidthPx}px`;
+    tableWrapper3Element.style.minWidth = `${
+        tableInnerPaddingXDoubledPx + totalColumnMinWidthPx
+    }px`;
 
     tableWrapper3Element.style.maxWidth = `${
         tableInnerPaddingXDoubledPx +
@@ -239,13 +240,28 @@ export function updateContentTableColumnsOnResize(
                 contentStyles.blockMaxWidthRem[platform] *
                     tableWidth *
                     remPxBySpacingScale[spacingScale],
-                tableMaxWidthPx,
+                totalColumnMaxWidthPx,
             ),
         )
     }px`;
 
-    tableElement.style.gridTemplateColumns = columnWidths
-        .map(columnWidth => `minmax(${columnMinWidthPx}px, ${columnWidth}fr)`)
+    // Instead of setting the column fr units to `columnWidths`, we set the column
+    // fr units to the resolved column max width rounded to device pixels. When the
+    // table is at the block max width (e.g. on desktop but not mobile) the fr
+    // value should exactly equal the column px values. By using fr units the
+    // columns will still shrink on mobile.
+    //
+    // Using `columnWidths` would be more correct in theory, but we ran into
+    // strange browser behavior in practice. See [this StackOverflow issue][1]. We
+    // were able to workaround the issue by giving the browser clean, rounded,
+    // values instead of floats requiring 17 places of precision.
+    //
+    // [1]: https://stackoverflow.com/questions/79397471/css-grid-incorrectly-constrains-column-width-when-min-width-css-is-present
+    tableElement.style.gridTemplateColumns = resolvedColumnMaxWidthPxsRoundedToDevicePx!
+        .map(
+            resolvedColumnMaxWidthPxRoundedToDevicePx =>
+                `minmax(${columnMinWidthPx}px, ${resolvedColumnMaxWidthPxRoundedToDevicePx}fr)`,
+        )
         .join(" ");
 
     // While resizing we may need to make sure scroll is locked to the left/right

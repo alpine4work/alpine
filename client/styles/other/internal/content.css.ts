@@ -2083,8 +2083,6 @@ globalStyle(`${tableWrapperClassName} table`, {
     width: "100%",
     borderCollapse: "collapse",
     tableLayout: "fixed",
-    padding: 1,
-    gap: 1,
     backgroundColor: colorSchemeVars["grey-10"],
 });
 
@@ -2121,6 +2119,15 @@ globalStyle(`${tableWrapperClassName} td`, {
     maxWidth: tableColumnMaxWidthPx.small,
     padding: `${paragraphMargin} ${spacing["3"]}`,
     backgroundColor: backgroundColorVar,
+    boxShadow: `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, 1px 0 0 0 ${colorSchemeVars["grey-10"]}`,
+});
+
+globalStyle(`${tableWrapperClassName} td:last-child`, {
+    // Minor detail: We want the right border on the last column to be inset within
+    // the cell instead of outside the cell. That way border-to-border the table
+    // width will be exactly equal to the block width at small table sizes down to
+    // the pixel.
+    boxShadow: `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, inset -1px 0 0 0 ${colorSchemeVars["grey-10"]}`,
 });
 
 globalStyle(`${mediumSpacingScaleSelector} ${tableWrapperClassName} td`, {
@@ -2152,8 +2159,8 @@ const tableColumnResizeHandleIndicatorWidth = spacing["1"];
 export const tableColumnResizeHandleClassName = style({
     position: "absolute",
     zIndex: "10",
-    right: `calc(-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem - 1px)`,
-    top: -1,
+    right: `calc(-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem - 0.5px)`,
+    top: 0,
     bottom: -1,
     width: tableColumnResizeHandleWidth,
     pointerEvents: "auto",
@@ -2177,7 +2184,17 @@ export const tableLeftEdgeColumnResizeHandleClassName = style({
         // handle block.
         [`${tableColumnResizeHandleClassName}&`]: {
             right: "initial",
-            left: `calc(-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem - 1px)`,
+            left: `calc(-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem + 0.5px)`,
+        },
+    },
+});
+
+export const tableRightEdgeColumnResizeHandleClassName = style({
+    selectors: {
+        // Increase precedence so the styles within override the ones in our resize
+        // handle block.
+        [`${tableColumnResizeHandleClassName}&`]: {
+            right: `calc(-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem + 0.5px)`,
         },
     },
 });
