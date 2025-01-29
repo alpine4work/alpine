@@ -121,11 +121,7 @@ export function updateContentTableColumnsOnResize(
         contentStyles.tableColumnMinWidthRem * remPxBySpacingScale[spacingScale];
     const columnMaxWidthPx = contentStyles.tableColumnMaxWidthPx[spacingScale];
 
-    // The width added to our table for borders. 1px on the left/right added by CSS
-    // `padding` and 1px between each column added by CSS `gap`.
-    const borderWidthPx = 2 + columnWidths.length - 1;
-
-    const tableMinWidthPx = columnMinWidthPx * columnWidths.length + borderWidthPx;
+    const totalColumnMinWidthPx = columnMinWidthPx * columnWidths.length;
 
     const {devicePixelRatio} = window;
     const columnMaxWidthPxRoundedToDevicePx = roundToDevicePx(devicePixelRatio, columnMaxWidthPx);
@@ -142,7 +138,7 @@ export function updateContentTableColumnsOnResize(
     // smaller max table width.
     //
     // Is there a non-iterative solution where we can figure out
-    // `totalColumnMaxWidthPx` in one attempt? Maybe. I haven't thought too deeply.
+    // `tableMaxWidthPx` in one attempt? Maybe. I haven't thought too deeply.
     // The iterative solution works in 1-2 iterations when `tableWidth` is well
     // formed and ~5 iterations in the edge case we're trying to fix where
     // `tableWidth` is too large.
@@ -160,8 +156,7 @@ export function updateContentTableColumnsOnResize(
             devicePixelRatio,
             contentStyles.blockMaxWidthRem[platform] *
                 remPxBySpacingScale[spacingScale] *
-                tableWidth -
-                borderWidthPx,
+                tableWidth,
         );
 
         let hasNextPass = true;
@@ -214,8 +209,6 @@ export function updateContentTableColumnsOnResize(
         }
     }
 
-    const tableMaxWidthPx = totalColumnMaxWidthPx + borderWidthPx;
-
     const tableInnerPaddingXDoubledPx =
         convertRemLengthToPx(contentStyles.tableInnerPaddingX, spacingScale) * 2;
 
@@ -229,7 +222,9 @@ export function updateContentTableColumnsOnResize(
         (1 - tableWidth)
     )}px, 1px)`;
 
-    tableWrapper3Element.style.minWidth = `${tableInnerPaddingXDoubledPx + tableMinWidthPx}px`;
+    tableWrapper3Element.style.minWidth = `${
+        tableInnerPaddingXDoubledPx + totalColumnMinWidthPx
+    }px`;
 
     tableWrapper3Element.style.maxWidth = `${
         tableInnerPaddingXDoubledPx +
@@ -239,7 +234,7 @@ export function updateContentTableColumnsOnResize(
                 contentStyles.blockMaxWidthRem[platform] *
                     tableWidth *
                     remPxBySpacingScale[spacingScale],
-                tableMaxWidthPx,
+                totalColumnMaxWidthPx,
             ),
         )
     }px`;
