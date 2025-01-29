@@ -656,9 +656,6 @@ async function getDocumentSearchEntity(
 
     return {
         id: `Document:${documentId}`,
-        // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-        // eslint-disable-next-line no-commit-blockers
-        // NOCOMMIT: Test!!
         accessPolicy: getSearchEntityIndexAccessPolicy(content.attrs.accessPolicy),
         createdTime,
         title,
