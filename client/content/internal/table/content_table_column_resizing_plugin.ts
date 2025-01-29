@@ -114,7 +114,7 @@ type ContentTableColumnResizeAction =
           readonly dragging: {
               readonly startX: number;
               readonly viewWidthPx: number;
-              readonly oldTotalColumnWidthPx: number;
+              readonly oldTableWidthPx: number;
               readonly state: ContentTableColumnResizeDraggingState;
           } | null;
       };
@@ -177,7 +177,7 @@ class ContentTableColumnResizeState {
     public readonly dragging: {
         readonly startX: number;
         readonly viewWidthPx: number;
-        readonly oldTotalColumnWidthPx: number;
+        readonly oldTableWidthPx: number;
         readonly state: ContentTableColumnResizeDraggingState;
     } | null;
 
@@ -186,7 +186,7 @@ class ContentTableColumnResizeState {
         dragging: {
             readonly startX: number;
             readonly viewWidthPx: number;
-            readonly oldTotalColumnWidthPx: number;
+            readonly oldTableWidthPx: number;
             readonly state: ContentTableColumnResizeDraggingState;
         } | null,
     ) {
@@ -215,7 +215,7 @@ class ContentTableColumnResizeState {
                 state = new ContentTableColumnResizeState(state.activeHandle, {
                     startX: state.dragging.startX,
                     viewWidthPx: state.dragging.viewWidthPx,
-                    oldTotalColumnWidthPx: state.dragging.oldTotalColumnWidthPx,
+                    oldTableWidthPx: state.dragging.oldTableWidthPx,
                     state: getContentTableColumnResizeDraggingState(tr.doc, state.activeHandle),
                 });
             }
@@ -337,7 +337,7 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
                     dragging: {
                         startX: event.clientX,
                         viewWidthPx: view.dom.offsetWidth,
-                        oldTotalColumnWidthPx: tableElement.offsetWidth,
+                        oldTableWidthPx: tableElement.offsetWidth,
                         state: draggingState,
                     },
                 }),
@@ -634,7 +634,7 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
     {
         startX,
         viewWidthPx,
-        oldTotalColumnWidthPx: actualOldTotalColumnWidthPx,
+        oldTableWidthPx,
         state: {
             columnIndex: column1Index,
             oldTableMap: {columnWidths: oldColumnWidths, totalColumnWidth: oldTotalColumnWidth},
@@ -642,7 +642,7 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
     }: {
         startX: number;
         viewWidthPx: number;
-        oldTotalColumnWidthPx: number;
+        oldTableWidthPx: number;
         state: {
             columnIndex: number;
             oldTableMap: {
@@ -669,17 +669,27 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         contentStyles.blockMaxWidthRem[platform] * remPx,
     );
 
+    const borderWidthPx = 2 + oldColumnWidths.length - 1;
+
     const minTotalColumnWidthPx = Math.max(
         columnMinWidthPx * oldColumnWidths.length,
         // Don't shrink smaller than the editor's block width.
-        blockWidthPx,
+        //
+        // CSS grid computes the size of `fr` units as the share of available space.
+        // The available space for columns in our table grid excludes the 1px
+        // gap/padding we add for borders.
+        blockWidthPx - borderWidthPx,
     );
 
     const maxTotalColumnWidthPx = columnMaxWidthPx * oldColumnWidths.length;
 
     const oldTotalColumnWidthPx = clamp(
         minTotalColumnWidthPx,
-        actualOldTotalColumnWidthPx,
+        oldTableWidthPx -
+            // CSS grid computes the size of `fr` units as the share of available space.
+            // The available space for columns in our table grid excludes the 1px
+            // gap/padding we add for borders.
+            borderWidthPx,
         maxTotalColumnWidthPx,
     );
 
@@ -776,7 +786,7 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
 
         // Compute the old table width on the fly since the `tableWidth` attr in
         // ProseMirror may not accurately reflect what's in the DOM.
-        const oldTableWidth = Math.max(1, oldTotalColumnWidthPx / blockWidthPx);
+        const oldTableWidth = Math.max(1, oldTableWidthPx / blockWidthPx);
 
         const newTableWidth = Math.max(
             1,
@@ -863,7 +873,7 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         newColumnWidths[column1Index] = newColumn1Width;
 
         // Update table width
-        const oldTableWidth = Math.max(1, oldTotalColumnWidthPx / blockWidthPx);
+        const oldTableWidth = Math.max(1, oldTableWidthPx / blockWidthPx);
         const newTableWidth = Math.max(
             1,
             oldTableWidth * (newTotalColumnWidthPx / oldTotalColumnWidthPx),
@@ -916,10 +926,7 @@ function handleContentTableColumnResizeStateDecorations(
             const cellPos = tableMap.map[index]!;
             const pos = start + cellPos + table.nodeAt(cellPos)!.nodeSize - 1;
             const dom = document.createElement("div");
-            dom.className =
-                columnIndex === tableMap.width - 1
-                    ? `${contentStyles.tableColumnResizeHandleClassName} ${contentStyles.tableRightEdgeColumnResizeHandleClassName}`
-                    : contentStyles.tableColumnResizeHandleClassName;
+            dom.className = contentStyles.tableColumnResizeHandleClassName;
             decorations.push(Decoration.widget(pos, dom));
         }
 

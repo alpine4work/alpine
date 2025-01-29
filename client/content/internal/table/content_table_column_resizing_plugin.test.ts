@@ -7,7 +7,7 @@ test("can make second column in a two column table smaller", () => {
             {
                 startX: 628,
                 viewWidthPx: 1144,
-                oldTotalColumnWidthPx: 600,
+                oldTableWidthPx: 600,
                 state: {
                     columnIndex: 0,
                     oldTableMap: {
@@ -29,7 +29,7 @@ test("can make first column in a two column table smaller", () => {
             {
                 startX: 630,
                 viewWidthPx: 1144,
-                oldTotalColumnWidthPx: 600,
+                oldTableWidthPx: 600,
                 state: {
                     columnIndex: 0,
                     oldTableMap: {
@@ -51,7 +51,7 @@ test("can make second column in a two column table smaller after resizing first 
             {
                 startX: 525,
                 viewWidthPx: 1144,
-                oldTotalColumnWidthPx: 600,
+                oldTableWidthPx: 600,
                 state: {
                     columnIndex: 0,
                     oldTableMap: {
@@ -73,7 +73,7 @@ test("can grow middle column in a three column table", () => {
             {
                 startX: 715,
                 viewWidthPx: 1123,
-                oldTotalColumnWidthPx: 600,
+                oldTableWidthPx: 600,
                 state: {
                     columnIndex: 1,
                     oldTableMap: {
@@ -93,7 +93,7 @@ test("can grow middle column in a three column table", () => {
             {
                 startX: 520,
                 viewWidthPx: 1123,
-                oldTotalColumnWidthPx: 600,
+                oldTableWidthPx: 600,
                 state: {
                     columnIndex: 0,
                     oldTableMap: {
@@ -115,7 +115,7 @@ test("can make two column table larger by dragging last column", () => {
             {
                 startX: 914,
                 viewWidthPx: 1123,
-                oldTotalColumnWidthPx: 600,
+                oldTableWidthPx: 600,
                 state: {
                     columnIndex: 1,
                     oldTableMap: {
@@ -139,7 +139,7 @@ test("can make two column table larger by dragging first column", () => {
             {
                 startX: 328,
                 viewWidthPx: 1144,
-                oldTotalColumnWidthPx: 600,
+                oldTableWidthPx: 600,
                 state: {
                     columnIndex: -1,
                     oldTableMap: {
@@ -163,7 +163,7 @@ test("can't shrink column to less than minimum width", () => {
             {
                 startX: 618,
                 viewWidthPx: 1123,
-                oldTotalColumnWidthPx: 600,
+                oldTableWidthPx: 600,
                 state: {
                     columnIndex: 0,
                     oldTableMap: {
@@ -185,7 +185,7 @@ test("can't grow column to more than maximum width", () => {
             {
                 startX: 315,
                 viewWidthPx: 1123,
-                oldTotalColumnWidthPx: 600,
+                oldTableWidthPx: 600,
                 state: {
                     columnIndex: -1,
                     oldTableMap: {
@@ -209,7 +209,7 @@ test("can grow a table even if it has an inaccurate table width", () => {
             {
                 startX: 1063,
                 viewWidthPx: 1123,
-                oldTotalColumnWidthPx: 907,
+                oldTableWidthPx: 907,
                 state: {
                     columnIndex: 5,
                     oldTableMap: {
@@ -233,7 +233,7 @@ test("can grow a table even if old column widths do not accurately represent wha
             {
                 startX: 1006,
                 viewWidthPx: 1130,
-                oldTotalColumnWidthPx: 756,
+                oldTableWidthPx: 756,
                 state: {
                     columnIndex: 4,
                     oldTableMap: {
@@ -257,7 +257,7 @@ test("can grow a table when the second to last column is larger than the last co
             {
                 startX: 1056,
                 viewWidthPx: 1130,
-                oldTotalColumnWidthPx: 877,
+                oldTableWidthPx: 877,
                 state: {
                     columnIndex: 4,
                     oldTableMap: {
