@@ -5585,10 +5585,6 @@ export async function authorizeTaskQueryAccess(
             // actors viewing a collection they have access to via `urlGrant`). Allowing an
             // actor without space access to filter by hidden accounts could reveal
             // information we don't want them to see.
-            //
-            // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-            // eslint-disable-next-line no-commit-blockers
-            // NOCOMMIT: Test
             if (filters.creatorFilter || filters.assignerFilter) {
                 await authorizeSpaceAccess(context, spaceId);
             }
@@ -5652,21 +5648,12 @@ export async function authorizeTaskQueryAccess(
                             if (
                                 context.actor.type === "Session" &&
                                 filters.assigneeFilter?.accountIds.size === 1 &&
-                                filters.assigneeFilter.accountIds.has(
-                                    context.actor.getAccountId(),
-                                ) &&
-                                // You must be a space member to sort by assigned position. If you lost
-                                // access to a space you can't filter for your own tasks anymore.
-                                //
-                                // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-                                // eslint-disable-next-line no-commit-blockers
-                                // NOCOMMIT: Test!
-                                (await isAccountMemberOfSpaceWithoutAuthorization(
-                                    context,
-                                    spaceId,
-                                    context.actor.getAccountId(),
-                                ))
+                                filters.assigneeFilter.accountIds.has(context.actor.getAccountId())
                             ) {
+                                // If the actor doesn't have space access then throw an "actor doesn't have
+                                // space access" error.
+                                await authorizeSpaceAccess(context, spaceId);
+
                                 break;
                             }
 
@@ -5681,10 +5668,6 @@ export async function authorizeTaskQueryAccess(
                             // actors viewing a collection they have access to via `urlGrant`). Allowing an
                             // actor without space access to sort by hidden accounts could reveal
                             // information we don't want them to see.
-                            //
-                            // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-                            // eslint-disable-next-line no-commit-blockers
-                            // NOCOMMIT: Test
                             await authorizeSpaceAccess(context, spaceId);
                             break;
                         }
