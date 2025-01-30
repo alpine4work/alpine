@@ -16,6 +16,7 @@ import {TaskDetailAndCommentsView} from "~/client/tasks/task_detail_and_comments
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {authorizeSpaceAccessIfPossible} from "~/server/spaces/spaces_table.js";
 import {
     getTaskNotesContent,
     getTaskNotesContentAndOptionalInitialComments,
@@ -66,6 +67,8 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
     const clientInfo = context.loader.getClientInfo();
     const platform = getInitialAppRenderPlatform(clientInfo);
 
+    const isSpaceAccessAuthorized = (await authorizeSpaceAccessIfPossible(context, spaceId)).ok;
+
     const childrenQuery: {
         limit: number;
         filters: TaskQueryNormalizedFilters;
@@ -97,7 +100,10 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
             },
         ],
 
-        shouldLoadGridViewExpandedChildTasksForBrowserId: context.loader.getBrowserId(),
+        // We only store grid view expansion state for accounts with space access.
+        shouldLoadGridViewExpandedChildTasksForBrowserId: isSpaceAccessAuthorized
+            ? context.loader.getBrowserId()
+            : undefined,
     };
 
     const showComments = url.searchParams.get("comments") === "show";
@@ -124,7 +130,7 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
                   commentsLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
               })
             : getTaskNotesContent(context, taskId).then(notes => ({notes, initialComments: null})),
-        context.actor.type === "Session" && url.searchParams.get("inbox") === "show"
+        isSpaceAccessAuthorized && url.searchParams.get("inbox") === "show"
             ? getInboxEntry(context.actor.authorizeSession(), {
                   spaceId,
                   key: {type: "Task", taskId},

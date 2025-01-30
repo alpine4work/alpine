@@ -3,10 +3,8 @@ import {addHours, addMonths, differenceInMonths} from "date-fns";
 import murmurhash from "murmurhash";
 import {Step} from "prosemirror-transform";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
-import {
-    getContentReferencesForNode,
-    getMessageContentReferencesForNode,
-} from "~/server/content/get_content_references.js";
+import {getMessageContentReferencesForNode} from "~/server/content/get_content_references.js";
+import {getContentReferencesAssumingViewAccessWithOptionalSpaceAccess} from "~/server/content/get_content_references_assuming_view_access_with_optional_space_access.js";
 import {
     applyMentionCountByAccountIdDifferenceFromContentUpdate,
     getMentionedAccountIdsInContent,
@@ -60,6 +58,7 @@ import {
     AccessPolicy,
     AccessPolicyRegister,
     hasAccessLevel,
+    validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -2979,30 +2978,25 @@ async function actuallyCommitTaskActionTransaction(
                                 break;
                             }
                             case "UpdateAccessPolicy": {
-                                if (
-                                    iterableEvery(
-                                        collectionAction.accessPolicy.accountGrantById.values(),
-                                        grant => !hasAccessLevel(grant.level, "Manage"),
-                                    ) &&
-                                    (collectionAction.accessPolicy.defaultGrant === null ||
-                                        !hasAccessLevel(
-                                            collectionAction.accessPolicy.defaultGrant.level,
-                                            "Manage",
-                                        ))
-                                ) {
-                                    throw new InvalidArgumentError(
-                                        '`accessPolicy` must grant at least one account the "Manage" access level',
-                                    );
-                                }
-
                                 await state.authorizeCollectionAccess(collectionId, "Manage");
+
+                                const newAccessPolicy = collectionItem.accessPolicy.apply({
+                                    value: collectionAction.accessPolicy,
+                                    version: action.time,
+                                });
+
+                                const result = validateAccessPolicyUpdate(
+                                    state.getActorAccountId(),
+                                    collectionItem.accessPolicy.value,
+                                    newAccessPolicy.value,
+                                );
+                                if (!result.ok) {
+                                    throw new FailedPreconditionError(result.reason);
+                                }
 
                                 state.updateCollectionItem({
                                     ...collectionItem,
-                                    accessPolicy: collectionItem.accessPolicy.apply({
-                                        value: collectionAction.accessPolicy,
-                                        version: action.time,
-                                    }),
+                                    accessPolicy: newAccessPolicy,
                                 });
                                 break;
                             }
@@ -3723,7 +3717,10 @@ async function authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossibleFo
                     ok: false,
                     error: new PermissionDeniedError(
                         "Actor doesn't have access to task collection's space",
-                        {displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage},
+                        {
+                            aggregateDedupeKey: collectionItem.collectionId,
+                            displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
+                        },
                     ),
                 };
             } else {
@@ -3732,6 +3729,7 @@ async function authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossibleFo
                     error: new PermissionDeniedError(
                         quote`Actor doesn't have ${expectedAccessLevel} access level to task collection`,
                         {
+                            aggregateDedupeKey: collectionItem.collectionId,
                             displayMessage:
                                 taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
                                     expectedAccessLevel
@@ -4095,6 +4093,7 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
                 return {
                     ok: false,
                     error: new PermissionDeniedError("Actor doesn't have access to task's space", {
+                        aggregateDedupeKey: taskItem.taskId,
                         displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
                     }),
                 };
@@ -4104,6 +4103,7 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
                     error: new PermissionDeniedError(
                         quote`Actor doesn't have ${expectedAccessLevel} access level to task`,
                         {
+                            aggregateDedupeKey: taskItem.taskId,
                             displayMessage:
                                 taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
                                     expectedAccessLevel
@@ -4943,12 +4943,13 @@ export async function getTaskNotesContentAndOptionalInitialComments(
                             version: notesItem?.version ?? 0,
                             content: {
                                 doc: notesItem?.content ?? emptyTaskNotesContent,
-                                references: await getContentReferencesForNode(
-                                    context,
-                                    item.spaceId,
-                                    FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
-                                    notesItem?.content ?? emptyTaskNotesContent,
-                                ),
+                                references:
+                                    await getContentReferencesAssumingViewAccessWithOptionalSpaceAccess(
+                                        context,
+                                        item.spaceId,
+                                        FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
+                                        notesItem?.content ?? emptyTaskNotesContent,
+                                    ),
                             },
                         },
                         commentsSummaryItem,
@@ -5844,7 +5845,7 @@ export function getTaskNotesContent(
             version: notesItem?.version ?? 0,
             content: {
                 doc: notesItem?.content ?? emptyTaskNotesContent,
-                references: await getContentReferencesForNode(
+                references: await getContentReferencesAssumingViewAccessWithOptionalSpaceAccess(
                     context,
                     item.spaceId,
                     FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),

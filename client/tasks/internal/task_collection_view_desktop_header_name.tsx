@@ -165,11 +165,13 @@ function TaskCollectionViewDesktopHeaderName(
                 </Box>
             )}
             {!editingNameState ? (
-                <Box
-                    padding="1"
-                    fontSize="200"
-                    fontStyle="truncate-semi-bold"
-                    userSelect="text"
+                <h1
+                    className={sprinkles({
+                        padding: "1",
+                        fontSize: "200",
+                        fontStyle: "truncate-semi-bold",
+                        userSelect: "text",
+                    })}
                     style={{
                         // Render contextual alternate glyphs. User text may be rendered here. Helpful
                         // for consistency if the user types anything like 2x2 or an @ mention.
@@ -186,7 +188,7 @@ function TaskCollectionViewDesktopHeaderName(
                 >
                     {name}
                     {inputWithAutoGrowingWidthSafeSpacerElement}
-                </Box>
+                </h1>
             ) : (
                 <Box overflow="hidden">
                     <TaskCollectionViewDesktopHeaderNameEditor

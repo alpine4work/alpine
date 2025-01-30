@@ -50,6 +50,7 @@ ts_playwright_tests(
         "documents/document_files_desktop.spec.ts": ["webkit_mobile"],
         "documents/document_share_desktop.spec.ts": ["webkit_mobile"],
         "inbox/inbox_chat_desktop.spec.ts": ["webkit_mobile"],
+        "tasks/task_collection_share_desktop.spec.ts": ["webkit_mobile"],
         # Peeks only work on desktop.
         "chat/chat_peek.spec.ts": ["webkit_mobile"],
         "documents/document_peek.spec.ts": ["webkit_mobile"],

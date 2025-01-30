@@ -1127,36 +1127,60 @@ export async function authorizeSpaceAccessIfPossible(
 ): Promise<Result<void, ErrorBase>> {
     switch (context.actor.type) {
         case "Session": {
-            if (
-                !(await isAccountMemberOfSpaceWithoutAuthorization(
-                    context,
-                    spaceId,
-                    context.actor.getAccountId(),
-                ))
-            ) {
+            const accountId = context.actor.getAccountId();
+
+            if (!(await isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId))) {
+                let error: ErrorBase | undefined;
+
                 return {
                     ok: false,
-                    error: new PermissionDeniedError("Account doesn't have access to space", {
-                        aggregateDedupeKey: `${spaceId}:${context.actor.getAccountId()}`,
-                        displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
-                    }),
+                    get error() {
+                        // When this function is called, frequently we only check `ok`. So lazily
+                        // create an error only when needed.
+                        error ??= new PermissionDeniedError(
+                            "Account doesn't have access to space",
+                            {
+                                aggregateDedupeKey: `${spaceId}:${accountId}`,
+                                displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
+                            },
+                        );
+                        return error;
+                    },
                 };
             }
             return okResult;
         }
         case "System": {
             if (context.actor.getSpaceId() !== spaceId) {
+                let error: ErrorBase | undefined;
+
                 return {
                     ok: false,
-                    error: new PermissionDeniedError("System action doesn't have access to space", {
-                        aggregateDedupeKey: spaceId,
-                    }),
+                    get error() {
+                        // When this function is called, frequently we only check `ok`. So lazily
+                        // create an error only when needed.
+                        error ??= new PermissionDeniedError(
+                            "System action doesn't have access to space",
+                            {aggregateDedupeKey: spaceId},
+                        );
+                        return error;
+                    },
                 };
             }
             return okResult;
         }
         case "Anonymous": {
-            return {ok: false, error: unauthenticatedSessionError()};
+            let error: ErrorBase | undefined;
+
+            return {
+                ok: false,
+                get error() {
+                    // When this function is called, frequently we only check `ok`. So lazily
+                    // create an error only when needed.
+                    error ??= unauthenticatedSessionError();
+                    return error;
+                },
+            };
         }
         default:
             throw exhaustive(context.actor);

@@ -4198,11 +4198,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(
-            new InvalidArgumentError(
-                '`accessPolicy` must grant at least one account the "Manage" access level',
-            ),
-        );
+        ).rejects.toThrow("Can't update access policy so that no one has manage access");
 
         await expect(
             commitTaskActionTransaction(context.action(session2), space.id, [
@@ -4220,11 +4216,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(
-            new InvalidArgumentError(
-                '`accessPolicy` must grant at least one account the "Manage" access level',
-            ),
-        );
+        ).rejects.toThrow("Can't update access policy so that no one has manage access");
 
         await commitTaskActionTransaction(context.action(session2), space.id, [
             {
@@ -4235,7 +4227,7 @@ describe("old style", () => {
                     type: "UpdateAccessPolicy",
                     accessPolicy: {
                         accountGrantById: new Map([]),
-                        defaultGrant: {level: "Manage", generation: 0},
+                        defaultGrant: {level: "Manage", generation: 1},
                         urlGrant: null,
                     },
                 },
@@ -15870,7 +15862,7 @@ test("can delete a task and all its children when you have access to the task th
     await collection.access.set(session1, {
         accountGrantById: new Map([
             [session1.account.id, {level: "Manage", generation: 0}],
-            [session3.account.id, {level: "Manage", generation: 0}],
+            [session3.account.id, {level: "Manage", generation: 1}],
         ]),
         defaultGrant: null,
         urlGrant: null,
@@ -18067,7 +18059,7 @@ test("multiple actions that update collection item count in one transaction and 
                     accountGrantById: new Map([
                         [session.account.id, {level: "Manage", generation: 0}],
                     ]),
-                    defaultGrant: {level: "Manage", generation: 0},
+                    defaultGrant: {level: "Manage", generation: 1},
                     urlGrant: null,
                 },
             },
@@ -18130,7 +18122,7 @@ test("multiple actions that update collection item count in one transaction and 
                     accountGrantById: new Map([
                         [session.account.id, {level: "Manage", generation: 0}],
                     ]),
-                    defaultGrant: {level: "Manage", generation: 0},
+                    defaultGrant: {level: "Manage", generation: 1},
                     urlGrant: null,
                 },
             },
@@ -18233,7 +18225,7 @@ test("multiple actions that update collection item count in one transaction and 
                     accountGrantById: new Map([
                         [session.account.id, {level: "Manage", generation: 0}],
                     ]),
-                    defaultGrant: {level: "Manage", generation: 0},
+                    defaultGrant: {level: "Manage", generation: 1},
                     urlGrant: null,
                 },
             },
@@ -18327,7 +18319,7 @@ test("a collection action and an action that indirectly updates collection task 
                     accountGrantById: new Map([
                         [session.account.id, {level: "Manage", generation: 0}],
                     ]),
-                    defaultGrant: {level: "Manage", generation: 0},
+                    defaultGrant: {level: "Manage", generation: 1},
                     urlGrant: null,
                 },
             },
@@ -19941,7 +19933,7 @@ test("throws error for users that only have view access when trying to access ta
     await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
-            [manageSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
@@ -20046,7 +20038,7 @@ test("throws error for users that only have view access when trying to create ta
     await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
-            [manageSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
@@ -20183,7 +20175,7 @@ test("throws error for users that only have view access when trying to update ta
     await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
-            [manageSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
@@ -20306,7 +20298,7 @@ test("throws error for users that only have view access when trying to delete ta
     await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
-            [manageSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
@@ -20394,7 +20386,7 @@ test("throws error for users that only have view access when trying to get task 
     await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
-            [manageSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
@@ -20503,7 +20495,7 @@ test("throws error for users that only have view access when trying to get task 
     await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
-            [manageSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
@@ -20610,7 +20602,7 @@ test("returns null for users that only have view access when trying to get initi
     await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
-            [manageSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
@@ -21035,7 +21027,7 @@ test("throws error for users that only have view access when trying to get task 
     await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
-            [manageSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
@@ -21183,7 +21175,7 @@ test("throws error for users without proper access trying to get the Task Owner"
     await collection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
-            [manageSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [assigneeSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
@@ -21358,15 +21350,15 @@ test("authorizing task access after getting task as session actor is cached", as
             commentsLimit: 100,
         });
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(3);
 
         await authorizeTaskAccess(actionContext, task.id, "View");
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(3);
 
         await authorizeTaskAccess(actionContext, task.id, "View");
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(3);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -21376,7 +21368,7 @@ test("authorizing task access after getting task as session actor is cached", as
             ]);
         }
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(3);
     }
 
     dynamoClientExecuteActionTestCounter.resetForTest();
@@ -22604,4 +22596,25 @@ test("account has access to tasks they create and tasks they're assigned until t
     await expect(authorizeTaskAccess(session1.action(), task2.id, "Edit")).rejects.toThrow(
         "Actor doesn't have access to task's space",
     );
+});
+
+test("can't revoke access from a collection manager that invited you", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3a, session3b] = await space.createSessions(4);
+
+    const collection = await TestTaskCollection.create(session1);
+
+    await collection.access.grant(session1, session2);
+    await collection.access.grant(session2, session3a);
+    await collection.access.grant(session2, session3b);
+
+    await expect(collection.access.revoke(session3a, session2)).rejects.toThrow(
+        "Can't revoke manage access from an account with a manage generation less than our actor",
+    );
+
+    await expect(collection.access.revoke(session3a, session1)).rejects.toThrow(
+        "Can't revoke manage access from an account with a manage generation less than our actor",
+    );
+
+    await collection.access.revoke(session3a, session3b);
 });

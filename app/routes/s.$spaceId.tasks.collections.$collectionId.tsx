@@ -21,6 +21,7 @@ import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {authorizeSpaceAccessIfPossible} from "~/server/spaces/spaces_table.js";
 import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
 import {
     authorizeTaskCollectionAccess,
@@ -241,6 +242,9 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 return Object.assign(result, {input: {query: null}});
             }
 
+            const isSpaceAccessAuthorized = (await authorizeSpaceAccessIfPossible(context, spaceId))
+                .ok;
+
             const {normalizedFilters} = normalizedFiltersResult;
 
             const query: {
@@ -252,7 +256,11 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 limit: getTaskGridViewLoadQueryLimit(context.loader.getClientInfo()),
                 filters: normalizedFilters,
                 sorts: normalizedSorts,
-                shouldLoadGridViewExpandedChildTasksForBrowserId: context.loader.getBrowserId(),
+
+                // We only store grid view expansion state for accounts with space access.
+                shouldLoadGridViewExpandedChildTasksForBrowserId: isSpaceAccessAuthorized
+                    ? context.loader.getBrowserId()
+                    : undefined,
             };
 
             const result = await context.tasks.loadQueries(spaceId, {

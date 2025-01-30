@@ -27,12 +27,16 @@ import {
     serviceOpensearchOptions,
 } from "~/server/opensearch/create_service_opensearch_context_module.js";
 import {createDynamoActorContextModule} from "~/server/spaces/create_dynamo_actor_context_module.js";
-import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {
+    authorizeSpaceAccess,
+    authorizeSpaceAccessIfPossible,
+} from "~/server/spaces/spaces_table.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {
     TaskSystemActionContext,
     TaskSystemActionContextModules,
 } from "~/server/tasks/data/task_action_context.js";
+import {authorizeTaskCollectionIndexDocAccessIfPossibleForActor} from "~/server/tasks/data/task_table.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
@@ -58,7 +62,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
-import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 import {
     TaskRealtimeApplyActionTransactionInputSchema,
@@ -389,28 +393,71 @@ export async function run({
                     throw new PermissionDeniedError("Only `AppService` can load queries");
                 }
 
-                return baseActionContext.with({actor: actorContextModule}, async context => {
-                    await server.authorizeTaskAccess(context, spaceId, route.taskId, "View");
+                return baseActionContext.with(
+                    {actor: actorContextModule},
+                    async originalContext => {
+                        await server.authorizeTaskAccess(
+                            originalContext,
+                            spaceId,
+                            route.taskId,
+                            "View",
+                        );
 
-                    return dangerouslyEscalateToSystemContext(context, spaceId, async context => {
-                        const task = await server.getTask(context, spaceId, route.taskId);
+                        return dangerouslyEscalateToSystemContext(
+                            originalContext,
+                            spaceId,
+                            async context => {
+                                const task = await server.getTask(context, spaceId, route.taskId);
 
-                        const taskModel = prepareTaskForClient(actorContextModule, task);
+                                const prepareContext = {
+                                    actor: originalContext.actor,
+                                    isSpaceAccessAuthorized: (
+                                        await authorizeSpaceAccessIfPossible(
+                                            originalContext,
+                                            spaceId,
+                                        )
+                                    ).ok,
+                                    isCollectionAccessAuthorized: async (
+                                        collectionId: TaskCollectionId,
+                                    ) => {
+                                        const collection = await server.getCollection(
+                                            context,
+                                            spaceId,
+                                            collectionId,
+                                        );
 
-                        return new Response(
-                            JSON.stringify(
-                                TaskRealtimeGetTaskWithoutDependenciesOutputSchema.serialize({
-                                    ok: true,
-                                    task: taskModel,
-                                }),
-                            ),
-                            {
-                                status: 200,
-                                headers: {"content-type": "application/json"},
+                                        const result =
+                                            await authorizeTaskCollectionIndexDocAccessIfPossibleForActor(
+                                                context,
+                                                originalContext.actor,
+                                                collection,
+                                                "View",
+                                            );
+
+                                        return result.ok;
+                                    },
+                                };
+
+                                const taskModel = await prepareTaskForClient(task, prepareContext);
+
+                                return new Response(
+                                    JSON.stringify(
+                                        TaskRealtimeGetTaskWithoutDependenciesOutputSchema.serialize(
+                                            {
+                                                ok: true,
+                                                task: taskModel,
+                                            },
+                                        ),
+                                    ),
+                                    {
+                                        status: 200,
+                                        headers: {"content-type": "application/json"},
+                                    },
+                                );
                             },
                         );
-                    });
-                });
+                    },
+                );
             }
             default:
                 throw exhaustive(route);

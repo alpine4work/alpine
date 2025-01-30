@@ -293,9 +293,6 @@ export type ValidateAccessPolicyUpdateResult =
  * performs critical authorization logic so we must run this on the backend
  * when an access policy is updated to make sure the update is safe.
  */
-// HACK(calebmer): Temporarily disable lint rule so we can deploy.
-// eslint-disable-next-line no-commit-blockers
-// NOCOMMIT: Call this when updating task collection access policy
 export function validateAccessPolicyUpdate(
     actorAccountId: AccountId,
     oldAccessPolicy: AccessPolicy,

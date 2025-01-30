@@ -9,10 +9,10 @@ import {
 } from "prosemirror-transform";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {
-    getContentReferences,
     getContentReferencesForNode,
     getMessageContentReferencesForNode,
 } from "~/server/content/get_content_references.js";
+import {getContentReferencesAssumingViewAccessWithOptionalSpaceAccess} from "~/server/content/get_content_references_assuming_view_access_with_optional_space_access.js";
 import {
     applyMentionCountByAccountIdDifferenceFromContentUpdate,
     getMentionCountByAccountIdInContent,
@@ -42,8 +42,6 @@ import {getNotificationMessageContentSnippet} from "~/server/notifications/core/
 import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
-    authorizeSpaceAccessIfPossible,
-    dangerouslyGetAccountStubIfExistsWithoutAuthorization,
     getAccount,
     isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
@@ -54,7 +52,6 @@ import {
     AccessPolicySchema,
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
-import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
@@ -109,7 +106,6 @@ import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -1569,67 +1565,17 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
             return [commentThread.commentThreadId, commentThread];
         };
 
-        const referencedIds = getContentReferencedIdsForNode(content);
-
         const [
             contentReferences,
             referencedCommentThreadById,
             {requestedCommentThreadIds, archivedCommentThreadById},
         ] = await runAllPromises([
-            (async () => {
-                // If the actor has space access we can fetch content references as normal.
-                // However, if the actor doesn't have space access (but has document view
-                // access) then when we fetch accounts we want to return stubs that only reveal
-                // the account's name.
-                if (
-                    commentAuthorizationResult.ok ||
-                    (await authorizeSpaceAccessIfPossible(context, attributes.spaceId)).ok
-                ) {
-                    return getContentReferences(
-                        context,
-                        attributes.spaceId,
-                        FileDocumentAuthorizer.bind({type: "Document", documentId}),
-                        referencedIds,
-                    );
-                } else {
-                    const [contentReferences, accounts] = await runAllPromises([
-                        getContentReferences(
-                            context,
-                            attributes.spaceId,
-                            FileDocumentAuthorizer.bind({type: "Document", documentId}),
-                            {
-                                ...referencedIds,
-                                // We can't load the full account with `getAccountIfExists()` since that
-                                // requires space access.
-                                accountIds: emptySet,
-                            },
-                        ),
-                        runAllPromises(
-                            mapIterable(referencedIds.accountIds, accountId => {
-                                // In this code path, the actor has been granted view access to the document
-                                // when they don't have access to the space. (Probably through
-                                // `accessPolicy.urlGrant`.) In this case, the actor is allowed to see the
-                                // name, and only the name, of any mentioned account. Fetch account stubs for
-                                // all referenced `AccountId`s.
-                                return dangerouslyGetAccountStubIfExistsWithoutAuthorization(
-                                    context,
-                                    attributes.spaceId,
-                                    accountId,
-                                );
-                            }),
-                        ),
-                    ]);
-
-                    const accountById = new Map(
-                        filterMapIterable(accounts, account => {
-                            if (!account) return;
-                            return [account.id, account];
-                        }),
-                    );
-
-                    return {...contentReferences, accountById};
-                }
-            })(),
+            getContentReferencesAssumingViewAccessWithOptionalSpaceAccess(
+                context,
+                attributes.spaceId,
+                FileDocumentAuthorizer.bind({type: "Document", documentId}),
+                content,
+            ),
             runAllPromises(mapIterable(referencedCommentThreadIds, getCommentThread)).then(
                 commentThreadById => new Map(filterIterable(commentThreadById, isNonNullable)),
             ),

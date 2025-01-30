@@ -628,6 +628,9 @@ function SpaceLayoutRouteInner({
         }
     }
 
+    const hasSpaceLayoutWebMobileTabBar =
+        loaderData.type === "WithAccess" && platform === "mobile" && !clientInfo.isNativeMobile;
+
     return (
         <GlobalKeyDownEvent
             // Re-render everything when the space changes.
@@ -729,13 +732,9 @@ function SpaceLayoutRouteInner({
                                     />
                                 </PeekStackContextProvider>
                                 {modals}
-                                {loaderData.type === "WithAccess" &&
-                                    platform === "mobile" &&
-                                    !clientInfo.isNativeMobile && (
-                                        <SpaceLayoutWebMobileTabBar
-                                            initialInbox={loaderData.inbox}
-                                        />
-                                    )}
+                                {hasSpaceLayoutWebMobileTabBar && (
+                                    <SpaceLayoutWebMobileTabBar initialInbox={loaderData.inbox} />
+                                )}
                                 {loaderData.type === "WithAccess" && clientInfo.isNativeMobile && (
                                     <SpaceLayoutNativeMobileInboxController
                                         initialInbox={loaderData.inbox}
