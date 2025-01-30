@@ -11,6 +11,7 @@ import {useReporter} from "~/client/design/reporter.js";
 import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
 import {accessLevelText} from "~/client/navigation/internal/access_level_text.js";
 import {ShareOverlay} from "~/client/navigation/internal/share_overlay.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {elevation, sprinkles} from "~/client/styles/styles.js";
@@ -388,8 +389,14 @@ function ShareSwitch({
     onAccessPolicyChange: (accessPolicy: AccessPolicyAction) => void;
     isReadOnly: boolean;
 }) {
+    const spacingScale = useSpacingScale();
     const reporter = useReporter();
     const {space} = useSpaceContext();
+
+    const [
+        showDeleteDefaultGrantOrUrlGrantConfirmationDialog,
+        setShowDeleteDefaultGrantOrUrlGrantConfirmationDialog,
+    ] = useState(false);
 
     const {pressProps, isPressed} = usePress({
         isDisabled: isReadOnly,
@@ -411,18 +418,20 @@ function ShareSwitch({
                         durationSeconds: 3,
                     },
                 );
-            } else if (accessPolicy.defaultGrant && !accessPolicy.urlGrant) {
-                onAccessPolicyChange({type: "DeleteDefaultGrant"});
-            } else if (!accessPolicy.defaultGrant && accessPolicy.urlGrant) {
-                onAccessPolicyChange({type: "DeleteUrlGrant"});
             } else {
-                assert(accessPolicy.defaultGrant && accessPolicy.urlGrant);
-                onAccessPolicyChange({type: "DeleteDefaultGrantAndUrlGrant"});
+                // Ask the user to confirm when pressing the switch to make the entity private.
+                // We want to make it very easy to share the entity but un-sharing the entity
+                // should have a little friction so the user doesn't do it accidentally.
+                setShowDeleteDefaultGrantOrUrlGrantConfirmationDialog(true);
             }
         },
     });
 
-    const icon = accessPolicy.urlGrant
+    const icon = showDeleteDefaultGrantOrUrlGrantConfirmationDialog
+        ? // Optimistically show the lock icon while the "make entity private" confirmation dialog
+          // is open.
+          ("Lock" as const)
+        : accessPolicy.urlGrant
         ? ("Globe" as const)
         : accessPolicy.defaultGrant
         ? ("Buildings" as const)
@@ -435,7 +444,7 @@ function ShareSwitch({
                 tabIndex={0}
                 role="button"
                 aria-label={`Toggle sharing with everyone in ${space.name}`}
-                aria-pressed={!!(accessPolicy.defaultGrant || accessPolicy.urlGrant)}
+                aria-pressed={icon !== "Lock"}
                 width="12"
                 backgroundColor={
                     {
@@ -470,13 +479,14 @@ function ShareSwitch({
                         height: `calc(${spacing["6"]} + 2px)`,
                         padding: 2,
                         transform:
-                            accessPolicy.defaultGrant || accessPolicy.urlGrant
-                                ? `translateX(calc(${spacing["6"]} - 2px))`
-                                : undefined,
+                            icon !== "Lock" ? `translateX(calc(${spacing["6"]} - 2px))` : undefined,
                         transition: "transform 150ms linear",
                     }}
                 >
                     <Box
+                        // Fully remount on `spacingScale` changes so we don't animate the `width`
+                        // change.
+                        key={spacingScale}
                         position="relative"
                         zIndex="0"
                         overflow="hidden"
@@ -490,7 +500,7 @@ function ShareSwitch({
                                 ? `calc(${spacing["7"]} - 2px)`
                                 : `calc(${spacing["6"]} - 2px)`,
                             transform:
-                                isPressed && (accessPolicy.defaultGrant || accessPolicy.urlGrant)
+                                isPressed && icon !== "Lock"
                                     ? `translateX(-${spacing["1"]})`
                                     : undefined,
                             transition: "width 50ms linear, transform 50ms linear",
@@ -550,6 +560,30 @@ function ShareSwitch({
                         </Box>
                     </Box>
                 </Box>
+                {showDeleteDefaultGrantOrUrlGrantConfirmationDialog && (
+                    <ModalDialog
+                        title={`Make this ${entityNoun} private?`}
+                        description={`${
+                            accessPolicy.urlGrant
+                                ? `Anyone with the link`
+                                : `Everyone in ${space.name}`
+                        } will no longer be able to access the ${entityNoun}.`}
+                        primaryButtonLabel="Confirm"
+                        onPrimaryButtonPress={() => {
+                            if (!accessPolicy.defaultGrant && !accessPolicy.urlGrant) {
+                                // Noop
+                            } else if (accessPolicy.defaultGrant && !accessPolicy.urlGrant) {
+                                onAccessPolicyChange({type: "DeleteDefaultGrant"});
+                            } else if (!accessPolicy.defaultGrant && accessPolicy.urlGrant) {
+                                onAccessPolicyChange({type: "DeleteUrlGrant"});
+                            } else {
+                                assert(accessPolicy.defaultGrant && accessPolicy.urlGrant);
+                                onAccessPolicyChange({type: "DeleteDefaultGrantAndUrlGrant"});
+                            }
+                        }}
+                        onClose={() => setShowDeleteDefaultGrantOrUrlGrantConfirmationDialog(false)}
+                    />
+                )}
             </Box>
         </FocusRing>
     );
