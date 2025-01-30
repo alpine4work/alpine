@@ -2102,21 +2102,13 @@ export const tableColumnMinWidthRem = blockMaxWidthRem.desktop * 0.25;
 // The maximum column width is the width of the larger column in a two column
 // table on desktop where one of the columns is the minimum width and the
 // `tableWidth` is 1 (so about three fourths of the block width on desktop).
-export const tableColumnMaxWidthPx = createObjectFromKeys(
-    allSpacingScales,
-    spacingScale =>
-        (blockMaxWidthRem.desktop - tableColumnMinWidthRem) * remPxBySpacingScale[spacingScale] -
-        // We need to subtract 3px to account for the table borders in a two column
-        // table. 2px for the left/right border and 1px for the border between the two
-        // columns.
-        3,
-);
+export const tableColumnMaxWidthRem = blockMaxWidthRem.desktop - tableColumnMinWidthRem;
 
 globalStyle(`${tableWrapperClassName} td`, {
     display: "block",
     position: "relative",
     minWidth: `${tableColumnMinWidthRem}rem`,
-    maxWidth: tableColumnMaxWidthPx.small,
+    maxWidth: `${tableColumnMaxWidthRem}rem`,
     padding: `${paragraphMargin} ${spacing["3"]}`,
     backgroundColor: backgroundColorVar,
     boxShadow: `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, 1px 0 0 0 ${colorSchemeVars["grey-10"]}`,
@@ -2128,14 +2120,6 @@ globalStyle(`${tableWrapperClassName} td:last-child`, {
     // width will be exactly equal to the block width at small table sizes down to
     // the pixel.
     boxShadow: `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, inset -1px 0 0 0 ${colorSchemeVars["grey-10"]}`,
-});
-
-globalStyle(`${mediumSpacingScaleSelector} ${tableWrapperClassName} td`, {
-    maxWidth: tableColumnMaxWidthPx.medium,
-});
-
-globalStyle(`${largeSpacingScaleSelector} ${tableWrapperClassName} td`, {
-    maxWidth: tableColumnMaxWidthPx.large,
 });
 
 export const tableSelectedCellClassName = style({});

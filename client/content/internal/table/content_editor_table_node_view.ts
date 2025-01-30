@@ -119,7 +119,8 @@ export function updateContentTableColumnsOnResize(
 
     const columnMinWidthPx =
         contentStyles.tableColumnMinWidthRem * remPxBySpacingScale[spacingScale];
-    const columnMaxWidthPx = contentStyles.tableColumnMaxWidthPx[spacingScale];
+    const columnMaxWidthPx =
+        contentStyles.tableColumnMaxWidthRem * remPxBySpacingScale[spacingScale];
 
     const totalColumnMinWidthPx = columnMinWidthPx * columnWidths.length;
 

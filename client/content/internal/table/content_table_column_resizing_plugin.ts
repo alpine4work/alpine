@@ -662,7 +662,7 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
     const spacingScale = getSpacingScaleWithoutListening();
     const remPx = remPxBySpacingScale[spacingScale];
     const columnMinWidthPx = contentStyles.tableColumnMinWidthRem * remPx;
-    const columnMaxWidthPx = contentStyles.tableColumnMaxWidthPx[spacingScale];
+    const columnMaxWidthPx = contentStyles.tableColumnMaxWidthRem * remPx;
 
     const blockWidthPx = Math.min(
         viewWidthPx - screenPaddingXRem[platform] * remPx,
