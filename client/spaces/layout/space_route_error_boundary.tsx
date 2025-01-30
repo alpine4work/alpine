@@ -1,6 +1,6 @@
 import {ArrowLeft} from "phosphor-react";
 import {useMemo} from "react";
-import {useLocation} from "react-router";
+import {useLocation, useRouteError} from "react-router";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -14,24 +14,19 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getWebMobileTabFromPathname} from "~/client/spaces/layout/web_mobile_tab.js";
 import {useRouteErrorTitle} from "~/client/spaces/route_metadata.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     spaceLayoutErrorRendererPaddingX,
     spaceLayoutErrorRendererPaddingY,
 } from "~/client/styles/space_layout_shared_styles.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
 
-export function SpaceRouteErrorRenderer({
-    currentAccount,
-    error: unstableError,
-}: {
-    currentAccount: AccountModel | null;
-    error: unknown;
-}) {
+export function SpaceRouteErrorBoundary() {
     const platform = usePlatform();
     const {isNativeMobile} = useClientInfo();
     const navigate = useNavigate();
     const location = useLocation();
+    const {currentAccount} = useSpaceContext();
 
     // Is this the initial location for a tab? If so we don't want to render the
     // back button since there's nothing to go back to.
@@ -47,7 +42,7 @@ export function SpaceRouteErrorRenderer({
     // It appears that Remix does not `useMemo()` its error object. So stabilize
     // the object reference here. Our error rendering components use referential
     // identity to determine whether we need to log the error.
-    const error = useStableValue(ErrorSchema, unstableError);
+    const error = useStableValue(ErrorSchema, useRouteError());
 
     return (
         <Box width="full" paddingY="safe-area-inset">

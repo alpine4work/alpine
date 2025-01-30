@@ -1,8 +1,10 @@
 import {createClientRoutes, loadRouteModuleWithBlockingLinks} from "@remix-run/react";
 import jsonStableStringify from "json-stable-stringify";
 import {DataRouteObject, LazyRouteFunction} from "react-router";
+import {RootErrorBoundary} from "~/app/router/root_error_boundary.js";
 import {createLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {processLoaderResult} from "~/client/remix/process_loader_result.js";
+import {SpaceRouteErrorBoundary} from "~/client/spaces/layout/space_route_error_boundary.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {
     ErrorBase,
@@ -28,6 +30,9 @@ type CreateClientRoutesArgs = Parameters<typeof createClientRoutes>;
  * Create the `react-router` [route tree][1] for our app. This is based on
  * Remix's logic for creating the route tree but then we add some modifications
  * as necessary.
+ *
+ * This creates the route tree for client rendering. `app_server_routes.ts`
+ * creates the route tree for server rendering.
  *
  * [1]: https://reactrouter.com/en/main/route/route
  */
@@ -83,6 +88,7 @@ function updateAppClientRoutes(routes: Array<DataRouteObject>) {
     const routeById = new Map<string, DataRouteObject>();
     const inflightResponsePromiseByRequestKey = new Map<string, Promise<unknown>>();
 
+    let hasUpdatedRoot = false;
     let hasUpdatedSpaceLayoutDataRoute = false;
     let hasUpdatedSpacePeekLayoutDataRoute = false;
     let hasUpdatedSpaceDataRoute = false;
@@ -119,11 +125,48 @@ function updateAppClientRoutes(routes: Array<DataRouteObject>) {
             updateTaskDataRoute(route);
         }
 
-        if (route.id === "routes/s.$spaceId") {
+        if (route.id === "root") {
+            // Don't add a loader timeout for our root.
+            hasUpdatedRoot = true;
+
+            // Make sure all route children of `root.tsx` have the same error boundary.
+            // This is so we don't have to add an `ErrorBoundary` export to each
+            // route file.
+            //
+            // We need to implement the same thing in `app_server_routes.ts` so we have the
+            // same error boundary when server rendering.
+            for (const childRoute of route.children ?? []) {
+                if (childRoute.Component && !childRoute.ErrorBoundary) {
+                    assert(!childRoute.hasErrorBoundary);
+                    assert(!childRoute.ErrorBoundary);
+                    assert(!childRoute.errorElement);
+
+                    childRoute.hasErrorBoundary = true;
+                    childRoute.ErrorBoundary = RootErrorBoundary;
+                }
+            }
+        } else if (route.id === "routes/s.$spaceId") {
             // Don't add a loader timeout for our space layout route. The space layout
             // route will conditionally render `<Outlet>`s based on whether they're done
             // loading or not.
             hasUpdatedSpaceLayoutDataRoute = true;
+
+            // Make sure all route children of `routes/s.$spaceId.tsx` have the same error
+            // boundary. This is so we don't have to add an `ErrorBoundary` export to each
+            // space route file.
+            //
+            // We need to implement the same thing in `app_server_routes.ts` so we have the
+            // same error boundary when server rendering.
+            for (const childRoute of route.children ?? []) {
+                if (childRoute.Component && !childRoute.ErrorBoundary) {
+                    assert(!childRoute.hasErrorBoundary);
+                    assert(!childRoute.ErrorBoundary);
+                    assert(!childRoute.errorElement);
+
+                    childRoute.hasErrorBoundary = true;
+                    childRoute.ErrorBoundary = SpaceRouteErrorBoundary;
+                }
+            }
         } else if (route.id === "routes/s.$spaceId.peek") {
             // Don't add a loader timeout for our peek route. The peek layout
             // route will conditionally render `<Outlet>`s based on whether they're done
@@ -146,6 +189,7 @@ function updateAppClientRoutes(routes: Array<DataRouteObject>) {
     }
 
     // Sanity check: Make sure our route updates were applied.
+    assert(hasUpdatedRoot);
     assert(hasUpdatedSpaceLayoutDataRoute);
     assert(hasUpdatedSpacePeekLayoutDataRoute);
     assert(hasUpdatedSpaceDataRoute);
