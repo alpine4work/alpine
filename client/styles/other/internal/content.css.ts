@@ -2083,7 +2083,6 @@ globalStyle(`${tableWrapperClassName} table`, {
     width: "100%",
     borderCollapse: "collapse",
     tableLayout: "fixed",
-    backgroundColor: colorSchemeVars["grey-10"],
 });
 
 globalStyle(`${tableWrapperClassName} tbody`, {
@@ -2110,11 +2109,10 @@ globalStyle(`${tableWrapperClassName} td`, {
     minWidth: `${tableColumnMinWidthRem}rem`,
     maxWidth: `${tableColumnMaxWidthRem}rem`,
     padding: `${paragraphMargin} ${spacing["3"]}`,
-    backgroundColor: backgroundColorVar,
     boxShadow: `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, 1px 0 0 0 ${colorSchemeVars["grey-10"]}`,
 });
 
-globalStyle(`${tableWrapperClassName} td:last-child`, {
+globalStyle(`${tableWrapperClassName} td:last-of-type`, {
     // Minor detail: We want the right border on the last column to be inset within
     // the cell instead of outside the cell. That way border-to-border the table
     // width will be exactly equal to the block width at small table sizes down to
@@ -2126,7 +2124,22 @@ export const tableSelectedCellClassName = style({});
 
 globalStyle(`${tableWrapperClassName} td${tableSelectedCellClassName}`, {
     backgroundColor: colorSchemeVars["grey-5"],
-    boxShadow: `0px 0px 0px 1px ${colorSchemeVars["grey-20"]}`,
+});
+
+globalStyle(`${tableWrapperClassName} td${tableSelectedCellClassName}::after`, {
+    content: '""',
+    position: "absolute",
+    zIndex: "10",
+    top: 0,
+    left: 0,
+    right: -1,
+    bottom: -1,
+    pointerEvents: "none",
+    border: `1px solid ${colorSchemeVars["grey-20"]}`,
+});
+
+globalStyle(`${tableWrapperClassName} td:last-of-type${tableSelectedCellClassName}::after`, {
+    right: 0,
 });
 
 // We want the hit area for the resize handle to be nice and wide. We'd like to
@@ -2142,7 +2155,7 @@ const tableColumnResizeHandleIndicatorWidth = spacing["1"];
 
 export const tableColumnResizeHandleClassName = style({
     position: "absolute",
-    zIndex: "10",
+    zIndex: "20",
     right: `calc(-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem - 0.5px)`,
     top: 0,
     bottom: -1,
