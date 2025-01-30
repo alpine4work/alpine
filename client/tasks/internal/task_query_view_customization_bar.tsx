@@ -138,6 +138,12 @@ function TaskQueryViewCustomizationBar(
                 alignItems="center"
                 gap="2"
                 marginLeft={shouldCollapse ? "-2" : undefined}
+                style={{
+                    // Don't allow item to grow beyond flexbox bounds. By default flexbox items
+                    // have `min-width: auto` which extends with content.
+                    // https://stackoverflow.com/a/66689926/1568890
+                    minWidth: 0,
+                }}
             >
                 {filters.map((filter, index) => {
                     // The first collections filter should get our ref.

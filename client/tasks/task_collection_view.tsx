@@ -68,7 +68,7 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
+import {AccessLevel, AccessPolicy, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -138,17 +138,24 @@ export function TaskCollectionView({
     const {space, currentAccount} = useSpaceContext();
     const currentDate = useCurrentDate();
 
-    const access = useStore(
-        useMemo((): Store<TaskAccess> => {
+    const [accessPolicy, access] = useStore(
+        useMemo((): Store<readonly [AccessPolicy | null, TaskAccess]> => {
             // If there's no `collectionSubscription` it means we're creating the
             // collection. When the user creates a collection they get the manage access
             // level.
             if (!collectionSubscription)
-                return new ConstStore({type: "PermissionGranted", level: "Manage"});
+                return new ConstStore([null, {type: "PermissionGranted", level: "Manage"}]);
 
-            return collectionSubscription.collectionEntryStore.map(collectionEntry =>
-                getTaskCollectionEntryAccess(currentAccount?.id, collectionEntry),
-            );
+            // `Store.many()` should only trigger a re-render if the `AccessPolicy` changes
+            // or `TaskAccess` result changes. Both are memoized.
+            return Store.many([
+                collectionSubscription.collectionEntryStore.map(
+                    collectionEntry => collectionEntry.collection?.getAccessPolicy() ?? null,
+                ),
+                collectionSubscription.collectionEntryStore.map(collectionEntry =>
+                    getTaskCollectionEntryAccess(currentAccount?.id, collectionEntry),
+                ),
+            ]);
         }, [collectionSubscription, currentAccount?.id]),
     );
 
@@ -318,86 +325,38 @@ export function TaskCollectionView({
             },
         ]);
 
-        if (hasAccessLevel(access.level, "Manage")) {
-            // Even though you can edit the collection name by double clicking and the
-            // color by clicking on the dot, we still include menu items since these
-            // interactions aren't necessarily obvious.
-            //
-            // Also, the color and name are not focusable. So the only way to edit
-            // name/color via keyboard are these menu items.
-            //
-            // eslint-disable-next-line react-compiler/react-compiler
-            menuActions.push([
-                {
-                    label: "Edit name",
-                    onPress: () => {
-                        if (routeLayout !== "narrow") {
-                            assertExists(desktopHeaderRef.current).editName();
-                        } else if (platform !== "mobile") {
-                            assertExists(navigationBarDesktopNameRef.current).editName();
-                        } else {
-                            setEditNameMobileModalState({initiallyFocusName: true});
-                        }
-                    },
-                },
-                {
-                    label: "Edit color",
-                    onPress: () => {
-                        if (routeLayout !== "narrow") {
-                            assertExists(desktopHeaderRef.current).editColor();
-                        } else if (platform !== "mobile") {
-                            assertExists(navigationBarDesktopNameRef.current).editColor();
-                        } else {
-                            setEditNameMobileModalState({initiallyFocusName: false});
-                        }
-                    },
-                },
-            ]);
-        }
-
-        if (hasEditAccessLevel) {
-            if (routeLayout === "narrow") {
+        if (collectionSubscription) {
+            if (hasAccessLevel(access.level, "Manage")) {
+                // Even though you can edit the collection name by double clicking and the
+                // color by clicking on the dot, we still include menu items since these
+                // interactions aren't necessarily obvious.
+                //
+                // Also, the color and name are not focusable. So the only way to edit
+                // name/color via keyboard are these menu items.
+                //
                 // eslint-disable-next-line react-compiler/react-compiler
                 menuActions.push([
                     {
-                        label: "Add filter",
+                        label: "Edit name",
                         onPress: () => {
-                            // Make sure the filter/sort section is visible.
-                            assertExists(viewRef.current).setScrollOffset(0);
-
-                            if (!customizationState) {
-                                setCustomizationState({initiallyFocus: "AddFilter"});
+                            if (routeLayout !== "narrow") {
+                                assertExists(desktopHeaderRef.current).editName();
+                            } else if (platform !== "mobile") {
+                                assertExists(navigationBarDesktopNameRef.current).editName();
                             } else {
-                                if (platform === "mobile") {
-                                    assertExists(
-                                        mobileCustomizationSectionRef.current,
-                                    ).openAddFilterMenu();
-                                } else {
-                                    assertExists(
-                                        desktopCustomizationBarRef.current,
-                                    ).openAddFilterMenu();
-                                }
+                                setEditNameMobileModalState({initiallyFocusName: true});
                             }
                         },
                     },
                     {
-                        label: "Add sort",
+                        label: "Edit color",
                         onPress: () => {
-                            // Make sure the filter/sort section is visible.
-                            assertExists(viewRef.current).setScrollOffset(0);
-
-                            if (!customizationState) {
-                                setCustomizationState({initiallyFocus: "AddSort"});
+                            if (routeLayout !== "narrow") {
+                                assertExists(desktopHeaderRef.current).editColor();
+                            } else if (platform !== "mobile") {
+                                assertExists(navigationBarDesktopNameRef.current).editColor();
                             } else {
-                                if (platform === "mobile") {
-                                    assertExists(
-                                        mobileCustomizationSectionRef.current,
-                                    ).openAddSortMenu();
-                                } else {
-                                    assertExists(
-                                        desktopCustomizationBarRef.current,
-                                    ).openAddSortMenu();
-                                }
+                                setEditNameMobileModalState({initiallyFocusName: false});
                             }
                         },
                     },
@@ -405,43 +364,93 @@ export function TaskCollectionView({
             }
 
             if (hasEditAccessLevel) {
-                menuActions.push([
-                    {
-                        label: "Undo",
-                        keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
-                        onPress: undoEvent,
-                    },
-                    {
-                        label: "Redo",
-                        keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
-                        onPress: redoEvent,
-                    },
-                ]);
-            }
+                if (routeLayout === "narrow") {
+                    // eslint-disable-next-line react-compiler/react-compiler
+                    menuActions.push([
+                        {
+                            label: "Add filter",
+                            onPress: () => {
+                                // Make sure the filter/sort section is visible.
+                                assertExists(viewRef.current).setScrollOffset(0);
 
-            if (hasAccessLevel(access.level, "Manage")) {
-                menuActions.push([
-                    {
-                        label: "Delete",
-                        onPress: () => {
-                            store.commitTaskActionTransaction(
-                                context,
-                                [
-                                    {
-                                        type: "UpdateCollection",
-                                        time: store.clock.now(),
-                                        collectionId,
-                                        collectionAction: {type: "Delete"},
-                                    },
-                                ],
-                                // Collection changes can't be undone.
-                                {undoManager: null, affinityManager},
-                            );
-
-                            void navigate(-1);
+                                if (!customizationState) {
+                                    setCustomizationState({initiallyFocus: "AddFilter"});
+                                } else {
+                                    if (platform === "mobile") {
+                                        assertExists(
+                                            mobileCustomizationSectionRef.current,
+                                        ).openAddFilterMenu();
+                                    } else {
+                                        assertExists(
+                                            desktopCustomizationBarRef.current,
+                                        ).openAddFilterMenu();
+                                    }
+                                }
+                            },
                         },
-                    },
-                ]);
+                        {
+                            label: "Add sort",
+                            onPress: () => {
+                                // Make sure the filter/sort section is visible.
+                                assertExists(viewRef.current).setScrollOffset(0);
+
+                                if (!customizationState) {
+                                    setCustomizationState({initiallyFocus: "AddSort"});
+                                } else {
+                                    if (platform === "mobile") {
+                                        assertExists(
+                                            mobileCustomizationSectionRef.current,
+                                        ).openAddSortMenu();
+                                    } else {
+                                        assertExists(
+                                            desktopCustomizationBarRef.current,
+                                        ).openAddSortMenu();
+                                    }
+                                }
+                            },
+                        },
+                    ]);
+                }
+
+                if (hasEditAccessLevel) {
+                    menuActions.push([
+                        {
+                            label: "Undo",
+                            keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
+                            onPress: undoEvent,
+                        },
+                        {
+                            label: "Redo",
+                            keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
+                            onPress: redoEvent,
+                        },
+                    ]);
+                }
+
+                if (hasAccessLevel(access.level, "Manage")) {
+                    menuActions.push([
+                        {
+                            label: "Delete",
+                            onPress: () => {
+                                store.commitTaskActionTransaction(
+                                    context,
+                                    [
+                                        {
+                                            type: "UpdateCollection",
+                                            time: store.clock.now(),
+                                            collectionId,
+                                            collectionAction: {type: "Delete"},
+                                        },
+                                    ],
+                                    // Collection changes can't be undone.
+                                    {undoManager: null, affinityManager},
+                                );
+
+                                void navigate(-1);
+                            },
+                        },
+                    ]);
+                }
             }
         }
 
@@ -450,6 +459,7 @@ export function TaskCollectionView({
         access.level,
         affinityManager,
         collectionId,
+        collectionSubscription,
         context,
         copyLink,
         customizationState,
@@ -713,10 +723,34 @@ export function TaskCollectionView({
             />
         ),
         desktopTitleLeftSlop: platform !== "mobile" ? "2" : undefined,
-        // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-        // eslint-disable-next-line no-commit-blockers
-        // NOCOMMIT
-        shareButton: undefined,
+        shareButton: accessPolicy
+            ? {
+                  entityNoun: "task collection",
+                  accessPolicy,
+                  onAccessPolicyChange: accessPolicy => {
+                      store.commitTaskActionTransaction(
+                          context,
+                          [
+                              {
+                                  type: "UpdateCollection",
+                                  time: store.clock.now(),
+                                  collectionId,
+                                  collectionAction: {
+                                      type: "UpdateAccessPolicy",
+                                      accessPolicy,
+                                  },
+                              },
+                          ],
+                          {
+                              // Collection access policy changes can't be undone.
+                              undoManager: null,
+                              affinityManager,
+                          },
+                      );
+                  },
+                  onCopyLink: copyLink,
+              }
+            : undefined,
         menuActions,
     });
 
@@ -744,7 +778,7 @@ export function TaskCollectionView({
                                         onSortsChange={setSorts}
                                     />
                                 ) : (
-                                    <Box paddingX={screenPaddingX} paddingTop="1" paddingBottom="6">
+                                    <Box paddingX={screenPaddingX} paddingTop="1" paddingBottom="5">
                                         <TaskQueryViewCustomizationBar
                                             ref={desktopCustomizationBarRef}
                                             store={store}

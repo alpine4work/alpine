@@ -5,6 +5,7 @@ import {Box} from "~/client/design/box.js";
 import {OverlayTriggerButtonRef} from "~/client/design/overlay_trigger_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {useStore} from "~/client/helpers/use_store.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
 import {inputPlaceholderStyles} from "~/client/styles/styles.js";
@@ -303,42 +304,59 @@ function TaskQueryCollectionsFilterOperationEditorPreview({
     conjunction: "or" | "and";
     collectionResults: ReadonlyArray<TaskCollectionModelSearchResult>;
 }) {
+    const routeLayout = useRouteLayout();
+
     const previewCollections = useMemo(() => {
         const graphemeSplitter = new GraphemeSplitter();
 
-        return Array.from(sliceIterable(collectionResults, 0, 2), collectionResult => {
-            const collectionNameGraphemes = graphemeSplitter.splitGraphemes(
-                collectionResult.collection.getName(),
-            );
-            const collectionNameGraphemeLimit = 30;
+        return Array.from(
+            sliceIterable(collectionResults, 0, routeLayout === "narrow" ? 1 : 2),
+            collectionResult => {
+                const collectionNameGraphemes = graphemeSplitter.splitGraphemes(
+                    collectionResult.collection.getName(),
+                );
+                const collectionNameGraphemeLimit = 30;
 
-            return (
-                <Fragment key={collectionResult.collection.id}>
-                    <Box
-                        flexShrink="0"
-                        width="1.5"
-                        height="1.5"
-                        borderRadius="full"
-                        backgroundColor={getTaskCollectionColor(
-                            collectionResult.collection.getColor(),
-                        )}
-                    />
-                    <Box paddingLeft="1" fontStyle="truncate">
-                        {collectionNameGraphemes.length > collectionNameGraphemeLimit
-                            ? `“${collectionNameGraphemes
-                                  .slice(0, collectionNameGraphemeLimit)
-                                  .join("")}…”`
-                            : collectionResult.collection.getName()}
-                    </Box>
-                </Fragment>
-            );
-        });
-    }, [collectionResults]);
+                return (
+                    <Fragment key={collectionResult.collection.id}>
+                        <Box
+                            flexShrink="0"
+                            width="1.5"
+                            height="1.5"
+                            borderRadius="full"
+                            backgroundColor={getTaskCollectionColor(
+                                collectionResult.collection.getColor(),
+                            )}
+                        />
+                        <Box paddingLeft="1" fontStyle="truncate">
+                            {collectionNameGraphemes.length > collectionNameGraphemeLimit
+                                ? `${collectionNameGraphemes
+                                      .slice(0, collectionNameGraphemeLimit)
+                                      .join("")}…`
+                                : collectionResult.collection.getName()}
+                        </Box>
+                    </Fragment>
+                );
+            },
+        );
+    }, [collectionResults, routeLayout]);
 
     if (collectionResults.length === 0) {
         return <Box style={inputPlaceholderStyles}>any collection</Box>;
     } else if (collectionResults.length === 1) {
         return <>{previewCollections[0]}</>;
+    } else if (routeLayout === "narrow") {
+        return (
+            <>
+                {previewCollections[0]}
+                <Box color="grey-60" paddingX="1" style={{whiteSpace: "nowrap"}}>
+                    {conjunction}
+                </Box>
+                <Box style={{whiteSpace: "nowrap"}}>
+                    <PrettyNumber number={collectionResults.length - 1} label="other" />
+                </Box>
+            </>
+        );
     } else if (collectionResults.length === 2) {
         return (
             <>
