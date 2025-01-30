@@ -122,10 +122,7 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
             collectionIds: [],
         }),
         showComments && platform !== "mobile"
-            ? // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-              // eslint-disable-next-line no-commit-blockers
-              // NOCOMMIT: Test view access with `comments=show`.
-              getTaskNotesContentAndOptionalInitialComments(context, {
+            ? getTaskNotesContentAndOptionalInitialComments(context, {
                   taskId,
                   commentsLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
               })
@@ -280,10 +277,6 @@ export default function TaskRoute() {
     // task detail view we can preserve the comment open/close state.
     //
     // We read this state in `convertPeekPathToSpacePath()`.
-    //
-    // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-    // eslint-disable-next-line no-commit-blockers
-    // NOCOMMIT: Consider testing this?
     useEffect(() => {
         if (routeLayout === "narrow") return;
 

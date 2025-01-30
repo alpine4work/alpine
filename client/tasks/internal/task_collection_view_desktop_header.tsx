@@ -211,10 +211,6 @@ function TaskCollectionViewDesktopHeader(
                             entityNoun="task collection"
                             accessPolicy={accessPolicy}
                             onAccessPolicyChange={accessPolicy => {
-                                // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-                                // eslint-disable-next-line no-commit-blockers
-                                // NOCOMMIT: Make sure you can't update name, update color, or delete on mobile
-                                // if not a manager.
                                 store.commitTaskActionTransaction(
                                     context,
                                     [

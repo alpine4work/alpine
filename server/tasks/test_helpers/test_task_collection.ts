@@ -22,17 +22,20 @@ export class TestTaskCollection {
     public readonly space: TestSpace;
     public readonly id: TaskCollectionId;
     public readonly createdTime: HybridLogicalTime;
+    public readonly initialName: string;
 
     private constructor(
         context: TestContext,
         space: TestSpace,
         id: TaskCollectionId,
         createdTime: HybridLogicalTime,
+        initialName: string,
     ) {
         this.context = context;
         this.space = space;
         this.id = id;
         this.createdTime = createdTime;
+        this.initialName = initialName;
     }
 
     public static getNewName() {
@@ -73,7 +76,7 @@ export class TestTaskCollection {
             },
         ]);
 
-        return new TestTaskCollection(session.context, session.space, id, time);
+        return new TestTaskCollection(session.context, session.space, id, time, name);
     }
 
     public getItem(): Promise<TaskCollectionEssentialAttributesItem> {

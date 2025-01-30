@@ -2,12 +2,17 @@ import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {removeSpaceAccountAsAdmin} from "~/server/spaces/spaces_table.js";
+import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {allAccessLevels, hasAccessLevel} from "~/shared/access/access_policy.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {Mutex} from "~/shared/helpers/async/mutex.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
+import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 
 const {context, services} = createTestServices();
 
@@ -1753,4 +1758,569 @@ test("will be prevented from lowering your own permission level if you're the la
             .getByTestId(`ShareOverlayAccountGrant:${session1.account.id}`)
             .getByRole("button", {name: "can edit"}),
     ).toBeVisible();
+});
+
+test("as anonymous actor can filter by assignee, filter by collection, scroll to load more tasks, and can expand child tasks", async ({
+    page,
+}) => {
+    // Give this test a long timeout...
+    test.setTimeout(1000 * 60 * 3);
+
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const [session1, session2, session3, session4] = await space.createSessions(4);
+
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantUrl(session1);
+
+    const [otherCollection1, otherCollection2, otherCollection3] = await runAllPromises([
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+    ]);
+
+    await otherCollection1.access.grantUrl(session1);
+    await otherCollection3.access.grantUrl(session1);
+
+    const taskPromises: Array<Promise<TestTask>> = [];
+    const mutexes = createArrayWithLength(5, () => new Mutex());
+
+    for (let i = 0; i < 185; i++) {
+        const time1 = testClock.nowLogical();
+        const time2 = testClock.nowLogical();
+
+        taskPromises.push(
+            mutexes[i % mutexes.length]!.withLock(async () => {
+                const task = await TestTask.create(session1, {
+                    time: time1,
+                    title: `Test task ${i + 1}`,
+                });
+                await task.addCollection(session1, collection, {time: time2});
+
+                if (i !== 0 && i % 11 === 0) {
+                    await task.updateAssignee(session1, session2);
+                }
+
+                if (i !== 0 && i % 17 === 0) {
+                    await task.updateAssignee(session1, session3);
+                }
+
+                if (i !== 0 && i % 5 === 0) {
+                    await task.addCollection(session1, otherCollection1);
+                }
+
+                if (i !== 0 && i % 7 === 0) {
+                    await task.addCollection(session1, otherCollection2);
+                }
+
+                if (i !== 0 && i % 13 === 0) {
+                    await task.addCollection(session1, otherCollection3);
+                }
+
+                return task;
+            }),
+        );
+    }
+
+    const tasks = await runAllPromises(taskPromises);
+
+    const [childTask1, childTask2, childTask3] = await runAllPromises([
+        TestTask.create(session1, {title: "Test child task 1"}),
+        TestTask.create(session1, {title: "Test child task 2"}),
+        TestTask.create(session1, {title: "Test child task 3"}),
+    ]);
+
+    await runAllPromises([
+        childTask1.updateParentTask(session1, tasks[tasks.length - 2]!),
+        childTask2.updateParentTask(session1, tasks[tasks.length - 2]!),
+        childTask3.updateParentTask(session1, tasks[tasks.length - 2]!),
+    ]);
+
+    await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+
+    await expect(page.getByRole("heading", {name: collection.initialName})).toBeVisible();
+    await expect(page.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
+    await expect(page.getByRole("button", {name: "Search"})).toBeHidden();
+    await expect(page.getByText("Couldn’t open")).toBeHidden();
+    await expect(page.getByRole("img", {name: "Error icon"})).toBeHidden();
+
+    await expect(page.getByRole("option", {name: session1.account.initialName})).toBeHidden();
+    await expect(page.getByRole("option", {name: session2.account.initialName})).toBeHidden();
+    await expect(page.getByRole("option", {name: session3.account.initialName})).toBeHidden();
+    await expect(page.getByRole("option", {name: session4.account.initialName})).toBeHidden();
+
+    await page.getByRole("button", {name: "Add filter"}).click();
+    await page.getByRole("menuitem", {name: "Assignee"}).click();
+    await page.getByRole("button", {name: "anyone"}).click();
+
+    await expect(page.getByRole("option", {name: session2.account.initialName})).toBeVisible();
+    await expect(page.getByRole("option", {name: session3.account.initialName})).toBeVisible();
+    await expect(page.getByRole("option", {name: session1.account.initialName})).toBeHidden();
+    await expect(page.getByRole("option", {name: session4.account.initialName})).toBeHidden();
+
+    await expect(page.getByTestId(`TaskRowView:${tasks[0]!.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${tasks[1]!.id}`)).toBeVisible();
+
+    await page.getByRole("option", {name: session2.account.initialName}).click();
+
+    await expect(page.getByRole("option", {name: session2.account.initialName})).toBeVisible();
+    await expect(page.getByRole("option", {name: session3.account.initialName})).toBeVisible();
+    await expect(page.getByRole("option", {name: session1.account.initialName})).toBeHidden();
+    await expect(page.getByRole("option", {name: session4.account.initialName})).toBeHidden();
+
+    await expect(page.getByTestId(`TaskRowView:${tasks[11]!.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${tasks[22]!.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${tasks[0]!.id}`)).toBeHidden();
+    await expect(page.getByTestId(`TaskRowView:${tasks[1]!.id}`)).toBeHidden();
+
+    await page.keyboard.press("Escape");
+
+    await expect(page.getByRole("option", {name: session1.account.initialName})).toBeHidden();
+    await expect(page.getByRole("option", {name: session2.account.initialName})).toBeHidden();
+    await expect(page.getByRole("option", {name: session3.account.initialName})).toBeHidden();
+    await expect(page.getByRole("option", {name: session4.account.initialName})).toBeHidden();
+
+    await expect(page.getByTestId(`TaskRowView:${tasks[11]!.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${tasks[22]!.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${tasks[0]!.id}`)).toBeHidden();
+    await expect(page.getByTestId(`TaskRowView:${tasks[1]!.id}`)).toBeHidden();
+
+    await page.getByLabel("Remove").click();
+
+    await expect(page.getByTestId(`TaskRowView:${tasks[0]!.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${tasks[1]!.id}`)).toBeVisible();
+
+    await expect(page.getByRole("option", {name: collection.initialName})).toBeHidden();
+    await expect(page.getByRole("option", {name: otherCollection1.initialName})).toBeHidden();
+    await expect(page.getByRole("option", {name: otherCollection2.initialName})).toBeHidden();
+    await expect(page.getByRole("option", {name: otherCollection3.initialName})).toBeHidden();
+
+    await page.getByRole("button", {name: "Add filter"}).click();
+    await page.getByRole("menuitem", {name: "Collections"}).click();
+    await page.getByRole("button", {name: "any collection"}).click();
+
+    await expect(page.getByRole("option", {name: collection.initialName})).toBeVisible();
+    await expect(page.getByRole("option", {name: otherCollection1.initialName})).toBeVisible();
+    await expect(page.getByRole("option", {name: otherCollection3.initialName})).toBeVisible();
+    await expect(page.getByRole("option", {name: otherCollection2.initialName})).toBeHidden();
+
+    await expect(page.getByTestId(`TaskRowView:${tasks[0]!.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${tasks[1]!.id}`)).toBeVisible();
+
+    await page.getByRole("option", {name: otherCollection1.initialName}).click();
+
+    await expect(page.getByTestId(`TaskRowView:${tasks[0]!.id}`)).toBeHidden();
+    await expect(page.getByTestId(`TaskRowView:${tasks[1]!.id}`)).toBeHidden();
+    await expect(page.getByTestId(`TaskRowView:${tasks[5]!.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${tasks[10]!.id}`)).toBeVisible();
+
+    await page.keyboard.press("Escape");
+
+    await expect(page.getByRole("option", {name: collection.initialName})).toBeHidden();
+    await expect(page.getByRole("option", {name: otherCollection1.initialName})).toBeHidden();
+    await expect(page.getByRole("option", {name: otherCollection2.initialName})).toBeHidden();
+    await expect(page.getByRole("option", {name: otherCollection3.initialName})).toBeHidden();
+
+    await expect(page.getByTestId(`TaskRowView:${tasks[5]!.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${tasks[10]!.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${tasks[0]!.id}`)).toBeHidden();
+    await expect(page.getByTestId(`TaskRowView:${tasks[1]!.id}`)).toBeHidden();
+
+    await page.getByLabel("Remove").click();
+
+    await expect(page.getByTestId(`TaskRowView:${tasks[0]!.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${tasks[1]!.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${tasks[tasks.length - 2]!.id}`)).toBeHidden();
+    await expect(page.getByTestId(`TaskRowView:${tasks[tasks.length - 1]!.id}`)).toBeHidden();
+
+    // Scroll to the end so we load more tasks.
+    for (const task of tasks) {
+        await page.getByTestId(`TaskRowView:${task.id}`).scrollIntoViewIfNeeded();
+    }
+
+    await expect(page.getByTestId(`TaskRowView:${tasks[0]!.id}`)).toBeHidden();
+    await expect(page.getByTestId(`TaskRowView:${tasks[1]!.id}`)).toBeHidden();
+    await expect(page.getByTestId(`TaskRowView:${tasks[tasks.length - 2]!.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${tasks[tasks.length - 1]!.id}`)).toBeVisible();
+
+    await expect(page.getByTestId(`TaskRowView:${childTask1.id}`)).toBeHidden();
+    await expect(page.getByTestId(`TaskRowView:${childTask2.id}`)).toBeHidden();
+    await expect(page.getByTestId(`TaskRowView:${childTask3.id}`)).toBeHidden();
+
+    await page.getByText("0/3").click();
+
+    await page.getByTestId(`TaskRowView:${childTask3.id}`).scrollIntoViewIfNeeded();
+
+    await expect(page.getByTestId(`TaskRowView:${childTask1.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${childTask2.id}`)).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${childTask3.id}`)).toBeVisible();
+});
+
+test("may lose access to task in realtime", async ({
+    browser,
+    context: browserContext2,
+    page: page2,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const [session1, session2] = await space.createSessions(2);
+
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
+
+    const task = await TestTask.create(session1, {title: "Test task"});
+    await task.addCollection(session1, collection);
+
+    await services.signIn(browserContext2, session2);
+    await page2.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+
+    const browserContext1 = await browser.newContext();
+    const page1 = await browserContext1.newPage();
+    await services.signIn(browserContext1, session1);
+    await page1.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+
+    await page2
+        .getByTestId(`TaskRowView:${task.id}`)
+        .getByRole("button", {name: "Open"})
+        .first()
+        .click();
+
+    await expect(page2.getByRole("heading", {name: collection.initialName})).toBeVisible();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByTestId("TaskStatusButton"),
+    ).toBeVisible();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByText("Couldn’t open task"),
+    ).toBeHidden();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByRole("img", {name: "Error icon"}),
+    ).toBeHidden();
+
+    await page1
+        .getByTestId(`TaskRowView:${task.id}`)
+        .getByTestId("TaskRowCollectionsCell")
+        .click({position: {x: 2, y: 2}});
+
+    await page1.getByTestId("TaskRowCollectionsCellOverlay").getByLabel("Remove").click();
+
+    await expect(page2.getByRole("heading", {name: collection.initialName})).toBeVisible();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByTestId("TaskStatusButton"),
+    ).toBeHidden();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByText("Couldn’t open task"),
+    ).toBeVisible();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByRole("img", {name: "Error icon"}),
+    ).toBeHidden();
+
+    await browserContext1.close();
+});
+
+test("may lose access to task collection in realtime", async ({
+    browser,
+    context: browserContext2,
+    page: page2,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const [session1, session2] = await space.createSessions(2);
+
+    const collection1 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+
+    const collection2 = await TestTaskCollection.create(session1);
+    await collection2.access.grantDefault(session1);
+
+    const task = await TestTask.create(session1, {title: "Test task"});
+    await task.addCollection(session1, collection1);
+
+    await services.signIn(browserContext2, session2);
+    await page2.goto(`/s/${space.id}/tasks/collections/${collection1.id}`);
+
+    const browserContext1 = await browser.newContext();
+    const page1 = await browserContext1.newPage();
+    await services.signIn(browserContext1, session1);
+    await page1.goto(`/s/${space.id}/tasks/collections/${collection1.id}`);
+
+    await page2
+        .getByTestId(`TaskRowView:${task.id}`)
+        .getByRole("button", {name: "Open"})
+        .first()
+        .click();
+
+    await expect(page2.getByRole("heading", {name: collection1.initialName})).toBeVisible();
+    await expect(page2.getByText("Couldn’t open tasks")).toBeHidden();
+    await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByTestId("TaskStatusButton"),
+    ).toBeVisible();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByText(collection1.initialName),
+    ).toBeVisible();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByText(collection2.initialName),
+    ).toBeHidden();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByText("Couldn’t open task"),
+    ).toBeHidden();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByRole("img", {name: "Error icon"}),
+    ).toBeHidden();
+
+    await page1
+        .getByTestId(`TaskRowView:${task.id}`)
+        .getByTestId("TaskRowCollectionsCell")
+        .click({position: {x: 2, y: 2}});
+
+    await expect(page1.getByRole("option", {name: collection2.initialName})).toBeHidden();
+    await page1.getByTestId("TaskRowCollectionsCellOverlay").getByLabel("Collections").click();
+    await page1.getByRole("option", {name: collection2.initialName}).click();
+
+    await expect(page2.getByRole("heading", {name: collection1.initialName})).toBeVisible();
+    await expect(page2.getByText("Couldn’t open tasks")).toBeHidden();
+    await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByTestId("TaskStatusButton"),
+    ).toBeVisible();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByText(collection1.initialName),
+    ).toBeVisible();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByText(collection2.initialName),
+    ).toBeVisible();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByText("Couldn’t open task"),
+    ).toBeHidden();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByRole("img", {name: "Error icon"}),
+    ).toBeHidden();
+
+    await expect(page1.getByTestId("ShareOverlayDefaultGrant")).toBeHidden();
+
+    await expect(
+        page1.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
+    ).toHaveAttribute(
+        "aria-label",
+        "Icon indicating the task collection is shared with everyone in Test Space",
+    );
+
+    await page1.getByRole("button", {name: "Share"}).click();
+
+    await expect(page1.getByTestId("ShareOverlayDefaultGrant")).toBeVisible();
+
+    await page1
+        .getByTestId("ShareOverlayDefaultGrant")
+        .getByRole("button", {name: "can edit"})
+        .click();
+
+    await page1.getByRole("menuitem", {name: "can’t access"}).click();
+
+    await expect(
+        page1.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
+    ).toHaveAttribute("aria-label", "Icon indicating the task collection is private");
+
+    await expect(page2.getByRole("heading", {name: collection1.initialName})).toBeHidden();
+    await expect(page2.getByText("Couldn’t open tasks")).toBeVisible();
+    await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByTestId("TaskStatusButton"),
+    ).toBeVisible();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByText(collection1.initialName),
+    ).toBeHidden();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByText(collection2.initialName),
+    ).toBeVisible();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByText("Couldn’t open task"),
+    ).toBeHidden();
+    await expect(
+        page2.getByTestId("PeekStackOverlay").getByRole("img", {name: "Error icon"}),
+    ).toBeHidden();
+
+    await browserContext1.close();
+});
+
+test("task view with mixed readonly and editable tasks", async ({
+    context: browserContext,
+    page,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const [session1, session2] = await space.createSessions(2);
+
+    const editableCollection = await TestTaskCollection.create(session1);
+    await editableCollection.access.grantDefault(session1, "Edit");
+
+    const readonlyCollection = await TestTaskCollection.create(session1);
+    await readonlyCollection.access.grantDefault(session1, "View");
+
+    const task1 = await TestTask.create(session1, {title: "Test task 1"});
+    await task1.addCollection(session1, editableCollection);
+
+    const task2 = await TestTask.create(session1, {title: "Test task 2"});
+    await task2.addCollection(session1, readonlyCollection);
+
+    const task3 = await TestTask.create(session1, {title: "Test task 3"});
+    await task3.addCollection(session1, editableCollection);
+
+    const task4 = await TestTask.create(session1, {title: "Test task 4"});
+    await task4.addCollection(session1, readonlyCollection);
+
+    const task5 = await TestTask.create(session1, {title: "Test task 5"});
+    await task5.addCollection(session1, editableCollection);
+
+    const task6 = await TestTask.create(session1, {title: "Test task 6"});
+    await task6.addCollection(session1, readonlyCollection);
+
+    await services.signIn(browserContext, session2);
+    await page.goto(
+        `/s/${space.id}/tasks/view?filter=${serializeTaskQueryFiltersSearchParam([
+            {
+                type: "Collections",
+                operation: {
+                    type: "IncludesOneOf",
+                    collectionIds: new Set([editableCollection.id, readonlyCollection.id]),
+                },
+            },
+        ])}`,
+    );
+
+    await expect(page.getByTestId(`TaskRowView:${task1.id}`).getByLabel("Title")).toHaveAttribute(
+        "contenteditable",
+        "true",
+    );
+    await expect(page.getByTestId(`TaskRowView:${task2.id}`).getByLabel("Title")).toHaveAttribute(
+        "contenteditable",
+        "false",
+    );
+    await expect(page.getByTestId(`TaskRowView:${task3.id}`).getByLabel("Title")).toHaveAttribute(
+        "contenteditable",
+        "true",
+    );
+    await expect(page.getByTestId(`TaskRowView:${task4.id}`).getByLabel("Title")).toHaveAttribute(
+        "contenteditable",
+        "false",
+    );
+    await expect(page.getByTestId(`TaskRowView:${task5.id}`).getByLabel("Title")).toHaveAttribute(
+        "contenteditable",
+        "true",
+    );
+    await expect(page.getByTestId(`TaskRowView:${task6.id}`).getByLabel("Title")).toHaveAttribute(
+        "contenteditable",
+        "false",
+    );
+
+    await page.getByTestId(`TaskRowView:${task1.id}`).getByLabel("Title").focus();
+    await page.keyboard.press("End");
+    await page.keyboard.press("ArrowRight");
+
+    await expect(
+        page.getByTestId(`TaskRowView:${task1.id}`).getByTestId("TaskRowAssigneeCell"),
+    ).toBeFocused();
+
+    await page.keyboard.press("Enter");
+
+    await expect(
+        page.getByTestId(`TaskRowView:${task1.id}`).getByTestId("TaskRowAssigneeCell"),
+    ).not.toBeFocused();
+    await expect(
+        page
+            .getByTestId(`TaskRowView:${task1.id}`)
+            .getByTestId("TaskRowAssigneeCell")
+            .getByPlaceholder("Nobody"),
+    ).toBeFocused();
+
+    await page.keyboard.press("Escape");
+
+    await expect(
+        page.getByTestId(`TaskRowView:${task1.id}`).getByTestId("TaskRowAssigneeCell"),
+    ).toBeFocused();
+    await expect(
+        page
+            .getByTestId(`TaskRowView:${task1.id}`)
+            .getByTestId("TaskRowAssigneeCell")
+            .getByPlaceholder("Nobody"),
+    ).not.toBeFocused();
+
+    await page.keyboard.press("ArrowDown");
+
+    await expect(
+        page.getByTestId(`TaskRowView:${task2.id}`).getByTestId("TaskRowAssigneeCell"),
+    ).toBeFocused();
+    await expect(
+        page
+            .getByTestId(`TaskRowView:${task2.id}`)
+            .getByTestId("TaskRowAssigneeCell")
+            .getByPlaceholder("Nobody"),
+    ).toBeHidden();
+
+    await page.keyboard.press("Enter");
+
+    await expect(
+        page.getByTestId(`TaskRowView:${task2.id}`).getByTestId("TaskRowAssigneeCell"),
+    ).toBeFocused();
+    await expect(
+        page
+            .getByTestId(`TaskRowView:${task2.id}`)
+            .getByTestId("TaskRowAssigneeCell")
+            .getByPlaceholder("Nobody"),
+    ).toBeHidden();
+
+    await page.keyboard.press("ArrowRight");
+
+    await expect(
+        page.getByTestId(`TaskRowView:${task2.id}`).getByTestId("TaskRowPriorityCell"),
+    ).toBeFocused();
+    await expect(
+        page
+            .getByTestId(`TaskRowView:${task2.id}`)
+            .getByTestId("TaskRowPriorityCell")
+            .getByPlaceholder("None"),
+    ).toBeHidden();
+
+    await page.keyboard.press("Enter");
+
+    await expect(
+        page.getByTestId(`TaskRowView:${task2.id}`).getByTestId("TaskRowPriorityCell"),
+    ).toBeFocused();
+    await expect(
+        page
+            .getByTestId(`TaskRowView:${task2.id}`)
+            .getByTestId("TaskRowPriorityCell")
+            .getByPlaceholder("None"),
+    ).toBeHidden();
+
+    await page.keyboard.press("ArrowDown");
+
+    await expect(
+        page.getByTestId(`TaskRowView:${task3.id}`).getByTestId("TaskRowPriorityCell"),
+    ).toBeFocused();
+    await expect(
+        page
+            .getByTestId(`TaskRowView:${task3.id}`)
+            .getByTestId("TaskRowPriorityCell")
+            .getByPlaceholder("None"),
+    ).not.toBeFocused();
+
+    await page.keyboard.press("Enter");
+
+    await expect(
+        page.getByTestId(`TaskRowView:${task3.id}`).getByTestId("TaskRowPriorityCell"),
+    ).not.toBeFocused();
+    await expect(
+        page
+            .getByTestId(`TaskRowView:${task3.id}`)
+            .getByTestId("TaskRowPriorityCell")
+            .getByPlaceholder("None"),
+    ).toBeFocused();
+
+    await page.keyboard.press("Escape");
+
+    await expect(
+        page.getByTestId(`TaskRowView:${task3.id}`).getByTestId("TaskRowPriorityCell"),
+    ).toBeFocused();
+    await expect(
+        page
+            .getByTestId(`TaskRowView:${task3.id}`)
+            .getByTestId("TaskRowPriorityCell")
+            .getByPlaceholder("None"),
+    ).not.toBeFocused();
 });

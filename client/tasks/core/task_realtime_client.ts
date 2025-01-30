@@ -219,11 +219,6 @@ export class TaskRealtimeClient {
                     }
                     break;
                 }
-                // HACK(calebmer): Temporarily disable lint rule so we can deploy.
-                // eslint-disable-next-line no-commit-blockers
-                // NOCOMMIT: Test losing access to task in realtime. Ideally we open a
-                // collection the account has access to and a task they don't have access to
-                // and we unshare the task.
                 case "TaskSubscriptionError": {
                     for (const subscription of subscribedTasks) {
                         if (subscription.taskSubscriptionIdPromise.getIfAvailable() === event.id) {
