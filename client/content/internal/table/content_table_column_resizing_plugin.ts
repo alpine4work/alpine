@@ -855,8 +855,41 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
             maxTotalColumnWidthPx,
         );
 
-        // Calculate new relative width for the resized column
-        const newColumn1Width = (newColumn1WidthPx / newTotalColumnWidthPx) * oldTotalColumnWidth;
+        // Calculate new relative width for the resized column:
+        //
+        // We have the following equality, where `newTotalColumnWidth` is the new
+        // total column width and it is being calculated from the old total column
+        // width, the old width of the column being resized, and the new width of
+        // the column being resized:
+        //
+        // ```ts
+        // newTotalColumnWidth = oldTotalColumnWidth - oldColumn1Width + newColumn1Width
+        // ```
+        //
+        // We also have the following equality, where `newColumn1Width` is the new
+        // width of the column being resized: Here we are comparing the ratio of
+        // the relatives values to the ratio of the pixels values.
+        //
+        // ```ts
+        // newColumn1Width / newTotalColumnWidth = newColumn1WidthPx / newTotalColumnWidthPx
+        // ```
+        //
+        // If we simplify this using 1st equality we get:
+        //
+        // ```ts
+        // newColumn1Width / (oldTotalColumnWidth - oldColumnWidth + newColumn1Width) = newColumnWidth1Px / newTotalColumnWidthPx
+        // ```
+        //
+        // which can be written as: a / (b - c + a) = d / f
+        //
+        // All variables in the equality are known except for `newColumn1Width`.
+        // We can use [algebra to solve for `newColumn1Width`][1] which gives us the
+        // following equation.
+        //
+        // [1]: https://www.wolframalpha.com/input?i=solve+for+a++a+%2F+%28b+-+c+%2B+a%29+%3D+d+%2F+f
+        const newColumn1Width =
+            (newColumn1WidthPx * (oldTotalColumnWidth - oldTotalColumnWidthPx)) /
+            (newColumn1WidthPx - newTotalColumnWidthPx);
 
         // Keep other columns unchanged
         const newColumnWidths: Array<number> = [...oldColumnWidths];
