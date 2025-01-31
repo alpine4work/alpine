@@ -173,7 +173,15 @@ export default function TaskCommentsRoute() {
                         {
                             label: "Open task",
                             pressErrorTitle: "Couldn't open task",
-                            onPress: () => navigate(`/s/${spaceId}/tasks/${taskId}/`),
+                            onPress: () => {
+                                if (isFromTaskDetailView) {
+                                    navigate(-1);
+                                } else {
+                                    navigate(`/s/${spaceId}/tasks/${taskId}`, {
+                                        stopPropagation: true,
+                                    });
+                                }
+                            },
                         },
                     ]}
                     titleJustifyContent={platform !== "mobile" ? "flex-start" : "center"}
