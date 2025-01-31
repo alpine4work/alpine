@@ -175,7 +175,6 @@ assertEqualTypes<AccessPolicyAccountGrant["level"], AccessLevel>();
  */
 export type AccessPolicyDefaultGrant = SchemaType<typeof AccessPolicyDefaultGrantSchema>;
 
-// TODO(calebmer, #sharing): Public internet level access?
 const AccessPolicyDefaultGrantSchema = UnionSchema.unionWithKey("level", {
     Manage: Schema.object({
         level: Schema.value("Manage"),
