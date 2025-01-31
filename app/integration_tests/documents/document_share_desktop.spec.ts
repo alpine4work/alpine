@@ -70,7 +70,13 @@ test("can toggle document sharing on/off with switch", async ({
         "Icon indicating the document is shared with everyone in Test Space",
     );
 
+    await expect(page1.getByRole("heading", {name: "Make this document private"})).toBeHidden();
+
     await page1.getByRole("button", {name: "Toggle sharing"}).click();
+
+    await expect(page1.getByRole("heading", {name: "Make this document private"})).toBeVisible();
+
+    await page1.getByRole("button", {name: "Confirm"}).click();
 
     await expect(
         page1.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
