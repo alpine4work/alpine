@@ -167,7 +167,7 @@ function TaskQueryViewDesktopHeader(
                 gap="2"
             >
                 <MenuButton actions={menuActions}>
-                    <IconButton size="sm" description="More" withoutTooltip>
+                    <IconButton size="md" description="More" withoutTooltip>
                         <DotsThreeVertical />
                     </IconButton>
                 </MenuButton>
