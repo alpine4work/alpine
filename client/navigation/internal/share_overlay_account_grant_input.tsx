@@ -10,6 +10,7 @@ import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -25,6 +26,7 @@ import {useStore} from "~/client/helpers/use_store.js";
 import {accessLevelText} from "~/client/navigation/internal/access_level_text.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     colorSchemeVars,
     greyElevated2ClassName,
@@ -49,6 +51,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {markSearchAffinityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -75,8 +78,10 @@ export function ShareOverlayAccountGrantInput({
     accountById: ReadonlyMap<AccountId, AccountModel>;
     isAltKeyDown: boolean;
 }) {
+    const context = useAppContext();
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
+    const {space} = useSpaceContext();
     const accountStore = useAccountClientStore();
 
     const inputRef = useRef<HTMLInputElement>(null);
@@ -682,6 +687,17 @@ export function ShareOverlayAccountGrantInput({
                                             type: "AddAccountGrants",
                                             accountGrantById: newAccountGrantById,
                                         });
+
+                                        // Increase affinity points for all accounts this actor granted access to with
+                                        // a high intent update since the user clearly wants to show something to the
+                                        // granted accounts.
+                                        for (const accountId of newAccountGrantById.keys()) {
+                                            void markSearchAffinityInteraction(context, {
+                                                spaceId: space.id,
+                                                affinityId: `Account:${accountId}`,
+                                                interaction: {type: "HighIntentUpdate"},
+                                            });
+                                        }
                                     });
                                 }}
                             >

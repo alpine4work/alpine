@@ -3145,33 +3145,6 @@ export async function updateDocumentContent(
                                     },
                                 );
                             }
-
-                            // Increase affinity points for all accounts this actor granted access to with
-                            // a high intent update since the user clearly wants to show something to the
-                            // granted accounts.
-                            //
-                            // NOCOMMIT: Make sure to add this for task access policy
-                            // changes too.
-                            for (const grantedAccountId of newAccessPolicy.accountGrantById.keys()) {
-                                if (oldAccessPolicy.accountGrantById.has(grantedAccountId))
-                                    continue;
-
-                                context.process.waitUntil(async () => {
-                                    if (
-                                        await isAccountMemberOfSpace(
-                                            context,
-                                            internalDocument.spaceId,
-                                            grantedAccountId,
-                                        )
-                                    ) {
-                                        await markSearchAffinityInteraction(context, {
-                                            spaceId: internalDocument.spaceId,
-                                            affinityId: `Account:${grantedAccountId}`,
-                                            interaction: {type: "HighIntentUpdate"},
-                                        });
-                                    }
-                                });
-                            }
                         },
                     },
                 ),
