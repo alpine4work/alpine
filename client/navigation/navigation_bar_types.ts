@@ -1,6 +1,5 @@
 import {Memo, ReactElement, ReactNode, Ref, RefCallback} from "react";
 import {MenuAction} from "~/client/design/menu.js";
-import {OverlayTriggerButtonState} from "~/client/design/overlay_trigger_button.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
@@ -192,6 +191,17 @@ export type NavigationBarProps = {
      * mobile tab routes.
      */
     readonly withoutMobileBackButton?: boolean;
+
+    /**
+     * By default, the navigation bar on mobile has a back button which calls
+     * `navigate(-1)`. If you'd like to provide custom back navigation behavior
+     * then you may pass this prop which will switch the back button to an "X"
+     * close button that calls the function when pressed.
+     *
+     * For instance, if you use this in a `<MobileFullScreenModal>` you need to
+     * close the modal instead of calling `navigate(-1)`.
+     */
+    readonly onMobileClose?: () => void;
 
     /**
      * By default, the navigation bar on mobile has a back button which calls

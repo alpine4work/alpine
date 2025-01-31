@@ -14,7 +14,6 @@ import {createPortal} from "react-dom";
 import {BottomBarFrameContextProvider} from "~/client/design/bottom_bar_frame_context_provider.js";
 import {Box} from "~/client/design/box.js";
 import {MobileFullScreenModalContext} from "~/client/design/internal/mobile_full_screen_modal_context.js";
-import {useOverlayBlockingPortalElement} from "~/client/design/overlay_helpers.js";
 import {RootOverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {
     trackNavigationAnimationFinish,
@@ -113,10 +112,6 @@ export function MobileFullScreenModal({
     const modalContext = assertExists(
         useContext(MobileFullScreenModalContext),
         "Expected parent `<MobileFullScreenModalContextProvider>` component",
-    );
-    const portalElement = assertExists(
-        useOverlayBlockingPortalElement(),
-        "Can not render modal before portal element is available",
     );
 
     const isMounted = useIsMounted();
@@ -418,7 +413,7 @@ export function MobileFullScreenModal({
         </FocusScope>,
         // Render the mobile modal in `<body>`. So if it's a child of some native
         // bottom bar it doesn't get any weird positioning.
-        portalElement,
+        document.body,
     );
 }
 

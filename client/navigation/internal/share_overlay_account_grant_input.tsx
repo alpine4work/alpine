@@ -15,6 +15,7 @@ import {Button} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -37,7 +38,7 @@ import {
     AccessPolicyAccountGrant,
 } from "~/shared/access/access_policy.js";
 import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
@@ -445,6 +446,8 @@ export function ShareOverlayAccountGrantInput({
         },
     });
 
+    const addButtonWidth = "3rem";
+
     return (
         <OverlayAnimated
             isVisible={comboBoxState.isOpen}
@@ -453,6 +456,14 @@ export function ShareOverlayAccountGrantInput({
             placement="bottom-start"
             sameWidth={true}
             offset="2"
+            // Set a constant `overflowBottom` value instead of relying on the current
+            // keyboard height (which will be updated asynchronously after `isEditing` is
+            // true). This stops the overlay placement from jumping around while the
+            // keyboard opens. The value was calculated based on the keyboard height in
+            // iOS. We may need to change this constant if the keyboard height for iOS
+            // changes or the Android keyboard height is bigger.
+            overflowBottom={platform === "mobile" ? "18rem" : undefined}
+            overflowTop={navigationBarHeight}
             overlay={
                 <Box ref={popoverRef} position="relative">
                     <ShareOverlayAccountGrantInputListBox
@@ -601,6 +612,11 @@ export function ShareOverlayAccountGrantInput({
                     >
                         <MenuButton
                             placement="bottom-end"
+                            // Align this menu to the right edge of the input. So it's consistent with the
+                            // access level menus from account grants. We can do this thanks to the add
+                            // button's fixed width. This helps the design especially on mobile where
+                            // otherwise the overlay is pushed to the right side of the screen.
+                            offsetAlong={addRemLengths("2", addButtonWidth, "2")}
                             actions={[
                                 {
                                     isSelected: accessLevel === "Manage",
@@ -637,38 +653,41 @@ export function ShareOverlayAccountGrantInput({
                                 {accessLevelText[accessLevel]}
                             </Button>
                         </MenuButton>
-                        <Button
-                            isDisabled={selectedAccounts.length === 0}
-                            variant="neutral"
-                            height="6"
-                            paddingX="3"
-                            withoutMinWidth
-                            onPress={() => {
-                                const newAccountGrantById = new Map<
-                                    AccountId,
-                                    DistributiveOmit<AccessPolicyAccountGrant, "generation">
-                                >();
+                        <Box style={{width: addButtonWidth}}>
+                            <Button
+                                isDisabled={selectedAccounts.length === 0}
+                                variant="neutral"
+                                height="6"
+                                paddingX="3"
+                                fullWidth
+                                withoutMinWidth
+                                onPress={() => {
+                                    const newAccountGrantById = new Map<
+                                        AccountId,
+                                        DistributiveOmit<AccessPolicyAccountGrant, "generation">
+                                    >();
 
-                                for (const selectedAccount of selectedAccounts) {
-                                    if (!newAccountGrantById.has(selectedAccount.id)) {
-                                        newAccountGrantById.set(selectedAccount.id, {
-                                            level: accessLevel,
-                                        });
+                                    for (const selectedAccount of selectedAccounts) {
+                                        if (!newAccountGrantById.has(selectedAccount.id)) {
+                                            newAccountGrantById.set(selectedAccount.id, {
+                                                level: accessLevel,
+                                            });
+                                        }
                                     }
-                                }
 
-                                // Make sure these both happen in a single React commit.
-                                flushSync(() => {
-                                    setSelectedAccounts(emptyArray);
-                                    onAccessPolicyChange({
-                                        type: "AddAccountGrants",
-                                        accountGrantById: newAccountGrantById,
+                                    // Make sure these both happen in a single React commit.
+                                    flushSync(() => {
+                                        setSelectedAccounts(emptyArray);
+                                        onAccessPolicyChange({
+                                            type: "AddAccountGrants",
+                                            accountGrantById: newAccountGrantById,
+                                        });
                                     });
-                                });
-                            }}
-                        >
-                            Add
-                        </Button>
+                                }}
+                            >
+                                Add
+                            </Button>
+                        </Box>
                     </Box>
                 </Box>
             </FocusRing>

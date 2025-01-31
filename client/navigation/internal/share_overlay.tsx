@@ -37,7 +37,7 @@ import {
     allAccessLevels,
 } from "~/shared/access/access_policy.js";
 import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
-import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
+import {RemLength, Spacing, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -100,6 +100,16 @@ export function ShareOverlay({
         };
     }, []);
 
+    const accountGrantsScrollViewMaxHeight = useMemo(
+        (): RemLength =>
+            `${
+                parseRemLength(shareOverlayAccountGrantHeight) * 7.66667 +
+                parseRemLength("4") * 7 +
+                parseRemLength("5")
+            }rem`,
+        [],
+    );
+
     return (
         <FocusScope
             // If we're animating closed then don't contain focus since we need to move
@@ -157,12 +167,15 @@ export function ShareOverlay({
                     {accessPolicy.accountGrantById.size === 0 ? (
                         <Spacer space="5" />
                     ) : (
-                        <ShareOverlayAccountGrants
+                        <ShareOverlayAccountGrantsScrollView
                             accountGrantById={accessPolicy.accountGrantById}
                             onAccessPolicyChange={onAccessPolicyChange}
                             accountById={accountById}
                             isReadOnly={isReadOnly}
                             isAltKeyDown={isAltKeyDown}
+                            paddingX="5"
+                            // At max, show seven account grants and two thirds of an eighth account.
+                            maxHeight={accountGrantsScrollViewMaxHeight}
                         />
                     )}
                     <Box paddingX="5">
@@ -206,7 +219,49 @@ export function ShareOverlay({
     );
 }
 
-function ShareOverlayAccountGrants({
+export function ShareOverlayAccountGrantsScrollView({
+    accountGrantById,
+    onAccessPolicyChange,
+    accountById,
+    isReadOnly,
+    isAltKeyDown,
+    paddingX,
+    height,
+    maxHeight,
+}: {
+    accountGrantById: AccessPolicy["accountGrantById"];
+    onAccessPolicyChange: (action: AccessPolicyAction) => void;
+    accountById: ReadonlyMap<AccountId, AccountModel>;
+    isReadOnly: boolean;
+    isAltKeyDown: boolean;
+    paddingX?: Spacing;
+    height?: Spacing | "full";
+    maxHeight?: RemLength;
+}) {
+    return (
+        <Box
+            ref={useScrollbar({insetTop: "5", insetBottom: "5"})}
+            position="relative"
+            zIndex="0"
+            height={height}
+            overflowX="hidden"
+            overflowY="auto"
+            style={{maxHeight}}
+        >
+            <Box paddingX={paddingX} paddingTop="5" paddingBottom="5">
+                <ShareOverlayAccountGrants
+                    accountGrantById={accountGrantById}
+                    onAccessPolicyChange={onAccessPolicyChange}
+                    accountById={accountById}
+                    isReadOnly={isReadOnly}
+                    isAltKeyDown={isAltKeyDown}
+                />
+            </Box>
+        </Box>
+    );
+}
+
+export function ShareOverlayAccountGrants({
     accountGrantById,
     onAccessPolicyChange,
     accountById,
@@ -321,46 +376,18 @@ function ShareOverlayAccountGrants({
     );
 
     return (
-        <Box
-            ref={useScrollbar({insetTop: "5", insetBottom: "5"})}
-            position="relative"
-            zIndex="0"
-            maxHeight="96"
-            overflowX="hidden"
-            overflowY="auto"
-            style={{
-                // At max, show seven account grants and two thirds of an eighth account.
-                maxHeight: useMemo(
-                    () =>
-                        `${
-                            parseRemLength(shareOverlayAccountGrantHeight) * 7.66667 +
-                            parseRemLength("4") * 7 +
-                            parseRemLength("5")
-                        }rem`,
-                    [],
-                ),
-            }}
-        >
-            <Box
-                display="flex"
-                flexDirection="column"
-                gap="4"
-                paddingX="5"
-                paddingTop="5"
-                paddingBottom="5"
-            >
-                {sortedAccountGrants.map(({accountId, accountGrant, accountData}) => (
-                    <ShareOverlayAccountGrant
-                        key={accountId}
-                        accountId={accountId}
-                        accountData={accountData}
-                        accountGrant={accountGrant}
-                        onAccessPolicyChange={onAccessPolicyChange}
-                        isReadOnly={isReadOnly}
-                        isAltKeyDown={isAltKeyDown}
-                    />
-                ))}
-            </Box>
+        <Box display="flex" flexDirection="column" gap="4">
+            {sortedAccountGrants.map(({accountId, accountGrant, accountData}) => (
+                <ShareOverlayAccountGrant
+                    key={accountId}
+                    accountId={accountId}
+                    accountData={accountData}
+                    accountGrant={accountGrant}
+                    onAccessPolicyChange={onAccessPolicyChange}
+                    isReadOnly={isReadOnly}
+                    isAltKeyDown={isAltKeyDown}
+                />
+            ))}
         </Box>
     );
 }
@@ -495,7 +522,7 @@ function ShareOverlayAccountGrant({
     );
 }
 
-function ShareOverlayDefaultGrant({
+export function ShareOverlayDefaultGrant({
     defaultGrant,
     onAccessPolicyChange,
     isReadOnly,
@@ -633,7 +660,7 @@ function ShareOverlayDefaultGrant({
     );
 }
 
-function ShareOverlayUrlGrant({
+export function ShareOverlayUrlGrant({
     urlGrant,
     onAccessPolicyChange,
     isReadOnly,

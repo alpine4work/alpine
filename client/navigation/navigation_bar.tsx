@@ -61,6 +61,7 @@ export function useNavigationBar({
     desktopTitleFontWeight = "semi-bold",
     desktopTitleLeftSlop,
     withoutMobileBackButton = false,
+    onMobileClose,
     onMobileCancel,
 }: NavigationBarProps): NavigationBarResult {
     const platform = usePlatform();
@@ -185,6 +186,7 @@ export function useNavigationBar({
             desktopTitleFontWeight={desktopTitleFontWeight}
             desktopTitleLeftSlop={desktopTitleLeftSlop}
             withoutMobileBackButton={withoutMobileBackButton}
+            onMobileClose={onMobileClose}
             onMobileCancel={onMobileCancel}
         />
     ) : null;

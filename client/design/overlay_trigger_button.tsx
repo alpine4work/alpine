@@ -37,7 +37,7 @@ import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {Spacing} from "~/shared/design/core/spacing.js";
+import {ParsableRemLength, RemLength, Spacing} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -147,7 +147,7 @@ function OverlayTriggerButton(
          *
          * Defaults to the same thing as tooltips.
          */
-        offset?: Spacing;
+        offset?: ParsableRemLength;
 
         /**
          * How far the overlay should move along the reference.
@@ -156,7 +156,7 @@ function OverlayTriggerButton(
          *
          * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
          */
-        offsetAlong?: Spacing | `-${Spacing}`;
+        offsetAlong?: ParsableRemLength;
 
         /**
          * Disable the requirement that `children` must be a `<button>` element.

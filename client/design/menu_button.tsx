@@ -8,7 +8,7 @@ import {
     OverlayTriggerButtonState,
 } from "~/client/design/overlay_trigger_button.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
-import {Spacing} from "~/shared/design/core/spacing.js";
+import {ParsableRemLength} from "~/shared/design/core/spacing.js";
 
 const MenuButtonForwardRef = forwardRef(MenuButton);
 export {MenuButtonForwardRef as MenuButton};
@@ -72,7 +72,7 @@ function MenuButton(
          *
          * Defaults to the same thing as tooltips.
          */
-        offset?: Spacing;
+        offset?: ParsableRemLength;
 
         /**
          * How far the offset should move along the reference.
@@ -81,7 +81,7 @@ function MenuButton(
          *
          * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
          */
-        offsetAlong?: Spacing | `-${Spacing}`;
+        offsetAlong?: ParsableRemLength;
 
         /**
          * Disable the requirement that `children` must be a `<button>` element.

@@ -24,7 +24,6 @@ import {
     navigationBarHeight,
     navigationBarHeightRem,
 } from "~/client/design/navigation_bar_helpers.js";
-import {OverlayTriggerButtonState} from "~/client/design/overlay_trigger_button.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {scrollbarVisibleAfterScrollDurationMs} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -151,6 +150,7 @@ export function NavigationBar({
     desktopTitleFontWeight,
     desktopTitleLeftSlop,
     withoutMobileBackButton,
+    onMobileClose,
     onMobileCancel,
 }: {
     handleRef: MutableRefObject<{
@@ -179,6 +179,7 @@ export function NavigationBar({
     desktopTitleFontWeight: "semi-bold" | "bold";
     desktopTitleLeftSlop: Spacing | undefined;
     withoutMobileBackButton: boolean;
+    onMobileClose: (() => void) | undefined;
     onMobileCancel: (() => void) | undefined;
 }) {
     const [scrollViewSize, setScrollViewSize] = useState<{height: number; width: number} | null>(
@@ -1020,6 +1021,7 @@ export function NavigationBar({
                             desktopTitleFontWeight={desktopTitleFontWeight}
                             desktopTitleLeftSlop={desktopTitleLeftSlop}
                             withoutMobileBackButton={withoutMobileBackButton}
+                            onMobileClose={onMobileClose}
                             onMobileCancel={onMobileCancel}
                         />
                     </Box>

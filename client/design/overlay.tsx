@@ -39,7 +39,12 @@ import {
 } from "~/client/helpers/use_resize_observer.js";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
-import {RemLength, Spacing, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {
+    ParsableRemLength,
+    RemLength,
+    Spacing,
+    convertRemLengthToPx,
+} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -113,7 +118,7 @@ export type OverlayProps = {
      *
      * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
      */
-    offset?: Spacing | `-${Spacing}` | RemLength;
+    offset?: ParsableRemLength;
 
     /**
      * How far the offset should move along the reference.
@@ -122,7 +127,7 @@ export type OverlayProps = {
      *
      * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
      */
-    offsetAlong?: Spacing | `-${Spacing}` | RemLength;
+    offsetAlong?: ParsableRemLength;
 
     /**
      * If true, the overlay tries to stay visible within the nearest parent
