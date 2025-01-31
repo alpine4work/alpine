@@ -516,6 +516,7 @@ export default function SpaceLayoutRoute() {
 
                 modals.push(
                     <SearchModal
+                        key={searchParamName}
                         onClose={handleSearchModalClose}
                         pushPeekStack={handleSearchModalPushPeekStack}
                         debugOptions={debugOptions.isDebugModeEnabled ? debugOptions.options : null}
@@ -564,6 +565,7 @@ export default function SpaceLayoutRoute() {
 
                 modals.push(
                     <ContentFileViewerModal
+                        key={searchParamName}
                         fileId={fileId}
                         attachmentTarget={fileAttachmentTarget}
                         onClose={handleClose}
