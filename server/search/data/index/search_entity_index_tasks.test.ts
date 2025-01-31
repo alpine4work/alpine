@@ -1143,7 +1143,7 @@ test("will not allow users to view task comments they do not have access to", as
     await privateCollection.access.set(creatorSession, {
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
-            [manageSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],

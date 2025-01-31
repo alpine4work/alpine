@@ -314,19 +314,13 @@ export async function getTaskFromIndex(
                 const parentTask = await context.opensearch.getDocIfExists(
                     TaskIndex,
                     spaceId,
-                    taskId,
+                    parentTaskId,
                 );
                 if (!parentTask) throw new NotFoundError("Task not found");
 
-                referencedTaskModels.push(
-                    // NOTE(calebmer): Passing in anonymous will wipe all private data from the
-                    // task. Given this is a system context a better approach may be to include all
-                    // private data. Wiping is the safer option and nothing downstream needs the
-                    // data at the moment.
-                    await prepareTaskForClient(parentTask, prepareContext),
-                );
-
                 trackTaskDependencies(parentTask);
+
+                referencedTaskModels.push(await prepareTaskForClient(parentTask, prepareContext));
             });
         }
 

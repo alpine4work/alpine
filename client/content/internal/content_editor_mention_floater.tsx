@@ -27,7 +27,7 @@ import {
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {Menu, MenuSize} from "~/client/design/menu.js";
+import {Menu} from "~/client/design/menu.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";

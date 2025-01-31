@@ -1477,7 +1477,7 @@ test("excludes collections account doesn't have access to when searching", async
         collection5.access.set(session1, {
             accountGrantById: new Map([
                 [session1.account.id, {level: "Manage", generation: 0}],
-                [session3.account.id, {level: "Manage", generation: 0}],
+                [session3.account.id, {level: "Manage", generation: 1}],
             ]),
             defaultGrant: null,
             urlGrant: null,
@@ -1485,7 +1485,7 @@ test("excludes collections account doesn't have access to when searching", async
         collection6.access.set(session2, {
             accountGrantById: new Map([
                 [session2.account.id, {level: "Manage", generation: 0}],
-                [session3.account.id, {level: "Manage", generation: 0}],
+                [session3.account.id, {level: "Manage", generation: 1}],
             ]),
             defaultGrant: null,
             urlGrant: null,
