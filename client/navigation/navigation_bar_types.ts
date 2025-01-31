@@ -24,7 +24,7 @@ export type NavigationBarShareButtonProps = {
     readonly entityNoun: string;
     readonly accessPolicy: AccessPolicy;
     readonly onAccessPolicyChange: (accessPolicy: AccessPolicy) => void;
-    readonly isReadOnly: boolean;
+    readonly isReadOnly?: boolean;
     readonly onCopyLink: () => MaybePromise<void>;
 };
 
@@ -107,12 +107,6 @@ export type NavigationBarProps = {
      * Actions that the user sees if they right click on the navigation bar.
      */
     readonly contextMenuActions?: ReadonlyArray<ReadonlyArray<MenuAction>>;
-
-    /**
-     * Called whenever the menu opens/closes. Useful if you want to change how
-     * something is rendered when the menu navigation bar is open.
-     */
-    readonly onMenuStateChange?: (state: OverlayTriggerButtonState) => void;
 
     /**
      * Configures the behavior of the share button in the navigation bar. If not

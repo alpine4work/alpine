@@ -140,7 +140,6 @@ export function NavigationBar({
     subtitle,
     menuActions,
     contextMenuActions,
-    onMenuStateChange,
     shareButton,
     replaceActions,
     titleJustifyContent,
@@ -169,7 +168,6 @@ export function NavigationBar({
     subtitle: ReactNode | undefined;
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
     contextMenuActions: ReadonlyArray<ReadonlyArray<MenuAction>>;
-    onMenuStateChange: ((state: OverlayTriggerButtonState) => void) | undefined;
     shareButton: NavigationBarShareButtonProps | undefined;
     replaceActions: ReactNode;
     titleJustifyContent: "center" | "flex-start" | undefined;
@@ -1011,7 +1009,6 @@ export function NavigationBar({
                             subtitle={subtitle}
                             menuActions={menuActions}
                             contextMenuActions={contextMenuActions}
-                            onMenuStateChange={onMenuStateChange}
                             shareButton={shareButton}
                             replaceActions={replaceActions}
                             titleJustifyContent={titleJustifyContent}

@@ -1,11 +1,19 @@
 import {ArrowLeft, DotsThreeVertical} from "phosphor-react";
-import {ReactNode, Ref, forwardRef, useCallback, useImperativeHandle, useRef} from "react";
+import {
+    ReactNode,
+    Ref,
+    forwardRef,
+    useCallback,
+    useImperativeHandle,
+    useRef,
+    useState,
+} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
+import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {MenuAction} from "~/client/design/menu.js";
-import {MenuButton} from "~/client/design/menu_button.js";
+import {Menu, MenuAction} from "~/client/design/menu.js";
 import {
     mobileNavigationBarActionsWidthFittingFlexBasis,
     navigationBarActionsFlexBasis,
@@ -16,9 +24,12 @@ import {
     navigationBarMobileGap,
 } from "~/client/design/navigation_bar_helpers.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
-import {OverlayTriggerButtonState} from "~/client/design/overlay_trigger_button.js";
-import {useReporter} from "~/client/design/reporter.js";
+import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
+import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {ShareOverlay} from "~/client/navigation/internal/share_overlay.js";
+import {useShareState} from "~/client/navigation/internal/use_share_state.js";
 import {NavigationBarShareButtonProps} from "~/client/navigation/navigation_bar_types.js";
 import {ShareButton} from "~/client/navigation/share_button.js";
 import {addShareMenuItem} from "~/client/navigation/share_menu_item.js";
@@ -53,7 +64,6 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         subtitle,
         menuActions = emptyArray,
         contextMenuActions = emptyArray,
-        onMenuStateChange,
         shareButton,
         replaceActions,
         titleJustifyContent,
@@ -73,7 +83,6 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         subtitle?: ReactNode;
         menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
         contextMenuActions?: ReadonlyArray<ReadonlyArray<MenuAction>>;
-        onMenuStateChange?: (state: OverlayTriggerButtonState) => void;
         shareButton?: NavigationBarShareButtonProps;
         replaceActions?: ReactNode;
         titleJustifyContent?: "center" | "flex-start";
@@ -93,7 +102,6 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     const routeLayout = useRouteLayout();
     const {isNativeMobile} = useClientInfo();
     const navigate = useNavigate();
-    const reporter = useReporter();
     const spaceContext = useSpaceContextIfExists();
 
     const isMobile = platform === "mobile";
@@ -423,30 +431,12 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                 ) : (
                                     (menuActions.length > 0 ||
                                         (shareButton && routeLayout === "narrow")) && (
-                                        <MenuButton
-                                            placement="bottom-end"
-                                            actions={
-                                                shareButton && routeLayout === "narrow"
-                                                    ? addShareMenuItem(reporter, menuActions)
-                                                    : menuActions
-                                            }
-                                            onStateChange={onMenuStateChange}
-                                        >
-                                            <IconButton
-                                                size={isMobile ? "base" : "md"}
-                                                description="More"
-                                                withoutTooltip={true}
-                                            >
-                                                <DotsThreeVertical
-                                                // Vertical dots create better visual balance on mobile because:
-                                                //
-                                                // 1. On mobile we have a back button on the left and we want this button to
-                                                //    look aligned with that
-                                                // 2. The title might be truncated with ellipsis which looks like horizontal
-                                                //    dots
-                                                />
-                                            </IconButton>
-                                        </MenuButton>
+                                        // We re-create `<MenuButton>` in this file since when clicking on the share
+                                        // option we want to dynamically switch the menu for the `<ShareOverlay>`.
+                                        <NavigationBarContentMoreButton
+                                            menuActions={menuActions}
+                                            shareButton={shareButton}
+                                        />
                                     )
                                 )}
                             </>
@@ -457,3 +447,132 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         </Box>
     );
 });
+
+function NavigationBarContentMoreButton({
+    menuActions,
+    shareButton,
+}: {
+    menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+    shareButton: NavigationBarShareButtonProps | undefined;
+}) {
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
+
+    const overlayRef = useRef<HTMLDivElement>(null);
+
+    const [showShareOverlay, setShowShareOverlay] = useState(false);
+    if (!shareButton && showShareOverlay) setShowShareOverlay(false);
+
+    const lastShowShareOverlayRef = useRef(showShareOverlay);
+
+    // When `<OverlayTriggerButton>` opens an overlay, it moves focus into the
+    // first focusable element of the overlay. Recreate this behavior when
+    // switching from `showShareOverlay` false to true.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (lastShowShareOverlayRef.current === showShareOverlay) return;
+        lastShowShareOverlayRef.current = showShareOverlay;
+
+        if (!showShareOverlay) return;
+
+        const overlayElement = overlayRef.current;
+        if (!overlayElement) return;
+
+        getNextFocusableElementIfExists(null, {
+            withinElement: overlayElement,
+        })?.focus({preventScroll: true});
+    }, [showShareOverlay]);
+
+    const shareState = useShareState(
+        shareButton
+            ? {
+                  entityNoun: shareButton?.entityNoun,
+                  accessPolicy: shareButton?.accessPolicy,
+                  onAccessPolicyChangeWithoutValidations: shareButton?.onAccessPolicyChange,
+                  isReadOnly: shareButton.isReadOnly,
+              }
+            : null,
+    );
+
+    return (
+        <>
+            {shareState.modals}
+            <OverlayTriggerButton
+                aria-haspopup="menu"
+                placement="bottom-end"
+                offset={defaultTooltipOffset}
+                onActuallyVisibleChange={isActuallyVisible => {
+                    if (!isActuallyVisible) setShowShareOverlay(false);
+                }}
+                overlay={({isVisible, onCloseWithAnimation, onCloseWithoutAnimation}) => (
+                    <Box ref={overlayRef}>
+                        {showShareOverlay && shareButton ? (
+                            <ShareOverlay
+                                id={shareState.overlayId}
+                                accessPolicy={shareButton.accessPolicy}
+                                onAccessPolicyChange={shareState.changeAccessPolicy}
+                                isVisible={isVisible}
+                                isReadOnly={shareState.isReadOnly}
+                                onCopyLink={shareButton.onCopyLink}
+                                onCloseWithoutAnimation={onCloseWithoutAnimation}
+                            />
+                        ) : (
+                            <Menu
+                                placement="bottom-end"
+                                onCloseWithAnimation={onCloseWithAnimation}
+                                onCloseWithoutAnimation={onCloseWithoutAnimation}
+                                actions={
+                                    shareButton && routeLayout === "narrow"
+                                        ? addShareMenuItem({
+                                              accessPolicy: shareButton.accessPolicy,
+                                              actions: menuActions,
+                                              onShare: () => {
+                                                  setShowShareOverlay(true);
+                                                  return {withoutClose: true};
+                                              },
+                                          })
+                                        : menuActions
+                                }
+                            />
+                        )}
+                    </Box>
+                )}
+                onOverlayEscapeGlobalKeyDown={event => {
+                    if (!showShareOverlay) return;
+
+                    // If the focused element is a combobox input, `<MenuButton>`, or menu item
+                    // that's open and the user hits escape then we want the escape keydown to close
+                    // the focused element's overlay.
+                    if (
+                        event.target instanceof HTMLElement &&
+                        (event.target.getAttribute("aria-expanded") === "true" ||
+                            event.target.role === "menuitem")
+                    ) {
+                        return {allowDefault: true};
+                    }
+                }}
+                onOverlayTabGlobalKeyDown={() => {
+                    if (!showShareOverlay) return;
+
+                    // Don't close the overlay when tab is pressed. Tab is needed to navigate
+                    // internally within the share overlay.
+                    return {allowDefault: true};
+                }}
+            >
+                <IconButton
+                    size={platform === "mobile" ? "base" : "md"}
+                    description="More"
+                    withoutTooltip={true}
+                >
+                    <DotsThreeVertical
+                    // Vertical dots create better visual balance on mobile because:
+                    //
+                    // 1. On mobile we have a back button on the left and we want this button to
+                    //    look aligned with that
+                    // 2. The title might be truncated with ellipsis which looks like horizontal
+                    //    dots
+                    />
+                </IconButton>
+            </OverlayTriggerButton>
+        </>
+    );
+}

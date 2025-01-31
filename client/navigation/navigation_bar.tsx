@@ -50,7 +50,6 @@ export function useNavigationBar({
     subtitle,
     menuActions = emptyArray,
     contextMenuActions = emptyArray,
-    onMenuStateChange,
     shareButton,
     replaceActions,
     titleJustifyContent,
@@ -175,7 +174,6 @@ export function useNavigationBar({
             subtitle={subtitle}
             menuActions={menuActions}
             contextMenuActions={contextMenuActions}
-            onMenuStateChange={onMenuStateChange}
             shareButton={shareButton}
             replaceActions={replaceActions}
             titleJustifyContent={titleJustifyContent}

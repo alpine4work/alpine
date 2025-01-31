@@ -1,7 +1,6 @@
 import {Globe, Lock} from "phosphor-react";
-import {useId, useMemo, useState} from "react";
+import {useState} from "react";
 import {usePress} from "react-aria";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -9,30 +8,17 @@ import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
-import {accessLevelText} from "~/client/navigation/internal/access_level_text.js";
 import {ShareOverlay} from "~/client/navigation/internal/share_overlay.js";
+import {useShareState} from "~/client/navigation/internal/use_share_state.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {elevation, sprinkles} from "~/client/styles/styles.js";
-import {
-    AccessPolicy,
-    compareAccessLevel,
-    getAccountAccessLevelAssumingSpaceAccess,
-    hasAccessLevel,
-    validateAccessPolicyUpdate,
-} from "~/shared/access/access_policy.js";
-import {AccessPolicyAction, reduceAccessPolicy} from "~/shared/access/access_policy_action.js";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
-import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export function ShareButton({
     entityNoun,
@@ -47,257 +33,20 @@ export function ShareButton({
     isReadOnly?: boolean;
     onCopyLink: () => MaybePromise<void>;
 }) {
-    const {space, currentAccount} = useSpaceContext();
-    const accountStore = useAccountClientStore();
-
-    // The share button must be read-only if we don't have the `Manage` access
-    // level. Parent components may additionally make other considerations when
-    // deciding if the share button is read-only.
-    //
-    // For example, in documents the `accessPolicy` prop is optimistic. If the
-    // persisted `accessPolicy` doesn't have the `Manage` access level then we want
-    // the share dialog to be read-only.
-    const isReadOnly = useMemo(
-        () =>
-            isReadOnlyProp ||
-            !hasAccessLevel(
-                getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
-                "Manage",
-            ),
-        [accessPolicy, currentAccount?.id, isReadOnlyProp],
-    );
-
-    const overlayId = useId();
-
     // We need all accounts when the `<ShareOverlay>` is open so preload
     // them now.
     useExpensivelyPreloadAllSpaceAccounts();
 
-    const [warningDialogState, setWarningDialogState] = useState<{
-        readonly title: string;
-        readonly description: string;
-        readonly isAllowed: boolean;
-        readonly currentAccountId: AccountId;
-        readonly action: AccessPolicyAction;
-    } | null>(null);
-
-    const onAccessPolicyChange = (action: AccessPolicyAction) => {
-        // Defend against making changes while read only. Ultimately the backend should
-        // prevent invalid changes like this but it's nice to catch errors like this
-        // early.
-        if (isReadOnly) {
-            throw new InternalError("Can't update access policy when share button is read only");
-        }
-
-        if (!currentAccount) return;
-
-        const oldAccessPolicy = accessPolicy;
-        const newAccessPolicy = reduceAccessPolicy(currentAccount.id, oldAccessPolicy, action);
-
-        let changedAccountName: string | undefined;
-        let changeDescription: string;
-        switch (action.type) {
-            case "AddAccountGrants": {
-                if (action.accountGrantById.size === 1) {
-                    changedAccountName = getAccountShortNameWithoutFullNameTooltip(
-                        (action.accountGrantById.size === 1
-                            ? accountStore
-                                  .weakGetAccountStoreByIdIfExists(
-                                      iterableFirst(action.accountGrantById)![0],
-                                  )
-                                  ?.getSnapshot()
-                            : null) ?? AccountModel.getUnknown().initialData,
-                    );
-                }
-
-                changeDescription = `give ${
-                    changedAccountName ?? "these people"
-                } access to the ${entityNoun}`;
-                break;
-            }
-            case "DeleteAccountGrant": {
-                changedAccountName = getAccountShortNameWithoutFullNameTooltip(
-                    accountStore.weakGetAccountStoreByIdIfExists(action.accountId)?.getSnapshot() ??
-                        AccountModel.getUnknown().initialData,
-                );
-
-                changeDescription = `remove ${
-                    currentAccount.id === action.accountId ? "your" : `${changedAccountName}’s`
-                } access to the ${entityNoun}`;
-                break;
-            }
-            case "SetAccountGrantLevel": {
-                changedAccountName = getAccountShortNameWithoutFullNameTooltip(
-                    accountStore.weakGetAccountStoreByIdIfExists(action.accountId)?.getSnapshot() ??
-                        AccountModel.getUnknown().initialData,
-                );
-
-                changeDescription = `change ${
-                    currentAccount.id === action.accountId ? "your" : `${changedAccountName}’s`
-                } access to the ${entityNoun} to “${accessLevelText[action.level]}”`;
-                break;
-            }
-            case "AddDefaultGrant": {
-                changeDescription = `change everyone in ${
-                    space.name
-                }’s access to the ${entityNoun} to “${accessLevelText[action.defaultGrant.level]}”`;
-                break;
-            }
-            // `DeleteDefaultGrantAndUrlGrant` uses the same language as
-            // `DeleteDefaultGrant` since we'll generally only show this message for
-            // warnings where changing the default grant matters.
-            case "DeleteDefaultGrant":
-            case "DeleteDefaultGrantAndUrlGrant": {
-                changeDescription = `remove everyone in ${space.name}’s access to the ${entityNoun}`;
-                break;
-            }
-            case "SetDefaultGrantLevel": {
-                changeDescription = `change everyone in ${
-                    space.name
-                }’s access to the ${entityNoun} to “${accessLevelText[action.level]}”`;
-                break;
-            }
-            case "AddUrlGrant": {
-                changeDescription = `change anyone with the link’s access to the ${entityNoun} to “${
-                    accessLevelText[action.urlGrant.level]
-                }”`;
-                break;
-            }
-            case "DeleteUrlGrant": {
-                changeDescription = `remove anyone with the link’s access to the ${entityNoun}`;
-                break;
-            }
-            case "SetUrlGrantLevel": {
-                changeDescription = `change anyone with the link’s access to the ${entityNoun} to “${
-                    accessLevelText[action.level]
-                }”`;
-                break;
-            }
-            default:
-                throw exhaustive(action);
-        }
-
-        const validationResult = validateAccessPolicyUpdate(
-            currentAccount.id,
-            oldAccessPolicy,
-            newAccessPolicy,
-        );
-        if (!validationResult.ok) {
-            let title: string;
-            let description: string;
-
-            switch (validationResult.reason) {
-                // Noop if we get here and the actor doesn't have manage access.
-                case "Can't update access policy unless actor has manage access": {
-                    return;
-                }
-
-                // It shouldn't be possible for the share overlay component to create one of
-                // these changes. So throw an internal error if we see one of these reasons.
-                case "Can't set new account grant manage generation to be less than or equal to our actor's manage generation":
-                case "Can't change account grant manage generation":
-                case "Can't set new default grant manage generation to be less than or equal to our actor's manage generation":
-                case "Can't change default grant manage generation": {
-                    throw new InternalError(
-                        `Share overlay made an invalid change: ${validationResult.reason}`,
-                    );
-                }
-
-                case "Can't revoke manage access from an account with a manage generation less than our actor": {
-                    title = `Can’t change ${
-                        changedAccountName ? `${changedAccountName}’s` : "their"
-                    } permissions`;
-
-                    // We use "they" to refer to the change description because we assume this error
-                    // only happens when we either remove an account grant or change an account
-                    // grant's level. In both cases we include the name of the account whose
-                    // permissions we're changing in `changeDescription`.
-                    description = `You can’t change the permissions of someone who was involved in adding you to the ${entityNoun}. So you can’t ${changeDescription}. Try asking whoever added ${
-                        changedAccountName ?? "them"
-                    } to the ${entityNoun} to change their permissions.`;
-                    break;
-                }
-
-                case "Can't update access policy so that no one has manage access": {
-                    title = "Can’t remove everyone who can change permissions";
-                    description = `If you ${changeDescription} then there won’t be anyone who can change permissions of the ${entityNoun} anymore. Try adding more people with “can edit” access.`;
-                    break;
-                }
-
-                default:
-                    throw exhaustive(validationResult.reason);
-            }
-
-            setWarningDialogState({
-                title,
-                description,
-                isAllowed: false,
-                currentAccountId: currentAccount.id,
-                action,
-            });
-            return;
-        }
-
-        {
-            const oldAccessLevel = getAccountAccessLevelAssumingSpaceAccess(
-                oldAccessPolicy,
-                currentAccount.id,
-            );
-            const newAccessLevel = getAccountAccessLevelAssumingSpaceAccess(
-                newAccessPolicy,
-                currentAccount.id,
-            );
-
-            if (compareAccessLevel(oldAccessLevel, newAccessLevel) > 0) {
-                const permissionDescriptions: Array<string> = [];
-
-                if (
-                    hasAccessLevel(oldAccessLevel, "View") &&
-                    !hasAccessLevel(newAccessLevel, "View")
-                ) {
-                    permissionDescriptions.push("see");
-                } else {
-                    if (
-                        hasAccessLevel(oldAccessLevel, "Edit") &&
-                        !hasAccessLevel(newAccessLevel, "Edit")
-                    ) {
-                        permissionDescriptions.push("edit");
-                    } else if (
-                        hasAccessLevel(oldAccessLevel, "Comment") &&
-                        !hasAccessLevel(newAccessLevel, "Comment")
-                    ) {
-                        permissionDescriptions.push("comment on");
-                    }
-
-                    if (
-                        hasAccessLevel(oldAccessLevel, "Manage") &&
-                        !hasAccessLevel(newAccessLevel, "Manage")
-                    ) {
-                        permissionDescriptions.push("share");
-                    }
-                }
-
-                const joinedPermissionDescriptions = joinPrettyConjunctionList(
-                    permissionDescriptions,
-                    "or",
-                );
-
-                setWarningDialogState({
-                    title: "Remove permissions from yourself?",
-                    description: `If you ${changeDescription} then you won’t be able to ${joinedPermissionDescriptions} the ${entityNoun} anymore. You can’t undo this change.`,
-                    isAllowed: true,
-                    currentAccountId: currentAccount.id,
-                    action,
-                });
-                return;
-            }
-        }
-
-        onAccessPolicyChangeWithoutValidations(newAccessPolicy);
-    };
+    const {changeAccessPolicy, isReadOnly, overlayId, modals} = useShareState({
+        entityNoun,
+        accessPolicy,
+        onAccessPolicyChangeWithoutValidations,
+        isReadOnly: isReadOnlyProp,
+    });
 
     return (
         <Box display="flex" alignItems="center" gap="1.5">
+            {modals}
             <OverlayTriggerButton
                 aria-haspopup="dialog"
                 placement="bottom"
@@ -307,7 +56,7 @@ export function ShareButton({
                         <ShareOverlay
                             id={overlayId}
                             accessPolicy={accessPolicy}
-                            onAccessPolicyChange={onAccessPolicyChange}
+                            onAccessPolicyChange={changeAccessPolicy}
                             isVisible={isVisible}
                             isReadOnly={isReadOnly}
                             onCopyLink={onCopyLink}
@@ -340,40 +89,9 @@ export function ShareButton({
             <ShareSwitch
                 entityNoun={entityNoun}
                 accessPolicy={accessPolicy}
-                onAccessPolicyChange={onAccessPolicyChange}
+                onAccessPolicyChange={changeAccessPolicy}
                 isReadOnly={isReadOnly}
             />
-            {warningDialogState &&
-                (warningDialogState.isAllowed ? (
-                    <ModalDialog
-                        data-ownedby={overlayId}
-                        title={warningDialogState.title}
-                        description={warningDialogState.description}
-                        primaryButtonLabel="Cancel"
-                        onPrimaryButtonPress={() => setWarningDialogState(null)}
-                        cancelButtonLabel="I understand, make this change"
-                        onCancelButtonPress={() => {
-                            onAccessPolicyChangeWithoutValidations(
-                                reduceAccessPolicy(
-                                    warningDialogState.currentAccountId,
-                                    accessPolicy,
-                                    warningDialogState.action,
-                                ),
-                            );
-                        }}
-                        onClose={() => setWarningDialogState(null)}
-                    />
-                ) : (
-                    <ModalDialog
-                        data-ownedby={overlayId}
-                        title={warningDialogState.title}
-                        description={warningDialogState.description}
-                        primaryButtonLabel="Ok"
-                        onPrimaryButtonPress={() => setWarningDialogState(null)}
-                        shouldHideCancelButton={true}
-                        onClose={() => setWarningDialogState(null)}
-                    />
-                ))}
         </Box>
     );
 }
