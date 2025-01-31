@@ -5,6 +5,34 @@ describe("ContentTableColumnResizingPlugin", () => {
         expect(received).toBeCloseTo(expected, precision);
     };
 
+    test("can resize last column by increasing width", () => {
+        const result = getContentTableColumnResizeDraggingStateNewColumnWidths(
+            {clientX: 500}, // Example clientX where the user drags to increase the last column
+            {
+                startX: 480, // Starting X position of the drag
+                viewWidthPx: 1200, // Width of the table in pixels
+                oldTotalColumnWidthPx: 226.66666666666666, // Sum of old columnWidths multiplied by some scaling factor
+                state: {
+                    columnIndex: 3, // Index of the last column (0-based indexing)
+                    oldTableMap: {
+                        columnWidths: [223.66666666666666, 1, 1.5, 1],
+                        totalColumnWidth: 227.16666666666666, // Sum of columnWidths
+                    },
+                },
+            },
+        );
+        console.log({result});
+
+        expect(result.columnWidths.length).toBe(4);
+        assertCloseTo(result.columnWidths[0], 223.66666666666666); // First column remains unchanged
+        assertCloseTo(result.columnWidths[1], 1); // Second column remains unchanged
+        assertCloseTo(result.columnWidths[2], 1.5); // Third column remains unchanged
+        assertCloseTo(result.columnWidths[3], 2); // Last column increased from 1 to 2
+
+        assertCloseTo(result.tableWidth, 1.05); // Example expected tableWidth after resizing
+        expect(result.scrollTo).toBe("right"); // Assuming the table should scroll to the right after resizing
+    });
+
     test("can make second column in a two column table smaller", () => {
         const result = getContentTableColumnResizeDraggingStateNewColumnWidths(
             {clientX: 720},

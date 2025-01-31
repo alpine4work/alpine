@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import {Plugin, PluginKey} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {
@@ -13,10 +12,7 @@ import {
     selectTable,
     selectionContentTableCell,
 } from "~/client/content/internal/table/content_table_client_util.js";
-import {
-    addContentTableColumnAfter,
-    addRowAfter,
-} from "~/client/content/internal/table/content_table_commands.js";
+import {addRowAfter} from "~/client/content/internal/table/content_table_commands.js";
 import {colorSchemeVars, contentStyles} from "~/client/styles/styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 
@@ -231,13 +227,24 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                             const tableStart = $cell.start(-1);
                                             const map = ContentTableMap.get(table);
 
-                                            // Update columnWidths array
+                                            // Update columnWidths array with a new column of width 1
                                             const columnWidths = [...map.columnWidths];
                                             columnWidths.splice(index + 1, 0, 1);
+
+                                            // Update table width to accommodate new column
+                                            const currentTableWidth = table.attrs.tableWidth ?? 1;
+                                            const newTableWidth =
+                                                currentTableWidth * ((map.width + 1) / map.width);
+
                                             tr.setNodeAttribute(
                                                 tableStart - 1,
                                                 "columnWidths",
                                                 columnWidths,
+                                            );
+                                            tr.setNodeAttribute(
+                                                tableStart - 1,
+                                                "tableWidth",
+                                                newTableWidth,
                                             );
 
                                             // Add cells to each row
@@ -311,8 +318,44 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                         event.preventDefault();
                                         event.stopImmediatePropagation();
                                         if (view) {
-                                            // Add column at the very end
-                                            addContentTableColumnAfter(view.state, view.dispatch);
+                                            const tr = view.state.tr;
+                                            const $cell = selectionContentTableCell(view.state);
+                                            const table = $cell.node(-1);
+                                            const tableStart = $cell.start(-1);
+                                            const map = ContentTableMap.get(table);
+
+                                            // Update columnWidths array with a new column of width 1
+                                            const columnWidths = [...map.columnWidths];
+                                            columnWidths.push(1);
+
+                                            // Update table width to accommodate new column
+                                            const currentTableWidth = table.attrs.tableWidth ?? 1;
+                                            const newTableWidth =
+                                                currentTableWidth * ((map.width + 1) / map.width);
+
+                                            tr.setNodeAttribute(
+                                                tableStart - 1,
+                                                "columnWidths",
+                                                columnWidths,
+                                            );
+                                            tr.setNodeAttribute(
+                                                tableStart - 1,
+                                                "tableWidth",
+                                                newTableWidth,
+                                            );
+
+                                            // Add cells to each row
+                                            for (let row = 0; row < map.height; row++) {
+                                                const pos = map.positionAt(row, map.width, table);
+                                                const type = table.type.schema.nodes.tableCell!;
+                                                tr.insert(
+                                                    tr.mapping.map(tableStart + pos),
+                                                    type.createAndFill()!,
+                                                );
+                                            }
+
+                                            view.dispatch(tr);
+
                                             // After adding, select the new last column
                                             const newColCells = getCellsInRow(0)(
                                                 view.state.selection,

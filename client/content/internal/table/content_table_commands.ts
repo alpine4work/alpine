@@ -73,7 +73,12 @@ function addContentTableColumn(
     const columnWidths = [...map.columnWidths];
     columnWidths.splice(col, 0, 1);
 
+    // Update table width to accommodate new column
+    const currentTableWidth = table.attrs.tableWidth ?? 1;
+    const newTableWidth = currentTableWidth * ((map.width + 1) / map.width);
+
     tr.setNodeAttribute(tableStart - 1, "columnWidths", columnWidths);
+    tr.setNodeAttribute(tableStart - 1, "tableWidth", newTableWidth);
 
     // Add cells to each row
     for (let row = 0; row < map.height; row++) {
