@@ -85,8 +85,6 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                     plusSign.style.color = colorSchemeVars["grey-100"];
                                     betweenGrip.appendChild(plusSign);
 
-                                    betweenGrip.style.top = "100%";
-
                                     betweenGrip.addEventListener("mousedown", event => {
                                         event.preventDefault();
                                         event.stopImmediatePropagation();
@@ -201,7 +199,6 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                     colCells.forEach(({pos}: {pos: number}, index: number) => {
                         // Add between column grip for all columns except last
                         if (index < colCells.length - 1) {
-                            const nextCell = colCells[index + 1];
                             decorations.push(
                                 Decoration.widget(pos + 1, () => {
                                     const betweenGrip = document.createElement("div");
@@ -214,8 +211,6 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                     plusSign.style.display = "none";
                                     plusSign.style.color = colorSchemeVars["grey-100"];
                                     betweenGrip.appendChild(plusSign);
-
-                                    betweenGrip.style.left = "100%";
 
                                     betweenGrip.addEventListener("mousedown", event => {
                                         event.preventDefault();
@@ -308,8 +303,7 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                     const addColumnGrip = document.createElement("div");
                                     addColumnGrip.className =
                                         contentStyles.tableAddColumnGripClassName;
-                                    addColumnGrip.style.right = "-24px"; // Position it outside the table
-                                    addColumnGrip.style.left = "auto"; // Reset any left positioning
+
                                     addColumnGrip.innerHTML = "+";
                                     addColumnGrip.title = "Add column";
 

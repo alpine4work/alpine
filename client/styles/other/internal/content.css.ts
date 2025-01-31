@@ -2256,50 +2256,6 @@ globalStyle(`${tableWrapperClassName} button`, {
 // like the selectors, colors etc.
 // maybe better way to write these styles than this.
 
-export const addNewRowButtonClassName = style({
-    height: spacing[3],
-});
-
-export const addNewColumnButtonClassName = style({
-    width: spacing[3],
-});
-
-export const selectTableButtonClassName = style({
-    backgroundColor: colorSchemeVars["theme-selection"],
-    position: "absolute",
-    // Adjust positioning to be outside the table
-    top: "12px",
-    left: "12px",
-    zIndex: "10",
-
-    // Match grip styling
-    width: spacing[3],
-    height: spacing[3],
-    padding: "4px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-
-    // Match grip styling
-    borderTopLeftRadius: borderRadius["0.5"],
-    cursor: "pointer",
-    opacity: "0",
-    transition: "opacity 0.2s",
-});
-
-export const selectRowButtonClassName = style({
-    backgroundColor: colorSchemeVars["theme-selection"],
-    border: "none",
-    padding: "4px 8px",
-    cursor: "pointer",
-    opacity: "0",
-    transition: "opacity 0.2s",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: colorSchemeVars["grey-70"],
-});
-
 export const gripColumnClassName = "grip-column";
 
 globalStyle(`.${gripColumnClassName}`, {
@@ -2307,7 +2263,6 @@ globalStyle(`.${gripColumnClassName}`, {
     borderLeft: `1px solid rgba(0, 0, 0, 0.2)`,
     height: spacing[3],
     left: 0,
-    marginLeft: "-1px",
     top: `-${spacing[3]}`,
     alignItems: "center",
     backgroundColor: "rgba(0, 0, 0, 0.05)",
@@ -2316,6 +2271,7 @@ globalStyle(`.${gripColumnClassName}`, {
     justifyContent: "center",
     position: "absolute",
     zIndex: 11,
+    transform: "translate(0px, -0.2px)",
 });
 
 globalStyle(`${darkColorSchemeSelector} .${gripColumnClassName}`, {
@@ -2375,7 +2331,7 @@ globalStyle(`.${gripRowClassName}`, {
     left: `-${spacing[3]}`,
     width: spacing[3],
     top: 0,
-    marginTop: "-1px",
+    // marginTop: "-1px",
     alignItems: "center",
     backgroundColor: "rgba(0, 0, 0, 0.05)",
     cursor: "pointer",
@@ -2383,6 +2339,7 @@ globalStyle(`.${gripRowClassName}`, {
     justifyContent: "center",
     position: "absolute",
     zIndex: 11,
+    transform: "translate(-0.2px, 0px)",
 });
 
 globalStyle(`${darkColorSchemeSelector} .${gripRowClassName}`, {
@@ -2466,7 +2423,7 @@ export const tableAddColumnGripClassName = style({
     position: "absolute",
     top: 0,
     bottom: 0,
-    right: "-24px", // Position it outside the table on the right
+    right: "-24.4px", // Position it outside the table on the right
     left: "auto", // Reset any left positioning
     width: "24px", // Same width as column grip
     cursor: "pointer",
@@ -2474,9 +2431,7 @@ export const tableAddColumnGripClassName = style({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colorSchemeVars["grey-10"],
-    borderLeft: `1px solid ${colorSchemeVars["grey-20"]}`,
-    borderRight: `1px solid ${colorSchemeVars["grey-20"]}`,
-    fontSize: "16px",
+    borderRadius: "0px 4px 4px 0px",
     color: colorSchemeVars["grey-60"],
     ":hover": {
         backgroundColor: colorSchemeVars["grey-20"],
@@ -2486,7 +2441,7 @@ export const tableAddColumnGripClassName = style({
 
 export const tableAddRowGripClassName = style({
     position: "absolute",
-    bottom: `-${spacing[3]}`, // Position it outside the table at the bottom
+    bottom: `-14px`, // Position it outside the table at the bottom
     top: "auto", // Reset any top positioning
     right: "0", // Align with table right edge
     left: `-${spacing[3]}`, // Start from the row grip area
@@ -2497,9 +2452,7 @@ export const tableAddRowGripClassName = style({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colorSchemeVars["grey-10"],
-    borderTop: `1px solid ${colorSchemeVars["grey-20"]}`,
-    borderBottom: `1px solid ${colorSchemeVars["grey-20"]}`,
-    fontSize: "16px",
+    borderRadius: "0px 0px 4px 4px",
     color: colorSchemeVars["grey-60"],
     ":hover": {
         backgroundColor: colorSchemeVars["grey-20"],
@@ -2509,9 +2462,9 @@ export const tableAddRowGripClassName = style({
 
 export const betweenColumnGripClassName = style({
     position: "absolute",
+    left: "100%",
     top: "-31px",
     height: "24px",
-    left: "100%",
     borderRadius: "100%",
     width: "24px",
     cursor: "pointer",
@@ -2553,6 +2506,7 @@ globalStyle(`${betweenColumnGripClassName}:hover > span`, {
 
 export const betweenRowGripClassName = style({
     position: "absolute",
+    top: "100%",
     left: "-31px",
     width: "24px",
     height: "24px",
