@@ -466,7 +466,6 @@ function ContentEditorCommentInput({
                             actions={[
                                 {
                                     label: "Image",
-                                    iconSize: "4",
                                     icon: <Image />,
                                     onPress: () => {
                                         selectFiles(assertExists(containerRef.current), {
@@ -496,7 +495,6 @@ function ContentEditorCommentInput({
                                 },
                                 {
                                     label: "Video",
-                                    iconSize: "4",
                                     icon: <VideoIcon />,
                                     onPress: () => {
                                         selectFiles(assertExists(containerRef.current), {
@@ -526,7 +524,6 @@ function ContentEditorCommentInput({
                                 },
                                 {
                                     label: "Audio",
-                                    iconSize: "4",
                                     icon: <WaveformIcon />,
                                     onPress: () => {
                                         selectFiles(assertExists(containerRef.current), {
@@ -556,7 +553,6 @@ function ContentEditorCommentInput({
                                 },
                                 {
                                     label: "File",
-                                    iconSize: "4",
                                     icon: <File />,
                                     onPress: () => {
                                         selectFiles(assertExists(containerRef.current), {

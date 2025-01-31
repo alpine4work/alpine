@@ -25,7 +25,6 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
             placement="right-start"
             // Vertically center space name in `extraOverlayTop` with space avatar.
             offsetAlong="-1"
-            size="lg"
             extraOverlayTop={
                 <>
                     <Box paddingX="2" paddingY="1" fontSize="200" fontStyle="semi-bold">
@@ -42,7 +41,7 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
                     key: "switch-space",
                     icon: <ArrowsLeftRight />,
                     label: "Switch space",
-                    size: "xl",
+                    size: "lg",
                     actions: async () => {
                         const {spaces: otherSpaces} = await getOurAccountSpaces(context, {});
 

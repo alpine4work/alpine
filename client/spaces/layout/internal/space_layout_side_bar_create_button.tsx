@@ -62,7 +62,6 @@ export function SpaceLayoutSideBarCreateButton() {
                 placement="right-start"
                 // Centers the first item with the create button.
                 offsetAlong="-5"
-                size="brand-icons"
                 onClose={() => {
                     if (originalInteractionModalityRef.current !== null) {
                         setInteractionModality(originalInteractionModalityRef.current);
@@ -151,7 +150,7 @@ export function SpaceLayoutSideBarCreateButton() {
                             actions: [
                                 {
                                     label: "Channel",
-                                    icon: <ChannelBrandIcon size="5" />,
+                                    icon: <ChannelBrandIcon />,
                                     pressErrorTitle: "Couldn’t create channel",
                                     onPress: async () => {
                                         const channelId = generateId();
@@ -163,7 +162,7 @@ export function SpaceLayoutSideBarCreateButton() {
                                 },
                                 {
                                     label: "Task collection",
-                                    icon: <TaskCollectionBrandIcon size="5" />,
+                                    icon: <TaskCollectionBrandIcon />,
                                     pressErrorTitle: "Couldn’t create task collection",
                                     onPress: async () => {
                                         const collectionId = generateId();
@@ -175,7 +174,7 @@ export function SpaceLayoutSideBarCreateButton() {
                                 },
                                 {
                                     label: "Task view",
-                                    icon: <TaskQueryBrandIcon size="5" />,
+                                    icon: <TaskQueryBrandIcon />,
                                     pressErrorTitle: "Couldn’t create task view",
                                     onPress: async () => {
                                         await peekStackContext.push(`/s/${space.id}/tasks/view`);

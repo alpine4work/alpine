@@ -909,7 +909,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                             actions={[
                                                 {
                                                     label: "Image",
-                                                    iconSize: "4",
                                                     icon: <Image />,
                                                     onPress: () => {
                                                         selectFiles(
@@ -944,7 +943,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                 },
                                                 {
                                                     label: "Video",
-                                                    iconSize: "4",
                                                     icon: <VideoIcon />,
                                                     onPress: () => {
                                                         selectFiles(
@@ -979,7 +977,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                 },
                                                 {
                                                     label: "Audio",
-                                                    iconSize: "4",
                                                     icon: <WaveformIcon />,
                                                     onPress: () => {
                                                         selectFiles(
@@ -1014,7 +1011,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                 },
                                                 {
                                                     label: "File",
-                                                    iconSize: "4",
                                                     icon: <File />,
                                                     onPress: () => {
                                                         selectFiles(

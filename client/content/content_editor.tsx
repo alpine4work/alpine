@@ -3934,7 +3934,6 @@ function ContentEditor<Content extends ContentWithReferences>(
             insertMenuActions.push([
                 {
                     label: "Image",
-                    iconSize: "4",
                     icon: <Image />,
                     onPress: () => {
                         selectFiles(assertExists(viewRef.current?.dom.parentElement), {
@@ -3951,7 +3950,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
                 {
                     label: "Video",
-                    iconSize: "4",
                     icon: <VideoIcon />,
                     onPress: () => {
                         selectFiles(assertExists(viewRef.current?.dom.parentElement), {
@@ -3968,7 +3966,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
                 {
                     label: "Audio",
-                    iconSize: "4",
                     icon: <WaveformIcon />,
                     onPress: () => {
                         selectFiles(assertExists(viewRef.current?.dom.parentElement), {
@@ -3985,7 +3982,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
                 {
                     label: "File",
-                    iconSize: "4",
                     icon: <File />,
                     onPress: () => {
                         selectFiles(assertExists(viewRef.current?.dom.parentElement), {
@@ -4008,7 +4004,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         insertListMenuActions.push(
             {
                 label: "Bullet list",
-                iconSize: "4",
                 icon: <ListBullets />,
                 onPress: () => {
                     insertContentUnorderedListItem(assertExists(viewRef.current));
@@ -4016,7 +4011,6 @@ function ContentEditor<Content extends ContentWithReferences>(
             },
             {
                 label: "Number list",
-                iconSize: "4",
                 icon: <ListNumbers />,
                 onPress: () => {
                     insertContentOrderedListItem(assertExists(viewRef.current));
@@ -4027,7 +4021,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         if (schema.nodes.checkListItem) {
             insertListMenuActions.push({
                 label: "Check list",
-                iconSize: "4",
                 icon: <ListChecks />,
                 onPress: () => {
                     insertContentCheckListItem(assertExists(viewRef.current));
@@ -4039,7 +4032,6 @@ function ContentEditor<Content extends ContentWithReferences>(
             insertMenuActions.push([
                 {
                     label: "Heading 1",
-                    iconSize: "4",
                     icon: <TextHOne />,
                     onPress: () => {
                         insertContentHeading(assertExists(viewRef.current), 1);
@@ -4047,7 +4039,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
                 {
                     label: "Heading 2",
-                    iconSize: "4",
                     icon: <TextHTwo />,
                     onPress: () => {
                         insertContentHeading(assertExists(viewRef.current), 2);
@@ -4055,7 +4046,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
                 {
                     label: "Heading 3",
-                    iconSize: "4",
                     icon: <TextHThree />,
                     onPress: () => {
                         insertContentHeading(assertExists(viewRef.current), 3);
@@ -4070,7 +4060,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         if (process.env.NODE_ENV !== "production") {
             insertOtherMenuActions.push({
                 label: "Table",
-                iconSize: "4",
                 icon: <Table />,
                 onPress: () => {
                     insertContentTable(assertExists(viewRef.current));
@@ -4081,7 +4070,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         if (schema.nodes.divider) {
             insertOtherMenuActions.push({
                 label: "Divider",
-                iconSize: "4",
                 icon: <Minus />,
                 onPress: () => {
                     insertContentDivider(assertExists(viewRef.current));
@@ -4092,7 +4080,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         insertOtherMenuActions.push(
             {
                 label: "Quote block",
-                iconSize: "4",
                 icon: <QuoteBlockIcon />,
                 onPress: () => {
                     insertContentQuoteBlock(assertExists(viewRef.current));
@@ -4100,7 +4087,6 @@ function ContentEditor<Content extends ContentWithReferences>(
             },
             {
                 label: "Code block",
-                iconSize: "4",
                 icon: <CodeBlockIcon />,
                 onPress: () => {
                     insertContentCodeBlock(assertExists(viewRef.current));
@@ -4134,16 +4120,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                     hasChildren: true,
                     key: "insert",
                     label: "Insert",
-                    // This is a large sized menu since because:
-                    //
-                    // 1. If your mouse leaves the menu it closes
-                    // 2. There are a lot of options so it takes some precision for the user to find
-                    //    the right one
-                    //
-                    // So there's a risk of the mouse "slipping". Leaving the area while trying to
-                    // make a selection causing the insert menu to close. By making the menu larger
-                    // there's less risk of slipping.
-                    size: "lg",
                     actions: insertMenuActions,
                 },
             ],

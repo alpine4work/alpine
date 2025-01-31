@@ -397,8 +397,7 @@ export function ContentEditorMentionFloater({
 
     if (isLoading && !shouldShowLoadingIndicatorIfLoading) return null;
 
-    const menuSize: MenuSize = "lg";
-    const {width} = Menu.sizeConstants[menuSize][platform];
+    const {width} = Menu.sizeConstants.base[platform];
 
     return (
         <OverlayAnimated
