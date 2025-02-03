@@ -128,9 +128,10 @@ function addContentTableColumn(
             (newColumnWidthPx - newTotalColumnWidthPx)
         );
 
-        newTableWidth = (tableMap.tableWidth * newTotalColumnWidthPx) / oldTotalColumnWidthPx;
+        newTableWidth = tableMap.tableWidth * (newTotalColumnWidthPx / oldTotalColumnWidthPx);
     }
 
+    // Update columnWidths array
     const newColumnWidths = [...tableMap.columnWidths];
     newColumnWidths.splice(columnIndex, 0, newColumnWidth);
 
@@ -200,25 +201,53 @@ export function addContentTableColumnAtIndex(tablePos: number, columnIndex: numb
     };
 }
 
-// NOCOMMIT: Update `tableWidth`.
 function removeContentTableColumn(
-    tr: Transaction,
-    {tableMap, table, tablePos: tableStart}: ContentTableRect,
-    col: number,
+    {tableMap, table, tablePos}: ContentTableRect,
+    columnIndex: number,
+    transaction: Transaction,
 ) {
     // Update columnWidths array
-    const columnWidths = [...tableMap.columnWidths];
-    columnWidths.splice(col, 1);
+    const newColumnWidths = [...tableMap.columnWidths];
+    newColumnWidths.splice(columnIndex, 1);
 
-    tr.setNodeAttribute(tableStart - 1, "columnWidths", columnWidths);
+    let newTableWidth: number;
+
+    if (tableMap.tableWidth <= 1) {
+        newTableWidth = 1;
+    } else {
+        const remPx = remPxBySpacingScale.small;
+
+        const oldColumnWidthPxs = resolveContentTableColumnWidthPx(
+            tableMap.totalColumnWidth,
+            tableMap.columnWidths,
+            contentStyles.blockMaxWidthRem.desktop * tableMap.tableWidth * remPx,
+            contentStyles.tableColumnMinWidthRem * remPx,
+        );
+
+        const oldColumnWidthPx = oldColumnWidthPxs[columnIndex]!;
+
+        const oldTotalColumnWidthPx =
+            contentStyles.blockMaxWidthRem.desktop * tableMap.tableWidth * remPx;
+        const newTotalColumnWidthPx = oldTotalColumnWidthPx - oldColumnWidthPx;
+
+        newTableWidth = Math.max(
+            1,
+            tableMap.tableWidth * (newTotalColumnWidthPx / oldTotalColumnWidthPx),
+        );
+    }
+
+    transaction.setNodeAttribute(tablePos - 1, "columnWidths", newColumnWidths);
+
+    if (newTableWidth !== tableMap.tableWidth)
+        transaction.setNodeAttribute(tablePos - 1, "tableWidth", newTableWidth);
 
     // Remove cells from each row
     for (let row = 0; row < tableMap.height; row++) {
-        const pos = tableMap.positionAt(row, col, table);
+        const pos = tableMap.positionAt(row, columnIndex, table);
         const cell = table.nodeAt(pos)!;
-        tr.delete(
-            tr.mapping.map(tableStart + pos),
-            tr.mapping.map(tableStart + pos + cell.nodeSize),
+        transaction.delete(
+            transaction.mapping.map(tablePos + pos),
+            transaction.mapping.map(tablePos + pos + cell.nodeSize),
         );
     }
 }
@@ -231,22 +260,26 @@ export function deleteContentTableColumn(
     dispatch?: (tr: Transaction) => void,
 ): boolean {
     if (!isInContentTable(state)) return false;
+
     if (dispatch) {
         const rect = selectedContentTableRect(state);
-        const tr = state.tr;
+        const transaction = state.tr;
         if (rect.left == 0 && rect.right == rect.tableMap.width) return false;
         for (let i = rect.right - 1; ; i--) {
-            removeContentTableColumn(tr, rect, i);
+            removeContentTableColumn(rect, i, transaction);
             if (i == rect.left) break;
-            const table = rect.tablePos ? tr.doc.nodeAt(rect.tablePos - 1) : tr.doc;
+            const table = rect.tablePos
+                ? transaction.doc.nodeAt(rect.tablePos - 1)
+                : transaction.doc;
             if (!table) {
-                throw RangeError("No table found");
+                throw new RangeError("No table found");
             }
             rect.table = table;
             rect.tableMap = ContentTableMap.get(table);
         }
-        dispatch(tr);
+        dispatch(transaction);
     }
+
     return true;
 }
 

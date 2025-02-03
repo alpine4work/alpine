@@ -12,7 +12,6 @@ import {Menu, MenuAction} from "~/client/design/menu.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 
@@ -75,9 +74,9 @@ export const ContentEditorTableColumnsMenu = ({
         {
             label: "Delete column",
             onPress: () => {
-                assert(viewRef.current);
+                const view = assertExists(viewRef.current);
 
-                deleteContentTableColumn(viewRef.current.state, viewRef.current.dispatch);
+                deleteContentTableColumn(view.state, view.dispatch);
                 onCloseWithAnimation();
             },
         },
