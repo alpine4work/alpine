@@ -5,8 +5,8 @@ import {RefObject, useEffect, useState} from "react";
 import {TableMenuState} from "~/client/content/content_editor.js";
 import {getSelectedRowGripInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
 import {
-    addContentTableRowBefore,
-    addContentTableRowAfter,
+    addContentTableRowBeforeSelection,
+    addContentTableRowAfterSelection,
     deleteContentTableRow,
 } from "~/client/content/internal/table/content_table_commands.js";
 import {Menu, MenuAction} from "~/client/design/menu.js";
@@ -58,7 +58,7 @@ export const ContentEditorTableRowsMenu = ({
             label: "Add Row after",
             onPress: () => {
                 if (viewRef.current) {
-                    addContentTableRowAfter(state, viewRef.current.dispatch);
+                    addContentTableRowAfterSelection(state, viewRef.current.dispatch);
                     onCloseWithAnimation();
                 }
             },
@@ -67,7 +67,7 @@ export const ContentEditorTableRowsMenu = ({
             label: "Add row before",
             onPress: () => {
                 if (viewRef.current) {
-                    addContentTableRowBefore(state, viewRef.current.dispatch);
+                    addContentTableRowBeforeSelection(state, viewRef.current.dispatch);
                     onCloseWithAnimation();
                 }
             },

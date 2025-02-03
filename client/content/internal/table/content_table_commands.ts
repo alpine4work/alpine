@@ -29,7 +29,6 @@
 
 import {Node, ResolvedPos, Slice} from "prosemirror-model";
 import {Command, EditorState, TextSelection, Transaction} from "prosemirror-state";
-import {EditorView} from "prosemirror-view";
 import {
     isInContentTable,
     moveContentTableCellForward,
@@ -287,12 +286,12 @@ export function deleteContentTableColumn(
  * Add a table row at the given position
  */
 function addContentTableRow(
-    tr: Transaction,
-    {tableMap, tablePos: tableStart, table}: ContentTableRect,
-    row: number,
+    {tablePos, table, tableMap}: {tablePos: number; table: Node; tableMap: ContentTableMap},
+    rowIndex: number,
+    transaction: Transaction,
 ): Transaction {
-    let rowPos = tableStart;
-    for (let i = 0; i < row; i++) rowPos += table.child(i).nodeSize;
+    let rowPos = tablePos;
+    for (let i = 0; i < rowIndex; i++) rowPos += table.child(i).nodeSize;
 
     const cells = [];
     for (let col = 0; col < tableMap.width; col++) {
@@ -301,38 +300,56 @@ function addContentTableRow(
         if (node) cells.push(node);
     }
 
-    tr.insert(rowPos, table.type.schema.nodes.tableRow!.create(null, cells));
-    return tr;
+    transaction.insert(rowPos, table.type.schema.nodes.tableRow!.create(null, cells));
+    return transaction;
 }
 
 /**
  * Add a table row before the selection.
  */
-export function addContentTableRowBefore(
+export function addContentTableRowBeforeSelection(
     state: EditorState,
     dispatch?: (tr: Transaction) => void,
 ): boolean {
     if (!isInContentTable(state)) return false;
+
     if (dispatch) {
         const rect = selectedContentTableRect(state);
-        dispatch(addContentTableRow(state.tr, rect, rect.top));
+        dispatch(addContentTableRow(rect, rect.top, state.tr));
     }
+
     return true;
 }
 
 /**
  * Add a table row after the selection.
  */
-export function addContentTableRowAfter(
+export function addContentTableRowAfterSelection(
     state: EditorState,
     dispatch?: (tr: Transaction) => void,
 ): boolean {
     if (!isInContentTable(state)) return false;
+
     if (dispatch) {
         const rect = selectedContentTableRect(state);
-        dispatch(addContentTableRow(state.tr, rect, rect.bottom));
+        dispatch(addContentTableRow(rect, rect.bottom, state.tr));
     }
+
     return true;
+}
+
+export function addContentTableRowAtIndex(tablePos: number, rowIndex: number) {
+    return (state: EditorState, dispatch?: (tr: Transaction) => void): boolean => {
+        const table = state.doc.resolve(tablePos).node();
+        if (table.type.name !== "table") return false;
+
+        if (dispatch) {
+            const tableMap = ContentTableMap.get(table);
+            dispatch(addContentTableRow({tablePos, table, tableMap}, rowIndex, state.tr));
+        }
+
+        return true;
+    };
 }
 
 function removeContentTableRow(
@@ -469,27 +486,3 @@ export function deleteContentTableCellSelection(
     }
     return true;
 }
-
-// NOCOMMIT: No editor view here?
-export const addContentTableRowAtIndex = (view: EditorView, index: number) => {
-    const tr = view.state.tr;
-    const $cell = selectionContentTableCell(view.state);
-    const table = $cell.node(-1);
-    const tableStart = $cell.start(-1);
-    const map = ContentTableMap.get(table);
-
-    let rowPos = tableStart;
-    for (let i = 0; i < index + 1; i++) {
-        rowPos += table.child(i).nodeSize;
-    }
-
-    const cells = [];
-    for (let col = 0; col < map.width; col++) {
-        const type = table.type.schema.nodes.tableCell!;
-        const node = type.createAndFill();
-        if (node) cells.push(node);
-    }
-
-    tr.insert(rowPos, table.type.schema.nodes.tableRow!.create(null, cells));
-    view.dispatch(tr);
-};

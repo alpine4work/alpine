@@ -90,10 +90,16 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
 
                                     betweenGrip.addEventListener("mousedown", event => {
                                         event.preventDefault();
-                                        event.stopImmediatePropagation();
-                                        if (view) {
-                                            addContentTableRowAtIndex(view, index);
-                                        }
+
+                                        assert(view);
+
+                                        const $cell = selectionContentTableCell(state);
+                                        const tablePos = $cell.start(-1);
+
+                                        addContentTableRowAtIndex(tablePos, index + 1)(
+                                            view.state,
+                                            view.dispatch,
+                                        );
                                     });
 
                                     return betweenGrip;
@@ -147,10 +153,16 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
 
                                     addRowGrip.addEventListener("mousedown", event => {
                                         event.preventDefault();
-                                        event.stopImmediatePropagation();
-                                        if (view) {
-                                            addContentTableRowAtIndex(view, rowCells.length - 1);
-                                        }
+
+                                        assert(view);
+
+                                        const $cell = selectionContentTableCell(state);
+                                        const tablePos = $cell.start(-1);
+
+                                        addContentTableRowAtIndex(tablePos, rowCells.length)(
+                                            view.state,
+                                            view.dispatch,
+                                        );
                                     });
 
                                     return addRowGrip;
@@ -187,7 +199,7 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                         const $cell = selectionContentTableCell(state);
                                         const tablePos = $cell.start(-1);
 
-                                        addContentTableColumnAtIndex(tablePos, index)(
+                                        addContentTableColumnAtIndex(tablePos, index + 1)(
                                             view.state,
                                             view.dispatch,
                                         );
