@@ -210,7 +210,10 @@ export function addContentTableRowBefore(
 /**
  * Add a table row after the selection.
  */
-export function addRowAfter(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
+export function addContentTableRowAfter(
+    state: EditorState,
+    dispatch?: (tr: Transaction) => void,
+): boolean {
     if (!isInContentTable(state)) return false;
     if (dispatch) {
         const rect = selectedRect(state);
@@ -377,6 +380,7 @@ export const addContentTableColumnAtIndex = (view: EditorView, index: number) =>
 
     view.dispatch(tr);
 };
+
 export const addContentTableRowAtIndex = (view: EditorView, index: number) => {
     const tr = view.state.tr;
     const $cell = selectionContentTableCell(view.state);
