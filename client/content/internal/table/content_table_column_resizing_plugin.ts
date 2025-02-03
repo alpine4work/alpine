@@ -116,8 +116,13 @@ type ContentTableColumnResizeAction =
               readonly viewWithoutPaddingWidthPx: number;
               readonly oldTotalColumnWidthPx: number;
               readonly oldScrollLeftPx: number;
+              readonly isSnapping: boolean;
               readonly state: ContentTableColumnResizeDraggingState;
           } | null;
+      }
+    | {
+          readonly type: "SetDraggingIsSnapping";
+          readonly isSnapping: boolean;
       };
 
 type ContentTableColumnResizeDraggingState = {
@@ -180,6 +185,7 @@ class ContentTableColumnResizeState {
         readonly viewWithoutPaddingWidthPx: number;
         readonly oldTotalColumnWidthPx: number;
         readonly oldScrollLeftPx: number;
+        readonly isSnapping: boolean;
         readonly state: ContentTableColumnResizeDraggingState;
     } | null;
 
@@ -190,6 +196,7 @@ class ContentTableColumnResizeState {
             readonly viewWithoutPaddingWidthPx: number;
             readonly oldTotalColumnWidthPx: number;
             readonly oldScrollLeftPx: number;
+            readonly isSnapping: boolean;
             readonly state: ContentTableColumnResizeDraggingState;
         } | null,
     ) {
@@ -220,6 +227,7 @@ class ContentTableColumnResizeState {
                     viewWithoutPaddingWidthPx: state.dragging.viewWithoutPaddingWidthPx,
                     oldTotalColumnWidthPx: state.dragging.oldTotalColumnWidthPx,
                     oldScrollLeftPx: state.dragging.oldScrollLeftPx,
+                    isSnapping: state.dragging.isSnapping,
                     state: getContentTableColumnResizeDraggingState(tr.doc, state.activeHandle),
                 });
             }
@@ -235,6 +243,12 @@ class ContentTableColumnResizeState {
                     return new ContentTableColumnResizeState(action.handle, null);
                 case "SetDragging":
                     return new ContentTableColumnResizeState(state.activeHandle, action.dragging);
+                case "SetDraggingIsSnapping": {
+                    return new ContentTableColumnResizeState(
+                        state.activeHandle,
+                        this.dragging ? {...this.dragging, isSnapping: action.isSnapping} : null,
+                    );
+                }
                 default:
                     throw exhaustive(action);
             }
@@ -348,33 +362,39 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
                                 parseFloat(viewComputedStyle.paddingRight)),
                         oldTotalColumnWidthPx: tableElement.offsetWidth,
                         oldScrollLeftPx: tableElement.parentElement!.parentElement!.scrollLeft,
+                        isSnapping: true,
                         state: draggingState,
                     },
                 }),
             ),
         );
     }
+
+    let lastClientX = event.clientX;
+
     // Updates the column width as the mouse is moved while dragging
     function move(event: MouseEvent): void {
+        lastClientX = event.clientX;
+
         if (!event.which) {
-            finish(event);
+            finish();
             return;
         }
 
         const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
         if (!pluginState?.dragging || pluginState.activeHandle === null) {
-            finish(event);
+            finish();
             return;
         }
 
         const tableElement = pluginState.dragging.state.getTableElement(view);
         if (!tableElement) {
-            finish(event);
+            finish();
             return;
         }
 
         const newTableAndColumnWidths = getContentTableColumnResizeDraggingStateNewColumnWidths(
-            event,
+            event.clientX,
             pluginState.dragging,
         );
 
@@ -386,16 +406,21 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
     }
 
     // Finalizes the resizing process when the mouse is released
-    function finish(event: MouseEvent) {
+    function finish() {
         window.removeEventListener("mouseup", finish);
         window.removeEventListener("mousemove", move);
+        window.removeEventListener("keydown", handleKeyDown, true);
+        window.removeEventListener("keyup", handleKeyUp, true);
         dragCoverElement.remove();
 
         const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
         if (!pluginState?.dragging || pluginState.activeHandle === null) return;
 
         const {tableWidth: newTableWidth, columnWidths: newColumnWidths} =
-            getContentTableColumnResizeDraggingStateNewColumnWidths(event, pluginState.dragging);
+            getContentTableColumnResizeDraggingStateNewColumnWidths(
+                lastClientX,
+                pluginState.dragging,
+            );
 
         const transaction = view.state.tr;
 
@@ -424,6 +449,80 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
         );
     }
 
+    function handleKeyDown(event: KeyboardEvent) {
+        if (event.key === "Alt") {
+            view.dispatch(
+                view.state.tr.setMeta(
+                    contentTableColumnResizingPluginKey,
+                    cast<ContentTableColumnResizeAction>({
+                        type: "SetDraggingIsSnapping",
+                        isSnapping: false,
+                    }),
+                ),
+            );
+
+            const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
+            if (!pluginState?.dragging || pluginState.activeHandle === null) {
+                finish();
+                return;
+            }
+
+            const tableElement = pluginState.dragging.state.getTableElement(view);
+            if (!tableElement) {
+                finish();
+                return;
+            }
+
+            const newTableAndColumnWidths = getContentTableColumnResizeDraggingStateNewColumnWidths(
+                lastClientX,
+                pluginState.dragging,
+            );
+
+            updateContentTableColumnsOnResize(
+                pluginState.dragging.state.oldTable,
+                tableElement,
+                newTableAndColumnWidths,
+            );
+        }
+    }
+
+    function handleKeyUp(event: KeyboardEvent) {
+        if (event.key === "Alt") {
+            view.dispatch(
+                view.state.tr.setMeta(
+                    contentTableColumnResizingPluginKey,
+                    cast<ContentTableColumnResizeAction>({
+                        type: "SetDraggingIsSnapping",
+                        isSnapping: true,
+                    }),
+                ),
+            );
+
+            const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
+            if (!pluginState?.dragging || pluginState.activeHandle === null) {
+                finish();
+                return;
+            }
+
+            const tableElement = pluginState.dragging.state.getTableElement(view);
+            if (!tableElement) {
+                finish();
+                return;
+            }
+
+            const newTableAndColumnWidths = getContentTableColumnResizeDraggingStateNewColumnWidths(
+                lastClientX,
+                pluginState.dragging,
+            );
+
+            updateContentTableColumnsOnResize(
+                pluginState.dragging.state.oldTable,
+                tableElement,
+                newTableAndColumnWidths,
+            );
+        }
+    }
+
     // Block the DOM with a cover element so we don't trigger hover effects and the
     // cursor always stays the same.
     const dragCoverElement = document.createElement("div");
@@ -439,6 +538,8 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
 
     window.addEventListener("mouseup", finish);
     window.addEventListener("mousemove", move);
+    window.addEventListener("keydown", handleKeyDown, true);
+    window.addEventListener("keyup", handleKeyUp, true);
     event.preventDefault();
 
     // Unfocus the content editor while resizing a column. So the browser cursor
@@ -640,12 +741,13 @@ export function resolveContentTableColumnWidthPx(
  *   set the column width as a percent.
  */
 export function getContentTableColumnResizeDraggingStateNewColumnWidths(
-    event: {clientX: number},
+    currentX: number,
     {
         startX,
         viewWithoutPaddingWidthPx,
         oldTotalColumnWidthPx: actualOldTotalColumnWidthPx,
         oldScrollLeftPx,
+        isSnapping,
         state: {
             columnIndex: column1Index,
             oldTableMap: {columnWidths: oldColumnWidths, totalColumnWidth: oldTotalColumnWidth},
@@ -655,6 +757,7 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         viewWithoutPaddingWidthPx: number;
         oldTotalColumnWidthPx: number;
         oldScrollLeftPx: number;
+        isSnapping: boolean;
         state: {
             columnIndex: number;
             oldTableMap: {
@@ -668,7 +771,7 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
     columnWidths: ReadonlyArray<number>;
     scrollLeftPx?: number;
 } {
-    const offsetPx = event.clientX - startX;
+    const offsetPx = currentX - startX;
 
     const platform = getPlatformWithoutListening();
     const spacingScale = getSpacingScaleWithoutListening();
@@ -694,6 +797,19 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         actualOldTotalColumnWidthPx,
         maxTotalColumnWidthPx,
     );
+
+    // By default, round column width to the nearest snap increment. If the user is
+    // holding alt then we'll let the user perform a precise pixel by pixel resize.
+    //
+    // By defaulting to snapping to a standard column width increment, we help the
+    // user create beautiful, orderly, tables.
+    const snapColumnWidthPx = (columnWidthPx: number) => {
+        if (!isSnapping) return columnWidthPx;
+
+        const columnWidthSnapIncrementPx = contentStyles.tableColumnWidthSnapIncrementRem * remPx;
+
+        return Math.round(columnWidthPx / columnWidthSnapIncrementPx) * columnWidthSnapIncrementPx;
+    };
 
     // For the best UX, as the user drags the column resize handle should perfectly
     // follow the user's mouse while they drag. If the table width is less than the
@@ -743,8 +859,12 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
 
         let newColumnWidthPx = clamp(
             columnMinWidthPx,
-            oldColumnWidthPx +
-                getAdditionalColumnWidthPxIfChangingTableWidth((isLeftResize ? -1 : 1) * offsetPx),
+            snapColumnWidthPx(
+                oldColumnWidthPx +
+                    getAdditionalColumnWidthPxIfChangingTableWidth(
+                        (isLeftResize ? -1 : 1) * offsetPx,
+                    ),
+            ),
             columnMaxWidthPx,
         );
 
@@ -828,7 +948,9 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
                 ? oldScrollLeftPx
                 : oldScrollLeftPx + (newColumnWidthPx - oldColumnWidthPx),
         };
-    } else if (oldColumnWidths.length <= contentStyles.maintainTableWidthMaxColumnCount) {
+    } else if (
+        oldColumnWidths.length <= contentStyles.tableMaxColumnCountForMaintainingBlockWidth
+    ) {
         // If the number of columns are less than equal to 4 then make sure the
         // interior column resizer is affecting only the columns adjacent to the resize
         // handle and not the table width
@@ -839,11 +961,12 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         const oldColumn1WidthPx = oldTotalColumnWidthPx * (oldColumn1Width / oldTotalColumnWidth);
 
         // Make sure the new column 1 width is in our min/max bounds.
-        const newColumn1WidthPx = clamp(
+        let newColumn1WidthPx = clamp(
             columnMinWidthPx,
-            oldColumn1WidthPx + offsetPx,
+            snapColumnWidthPx(oldColumn1WidthPx + offsetPx),
             columnMaxWidthPx,
         );
+
         let newColumn1Width = (newColumn1WidthPx / oldTotalColumnWidthPx) * oldTotalColumnWidth;
         let newColumn2Width = oldColumn1Width + oldColumn2Width - newColumn1Width;
         let newColumn2WidthPx = (newColumn2Width / oldTotalColumnWidth) * oldTotalColumnWidthPx;
@@ -853,10 +976,12 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
             newColumn2WidthPx = columnMinWidthPx;
             newColumn2Width = (newColumn2WidthPx / oldTotalColumnWidthPx) * oldTotalColumnWidth;
             newColumn1Width = oldColumn1Width + oldColumn2Width - newColumn2Width;
+            newColumn1WidthPx = (newColumn1Width / oldTotalColumnWidth) * oldTotalColumnWidthPx;
         } else if (newColumn2WidthPx > columnMaxWidthPx) {
             newColumn2WidthPx = columnMaxWidthPx;
             newColumn2Width = (newColumn2WidthPx / oldTotalColumnWidthPx) * oldTotalColumnWidth;
             newColumn1Width = oldColumn1Width + oldColumn2Width - newColumn2Width;
+            newColumn1WidthPx = (newColumn1Width / oldTotalColumnWidth) * oldTotalColumnWidthPx;
         }
 
         const newColumnWidths: Array<number> = [];
@@ -879,18 +1004,34 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
             columnMinWidthPx,
         );
 
-        const oldColumn1Width = oldColumnWidths[column1Index]!;
-        const oldColumn1WidthPx = oldColumnWidthPxs[column1Index]!;
+        const oldColumnWidth = oldColumnWidths[column1Index]!;
+        const oldColumnWidthPx = oldColumnWidthPxs[column1Index]!;
 
         // Calculate new width based on drag offset
-        let newColumn1WidthPx = clamp(
+        let newColumnWidthPx = clamp(
             columnMinWidthPx,
-            oldColumn1WidthPx + getAdditionalColumnWidthPxIfChangingTableWidth(offsetPx),
+            snapColumnWidthPx(
+                oldColumnWidthPx + getAdditionalColumnWidthPxIfChangingTableWidth(offsetPx),
+            ),
             columnMaxWidthPx,
         );
 
+        // By default, round column width to the nearest snap increment. If the user is
+        // holding alt then we'll let the user perform a precise pixel by pixel resize.
+        //
+        // By defaulting to snapping to a standard column width increment, we help the
+        // user create beautiful, orderly, tables.
+        if (isSnapping) {
+            const columnWidthSnapIncrementPx =
+                contentStyles.tableColumnWidthSnapIncrementRem * remPx;
+
+            newColumnWidthPx =
+                Math.round(newColumnWidthPx / columnWidthSnapIncrementPx) *
+                columnWidthSnapIncrementPx;
+        }
+
         const expectedNewTotalColumnWidthPx =
-            oldTotalColumnWidthPx + (newColumn1WidthPx - oldColumn1WidthPx);
+            oldTotalColumnWidthPx + (newColumnWidthPx - oldColumnWidthPx);
 
         const newTotalColumnWidthPx = clamp(
             minTotalColumnWidthPx,
@@ -901,7 +1042,7 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         // If the new column width violates total column width min/max bounds then we
         // need to adjust the new column width back down to what'll work with our total
         // column width min/max bounds.
-        newColumn1WidthPx += newTotalColumnWidthPx - expectedNewTotalColumnWidthPx;
+        newColumnWidthPx += newTotalColumnWidthPx - expectedNewTotalColumnWidthPx;
 
         // Calculate new relative width for the resized column:
         //
@@ -911,37 +1052,37 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         // the column being resized:
         //
         // ```
-        // newTotalColumnWidth = oldTotalColumnWidth - oldColumn1Width + newColumn1Width
+        // newTotalColumnWidth = oldTotalColumnWidth - oldColumnWidth + newColumnWidth
         // ```
         //
-        // We also have the following equality, where `newColumn1Width` is the new
+        // We also have the following equality, where `newColumnWidth` is the new
         // width of the column being resized: Here we are comparing the ratio of
         // the relatives values to the ratio of the pixels values.
         //
         // ```
-        // newColumn1Width / newTotalColumnWidth = newColumn1WidthPx / newTotalColumnWidthPx
+        // newColumnWidth / newTotalColumnWidth = newColumnWidthPx / newTotalColumnWidthPx
         // ```
         //
         // If we simplify this using 1st equality we get:
         //
         // ```
-        // newColumn1Width / (oldTotalColumnWidth - oldColumn1Width + newColumn1Width) = newColumn1WidthPx / newTotalColumnWidthPx
+        // newColumnWidth / (oldTotalColumnWidth - oldColumnWidth + newColumnWidth) = newColumnWidthPx / newTotalColumnWidthPx
         // ```
         //
         // which can be written as: a / (b - c + a) = d / f
         //
-        // All variables in the equality are known except for `newColumn1Width`.
-        // We can use [algebra to solve for `newColumn1Width`][1] which gives us the
+        // All variables in the equality are known except for `newColumnWidth`.
+        // We can use [algebra to solve for `newColumnWidth`][1] which gives us the
         // following equation.
         //
         // [1]: https://www.wolframalpha.com/input?i=solve+for+a++a+%2F+%28b+-+c+%2B+a%29+%3D+d+%2F+f
-        const newColumn1Width =
-            (newColumn1WidthPx * (oldColumn1Width - oldTotalColumnWidth)) /
-            (newColumn1WidthPx - newTotalColumnWidthPx);
+        const newColumnWidth =
+            (newColumnWidthPx * (oldColumnWidth - oldTotalColumnWidth)) /
+            (newColumnWidthPx - newTotalColumnWidthPx);
 
         // Keep other columns unchanged
         const newColumnWidths: Array<number> = [...oldColumnWidths];
-        newColumnWidths[column1Index] = newColumn1Width;
+        newColumnWidths[column1Index] = newColumnWidth;
 
         // Update table width
         const oldTableWidth = Math.max(1, oldTotalColumnWidthPx / blockWidthPx);
@@ -950,19 +1091,19 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
             oldTableWidth * (newTotalColumnWidthPx / oldTotalColumnWidthPx),
         );
 
-        let oldTotalColumnWidthPxBeforeColumn1 = 0;
+        let oldTotalColumnWidthPxBeforeColumn = 0;
         for (let i = 0; i < column1Index; i++)
-            oldTotalColumnWidthPxBeforeColumn1 += oldColumnWidthPxs[i]!;
+            oldTotalColumnWidthPxBeforeColumn += oldColumnWidthPxs[i]!;
 
-        const newColumn1ScrollRightPx =
-            oldTotalColumnWidthPxBeforeColumn1 + newColumn1WidthPx - oldScrollLeftPx;
+        const newColumnScrollRightPx =
+            oldTotalColumnWidthPxBeforeColumn + newColumnWidthPx - oldScrollLeftPx;
 
         return {
             tableWidth: newTableWidth,
             columnWidths: newColumnWidths,
             scrollLeftPx:
                 oldScrollLeftPx +
-                Math.floor(Math.max(0, newColumn1ScrollRightPx - (viewWithoutPaddingWidthPx - 1))),
+                Math.floor(Math.max(0, newColumnScrollRightPx - (viewWithoutPaddingWidthPx - 1))),
         };
     }
 }

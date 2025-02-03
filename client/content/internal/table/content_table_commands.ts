@@ -76,9 +76,9 @@ function addContentTableColumn(
     let newTableWidth: number;
 
     // When adding columns we keep the table width constant up until
-    // `maintainTableWidthMaxColumnCount` (currently 4) columns. At which point we
-    // start adding columns with an equal expected pixel width.
-    if (tableMap.width < contentStyles.maintainTableWidthMaxColumnCount) {
+    // `tableMaxColumnCountForMaintainingBlockWidth` (currently 4) columns. At
+    // which point we start adding columns with an equal expected pixel width.
+    if (tableMap.width < contentStyles.tableMaxColumnCountForMaintainingBlockWidth) {
         newColumnWidth = 1;
         newTableWidth = tableMap.tableWidth;
     } else {
@@ -93,9 +93,7 @@ function addContentTableColumn(
         // table they'll have a couple columns of equal width. When we start growing
         // the table, we want the new column to have the same width as the previous
         // columns.
-        const newColumnWidthPx =
-            (contentStyles.blockMaxWidthRem.desktop * remPx) /
-            contentStyles.maintainTableWidthMaxColumnCount;
+        const newColumnWidthPx = contentStyles.tableNewColumnDesiredWidthRem * remPx;
 
         const oldColumnWidthPxs = resolveContentTableColumnWidthPx(
             tableMap.totalColumnWidth,
