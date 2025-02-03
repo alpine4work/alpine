@@ -3,6 +3,7 @@ import {InvalidArgumentError} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {JsonObjectValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {SchemaSerializedScalarValue} from "~/shared/schema/schema.js";
 import {SchemaSerializedCompositeValueDescription} from "~/shared/schema/types/schema_description_types.js";
@@ -115,10 +116,11 @@ export function deserializeSchemaDescriptionFromJsonSafeValue(value: JsonValue):
                     );
 
                 const actualNewValue = newValueByReferenceId.get(value.reuseReferenceId);
-                if (actualNewValue === undefined)
+                if (actualNewValue === undefined) {
                     throw new InvalidArgumentError(
-                        "Reference schema's `reuseReferenceId` property should refer to a schema with a matching `referenceId` earlier in the tree (traversing depth first)",
+                        quote`Reference schema's \`reuseReferenceId\` property (${value.reuseReferenceId}) should refer to a schema with a matching \`referenceId\` earlier in the tree (traversing depth first)`,
                     );
+                }
 
                 return actualNewValue;
             }
