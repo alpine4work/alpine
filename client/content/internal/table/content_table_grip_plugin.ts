@@ -51,8 +51,6 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                 const button = document.createElement("a");
                                 button.className = contentStyles.tableGripButtonClassName;
 
-                                button.title = "Select table";
-
                                 if (isTableSelected(selection)) {
                                     button.className += ` ${contentStyles.tableGripButtonSelectedClassName}`;
                                 }
@@ -81,7 +79,6 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                     const betweenGrip = document.createElement("div");
                                     betweenGrip.className =
                                         contentStyles.tableBetweenRowGripClassName;
-                                    betweenGrip.title = "Add row";
 
                                     const plusSign = document.createElement("span");
                                     plusSign.innerHTML = "+";
@@ -150,7 +147,6 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                     const addRowGrip = document.createElement("div");
                                     addRowGrip.className = contentStyles.tableAddRowGripClassName;
                                     addRowGrip.innerHTML = "+";
-                                    addRowGrip.title = "Add row";
 
                                     addRowGrip.addEventListener("mousedown", event => {
                                         event.preventDefault();
@@ -184,7 +180,6 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                     const betweenGrip = document.createElement("div");
                                     betweenGrip.className =
                                         contentStyles.tableBetweenColumnGripClassName;
-                                    betweenGrip.title = "Add column";
 
                                     const plusSign = document.createElement("span");
                                     plusSign.innerHTML = "+";
@@ -255,7 +250,6 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                         contentStyles.tableAddColumnGripClassName;
 
                                     addColumnGrip.innerHTML = "+";
-                                    addColumnGrip.title = "Add column";
 
                                     // Move the click handler to the grip itself
                                     addColumnGrip.addEventListener("mousedown", event => {
