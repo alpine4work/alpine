@@ -1,18 +1,18 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useEffect, useState} from "react";
 import {TableMenuState} from "~/client/content/content_editor.js";
 import {getSelectedColumnGripInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
 import {
-    addContentTableColumnAfter,
-    addContentTableColumnBefore,
+    addContentTableColumnAfterSelection,
+    addContentTableColumnBeforeSelection,
     deleteContentTableColumn,
 } from "~/client/content/internal/table/content_table_commands.js";
 import {Menu, MenuAction} from "~/client/design/menu.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 
@@ -55,30 +55,30 @@ export const ContentEditorTableColumnsMenu = ({
 
     const actions: Array<MenuAction> = [
         {
-            label: "Add Column after",
+            label: "Add column after",
             onPress: () => {
-                if (viewRef.current) {
-                    addContentTableColumnAfter(viewRef.current.state, viewRef.current.dispatch);
-                    onCloseWithAnimation();
-                }
+                const view = assertExists(viewRef.current);
+
+                addContentTableColumnAfterSelection(view.state, view.dispatch);
+                onCloseWithAnimation();
             },
         },
         {
-            label: "Add Column before",
+            label: "Add column before",
             onPress: () => {
-                if (viewRef.current) {
-                    addContentTableColumnBefore(viewRef.current.state, viewRef.current.dispatch);
-                    onCloseWithAnimation();
-                }
+                const view = assertExists(viewRef.current);
+
+                addContentTableColumnBeforeSelection(view.state, view.dispatch);
+                onCloseWithAnimation();
             },
         },
         {
-            label: "Delete Column",
+            label: "Delete column",
             onPress: () => {
-                if (viewRef.current) {
-                    deleteContentTableColumn(viewRef.current.state, viewRef.current.dispatch);
-                    onCloseWithAnimation();
-                }
+                assert(viewRef.current);
+
+                deleteContentTableColumn(viewRef.current.state, viewRef.current.dispatch);
+                onCloseWithAnimation();
             },
         },
     ];
@@ -91,7 +91,6 @@ export const ContentEditorTableColumnsMenu = ({
             isVisible={menuState.isVisible}
             offset={defaultTooltipOffset}
             placement="top-start"
-            fallbackPlacements={["left-start"]}
             overflowBottom={platform === "mobile" ? "18rem" : undefined}
             targetElement={menuState.targetElement}
             overlay={

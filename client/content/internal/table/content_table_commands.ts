@@ -35,106 +35,186 @@ import {
     moveContentTableCellForward,
     selectionContentTableCell,
 } from "~/client/content/internal/table/content_table_client_util.js";
+import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/content_table_column_resizing_plugin.js";
 import type {ContentTableInputDirection} from "~/client/content/internal/table/content_table_input.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap, ContentTableMapRect} from "~/shared/content/table/content_table_map.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 
-type TableRect = ContentTableMapRect & {
-    tableStart: number;
-    map: ContentTableMap;
+type ContentTableRect = ContentTableMapRect & {
+    tablePos: number;
     table: Node;
+    tableMap: ContentTableMap;
 };
 
 /**
  * Helper to get the selected rectangle in a table, if any. Adds table
  * map, table node, and table start offset to the object for convenience.
  */
-function selectedRect(state: EditorState): TableRect {
+function selectedContentTableRect(state: EditorState): ContentTableRect {
     const sel = state.selection;
     const $pos = selectionContentTableCell(state);
     const table = $pos.node(-1);
-    const tableStart = $pos.start(-1);
-    const map = ContentTableMap.get(table);
+    const tablePos = $pos.start(-1);
+    const tableMap = ContentTableMap.get(table);
     const rect =
         sel instanceof ContentTableCellSelection
-            ? map.rectBetween(sel.$anchorCell.pos - tableStart, sel.$headCell.pos - tableStart)
-            : map.findCell($pos.pos - tableStart);
-    return {...rect, tableStart, map, table};
+            ? tableMap.rectBetween(sel.$anchorCell.pos - tablePos, sel.$headCell.pos - tablePos)
+            : tableMap.findCell($pos.pos - tablePos);
+    return {...rect, tablePos, tableMap, table};
 }
 
 /**
  * Add a column at the given position in a table.
  */
 function addContentTableColumn(
-    tr: Transaction,
-    {map, tableStart, table}: TableRect,
-    col: number,
-): Transaction {
-    // Update columnWidths array
-    const columnWidths = [...map.columnWidths];
-    columnWidths.splice(col, 0, 1);
+    {tablePos, table, tableMap}: {tablePos: number; table: Node; tableMap: ContentTableMap},
+    columnIndex: number,
+    transaction: Transaction,
+) {
+    let newColumnWidth: number;
+    let newTableWidth: number;
 
-    // Update table width to accommodate new column
-    const currentTableWidth = table.attrs.tableWidth ?? 1;
-    const newTableWidth = currentTableWidth * ((map.width + 1) / map.width);
+    // When adding columns we keep the table width constant up until
+    // `maintainTableWidthMaxColumnCount` (currently 4) columns. At which point we
+    // start adding columns with an equal expected pixel width.
+    if (tableMap.width < contentStyles.maintainTableWidthMaxColumnCount) {
+        newColumnWidth = 1;
+        newTableWidth = tableMap.tableWidth;
+    } else {
+        const remPx = remPxBySpacingScale.small;
 
-    tr.setNodeAttribute(tableStart - 1, "columnWidths", columnWidths);
-    tr.setNodeAttribute(tableStart - 1, "tableWidth", newTableWidth);
+        // The expected new column width in pixels. We run our calculations assuming
+        // desktop mode with small rem pixel value. It shouldn't matter if our spacing
+        // scale or platform is different. The table's relative values should scale
+        // appropriately.
+        //
+        // If the user keeps pressing "add column" then before we start growing the
+        // table they'll have a couple columns of equal width. When we start growing
+        // the table, we want the new column to have the same width as the previous
+        // columns.
+        const newColumnWidthPx =
+            (contentStyles.blockMaxWidthRem.desktop * remPx) /
+            contentStyles.maintainTableWidthMaxColumnCount;
 
-    // Add cells to each row
-    for (let row = 0; row < map.height; row++) {
-        const pos = map.positionAt(row, col, table);
-        const type = table.type.schema.nodes.tableCell!;
-        tr.insert(tr.mapping.map(tableStart + pos), type.createAndFill()!);
+        const oldColumnWidthPxs = resolveContentTableColumnWidthPx(
+            tableMap.totalColumnWidth,
+            tableMap.columnWidths,
+            contentStyles.blockMaxWidthRem.desktop * tableMap.tableWidth * remPx,
+            contentStyles.tableColumnMinWidthRem * remPx,
+        );
+
+        let oldTotalColumnWidthPx = 0;
+        for (const oldColumnWidthPx of oldColumnWidthPxs) oldTotalColumnWidthPx += oldColumnWidthPx;
+        const newTotalColumnWidthPx = oldTotalColumnWidthPx + newColumnWidthPx;
+
+        // To calculate `newColumnWidth` we use the following equation:
+        //
+        // ```
+        // newColumnWidth / (newColumnWidth + oldTotalColumnWidth) = newColumnWidthPx / newTotalColumnWidthPx
+        // ```
+        //
+        // In this equation, the only unknown variable is `newColumnWidth`. Solving for
+        // `newColumnWidth` gives us ([source][1]):
+        //
+        // ```
+        // newColumnWidth = -((oldTotalColumnWidth * newColumnWidthPx) / (newColumnWidthPx - newTotalColumnWidthPx))
+        // ```
+        //
+        // [1]: https://www.wolframalpha.com/input?i=solve+for+a+in+a+%2F+%28a+%2B+b%29+%3D+c+%2F+d
+        newColumnWidth = -(
+            (tableMap.totalColumnWidth * newColumnWidthPx) /
+            (newColumnWidthPx - newTotalColumnWidthPx)
+        );
+
+        newTableWidth = (tableMap.tableWidth * newTotalColumnWidthPx) / oldTotalColumnWidthPx;
     }
 
-    return tr;
+    const newColumnWidths = [...tableMap.columnWidths];
+    newColumnWidths.splice(columnIndex, 0, newColumnWidth);
+
+    transaction.setNodeAttribute(tablePos - 1, "columnWidths", newColumnWidths);
+
+    if (newTableWidth !== tableMap.tableWidth)
+        transaction.setNodeAttribute(tablePos - 1, "tableWidth", newTableWidth);
+
+    // Add cells to each row
+    for (let row = 0; row < tableMap.height; row++) {
+        const pos = tableMap.positionAt(row, columnIndex, table);
+        const type = table.type.schema.nodes.tableCell!;
+        transaction.insert(transaction.mapping.map(tablePos + pos), type.createAndFill()!);
+    }
+
+    return transaction;
 }
 
 /**
  * Command to add a column before the column with the selection.
  */
-export function addContentTableColumnBefore(
+export function addContentTableColumnBeforeSelection(
     state: EditorState,
     dispatch?: (tr: Transaction) => void,
 ): boolean {
     if (!isInContentTable(state)) return false;
+
     if (dispatch) {
-        const rect = selectedRect(state);
-        dispatch(addContentTableColumn(state.tr, rect, rect.left));
+        const rect = selectedContentTableRect(state);
+        dispatch(addContentTableColumn(rect, rect.left, state.tr));
     }
+
     return true;
 }
 
 /**
  * Command to add a column after the column with the selection.
  */
-export function addContentTableColumnAfter(
+export function addContentTableColumnAfterSelection(
     state: EditorState,
     dispatch?: (tr: Transaction) => void,
-): boolean {
+) {
     if (!isInContentTable(state)) return false;
+
     if (dispatch) {
-        const rect = selectedRect(state);
-        dispatch(addContentTableColumn(state.tr, rect, rect.right));
+        const rect = selectedContentTableRect(state);
+        dispatch(addContentTableColumn(rect, rect.right, state.tr));
     }
+
     return true;
 }
 
+/**
+ * Command to add a column after the column with the selection.
+ */
+export function addContentTableColumnAtIndex(tablePos: number, columnIndex: number) {
+    return (state: EditorState, dispatch: ((tr: Transaction) => void) | undefined): boolean => {
+        const table = state.doc.resolve(tablePos).node();
+        if (table.type.name !== "table") return false;
+
+        if (dispatch) {
+            const tableMap = ContentTableMap.get(table);
+            dispatch(addContentTableColumn({tablePos, table, tableMap}, columnIndex, state.tr));
+        }
+
+        return true;
+    };
+}
+
+// NOCOMMIT: Update `tableWidth`.
 function removeContentTableColumn(
     tr: Transaction,
-    {map, table, tableStart}: TableRect,
+    {tableMap, table, tablePos: tableStart}: ContentTableRect,
     col: number,
 ) {
     // Update columnWidths array
-    const columnWidths = [...map.columnWidths];
+    const columnWidths = [...tableMap.columnWidths];
     columnWidths.splice(col, 1);
 
     tr.setNodeAttribute(tableStart - 1, "columnWidths", columnWidths);
 
     // Remove cells from each row
-    for (let row = 0; row < map.height; row++) {
-        const pos = map.positionAt(row, col, table);
+    for (let row = 0; row < tableMap.height; row++) {
+        const pos = tableMap.positionAt(row, col, table);
         const cell = table.nodeAt(pos)!;
         tr.delete(
             tr.mapping.map(tableStart + pos),
@@ -152,18 +232,18 @@ export function deleteContentTableColumn(
 ): boolean {
     if (!isInContentTable(state)) return false;
     if (dispatch) {
-        const rect = selectedRect(state);
+        const rect = selectedContentTableRect(state);
         const tr = state.tr;
-        if (rect.left == 0 && rect.right == rect.map.width) return false;
+        if (rect.left == 0 && rect.right == rect.tableMap.width) return false;
         for (let i = rect.right - 1; ; i--) {
             removeContentTableColumn(tr, rect, i);
             if (i == rect.left) break;
-            const table = rect.tableStart ? tr.doc.nodeAt(rect.tableStart - 1) : tr.doc;
+            const table = rect.tablePos ? tr.doc.nodeAt(rect.tablePos - 1) : tr.doc;
             if (!table) {
                 throw RangeError("No table found");
             }
             rect.table = table;
-            rect.map = ContentTableMap.get(table);
+            rect.tableMap = ContentTableMap.get(table);
         }
         dispatch(tr);
     }
@@ -173,16 +253,16 @@ export function deleteContentTableColumn(
 /**
  * Add a table row at the given position
  */
-export function addContentTableRow(
+function addContentTableRow(
     tr: Transaction,
-    {map, tableStart, table}: TableRect,
+    {tableMap, tablePos: tableStart, table}: ContentTableRect,
     row: number,
 ): Transaction {
     let rowPos = tableStart;
     for (let i = 0; i < row; i++) rowPos += table.child(i).nodeSize;
 
     const cells = [];
-    for (let col = 0; col < map.width; col++) {
+    for (let col = 0; col < tableMap.width; col++) {
         const type = table.type.schema.nodes.tableCell!;
         const node = type.createAndFill();
         if (node) cells.push(node);
@@ -201,7 +281,7 @@ export function addContentTableRowBefore(
 ): boolean {
     if (!isInContentTable(state)) return false;
     if (dispatch) {
-        const rect = selectedRect(state);
+        const rect = selectedContentTableRect(state);
         dispatch(addContentTableRow(state.tr, rect, rect.top));
     }
     return true;
@@ -216,13 +296,17 @@ export function addContentTableRowAfter(
 ): boolean {
     if (!isInContentTable(state)) return false;
     if (dispatch) {
-        const rect = selectedRect(state);
+        const rect = selectedContentTableRect(state);
         dispatch(addContentTableRow(state.tr, rect, rect.bottom));
     }
     return true;
 }
 
-function removeContentTableRow(tr: Transaction, {table, tableStart}: TableRect, row: number): void {
+function removeContentTableRow(
+    tr: Transaction,
+    {table, tablePos: tableStart}: ContentTableRect,
+    row: number,
+): void {
     let rowPos = 0;
     for (let i = 0; i < row; i++) rowPos += table.child(i).nodeSize;
     const nextRow = rowPos + table.child(row).nodeSize;
@@ -238,18 +322,18 @@ export function deleteContentTableRow(
 ): boolean {
     if (!isInContentTable(state)) return false;
     if (dispatch) {
-        const rect = selectedRect(state);
+        const rect = selectedContentTableRect(state);
         const tr = state.tr;
-        if (rect.top == 0 && rect.bottom == rect.map.height) return false;
+        if (rect.top == 0 && rect.bottom == rect.tableMap.height) return false;
         for (let i = rect.bottom - 1; ; i--) {
             removeContentTableRow(tr, rect, i);
             if (i == rect.top) break;
-            const table = rect.tableStart ? tr.doc.nodeAt(rect.tableStart - 1) : tr.doc;
+            const table = rect.tablePos ? tr.doc.nodeAt(rect.tablePos - 1) : tr.doc;
             if (!table) {
                 throw RangeError("No table found");
             }
             rect.table = table;
-            rect.map = ContentTableMap.get(rect.table);
+            rect.tableMap = ContentTableMap.get(rect.table);
         }
         dispatch(tr);
     }
@@ -353,34 +437,7 @@ export function deleteContentTableCellSelection(
     return true;
 }
 
-export const addContentTableColumnAtIndex = (view: EditorView, index: number) => {
-    const tr = view.state.tr;
-    const $cell = selectionContentTableCell(view.state);
-    const table = $cell.node(-1);
-    const tableStart = $cell.start(-1);
-    const map = ContentTableMap.get(table);
-
-    // Update columnWidths array with a new column of width 1
-    const columnWidths = [...map.columnWidths];
-    columnWidths.splice(index + 1, 0, 1);
-
-    // Update table width to accommodate new column
-    const currentTableWidth = table.attrs.tableWidth ?? 1;
-    const newTableWidth = currentTableWidth * ((map.width + 1) / map.width);
-
-    tr.setNodeAttribute(tableStart - 1, "columnWidths", columnWidths);
-    tr.setNodeAttribute(tableStart - 1, "tableWidth", newTableWidth);
-
-    // Add cells to each row
-    for (let row = 0; row < map.height; row++) {
-        const pos = map.positionAt(row, index + 1, table);
-        const type = table.type.schema.nodes.tableCell!;
-        tr.insert(tr.mapping.map(tableStart + pos), type.createAndFill()!);
-    }
-
-    view.dispatch(tr);
-};
-
+// NOCOMMIT: No editor view here?
 export const addContentTableRowAtIndex = (view: EditorView, index: number) => {
     const tr = view.state.tr;
     const $cell = selectionContentTableCell(view.state);

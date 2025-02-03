@@ -10,12 +10,14 @@ import {
     selectColumn,
     selectRow,
     selectTable,
+    selectionContentTableCell,
 } from "~/client/content/internal/table/content_table_client_util.js";
 import {
     addContentTableColumnAtIndex,
     addContentTableRowAtIndex,
 } from "~/client/content/internal/table/content_table_commands.js";
 import {colorSchemeVars, contentStyles} from "~/client/styles/styles.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 // NOCOMMIT: update the names of the grips, all of them seems confusing
 // because of similar functionalities.
@@ -179,10 +181,16 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
 
                                     betweenGrip.addEventListener("mousedown", event => {
                                         event.preventDefault();
-                                        event.stopImmediatePropagation();
-                                        if (view) {
-                                            addContentTableColumnAtIndex(view, index);
-                                        }
+
+                                        assert(view);
+
+                                        const $cell = selectionContentTableCell(state);
+                                        const tablePos = $cell.start(-1);
+
+                                        addContentTableColumnAtIndex(tablePos, index)(
+                                            view.state,
+                                            view.dispatch,
+                                        );
                                     });
 
                                     return betweenGrip;
@@ -239,11 +247,16 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                     // Move the click handler to the grip itself
                                     addColumnGrip.addEventListener("mousedown", event => {
                                         event.preventDefault();
-                                        event.stopImmediatePropagation();
-                                        if (view) {
-                                            const lastColumnIndex = colCells.length - 1;
-                                            addContentTableColumnAtIndex(view, lastColumnIndex);
-                                        }
+
+                                        assert(view);
+
+                                        const $cell = selectionContentTableCell(state);
+                                        const tablePos = $cell.start(-1);
+
+                                        addContentTableColumnAtIndex(tablePos, colCells.length)(
+                                            view.state,
+                                            view.dispatch,
+                                        );
                                     });
 
                                     return addColumnGrip;

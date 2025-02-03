@@ -2054,15 +2054,37 @@ globalStyle(`${tableWrapperClassName} tr`, {
     display: "contents",
 });
 
-// The minimum column width is one fourth of the block width on desktop. Even as
-// we scale down this is still our minimum column width so we make sure content
-// in columns are legible even at small sizes.
-export const tableColumnMinWidthRem = blockMaxWidthRem.desktop * 0.25;
+/**
+ * The minimum width of a column in absolute units. The table data structure
+ * may think the column is smaller but this is as small as we'll let the column
+ * actually render in practice.
+ *
+ * The minimum column width is one sixth of the block width on desktop. Even as
+ * we scale down this is still our minimum column width so we make sure content
+ * in columns are legible even at small sizes.
+ */
+export const tableColumnMinWidthRem = blockMaxWidthRem.desktop * (1 / 6);
 
-// The maximum column width is the width of the larger column in a two column
-// table on desktop where one of the columns is the minimum width and the
-// `tableWidth` is 1 (so about three fourths of the block width on desktop).
+/**
+ * The maximum width of a column in absolute units. The table data structure
+ * may think the column is larger but this is as large as we'll let the column
+ * actually render in practice.
+ *
+ * The maximum column width is the width of the larger column in a two column
+ * table on desktop where one of the columns is the minimum width and the
+ * `tableWidth` is 1 (so about three fourths of the block width on desktop).
+ */
 export const tableColumnMaxWidthRem = blockMaxWidthRem.desktop - tableColumnMinWidthRem;
+
+/**
+ * The number of table columns up until which we want to maintain the table's
+ * width. After this many columns, adding a new column will grow the table's
+ * width.
+ *
+ * When we add a new column (past this column count) we want the width of the
+ * new column to be the block width divided by this count.
+ */
+export const maintainTableWidthMaxColumnCount = 4;
 
 globalStyle(`${tableWrapperClassName} td`, {
     display: "block",
