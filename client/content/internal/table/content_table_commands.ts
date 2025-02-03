@@ -29,6 +29,7 @@
 
 import {Node, ResolvedPos, Slice} from "prosemirror-model";
 import {Command, EditorState, TextSelection, Transaction} from "prosemirror-state";
+import {EditorView} from "prosemirror-view";
 import {
     isInContentTable,
     moveContentTableCellForward,
@@ -348,3 +349,53 @@ export function deleteContentTableCellSelection(
     }
     return true;
 }
+
+export const addContentTableColumnAtIndex = (view: EditorView, index: number) => {
+    const tr = view.state.tr;
+    const $cell = selectionContentTableCell(view.state);
+    const table = $cell.node(-1);
+    const tableStart = $cell.start(-1);
+    const map = ContentTableMap.get(table);
+
+    // Update columnWidths array with a new column of width 1
+    const columnWidths = [...map.columnWidths];
+    columnWidths.splice(index + 1, 0, 1);
+
+    // Update table width to accommodate new column
+    const currentTableWidth = table.attrs.tableWidth ?? 1;
+    const newTableWidth = currentTableWidth * ((map.width + 1) / map.width);
+
+    tr.setNodeAttribute(tableStart - 1, "columnWidths", columnWidths);
+    tr.setNodeAttribute(tableStart - 1, "tableWidth", newTableWidth);
+
+    // Add cells to each row
+    for (let row = 0; row < map.height; row++) {
+        const pos = map.positionAt(row, index + 1, table);
+        const type = table.type.schema.nodes.tableCell!;
+        tr.insert(tr.mapping.map(tableStart + pos), type.createAndFill()!);
+    }
+
+    view.dispatch(tr);
+};
+export const addContentTableRowAtIndex = (view: EditorView, index: number) => {
+    const tr = view.state.tr;
+    const $cell = selectionContentTableCell(view.state);
+    const table = $cell.node(-1);
+    const tableStart = $cell.start(-1);
+    const map = ContentTableMap.get(table);
+
+    let rowPos = tableStart;
+    for (let i = 0; i < index + 1; i++) {
+        rowPos += table.child(i).nodeSize;
+    }
+
+    const cells = [];
+    for (let col = 0; col < map.width; col++) {
+        const type = table.type.schema.nodes.tableCell!;
+        const node = type.createAndFill();
+        if (node) cells.push(node);
+    }
+
+    tr.insert(rowPos, table.type.schema.nodes.tableRow!.create(null, cells));
+    view.dispatch(tr);
+};
