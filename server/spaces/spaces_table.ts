@@ -22,6 +22,7 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynam
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     AccountModelWithoutSpace,
@@ -33,19 +34,21 @@ import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_m
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {spaceAccessPermissionDeniedErrorDisplayMessage} from "~/shared/error/common_error_display_messages.js";
 import {
     DataLossError,
     DeadlineExceededError,
+    ErrorBase,
     FailedPreconditionError,
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {generateId, getMaxId, getMinId} from "~/shared/id/id.js";
@@ -1083,9 +1086,7 @@ export async function authorizeSpaceAccess(
             ) {
                 throw new PermissionDeniedError("Account doesn't have access to space", {
                     aggregateDedupeKey: `${spaceId}:${context.actor.getAccountId()}`,
-                    displayMessage: errorDisplayMessage`You don’t have access to this space. Try ${errorDisplayMessage.switchSpaceLink(
-                        "switching spaces",
-                    )} or ${errorDisplayMessage.signOutLink("signing out")}.`,
+                    displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
                 });
             }
             break;
@@ -1097,6 +1098,89 @@ export async function authorizeSpaceAccess(
                 });
             }
             break;
+        }
+        case "Anonymous": {
+            throw unauthenticatedSessionError();
+        }
+        default:
+            throw exhaustive(context.actor);
+    }
+}
+
+/**
+ * Same as `authorizeSpaceAccess()` but instead of throwing an error when the
+ * account doesn't have space access, we return a `Result` with the error. So
+ * the caller can handle permission denied errors without throwing.
+ *
+ * The logic should be the exact same between this function and
+ * `authorizeSpaceAccess()`.
+ */
+export async function authorizeSpaceAccessIfPossible(
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+        actor: ActorContextModule;
+    }>,
+    spaceId: SpaceId,
+): Promise<Result<void, ErrorBase>> {
+    switch (context.actor.type) {
+        case "Session": {
+            const accountId = context.actor.getAccountId();
+
+            if (!(await isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId))) {
+                let error: ErrorBase | undefined;
+
+                return {
+                    ok: false,
+                    get error() {
+                        // When this function is called, frequently we only check `ok`. So lazily
+                        // create an error only when needed.
+                        error ??= new PermissionDeniedError(
+                            "Account doesn't have access to space",
+                            {
+                                aggregateDedupeKey: `${spaceId}:${accountId}`,
+                                displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
+                            },
+                        );
+                        return error;
+                    },
+                };
+            }
+            return okResult;
+        }
+        case "System": {
+            if (context.actor.getSpaceId() !== spaceId) {
+                let error: ErrorBase | undefined;
+
+                return {
+                    ok: false,
+                    get error() {
+                        // When this function is called, frequently we only check `ok`. So lazily
+                        // create an error only when needed.
+                        error ??= new PermissionDeniedError(
+                            "System action doesn't have access to space",
+                            {aggregateDedupeKey: spaceId},
+                        );
+                        return error;
+                    },
+                };
+            }
+            return okResult;
+        }
+        case "Anonymous": {
+            let error: ErrorBase | undefined;
+
+            return {
+                ok: false,
+                get error() {
+                    // When this function is called, frequently we only check `ok`. So lazily
+                    // create an error only when needed.
+                    error ??= unauthenticatedSessionError();
+                    return error;
+                },
+            };
         }
         default:
             throw exhaustive(context.actor);
@@ -1210,11 +1294,99 @@ export async function getAccountIfExists(
     // You may call this function `ContentMentionAccountId` since it does not throw
     // when the account does not exist in the space.
     accountId: AccountId | ContentMentionAccountId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    options?: {consistency?: DynamoReadConsistency},
 ): Promise<AccountModel | null> {
     // Make sure we have access to the space being requested.
     await authorizeSpaceAccess(context, spaceId);
 
+    return getAccountIfExistsWithoutAuthorization(context, spaceId, accountId, options);
+}
+
+/**
+ * Get an account through a provided space without authorizing the actor has
+ * access to the space the account is in. This is dangerous and should only be
+ * called if you know the actor is authorized to see a stub for the account
+ * through some other means. For example, if a document is shared by URL and
+ * the actor is not a member of the space the document is in, then the actor is
+ * allowed to see the names of any mentioned accounts and nothing else.
+ *
+ * This function returns an `AccountModel` stub. A stub only contains the
+ * account's name and nothing else. We return dummy data for all other required
+ * properties like the time the account joined the space and whether the
+ * account was removed from the space. The version of the `AccountModel` stub
+ * is also a negative number. This way if merging a stub `AccountModel` with a
+ * non-stub `AccountModel` the non-stub `AccountModel` will always override.
+ */
+export async function dangerouslyGetAccountStubIfExistsWithoutAuthorization(
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+        actor: DynamoActorContextModule;
+    }>,
+    spaceId: SpaceId,
+    // You may call this function `ContentMentionAccountId` since it does not throw
+    // when the account does not exist in the space.
+    accountId: AccountId | ContentMentionAccountId,
+    options?: {consistency?: DynamoReadConsistency},
+): Promise<AccountModel | null> {
+    const account = await getAccountIfExistsWithoutAuthorization(
+        context,
+        spaceId,
+        accountId,
+        options,
+    );
+    if (!account) return null;
+
+    const accountData = account.initialData;
+
+    // The minimum value for a V8 SMI on 32-bit platforms ([source][1],
+    // [source][2]). Small integers in V8 aren't stored on the heap.
+    //
+    // We add this to version numbers so the version of our stub `AccountModel`
+    // will always be smaller of non-stub `AccountModel`s. If the client has a
+    // non-stub `AccountModel` for the account then when merging `AccountModel`s
+    // the non-stub will always win.
+    //
+    // It's technically possible for the account to update so many times that the
+    // account's stub version will be a positive number. We don't mind since it
+    // should be wildly unlikely for a client to have the first version of the
+    // `AccountModel` loaded locally and try to merge it with a stub version of the
+    // same `AccountModel` more than one billion updates later. Even if this
+    // happens the resulting bugs should be very tame.
+    //
+    // [1]: https://medium.com/fhinkel/v8-internals-how-small-is-a-small-integer-e0badc18b6da
+    // [2]: https://github.com/v8/v8/blob/a9e3d9c7ec1345085c861af76e508d9591634530/include/v8.h#L253
+    const smiMinValue = -(2 ** 30);
+
+    return new AccountModel({
+        id: account.id,
+        version: accountData.version + smiMinValue,
+        name: accountData.name,
+        nameVersion: 0,
+        space: {
+            version: accountData.space.version + smiMinValue,
+            joinedTime: new Date(0),
+            wasRemoved: false,
+        },
+    });
+}
+
+async function getAccountIfExistsWithoutAuthorization(
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+        actor: DynamoActorContextModule;
+    }>,
+    spaceId: SpaceId,
+    // You may call this function `ContentMentionAccountId` since it does not throw
+    // when the account does not exist in the space.
+    accountId: AccountId | ContentMentionAccountId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+): Promise<AccountModel | null> {
     const get = async (): Promise<AccountModel | null> => {
         // If we have cached account data and we're loading with eventual consistency
         // then we can use the cached data.
@@ -1314,7 +1486,7 @@ export async function getSpaceIfPossible(
 ): Promise<Result<SpaceModel, PermissionDeniedError> | null> {
     const [authorizationResult, spaceItem] = await runAllPromises([
         authorizeSpaceAccess(context, spaceId).then(
-            (): Result<void, never> => ({ok: true, value: undefined}),
+            (): Result<void, never> => okResult,
             (error): Result<never, PermissionDeniedError> => {
                 if (!(error instanceof PermissionDeniedError)) throw error;
                 return {ok: false, error};
@@ -1494,6 +1666,9 @@ export async function getRegisteredAccountDevices(
                 );
             }
             break;
+        }
+        case "Anonymous": {
+            throw unauthenticatedSessionError();
         }
         default:
             throw exhaustive(context.actor);

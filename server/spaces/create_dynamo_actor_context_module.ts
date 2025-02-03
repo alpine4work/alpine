@@ -1,6 +1,7 @@
 import {Session} from "~/server/accounts/accounts_table.js";
 import {
     DynamoActorContextModule,
+    DynamoAnonymousActorContextModule,
     DynamoSessionActorContextModule,
     DynamoSystemActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
@@ -71,6 +72,9 @@ export async function createDynamoActorContextModule(
                 serviceName,
                 authorizationHeaderPayload.spaceId,
             );
+        }
+        case "Anonymous": {
+            return DynamoAnonymousActorContextModule.dangerouslyNew(serviceName);
         }
         default:
             throw exhaustive(authorizationHeaderPayload);

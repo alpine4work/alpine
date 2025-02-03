@@ -251,16 +251,18 @@ export function InboxBannerOutletContainer({
                                         );
                                         newSearchParams.delete("inbox");
 
-                                        const newPathname =
-                                            convertPeekPathToSpacePathParts(location.pathname, {
-                                                routeLayout: "wide",
-                                            })?.[1].slice(1) ??
-                                            location.pathname.replace(/^\/s\/[^/]+\//, "");
+                                        const result = convertPeekPathToSpacePathParts(
+                                            location.pathname,
+                                            newSearchParams,
+                                            {routeLayout: "wide"},
+                                        );
 
                                         const newLocation = {
                                             ...location,
-                                            pathname: newPathname,
-                                            search: newSearchParams.toString(),
+                                            pathname:
+                                                result?.pathnameParts[1].slice(1) ??
+                                                location.pathname.replace(/^\/s\/[^/]+\//, ""),
+                                            search: result?.search ?? newSearchParams.toString(),
                                         };
 
                                         const selectedSearchParam = encodeBase64(

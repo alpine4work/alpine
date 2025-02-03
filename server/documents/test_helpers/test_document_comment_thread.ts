@@ -34,13 +34,20 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
     public readonly space: TestSpace;
     public readonly document: TestDocument;
     public readonly id: DocumentCommentThreadId;
+    public readonly createdTime: Date;
 
-    private constructor(context: TestContext, document: TestDocument, id: DocumentCommentThreadId) {
+    private constructor(
+        context: TestContext,
+        document: TestDocument,
+        id: DocumentCommentThreadId,
+        createdTime: Date,
+    ) {
         super();
         this.context = context;
         this.space = document.space;
         this.document = document;
         this.id = id;
+        this.createdTime = createdTime;
     }
 
     // Starts with an underscore since you should prefer calling
@@ -52,6 +59,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
         content: string | MessageContent,
     ) {
         const id = generateId<DocumentCommentThreadId>();
+        const createdTime = new Date();
 
         await document.update(
             session,
@@ -76,12 +84,13 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
                                 ? createSimpleMessageContent(content)
                                 : content,
                         initialCommentFileIds: [],
+                        createdTime,
                     },
                 ],
             },
         );
 
-        return new TestDocumentCommentThread(session.context, document, id);
+        return new TestDocumentCommentThread(session.context, document, id, createdTime);
     }
 
     protected override _getRoomKey() {
@@ -132,8 +141,8 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
         });
     }
 
-    public async get(session: TestSpaceSession) {
-        return getDocumentCommentThread(session.action(), {
+    public async get() {
+        return getDocumentCommentThread(this.space.systemAction(), {
             documentId: this.document.id,
             commentThreadId: this.id,
         });

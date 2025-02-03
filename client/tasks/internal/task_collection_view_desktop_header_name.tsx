@@ -5,6 +5,7 @@ import {
     forwardRef,
     useCallback,
     useImperativeHandle,
+    useMemo,
     useRef,
     useState,
 } from "react";
@@ -32,6 +33,7 @@ import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/core/task_client_store.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -50,7 +52,7 @@ export {TaskCollectionViewDesktopHeaderNameForwardRef as TaskCollectionViewDeskt
 
 function TaskCollectionViewDesktopHeaderName(
     {
-        isReadOnly,
+        accessLevel,
         store,
         collectionId,
         isCreatingCollection,
@@ -59,7 +61,7 @@ function TaskCollectionViewDesktopHeaderName(
         createCollection,
         affinityManager,
     }: {
-        isReadOnly: boolean;
+        accessLevel: AccessLevel | null;
         store: TaskClientStore;
         collectionId: TaskCollectionId;
         isCreatingCollection: boolean;
@@ -72,6 +74,11 @@ function TaskCollectionViewDesktopHeaderName(
 ) {
     const context = useAppContext();
     const navigate = useNavigate();
+
+    const hasManageAccessLevel = useMemo(
+        () => hasAccessLevel(accessLevel, "Manage"),
+        [accessLevel],
+    );
 
     // Reset `isEditingName` if `collectionSubscription` changes. e.g. If it goes
     // from `null` to a non-null value when we create a collection.
@@ -89,9 +96,17 @@ function TaskCollectionViewDesktopHeaderName(
         setEditingNameState({shouldInitiallyFocusEditableName: true});
     }
 
+    if (!hasManageAccessLevel && !isCreatingCollection && editingNameState) {
+        setEditingNameState(null);
+    }
+
     const [colorSelectorState, setColorSelectorState] = useState<
         {isExpanded: true} | {isExpanded: false; isFadingOut: boolean}
     >({isExpanded: false, isFadingOut: false});
+
+    if (!hasManageAccessLevel && colorSelectorState.isExpanded) {
+        setColorSelectorState({isExpanded: false, isFadingOut: true});
+    }
 
     useImperativeHandle(
         ref,
@@ -121,6 +136,7 @@ function TaskCollectionViewDesktopHeaderName(
             {!isCreatingCollection && (
                 <Box flexShrink="0" display="flex" justifyContent="center" width="3">
                     <TaskCollectionViewDesktopHeaderColor
+                        hasManageAccessLevel={hasManageAccessLevel}
                         color={color}
                         onColorSelect={color => {
                             store.commitTaskActionTransaction(
@@ -136,8 +152,11 @@ function TaskCollectionViewDesktopHeaderName(
                                         },
                                     },
                                 ],
-                                // Collection changes can't be undone.
-                                {undoManager: null, affinityManager},
+                                {
+                                    // Collection name changes can't be undone.
+                                    undoManager: null,
+                                    affinityManager,
+                                },
                             );
                         }}
                         colorSelectorState={colorSelectorState}
@@ -146,18 +165,20 @@ function TaskCollectionViewDesktopHeaderName(
                 </Box>
             )}
             {!editingNameState ? (
-                <Box
-                    padding="1"
-                    fontSize="200"
-                    fontStyle="truncate-semi-bold"
-                    userSelect="text"
+                <h1
+                    className={sprinkles({
+                        padding: "1",
+                        fontSize: "200",
+                        fontStyle: "truncate-semi-bold",
+                        userSelect: "text",
+                    })}
                     style={{
                         // Render contextual alternate glyphs. User text may be rendered here. Helpful
                         // for consistency if the user types anything like 2x2 or an @ mention.
                         fontFeatureSettings: '"calt" on',
                     }}
                     onDoubleClick={event => {
-                        if (isReadOnly) return;
+                        if (!hasManageAccessLevel) return;
 
                         // Disable selection from double click.
                         event.preventDefault();
@@ -167,7 +188,7 @@ function TaskCollectionViewDesktopHeaderName(
                 >
                     {name}
                     {inputWithAutoGrowingWidthSafeSpacerElement}
-                </Box>
+                </h1>
             ) : (
                 <Box overflow="hidden">
                     <TaskCollectionViewDesktopHeaderNameEditor
@@ -390,11 +411,13 @@ function TaskCollectionViewDesktopHeaderNameEditor({
 }
 
 function TaskCollectionViewDesktopHeaderColor({
+    hasManageAccessLevel,
     color,
     onColorSelect,
     colorSelectorState,
     setColorSelectorState,
 }: {
+    hasManageAccessLevel: boolean;
     color: ThemeColor | null;
     onColorSelect: (color: ThemeColor | null) => void;
     colorSelectorState: {isExpanded: true} | {isExpanded: false; isFadingOut: boolean};
@@ -402,9 +425,12 @@ function TaskCollectionViewDesktopHeaderColor({
         colorSelectorState: {isExpanded: true} | {isExpanded: false; isFadingOut: boolean},
     ) => void;
 }) {
-    const {hoverProps, isHovered} = useHover({});
+    const {hoverProps, isHovered} = useHover({
+        isDisabled: !hasManageAccessLevel,
+    });
 
     const {pressProps, isPressed} = usePress({
+        isDisabled: !hasManageAccessLevel,
         onPress: () => setColorSelectorState({isExpanded: true}),
     });
 

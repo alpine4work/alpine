@@ -37,6 +37,7 @@ ts_project(
         "//client/design",
         "//client/icons",
         "//client/messaging",
+        "//client/navigation",
         "//client/peek",
         "//client/shimmer",
         "//client/spaces",

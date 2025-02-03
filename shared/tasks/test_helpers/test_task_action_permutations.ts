@@ -1,5 +1,6 @@
 import {CalendarDate} from "@internationalized/date";
 import chalk from "chalk";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {InternalError, getErrorCode} from "~/shared/error/error.js";
@@ -31,7 +32,6 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeStatus} from "~/shared/tasks/task_assignee_status.js";
-import {TaskCollectionAccessPolicy} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
@@ -71,7 +71,7 @@ export type TaskCollectionTestInterface = {
     isDeleted: boolean;
     name: string;
     color: ThemeColor | null;
-    accessPolicy: TaskCollectionAccessPolicy;
+    accessPolicy: AccessPolicy;
 };
 
 type TaskActionTestScenario = {
@@ -2343,7 +2343,11 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
                         },
                     },
                     {
@@ -2381,7 +2385,11 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
                         },
                     },
                     {
@@ -2427,7 +2435,11 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
                         },
                     },
                     {
@@ -2475,7 +2487,11 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
                         },
                     },
                     {
@@ -2523,7 +2539,11 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
                         },
                     },
                     {
@@ -2577,7 +2597,11 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
                         },
                     },
                     {
@@ -2617,7 +2641,11 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
                         },
                     },
                     {
@@ -2663,7 +2691,11 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
                         },
                     },
                     {
@@ -2714,7 +2746,11 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
                         },
                     },
                     {
@@ -2790,7 +2826,11 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
                         },
                     },
                     {
@@ -2877,7 +2917,11 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
                         },
                     },
                     {
@@ -2951,7 +2995,11 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
                         },
                     },
                     {
@@ -3046,7 +3094,11 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
                         },
                     },
                     {
@@ -3117,7 +3169,11 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
                         },
                     },
                     {
@@ -3156,7 +3212,11 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
                         },
                     },
                     {
@@ -3204,7 +3264,11 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
                         },
                     },
                     {
@@ -3243,7 +3307,11 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
                         },
                     },
                     {
@@ -3291,7 +3359,11 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
                         },
                     },
                     {
@@ -3302,7 +3374,8 @@ const taskActionTestCases: Array<{
                             type: "UpdateAccessPolicy",
                             accessPolicy: {
                                 accountGrantById: new Map(),
-                                defaultGrant: {type: "Space", level: "View"},
+                                defaultGrant: {level: "View"},
+                                urlGrant: null,
                             },
                         },
                     },
@@ -3313,7 +3386,8 @@ const taskActionTestCases: Array<{
                         collection: {
                             accessPolicy: {
                                 accountGrantById: new Map(),
-                                defaultGrant: {type: "Space", level: "View"},
+                                defaultGrant: {level: "View"},
+                                urlGrant: null,
                             },
                         },
                     },
@@ -3336,18 +3410,10 @@ const taskActionTestCases: Array<{
                             type: "Create",
                             creatorId: null,
                             name: "Test",
-                            accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
-                        },
-                    },
-                    {
-                        type: "UpdateCollection",
-                        time: getNextTime(),
-                        collectionId,
-                        collectionAction: {
-                            type: "UpdateAccessPolicy",
                             accessPolicy: {
                                 accountGrantById: new Map(),
-                                defaultGrant: {type: "Space", level: "View"},
+                                defaultGrant: null,
+                                urlGrant: null,
                             },
                         },
                     },
@@ -3359,7 +3425,21 @@ const taskActionTestCases: Array<{
                             type: "UpdateAccessPolicy",
                             accessPolicy: {
                                 accountGrantById: new Map(),
-                                defaultGrant: {type: "Space", level: "Edit"},
+                                defaultGrant: {level: "View"},
+                                urlGrant: null,
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateCollection",
+                        time: getNextTime(),
+                        collectionId,
+                        collectionAction: {
+                            type: "UpdateAccessPolicy",
+                            accessPolicy: {
+                                accountGrantById: new Map(),
+                                defaultGrant: {level: "Edit"},
+                                urlGrant: null,
                             },
                         },
                     },
@@ -3370,7 +3450,8 @@ const taskActionTestCases: Array<{
                         collection: {
                             accessPolicy: {
                                 accountGrantById: new Map(),
-                                defaultGrant: {type: "Space", level: "Edit"},
+                                defaultGrant: {level: "Edit"},
+                                urlGrant: null,
                             },
                         },
                     },

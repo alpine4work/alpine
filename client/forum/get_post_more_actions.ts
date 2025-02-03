@@ -7,7 +7,7 @@ export function getPostMoreActions({
     post,
     onStartEditingPost,
 }: {
-    currentAccount: AccountModel;
+    currentAccount: AccountModel | null;
     post: PostModel;
     onStartEditingPost: () => void;
 }) {
@@ -25,7 +25,7 @@ export function getPostMoreActions({
                 },
             },
         ],
-        ...(currentAccount.id === post.author.id
+        ...(currentAccount?.id === post.author.id
             ? [
                   [
                       {

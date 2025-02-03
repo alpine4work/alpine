@@ -9,6 +9,7 @@ import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {backgroundFontSizePercentage} from "~/client/styles/styles.js";
 import {taskQueryViewCustomizationBarDesktopMarginY} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
+import {TaskQueryReferencesForUrlGrantFilterEditor} from "~/client/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {
     TaskQueryViewCustomizationBar,
     TaskQueryViewCustomizationBarRef,
@@ -36,6 +37,7 @@ export {TaskQueryViewDesktopHeaderForwardRef as TaskQueryViewDesktopHeader};
 function TaskQueryViewDesktopHeader(
     {
         store,
+        queryReferencesForUrlGrant,
         menuActions,
         defaultOrderSentence,
         name,
@@ -47,6 +49,7 @@ function TaskQueryViewDesktopHeader(
         onSortsChange,
     }: {
         store: TaskClientStore;
+        queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
         menuActions: ReadonlyArray<ReadonlyArray<MenuAction>>;
         defaultOrderSentence: string;
         name: string;
@@ -139,6 +142,7 @@ function TaskQueryViewDesktopHeader(
                 <TaskQueryViewCustomizationBar
                     ref={customizationBarRef}
                     store={store}
+                    queryReferencesForUrlGrant={queryReferencesForUrlGrant}
                     shouldCollapseWhenFiltersAreEmpty={false}
                     defaultOrderSentence={defaultOrderSentence}
                     filters={filters}
@@ -163,7 +167,7 @@ function TaskQueryViewDesktopHeader(
                 gap="2"
             >
                 <MenuButton actions={menuActions}>
-                    <IconButton size="sm" description="More" withoutTooltip>
+                    <IconButton size="md" description="More" withoutTooltip>
                         <DotsThreeVertical />
                     </IconButton>
                 </MenuButton>

@@ -1,5 +1,5 @@
 import {useContext} from "react";
-import {MobileFullScreenModalContext} from "~/client/design/internal/modal_full_screen_modal_context.js";
+import {MobileFullScreenModalContext} from "~/client/design/internal/mobile_full_screen_modal_context.js";
 
 /**
  * Has a `<MobileFullScreenModal>` been rendered on top of us?

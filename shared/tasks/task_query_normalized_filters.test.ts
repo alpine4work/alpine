@@ -1,6 +1,7 @@
 import {today} from "@internationalized/date";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 import {
     defaultTaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,
@@ -9,7 +10,7 @@ import {
 test("default normalized filters are correct", () => {
     expect(
         normalizeTaskQueryFilters([], {
-            currentAccountId: generateId(),
+            currentAccountId: generateId<AccountId>(),
             currentDate: today(defaultTimeZone),
         }),
     ).toEqual({

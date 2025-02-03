@@ -114,7 +114,6 @@ function TaskCollectionsInput(
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
         isReadOnly = false,
-        shouldNotRenderInput = false,
         areMarginsClickable = false,
         paddingX,
         paddingY,
@@ -191,7 +190,7 @@ function TaskCollectionsInput(
 
     // Preload task collections the account has an affinity for in case they open
     // the collections dropdown.
-    usePreloadSearchTaskCollectionsByAffinity();
+    usePreloadSearchTaskCollectionsByAffinity({isDisabled: isReadOnly});
 
     const [shouldLoadItems, setShouldLoadItems] = useState(false);
 
@@ -299,6 +298,10 @@ function TaskCollectionsInput(
         onSelectionChange: key => {
             if (typeof key !== "string") return;
 
+            // Currently, accounts without space access can't edit tasks. The max
+            // permission level of `urlGrant` is `View`.
+            assert(currentAccount);
+
             const shouldReturnFocusToInput = getInteractionModality() !== "pointer";
 
             if (key.startsWith("Collection:")) {
@@ -401,9 +404,10 @@ function TaskCollectionsInput(
                                     name: inputState.value,
                                     accessPolicy: {
                                         accountGrantById: new Map([
-                                            [currentAccount.id, {level: "Manage"}],
+                                            [currentAccount.id, {level: "Manage", generation: 0}],
                                         ]),
                                         defaultGrant: null,
+                                        urlGrant: null,
                                     },
                                 },
                             },
@@ -1070,6 +1074,10 @@ function TaskCollectionsInput(
                             }
                         }}
                         onConfirm={inputValue => {
+                            // Currently, accounts without space access can't edit tasks. The max
+                            // permission level of `urlGrant` is `View`.
+                            assert(currentAccount);
+
                             const collectionId = generateId<TaskCollectionId>();
 
                             commitActionTransactionEvenIfGhost(taskId => [
@@ -1083,9 +1091,13 @@ function TaskCollectionsInput(
                                         name: inputValue,
                                         accessPolicy: {
                                             accountGrantById: new Map([
-                                                [currentAccount.id, {level: "Manage"}],
+                                                [
+                                                    currentAccount.id,
+                                                    {level: "Manage", generation: 0},
+                                                ],
                                             ]),
                                             defaultGrant: null,
+                                            urlGrant: null,
                                         },
                                     },
                                 },
@@ -1118,7 +1130,7 @@ function TaskCollectionsInput(
                     />
                 </Box>
             )}
-            {!shouldNotRenderInput && (
+            {!isReadOnly && (
                 <OverlayAnimated
                     isVisible={comboBoxState.isOpen}
                     // Mobile collection chips are bigger so add more offset.

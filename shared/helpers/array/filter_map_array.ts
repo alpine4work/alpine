@@ -3,7 +3,7 @@
  * combination of `Array.filter()` and `Array.map()` but in one iteration.
  */
 export function filterMapArray<Value, NewValue>(
-    array: ReadonlyArray<Value>,
+    array: Iterable<Value>,
     filterMap: (value: Value, index: number) => NewValue | undefined,
 ): Array<NewValue> {
     const newArray: Array<NewValue> = [];

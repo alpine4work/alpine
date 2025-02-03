@@ -1,17 +1,17 @@
 import {useCallback, useMemo, useRef} from "react";
 import {flushSync} from "react-dom";
-import {NavigationBar} from "~/client/design/internal/navigation_bar_internal.js";
 import {
     dispatchNavigationBarPrepareSmoothScrollToEventEmitter,
     flushNavigationBarScrollEventEmitter,
     navigationBarHeight,
 } from "~/client/design/navigation_bar_helpers.js";
-import {NavigationBarProps, NavigationBarResult} from "~/client/design/navigation_bar_types.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer.js";
+import {NavigationBar} from "~/client/navigation/internal/navigation_bar_internal.js";
+import {NavigationBarProps, NavigationBarResult} from "~/client/navigation/navigation_bar_types.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -39,21 +39,19 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
  * Our native mobile apps implement tab bar UI which uses the same logic as our
  * web code navigation bar. As the user scrolls down, the tab bar disappears.
  */
-export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
+export function useNavigationBar({
     ref,
     isDisabled = false,
     withScrollAway,
     title = null,
-    titleBoundaryRef,
+    getTitleBoundaryElement,
     titleBoundaryMarginTop,
     withoutDisappearingTitle = false,
     subtitle,
     menuActions = emptyArray,
-    onMenuStateChange,
+    contextMenuActions = emptyArray,
     shareButton,
-    stickyBanner,
     replaceActions,
-    extraIconButton,
     titleJustifyContent,
     desktopControls = null,
     desktopMaxWidth,
@@ -63,8 +61,9 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontWeight = "semi-bold",
     desktopTitleLeftSlop,
     withoutMobileBackButton = false,
+    onMobileClose,
     onMobileCancel,
-}: NavigationBarProps<TitleBoundaryElement>): NavigationBarResult {
+}: NavigationBarProps): NavigationBarResult {
     const platform = usePlatform();
 
     withScrollAway ??= platform === "mobile";
@@ -170,16 +169,14 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             navigationBarRef={ref}
             withScrollAway={withScrollAway}
             title={title}
-            titleBoundaryRef={titleBoundaryRef}
+            getTitleBoundaryElement={getTitleBoundaryElement}
             titleBoundaryMarginTop={titleBoundaryMarginTop}
             withoutDisappearingTitle={withoutDisappearingTitle}
             subtitle={subtitle}
             menuActions={menuActions}
-            onMenuStateChange={onMenuStateChange}
+            contextMenuActions={contextMenuActions}
             shareButton={shareButton}
-            stickyBanner={stickyBanner}
             replaceActions={replaceActions}
-            extraIconButton={extraIconButton}
             titleJustifyContent={titleJustifyContent}
             desktopControls={desktopControls}
             desktopMaxWidth={desktopMaxWidth}
@@ -189,6 +186,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             desktopTitleFontWeight={desktopTitleFontWeight}
             desktopTitleLeftSlop={desktopTitleLeftSlop}
             withoutMobileBackButton={withoutMobileBackButton}
+            onMobileClose={onMobileClose}
             onMobileCancel={onMobileCancel}
         />
     ) : null;

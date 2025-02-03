@@ -10,9 +10,10 @@ import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.j
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {
+    TaskAuthorizationActor,
+    authorizeTaskCollectionIndexDocAccessIfPossibleForActor,
+    authorizeTaskIndexDocAccessIfPossibleForActor,
     getTaskGridViewExpansionState,
-    isTaskCollectionIndexDocAccessAuthorized,
-    isTaskIndexDocAccessAuthorized,
 } from "~/server/tasks/data/task_table.js";
 import {getTaskGridViewExpansionStateChildrenQueries} from "~/server/tasks/realtime/get_task_grid_view_expansion_state_children_queries.js";
 import {
@@ -31,6 +32,7 @@ import {
 import {
     TaskRealtimeConnectionUpdateEventBuilder,
     TaskRealtimeUpdateEventBuilderBase,
+    TaskRealtimeUpdateEventConnection,
 } from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -77,10 +79,15 @@ export const taskRealtimeConnectionAfterSubscribeToQueryTestCheckpoint =
  * may be connected to any number of resources (queries, tasks, collections)
  * and it expects to get updates for those resources over time.
  */
-export class TaskRealtimeConnection {
+export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection {
     private readonly _server: TaskRealtimeServer;
     public readonly spaceId: SpaceId;
     public readonly accountId: AccountId;
+
+    public readonly actor: TaskAuthorizationActor = {
+        type: "Session",
+        getAccountId: () => this.accountId,
+    };
 
     public readonly clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
@@ -160,54 +167,90 @@ export class TaskRealtimeConnection {
     }
 
     public async authorize(context: ServerSessionActionContext) {
-        const [eventBuilder] = await runAllPromises([
-            // 1. Reauthorize the referenced tasks within a query subscription:
-            this._dangerouslyEscalateToSystemContext(context, this.spaceId, context =>
-                this._authorizeReferencedTasksAndCollections(context),
-            ),
-
-            // 2. Authorize that we still have access to the space:
+        await runAllPromises([
+            // 1. Authorize that we still have access to the space:
             authorizeSpaceAccess(context, this.spaceId),
 
-            // 3. Authorize that we still have access to each query subscription:
+            // 2. Authorize that we still have access to each query subscription:
             runAllPromises(
-                Array.from(this._querySubscriptionById.values(), querySubscription =>
-                    this._server.authorizeQueryAccess(context, {
-                        spaceId: this.spaceId,
-                        filters: querySubscription.getFilters(),
-                        sorts: querySubscription.getSorts(),
-                    }),
-                ),
+                Array.from(this._querySubscriptionById, async ([id, querySubscription]) => {
+                    try {
+                        await this._server.authorizeQueryAccess(context, {
+                            spaceId: this.spaceId,
+                            filters: querySubscription.getFilters(),
+                            sorts: querySubscription.getSorts(),
+                        });
+                    } catch (error) {
+                        await this._unsubscribeFromQuery(context, id);
+
+                        this.sendEvent(context, {
+                            type: "QuerySubscriptionError",
+                            id,
+                            error,
+                        });
+                    }
+                }),
             ),
 
-            // 4. Authorize that we still have access to each task subscription:
+            // 3. Authorize that we still have access to each task subscription:
             runAllPromises(
-                Array.from(this._taskSubscriptionById.values(), taskSubscription =>
-                    this._server.authorizeTaskAccess(
-                        context,
-                        this.spaceId,
-                        taskSubscription.getTaskId(),
-                        "View",
-                    ),
-                ),
+                Array.from(this._taskSubscriptionById, async ([id, taskSubscription]) => {
+                    try {
+                        await this._server.authorizeTaskAccess(
+                            context,
+                            this.spaceId,
+                            taskSubscription.getTaskId(),
+                            "View",
+                        );
+                    } catch (error) {
+                        await this._unsubscribeFromTask(context, id);
+
+                        this.sendEvent(context, {
+                            type: "TaskSubscriptionError",
+                            id,
+                            error,
+                        });
+                    }
+                }),
             ),
 
-            // 5. Authorize that we still have access to each collection subscription:
+            // 4. Authorize that we still have access to each collection subscription:
             runAllPromises(
-                Array.from(this._collectionSubscriptionById.values(), collectionSubscription =>
-                    this._server.authorizeCollectionAccess(
-                        context,
-                        this.spaceId,
-                        collectionSubscription.getCollectionId(),
-                        "View",
-                    ),
+                Array.from(
+                    this._collectionSubscriptionById,
+                    async ([id, collectionSubscription]) => {
+                        try {
+                            await this._server.authorizeCollectionAccess(
+                                context,
+                                this.spaceId,
+                                collectionSubscription.getCollectionId(),
+                                "View",
+                            );
+                        } catch (error) {
+                            await this._unsubscribeFromCollection(id);
+
+                            this.sendEvent(context, {
+                                type: "CollectionSubscriptionError",
+                                id,
+                                error,
+                            });
+                        }
+                    },
                 ),
             ),
         ]);
 
-        // If authorization changed then we'll have a realtime event to send.
-        const event = await eventBuilder.finishAndBuildEvent(context);
-        if (event !== null) this.sendEvent(context, event);
+        // 5. Reauthorize the referenced tasks within a query subscription.
+        //
+        // This happens after authorizing subscriptions in case we need to unsubscribe
+        // any of our subscriptions first.
+        await this._dangerouslyEscalateToSystemContext(context, this.spaceId, async context => {
+            const eventBuilder = await this._authorizeReferencedTasksAndCollections(context);
+
+            // If authorization changed then we'll have a realtime event to send.
+            const event = await eventBuilder.finishAndBuildEvent(context);
+            if (event !== null) this.sendEvent(context, event);
+        });
     }
 
     private _subscribeToQuery(
@@ -310,7 +353,7 @@ export class TaskRealtimeConnection {
                     {
                         server: this._server,
                         spaceId: this.spaceId,
-                        accountId: this.accountId,
+                        actor: this.actor,
                         limit,
                         tasks,
                         gridViewExpansionState,
@@ -448,7 +491,11 @@ export class TaskRealtimeConnection {
         querySubscriptionId: TaskRealtimeQuerySubscriptionId,
     ) {
         const querySubscription = this._querySubscriptionById.get(querySubscriptionId);
-        if (!querySubscription) throw new NotFoundError("Query subscription not found");
+
+        // Noop if we've already unsubscribed. If authorization for a subscription
+        // fails then we immediately unsubscribe but the client may continue to think
+        // it's subscribed.
+        if (!querySubscription) return;
 
         this._querySubscriptionById.delete(querySubscriptionId);
 
@@ -495,7 +542,11 @@ export class TaskRealtimeConnection {
         taskSubscriptionId: TaskRealtimeTaskSubscriptionId,
     ) {
         const taskSubscription = this._taskSubscriptionById.get(taskSubscriptionId);
-        if (!taskSubscription) throw new NotFoundError("Task subscription not found");
+
+        // Noop if we've already unsubscribed. If authorization for a subscription
+        // fails then we immediately unsubscribe but the client may continue to think
+        // it's subscribed.
+        if (!taskSubscription) return;
 
         this._taskSubscriptionById.delete(taskSubscriptionId);
 
@@ -553,7 +604,11 @@ export class TaskRealtimeConnection {
     ) {
         const collectionSubscription =
             this._collectionSubscriptionById.get(collectionSubscriptionId);
-        if (!collectionSubscription) throw new NotFoundError("Collection subscription not found");
+
+        // Noop if we've already unsubscribed. If authorization for a subscription
+        // fails then we immediately unsubscribe but the client may continue to think
+        // it's subscribed.
+        if (!collectionSubscription) return;
 
         this._collectionSubscriptionById.delete(collectionSubscriptionId);
 
@@ -916,9 +971,18 @@ export class TaskRealtimeConnection {
      * positive integer. If a task is in this map that implies it has a non-zero
      * positive reference count.
      */
-    private readonly _directlySubscribedTaskById = new Map<
+    private readonly _directlySubscribedTaskStateById = new Map<
         TaskId,
-        {referenceCount: number; authorizationStateVersion: HybridLogicalTime}
+        {
+            referenceCount: number;
+            task: TaskIndexDoc;
+            authorizationStateVersion: HybridLogicalTime;
+            // We keep track of the previous task object our subscription saw while testing
+            // so we can check if we've missed any updates. We run this validation in
+            // `development` and `test` since maintaining task update state correctly is a
+            // little tricky to get right but critical to the operation of this class.
+            previousTaskForTest: TaskIndexDoc | null;
+        }
     >();
 
     /**
@@ -931,9 +995,19 @@ export class TaskRealtimeConnection {
      * integer. If a task is in this map that implies it has a non-zero positive
      * reference count.
      */
-    private readonly _directlySubscribedCollectionById = new Map<
+    private readonly _directlySubscribedCollectionStateById = new Map<
         TaskCollectionId,
-        {referenceCount: number; authorizationStateVersion: HybridLogicalTime}
+        {
+            referenceCount: number;
+            collection: TaskCollectionIndexDoc;
+            authorizationStateVersion: HybridLogicalTime;
+            // We keep track of the previous collection object our subscription saw while
+            // testing so we can check if we've missed any updates. We run this validation
+            // in `development` and `test` since maintaining collection update state
+            // correctly is a little tricky to get right but critical to the operation of
+            // this class.
+            previousCollectionForTest: TaskCollectionIndexDoc | null;
+        }
     >();
 
     private readonly _referencedTaskStateById = new Map<
@@ -957,7 +1031,9 @@ export class TaskRealtimeConnection {
             referenceCount: number;
             collection: TaskCollectionIndexDoc;
             authorizationStateVersion: HybridLogicalTime;
-            authorizationStatePromise: Promise<TaskAuthorizationState>;
+            authorizationStatePromise: Promise<
+                {state: "Authorized"} | {state: "Unauthorized"; wasPreviouslyAuthorized: boolean}
+            >;
             // We keep track of the previous collection object our subscription saw while
             // testing so we can check if we've missed any updates. We run this validation
             // in `development` and `test` since maintaining collection update state
@@ -972,11 +1048,21 @@ export class TaskRealtimeConnection {
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newTask: TaskIndexDoc,
     ) {
-        const directlySubscribedTask = this._directlySubscribedTaskById.get(newTask.id);
+        const directlySubscribedTaskState = this._directlySubscribedTaskStateById.get(newTask.id);
         const referencedTaskState = this._referencedTaskStateById.get(newTask.id);
 
-        if (directlySubscribedTask !== undefined) {
-            directlySubscribedTask.referenceCount++;
+        if (directlySubscribedTaskState !== undefined) {
+            directlySubscribedTaskState.referenceCount++;
+
+            // If this task is already referenced then we should have seen `newTask` before.
+            if (process.env.NODE_ENV !== "production") {
+                assert(
+                    directlySubscribedTaskState.task === newTask,
+                    "Connection must observe all updates to a referenced task through `_onDirectlySubscribedTaskAdd()`",
+                );
+            }
+
+            directlySubscribedTaskState.task = newTask;
         } else {
             // This is the first time our connection has seen the task, backfill it.
             if (referencedTaskState === undefined) {
@@ -985,9 +1071,11 @@ export class TaskRealtimeConnection {
 
                 eventBuilder.addAuthorizedTaskBackfill(this, newTask, authorizationStateVersion);
 
-                this._directlySubscribedTaskById.set(newTask.id, {
+                this._directlySubscribedTaskStateById.set(newTask.id, {
                     referenceCount: 1,
+                    task: newTask,
                     authorizationStateVersion,
+                    previousTaskForTest: null,
                 });
             }
             // Query subscription and task subscription tasks are always authorized because
@@ -1026,11 +1114,45 @@ export class TaskRealtimeConnection {
                 referencedTaskState.authorizationStateVersion = authorizationStateVersion;
                 referencedTaskState.authorizationStatePromise = promise;
 
-                this._directlySubscribedTaskById.set(newTask.id, {
+                this._directlySubscribedTaskStateById.set(newTask.id, {
                     referenceCount: 1,
+                    task: newTask,
                     authorizationStateVersion,
+                    previousTaskForTest: null,
                 });
             }
+        }
+    }
+
+    private _onDirectlySubscribedTaskUpdate(
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
+        taskId: TaskId,
+        oldTask: TaskIndexDoc,
+        newTask: TaskIndexDoc,
+    ) {
+        const directlySubscribedTaskState = this._directlySubscribedTaskStateById.get(newTask.id);
+        assert(directlySubscribedTaskState !== undefined);
+
+        if (directlySubscribedTaskState.task === newTask && oldTask !== newTask) {
+            // If we've already seen this update then our previous task should be `oldTask`.
+            if (process.env.NODE_ENV !== "production") {
+                assert(
+                    directlySubscribedTaskState.previousTaskForTest === oldTask,
+                    "Connection must observe all updates to a referenced task through `_onDirectlySubscribedUpdate()`",
+                );
+            }
+        } else {
+            // If we have not seen this update before then our referenced task object should
+            // be `oldTask`.
+            if (process.env.NODE_ENV !== "production") {
+                assert(
+                    directlySubscribedTaskState.task === oldTask,
+                    "Connection must observe all updates to a referenced task through `_onDirectlySubscribedUpdate()`",
+                );
+                directlySubscribedTaskState.previousTaskForTest = oldTask;
+            }
+
+            directlySubscribedTaskState.task = newTask;
         }
     }
 
@@ -1038,13 +1160,52 @@ export class TaskRealtimeConnection {
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         oldTask: TaskIndexDoc,
     ) {
-        const directlySubscribedTask = this._directlySubscribedTaskById.get(oldTask.id);
-        assert(directlySubscribedTask !== undefined);
+        const directlySubscribedTaskState = this._directlySubscribedTaskStateById.get(oldTask.id);
+        assert(directlySubscribedTaskState !== undefined);
 
-        if (directlySubscribedTask.referenceCount > 1) {
-            directlySubscribedTask.referenceCount--;
+        // If we are removing a referenced task we should have seen it before and it
+        // should be our old task object.
+        if (process.env.NODE_ENV !== "production") {
+            // This is different from how `onReferencedTaskRemove` works. It only checks
+            // that `state.task === oldTask`, not that
+            // `state.previousTaskForTest === oldTask`. The difference is that if a
+            // referenced task was both updated and removed in the same transaction then
+            // we'll ALWAYS get a `onReferencedTaskUpdate` event before
+            // `onReferencedTaskRemove` and `onReferencedTaskRemove`'s `oldTask` will be
+            // the `newTask` passed to `onReferencedTaskUpdate`. So continuity is
+            // preserved.
+            //
+            // However, if a task is updated and that means the task is removed from a
+            // query it was in, we'll only get a `onLoadedTaskRemove` event. Unless we're
+            // subscribed to two queries. In one the task is updated and the other the task
+            // is removed. In this scenario sometimes we get an `onLoadedTaskUpdate` event
+            // first, sometimes we get an `onLoadedTaskRemove` event first. In both cases
+            // `onLoadedTaskRemove` receives an `oldTask` object with data BEFORE the task
+            // was updated. This causes an issue of we got an `onLoadedTaskUpdate` event
+            // first.
+            //
+            // This difference in behavior is not ideal. Ideally we'd have the same
+            // semantics for `onReferencedTaskUpdate`/`onReferencedTaskRemove` and
+            // `onLoadedTaskUpdate`/`onLoadedTaskRemove`. The
+            // `onLoadedTaskUpdate`/`onLoadedTaskRemove` behavior of only calling
+            // `onLoadedTaskRemove` if a task is both updated + removed in the same
+            // transaction feels more correct since for permissions purposes, the connected
+            // user should not be able to see the new task or the actions used to produce
+            // the new task. However, it does mean the connection can observe an `oldTask`
+            // that's a "leap backwards" in time compared to a previous
+            // `onLoadedTaskUpdate` event's `newTask`. This inconsistency doesn't cause
+            // issues so we're going to leave as-is for now.
+            assert(
+                directlySubscribedTaskState.task === oldTask ||
+                    directlySubscribedTaskState.previousTaskForTest === oldTask,
+                "Connection must observe all updates to a referenced task through `_onDirectlySubscribedTaskRemove()`",
+            );
+        }
+
+        if (directlySubscribedTaskState.referenceCount > 1) {
+            directlySubscribedTaskState.referenceCount--;
         } else {
-            this._directlySubscribedTaskById.delete(oldTask.id);
+            this._directlySubscribedTaskStateById.delete(oldTask.id);
 
             // If a loaded task is removed from our connection that means the client may
             // have lost authorization access as well. When we reauthorize referenced tasks
@@ -1057,13 +1218,24 @@ export class TaskRealtimeConnection {
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newCollection: TaskCollectionIndexDoc,
     ) {
-        const directlySubscribedCollection = this._directlySubscribedCollectionById.get(
+        const directlySubscribedCollectionState = this._directlySubscribedCollectionStateById.get(
             newCollection.id,
         );
         const referencedCollectionState = this._referencedCollectionStateById.get(newCollection.id);
 
-        if (directlySubscribedCollection !== undefined) {
-            directlySubscribedCollection.referenceCount++;
+        if (directlySubscribedCollectionState !== undefined) {
+            directlySubscribedCollectionState.referenceCount++;
+
+            // If this task is already referenced then we should have seen `newCollection`
+            // before.
+            if (process.env.NODE_ENV !== "production") {
+                assert(
+                    directlySubscribedCollectionState.collection === newCollection,
+                    "Connection must observe all updates to a referenced collection through `_onDirectlySubscribedCollectionAdd()`",
+                );
+            }
+
+            directlySubscribedCollectionState.collection = newCollection;
         } else {
             // This is the first time our connection has seen the collection, backfill it.
             if (referencedCollectionState === undefined) {
@@ -1076,9 +1248,11 @@ export class TaskRealtimeConnection {
                     authorizationStateVersion,
                 );
 
-                this._directlySubscribedCollectionById.set(newCollection.id, {
+                this._directlySubscribedCollectionStateById.set(newCollection.id, {
                     referenceCount: 1,
+                    collection: newCollection,
                     authorizationStateVersion,
+                    previousCollectionForTest: null,
                 });
             }
             // Collections from subscriptions are always authorized because we authorized
@@ -1101,14 +1275,14 @@ export class TaskRealtimeConnection {
                         // `authorizationStateVersion` to the client. This should be fine since future
                         // authorization state versions will be after `authorizationStateVersion`
                         // because our clock was ticked past `authorizationStateVersion`.
-                        if (authorizationState === "Authorized") return authorizationState;
+                        if (authorizationState.state === "Authorized") return authorizationState;
 
                         eventBuilder.addAuthorizedCollectionBackfill(
                             this,
                             newCollection,
                             authorizationStateVersion,
                         );
-                        return "Authorized";
+                        return {state: "Authorized" as const};
                     },
                 );
 
@@ -1117,11 +1291,48 @@ export class TaskRealtimeConnection {
                 referencedCollectionState.authorizationStateVersion = authorizationStateVersion;
                 referencedCollectionState.authorizationStatePromise = promise;
 
-                this._directlySubscribedCollectionById.set(newCollection.id, {
+                this._directlySubscribedCollectionStateById.set(newCollection.id, {
                     referenceCount: 1,
+                    collection: newCollection,
                     authorizationStateVersion,
+                    previousCollectionForTest: null,
                 });
             }
+        }
+    }
+
+    private _onDirectlySubscribedCollectionUpdate(
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
+        collectionId: TaskCollectionId,
+        oldCollection: TaskCollectionIndexDoc,
+        newCollection: TaskCollectionIndexDoc,
+    ) {
+        const directlySubscribedCollectionState = this._directlySubscribedCollectionStateById.get(
+            oldCollection.id,
+        );
+        assert(directlySubscribedCollectionState !== undefined);
+
+        if (directlySubscribedCollectionState.collection === newCollection) {
+            // If we've already seen this update then our previous collection should be
+            // `oldCollection`.
+            if (process.env.NODE_ENV !== "production") {
+                assert(
+                    directlySubscribedCollectionState.previousCollectionForTest === oldCollection,
+                    "Connection must observe all updates to a referenced collection through `_onDirectlySubscribedCollectionUpdate()`",
+                );
+            }
+        } else {
+            // If we have not seen this update before then our referenced collection object
+            // should be `oldCollection`.
+            if (process.env.NODE_ENV !== "production") {
+                assert(
+                    directlySubscribedCollectionState.collection === oldCollection,
+                    "Connection must observe all updates to a referenced collection through `_onDirectlySubscribedCollectionUpdate()`",
+                );
+                directlySubscribedCollectionState.previousCollectionForTest = oldCollection;
+            }
+
+            directlySubscribedCollectionState.collection = newCollection;
         }
     }
 
@@ -1129,15 +1340,24 @@ export class TaskRealtimeConnection {
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         oldCollection: TaskCollectionIndexDoc,
     ) {
-        const directlySubscribedCollection = this._directlySubscribedCollectionById.get(
+        const directlySubscribedCollectionState = this._directlySubscribedCollectionStateById.get(
             oldCollection.id,
         );
-        assert(directlySubscribedCollection !== undefined);
+        assert(directlySubscribedCollectionState !== undefined);
 
-        if (directlySubscribedCollection.referenceCount > 1) {
-            directlySubscribedCollection.referenceCount--;
+        // If we are removing a referenced collection we should have seen it before and
+        // it should be our old task object.
+        if (process.env.NODE_ENV !== "production") {
+            assert(
+                directlySubscribedCollectionState.collection === oldCollection,
+                "Connection must observe all updates to a referenced collection through `_onDirectlySubscribedCollectionRemove()`",
+            );
+        }
+
+        if (directlySubscribedCollectionState.referenceCount > 1) {
+            directlySubscribedCollectionState.referenceCount--;
         } else {
-            this._directlySubscribedCollectionById.delete(oldCollection.id);
+            this._directlySubscribedCollectionStateById.delete(oldCollection.id);
 
             // If a loaded collection is removed from our connection that means the client
             // may have lost authorization access as well. When we reauthorize referenced
@@ -1157,6 +1377,8 @@ export class TaskRealtimeConnection {
             this._onDirectlySubscribedTaskAdd(context, eventBuilder, newTask);
         },
         onTaskUpdate: (context, eventBuilder, taskId, oldTask, newTask, actions) => {
+            this._onDirectlySubscribedTaskUpdate(eventBuilder, taskId, oldTask, newTask);
+
             // Task subscriptions are authorized when executed and periodically
             // reauthorized so its safe to send the actions for this task to the client.
             eventBuilder.addActions(this, actions);
@@ -1175,6 +1397,13 @@ export class TaskRealtimeConnection {
             newCollection,
             actions,
         ) => {
+            this._onDirectlySubscribedCollectionUpdate(
+                eventBuilder,
+                collectionId,
+                oldCollection,
+                newCollection,
+            );
+
             // Collection subscriptions are authorized when executed and periodically
             // reauthorized so its safe to send the actions for this collection to the
             // client.
@@ -1187,6 +1416,8 @@ export class TaskRealtimeConnection {
             this._onDirectlySubscribedTaskAdd(context, eventBuilder, newTask);
         },
         onLoadedTaskUpdate: (context, eventBuilder, taskId, oldTask, newTask, actions) => {
+            this._onDirectlySubscribedTaskUpdate(eventBuilder, taskId, oldTask, newTask);
+
             // Since the query is authorized, all loaded tasks are also authorized.
             // Clients should see all actions on loaded tasks.
             eventBuilder.addActions(this, actions);
@@ -1201,7 +1432,9 @@ export class TaskRealtimeConnection {
             eventBuilder.addActions(this, actions);
         },
         onReferencedTaskAdd: (context, eventBuilder, newTask) => {
-            const directlySubscribedTask = this._directlySubscribedTaskById.get(newTask.id);
+            const directlySubscribedTaskState = this._directlySubscribedTaskStateById.get(
+                newTask.id,
+            );
             const referencedTaskState = this._referencedTaskStateById.get(newTask.id);
 
             if (referencedTaskState !== undefined) {
@@ -1219,11 +1452,12 @@ export class TaskRealtimeConnection {
             } else {
                 // If the task is directly subscribed then it is also automatically authorized
                 // since the subscription the task is in is authorized.
-                if (directlySubscribedTask !== undefined) {
+                if (directlySubscribedTaskState !== undefined) {
                     this._referencedTaskStateById.set(newTask.id, {
                         referenceCount: 1,
                         task: newTask,
-                        authorizationStateVersion: directlySubscribedTask.authorizationStateVersion,
+                        authorizationStateVersion:
+                            directlySubscribedTaskState.authorizationStateVersion,
                         authorizationStatePromise: Promise.resolve("Authorized"),
                         previousTaskForTest: null,
                     });
@@ -1231,9 +1465,9 @@ export class TaskRealtimeConnection {
                     const authorizationStateVersion =
                         eventBuilder.getDefaultAuthorizationStateVersion(this);
 
-                    const promise = isTaskIndexDocAccessAuthorized(
+                    const promise = authorizeTaskIndexDocAccessIfPossibleForActor(
                         context,
-                        this.accountId,
+                        this.actor,
                         newTask,
                         "View",
                         {
@@ -1242,8 +1476,8 @@ export class TaskRealtimeConnection {
                             getCollectionIndexDoc: collectionId =>
                                 this._server.getCollection(context, this.spaceId, collectionId),
                         },
-                    ).then(isAuthorized => {
-                        if (!isAuthorized) {
+                    ).then(result => {
+                        if (!result.ok) {
                             eventBuilder.addUnauthorizedTaskBackfill(
                                 this,
                                 newTask.id,
@@ -1257,7 +1491,7 @@ export class TaskRealtimeConnection {
                             );
                         }
 
-                        return isAuthorized ? "Authorized" : "Unauthorized";
+                        return result.ok ? "Authorized" : "Unauthorized";
                     });
 
                     eventBuilder.waitUntil(context, promise);
@@ -1328,9 +1562,8 @@ export class TaskRealtimeConnection {
             }
         },
         onReferencedCollectionAdd: (context, eventBuilder, newCollection) => {
-            const directlySubscribedCollection = this._directlySubscribedCollectionById.get(
-                newCollection.id,
-            );
+            const directlySubscribedCollectionState =
+                this._directlySubscribedCollectionStateById.get(newCollection.id);
             const referencedCollectionState = this._referencedCollectionStateById.get(
                 newCollection.id,
             );
@@ -1351,30 +1584,33 @@ export class TaskRealtimeConnection {
             } else {
                 // If the collection is directly subscribed then it is also automatically
                 // authorized since the subscription the collection is in is authorized.
-                if (directlySubscribedCollection !== undefined) {
+                if (directlySubscribedCollectionState !== undefined) {
                     this._referencedCollectionStateById.set(newCollection.id, {
                         referenceCount: 1,
                         collection: newCollection,
                         authorizationStateVersion:
-                            directlySubscribedCollection.authorizationStateVersion,
-                        authorizationStatePromise: Promise.resolve("Authorized"),
+                            directlySubscribedCollectionState.authorizationStateVersion,
+                        authorizationStatePromise: Promise.resolve({state: "Authorized"}),
                         previousCollectionForTest: null,
                     });
                 } else {
                     const authorizationStateVersion =
                         eventBuilder.getDefaultAuthorizationStateVersion(this);
 
-                    const promise = isTaskCollectionIndexDocAccessAuthorized(
+                    const promise = authorizeTaskCollectionIndexDocAccessIfPossibleForActor(
                         context,
-                        this.accountId,
+                        this.actor,
                         newCollection,
                         "View",
-                    ).then(isAuthorized => {
-                        if (!isAuthorized) {
+                    ).then(result => {
+                        const wasPreviouslyAuthorized = false;
+
+                        if (!result.ok) {
                             eventBuilder.addUnauthorizedCollectionBackfill(
                                 this,
                                 newCollection.id,
                                 authorizationStateVersion,
+                                wasPreviouslyAuthorized,
                             );
                         } else {
                             eventBuilder.addAuthorizedCollectionBackfill(
@@ -1384,7 +1620,9 @@ export class TaskRealtimeConnection {
                             );
                         }
 
-                        return isAuthorized ? "Authorized" : "Unauthorized";
+                        return result.ok
+                            ? {state: "Authorized" as const}
+                            : {state: "Unauthorized" as const, wasPreviouslyAuthorized};
                     });
 
                     eventBuilder.waitUntil(context, promise);
@@ -1440,7 +1678,7 @@ export class TaskRealtimeConnection {
             eventBuilder.waitUntil(
                 context,
                 referencedCollectionState.authorizationStatePromise.then(authorizationState => {
-                    if (authorizationState !== "Authorized") return;
+                    if (authorizationState.state !== "Authorized") return;
                     eventBuilder.addActions(this, actions);
                 }),
             );
@@ -1506,20 +1744,21 @@ export class TaskRealtimeConnection {
 
                     // If the task is directly referenced then it's considered authorized. This
                     // should have already been handled when we added/removed the direct reference.
-                    if (this._directlySubscribedTaskById.has(task.id)) return;
+                    if (this._directlySubscribedTaskStateById.has(task.id)) return;
 
-                    const newAuthorizationStatePromise = isTaskIndexDocAccessAuthorized(
-                        context,
-                        this.accountId,
-                        task,
-                        "View",
-                        {
-                            getTaskIndexDoc: taskId =>
-                                this._server.getTask(context, this.spaceId, taskId),
-                            getCollectionIndexDoc: collectionId =>
-                                this._server.getCollection(context, this.spaceId, collectionId),
-                        },
-                    ).then(isAuthorized => (isAuthorized ? "Authorized" : "Unauthorized"));
+                    const newAuthorizationStatePromise =
+                        authorizeTaskIndexDocAccessIfPossibleForActor(
+                            context,
+                            this.actor,
+                            task,
+                            "View",
+                            {
+                                getTaskIndexDoc: taskId =>
+                                    this._server.getTask(context, this.spaceId, taskId),
+                                getCollectionIndexDoc: collectionId =>
+                                    this._server.getCollection(context, this.spaceId, collectionId),
+                            },
+                        ).then(result => (result.ok ? "Authorized" : "Unauthorized"));
 
                     const oldAuthorizationStatePromise = referencedTask.authorizationStatePromise;
 
@@ -1555,9 +1794,9 @@ export class TaskRealtimeConnection {
                             // tasks and collections before, the client doesn't hold on to them since it
                             // doesn't see a reference on the unauthorized task.
                             //
-                            // It is a slight security leak (and mismatch between client/server) that while
-                            // the server thinks the reference of an unauthorized task is retained, the
-                            // client does not retain the references of unauthorized tasks.
+                            // It is a mismatch between client/server that while the server thinks the
+                            // references of an unauthorized task are retained, the client does not
+                            // actually retain the references of unauthorized tasks.
                             const addReferencedTaskBackfills = (task: TaskIndexDoc) => {
                                 if (task.parent.taskId.value) {
                                     const referencedTaskState = this._referencedTaskStateById.get(
@@ -1596,31 +1835,32 @@ export class TaskRealtimeConnection {
                                 } of task.collections.raw.collections.getArray()) {
                                     const referencedCollectionState =
                                         this._referencedCollectionStateById.get(collectionId);
-                                    if (referencedCollectionState) {
-                                        const referencedCollection =
-                                            referencedCollectionState.collection;
+                                    if (!referencedCollectionState) continue;
 
-                                        eventBuilder.waitUntil(
-                                            context,
-                                            referencedCollectionState.authorizationStatePromise.then(
-                                                authorizationState => {
-                                                    if (authorizationState === "Authorized") {
-                                                        eventBuilder.addAuthorizedCollectionBackfill(
-                                                            this,
-                                                            referencedCollection,
-                                                            authorizationStateVersion,
-                                                        );
-                                                    } else {
-                                                        eventBuilder.addUnauthorizedCollectionBackfill(
-                                                            this,
-                                                            referencedCollection.id,
-                                                            authorizationStateVersion,
-                                                        );
-                                                    }
-                                                },
-                                            ),
-                                        );
-                                    }
+                                    const referencedCollection =
+                                        referencedCollectionState.collection;
+
+                                    eventBuilder.waitUntil(
+                                        context,
+                                        referencedCollectionState.authorizationStatePromise.then(
+                                            authorizationState => {
+                                                if (authorizationState.state === "Authorized") {
+                                                    eventBuilder.addAuthorizedCollectionBackfill(
+                                                        this,
+                                                        referencedCollection,
+                                                        authorizationStateVersion,
+                                                    );
+                                                } else {
+                                                    eventBuilder.addUnauthorizedCollectionBackfill(
+                                                        this,
+                                                        referencedCollection.id,
+                                                        authorizationStateVersion,
+                                                        authorizationState.wasPreviouslyAuthorized,
+                                                    );
+                                                }
+                                            },
+                                        ),
+                                    );
                                 }
                             };
 
@@ -1636,17 +1876,30 @@ export class TaskRealtimeConnection {
                     // If the collection is directly referenced then it's considered authorized.
                     // This should have already been handled when we added/removed the direct
                     // reference.
-                    if (this._directlySubscribedCollectionById.has(collection.id)) return;
-
-                    const newAuthorizationStatePromise = isTaskCollectionIndexDocAccessAuthorized(
-                        context,
-                        this.accountId,
-                        collection,
-                        "View",
-                    ).then(isAuthorized => (isAuthorized ? "Authorized" : "Unauthorized"));
+                    if (this._directlySubscribedCollectionStateById.has(collection.id)) return;
 
                     const oldAuthorizationStatePromise =
                         referencedCollection.authorizationStatePromise;
+
+                    const newAuthorizationStatePromise =
+                        authorizeTaskCollectionIndexDocAccessIfPossibleForActor(
+                            context,
+                            this.actor,
+                            collection,
+                            "View",
+                        ).then(async result => {
+                            if (result.ok) {
+                                return {state: "Authorized" as const};
+                            } else {
+                                const oldAuthorizationState = await oldAuthorizationStatePromise;
+                                return {
+                                    state: "Unauthorized" as const,
+                                    wasPreviouslyAuthorized:
+                                        oldAuthorizationState.state === "Authorized" ||
+                                        oldAuthorizationState.wasPreviouslyAuthorized,
+                                };
+                            }
+                        });
 
                     const authorizationStateVersion = eventBuilder.tickAuthorizationStateVersion(
                         this,
@@ -1661,12 +1914,13 @@ export class TaskRealtimeConnection {
                         newAuthorizationStatePromise,
                     ]);
 
-                    if (oldAuthorizationState !== newAuthorizationState) {
-                        if (newAuthorizationState === "Unauthorized") {
+                    if (oldAuthorizationState.state !== newAuthorizationState.state) {
+                        if (newAuthorizationState.state === "Unauthorized") {
                             eventBuilder.addUnauthorizedCollectionBackfill(
                                 this,
                                 collection.id,
                                 authorizationStateVersion,
+                                newAuthorizationState.wasPreviouslyAuthorized,
                             );
                         } else {
                             eventBuilder.addAuthorizedCollectionBackfill(
@@ -1674,6 +1928,35 @@ export class TaskRealtimeConnection {
                                 collection,
                                 authorizationStateVersion,
                             );
+
+                            // If this collection is transitioning from unauthorized to authorized then
+                            // send an action to add the collection to all tasks seen by the connection
+                            // that contain the collection. Because previously when these tasks were sent
+                            // to the client `prepareTaskForClient()` removed the collection since the
+                            // collection was unauthorized.
+                            for (const state of concatIterables(
+                                this._directlySubscribedTaskStateById.values(),
+                                this._referencedTaskStateById.values(),
+                            )) {
+                                const orderKeyAndVersion =
+                                    state.task.collections.raw.collections.getOrderKeyAndVersion(
+                                        collection.id,
+                                    );
+                                if (orderKeyAndVersion === undefined) continue;
+
+                                eventBuilder.addActions(this, [
+                                    {
+                                        type: "UpdateTask",
+                                        time: orderKeyAndVersion.version,
+                                        taskId: state.task.id,
+                                        taskAction: {
+                                            type: "AddCollection",
+                                            collectionId: collection.id,
+                                            orderKey: orderKeyAndVersion.orderKey,
+                                        },
+                                    },
+                                ]);
+                            }
                         }
                     }
                 }),
@@ -1681,5 +1964,29 @@ export class TaskRealtimeConnection {
         );
 
         return eventBuilder;
+    }
+
+    public async isReferencedCollectionAccessAuthorized(
+        context: TaskSystemActionContext,
+        collectionId: TaskCollectionId,
+    ): Promise<boolean> {
+        const referencedCollectionState = this._referencedCollectionStateById.get(collectionId);
+
+        // If we just removed the collection reference we won't have the collection's
+        // authorization decision available in our connection object. However,
+        // `TaskRealtimeStore` won't have evicted the task collection yet so load the
+        // task collection from our store and run authorization.
+        if (!referencedCollectionState) {
+            const result = await authorizeTaskCollectionIndexDocAccessIfPossibleForActor(
+                context,
+                this.actor,
+                await this._server.getCollection(context, this.spaceId, collectionId),
+                "View",
+            );
+            return result.ok;
+        }
+
+        const authorizationState = await referencedCollectionState.authorizationStatePromise;
+        return authorizationState.state === "Authorized";
     }
 }

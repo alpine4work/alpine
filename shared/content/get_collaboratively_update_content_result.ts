@@ -355,6 +355,11 @@ export function getCollaborativelyUpdateContentResult(
                             addRangeToValidate(step.pos, step.pos);
                             break;
                         }
+                        case "docAttr": {
+                            // We don't perform any content structure validations when `doc` attributes
+                            // change.
+                            break;
+                        }
                         case "addMark":
                         case "removeMark":
                         case "replace":
@@ -411,7 +416,7 @@ export function getCollaborativelyUpdateContentResult(
                         // character to a code block line.
                         if (
                             node.isText &&
-                            // `text` nodes must have a parent node. Error if they don't.
+                            // `text` nodes must have a parent node.
                             parentNode!.type.name === "codeBlockLine" &&
                             node.text!.includes("\n")
                         ) {

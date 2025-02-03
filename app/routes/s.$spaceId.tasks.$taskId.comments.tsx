@@ -2,9 +2,9 @@ import {useParams, useSearchParams} from "@remix-run/react";
 import {useCallback, useEffect} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
-import {NavigationBarContent} from "~/client/design/navigation_bar_content.js";
 import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
+import {NavigationBarContent} from "~/client/navigation/navigation_bar_content.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
@@ -116,19 +116,25 @@ export default function TaskCommentsRoute() {
 
     useEffect(() => {
         if (routeLayout === "narrow") return;
-        const inboxParam = searchParams.get("inbox") === "show" ? "inbox=show" : "";
 
-        if (commentIndex === null) {
-            void navigate(`/s/${spaceId}/tasks/${taskId}?${inboxParam}`, {
-                replace: true,
-                stopPropagation: true,
-            });
-        } else {
-            void navigate(`/s/${spaceId}/tasks/${taskId}?comment=${commentIndex}?${inboxParam}`, {
-                replace: true,
-                stopPropagation: true,
-            });
+        const newSearchParams = new URLSearchParams();
+        newSearchParams.set("comments", "show");
+
+        if (commentIndex !== null) {
+            newSearchParams.set("comment", String(commentIndex));
         }
+
+        if (searchParams.get("inbox") === "show") {
+            newSearchParams.set("inbox", "show");
+        }
+
+        const newSearchParamsString =
+            newSearchParams.size > 0 ? `?${newSearchParams.toString()}` : "";
+
+        void navigate(`/s/${spaceId}/tasks/${taskId}${newSearchParamsString}`, {
+            replace: true,
+            stopPropagation: true,
+        });
     }, [spaceId, taskId, navigate, searchParams, commentIndex, routeLayout]);
 
     useSearchAffinityViewInteraction(`Task:${taskId}`);
@@ -167,7 +173,15 @@ export default function TaskCommentsRoute() {
                         {
                             label: "Open task",
                             pressErrorTitle: "Couldn't open task",
-                            onPress: () => navigate(`/s/${spaceId}/tasks/${taskId}/`),
+                            onPress: () => {
+                                if (isFromTaskDetailView) {
+                                    navigate(-1);
+                                } else {
+                                    navigate(`/s/${spaceId}/tasks/${taskId}`, {
+                                        stopPropagation: true,
+                                    });
+                                }
+                            },
                         },
                     ]}
                     titleJustifyContent={platform !== "mobile" ? "flex-start" : "center"}

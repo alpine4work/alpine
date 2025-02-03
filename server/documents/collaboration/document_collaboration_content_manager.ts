@@ -6,6 +6,7 @@ import {
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {DocumentCollaborationStepCache} from "~/server/documents/collaboration/document_collaboration_step_cache.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {
@@ -31,6 +32,7 @@ import {
     InternalError,
     InvalidArgumentError,
 } from "~/shared/error/error.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -65,7 +67,10 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 export const documentCollaborationContentManagerBeforeUpdateTestCheckpoint =
     new TestCheckpoint<DocumentId>();
 
-export const documentCollaborationContentManagerBeforePersistTestCheckpoint =
+export const documentCollaborationContentManagerBeforePersist1TestCheckpoint =
+    new TestCheckpoint<DocumentId>();
+
+export const documentCollaborationContentManagerBeforePersist2TestCheckpoint =
     new TestCheckpoint<DocumentId>();
 
 export type DocumentCollaborationContentManagerOptimisticCommentThread = {
@@ -90,6 +95,7 @@ export class DocumentCollaborationContentManager {
         context: WorkerProcessContext,
         event: DocumentCollaborationEvent,
     ) => void;
+    private readonly _resetAllAuthorizationTimers: (context: WorkerProcessContext) => void;
     private readonly _killProcess: (context: WorkerProcessContext) => void;
 
     private _state: MutexValue<{
@@ -106,6 +112,7 @@ export class DocumentCollaborationContentManager {
                 readonly initialCommentContent: MessageContent;
                 readonly createdTime: Date;
             }>;
+            readonly intentionallyUpdateAccessPolicyRef: {current: AccessPolicy | null};
         } | null;
         promise: Promise<void>;
     } | null = null;
@@ -155,6 +162,7 @@ export class DocumentCollaborationContentManager {
         initialVersion,
         initialContent,
         sendEventToAll,
+        resetAllAuthorizationTimers,
         killProcess,
     }: {
         spaceId: SpaceId;
@@ -162,6 +170,7 @@ export class DocumentCollaborationContentManager {
         initialVersion: number;
         initialContent: DocumentContent;
         sendEventToAll: (context: WorkerProcessContext, event: DocumentCollaborationEvent) => void;
+        resetAllAuthorizationTimers: (context: WorkerProcessContext) => void;
         killProcess: (context: WorkerProcessContext) => void;
     }) {
         this.spaceId = spaceId;
@@ -173,6 +182,7 @@ export class DocumentCollaborationContentManager {
         this._persistedVersion = initialVersion;
         this.stepCache = new DocumentCollaborationStepCache(id, initialVersion);
         this._sendEventToAll = sendEventToAll;
+        this._resetAllAuthorizationTimers = resetAllAuthorizationTimers;
         this._killProcess = killProcess;
     }
 
@@ -260,6 +270,7 @@ export class DocumentCollaborationContentManager {
                 initialCommentContent: MessageContent;
                 initialCommentFileIds: ReadonlyArray<FileId>;
             }>;
+            intentionallyUpdateAccessPolicy: AccessPolicy | null;
             resolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             unresolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             updateOurPresenceState: {state: DocumentCollaborationPresenceState | null};
@@ -402,6 +413,10 @@ export class DocumentCollaborationContentManager {
                     });
                 }
 
+                this._persistenceState.next.intentionallyUpdateAccessPolicyRef.current =
+                    update.intentionallyUpdateAccessPolicy ??
+                    this._persistenceState.next.intentionallyUpdateAccessPolicyRef.current;
+
                 // We should have already thrown an error if `update.resolveCommentThreadIds`
                 // or `update.unresolveCommentThreadIds` are non-empty. Not allowed to batch
                 // updates that resolve comment threads.
@@ -415,6 +430,9 @@ export class DocumentCollaborationContentManager {
                         createdTime: commentThreadCreatedTime,
                     }),
                 );
+                const nextIntentionallyUpdateAccessPolicyRef = {
+                    current: update.intentionallyUpdateAccessPolicy,
+                };
                 const nextResolveCommentThreadIds = update.resolveCommentThreadIds ?? [];
                 const nextUnresolveCommentThreadIds = update.unresolveCommentThreadIds ?? [];
 
@@ -422,6 +440,10 @@ export class DocumentCollaborationContentManager {
                     // While we wait, steps may be added to `nextSteps` if it's from the same
                     // client so we can save in a single batch.
                     await lastPersistenceStatePromise;
+
+                    await documentCollaborationContentManagerBeforePersist1TestCheckpoint.waitForTest(
+                        this.id,
+                    );
 
                     // Do not allow the worker to batch more steps for this request! Instead the
                     // worker needs to schedule a new update promise.
@@ -432,9 +454,12 @@ export class DocumentCollaborationContentManager {
                         "Persist document content",
                         async (context, span) => {
                             try {
-                                await documentCollaborationContentManagerBeforePersistTestCheckpoint.waitForTest(
+                                await documentCollaborationContentManagerBeforePersist2TestCheckpoint.waitForTest(
                                     this.id,
                                 );
+
+                                const intentionallyUpdateAccessPolicy =
+                                    nextIntentionallyUpdateAccessPolicyRef.current ?? undefined;
 
                                 const {conflictingSteps, updatedCommentThreads} =
                                     await updateDocumentContent(context, {
@@ -443,6 +468,7 @@ export class DocumentCollaborationContentManager {
                                         steps: nextSteps,
                                         clientId: update.clientId,
                                         createCommentThreads: nextCreateCommentThreads,
+                                        intentionallyUpdateAccessPolicy,
                                         resolveCommentThreadIds: nextResolveCommentThreadIds,
                                         unresolveCommentThreadIds: nextUnresolveCommentThreadIds,
                                     });
@@ -454,7 +480,7 @@ export class DocumentCollaborationContentManager {
                                 // We save steps anyway to preserve as much user data as we can.
                                 if (conflictingSteps.length > 0) {
                                     throw new InternalError(
-                                        "Some process updated document content other than the document's durable object. This may cause many downstream issues as a core assumption about the document collaboration implementation has been violated",
+                                        "Some process updated document content other than the document's durable object. This may cause downstream issues as a core assumption about the document collaboration implementation has been violated",
                                     );
                                 }
 
@@ -474,6 +500,10 @@ export class DocumentCollaborationContentManager {
                                     optimisticCommentThread.persistedPromiseResolver.resolve();
                                 }
 
+                                // Immediately reauthorize all connections after the access policy changes.
+                                if (intentionallyUpdateAccessPolicy)
+                                    this._resetAllAuthorizationTimers(context);
+
                                 this._sendEventToAll(context, {
                                     type: "PersistedContent",
                                     newVersion: oldVersion + nextSteps.length,
@@ -483,7 +513,9 @@ export class DocumentCollaborationContentManager {
                                 // Upgrade the severity to internal since the client has already seen the update.
                                 //
                                 // The client will also attempt to reconnect on a system error.
-                                const error = InternalError.from(unknownError);
+                                const error = !isSystemError(unknownError)
+                                    ? InternalError.from(unknownError)
+                                    : unknownError;
 
                                 span.addException(error);
 
@@ -533,6 +565,7 @@ export class DocumentCollaborationContentManager {
                         clientId: update.clientId,
                         steps: nextSteps,
                         createCommentThreads: nextCreateCommentThreads,
+                        intentionallyUpdateAccessPolicyRef: nextIntentionallyUpdateAccessPolicyRef,
                     },
                     // NOTE(calebmer): We're careful to spawn the promise which updates content from
                     // this `update()` method so the `AppService` network calls count against the
@@ -671,6 +704,7 @@ export class DocumentCollaborationContentManager {
                             // rather by our backend here.
                             clientId: generateId(),
                             createCommentThreads: [],
+                            intentionallyUpdateAccessPolicy: null,
                             updateOurPresenceState: {state: null},
                         })
                             // If we have some comment thread marks to remove, then wait to send our update

@@ -14,7 +14,7 @@ import {
     TextHTwo,
 } from "phosphor-react";
 import {history, redo, redoDepth, undo, undoDepth} from "prosemirror-history";
-import {Fragment, Node, Slice} from "prosemirror-model";
+import {Fragment, Node, ResolvedPos, Slice} from "prosemirror-model";
 import {
     AllSelection,
     EditorState,
@@ -55,7 +55,7 @@ import {
 } from "~/client/content/content_editor_state.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
-import {createContentEditorCheckListItemNodeView} from "~/client/content/internal/content_editor_check_list_item_node_view.js";
+import {createContentEditorCheckListItemNodeViewConstructor} from "~/client/content/internal/content_editor_check_list_item_node_view.js";
 import {ContentEditorCodeBlockLanguagePickerComboBox} from "~/client/content/internal/content_editor_code_block_language_picker_combo_box.js";
 import {createContentEditorCodeBlockNodeViewConstructor} from "~/client/content/internal/content_editor_code_block_node_view.js";
 import {createContentEditorCommentMarkViewConstructor} from "~/client/content/internal/content_editor_comment_mark_view.js";
@@ -78,6 +78,7 @@ import {
     insertContentTable,
     insertContentUnorderedListItem,
 } from "~/client/content/internal/content_editor_insert.js";
+import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_keymap_plugin.js";
 import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
 import {createContentEditorMentionNodeViewConstructor} from "~/client/content/internal/content_editor_mention_node_view.js";
 import {ContentEditorMobileCommentInputBottomBar} from "~/client/content/internal/content_editor_mobile_comment_input_bottom_bar.js";
@@ -158,6 +159,7 @@ import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensi
 import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {colorSchemeVars, contentEditorStyles, contentStyles} from "~/client/styles/styles.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {getContentReferencedIdsForSlice} from "~/shared/content/content_referenced_ids.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
@@ -279,7 +281,8 @@ const historyPluginKey = new Lazy((): PluginKey => {
 });
 
 export type ContentEditorRef<Content extends ContentWithReferences> = {
-    getContainer(): HTMLDivElement;
+    getContainerElement(): HTMLDivElement;
+    getEditorElement(): HTMLDivElement;
     getState(): ContentEditorState<Content>;
     isFocused(): boolean;
     focus(options?: FocusOptions): void;
@@ -444,6 +447,15 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     containerClassName?: string;
 
     /**
+     * The access level to use for this content editor. If "View" then the editor
+     * will be in readonly mode and not allow changes. In "Comment" mode, we also
+     * won't allow changes except to add new comment threads.
+     *
+     * If undefined then we assume you have the highest access level possible.
+     */
+    accessLevel?: AccessLevel;
+
+    /**
      * Don't render the mobile keyboard toolbar with this content editor. Use this
      * if you render your own toolbar outside the `<ContentEditor>`.
      * `<MessageInput>` is a component that does this.
@@ -515,37 +527,52 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     onBlur?: (event: FocusEvent<HTMLDivElement>) => void;
 
     /**
+     * Called when the selection enters the content editor. This works regardless
+     * of the `accessLevel`. If the `accessLevel` is `View` then we'll still call
+     * this function even though the editor isn't editable.
+     */
+    onSelectionEnter?: () => void;
+
+    /**
+     * Called when the selection leaves the content editor. This works regardless
+     * of the `accessLevel`. If the `accessLevel` is `View` then we'll still call
+     * this function even though the editor isn't editable.
+     */
+    onSelectionLeave?: () => void;
+
+    /**
      * Fired when the user presses enter in a content editor.
      *
-     * Providing an `onEnterFromPhysicalKeyboard` callback will prevent the default
-     * enter behavior. It will also switch our editor out of multiline mode for
-     * assistive technologies.
+     * Providing an `onEnterKeyDownFromPhysicalKeyboard` callback will prevent the
+     * default enter behavior. It will also switch our editor out of multiline mode
+     * for assistive technologies.
      *
      * Pressing shift+enter has the same behavior as pressing enter as a
      * workaround. Pressing alt+enter will insert a hard line break and won't
      * trigger this callback. Pasting in content with multiple paragraphs also
-     * allows you to add multiple lines. So providing `onEnterFromPhysicalKeyboard`
-     * doesn't make our editor fully single lined.
+     * allows you to add multiple lines. So providing
+     * `onEnterKeyDownFromPhysicalKeyboard` doesn't make our editor fully single lined.
      */
-    onEnterFromPhysicalKeyboard?: (event: KeyboardEvent) => void;
+    onEnterKeyDownFromPhysicalKeyboard?: (event: KeyboardEvent) => void;
 
     /**
      * Fired when the user press cmd-enter (or ctrl-enter on non MacOS platforms)
      * in a content editor.
      *
-     * Providing an `onModEnter` callback will prevent the default enter behavior.
+     * Providing an `onModEnterKeyDown` callback will prevent the default enter
+     * behavior.
      */
-    onModEnter?: (event: KeyboardEvent) => void;
+    onModEnterKeyDown?: (event: KeyboardEvent) => void;
 
     /**
      * Fired when the user presses the escape key.
      */
-    onEscape?: (event: KeyboardEvent) => void;
+    onEscapeKeyDown?: (event: KeyboardEvent) => void;
 
     /**
      * Fired when the user presses the up arrow key.
      */
-    onArrowUp?: (event: KeyboardEvent) => void;
+    onArrowUpKeyDown?: (event: KeyboardEvent) => void;
 
     /**
      * Opens a comment thread when clicked. If your schema supports comment marks
@@ -619,8 +646,8 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
 export type ContentEditorPhantomSelection = {
     readonly key: string;
     readonly color: ThemeColor;
-    readonly anchor: number;
-    readonly head: number;
+    readonly $anchor: ResolvedPos;
+    readonly $head: ResolvedPos;
     readonly isTextSelection: boolean;
 };
 
@@ -656,13 +683,18 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
     placeholder,
     className,
     style,
+    accessLevel = "Manage",
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
     containerClassName: customContainerClassName,
     fileAttachmentTarget,
     editorRef,
 }: ContentEditorProps<Content> & {editorRef: Ref<ContentEditorRef<Content>>}) {
+    const canPrimaryInputHover = useCanPrimaryInputHover();
+
     const containerRef = useRef<HTMLDivElement>(null);
+
+    const hasEditAccessLevel = hasAccessLevel(accessLevel, "Edit");
 
     useImperativeHandle(
         editorRef,
@@ -674,7 +706,9 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
             };
 
             return {
-                getContainer: () => assertExists(containerRef.current),
+                getContainerElement: () => assertExists(containerRef.current),
+                getEditorElement: () =>
+                    assertExists(containerRef.current?.firstElementChild) as HTMLDivElement,
                 getState: () => state,
                 isFocused: () => false,
                 focus: () => {
@@ -738,7 +772,14 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
     return (
         <div
             ref={containerRef}
-            className={classNames(contentEditorStyles.containerClassName, customContainerClassName)}
+            className={classNames(
+                contentEditorStyles.containerClassName,
+                !canPrimaryInputHover
+                    ? contentEditorStyles.canNotPrimaryInputHoverContainerClassName
+                    : undefined,
+                !hasEditAccessLevel ? contentEditorStyles.hasNoEditAccessClassName : undefined,
+                customContainerClassName,
+            )}
         >
             <ContentView
                 isEditorInitialAppRender={true}
@@ -780,6 +821,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         className,
         style,
         containerClassName: customContainerClassName,
+        accessLevel = "Manage",
         withoutMobileKeyboardToolbar,
         withoutMobileDualModality,
         "aria-label": ariaLabel,
@@ -791,6 +833,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         fileAttachmentTarget,
         commentFileAttachmentTarget,
     } = props;
+
+    const hasEditAccessLevel = hasAccessLevel(accessLevel, "Edit");
 
     /* ========================================================================== *\
      *                                  Context                                   *
@@ -898,8 +942,11 @@ function ContentEditor<Content extends ContentWithReferences>(
     useImperativeHandle(
         editorRef,
         () => ({
-            getContainer: () => {
+            getContainerElement: () => {
                 return assertExists(containerRef.current);
+            },
+            getEditorElement: () => {
+                return assertExists(viewRef.current).dom as HTMLDivElement;
             },
             getState: () => {
                 return propsRef.current.state;
@@ -1005,15 +1052,20 @@ function ContentEditor<Content extends ContentWithReferences>(
         const schema = initialState.doc.type.schema;
 
         const initialIsDualModality = isDualModalityRef.current;
+        const initialAccessLevel = propsRef.current.accessLevel ?? "Manage";
+        const initialHasEditAccessLevel = hasAccessLevel(initialAccessLevel, "Edit");
 
         const viewProps: DirectEditorProps = {
             state: initialState,
 
-            // On mobile devices we implement dual interaction modality. Before any
-            // interaction the content is read-only. Tapping on links follows the link
-            // instead of editing the content. Tapping on text switches to an editing
-            // modality where tapping on a link instead edits the text.
-            editable: () => !initialIsDualModality,
+            editable: () =>
+                initialHasEditAccessLevel &&
+                // On mobile devices we implement dual interaction modality. Before any
+                // interaction the content is read-only. Tapping on links follows the link
+                // instead of editing the content. Tapping on text switches to an editing
+                // modality and now while in an editing modality tapping on a link edits the
+                // link's text.
+                !initialIsDualModality,
 
             attributes: {
                 // Native spellcheck is often more distracting then it's worth. It puts a red
@@ -1121,9 +1173,12 @@ function ContentEditor<Content extends ContentWithReferences>(
         // `renderContentToHtml()`.
         viewProps.nodeViews = {
             orderedListItem: createContentEditorOrderedListItemNodeView,
-            checkListItem: createContentEditorCheckListItemNodeView,
+            checkListItem: createContentEditorCheckListItemNodeViewConstructor({
+                getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
+            }),
             codeBlock: createContentEditorCodeBlockNodeViewConstructor({
                 getReporter: () => reporterRef.current,
+                getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
                 onCodeBlockLanguagePickerOpen: ({targetElement, languageId, getPos}) =>
                     setCodeBlockLanguagePickerState({
                         key: generateId(),
@@ -1178,6 +1233,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                 getReporter: () => reporterRef.current,
                 getAttachmentTarget: () => assertExists(propsRef.current.fileAttachmentTarget),
+                getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
                 subscribeToReferencesUpdate: listener => {
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
                     return referencesUpdateEmitterRef.current.subscribe(listener);
@@ -2546,19 +2602,19 @@ function ContentEditor<Content extends ContentWithReferences>(
             }
 
             if (
-                typeof propsRef.current.onModEnter === "function" &&
+                typeof propsRef.current.onModEnterKeyDown === "function" &&
                 event.key === "Enter" &&
                 !event.altKey &&
                 !event.shiftKey &&
                 // Cmd+Enter triggers this on MacOS and Ctrl+Enter triggers this elsewhere
                 (isAppleDevice ? event.metaKey : event.ctrlKey)
             ) {
-                propsRef.current.onModEnter(event);
+                propsRef.current.onModEnterKeyDown(event);
                 if (event.defaultPrevented) return true;
             }
 
             if (
-                typeof propsRef.current.onEnterFromPhysicalKeyboard === "function" &&
+                typeof propsRef.current.onEnterKeyDownFromPhysicalKeyboard === "function" &&
                 event.key === "Enter" &&
                 !event.altKey &&
                 !event.shiftKey &&
@@ -2573,17 +2629,20 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // button press.
                 !isVirtualKeyboardEvent(event)
             ) {
-                propsRef.current.onEnterFromPhysicalKeyboard(event);
+                propsRef.current.onEnterKeyDownFromPhysicalKeyboard(event);
                 if (event.defaultPrevented) return true;
             }
 
-            if (typeof propsRef.current.onEscape === "function" && event.key === "Escape") {
-                propsRef.current.onEscape(event);
+            if (typeof propsRef.current.onEscapeKeyDown === "function" && event.key === "Escape") {
+                propsRef.current.onEscapeKeyDown(event);
                 if (event.defaultPrevented) return true;
             }
 
-            if (typeof propsRef.current.onArrowUp === "function" && event.key === "ArrowUp") {
-                propsRef.current.onArrowUp(event);
+            if (
+                typeof propsRef.current.onArrowUpKeyDown === "function" &&
+                event.key === "ArrowUp"
+            ) {
+                propsRef.current.onArrowUpKeyDown(event);
                 if (event.defaultPrevented) return true;
             }
 
@@ -2644,6 +2703,20 @@ function ContentEditor<Content extends ContentWithReferences>(
             // [1]: https://gist.github.com/calebmer/7ac49a81c466b14cf3bac987e7bb65a9
             flushScrollbarResizeSync(view.dom);
 
+            return false;
+        };
+
+        // We add this handler in a patch to `prosemirror-view`.
+        viewProps.handleSelectionEnter = () => {
+            if (!view.hasFocus()) setHasSelectionEnteredWhenUnfocused(true);
+            propsRef.current.onSelectionEnter?.();
+            return false;
+        };
+
+        // We add this handler in a patch to `prosemirror-view`.
+        viewProps.handleSelectionLeave = () => {
+            if (!view.hasFocus()) setHasSelectionEnteredWhenUnfocused(false);
+            propsRef.current.onSelectionLeave?.();
             return false;
         };
 
@@ -2749,6 +2822,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                     // If we're not on mobile the document is always editable.
                     if (!isDualModalityRef.current) return;
 
+                    // If the content isn't editable a tap shouldn't focus it.
+                    if (!hasAccessLevel(propsRef.current.accessLevel ?? "Manage", "Edit")) return;
+
                     // If our view already has focus, we don't need a tap to give it focus.
                     if (view.hasFocus()) return;
 
@@ -2810,6 +2886,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                     touchState = {
                         finish: event => {
                             longPressTimeout.clear();
+
+                            // Make sure, again, that the content is editable before focusing.
+                            if (!hasAccessLevel(propsRef.current.accessLevel ?? "Manage", "Edit"))
+                                return;
 
                             const posResult = view.posAtCoords({
                                 left: touch.clientX,
@@ -3067,6 +3147,16 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     const [isFocused, setIsFocused] = useState(false);
 
+    // Make sure `isFocused` is false if we can't edit since the content editor
+    // will be `contenteditable="false"`.
+    if (isFocused && !hasEditAccessLevel) setIsFocused(false);
+
+    // Will be true if the selection has entered the `<ContentEditor>` but the
+    // editor isn't focused. For example, when `accessLevel` is `View` and we're
+    // selecting text.
+    const [hasSelectionEnteredWhenUnfocused, setHasSelectionEnteredWhenUnfocused] = useState(false);
+    if (isFocused && hasSelectionEnteredWhenUnfocused) setHasSelectionEnteredWhenUnfocused(false);
+
     const [decorationCallbacks, setDecorationCallbacks] = useState<
         ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
     >(() => new Set());
@@ -3075,7 +3165,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         const view = assertExists(viewRef.current);
 
         view.setProps({
-            editable: () => !isDualModality || isFocused,
+            editable: () => hasEditAccessLevel && (!isDualModality || isFocused),
 
             decorations: state => {
                 let decorationSet = DecorationSet.empty;
@@ -3096,7 +3186,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 return decorationSet;
             },
         });
-    }, [decorationCallbacks, isDualModality, isFocused]);
+    }, [accessLevel, decorationCallbacks, hasEditAccessLevel, isDualModality, isFocused]);
 
     /* ========================================================================== *\
      *                              View attributes                               *
@@ -3478,7 +3568,10 @@ function ContentEditor<Content extends ContentWithReferences>(
         // React will log a warning.
         let withoutFlushSync = true;
 
-        const handleFocus = () => {
+        const handleFocusChange = (event?: globalThis.FocusEvent) => {
+            const focusedElement =
+                event?.type === "focusout" ? event.relatedTarget : document.activeElement;
+
             const run: (action: () => void) => void = withoutFlushSync
                 ? action => action()
                 : // We frequently call `focus()` in a `useEffect()`. It's fine if we don't
@@ -3486,47 +3579,41 @@ function ContentEditor<Content extends ContentWithReferences>(
                   flushSyncIfNotRendering;
 
             run(() => {
-                setIsFocused(true);
+                if (focusedElement === viewElement) {
+                    setIsFocused(true);
 
-                setDecorationCallbacks(decorationCallbacks => {
-                    const newDecorationCallbacks = new Set(decorationCallbacks);
-                    newDecorationCallbacks.delete(blurDecorationCallback);
-                    return newDecorationCallbacks;
-                });
+                    setDecorationCallbacks(decorationCallbacks => {
+                        if (!decorationCallbacks.has(blurDecorationCallback))
+                            return decorationCallbacks;
+
+                        const newDecorationCallbacks = new Set(decorationCallbacks);
+                        newDecorationCallbacks.delete(blurDecorationCallback);
+                        return newDecorationCallbacks;
+                    });
+                } else {
+                    setIsFocused(false);
+
+                    setDecorationCallbacks(decorationCallbacks => {
+                        if (decorationCallbacks.has(blurDecorationCallback))
+                            return decorationCallbacks;
+
+                        const newDecorationCallbacks = new Set(decorationCallbacks);
+                        newDecorationCallbacks.add(blurDecorationCallback);
+                        return newDecorationCallbacks;
+                    });
+                }
             });
         };
 
-        const handleBlur = () => {
-            const run: (action: () => void) => void = withoutFlushSync
-                ? action => action()
-                : // We frequently call `focus()` in a `useEffect()`. It's fine if we don't
-                  // immediately flush our `isFocused` update in this context.
-                  flushSyncIfNotRendering;
-
-            run(() => {
-                setIsFocused(false);
-
-                setDecorationCallbacks(decorationCallbacks => {
-                    const newDecorationCallbacks = new Set(decorationCallbacks);
-                    newDecorationCallbacks.add(blurDecorationCallback);
-                    return newDecorationCallbacks;
-                });
-            });
-        };
-
-        if (document.activeElement === viewElement) {
-            handleFocus();
-        } else {
-            handleBlur();
-        }
+        handleFocusChange();
 
         withoutFlushSync = false;
 
-        viewElement.addEventListener("focus", handleFocus);
-        viewElement.addEventListener("blur", handleBlur);
+        viewElement.addEventListener("focusin", handleFocusChange);
+        viewElement.addEventListener("focusout", handleFocusChange);
         return () => {
-            viewElement.addEventListener("focus", handleFocus);
-            viewElement.addEventListener("blur", handleBlur);
+            viewElement.addEventListener("focusin", handleFocusChange);
+            viewElement.addEventListener("focusout", handleFocusChange);
 
             setDecorationCallbacks(decorationCallbacks => {
                 if (!decorationCallbacks.has(blurDecorationCallback)) return decorationCallbacks;
@@ -3558,20 +3645,11 @@ function ContentEditor<Content extends ContentWithReferences>(
         const decorations: Array<(state: EditorState) => Array<Decoration>> = [];
 
         for (const phantomSelection of phantomSelections) {
-            if (phantomSelection.anchor !== phantomSelection.head) {
+            if (phantomSelection.$anchor.pos !== phantomSelection.$head.pos) {
                 decorations.push(state => {
-                    const from = Math.min(
-                        Math.min(phantomSelection.anchor, phantomSelection.head),
-                        state.doc.nodeSize - 2,
-                    );
-                    const to = Math.min(
-                        Math.max(phantomSelection.anchor, phantomSelection.head),
-                        state.doc.nodeSize - 2,
-                    );
-
                     return createPhantomSelectionDecorations(
                         state.doc,
-                        TextSelection.between(state.doc.resolve(from), state.doc.resolve(to)),
+                        TextSelection.between(phantomSelection.$anchor, phantomSelection.$head),
                         phantomSelection.color,
                     );
                 });
@@ -3887,14 +3965,17 @@ function ContentEditor<Content extends ContentWithReferences>(
     const canUndo = state.undoDepth() > 0;
     const canRedo = state.redoDepth() > 0;
 
-    const getContextMenuActions = useCallback((): Array<Array<MenuAction>> => {
+    const getContextMenuActions = useCallback((): ReadonlyArray<ReadonlyArray<MenuAction>> => {
+        // You can't undo, redo, or insert if you don't have edit access to the
+        // document.
+        if (!hasEditAccessLevel) return emptyArray;
+
         const insertMenuActions: Array<Array<MenuAction>> = [];
 
         if (schema.nodes.file) {
             insertMenuActions.push([
                 {
                     label: "Image",
-                    iconSize: "4",
                     icon: <Image />,
                     onPress: () => {
                         selectFiles(assertExists(viewRef.current?.dom.parentElement), {
@@ -3911,7 +3992,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
                 {
                     label: "Video",
-                    iconSize: "4",
                     icon: <VideoIcon />,
                     onPress: () => {
                         selectFiles(assertExists(viewRef.current?.dom.parentElement), {
@@ -3928,7 +4008,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
                 {
                     label: "Audio",
-                    iconSize: "4",
                     icon: <WaveformIcon />,
                     onPress: () => {
                         selectFiles(assertExists(viewRef.current?.dom.parentElement), {
@@ -3945,7 +4024,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
                 {
                     label: "File",
-                    iconSize: "4",
                     icon: <File />,
                     onPress: () => {
                         selectFiles(assertExists(viewRef.current?.dom.parentElement), {
@@ -3968,7 +4046,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         insertListMenuActions.push(
             {
                 label: "Bullet list",
-                iconSize: "4",
                 icon: <ListBullets />,
                 onPress: () => {
                     insertContentUnorderedListItem(assertExists(viewRef.current));
@@ -3976,7 +4053,6 @@ function ContentEditor<Content extends ContentWithReferences>(
             },
             {
                 label: "Number list",
-                iconSize: "4",
                 icon: <ListNumbers />,
                 onPress: () => {
                     insertContentOrderedListItem(assertExists(viewRef.current));
@@ -3987,7 +4063,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         if (schema.nodes.checkListItem) {
             insertListMenuActions.push({
                 label: "Check list",
-                iconSize: "4",
                 icon: <ListChecks />,
                 onPress: () => {
                     insertContentCheckListItem(assertExists(viewRef.current));
@@ -3999,7 +4074,6 @@ function ContentEditor<Content extends ContentWithReferences>(
             insertMenuActions.push([
                 {
                     label: "Heading 1",
-                    iconSize: "4",
                     icon: <TextHOne />,
                     onPress: () => {
                         insertContentHeading(assertExists(viewRef.current), 1);
@@ -4007,7 +4081,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
                 {
                     label: "Heading 2",
-                    iconSize: "4",
                     icon: <TextHTwo />,
                     onPress: () => {
                         insertContentHeading(assertExists(viewRef.current), 2);
@@ -4015,7 +4088,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
                 {
                     label: "Heading 3",
-                    iconSize: "4",
                     icon: <TextHThree />,
                     onPress: () => {
                         insertContentHeading(assertExists(viewRef.current), 3);
@@ -4030,7 +4102,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         if (process.env.NODE_ENV !== "production") {
             insertOtherMenuActions.push({
                 label: "Table",
-                iconSize: "4",
                 icon: <Table />,
                 onPress: () => {
                     insertContentTable(assertExists(viewRef.current));
@@ -4041,7 +4112,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         if (schema.nodes.divider) {
             insertOtherMenuActions.push({
                 label: "Divider",
-                iconSize: "4",
                 icon: <Minus />,
                 onPress: () => {
                     insertContentDivider(assertExists(viewRef.current));
@@ -4052,7 +4122,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         insertOtherMenuActions.push(
             {
                 label: "Quote block",
-                iconSize: "4",
                 icon: <QuoteBlockIcon />,
                 onPress: () => {
                     insertContentQuoteBlock(assertExists(viewRef.current));
@@ -4060,7 +4129,6 @@ function ContentEditor<Content extends ContentWithReferences>(
             },
             {
                 label: "Code block",
-                iconSize: "4",
                 icon: <CodeBlockIcon />,
                 onPress: () => {
                     insertContentCodeBlock(assertExists(viewRef.current));
@@ -4094,21 +4162,20 @@ function ContentEditor<Content extends ContentWithReferences>(
                     hasChildren: true,
                     key: "insert",
                     label: "Insert",
-                    // This is a large sized menu since because:
-                    //
-                    // 1. If your mouse leaves the menu it closes
-                    // 2. There are a lot of options so it takes some precision for the user to find
-                    //    the right one
-                    //
-                    // So there's a risk of the mouse "slipping". Leaving the area while trying to
-                    // make a selection causing the insert menu to close. By making the menu larger
-                    // there's less risk of slipping.
-                    size: "lg",
                     actions: insertMenuActions,
                 },
             ],
         ];
-    }, [canRedo, canUndo, clientInfo.isAppleDevice, schema]);
+    }, [
+        canRedo,
+        canUndo,
+        clientInfo.isAppleDevice,
+        hasEditAccessLevel,
+        schema.nodes.checkListItem,
+        schema.nodes.divider,
+        schema.nodes.file,
+        schema.nodes.heading,
+    ]);
 
     // Manually add context menu actions on `contextmenu` event since we can't
     // render a `<ContextMenu>` component which would break our
@@ -4138,6 +4205,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 !canPrimaryInputHover
                     ? contentEditorStyles.canNotPrimaryInputHoverContainerClassName
                     : undefined,
+                !hasEditAccessLevel ? contentEditorStyles.hasNoEditAccessClassName : undefined,
                 customContainerClassName,
             )}
             onFocus={onFocus}
@@ -4147,6 +4215,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             <ContentEditorFloater
                 platform={platform}
                 state={unwrappedState}
+                accessLevel={accessLevel}
                 viewRef={viewRef}
                 floaterState={floaterState}
                 setFloaterState={floaterState => {
@@ -4154,12 +4223,14 @@ function ContentEditor<Content extends ContentWithReferences>(
                     view.dispatch(setContentEditorFloaterState(view.state.tr, floaterState));
                 }}
                 isFocused={isFocused}
+                hasSelectionEnteredWhenUnfocused={hasSelectionEnteredWhenUnfocused}
                 setDecorationCallbacks={setDecorationCallbacks}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
             <ContentEditorFileToolbarController
                 state={unwrappedState}
                 viewRef={viewRef}
+                accessLevel={accessLevel}
                 floaterState={floaterState}
                 selectedNodeElement={selectedNodeElement}
                 hasFileDropTarget={!!fileDropTarget}
@@ -4180,9 +4251,17 @@ function ContentEditor<Content extends ContentWithReferences>(
                 getReporter={() => reporterRef.current}
             />
 
-            {!fileDropTarget && selectedNodeElement && (
-                <FocusRing isVisible={true} targetElement={selectedNodeElement} />
-            )}
+            {!fileDropTarget &&
+                selectedNodeElement &&
+                // Only show the focus ring for selected nodes while editing. Unless we have
+                // comment access and we've selected a file node. Since we still show the
+                // toolbar for selected files with the only option being "Comment".
+                (hasEditAccessLevel ||
+                    (hasAccessLevel(accessLevel, "Comment") &&
+                        unwrappedState.selection instanceof NodeSelection &&
+                        unwrappedState.selection.node.type.name === "file")) && (
+                    <FocusRing isVisible={true} targetElement={selectedNodeElement} />
+                )}
             {phantomSelections?.map(phantomSelection => (
                 <ContentEditorPhantomSelectionCursor
                     key={phantomSelection.key}
@@ -4382,6 +4461,46 @@ function ContentEditor<Content extends ContentWithReferences>(
                         }}
                     />
                 )}
+            {hasSelectionEnteredWhenUnfocused && !unwrappedState.selection.empty && (
+                // When `accessLevel` is `Comment` add a global keydown listener for the
+                // comment keyboard shortcut. Since the content editor won't be focused while
+                // in read-only mode we need to listen to global keydown events.
+                <GlobalKeyDownEvent
+                    onGlobalKeyDown={event => {
+                        const view = assertExists(viewRef.current);
+                        const {state} = view;
+
+                        if (
+                            !view.editable &&
+                            event.key === "c" &&
+                            event.shiftKey &&
+                            (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
+                        ) {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            if (state.selection.from !== state.selection.to) {
+                                let isCommentSupported = false;
+                                state.doc.nodesBetween(
+                                    state.selection.from,
+                                    state.selection.to,
+                                    node => {
+                                        isCommentSupported ||=
+                                            !!schema.marks.comment &&
+                                            node.type.allowsMarkType(schema.marks.comment);
+                                    },
+                                );
+
+                                if (isCommentSupported) {
+                                    view.dispatch(
+                                        state.tr.setMeta(openCommentInputFloaterMetaKey, true),
+                                    );
+                                }
+                            }
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 }
@@ -4533,12 +4652,6 @@ function handleLinkPasteWithoutSelection(
  *   that you are selecting a newline.
  */
 function createPhantomSelectionDecorations(doc: Node, selection: Selection, color: ThemeColor) {
-    // Convert non-text selections into text selections. So the `from` and `to`
-    // point to positions in text.
-    if (!(selection instanceof TextSelection)) {
-        selection = TextSelection.between(selection.$from, selection.$to);
-    }
-
     const decorations = [
         Decoration.inline(selection.from, selection.to, {
             class: contentStyles.phantomSelectionClassName,

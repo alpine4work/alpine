@@ -64,7 +64,7 @@ function FocusRing(
          * This will be subtracted from `offset`. So the true offset is
          * `offset - inset`.
          */
-        inset?: Spacing;
+        inset?: Spacing | `-${Spacing}`;
 
         /**
          * How far in on the X axis we should we inset our focus ring?
@@ -72,7 +72,7 @@ function FocusRing(
          * This will be subtracted from `offset`. So the true offset on the X axis is
          * `offset - insetX`.
          */
-        insetX?: Spacing;
+        insetX?: Spacing | `-${Spacing}`;
 
         /**
          * How far in on the Y axis we should we inset our focus ring?
@@ -80,7 +80,7 @@ function FocusRing(
          * This will be subtracted from `offset`. So the true offset on the Y axis is
          * `offset - insetY`.
          */
-        insetY?: Spacing;
+        insetY?: Spacing | `-${Spacing}`;
 
         /**
          * How far from the left should we inset our focus ring?
@@ -88,7 +88,7 @@ function FocusRing(
          * This will be subtracted from `offset`. So the true offset on the left is
          * `offset - insetLeft`.
          */
-        insetLeft?: Spacing;
+        insetLeft?: Spacing | `-${Spacing}`;
 
         /**
          * How far from the right should we inset our focus ring?
@@ -96,7 +96,7 @@ function FocusRing(
          * This will be subtracted from `offset`. So the true offset on the right is
          * `offset - insetRight`.
          */
-        insetRight?: Spacing;
+        insetRight?: Spacing | `-${Spacing}`;
 
         /**
          * How far from the top should we inset our focus ring?
@@ -104,7 +104,7 @@ function FocusRing(
          * This will be subtracted from `offset`. So the true offset on the top is
          * `offset - insetTop`.
          */
-        insetTop?: Spacing;
+        insetTop?: Spacing | "border";
 
         /**
          * How far from the bottom should we inset our focus ring?
@@ -243,13 +243,13 @@ export function FocusRingBox({
     targetRef,
 }: {
     offset?: Spacing | "border" | "inset";
-    inset?: Spacing;
-    insetX?: Spacing;
-    insetY?: Spacing;
-    insetTop?: Spacing;
-    insetBottom?: Spacing | "border";
-    insetLeft?: Spacing;
-    insetRight?: Spacing;
+    inset?: Spacing | `-${Spacing}`;
+    insetX?: Spacing | `-${Spacing}`;
+    insetY?: Spacing | `-${Spacing}`;
+    insetTop?: Spacing | `-${Spacing}` | "border";
+    insetBottom?: Spacing | `-${Spacing}` | "border";
+    insetLeft?: Spacing | `-${Spacing}`;
+    insetRight?: Spacing | `-${Spacing}`;
     targetRef: RefObject<HTMLElement | null>;
 }) {
     const insetTop = insetTopProp ?? insetYProp ?? insetProp ?? "0";
@@ -280,7 +280,7 @@ export function FocusRingBox({
     // inside the element.
     if (offset === "inset") ringOffsetBasePx = -ringWidthPx;
 
-    const ringInsetTopPx = convertRemLengthToPx(insetTop, spacingScale);
+    const ringInsetTopPx = insetTop === "border" ? 1 : convertRemLengthToPx(insetTop, spacingScale);
     const ringInsetBottomPx =
         insetBottom === "border" ? 1 : convertRemLengthToPx(insetBottom, spacingScale);
     const ringInsetLeftPx = convertRemLengthToPx(insetLeft, spacingScale);

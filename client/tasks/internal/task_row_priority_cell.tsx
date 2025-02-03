@@ -180,7 +180,13 @@ function TaskRowPriorityCell(
     };
 
     return (
-        <FocusRing isVisibleFromAnyFocus={!isActuallyReadOnly} offset="0" insetBottom="border">
+        <FocusRing
+            isVisibleFromAnyFocus={true}
+            offset="0"
+            insetTop="border"
+            // Render underneath the combobox overlay.
+            overlayZIndex="-10"
+        >
             <div
                 ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
                 data-testid={

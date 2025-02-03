@@ -1,19 +1,18 @@
-import {IconContext, Plus} from "phosphor-react";
+import {Plus} from "phosphor-react";
 import {useCallback, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
-import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useStore} from "~/client/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
@@ -21,11 +20,7 @@ import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {
-    inputPlaceholderStyles,
-    invertSelectionColorsClassName,
-    tasksStyles,
-} from "~/client/styles/styles.js";
+import {inputPlaceholderStyles, tasksStyles} from "~/client/styles/styles.js";
 import {
     defaultTaskQueryViewName,
     taskQueryViewCustomizationMobileLayoutMarginTop,
@@ -36,10 +31,10 @@ import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/core/task_client_store.js";
-import {createTaskQueryViewReadOnlyReasonStore} from "~/client/tasks/internal/create_task_query_view_read_only_reason_store.js";
 import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskGridViewVirtualizedListViewRef} from "~/client/tasks/internal/task_grid_view_virtualized_list_types.js";
 import {TaskQueryMobileEditor} from "~/client/tasks/internal/task_query_mobile_editor.js";
+import {useTaskQueryReferencesForUrlGrantFilterEditor} from "~/client/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {
     TaskQueryViewCustomizationBar,
     TaskQueryViewCustomizationBarRef,
@@ -116,16 +111,16 @@ export function TaskQueryView({
     const mobileCustomizationSectionRef = useRef<TaskQueryViewCustomizationMobileSectionRef>(null);
     const desktopCustomizationSectionRef = useRef<TaskQueryViewCustomizationBarRef>(null);
 
-    const [name, _setName] = useState(initialName);
+    const [name, actuallySetName] = useState(initialName);
 
     const setName = useEvent((name: string) => {
-        _setName(name);
+        actuallySetName(name);
         onNameChange(name);
     });
 
     const [
         {filters, filterReferences, shouldOpenFirstCollectionsFilterOperationValueRef},
-        _setFiltersState,
+        actuallySetFiltersState,
     ] = useState({
         filters: initialFilters,
         filterReferences: initialFilterReferences,
@@ -152,7 +147,7 @@ export function TaskQueryView({
         }
     }, [platform, routeLayout, shouldOpenFirstCollectionsFilterOperationValueRef]);
 
-    const [sorts, _setSorts] = useState(initialSorts);
+    const [sorts, actuallySetSorts] = useState(initialSorts);
 
     const {undoEvent, redoEvent, updateFilters, setSorts} = useEvents({
         undoEvent: () => undo(),
@@ -168,7 +163,7 @@ export function TaskQueryView({
                 shouldOpenFirstCollectionsFilterOperationValue?: boolean;
             } = {},
         ) => {
-            _setFiltersState(({filterReferences}) => {
+            actuallySetFiltersState(({filterReferences}) => {
                 const newFilterReferences = mergeFilterReferences
                     ? mergeTaskQueryFilterReferences(filterReferences, mergeFilterReferences)
                     : filterReferences;
@@ -186,33 +181,21 @@ export function TaskQueryView({
             onFiltersChange(filters);
         },
         setSorts: (sorts: ReadonlyArray<TaskQuerySort>) => {
-            _setSorts(sorts);
+            actuallySetSorts(sorts);
             onSortsChange(sorts);
         },
     });
 
     const normalizedFiltersResult = useMemo(
         () =>
-            normalizeTaskQueryFilters(filters, {currentDate, currentAccountId: currentAccount.id}),
-        [currentAccount.id, currentDate, filters],
+            normalizeTaskQueryFilters(filters, {
+                currentDate,
+                currentAccountId: currentAccount?.id ?? null,
+            }),
+        [currentAccount?.id, currentDate, filters],
     );
 
     const normalizedSorts = useMemo(() => normalizeTaskQuerySorts(sorts), [sorts]);
-
-    const readOnlyReason = useStore(
-        useMemo(
-            () =>
-                createTaskQueryViewReadOnlyReasonStore({
-                    store,
-                    filters,
-                    filterReferences,
-                    currentAccount,
-                }),
-            [currentAccount, filterReferences, filters, store],
-        ),
-    );
-
-    const isReadOnly = readOnlyReason !== null;
 
     const queryState = useTaskQueryState({
         store,
@@ -223,6 +206,13 @@ export function TaskQueryView({
                 : null,
         sorts: normalizedSorts,
     });
+
+    // If the actor doesn't have space access then we need to keep track of any
+    // accounts/collections referenced by the query. This is expensive (O(tasks))
+    // so it's important to only run this when `currentAccount` is null.
+    const queryReferencesForUrlGrant = useTaskQueryReferencesForUrlGrantFilterEditor(
+        !currentAccount ? queryState.activeQuery.query?.query ?? null : null,
+    );
 
     const [shouldShowEditNameMobileModal, setShouldShowEditNameMobileModal] = useState(false);
 
@@ -296,30 +286,6 @@ export function TaskQueryView({
         space.id,
         undoEvent,
     ]);
-
-    const readOnlyStickyBannerHeight = "8";
-
-    const readOnlyStickyBanner = useMemo(
-        () =>
-            readOnlyReason?.message && (
-                <Box
-                    className={invertSelectionColorsClassName}
-                    height="8"
-                    paddingX="2"
-                    color="grey-0"
-                    backgroundColor="grey-90"
-                    display="flex"
-                    alignItems="center"
-                    gap="1.5"
-                >
-                    <IconContext.Provider value={{color: "currentColor", size: spacing["4"]}}>
-                        {readOnlyReason.icon}
-                    </IconContext.Provider>
-                    <Box userSelect="text">{readOnlyReason.message}</Box>
-                </Box>
-            ),
-        [readOnlyReason],
-    );
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
@@ -410,7 +376,7 @@ export function TaskQueryView({
         capabilities: useMemo(() => {
             if (routeLayout !== "narrow") {
                 return {
-                    isReadOnly,
+                    isReadOnly: false,
                     hasParentTaskTitle: true,
                     hasMultilineTitle: false,
                     hasDenseFields: false,
@@ -418,14 +384,14 @@ export function TaskQueryView({
                 };
             } else {
                 return {
-                    isReadOnly,
+                    isReadOnly: false,
                     hasParentTaskTitle: true,
                     hasMultilineTitle: true,
                     hasDenseFields: true,
                     hasColumns: false,
                 };
             }
-        }, [isReadOnly, routeLayout]),
+        }, [routeLayout]),
         viewRef: itemCountBeforeGridView !== 0 ? gridViewRef : viewRef,
         store,
         affinityManager,
@@ -489,22 +455,20 @@ export function TaskQueryView({
             return {
                 minHeight: spacing[navigationBarHeight],
                 node: (
-                    <>
-                        {readOnlyStickyBanner}
-                        <TaskQueryViewDesktopHeader
-                            ref={desktopHeaderRef}
-                            store={store}
-                            menuActions={menuActions}
-                            defaultOrderSentence={defaultOrderSentence}
-                            name={name}
-                            onNameChange={setName}
-                            filters={filters}
-                            filterReferences={filterReferences}
-                            onFiltersChange={updateFilters}
-                            sorts={sorts}
-                            onSortsChange={setSorts}
-                        />
-                    </>
+                    <TaskQueryViewDesktopHeader
+                        ref={desktopHeaderRef}
+                        store={store}
+                        queryReferencesForUrlGrant={queryReferencesForUrlGrant}
+                        menuActions={menuActions}
+                        defaultOrderSentence={defaultOrderSentence}
+                        name={name}
+                        onNameChange={setName}
+                        filters={filters}
+                        filterReferences={filterReferences}
+                        onFiltersChange={updateFilters}
+                        sorts={sorts}
+                        onSortsChange={setSorts}
+                    />
                 ),
             };
         }, [
@@ -512,7 +476,7 @@ export function TaskQueryView({
             filters,
             menuActions,
             name,
-            readOnlyStickyBanner,
+            queryReferencesForUrlGrant,
             routeLayout,
             setName,
             setSorts,
@@ -536,7 +500,6 @@ export function TaskQueryView({
                 />
             ),
         menuActions,
-        stickyBanner: readOnlyStickyBanner,
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -548,11 +511,11 @@ export function TaskQueryView({
                     node: (
                         <Box paddingTop="safe-area-inset">
                             <Box height={navigationBarHeight} />
-                            {readOnlyReason?.message && <Box height={readOnlyStickyBannerHeight} />}
                             {platform === "mobile" ? (
                                 <TaskQueryViewCustomizationMobileSection
                                     ref={mobileCustomizationSectionRef}
                                     store={store}
+                                    queryReferencesForUrlGrant={queryReferencesForUrlGrant}
                                     // Filters and sorts are always visible in a query view.
                                     initialAreFiltersVisible={true}
                                     initialAreSortsVisible={true}
@@ -574,6 +537,7 @@ export function TaskQueryView({
                                     <TaskQueryViewCustomizationBar
                                         ref={desktopCustomizationSectionRef}
                                         store={store}
+                                        queryReferencesForUrlGrant={queryReferencesForUrlGrant}
                                         shouldCollapseWhenFiltersAreEmpty={false}
                                         defaultOrderSentence={defaultOrderSentence}
                                         filters={filters}
@@ -596,7 +560,7 @@ export function TaskQueryView({
             filters,
             itemCountBeforeGridView,
             platform,
-            readOnlyReason?.message,
+            queryReferencesForUrlGrant,
             renderGridViewItem,
             routeLayout,
             setSorts,
@@ -773,104 +737,111 @@ function TaskQueryViewInstructionalPlaceholder({
                     alignItems: "center",
                 }}
             >
-                <Box display="flex">
-                    <Box
-                        display="flex"
-                        height="6"
-                        alignItems="center"
-                        paddingX="2"
-                        gap="2"
-                        border="grey-10"
-                        borderRadius="1"
-                    >
-                        <Box>Creator</Box>
-                        <Box color="grey-60">is</Box>
-                        <Box display="flex" gap="1" alignItems="center">
-                            <AccountAvatar size="3" account={currentAccount} />
-                            <Box>me</Box>
+                {currentAccount && (
+                    // TODO(calebmer): If we ever allow anonymous users to view this route we may
+                    // want to consider updating the design of this. Just showing the collections
+                    // filter might not look good?
+                    <>
+                        <Box display="flex">
+                            <Box
+                                display="flex"
+                                height="6"
+                                alignItems="center"
+                                paddingX="2"
+                                gap="2"
+                                border="grey-10"
+                                borderRadius="1"
+                            >
+                                <Box>Creator</Box>
+                                <Box color="grey-60">is</Box>
+                                <Box display="flex" gap="1" alignItems="center">
+                                    <AccountAvatar size="3" account={currentAccount} />
+                                    <Box>me</Box>
+                                </Box>
+                            </Box>
                         </Box>
-                    </Box>
-                </Box>
-                <Button
-                    variant="neutral"
-                    icon={<Plus />}
-                    // Consistent icon placement with mobile customization section filter/sort add
-                    // buttons.
-                    iconPlacement={platform === "mobile" ? "end" : "start"}
-                    height="6"
-                    paddingX="2"
-                    isDisabled={filters.some(
-                        filter =>
-                            filter.type === "Creator" &&
-                            filter.operation.type === "OneOf" &&
-                            filter.operation.accounts.length === 1 &&
-                            filter.operation.accounts[0]!.type === "CurrentAccount",
-                    )}
-                    onPress={() => {
-                        onFiltersChange([
-                            ...filters,
-                            {
-                                type: "Creator",
-                                operation: {
-                                    type: "OneOf",
-                                    accounts: [{type: "CurrentAccount"}],
-                                },
-                            },
-                        ]);
-                    }}
-                >
-                    Add
-                </Button>
-                <Box style={{gridColumn: "1 / span 2"}} borderTop="grey-5" />
-                <Box display="flex">
-                    <Box
-                        display="flex"
-                        height="6"
-                        alignItems="center"
-                        paddingX="2"
-                        gap="2"
-                        border="grey-10"
-                        borderRadius="1"
-                    >
-                        <Box>Assignee</Box>
-                        <Box color="grey-60">is</Box>
-                        <Box display="flex" gap="1" alignItems="center">
-                            <AccountAvatar size="3" account={currentAccount} />
-                            <Box>me</Box>
+                        <Button
+                            variant="neutral"
+                            icon={<Plus />}
+                            // Consistent icon placement with mobile customization section filter/sort add
+                            // buttons.
+                            iconPlacement={platform === "mobile" ? "end" : "start"}
+                            height="6"
+                            paddingX="2"
+                            isDisabled={filters.some(
+                                filter =>
+                                    filter.type === "Creator" &&
+                                    filter.operation.type === "OneOf" &&
+                                    filter.operation.accounts.length === 1 &&
+                                    filter.operation.accounts[0]!.type === "CurrentAccount",
+                            )}
+                            onPress={() => {
+                                onFiltersChange([
+                                    ...filters,
+                                    {
+                                        type: "Creator",
+                                        operation: {
+                                            type: "OneOf",
+                                            accounts: [{type: "CurrentAccount"}],
+                                        },
+                                    },
+                                ]);
+                            }}
+                        >
+                            Add
+                        </Button>
+                        <Box style={{gridColumn: "1 / span 2"}} borderTop="grey-5" />
+                        <Box display="flex">
+                            <Box
+                                display="flex"
+                                height="6"
+                                alignItems="center"
+                                paddingX="2"
+                                gap="2"
+                                border="grey-10"
+                                borderRadius="1"
+                            >
+                                <Box>Assignee</Box>
+                                <Box color="grey-60">is</Box>
+                                <Box display="flex" gap="1" alignItems="center">
+                                    <AccountAvatar size="3" account={currentAccount} />
+                                    <Box>me</Box>
+                                </Box>
+                            </Box>
                         </Box>
-                    </Box>
-                </Box>
-                <Button
-                    variant="neutral"
-                    icon={<Plus />}
-                    // Consistent icon placement with mobile customization section filter/sort add
-                    // buttons.
-                    iconPlacement={platform === "mobile" ? "end" : "start"}
-                    height="6"
-                    paddingX="2"
-                    isDisabled={filters.some(
-                        filter =>
-                            filter.type === "Assignee" &&
-                            filter.operation.type === "OneOf" &&
-                            filter.operation.accounts.length === 1 &&
-                            filter.operation.accounts[0]!.type === "CurrentAccount",
-                    )}
-                    onPress={() => {
-                        onFiltersChange([
-                            ...filters,
-                            {
-                                type: "Assignee",
-                                operation: {
-                                    type: "OneOf",
-                                    accounts: [{type: "CurrentAccount"}],
-                                },
-                            },
-                        ]);
-                    }}
-                >
-                    Add
-                </Button>
-                <Box style={{gridColumn: "1 / span 2"}} borderTop="grey-5" />
+                        <Button
+                            variant="neutral"
+                            icon={<Plus />}
+                            // Consistent icon placement with mobile customization section filter/sort add
+                            // buttons.
+                            iconPlacement={platform === "mobile" ? "end" : "start"}
+                            height="6"
+                            paddingX="2"
+                            isDisabled={filters.some(
+                                filter =>
+                                    filter.type === "Assignee" &&
+                                    filter.operation.type === "OneOf" &&
+                                    filter.operation.accounts.length === 1 &&
+                                    filter.operation.accounts[0]!.type === "CurrentAccount",
+                            )}
+                            onPress={() => {
+                                onFiltersChange([
+                                    ...filters,
+                                    {
+                                        type: "Assignee",
+                                        operation: {
+                                            type: "OneOf",
+                                            accounts: [{type: "CurrentAccount"}],
+                                        },
+                                    },
+                                ]);
+                            }}
+                        >
+                            Add
+                        </Button>
+                        <Box style={{gridColumn: "1 / span 2"}} borderTop="grey-5" />
+                    </>
+                )}
                 <Box display="flex">
                     <Box
                         display="flex"

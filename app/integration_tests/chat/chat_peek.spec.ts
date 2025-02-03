@@ -17,7 +17,7 @@ test("will remember the account being messaged in a chat peek", async ({
 }) => {
     const document = await createDocument(context.action(session1), {
         spaceId: space.id,
-        content: createSimpleDocumentContent("Test document content 1"),
+        content: createSimpleDocumentContent(session1.account.id, "Test document content 1"),
     });
 
     await services.signIn(browserContext, session1);

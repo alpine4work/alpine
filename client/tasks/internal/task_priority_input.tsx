@@ -583,6 +583,7 @@ function TaskPriorityInput(
                                 // We have to be a little careful and make sure this doesn't break the default
                                 // browser behavior of focusing the input if it's unfocused.
                                 if (
+                                    !isReadOnly &&
                                     document.activeElement === event.target &&
                                     !comboBoxState.isOpen
                                 ) {
@@ -596,6 +597,7 @@ function TaskPriorityInput(
                                 // everything (we call `inputElement.select()` in `onOpenChange`) so the
                                 // browser changing the selection in `pointerup` breaks that.
                                 if (
+                                    !isReadOnly &&
                                     event.pointerType === "mouse" &&
                                     document.activeElement !== event.target
                                 ) {

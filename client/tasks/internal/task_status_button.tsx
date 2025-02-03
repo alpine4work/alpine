@@ -15,6 +15,7 @@ import {
     TaskClientStoreUndoManager,
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -60,6 +61,7 @@ function TaskStatusButton(
         task,
         size = "4",
         isDisabled = false,
+        isDisabledButStillFocusable = false,
         isFocusable = true,
         isTabbable = true,
         onKeyDown,
@@ -73,6 +75,7 @@ function TaskStatusButton(
         task: TaskModel;
         size?: "4" | "5" | "6" | "7";
         isDisabled?: boolean;
+        isDisabledButStillFocusable?: boolean;
         isFocusable?: boolean;
         isTabbable?: boolean;
         onKeyDown?: (event: KeyboardEvent) => void;
@@ -105,11 +108,17 @@ function TaskStatusButton(
     const buttonRef = useRef<HTMLElement | null>(null);
     const mergedButtonRef = useMergedRefs(ref, buttonRef);
 
-    const {isPressed, buttonProps} = useButton(
+    const {isPressed: isPressedFromHook, buttonProps} = useButton(
         {
             elementType: isFocusable ? "button" : "div",
             isDisabled,
             onPress: () => {
+                if (isDisabledButStillFocusable) return;
+
+                // Currently, accounts without space access can't edit tasks. The max
+                // permission level of `urlGrant` is `View`.
+                assert(currentAccount);
+
                 const time = store.clock.now();
                 const status = task.getStatus();
 
@@ -173,6 +182,8 @@ function TaskStatusButton(
         },
         buttonRef,
     );
+
+    const isPressed = isPressedFromHook && !isDisabledButStillFocusable;
 
     let displayStatus = task.getDisplayStatus();
 

@@ -1,6 +1,7 @@
 import {InternalError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {SchemaSerializedValueDescription} from "~/shared/schema/types/schema_description_types.js";
 
 const checkingNextSchemasByLastSchema = new Map<
@@ -103,6 +104,20 @@ export function checkSchemaBackwardsCompatibility(
                 return;
             }
             case "Enum": {
+                // A value schema is allowed to evolve into an enum schema. Where there are now
+                // multiple values compatible with the original value.
+                if (lastSchema.type === "Value") {
+                    if (
+                        lastSchema.value === null ||
+                        !nextSchema.values.includes(lastSchema.value)
+                    ) {
+                        throw new SchemaBackwardsIncompatibleError(
+                            `Enum \`${JSON.stringify(lastSchema.value)}\` value not found`,
+                        );
+                    }
+                    return;
+                }
+
                 if (lastSchema.type !== "Enum") {
                     throw new SchemaBackwardsIncompatibleError(
                         `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
@@ -145,6 +160,22 @@ export function checkSchemaBackwardsCompatibility(
                 return;
             }
             case "Object": {
+                // If the last schema was a union then we allow migrating unions to objects if
+                // every variant of the union is compatible with the new object schema.
+                if (lastSchema.type === "Union") {
+                    for (const [typeValue, lastVariantSchema] of Object.entries(
+                        lastSchema.variantSchemaByTypeValue,
+                    )) {
+                        withSchemaSerializedValueDescriptionStackFrame(
+                            {type: "UnionVariant", typeKey: lastSchema.typeKey, typeValue},
+                            () => {
+                                checkSchemaBackwardsCompatibility(lastVariantSchema, nextSchema);
+                            },
+                        );
+                    }
+                    return;
+                }
+
                 if (lastSchema.type !== "Object") {
                     throw new SchemaBackwardsIncompatibleError(
                         `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
@@ -181,6 +212,57 @@ export function checkSchemaBackwardsCompatibility(
                 return;
             }
             case "Union": {
+                // Allow evolution from objects to unions. In this case:
+                //
+                // 1. The new union's type property is turned into an `Enum` and which has to
+                //    be compatible with a property of the same name in the old object.
+                //
+                // 2. The old object type (minus the type property) must be compatible with
+                //    every new union variant.
+                if (lastSchema.type === "Object") {
+                    checkSchemaBackwardsCompatibility(lastSchema, {
+                        type: "Object",
+                        propertySchemaByKey: {
+                            [nextSchema.typeKey]: {
+                                optional: false,
+                                valueSchema: {
+                                    type: "Enum",
+                                    values: Object.keys(nextSchema.variantSchemaByTypeValue),
+                                },
+                            },
+                        },
+                    });
+
+                    for (const [type, nextVariantSchema] of Object.entries(
+                        nextSchema.variantSchemaByTypeValue,
+                    )) {
+                        withSchemaSerializedValueDescriptionStackFrame(
+                            {type: "UnionVariant", typeKey: nextSchema.typeKey, typeValue: type},
+                            () => {
+                                checkSchemaBackwardsCompatibility(
+                                    {
+                                        type: "Object",
+                                        propertySchemaByKey: omitObject(
+                                            lastSchema.propertySchemaByKey,
+                                            [nextSchema.typeKey],
+                                        ),
+                                    },
+                                    nextVariantSchema.type === "Object"
+                                        ? {
+                                              type: "Object",
+                                              propertySchemaByKey: omitObject(
+                                                  nextVariantSchema.propertySchemaByKey,
+                                                  [nextSchema.typeKey],
+                                              ),
+                                          }
+                                        : nextVariantSchema,
+                                );
+                            },
+                        );
+                    }
+                    return;
+                }
+
                 if (lastSchema.type !== "Union") {
                     throw new SchemaBackwardsIncompatibleError(
                         `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,

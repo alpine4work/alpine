@@ -105,6 +105,9 @@ export const messageViewParentAvatarOffsetYRem =
         parseRemLength(fontSizes[messageViewParentFontSize].lineHeight)) /
     -2;
 
+export const messageViewTimestampDividerHeight = "4";
+export const messageViewTimestampDividerMarginY = "2";
+
 // Should be the same size as `messageViewAccountAvatarSize`.
 export const messageInputEditorIconButtonSize = "md";
 

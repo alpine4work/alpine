@@ -3789,7 +3789,7 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
     },
 ): Promise<{
     document: DocumentModel;
-    commentThreads: Array<DocumentCommentThreadModel>;
+    commentThreads: ReadonlyArray<DocumentCommentThreadModel>;
     initialCommentsByCommentThreadId: Map<
         DocumentCommentThreadId,
         {

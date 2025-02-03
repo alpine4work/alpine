@@ -230,6 +230,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
 
     const sendNewMessage = () => {
         if (isMessageCreationDisabled) return;
+        if (!currentAccount) return;
         if (messageEditingForThisInput) return;
 
         const inputContent = trimContentWithReferencesEnd(inputState.getContent());
@@ -405,6 +406,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 }
                 isSendButtonDisabled={
                     isMessageCreationDisabled ||
+                    !currentAccount ||
                     (!!messageEditingForThisInput &&
                         messageEditingForThisInput.state.contentEditorState.getDoc() ===
                             messageEditingForThisInput.state.initialContent)
@@ -444,7 +446,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                     onBlur?.();
                 }}
                 onBeforeFocusFromReplyOrEditingChange={onBeforeFocusFromReplyOrEditingChange}
-                onArrowUp={event => {
+                onArrowUpKeyDown={event => {
                     if (messageEditingForThisInput) return;
 
                     if (isContentEmpty(inputState.getDoc())) {
@@ -459,7 +461,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                             10,
                         )) {
                             if (
-                                message.author.id === currentAccount.id &&
+                                message.author.id === currentAccount?.id &&
                                 message.payload.type === "Content" &&
                                 // Don't start editing a message that just has files. Normally we don't allow
                                 // empty message content but we do allow empty message content if the message

@@ -1,4 +1,3 @@
-import classNames from "classnames";
 import {animate} from "motion";
 import {ArrowRight, ArrowUp, File, Image, PencilSimple, Plus, X} from "phosphor-react";
 import {EditorView} from "prosemirror-view";
@@ -93,7 +92,7 @@ import {
 import {
     backgroundColorVar,
     contentStyles,
-    messagingStyles,
+    grey5SemiTransparentColorVar,
     pointerEventsNoneNotInheritedClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
@@ -168,7 +167,7 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     onFocusCapture?: (event: FocusEvent) => void;
     onBlur?: (event: FocusEvent) => void;
     onBeforeFocusFromReplyOrEditingChange?: () => {preventDefault: boolean} | void;
-    onArrowUp?: (event: KeyboardEvent) => void;
+    onArrowUpKeyDown?: (event: KeyboardEvent) => void;
 };
 
 const MessageInputBaseForwardRef = forwardRef(MessageInputBase) as <
@@ -217,7 +216,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         onFocusCapture,
         onBlur,
         onBeforeFocusFromReplyOrEditingChange: onBeforeFocusFromReplyOrEditingChangeProp,
-        onArrowUp,
+        onArrowUpKeyDown,
         sendButtonVerb = messageEditingForThisInput ? "Save" : "Send",
         placeholder = `${
             messageEditingForThisInput ? "Edit" : messageNoun === "message" ? "Send a" : "Add a"
@@ -910,7 +909,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                             actions={[
                                                 {
                                                     label: "Image",
-                                                    iconSize: "4",
                                                     icon: <Image />,
                                                     onPress: () => {
                                                         selectFiles(
@@ -945,7 +943,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                 },
                                                 {
                                                     label: "Video",
-                                                    iconSize: "4",
                                                     icon: <VideoIcon />,
                                                     onPress: () => {
                                                         selectFiles(
@@ -980,7 +977,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                 },
                                                 {
                                                     label: "Audio",
-                                                    iconSize: "4",
                                                     icon: <WaveformIcon />,
                                                     onPress: () => {
                                                         selectFiles(
@@ -1015,7 +1011,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                 },
                                                 {
                                                     label: "File",
-                                                    iconSize: "4",
                                                     icon: <File />,
                                                     onPress: () => {
                                                         selectFiles(
@@ -1134,12 +1129,12 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                         spacingScale
                                                     ],
                                             }}
-                                            onEnterFromPhysicalKeyboard={event => {
+                                            onEnterKeyDownFromPhysicalKeyboard={event => {
                                                 event.preventDefault();
                                                 event.stopPropagation();
                                                 onSend();
                                             }}
-                                            onArrowUp={onArrowUp}
+                                            onArrowUpKeyDown={onArrowUpKeyDown}
                                             onPasteOrDropFiles={fileInfos => {
                                                 events.addFiles(
                                                     "<MessageInput> paste files",
@@ -1450,21 +1445,22 @@ function MessageInputReplyingToMessage<
         >
             <Box position="relative">
                 <div
-                    className={classNames(
+                    className={sprinkles({
+                        pointerEvents: "none",
+                        position: "absolute",
+                        borderLeftWidth: "thick",
+                        borderTopWidth: "thick",
+                        borderTopLeftRadius: "2.5",
+                    })}
+                    style={{
                         // We render the border left/top color as a white with some opacity (which when
                         // blended results in `grey-5`) so that when we render the context menu (right
                         // click) `grey-5` background the border is rendered on top of the background
                         // color.
-                        messagingStyles.parentMessageConnectorClassName,
-                        sprinkles({
-                            pointerEvents: "none",
-                            position: "absolute",
-                            borderLeftWidth: "thick",
-                            borderTopWidth: "thick",
-                            borderTopLeftRadius: "2.5",
-                        }),
-                    )}
-                    style={{
+                        borderLeftColor: grey5SemiTransparentColorVar,
+                        borderTopColor: grey5SemiTransparentColorVar,
+                        borderStyle: "solid",
+
                         top: `calc(${
                             messageViewParentAvatarOffsetYRem + parentAccountAvatarSizeRem / 2
                         }rem - 1px)`,

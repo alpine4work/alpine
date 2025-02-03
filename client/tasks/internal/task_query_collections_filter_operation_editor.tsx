@@ -1,9 +1,12 @@
+import _Fuse from "fuse.js";
 import GraphemeSplitter from "grapheme-splitter";
 import {Fragment, ReactNode, Ref, useEffect, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {OverlayTriggerButtonRef} from "~/client/design/overlay_trigger_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {useStore} from "~/client/helpers/use_store.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
 import {inputPlaceholderStyles} from "~/client/styles/styles.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
@@ -13,10 +16,12 @@ import {useTaskCollectionComboBoxSearchState} from "~/client/tasks/internal/task
 import {TaskCollectionOption} from "~/client/tasks/internal/task_collection_option.js";
 import {TaskQueryFilterEditorMultiSelectComboBox} from "~/client/tasks/internal/task_query_filter_editor_multi_select_combo_box.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/internal/task_query_filter_operator_editor.js";
+import {TaskQueryReferencesForUrlGrantFilterEditor} from "~/client/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {usePreloadSearchTaskCollectionsByAffinity} from "~/client/tasks/internal/use_search_task_collections_by_affinity.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {iterableFindIndex} from "~/shared/helpers/iterable/iterable_find_index.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TaskQueryCollectionsFilter} from "~/shared/tasks/task_query_filter.js";
@@ -25,6 +30,9 @@ import {
     emptyTaskQueryFilterReferences,
     getTaskQueryFilterReferencedIds,
 } from "~/shared/tasks/task_query_filter_references.js";
+
+// Node.js ESM interop (#node-esm-migration)
+const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
 type TaskQueryCollectionsFilterOperationEditorMultiSelectComboBoxItem = {
     readonly key: TaskCollectionId;
@@ -35,12 +43,14 @@ type TaskQueryCollectionsFilterOperationEditorMultiSelectComboBoxItem = {
 
 export function TaskQueryCollectionsFilterOperationEditor({
     store,
+    queryReferencesForUrlGrant,
     filter,
     filterReferences,
     onFilterChange,
     valueTriggerButtonRef,
 }: {
     store: TaskClientStore;
+    queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
     filter: TaskQueryCollectionsFilter;
     filterReferences: TaskQueryFilterReferences;
     onFilterChange: (
@@ -275,6 +285,7 @@ export function TaskQueryCollectionsFilterOperationEditor({
                         // eslint-disable-next-line react-hooks/rules-of-hooks
                         return useTaskQueryCollectionsFilterOperationEditorSearchedItems({
                             store,
+                            queryReferencesForUrlGrant,
                             searchInputValue,
                             collectionResults,
                         });
@@ -293,42 +304,59 @@ function TaskQueryCollectionsFilterOperationEditorPreview({
     conjunction: "or" | "and";
     collectionResults: ReadonlyArray<TaskCollectionModelSearchResult>;
 }) {
+    const routeLayout = useRouteLayout();
+
     const previewCollections = useMemo(() => {
         const graphemeSplitter = new GraphemeSplitter();
 
-        return Array.from(sliceIterable(collectionResults, 0, 2), collectionResult => {
-            const collectionNameGraphemes = graphemeSplitter.splitGraphemes(
-                collectionResult.collection.getName(),
-            );
-            const collectionNameGraphemeLimit = 30;
+        return Array.from(
+            sliceIterable(collectionResults, 0, routeLayout === "narrow" ? 1 : 2),
+            collectionResult => {
+                const collectionNameGraphemes = graphemeSplitter.splitGraphemes(
+                    collectionResult.collection.getName(),
+                );
+                const collectionNameGraphemeLimit = 30;
 
-            return (
-                <Fragment key={collectionResult.collection.id}>
-                    <Box
-                        flexShrink="0"
-                        width="1.5"
-                        height="1.5"
-                        borderRadius="full"
-                        backgroundColor={getTaskCollectionColor(
-                            collectionResult.collection.getColor(),
-                        )}
-                    />
-                    <Box paddingLeft="1" fontStyle="truncate">
-                        {collectionNameGraphemes.length > collectionNameGraphemeLimit
-                            ? `“${collectionNameGraphemes
-                                  .slice(0, collectionNameGraphemeLimit)
-                                  .join("")}…”`
-                            : collectionResult.collection.getName()}
-                    </Box>
-                </Fragment>
-            );
-        });
-    }, [collectionResults]);
+                return (
+                    <Fragment key={collectionResult.collection.id}>
+                        <Box
+                            flexShrink="0"
+                            width="1.5"
+                            height="1.5"
+                            borderRadius="full"
+                            backgroundColor={getTaskCollectionColor(
+                                collectionResult.collection.getColor(),
+                            )}
+                        />
+                        <Box paddingLeft="1" fontStyle="truncate">
+                            {collectionNameGraphemes.length > collectionNameGraphemeLimit
+                                ? `${collectionNameGraphemes
+                                      .slice(0, collectionNameGraphemeLimit)
+                                      .join("")}…`
+                                : collectionResult.collection.getName()}
+                        </Box>
+                    </Fragment>
+                );
+            },
+        );
+    }, [collectionResults, routeLayout]);
 
     if (collectionResults.length === 0) {
         return <Box style={inputPlaceholderStyles}>any collection</Box>;
     } else if (collectionResults.length === 1) {
         return <>{previewCollections[0]}</>;
+    } else if (routeLayout === "narrow") {
+        return (
+            <>
+                {previewCollections[0]}
+                <Box color="grey-60" paddingX="1" style={{whiteSpace: "nowrap"}}>
+                    {conjunction}
+                </Box>
+                <Box style={{whiteSpace: "nowrap"}}>
+                    <PrettyNumber number={collectionResults.length - 1} label="other" />
+                </Box>
+            </>
+        );
     } else if (collectionResults.length === 2) {
         return (
             <>
@@ -360,13 +388,24 @@ function TaskQueryCollectionsFilterOperationEditorPreview({
 
 function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
     store,
+    queryReferencesForUrlGrant,
     searchInputValue,
     collectionResults,
 }: {
     store: TaskClientStore;
+    queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
     searchInputValue: string;
     collectionResults: ReadonlyArray<TaskCollectionModelSearchResult>;
 }) {
+    const {currentAccount} = useSpaceContext();
+
+    // If `currentAccount` is non-null then `queryReferencesForUrlGrant` should be
+    // null. Since the list of accounts we show the user should be loaded from the
+    // server. Not from query references.
+    if (currentAccount !== null) {
+        assert(queryReferencesForUrlGrant === null);
+    }
+
     // Remember the initial collections for a search. If the user selects a new
     // collection then we don't want to immediately move that collection to the top
     // of the search list and re-execute a search RPC with new
@@ -381,11 +420,42 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
         [initialCollectionResults],
     );
 
+    const shouldLoadItems = !!currentAccount;
+
     const {shouldShowSearchLoadingIndicator, items} = useTaskCollectionComboBoxSearchState({
         store,
         inputValue: searchInputValue,
-        shouldLoadItems: true,
+        shouldLoadItems,
     });
+
+    const collectionsForUrlGrant = useMemo(() => {
+        if (queryReferencesForUrlGrant === null) return null;
+
+        return Array.from(queryReferencesForUrlGrant.collectionById.values()).sort(
+            (collection1, collection2) =>
+                defaultCompareStrings(collection1.getName(), collection2.getName()),
+        );
+    }, [queryReferencesForUrlGrant]);
+
+    const collectionsForUrlGrantSearchIndex = useMemo(
+        () =>
+            collectionsForUrlGrant !== null
+                ? new Fuse(collectionsForUrlGrant, {
+                      keys: [{name: "name", getFn: item => item.getName()}],
+                  })
+                : null,
+        [collectionsForUrlGrant],
+    );
+
+    const searchedCollectionsForUrlGrant = useMemo(
+        () =>
+            searchInputValue === ""
+                ? collectionsForUrlGrant
+                : collectionsForUrlGrantSearchIndex
+                      ?.search(searchInputValue)
+                      .map(({item}) => item) ?? null,
+        [collectionsForUrlGrant, collectionsForUrlGrantSearchIndex, searchInputValue],
+    );
 
     const searchedItems = useMemo(() => {
         // We use `items.nameQuery` instead of `searchInputValue` in case we are
@@ -408,7 +478,33 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
             }
         }
 
-        if (items) {
+        if (searchedCollectionsForUrlGrant) {
+            for (const collection of searchedCollectionsForUrlGrant) {
+                // If the collection also appears in our search items, ignore it since it's
+                // already been included in our selected items above.
+                if (isEmptyNameQuery && initialCollectionIds.has(collection.id)) {
+                    continue;
+                }
+
+                // The collection model doesn't include the open task count. To avoid an
+                // additional network request we decide to not show task count collections
+                // referenced by the query for a URL granted view.
+                const collectionResult: TaskCollectionModelSearchResult = {
+                    openTaskCount: 0,
+                    lastTaskAddedTime: null,
+                    collection,
+                };
+
+                searchedItems.push({
+                    key: collection.id,
+                    textValue: collection.getName(),
+                    collectionResult,
+                    node: (
+                        <TaskCollectionOption collectionResult={collectionResult} withoutSnippet />
+                    ),
+                });
+            }
+        } else if (items) {
             for (const item of items) {
                 // Can't create a collection from our filter editor
                 if (item.type === "CreateCollection") continue;
@@ -462,9 +558,9 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
         }
 
         return searchedItems;
-    }, [initialCollectionIds, initialCollectionResults, items]);
+    }, [initialCollectionIds, initialCollectionResults, items, searchedCollectionsForUrlGrant]);
 
-    return items === null
+    return shouldLoadItems && items === null
         ? {isLoading: true as const}
         : {isLoading: false as const, shouldShowSearchLoadingIndicator, searchedItems};
 }

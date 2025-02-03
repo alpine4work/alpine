@@ -577,12 +577,14 @@ test("empty union validates nothing", () => {
 });
 
 test("union requires variant objects to have a type property of the same name", () => {
-    Schema.union({
-        // @ts-expect-error
-        foo: Schema.object({
-            type: Schema.value("bar"),
-        }),
-    });
+    expect(() => {
+        Schema.union({
+            // @ts-expect-error
+            foo: Schema.object({
+                type: Schema.value("bar"),
+            }),
+        });
+    }).toThrow('Expected value schema for union variant\'s "type" property to be "foo"');
 
     Schema.union({
         // @ts-expect-error
@@ -591,12 +593,23 @@ test("union requires variant objects to have a type property of the same name", 
         }),
     });
 
-    Schema.union({
-        // @ts-expect-error
-        foo: Schema.object({
-            type: Schema.value("bar").originalValue("qux"),
-        }),
-    });
+    expect(() => {
+        Schema.union({
+            // @ts-expect-error
+            foo: Schema.object({
+                type: Schema.value("bar").originalValue("qux"),
+            }),
+        });
+    }).toThrow('Expected value schema for union variant\'s "type" property to be "foo"');
+
+    expect(() => {
+        Schema.union({
+            // @ts-expect-error
+            foo: Schema.object({
+                type: Schema.value("bar").originalValue("foo"),
+            }),
+        });
+    }).toThrow('Expected value schema for union variant\'s "type" property to be "foo"');
 });
 
 test("union does not validate objects with an unknown type string", () => {

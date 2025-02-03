@@ -1,4 +1,4 @@
-import {DependencyList, Dispatch, SetStateAction, useCallback, useMemo, useState} from "react";
+import {DependencyList, Dispatch, SetStateAction, useCallback, useState} from "react";
 import {BlockInference} from "~/shared/helpers/types/block_inference.js";
 
 /**
@@ -10,27 +10,28 @@ import {BlockInference} from "~/shared/helpers/types/block_inference.js";
  * combination.
  */
 export function useStateWithDependencies<State, const Dependencies extends DependencyList>(
-    initializeState: State | ((...dependencies: BlockInference<Dependencies>) => State),
+    initializeState:
+        | State
+        | ((
+              dependencies: BlockInference<Dependencies>,
+              previousState: BlockInference<State> | undefined,
+          ) => State),
     dependencies: Dependencies,
 ): [State, Dispatch<SetStateAction<State>>] {
-    // Give `initialState` the same lifetime as our dependencies array. You can
-    // only use a new `initialState` when dependencies change.
-    const initialState = useMemo(
-        () =>
-            typeof initializeState === "function"
-                ? (initializeState as (...dependencies: Dependencies) => State)(...dependencies)
-                : initializeState,
-        // eslint-disable-next-line react-compiler/react-compiler
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        dependencies,
-    );
-
     const [stateWithDependencies, setStateWithDependencies] = useState<{
         dependencies: Dependencies;
         state: State;
     }>(() => ({
         dependencies,
-        state: initialState,
+        state:
+            typeof initializeState === "function"
+                ? (
+                      initializeState as (
+                          dependencies: Dependencies,
+                          previousState: State | undefined,
+                      ) => State
+                  )(dependencies, undefined)
+                : initializeState,
     }));
 
     const setState: Dispatch<SetStateAction<State>> = useCallback(
@@ -53,9 +54,16 @@ export function useStateWithDependencies<State, const Dependencies extends Depen
                     const oldState = areDependenciesEqual
                         ? stateWithDependencies.state
                         : // It is ok to use `initialState` here even though it is not in the dependency
-                          // array because it has the same lifetime as the dependency array thanks to the
-                          // `useMemo()` above.
-                          initialState;
+                        // array because it has the same lifetime as the dependency array thanks to the
+                        // `useMemo()` above.
+                        typeof initializeState === "function"
+                        ? (
+                              initializeState as (
+                                  dependencies: Dependencies,
+                                  previousState: State | undefined,
+                              ) => State
+                          )(dependencies, stateWithDependencies.state)
+                        : initializeState;
 
                     const newState = (action as (oldState: State) => State)(oldState);
 
@@ -83,7 +91,15 @@ export function useStateWithDependencies<State, const Dependencies extends Depen
     if (!areDependenciesEqual) {
         const newStateWithDependencies = {
             dependencies,
-            state: initialState,
+            state:
+                typeof initializeState === "function"
+                    ? (
+                          initializeState as (
+                              dependencies: Dependencies,
+                              previousState: State | undefined,
+                          ) => State
+                      )(dependencies, stateWithDependencies.state)
+                    : initializeState,
         };
 
         setStateWithDependencies(newStateWithDependencies);

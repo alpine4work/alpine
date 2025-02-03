@@ -198,8 +198,8 @@ function TaskAssigneeInput(
                         if (item1.type === "Null") return -1;
                         if (item2.type === "Null") return 1;
 
-                        if (item1.accountData.id === currentAccount.id) return -1;
-                        if (item2.accountData.id === currentAccount.id) return 1;
+                        if (item1.accountData.id === currentAccount?.id) return -1;
+                        if (item2.accountData.id === currentAccount?.id) return 1;
 
                         // Use the sort order from the server. The server returns accounts in
                         // affinity order.
@@ -209,7 +209,7 @@ function TaskAssigneeInput(
                     return allItems;
                 },
             );
-        }, [accountStore, allAccounts, currentAccount.id]),
+        }, [accountStore, allAccounts, currentAccount?.id]),
     );
 
     const itemsSearchIndex = useMemo(
@@ -707,6 +707,7 @@ function TaskAssigneeInput(
                                 // We have to be a little careful and make sure this doesn't break the default
                                 // browser behavior of focusing the input if it's unfocused.
                                 if (
+                                    !isReadOnly &&
                                     document.activeElement === event.target &&
                                     !comboBoxState.isOpen
                                 ) {
@@ -720,6 +721,7 @@ function TaskAssigneeInput(
                                 // everything (we call `inputElement.select()` in `onOpenChange`) so the
                                 // browser changing the selection in `pointerup` breaks that.
                                 if (
+                                    !isReadOnly &&
                                     event.pointerType === "mouse" &&
                                     document.activeElement !== event.target
                                 ) {

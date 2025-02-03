@@ -71,7 +71,9 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentDa
 
     assert(chat.accounts.length > 0);
     const otherChatAccounts = chat.accounts.filter(
-        account => account.id !== spaceRouteData?.currentAccount.id,
+        account =>
+            spaceRouteData?.type !== "WithAccess" ||
+            account.id !== spaceRouteData?.currentAccount.id,
     );
 
     return [
@@ -107,7 +109,7 @@ export default function ChatRoute() {
     // By accruing points to the account we allow chat conversations to affect
     // account selector type-ahead affinity rankings.
     useSearchAffinityViewInteraction(
-        chat.accounts.length === 2
+        currentAccount && chat.accounts.length === 2
             ? `Account:${chat.accounts.filter(account => account.id !== currentAccount.id)[0]!.id}`
             : `Chat:${chat.id}`,
     );

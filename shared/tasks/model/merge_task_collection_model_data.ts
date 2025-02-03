@@ -17,7 +17,7 @@ export function mergeTaskCollectionModelData(
         throw new InternalError("Incompatible task `spaceId` when merging");
 
     if (collection1.creatorId !== collection2.creatorId)
-        throw new InternalError("Incompatible task `creator` when merging");
+        throw new InternalError("Incompatible task `creatorId` when merging");
 
     if (compareHybridLogicalTimes(collection1.createdTime, collection2.createdTime) !== 0)
         throw new InternalError("Incompatible task `createdTime` when merging");

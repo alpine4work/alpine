@@ -1,9 +1,6 @@
-import {Ref, useCallback, useRef} from "react";
-import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
-import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
+import {Ref, useRef} from "react";
+import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 
 /**
  * Helper for building editable elements that save inline. When the user
@@ -34,66 +31,26 @@ export function useConfirmSaveAfterLosingFocus<RefElement extends HTMLElement>({
         onCancelSaveRef.current = _onCancelSave;
     });
 
-    const lifecycleRef = useCallback(
-        (element: RefElement) => {
-            const handleFocusOut = (event: FocusEvent) => {
-                if (isDisabled) return;
+    // Show a confirmation dialog if:
+    //
+    // - Someone clicks outside the element
+    // - Someone focuses something outside the element
+    return useOutsideInteraction(event => {
+        if (isDisabled) return;
 
-                // We've observed `event.relatedTarget` sometimes be null. For example, in
-                // Chrome when `selectFiles()` moves focus to a temporary invisible
-                // `<input type="file">` element in `<ContentEditorCommentInputFloater>`s
-                // add file button.
-                const activeElement = event.relatedTarget ?? document.activeElement;
+        // The user may click within the close confirmation dialog.
+        if (isConfirmingSave) return;
 
-                // Ignore blur events where focus is moving within the element.
-                //
-                // We need to use element ownership instead of `document.body.contains()` to
-                // handle modals.
-                if (activeElement instanceof Element && isElementOwnedBy(element, activeElement)) {
-                    return;
-                }
+        // If the user didn't type anything then close without asking
+        // for confirmation.
+        if (!shouldConfirmSave) {
+            onCancelSaveRef.current();
+            return;
+        }
 
-                // If the user didn't type anything then close without asking
-                // for confirmation.
-                if (!shouldConfirmSave) {
-                    onCancelSaveRef.current();
-                    return;
-                }
-
-                onConfirmSaveRef.current();
-            };
-
-            element.addEventListener("focusout", handleFocusOut);
-            return () => {
-                element.removeEventListener("focusout", handleFocusOut);
-            };
-        },
-        [isDisabled, shouldConfirmSave],
-    );
-
-    return useMergedRefs<RefElement>(
-        useLifecycleRef(lifecycleRef),
-
-        // Sometimes clicks outside an element do not move focus. So in addition to
-        // `onBlur`, look for any clicks and show a confirmation dialog before closing
-        // our input.
-        useOutsidePress(event => {
-            if (isDisabled) return;
-
-            // The user may click within the close confirmation dialog.
-            if (isConfirmingSave) return;
-
-            // If the user didn't type anything then close without asking
-            // for confirmation.
-            if (!shouldConfirmSave) {
-                onCancelSaveRef.current();
-                return;
-            }
-
-            // Cancel the outside press and ask the user to confirm first.
-            event.preventDefault();
-            event.stopPropagation();
-            onConfirmSaveRef.current();
-        }),
-    );
+        // Cancel the outside press and ask the user to confirm first.
+        event.preventDefault();
+        event.stopPropagation();
+        onConfirmSaveRef.current();
+    });
 }

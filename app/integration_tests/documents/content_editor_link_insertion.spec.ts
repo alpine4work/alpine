@@ -168,9 +168,10 @@ const testCases: Array<{
         name: "document comment (new thread)",
         setup: async ({page, isMobile, viewport, space, session}) => {
             assert(viewport);
+
             const document = await createDocument(session.action(), {
                 spaceId: space.id,
-                content: createSimpleDocumentContent("foobar"),
+                content: createSimpleDocumentContent(session.account.id, "foobar"),
             });
 
             await page.goto(`/s/${space.id}/documents/${document.id}`);
@@ -310,8 +311,8 @@ for (const testCase of testCases) {
 
         await expect(toolbarLocator.getByLabel("Bold")).toBeVisible();
 
-        if (!isMobile || (await toolbarLocator.getByLabel("Link").isVisible())) {
-            await toolbarLocator.getByLabel("Link").click();
+        if (!isMobile || (await toolbarLocator.getByLabel("Link", {exact: true}).isVisible())) {
+            await toolbarLocator.getByLabel("Link", {exact: true}).click();
         } else {
             await toolbarLocator.getByLabel("More").click();
             await page

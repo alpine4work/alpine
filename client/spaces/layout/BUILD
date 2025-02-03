@@ -16,6 +16,7 @@ ts_project(
         "//client/design",
         "//client/dynamo",
         "//client/inbox",
+        "//client/navigation",
         "//client/remix",
         "//client/search",
         "//client/shimmer",

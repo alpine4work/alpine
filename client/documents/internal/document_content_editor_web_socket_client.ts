@@ -15,10 +15,12 @@ import {
 import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
+import {documentBackfillFutureVersionErrorMessage} from "~/shared/documents/document_error_messages.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
 } from "~/shared/documents/document_model.js";
+import {isTransientError} from "~/shared/error/is_transient_error_code.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -89,6 +91,7 @@ export class DocumentContentEditorWebSocketClient {
     >;
 
     public readonly documentId: DocumentId;
+    public readonly withoutComments: boolean;
     private readonly _getContext: () => AppContext;
     private readonly _addGlobalLoadingIndicator: (
         promise: Promise<void>,
@@ -97,6 +100,11 @@ export class DocumentContentEditorWebSocketClient {
     private readonly _client: WebSocketClient<typeof DocumentCollaborationProtocol>;
     private readonly _state: ValueStore<DocumentContentEditorState>;
     private _disconnect: (() => void) | null = null;
+
+    // The number of times `updateContent()` has thrown an error. Stored at the
+    // class level to survive across reconnects. Reset once `updateContent()`
+    // succeeds.
+    private _updateContentRetryErrorCount = 0;
 
     // We provide access to procedures regarding document comments. Procedures that
     // update document content can only be called internally within this class.
@@ -114,6 +122,7 @@ export class DocumentContentEditorWebSocketClient {
         getContext,
         addGlobalLoadingIndicator,
         documentId,
+        withoutComments,
         initialState,
     }: {
         getContext: () => AppContext;
@@ -122,16 +131,18 @@ export class DocumentContentEditorWebSocketClient {
             indicator: GlobalLoadingIndicator,
         ) => void;
         documentId: DocumentId;
+        withoutComments: boolean;
         initialState: DocumentContentEditorState;
     }) {
         this.documentId = documentId;
+        this.withoutComments = withoutComments;
         this._getContext = getContext;
         this._addGlobalLoadingIndicator = addGlobalLoadingIndicator;
         this._client = new WebSocketClient(
             getContext,
             "DocumentCollaborationService",
             DocumentCollaborationProtocol,
-            `/api/durable-objects/documents/${documentId}`,
+            `/api/durable-objects/documents/${documentId}${withoutComments ? "/view" : ""}`,
         );
         this._state = new ValueStore(initialState);
 
@@ -151,6 +162,14 @@ export class DocumentContentEditorWebSocketClient {
 
     public changeEditorState(editorState: ContentEditorState<DocumentContentWithReferences>) {
         this._dispatch({type: "Edit", editorState});
+    }
+
+    public clearOurPresenceState() {
+        this._dispatch({type: "Extra", extra: {type: "ClearOurPresenceState"}});
+    }
+
+    public unclearOurPresenceState() {
+        this._dispatch({type: "Extra", extra: {type: "UnclearOurPresenceState"}});
     }
 
     public connect() {
@@ -175,73 +194,134 @@ export class DocumentContentEditorWebSocketClient {
                 const ourConnectionState = {isBackfilling: true};
                 connectionState = ourConnectionState;
 
-                this._client.procedures
-                    .backfill({
-                        version: this._state.getSnapshot().editorState.getVersion(),
-                    })
-                    .then(
-                        output => {
-                            // If while waiting on our backfill we disconnected then don't update
-                            // our state. We use an object to make sure if we connect/reconnect quickly we
-                            // still ignore the backfill result.
-                            if (connectionState !== ourConnectionState) return;
+                const attemptBackfill = () => {
+                    this._client.procedures
+                        .backfill({
+                            version: this._state.getSnapshot().editorState.getVersion(),
+                        })
+                        .then(
+                            output => {
+                                // If while waiting on our backfill we disconnected then don't update
+                                // our state. We use an object to make sure if we connect/reconnect quickly we
+                                // still ignore the backfill result.
+                                if (connectionState !== ourConnectionState) return;
 
-                            // One dispatch call just to make sure React applies these actions atomically
-                            // and doesn't do any scheduling weirdness.
-                            this._dispatchBatch([
-                                {
-                                    type: "Extra",
-                                    extra: {
-                                        type: "SetAllOtherPresenceStates",
-                                        stateByConnectionId: ImmutableMap.from(
-                                            mapIterable(output.presenceStates, presenceState => [
-                                                presenceState.connectionId,
-                                                presenceState.state,
-                                            ]),
-                                        ),
+                                // One dispatch call just to make sure React applies these actions atomically
+                                // and doesn't do any scheduling weirdness.
+                                this._dispatchBatch([
+                                    {
+                                        type: "Extra",
+                                        extra: {
+                                            type: "SetAllOtherPresenceStates",
+                                            stateByConnectionId: ImmutableMap.from(
+                                                mapIterable(
+                                                    output.presenceStates,
+                                                    presenceState => [
+                                                        presenceState.connectionId,
+                                                        presenceState.state,
+                                                    ],
+                                                ),
+                                            ),
+                                        },
                                     },
-                                },
-                                {
-                                    type: "ReceiveSteps",
-                                    newVersion: output.newVersion,
-                                    steps: output.steps,
-                                    stepsContentReferences: output.stepsContentReferences,
-                                },
-                                {
-                                    type: "Persisted",
-                                    newVersion: output.persistedVersion,
-                                },
-
-                                // Unconditionally run this action even if we have no new remembered steps
-                                // because it will throw if the editor version in state is not
-                                // `expectedVersion`. This is a nice way to double check that our previous
-                                // action actually caught us up.
-                                {
-                                    type: "Extra",
-                                    extra: {
-                                        type: "AugmentRememberedSteps",
-                                        expectedVersion: output.newVersion,
-                                        startVersion:
-                                            output.newVersion -
-                                            output.steps.length -
-                                            output.rememberInvertedSteps.length,
-                                        invertedSteps: output.rememberInvertedSteps,
+                                    {
+                                        type: "ReceiveSteps",
+                                        newVersion: output.newVersion,
+                                        steps: output.steps,
+                                        stepsContentReferences: output.stepsContentReferences,
                                     },
-                                },
-                            ]);
+                                    {
+                                        type: "Persisted",
+                                        newVersion: output.persistedVersion,
+                                    },
 
-                            ourConnectionState.isBackfilling = false;
-                            maybeSendUpdatesToServer();
-                        },
-                        error => {
-                            // If while waiting on our backfill we disconnected then don't update
-                            // our state. We use an object to make sure if we connect/reconnect quickly we
-                            // still ignore the backfill result.
-                            if (connectionState !== ourConnectionState) return;
+                                    // Unconditionally run this action even if we have no new remembered steps
+                                    // because it will throw if the editor version in state is not
+                                    // `expectedVersion`. This is a nice way to double check that our previous
+                                    // action actually caught us up.
+                                    {
+                                        type: "Extra",
+                                        extra: {
+                                            type: "AugmentRememberedSteps",
+                                            expectedVersion: output.newVersion,
+                                            startVersion:
+                                                output.newVersion -
+                                                output.steps.length -
+                                                output.rememberInvertedSteps.length,
+                                            invertedSteps: output.rememberInvertedSteps,
+                                        },
+                                    },
+                                ]);
 
-                            this._dispatch({type: "Error", error});
-                        },
-                    );
+                                ourConnectionState.isBackfilling = false;
+                                maybeSendUpdatesToServer();
+                            },
+                            error => {
+                                // If while waiting on our backfill we disconnected then don't update
+                                // our state. We use an object to make sure if we connect/reconnect quickly we
+                                // still ignore the backfill result.
+                                if (connectionState !== ourConnectionState) return;
+
+                                try {
+                                    // If the collaboration service is telling us that we're trying to backfill at
+                                    // a future version then that may be because we have steps a previous
+                                    // collaboration service confirmed but couldn't persist. Let's try reverting
+                                    // those steps and retrying our backfill.
+                                    //
+                                    // To test this branch try throwing an error from `updateDocumentContent()` in
+                                    // `documents_table.ts` for some step (maybe any step that adds a "t"). The
+                                    // collaboration service should accept this step but fail to persist it in the
+                                    // database. An error should show up in your client, then you should hit
+                                    // "Retry". At which point we'll try backfilling, hit this error, then reset
+                                    // the client to a good state.
+                                    //
+                                    // TODO(calebmer): This logic needs to be ported to
+                                    // `TaskDetailNotesContentEditorWebSocketClient` but task notes currently doesn't
+                                    // have remembered steps which we need to implement this.
+                                    let state = this._state.getSnapshot();
+                                    if (
+                                        error instanceof Error &&
+                                        error.message.includes(
+                                            documentBackfillFutureVersionErrorMessage,
+                                        ) &&
+                                        state.persistedVersion < state.editorState.getVersion()
+                                    ) {
+                                        // Dispatching `ResetToPersistedVersion` also resets `pendingSendableSteps` and
+                                        // `ourPresenceState`. Reset these variables so the next update can work
+                                        // properly.
+                                        updateGeneration += 1;
+                                        lastPendingSendableStepsVersionSentToServer = null;
+                                        lastOurPresenceStateSentToServer = null;
+
+                                        this._dispatch({
+                                            type: "Extra",
+                                            extra: {type: "ResetToPersistedVersion"},
+                                        });
+
+                                        // Check that the state's version moved back to
+                                        // `state.persistedVersion`. This makes sure we won't get stuck in an infinite
+                                        // retry loop.
+                                        state = this._state.getSnapshot();
+                                        assert(
+                                            state.persistedVersion ===
+                                                state.editorState.getVersion(),
+                                        );
+
+                                        attemptBackfill();
+                                        return;
+                                    }
+                                } catch (newError) {
+                                    // Handle an error thrown by our error handling logic.
+                                    this._dispatch({type: "Error", error: newError});
+                                    return;
+                                }
+
+                                this._dispatch({type: "Error", error});
+                            },
+                        );
+                };
+
+                attemptBackfill();
 
                 maybeSendUpdatesToServer();
             }
@@ -421,6 +501,8 @@ export class DocumentContentEditorWebSocketClient {
                         steps: state.pendingSendableSteps.steps,
                         clientId: state.pendingSendableSteps.clientId,
                         createCommentThreads: state.extra.pendingCreateCommentThreads ?? [],
+                        intentionallyUpdateAccessPolicy:
+                            state.extra.pendingIntentionallyUpdateAccessPolicy,
                         updateOurPresenceState: {
                             state: state.extra.ourPresenceState
                                 ? {
@@ -432,32 +514,67 @@ export class DocumentContentEditorWebSocketClient {
                                 : null,
                         },
                     })
-                    .catch(error => {
-                        // If we're connected when an error occurs then this isn't a network related
-                        // issue. Present the error to the user. If we're disconnected when an error
-                        // occurs silently log and we want to retry when the WebSocket reconnects.
-                        if (this._client.state.getSnapshot().isConnected) {
-                            this._dispatch({type: "Error", error});
-                            return;
-                        }
+                    .then(
+                        () => {
+                            this._updateContentRetryErrorCount = 0;
+                        },
+                        error => {
+                            // If we're connected when an error occurs then this isn't a network related
+                            // issue. Present the error to the user. If we're disconnected when an error
+                            // occurs silently log and we want to retry when the WebSocket reconnects.
+                            if (this._client.state.getSnapshot().isConnected) {
+                                // If this is a transient error, don't try resetting the user's pending steps
+                                // until we've retried 2 times. This means the user will manually need to hit
+                                // the "Retry" button twice before we reset their state.
+                                //
+                                // We'd like to avoid resetting the user's pending steps if possible since
+                                // that's data loss.
+                                //
+                                // TODO(calebmer): This logic needs to be ported to
+                                // `TaskDetailNotesContentEditorWebSocketClient` but task notes currently doesn't
+                                // have remembered steps which we need to implement this.
+                                if (
+                                    isTransientError(error) &&
+                                    this._updateContentRetryErrorCount < 2
+                                ) {
+                                    this._updateContentRetryErrorCount++;
+                                    this._dispatch({type: "Error", error});
+                                } else {
+                                    this._updateContentRetryErrorCount = 0;
 
-                        this._getContext()
-                            .tracer.getRoot()
-                            .logUncaughtException(
-                                "Couldn't update content after disconnect",
-                                error,
-                            );
+                                    // Dispatching `ResetToPersistedVersion` also resets `pendingSendableSteps` and
+                                    // `ourPresenceState`. Reset these variables so the next update can work
+                                    // properly.
+                                    updateGeneration += 1;
+                                    lastPendingSendableStepsVersionSentToServer = null;
+                                    lastOurPresenceStateSentToServer = null;
 
-                        // Next time we send updates, we'll silently retry updating content if another
-                        // `updateContent()` call hasn't happened in the meantime.
-                        //
-                        // For example, maybe the WebSocket abruptly disconnected while executing this
-                        // procedure. When the WebSocket reconnects we'll try again.
-                        if (generation === updateGeneration) {
-                            lastPendingSendableStepsVersionSentToServer = "SilentError";
-                            lastOurPresenceStateSentToServer = "SilentError";
-                        }
-                    });
+                                    this._dispatchBatch([
+                                        {type: "Extra", extra: {type: "ResetToPersistedVersion"}},
+                                        {type: "Error", error},
+                                    ]);
+                                }
+                                return;
+                            }
+
+                            this._getContext()
+                                .tracer.getRoot()
+                                .logUncaughtException(
+                                    "Couldn't update content after disconnect",
+                                    error,
+                                );
+
+                            // Next time we send updates, we'll silently retry updating content if another
+                            // `updateContent()` call hasn't happened in the meantime.
+                            //
+                            // For example, maybe the WebSocket abruptly disconnected while executing this
+                            // procedure. When the WebSocket reconnects we'll try again.
+                            if (generation === updateGeneration) {
+                                lastPendingSendableStepsVersionSentToServer = "SilentError";
+                                lastOurPresenceStateSentToServer = "SilentError";
+                            }
+                        },
+                    );
             }
 
             if (

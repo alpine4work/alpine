@@ -4,6 +4,7 @@ import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/h
 import {Reporter} from "~/client/design/reporter.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -24,12 +25,14 @@ import {assert} from "~/shared/helpers/control/assert.js";
 // the `codeBlock` node renderer in `renderContentInHtml()`.
 export function createContentEditorCodeBlockNodeViewConstructor({
     getReporter,
+    getAccessLevel,
     onCodeBlockLanguagePickerOpen,
     onCodeBlockCopyButtonHoverStart,
     onCodeBlockCopyButtonHoverEnd,
     onCodeBlockCopyButtonPress,
 }: {
     getReporter: () => Reporter;
+    getAccessLevel: () => AccessLevel;
     onCodeBlockLanguagePickerOpen: (options: {
         targetElement: HTMLElement;
         languageId: ContentCodeBlockLanguageId;
@@ -89,6 +92,7 @@ export function createContentEditorCodeBlockNodeViewConstructor({
             // We don't need to cleanup event listeners on DOM nodes created for this
             // node view.
             addUnfocusableButtonBehaviorToElement(languagePickerElement, {
+                isDisabled: () => !hasAccessLevel(getAccessLevel(), "Edit"),
                 defaultClassName: sprinkles({
                     color: "grey-60",
                 }),

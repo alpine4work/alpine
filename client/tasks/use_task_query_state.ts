@@ -25,27 +25,29 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
  * authorized on the server?
  */
 export function isTaskQueryMissingRequiredFilters(
-    currentAccountId: AccountId,
+    currentAccountId: AccountId | null | undefined,
     filters: TaskQueryNormalizedFilters,
 ): boolean {
-    if (
-        filters.creatorFilter?.type === "OneOf" &&
-        filters.creatorFilter.accountIds.size === 1 &&
-        filters.creatorFilter.accountIds.has(currentAccountId)
-    ) {
-        return false;
-    }
+    if (typeof currentAccountId === "string") {
+        if (
+            filters.creatorFilter?.type === "OneOf" &&
+            filters.creatorFilter.accountIds.size === 1 &&
+            filters.creatorFilter.accountIds.has(currentAccountId)
+        ) {
+            return false;
+        }
 
-    if (
-        filters.assigneeFilter?.type === "OneOf" &&
-        filters.assigneeFilter.accountIds.size === 1 &&
-        filters.assigneeFilter.accountIds.has(currentAccountId)
-    ) {
-        return false;
-    }
+        if (
+            filters.assigneeFilter?.type === "OneOf" &&
+            filters.assigneeFilter.accountIds.size === 1 &&
+            filters.assigneeFilter.accountIds.has(currentAccountId)
+        ) {
+            return false;
+        }
 
-    if (filters.notepadPageFilter?.accountId === currentAccountId) {
-        return false;
+        if (filters.notepadPageFilter?.accountId === currentAccountId) {
+            return false;
+        }
     }
 
     // Assume that if the user filtered on a collection that they have access to
@@ -112,8 +114,8 @@ export function useTaskQueryState({
     // ones the user doesn't have access to.
     const isMissingRequiredFilters = useMemo(() => {
         if (!filters) return false;
-        return isTaskQueryMissingRequiredFilters(currentAccount.id, filters);
-    }, [currentAccount.id, filters]);
+        return isTaskQueryMissingRequiredFilters(currentAccount?.id, filters);
+    }, [currentAccount?.id, filters]);
 
     const [queryState, _setQueryState] = useState<TaskQueryState>({
         activeQuery: initialQuery

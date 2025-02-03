@@ -182,12 +182,12 @@ function MessageContentEditor({
                     ? messageViewNotMergedEditorOutlineMarginBottomPx[spacingScale]
                     : undefined,
             }}
-            onEscape={event => {
+            onEscapeKeyDown={event => {
                 event.preventDefault();
                 event.stopPropagation();
                 onCancel();
             }}
-            onEnterFromPhysicalKeyboard={event => {
+            onEnterKeyDownFromPhysicalKeyboard={event => {
                 event.preventDefault();
                 event.stopPropagation();
                 onSave();

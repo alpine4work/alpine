@@ -152,6 +152,23 @@ export class PromiseImmediate<Value> implements PromiseLike<Value> {
         }
     }
 
+    /**
+     * Get the fulfilled promise value or return undefined if the promise is
+     * still pending.
+     */
+    public getIfAvailable(): Value | undefined {
+        switch (this._state.status) {
+            case "fulfilled":
+                return this._state.value;
+            case "rejected":
+                throw this._state.reason;
+            case "pending":
+                return undefined;
+            default:
+                throw exhaustive(this._state);
+        }
+    }
+
     static resolve(value: void): PromiseImmediate<void>;
     static resolve<Value>(value: Value | PromiseLike<Value>): PromiseImmediate<Value>;
     static resolve<Value>(value: Value | PromiseLike<Value>): PromiseImmediate<Value> {

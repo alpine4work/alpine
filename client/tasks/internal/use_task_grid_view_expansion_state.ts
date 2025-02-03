@@ -110,6 +110,14 @@ function createTaskGridViewExpansionStateManager({
         // tabs or the server.
         if (oldState === newState) return;
 
+        // Don't persist grid view expansion state, or share it with our other tabs, if
+        // the actor doesn't have access to the space. Right now, remembering grid view
+        // expansion state across page reloads requires space access.
+        //
+        // Though in the future, we could choose to save expansion state purely based
+        // on `browserId`.
+        if (store.currentAccountId === null) return;
+
         // Broadcast to any other browser tabs our new expansion state.
         broadcastChannelRef.current?.postMessage(state);
 
@@ -364,7 +372,7 @@ export function useTaskGridViewExpansionState({
 
     // When `query` changes we need to reset our state.
     const [stateManager] = useStateWithDependencies(
-        query =>
+        ([query]) =>
             query
                 ? createTaskGridViewExpansionStateManager({
                       getContext,

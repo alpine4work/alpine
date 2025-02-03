@@ -211,7 +211,7 @@ export abstract class Store<Value> {
     // Instead of calling `getSnapshot()` on every store. Like what we do in
     // `FlattenedMappedTreeStore`. We add weak invalidation listeners to each value
     // store so we only need to update that key when it changes.
-    public static many<Stores extends ReadonlyArray<Store<any>>>(
+    public static many<const Stores extends ReadonlyArray<Store<any>>>(
         stores: Stores,
     ): Store<{
         readonly [K in keyof Stores]: StoreType<Stores[K]>;

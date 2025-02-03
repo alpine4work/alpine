@@ -2,6 +2,7 @@ import {
     AddMarkStep,
     AddNodeMarkStep,
     AttrStep,
+    DocAttrStep,
     RemoveMarkStep,
     RemoveNodeMarkStep,
     ReplaceAroundStep,
@@ -14,6 +15,7 @@ import {
 
 export type StepByJsonId = {
     attr: AttrStep;
+    docAttr: DocAttrStep;
     addMark: AddMarkStep;
     removeMark: RemoveMarkStep;
     addNodeMark: AddNodeMarkStep;

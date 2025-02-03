@@ -2,16 +2,16 @@ import {useDndContext} from "@dnd-kit/core";
 import {Memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {MenuAction} from "~/client/design/menu.js";
-import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {tasksStyles} from "~/client/styles/styles.js";
 import {
     taskNotepadViewActiveSectionMinHeight,
@@ -79,7 +79,7 @@ export function TaskNotepadView({
 }) {
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
-    const {currentAccount} = useSpaceContext();
+    const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
     const {isAppleDevice, isNativeMobile} = useClientInfo();
 
     // Retain `assigneeActiveQuery`. We can't retain it in

@@ -20,6 +20,14 @@ import {TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
 // Cloudflare Workers.
 assert(process.versions.node);
 
+// More error stack frames in development to help debug issues. The defaults is
+// 10 which frequently isn't enough for us given our code typically features
+// deep call stacks.
+if (process.env.NODE_ENV !== "production") {
+    assert(typeof Error.stackTraceLimit === "number");
+    Error.stackTraceLimit *= 2;
+}
+
 // Kill the process if we get an uncaught exception before the
 // tracer initializes.
 function handleUncaughtExceptionBeforeTracerInitialization(error: unknown) {

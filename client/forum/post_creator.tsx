@@ -7,7 +7,6 @@ import {trimContentEnd} from "~/client/content/trim_content.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {
     mobileNavigationBarActionsWidthFittingFlexBasis,
     navigationBarHeight,
@@ -24,11 +23,12 @@ import {
 } from "~/client/forum/internal/post_creator_channel_selector_input.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {sendRpcNavigatorBeacon} from "~/client/rpc/send_rpc_navigator_beacon.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {
     postContentViewInnerMarginY,
     postViewNavigationBarSpace,
@@ -63,7 +63,7 @@ export function PostCreator({
     const context = useAppContext();
     const platform = usePlatform();
     const navigate = useNavigate();
-    const {space, currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
 
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const channelSelectorRef = useRef<PostCreatorChannelSelectorInputRef>(null);
@@ -365,7 +365,7 @@ export function PostCreator({
                                     paddingX: screenPaddingX,
                                 }),
                             )}
-                            onModEnter={() => {
+                            onModEnterKeyDown={() => {
                                 // Programmatically press the button instead of calling `createPost()`
                                 // directly to correctly handle loading and error states.
                                 assertExists(createButtonRef.current).press();

@@ -4,7 +4,7 @@ import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {updateOurAccountNameBeforeExecuteTestCheckpoint} from "~/server/accounts/accounts_table.js";
 import {updateOurAccountName} from "~/server/accounts/update_name/update_our_account_name.js";
-import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
@@ -12,7 +12,7 @@ import {
     createTestSession,
 } from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {addSpaceAccountForTest} from "~/server/spaces/spaces_table.js";
+import {addSpaceAccountForTest, removeSpaceAccountAsAdmin} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
@@ -20,6 +20,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {
     authorizeTaskAccess,
+    authorizeTaskCollectionAccess,
     authorizeTaskQueryAccess,
     backfillTaskActionTransactionHistory,
     backfillTaskComments,
@@ -34,7 +35,7 @@ import {
     getTaskCommentsFromEnd,
     getTaskCommentsFromStart,
     getTaskNotesContent,
-    getTaskNotesContentAndInitialComments,
+    getTaskNotesContentAndOptionalInitialComments,
     getTaskNotesContentWithoutReferences,
     getTaskNotificationSubscribers,
     getTaskOwner,
@@ -43,6 +44,7 @@ import {
 } from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {AccessLevel, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {
@@ -50,6 +52,7 @@ import {
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
+    UnauthenticatedError,
 } from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -73,10 +76,11 @@ import {
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
-import {TaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
+import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {
+    createSimpleTaskNotesContent,
     emptyTaskNotesContent,
     TaskNotesContentProsemirrorSchema as schema,
 } from "~/shared/tasks/task_notes_content_schema.js";
@@ -101,14 +105,15 @@ const context = createTestContext();
 const baseContext = context;
 
 function testAuthorizeTaskQueryAccess(
-    context: ServerSessionActionContext,
-    options?: {
+    context: ServerActionContext,
+    options: {
+        spaceId: SpaceId;
         filters?: ReadonlyArray<TaskQueryFilter> | TaskQueryNormalizedFilters;
         sorts?: ReadonlyArray<TaskQuerySort> | ReadonlyArray<TaskQueryNormalizedSort>;
     },
 ) {
     const evaluationContext: TaskQueryEvaluationContext = {
-        currentAccountId: context.actor.getAccountId(),
+        currentAccountId: context.actor.type === "Session" ? context.actor.getAccountId() : null,
         currentDate: toCalendarDate(
             parseAbsolute(testClock.nowDate().toISOString(), defaultTimeZone),
         ),
@@ -127,6 +132,7 @@ function testAuthorizeTaskQueryAccess(
     return authorizeTaskQueryAccess(
         context,
         {
+            spaceId: options.spaceId,
             filters: filters.normalizedFilters,
             sorts: normalizeTaskQuerySorts(options?.sorts ?? []),
         },
@@ -228,7 +234,7 @@ describe("old style", () => {
     async function createPublicTask(
         session: TestSessionItem,
         spaceId: SpaceId,
-        level: TaskCollectionAccessLevel = "Edit",
+        level: AccessLevel = "Edit",
     ) {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
@@ -243,8 +249,11 @@ describe("old style", () => {
                     creatorId: session.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level},
+                        accountGrantById: new Map([
+                            [session.accountId, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: level === "Manage" ? {level, generation: 0} : {level},
+                        urlGrant: null,
                     },
                 },
             },
@@ -437,7 +446,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(PermissionDeniedError);
+        ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
     });
 
     test("can't delete a task with the same time as task creation", async () => {
@@ -579,10 +588,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -635,10 +645,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "View"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -1330,7 +1341,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(PermissionDeniedError);
+        ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
     });
 
     test("can't update a task title that's not yours", async () => {
@@ -1379,10 +1390,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -1436,10 +1448,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "View"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -1494,8 +1507,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -1539,8 +1555,11 @@ describe("old style", () => {
                     creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount2.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -1589,8 +1608,11 @@ describe("old style", () => {
                     creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount2.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -1640,8 +1662,11 @@ describe("old style", () => {
                     creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount2.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -1658,10 +1683,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -1717,10 +1743,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "View"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -1734,10 +1761,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -1806,8 +1834,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -1853,8 +1884,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -1907,8 +1941,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -1963,8 +2000,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2020,10 +2060,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "View"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2079,10 +2120,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2134,8 +2176,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2157,9 +2202,10 @@ describe("old style", () => {
                         name: "Test",
                         accessPolicy: {
                             accountGrantById: new Map([
-                                [taskAccount1.accountId, {level: "Manage"}],
+                                [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             ]),
                             defaultGrant: null,
+                            urlGrant: null,
                         },
                     },
                 },
@@ -2182,9 +2228,10 @@ describe("old style", () => {
                         name: "Test",
                         accessPolicy: {
                             accountGrantById: new Map([
-                                [taskAccount1.accountId, {level: "Manage"}],
+                                [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             ]),
                             defaultGrant: null,
+                            urlGrant: null,
                         },
                     },
                 },
@@ -2205,8 +2252,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2224,9 +2274,10 @@ describe("old style", () => {
                         name: "Test",
                         accessPolicy: {
                             accountGrantById: new Map([
-                                [taskAccount1.accountId, {level: "Manage"}],
+                                [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             ]),
                             defaultGrant: null,
+                            urlGrant: null,
                         },
                     },
                 },
@@ -2249,9 +2300,10 @@ describe("old style", () => {
                         name: "Test",
                         accessPolicy: {
                             accountGrantById: new Map([
-                                [taskAccount2.accountId, {level: "Manage"}],
+                                [taskAccount2.accountId, {level: "Manage", generation: 0}],
                             ]),
                             defaultGrant: null,
+                            urlGrant: null,
                         },
                     },
                 },
@@ -2278,9 +2330,10 @@ describe("old style", () => {
                         name: "Test",
                         accessPolicy: {
                             accountGrantById: new Map([
-                                [taskAccount1.accountId, {level: "Manage"}],
+                                [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             ]),
                             defaultGrant: null,
+                            urlGrant: null,
                         },
                     },
                 },
@@ -2304,6 +2357,7 @@ describe("old style", () => {
                         accessPolicy: {
                             accountGrantById: new Map([]),
                             defaultGrant: null,
+                            urlGrant: null,
                         },
                     },
                 },
@@ -2324,8 +2378,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2373,8 +2430,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2420,8 +2480,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2456,8 +2519,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2490,8 +2556,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2524,8 +2593,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2559,10 +2631,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2596,10 +2669,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                            [taskAccount2.accountId, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2630,8 +2704,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2690,8 +2767,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2755,8 +2835,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2808,8 +2891,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2864,8 +2950,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2911,8 +3000,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -2958,8 +3050,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3003,8 +3098,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3046,10 +3144,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3091,10 +3190,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                            [taskAccount2.accountId, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3133,8 +3233,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3184,8 +3287,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3230,8 +3336,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3265,8 +3374,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3300,8 +3412,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3336,10 +3451,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3374,10 +3490,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                            [taskAccount2.accountId, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3409,8 +3526,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3460,8 +3580,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3506,8 +3629,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3541,8 +3667,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3576,8 +3705,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3612,10 +3744,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3650,10 +3783,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                            [taskAccount2.accountId, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3685,8 +3819,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3701,10 +3838,11 @@ describe("old style", () => {
                     type: "UpdateAccessPolicy",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [session1.accountId, {level: "Manage"}],
+                            [session1.accountId, {level: "Manage", generation: 0}],
                             [session3.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3724,10 +3862,11 @@ describe("old style", () => {
                         type: "UpdateAccessPolicy",
                         accessPolicy: {
                             accountGrantById: new Map([
-                                [session1.accountId, {level: "Manage"}],
+                                [session1.accountId, {level: "Manage", generation: 0}],
                                 [session3.accountId, {level: "Edit"}],
                             ]),
                             defaultGrant: null,
+                            urlGrant: null,
                         },
                     },
                 },
@@ -3748,8 +3887,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3776,10 +3918,11 @@ describe("old style", () => {
                         type: "UpdateAccessPolicy",
                         accessPolicy: {
                             accountGrantById: new Map([
-                                [session1.accountId, {level: "Manage"}],
+                                [session1.accountId, {level: "Manage", generation: 0}],
                                 [session3.accountId, {level: "Edit"}],
                             ]),
                             defaultGrant: null,
+                            urlGrant: null,
                         },
                     },
                 },
@@ -3800,8 +3943,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3817,10 +3963,11 @@ describe("old style", () => {
                         type: "UpdateAccessPolicy",
                         accessPolicy: {
                             accountGrantById: new Map([
-                                [session1.accountId, {level: "Manage"}],
+                                [session1.accountId, {level: "Manage", generation: 0}],
                                 [session3.accountId, {level: "Edit"}],
                             ]),
                             defaultGrant: null,
+                            urlGrant: null,
                         },
                     },
                 },
@@ -3841,8 +3988,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3858,10 +4008,11 @@ describe("old style", () => {
                         type: "UpdateAccessPolicy",
                         accessPolicy: {
                             accountGrantById: new Map([
-                                [session1.accountId, {level: "Manage"}],
+                                [session1.accountId, {level: "Manage", generation: 0}],
                                 [session3.accountId, {level: "Edit"}],
                             ]),
                             defaultGrant: null,
+                            urlGrant: null,
                         },
                     },
                 },
@@ -3882,8 +4033,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3899,10 +4053,11 @@ describe("old style", () => {
                         type: "UpdateAccessPolicy",
                         accessPolicy: {
                             accountGrantById: new Map([
-                                [session1.accountId, {level: "Manage"}],
+                                [session1.accountId, {level: "Manage", generation: 0}],
                                 [session3.accountId, {level: "Edit"}],
                             ]),
                             defaultGrant: null,
+                            urlGrant: null,
                         },
                     },
                 },
@@ -3924,10 +4079,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3943,10 +4099,11 @@ describe("old style", () => {
                         type: "UpdateAccessPolicy",
                         accessPolicy: {
                             accountGrantById: new Map([
-                                [session1.accountId, {level: "Manage"}],
+                                [session1.accountId, {level: "Manage", generation: 0}],
                                 [session3.accountId, {level: "Edit"}],
                             ]),
                             defaultGrant: null,
+                            urlGrant: null,
                         },
                     },
                 },
@@ -3968,10 +4125,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                            [taskAccount2.accountId, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -3986,10 +4144,11 @@ describe("old style", () => {
                     type: "UpdateAccessPolicy",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [session1.accountId, {level: "Manage"}],
+                            [session1.accountId, {level: "Manage", generation: 0}],
                             [session3.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -4010,10 +4169,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                            [taskAccount2.accountId, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -4033,15 +4193,12 @@ describe("old style", () => {
                                 [session3.accountId, {level: "Edit"}],
                             ]),
                             defaultGrant: null,
+                            urlGrant: null,
                         },
                     },
                 },
             ]),
-        ).rejects.toThrow(
-            new InvalidArgumentError(
-                '`accessPolicy` must grant at least one account the "Manage" access level',
-            ),
-        );
+        ).rejects.toThrow("Can't update access policy so that no one has manage access");
 
         await expect(
             commitTaskActionTransaction(context.action(session2), space.id, [
@@ -4053,16 +4210,13 @@ describe("old style", () => {
                         type: "UpdateAccessPolicy",
                         accessPolicy: {
                             accountGrantById: new Map([]),
-                            defaultGrant: {type: "Space", level: "Edit"},
+                            defaultGrant: {level: "Edit"},
+                            urlGrant: null,
                         },
                     },
                 },
             ]),
-        ).rejects.toThrow(
-            new InvalidArgumentError(
-                '`accessPolicy` must grant at least one account the "Manage" access level',
-            ),
-        );
+        ).rejects.toThrow("Can't update access policy so that no one has manage access");
 
         await commitTaskActionTransaction(context.action(session2), space.id, [
             {
@@ -4073,7 +4227,8 @@ describe("old style", () => {
                     type: "UpdateAccessPolicy",
                     accessPolicy: {
                         accountGrantById: new Map([]),
-                        defaultGrant: {type: "Space", level: "Manage"},
+                        defaultGrant: {level: "Manage", generation: 1},
+                        urlGrant: null,
                     },
                 },
             },
@@ -4094,10 +4249,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
-                            [taskAccount2.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                            [taskAccount2.accountId, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -4111,8 +4267,11 @@ describe("old style", () => {
                 collectionAction: {
                     type: "UpdateAccessPolicy",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount2.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -4128,10 +4287,11 @@ describe("old style", () => {
                         type: "UpdateAccessPolicy",
                         accessPolicy: {
                             accountGrantById: new Map([
-                                [taskAccount1.accountId, {level: "Manage"}],
-                                [taskAccount2.accountId, {level: "Manage"}],
+                                [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                                [taskAccount2.accountId, {level: "Manage", generation: 0}],
                             ]),
                             defaultGrant: null,
+                            urlGrant: null,
                         },
                     },
                 },
@@ -4196,8 +4356,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -4215,8 +4378,11 @@ describe("old style", () => {
                     creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount2.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -4244,10 +4410,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -4337,10 +4504,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -4405,10 +4573,11 @@ describe("old style", () => {
                     type: "UpdateAccessPolicy",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "View"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -5131,10 +5300,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount2.accountId, {level: "Manage"}],
+                            [taskAccount2.accountId, {level: "Manage", generation: 0}],
                             [taskAccount1.accountId, {level: "View"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -5204,10 +5374,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount2.accountId, {level: "Manage"}],
+                            [taskAccount2.accountId, {level: "Manage", generation: 0}],
                             [taskAccount1.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -5275,10 +5446,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount2.accountId, {level: "Manage"}],
+                            [taskAccount2.accountId, {level: "Manage", generation: 0}],
                             [taskAccount1.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -5374,10 +5546,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -5657,10 +5830,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount2.accountId, {level: "Manage"}],
+                            [taskAccount2.accountId, {level: "Manage", generation: 0}],
                             [taskAccount1.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -5781,10 +5955,11 @@ describe("old style", () => {
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
-                            [taskAccount1.accountId, {level: "Manage"}],
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
                             [taskAccount2.accountId, {level: "Edit"}],
                         ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -6414,8 +6589,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 0},
+                        urlGrant: null,
                     },
                 },
             },
@@ -6522,8 +6700,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 0},
+                        urlGrant: null,
                     },
                 },
             },
@@ -6667,8 +6848,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 0},
+                        urlGrant: null,
                     },
                 },
             },
@@ -6882,8 +7066,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 0},
+                        urlGrant: null,
                     },
                 },
             },
@@ -7097,8 +7284,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 0},
+                        urlGrant: null,
                     },
                 },
             },
@@ -7312,8 +7502,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 0},
+                        urlGrant: null,
                     },
                 },
             },
@@ -7527,8 +7720,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 0},
+                        urlGrant: null,
                     },
                 },
             },
@@ -7746,8 +7942,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 0},
+                        urlGrant: null,
                     },
                 },
             },
@@ -8452,8 +8651,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 0},
+                        urlGrant: null,
                     },
                 },
             },
@@ -8689,8 +8891,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 0},
+                        urlGrant: null,
                     },
                 },
             },
@@ -8899,8 +9104,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -8913,8 +9121,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 0},
+                        urlGrant: null,
                     },
                 },
             },
@@ -9019,8 +9230,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -9033,8 +9247,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 0},
+                        urlGrant: null,
                     },
                 },
             },
@@ -9158,8 +9375,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -9172,8 +9392,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
-                        defaultGrant: {type: "Space", level: "Manage"},
+                        accountGrantById: new Map([
+                            [session1.accountId, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 0},
+                        urlGrant: null,
                     },
                 },
             },
@@ -9288,7 +9511,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(new FailedPreconditionError("Task does not have a parent"));
+        ).rejects.toThrow(new FailedPreconditionError("Task doesn't have a parent"));
     });
 
     test("can update task parent order key", async () => {
@@ -10547,8 +10770,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -10602,8 +10828,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -10659,8 +10888,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -10719,8 +10951,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -10777,8 +11012,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -10844,8 +11082,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -10913,8 +11154,11 @@ describe("old style", () => {
                     creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
                         defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
             },
@@ -11454,7 +11698,7 @@ describe("old style", () => {
                 },
             ]),
         ).rejects.toThrow(
-            new PermissionDeniedError('Actor does not have "Edit" access level to task'),
+            new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'),
         );
     });
 
@@ -13172,7 +13416,8 @@ test("can't update task in a deleted public collection", async () => {
         space.createSession(),
     ]);
 
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     const task = await TestTask.create(session1);
 
     await expect(task.updatePriority(session2, "High")).rejects.toThrow(PermissionDeniedError);
@@ -13193,7 +13438,8 @@ test("can't update task in a deleted public collection", async () => {
 test("can't add task to a deleted public collection", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session);
+    await collection.access.grantDefault(session);
     const [task1, task2, task3] = await runAllPromises([
         TestTask.create(session),
         TestTask.create(session),
@@ -13214,7 +13460,8 @@ test("can't add task to a deleted public collection", async () => {
 test("can't remove task from a deleted public collection", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session);
+    await collection.access.grantDefault(session);
     const task = await TestTask.create(session);
 
     await task.addCollection(session, collection);
@@ -13236,14 +13483,15 @@ test("can't update collection name in a deleted public collection", async () => 
         space.createSession(),
     ]);
 
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
 
     await collection.updateName(session2, "Test 1");
 
     await collection.delete(session1);
 
     await expect(collection.updateName(session2, "Test 2")).rejects.toThrow(
-        FailedPreconditionError,
+        "Task collection was deleted",
     );
 
     await collection.undelete(session1);
@@ -13276,7 +13524,9 @@ test("can't authorize query with no filters", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    await expect(testAuthorizeTaskQueryAccess(session.action())).rejects.toThrow(
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {spaceId: space.id}),
+    ).rejects.toThrow(
         new PermissionDeniedError(
             "Query may reveal tasks the session account is not allowed to see",
         ),
@@ -13288,12 +13538,14 @@ test("authorizes a query with creator filter", async () => {
     const session = await space.createSession();
 
     await testAuthorizeTaskQueryAccess(session.action(), {
+        spaceId: space.id,
         filters: [
             {type: "Creator", operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]}},
         ],
     });
 
     await testAuthorizeTaskQueryAccess(session.action(), {
+        spaceId: space.id,
         filters: [
             {
                 type: "Creator",
@@ -13306,12 +13558,68 @@ test("authorizes a query with creator filter", async () => {
     });
 });
 
+test("can't authorize a query with creator filter if account access was removed", async () => {
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({hasInternalAccess: true});
+    const session = await space.createSession();
+
+    await testAuthorizeTaskQueryAccess(session.action(), {
+        spaceId: space.id,
+        filters: [
+            {type: "Creator", operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]}},
+        ],
+    });
+
+    await testAuthorizeTaskQueryAccess(session.action(), {
+        spaceId: space.id,
+        filters: [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "Account", accountId: session.account.id}],
+                },
+            },
+        ],
+    });
+
+    await removeSpaceAccountAsAdmin(adminSession.action(), {
+        spaceId: space.id,
+        accountId: session.account.id,
+    });
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
+            filters: [
+                {type: "Creator", operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]}},
+            ],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "Account", accountId: session.account.id}],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+});
+
 test("doesn't authorize a query that only excludes creator in filter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Creator",
@@ -13327,6 +13635,7 @@ test("doesn't authorize a query that only excludes creator in filter", async () 
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Creator",
@@ -13351,6 +13660,7 @@ test("can't authorize a query with other accounts in creator filter", async () =
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Creator",
@@ -13372,6 +13682,7 @@ test("can't authorize a query with other accounts in creator filter", async () =
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Creator",
@@ -13398,6 +13709,7 @@ test("can't authorize a query with missing creator filter", async () => {
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Creator",
@@ -13416,6 +13728,7 @@ test("can't authorize a query with missing creator filter", async () => {
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Creator",
@@ -13434,6 +13747,7 @@ test("can't authorize a query with missing creator filter", async () => {
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Creator",
@@ -13459,12 +13773,14 @@ test("authorizes a query with assignee filter", async () => {
     const session = await space.createSession();
 
     await testAuthorizeTaskQueryAccess(session.action(), {
+        spaceId: space.id,
         filters: [
             {type: "Assignee", operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]}},
         ],
     });
 
     await testAuthorizeTaskQueryAccess(session.action(), {
+        spaceId: space.id,
         filters: [
             {
                 type: "Assignee",
@@ -13477,12 +13793,71 @@ test("authorizes a query with assignee filter", async () => {
     });
 });
 
+test("can't authorize a query with assignee filter if account access was removed", async () => {
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({hasInternalAccess: true});
+    const session = await space.createSession();
+
+    await testAuthorizeTaskQueryAccess(session.action(), {
+        spaceId: space.id,
+        filters: [
+            {type: "Assignee", operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]}},
+        ],
+    });
+
+    await testAuthorizeTaskQueryAccess(session.action(), {
+        spaceId: space.id,
+        filters: [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "Account", accountId: session.account.id}],
+                },
+            },
+        ],
+    });
+
+    await removeSpaceAccountAsAdmin(adminSession.action(), {
+        spaceId: space.id,
+        accountId: session.account.id,
+    });
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+            ],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "Account", accountId: session.account.id}],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+});
+
 test("doesn't authorize a query that only excludes assignee in filter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Assignee",
@@ -13498,6 +13873,7 @@ test("doesn't authorize a query that only excludes assignee in filter", async ()
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Assignee",
@@ -13522,6 +13898,7 @@ test("can't authorize a query with other accounts in assignee filter", async () 
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Assignee",
@@ -13543,6 +13920,7 @@ test("can't authorize a query with other accounts in assignee filter", async () 
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Assignee",
@@ -13569,6 +13947,7 @@ test("can't authorize a query with missing assignee filter", async () => {
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Assignee",
@@ -13587,6 +13966,7 @@ test("can't authorize a query with missing assignee filter", async () => {
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Assignee",
@@ -13605,6 +13985,7 @@ test("can't authorize a query with missing assignee filter", async () => {
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Assignee",
@@ -13630,6 +14011,7 @@ test("can authorize a query with notepad page filter", async () => {
     const session = await space.createSession();
 
     await testAuthorizeTaskQueryAccess(session.action(), {
+        spaceId: space.id,
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             notepadPageFilter: {
@@ -13640,6 +14022,41 @@ test("can authorize a query with notepad page filter", async () => {
     });
 });
 
+test("can't authorize a query with notepad page filter if account access was removed", async () => {
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({hasInternalAccess: true});
+    const session = await space.createSession();
+
+    await testAuthorizeTaskQueryAccess(session.action(), {
+        spaceId: space.id,
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            notepadPageFilter: {
+                accountId: session.account.id,
+                notepadPageId: generateTaskNotepadPageId(testClock),
+            },
+        },
+    });
+
+    await removeSpaceAccountAsAdmin(adminSession.action(), {
+        spaceId: space.id,
+        accountId: session.account.id,
+    });
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
+            filters: {
+                ...defaultTaskQueryNormalizedFilters,
+                notepadPageFilter: {
+                    accountId: session.account.id,
+                    notepadPageId: generateTaskNotepadPageId(testClock),
+                },
+            },
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+});
+
 test("can't authorize a query with other account's notepad page filter", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -13647,6 +14064,7 @@ test("can't authorize a query with other account's notepad page filter", async (
 
     await expect(
         testAuthorizeTaskQueryAccess(session1.action(), {
+            spaceId: space.id,
             filters: {
                 ...defaultTaskQueryNormalizedFilters,
                 notepadPageFilter: {
@@ -13666,9 +14084,65 @@ test("can authorize a query with a collection you have access to", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
+        filters: [
+            {
+                type: "Collections",
+                operation: {
+                    type: "IncludesOneOf",
+                    collectionIds: new Set([collection.id]),
+                },
+            },
+        ],
+    });
+});
+
+test("can't authorize a query with a collection in a different space", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await otherSpace.createSession();
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+
+    await space.addAccount(session2);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: otherSpace.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow("Task collection is in the wrong space");
+
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
         filters: [
             {
                 type: "Collections",
@@ -13685,10 +14159,11 @@ test("can't authorize a query with a collection you don't have access to", async
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection = await TestTaskCollection.createPrivate(session1);
+    const collection = await TestTaskCollection.create(session1);
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Collections",
@@ -13700,7 +14175,7 @@ test("can't authorize a query with a collection you don't have access to", async
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
     );
 });
 
@@ -13708,10 +14183,12 @@ test("can't authorize an excludes all of query with a collection you have access
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Collections",
@@ -13735,6 +14212,7 @@ test("can't authorize an is empty collection query", async () => {
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Collections",
@@ -13755,11 +14233,15 @@ test("can authorize a query with one of three collections you have access to", a
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.createPublic(session1);
-    const collection2 = await TestTaskCollection.createPublic(session1);
-    const collection3 = await TestTaskCollection.createPublic(session1);
+    const collection1 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    const collection2 = await TestTaskCollection.create(session1);
+    await collection2.access.grantDefault(session1);
+    const collection3 = await TestTaskCollection.create(session1);
+    await collection3.access.grantDefault(session1);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
         filters: [
             {
                 type: "Collections",
@@ -13776,12 +14258,15 @@ test("can't authorize a query with one of two collections you have access to and
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.createPublic(session1);
-    const collection2 = await TestTaskCollection.createPrivate(session1);
-    const collection3 = await TestTaskCollection.createPublic(session1);
+    const collection1 = await TestTaskCollection.create(session1);
+    const collection2 = await TestTaskCollection.create(session1);
+    const collection3 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    await collection3.access.grantDefault(session1);
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Collections",
@@ -13793,7 +14278,7 @@ test("can't authorize a query with one of two collections you have access to and
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
     );
 });
 
@@ -13801,11 +14286,15 @@ test("can authorize a query with all of three collections you have access to", a
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.createPublic(session1);
-    const collection2 = await TestTaskCollection.createPublic(session1);
-    const collection3 = await TestTaskCollection.createPublic(session1);
+    const collection1 = await TestTaskCollection.create(session1);
+    const collection2 = await TestTaskCollection.create(session1);
+    const collection3 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    await collection2.access.grantDefault(session1);
+    await collection3.access.grantDefault(session1);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
         filters: [
             {
                 type: "Collections",
@@ -13822,12 +14311,15 @@ test("can't authorize a query with all of two collections you have access to and
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.createPublic(session1);
-    const collection2 = await TestTaskCollection.createPrivate(session1);
-    const collection3 = await TestTaskCollection.createPublic(session1);
+    const collection1 = await TestTaskCollection.create(session1);
+    const collection2 = await TestTaskCollection.create(session1);
+    const collection3 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    await collection3.access.grantDefault(session1);
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Collections",
@@ -13839,7 +14331,7 @@ test("can't authorize a query with all of two collections you have access to and
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
     );
 });
 
@@ -13847,12 +14339,16 @@ test("can't authorize a query with excludes all of three collections you have ac
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.createPublic(session1);
-    const collection2 = await TestTaskCollection.createPublic(session1);
-    const collection3 = await TestTaskCollection.createPublic(session1);
+    const collection1 = await TestTaskCollection.create(session1);
+    const collection2 = await TestTaskCollection.create(session1);
+    const collection3 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    await collection2.access.grantDefault(session1);
+    await collection3.access.grantDefault(session1);
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Collections",
@@ -13874,12 +14370,15 @@ test("can't authorize a query with excludes all of two collections you have acce
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.createPublic(session1);
-    const collection2 = await TestTaskCollection.createPrivate(session1);
-    const collection3 = await TestTaskCollection.createPublic(session1);
+    const collection1 = await TestTaskCollection.create(session1);
+    const collection2 = await TestTaskCollection.create(session1);
+    const collection3 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    await collection3.access.grantDefault(session1);
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Collections",
@@ -13891,7 +14390,7 @@ test("can't authorize a query with excludes all of two collections you have acce
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
     );
 });
 
@@ -13899,11 +14398,14 @@ test("can authorize a query when filtering by a collection you don't have access
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.createPublic(session1);
-    const collection2 = await TestTaskCollection.createPrivate(session1);
-    const collection3 = await TestTaskCollection.createPublic(session1);
+    const collection1 = await TestTaskCollection.create(session1);
+    const collection2 = await TestTaskCollection.create(session1);
+    const collection3 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    await collection3.access.grantDefault(session1);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
         filters: [
             {
                 type: "Collections",
@@ -13923,6 +14425,7 @@ test("can authorize a query when filtering by a collection you don't have access
     });
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
         filters: [
             {
                 type: "Collections",
@@ -13943,6 +14446,7 @@ test("can authorize a query when filtering by a collection you don't have access
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Collections",
@@ -13961,7 +14465,7 @@ test("can authorize a query when filtering by a collection you don't have access
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
     );
 });
 
@@ -13969,10 +14473,12 @@ test("can't authorize is empty collection filter with an accessible collection f
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
             filters: {
                 ...defaultTaskQueryNormalizedFilters,
                 collectionsFilter: [
@@ -13993,6 +14499,7 @@ test("can't authorize is empty collection filter with an accessible collection f
 
     // This is an impossible filter which will return no results.
     await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             collectionsFilter: [
@@ -14011,11 +14518,15 @@ test("can authorize a query when filtering by a collection filter merged by bool
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.createPublic(session1);
-    const collection2 = await TestTaskCollection.createPublic(session1);
-    const collection3 = await TestTaskCollection.createPublic(session1);
+    const collection1 = await TestTaskCollection.create(session1);
+    const collection2 = await TestTaskCollection.create(session1);
+    const collection3 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    await collection2.access.grantDefault(session1);
+    await collection3.access.grantDefault(session1);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
         filters: [
             {
                 type: "Collections",
@@ -14039,10 +14550,13 @@ test("can authorize an excludes collections query when with a passing filter", a
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.createPublic(session1);
-    const collection2 = await TestTaskCollection.createPublic(session1);
+    const collection1 = await TestTaskCollection.create(session1);
+    const collection2 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    await collection2.access.grantDefault(session1);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
         filters: [
             {
                 type: "Collections",
@@ -14062,6 +14576,7 @@ test("can authorize an excludes collections query when with a passing filter", a
     });
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
         filters: [
             {
                 type: "Creator",
@@ -14085,12 +14600,62 @@ test("can authorize a query with a parent filter for a task you have access to",
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     const task = await TestTask.create(session1);
 
     await task.addCollection(session1, collection);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            parentFilter: {
+                parentTaskId: task.id,
+            },
+        },
+    });
+});
+
+test("can't authorize a query with a parent filter in a different space", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await otherSpace.createSession();
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
+    const task = await TestTask.create(session1);
+
+    await task.addCollection(session1, collection);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
+            filters: {
+                ...defaultTaskQueryNormalizedFilters,
+                parentFilter: {
+                    parentTaskId: task.id,
+                },
+            },
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+
+    await space.addAccount(session2);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: otherSpace.id,
+            filters: {
+                ...defaultTaskQueryNormalizedFilters,
+                parentFilter: {
+                    parentTaskId: task.id,
+                },
+            },
+        }),
+    ).rejects.toThrow("Parent task is in the wrong space");
+
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             parentFilter: {
@@ -14104,13 +14669,14 @@ test("can't authorize a query with a parent filter for a task you don't have acc
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection = await TestTaskCollection.createPrivate(session1);
+    const collection = await TestTaskCollection.create(session1);
     const task = await TestTask.create(session1);
 
     await task.addCollection(session1, collection);
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
             filters: {
                 ...defaultTaskQueryNormalizedFilters,
                 parentFilter: {
@@ -14118,14 +14684,15 @@ test("can't authorize a query with a parent filter for a task you don't have acc
                 },
             },
         }),
-    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "View" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "View" access level to task'));
 });
 
 test("can authorize a query with a parent filter for a task you have access to transitively", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     const task1 = await TestTask.create(session1);
     const task2 = await TestTask.create(session1);
 
@@ -14133,6 +14700,7 @@ test("can authorize a query with a parent filter for a task you have access to t
     await task2.updateParentTask(session1, task1);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             parentFilter: {
@@ -14146,7 +14714,7 @@ test("can't authorize a query with a parent filter for a task you don't have acc
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection = await TestTaskCollection.createPrivate(session1);
+    const collection = await TestTaskCollection.create(session1);
     const task1 = await TestTask.create(session1);
     const task2 = await TestTask.create(session1);
 
@@ -14155,6 +14723,7 @@ test("can't authorize a query with a parent filter for a task you don't have acc
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
             filters: {
                 ...defaultTaskQueryNormalizedFilters,
                 parentFilter: {
@@ -14162,19 +14731,21 @@ test("can't authorize a query with a parent filter for a task you don't have acc
                 },
             },
         }),
-    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "View" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "View" access level to task'));
 });
 
 test("can authorize a query with a parent filter for a deleted task", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     const task = await TestTask.create(session1);
 
     await task.addCollection(session1, collection);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             parentFilter: {
@@ -14186,6 +14757,7 @@ test("can authorize a query with a parent filter for a deleted task", async () =
     await task.delete(session1);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             parentFilter: {
@@ -14197,6 +14769,7 @@ test("can authorize a query with a parent filter for a deleted task", async () =
     await task.undelete(session1);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             parentFilter: {
@@ -14213,6 +14786,7 @@ test("must have a parent filter to sort by parent position", async () => {
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
             sorts: [{type: "ParentPosition", direction: "Ascending", missing: "Last"}],
         }),
     ).rejects.toThrow(
@@ -14220,6 +14794,7 @@ test("must have a parent filter to sort by parent position", async () => {
     );
 
     await testAuthorizeTaskQueryAccess(session.action(), {
+        spaceId: space.id,
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             parentFilter: {
@@ -14234,11 +14809,13 @@ test("must be allowed to access collection to sort by collection position", asyn
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.createPublic(session1);
-    const collection2 = await TestTaskCollection.createPrivate(session1);
+    const collection1 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    const collection2 = await TestTaskCollection.create(session1);
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
             sorts: [
                 {
                     type: "CollectionPosition",
@@ -14255,6 +14832,7 @@ test("must be allowed to access collection to sort by collection position", asyn
     );
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
         filters: [
             {
                 type: "Creator",
@@ -14273,6 +14851,7 @@ test("must be allowed to access collection to sort by collection position", asyn
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Creator",
@@ -14289,18 +14868,89 @@ test("must be allowed to access collection to sort by collection position", asyn
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
     );
+});
+
+test("collection must be in the right space to sort by collection position", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await otherSpace.createSession();
+    const collection1 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: otherSpace.id,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+            ],
+            sorts: [
+                {
+                    type: "CollectionPosition",
+                    collectionId: collection1.id,
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+            ],
+        }),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+
+    await space.addAccount(session2);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: otherSpace.id,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+            ],
+            sorts: [
+                {
+                    type: "CollectionPosition",
+                    collectionId: collection1.id,
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+            ],
+        }),
+    ).rejects.toThrow("Task collection is in the wrong space");
+
+    await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
+        filters: [
+            {
+                type: "Creator",
+                operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+            },
+        ],
+        sorts: [
+            {
+                type: "CollectionPosition",
+                collectionId: collection1.id,
+                direction: "Ascending",
+                missing: "Last",
+            },
+        ],
+    });
 });
 
 test("must be allowed to access collection to sort by collection position with collection filter", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
-    const collection1 = await TestTaskCollection.createPublic(session1);
-    const collection2 = await TestTaskCollection.createPrivate(session1);
+    const collection1 = await TestTaskCollection.create(session1);
+    await collection1.access.grantDefault(session1);
+    const collection2 = await TestTaskCollection.create(session1);
 
     await testAuthorizeTaskQueryAccess(session2.action(), {
+        spaceId: space.id,
         filters: [
             {
                 type: "Collections",
@@ -14322,6 +14972,7 @@ test("must be allowed to access collection to sort by collection position with c
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Collections",
@@ -14341,7 +14992,7 @@ test("must be allowed to access collection to sort by collection position with c
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor does not have "View" access level to task collection'),
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
     );
 });
 
@@ -14352,6 +15003,7 @@ test("can only sort by your notepad page positions", async () => {
 
     await expect(
         testAuthorizeTaskQueryAccess(session1.action(), {
+            spaceId: space.id,
             sorts: [
                 {
                     type: "NotepadPagePosition",
@@ -14369,6 +15021,7 @@ test("can only sort by your notepad page positions", async () => {
     );
 
     await testAuthorizeTaskQueryAccess(session1.action(), {
+        spaceId: space.id,
         filters: [
             {
                 type: "Creator",
@@ -14388,6 +15041,7 @@ test("can only sort by your notepad page positions", async () => {
 
     await expect(
         testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Creator",
@@ -14410,9 +15064,11 @@ test("can only sort by your notepad page positions", async () => {
 test("must filter by assignee to sort by active position", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
+    const adminSession = await space.createSession({hasInternalAccess: true});
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
             sorts: [
                 {
                     type: "AssigneeActivePosition",
@@ -14428,6 +15084,7 @@ test("must filter by assignee to sort by active position", async () => {
     );
 
     await testAuthorizeTaskQueryAccess(session.action(), {
+        spaceId: space.id,
         filters: [
             {
                 type: "Assignee",
@@ -14448,6 +15105,7 @@ test("must filter by assignee to sort by active position", async () => {
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
             filters: [
                 {
                     type: "Creator",
@@ -14469,6 +15127,7 @@ test("must filter by assignee to sort by active position", async () => {
     );
 
     await testAuthorizeTaskQueryAccess(session.action(), {
+        spaceId: space.id,
         filters: [
             {
                 type: "Creator",
@@ -14490,6 +15149,637 @@ test("must filter by assignee to sort by active position", async () => {
             },
         ],
     });
+
+    await removeSpaceAccountAsAdmin(adminSession.action(), {
+        spaceId: space.id,
+        accountId: session.account.id,
+    });
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
+                    },
+                },
+            ],
+            sorts: [
+                {
+                    type: "AssigneeActivePosition",
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+            ],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+});
+
+test("must have space access to filter by creator", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession({hasInternalAccess: true});
+
+    await removeSpaceAccountAsAdmin(otherSession.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantUrl(session1);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session1.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(otherSession.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(context.anonymousAction(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session1.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "Account", accountId: session1.account.id}],
+                    },
+                },
+            ],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "Account", accountId: session1.account.id}],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+
+    await expect(
+        testAuthorizeTaskQueryAccess(otherSession.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "Account", accountId: session1.account.id}],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+
+    await expect(
+        testAuthorizeTaskQueryAccess(context.anonymousAction(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "Account", accountId: session1.account.id}],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+});
+
+test("must have space access to filter by assigner", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession({hasInternalAccess: true});
+
+    await removeSpaceAccountAsAdmin(otherSession.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantUrl(session1);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session1.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(otherSession.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(context.anonymousAction(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session1.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+                {
+                    type: "Assigner",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "Account", accountId: session1.account.id}],
+                    },
+                },
+            ],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+                {
+                    type: "Assigner",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "Account", accountId: session1.account.id}],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+
+    await expect(
+        testAuthorizeTaskQueryAccess(otherSession.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+                {
+                    type: "Assigner",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "Account", accountId: session1.account.id}],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+
+    await expect(
+        testAuthorizeTaskQueryAccess(context.anonymousAction(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+                {
+                    type: "Assigner",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "Account", accountId: session1.account.id}],
+                    },
+                },
+            ],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+});
+
+test("must have space access to sort by creator", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession({hasInternalAccess: true});
+
+    await removeSpaceAccountAsAdmin(otherSession.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantUrl(session1);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session1.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(otherSession.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(context.anonymousAction(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session1.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+            sorts: [{type: "Creator"}],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+            sorts: [{type: "Creator"}],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+
+    await expect(
+        testAuthorizeTaskQueryAccess(otherSession.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+            sorts: [{type: "Creator"}],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+
+    await expect(
+        testAuthorizeTaskQueryAccess(context.anonymousAction(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+            sorts: [{type: "Creator"}],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
+});
+
+test("must have space access to sort by assigner", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession({hasInternalAccess: true});
+
+    await removeSpaceAccountAsAdmin(otherSession.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantUrl(session1);
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session1.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(otherSession.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(context.anonymousAction(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session1.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+            sorts: [{type: "Assigner", direction: "Ascending", missing: "Last"}],
+        }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session2.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+            sorts: [{type: "Assigner", direction: "Ascending", missing: "Last"}],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+
+    await expect(
+        testAuthorizeTaskQueryAccess(otherSession.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+            sorts: [{type: "Assigner", direction: "Ascending", missing: "Last"}],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+
+    await expect(
+        testAuthorizeTaskQueryAccess(context.anonymousAction(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
+                    },
+                },
+            ],
+            sorts: [{type: "Assigner", direction: "Ascending", missing: "Last"}],
+        }),
+    ).rejects.toThrow("Unauthenticated session");
 });
 
 test("can't set task as own parent", async () => {
@@ -14566,15 +15856,16 @@ test("can delete a task and all its children when you have access to the task th
     const session3 = await space.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.createPrivate(session1);
+    const collection = await TestTaskCollection.create(session1);
     await task.addCollection(session1, collection);
 
-    await collection.updateAccessPolicy(session1, {
+    await collection.access.set(session1, {
         accountGrantById: new Map([
-            [session1.account.id, {level: "Manage"}],
-            [session3.account.id, {level: "Manage"}],
+            [session1.account.id, {level: "Manage", generation: 0}],
+            [session3.account.id, {level: "Manage", generation: 1}],
         ]),
         defaultGrant: null,
+        urlGrant: null,
     });
 
     expect((await task.getItem()).deletedTime).toEqual(null);
@@ -15466,7 +16757,8 @@ test("can't get notes for task in the wrong space", async () => {
     const otherSession = await otherSpace.createSession();
 
     const task = await TestTask.create(session);
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session);
+    await collection.access.grantDefault(session);
     await task.addCollection(session, collection);
 
     await expect(getTaskNotesContent(otherSession.action(), task.id)).rejects.toThrow(
@@ -15484,7 +16776,8 @@ test("can get notes for task in public collection", async () => {
     const session2 = await space.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     expect(await getTaskNotesContent(session2.action(), task.id)).toEqual({
@@ -15511,7 +16804,7 @@ test("can't get notes for task in private collection", async () => {
     const session2 = await space.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.createPrivate(session1);
+    const collection = await TestTaskCollection.create(session1);
     await task.addCollection(session1, collection);
 
     await expect(getTaskNotesContent(session2.action(), task.id)).rejects.toThrow(
@@ -15561,6 +16854,21 @@ test("can't get notes as the wrong system action", async () => {
     await expect(
         getTaskNotesContentWithoutReferences(otherSpace.systemAction(), task.id),
     ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can't get notes as an anonymous actor", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const task = await TestTask.create(session);
+
+    await expect(getTaskNotesContent(context.anonymousAction(), task.id)).rejects.toThrow(
+        UnauthenticatedError,
+    );
+
+    await expect(
+        getTaskNotesContentWithoutReferences(context.anonymousAction(), task.id),
+    ).rejects.toThrow(UnauthenticatedError);
 });
 
 test("can update task notes", async () => {
@@ -15640,7 +16948,8 @@ test("can't update task notes in a different space", async () => {
     const otherSession = await otherSpace.createSession();
 
     const task = await TestTask.create(session);
-    const collection = await TestTaskCollection.createPublic(session);
+    const collection = await TestTaskCollection.create(session);
+    await collection.access.grantDefault(session);
     await task.addCollection(session, collection);
 
     expect(await getTaskNotesContent(session.action(), task.id)).toEqual({
@@ -15677,7 +16986,8 @@ test("can update task notes in a public collection", async () => {
     const session2 = await space.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     expect(await getTaskNotesContent(session1.action(), task.id)).toEqual({
@@ -15712,7 +17022,7 @@ test("can't update task notes in a private collection", async () => {
     const session2 = await space.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.createPrivate(session1);
+    const collection = await TestTaskCollection.create(session1);
     await task.addCollection(session1, collection);
 
     expect(await getTaskNotesContent(session1.action(), task.id)).toEqual({
@@ -16082,8 +17392,8 @@ test("correctly updates collection task counts on collection for any task action
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPrivate(session),
-        TestTaskCollection.createPrivate(session),
+        TestTaskCollection.create(session),
+        TestTaskCollection.create(session),
     ]);
 
     expect(await collection1.getItem()).toEqual(
@@ -16386,10 +17696,10 @@ test("correctly updates collection task counts when deleting task and all childr
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPrivate(session),
-        TestTaskCollection.createPrivate(session),
-        TestTaskCollection.createPrivate(session),
-        TestTaskCollection.createPrivate(session),
+        TestTaskCollection.create(session),
+        TestTaskCollection.create(session),
+        TestTaskCollection.create(session),
+        TestTaskCollection.create(session),
     ]);
 
     const time1 = testClock.nowLogical();
@@ -16485,8 +17795,10 @@ test("race condition: update collection task count is recognized if it conflicts
 
     const [task, collection] = await runAllPromises([
         TestTask.create(session1),
-        TestTaskCollection.createPublic(session2),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection.access.grantDefault(session2);
 
     expect(await collection.getItem()).toEqual(
         expect.objectContaining({
@@ -16500,7 +17812,7 @@ test("race condition: update collection task count is recognized if it conflicts
         session2.account.id,
     );
 
-    const updatePromise = collection.setPrivateAccessPolicy(session2);
+    const updatePromise = collection.access.revokeDefault(session2);
     const {unpause} = await pausePromise;
 
     expect(await collection.getItem()).toEqual(
@@ -16541,8 +17853,10 @@ test("race condition: update collection task count is recognized if it conflicts
 
     const [task, collection] = await runAllPromises([
         TestTask.create(session1),
-        TestTaskCollection.createPublic(session2),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection.access.grantDefault(session2);
 
     expect(await collection.getItem()).toEqual(
         expect.objectContaining({
@@ -16568,7 +17882,7 @@ test("race condition: update collection task count is recognized if it conflicts
         }),
     );
 
-    await collection.setPrivateAccessPolicy(session2);
+    await collection.access.revokeDefault(session2);
 
     expect(await collection.getItem()).toEqual(
         expect.objectContaining({
@@ -16599,8 +17913,10 @@ test("multiple actions that update collection item count in one transaction", as
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session),
     ]);
+
+    await collection.access.grantDefault(session);
 
     await task3.updateStatus(session, "Closed");
 
@@ -16675,8 +17991,10 @@ test("multiple actions that update collection item count in one transaction and 
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session),
     ]);
+
+    await collection.access.grantDefault(session);
 
     await task3.updateStatus(session, "Closed");
 
@@ -16738,8 +18056,11 @@ test("multiple actions that update collection item count in one transaction and 
             collectionAction: {
                 type: "UpdateAccessPolicy",
                 accessPolicy: {
-                    accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
-                    defaultGrant: {type: "Space", level: "Manage"},
+                    accountGrantById: new Map([
+                        [session.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: {level: "Manage", generation: 1},
+                    urlGrant: null,
                 },
             },
         },
@@ -16763,8 +18084,10 @@ test("multiple actions that update collection item count in one transaction and 
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session),
     ]);
+
+    await collection.access.grantDefault(session);
 
     await task3.updateStatus(session, "Closed");
 
@@ -16796,8 +18119,11 @@ test("multiple actions that update collection item count in one transaction and 
             collectionAction: {
                 type: "UpdateAccessPolicy",
                 accessPolicy: {
-                    accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
-                    defaultGrant: {type: "Space", level: "Manage"},
+                    accountGrantById: new Map([
+                        [session.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: {level: "Manage", generation: 1},
+                    urlGrant: null,
                 },
             },
         },
@@ -16851,8 +18177,10 @@ test("multiple actions that update collection item count in one transaction and 
         TestTask.create(session),
         TestTask.create(session),
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session),
     ]);
+
+    await collection.access.grantDefault(session);
 
     await task3.updateStatus(session, "Closed");
 
@@ -16894,8 +18222,11 @@ test("multiple actions that update collection item count in one transaction and 
             collectionAction: {
                 type: "UpdateAccessPolicy",
                 accessPolicy: {
-                    accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
-                    defaultGrant: {type: "Space", level: "Manage"},
+                    accountGrantById: new Map([
+                        [session.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: {level: "Manage", generation: 1},
+                    urlGrant: null,
                 },
             },
         },
@@ -16936,8 +18267,10 @@ test("a collection action and an action that indirectly updates collection task 
 
     const [task, collection] = await runAllPromises([
         TestTask.create(session),
-        TestTaskCollection.createPublic(session),
+        TestTaskCollection.create(session),
     ]);
+
+    await collection.access.grantDefault(session);
 
     expect(await collection.getItem()).toEqual(
         expect.objectContaining({
@@ -16983,8 +18316,11 @@ test("a collection action and an action that indirectly updates collection task 
             collectionAction: {
                 type: "UpdateAccessPolicy",
                 accessPolicy: {
-                    accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
-                    defaultGrant: {type: "Space", level: "Manage"},
+                    accountGrantById: new Map([
+                        [session.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: {level: "Manage", generation: 1},
+                    urlGrant: null,
                 },
             },
         },
@@ -17007,8 +18343,11 @@ test("a collection action and an action that indirectly updates collection task 
             collectionAction: {
                 type: "UpdateAccessPolicy",
                 accessPolicy: {
-                    accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
+                    accountGrantById: new Map([
+                        [session.account.id, {level: "Manage", generation: 0}],
+                    ]),
                     defaultGrant: null,
+                    urlGrant: null,
                 },
             },
         },
@@ -17039,8 +18378,10 @@ test("account can remove access from itself", async () => {
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session2),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     await task1.addCollection(session2, collection1);
 
@@ -17082,6 +18423,89 @@ test("account can remove access from itself", async () => {
     );
 });
 
+test("can authorize task with system actor and anonymous actor", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const [task1, collection1] = await runAllPromises([
+        TestTask.create(session2),
+        TestTaskCollection.create(session2),
+    ]);
+
+    await collection1.access.grantDefault(session2);
+
+    await task1.addCollection(session2, collection1);
+
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit");
+
+    await authorizeTaskAccess(space.systemAction(), task1.id, "Edit");
+
+    await expect(authorizeTaskAccess(otherSpace.systemAction(), task1.id, "Edit")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(authorizeTaskAccess(context.anonymousAction(), task1.id, "Edit")).rejects.toThrow(
+        UnauthenticatedError,
+    );
+
+    await commitTaskActionTransaction(TestTask.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: testClock.nowLogical(),
+            taskId: task1.id,
+            taskAction: {
+                type: "RemoveCollection",
+                collectionId: collection1.id,
+            },
+        },
+    ]);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await authorizeTaskAccess(space.systemAction(), task1.id, "Edit");
+
+    await expect(authorizeTaskAccess(otherSpace.systemAction(), task1.id, "Edit")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(authorizeTaskAccess(context.anonymousAction(), task1.id, "Edit")).rejects.toThrow(
+        UnauthenticatedError,
+    );
+
+    await expect(
+        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await authorizeTaskAccess(space.systemAction(), task1.id, "Edit");
+
+    await expect(authorizeTaskAccess(otherSpace.systemAction(), task1.id, "Edit")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(authorizeTaskAccess(context.anonymousAction(), task1.id, "Edit")).rejects.toThrow(
+        UnauthenticatedError,
+    );
+});
+
 test("account can remove access from itself then grant it back with lease", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -17089,8 +18513,10 @@ test("account can remove access from itself then grant it back with lease", asyn
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session2),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -17182,8 +18608,10 @@ test("account can remove access from itself but can't grant it back with an inva
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session2),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -17265,7 +18693,7 @@ test("account can remove access from itself but can't grant it back with an inva
             ],
             {leaseId: generateId<TaskActionTransactionLeaseId>()},
         ),
-    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -17280,8 +18708,10 @@ test("account can remove access from itself but can't use another account's leas
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session2),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -17363,7 +18793,7 @@ test("account can remove access from itself but can't use another account's leas
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -17377,9 +18807,11 @@ test("account can remove access from itself but can't grant itself access back w
 
     const [task1, collection1, collection2] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session2),
-        TestTaskCollection.createPrivate(session2),
+        TestTaskCollection.create(session2),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -17502,8 +18934,10 @@ test("account can remove access from itself but can't grant itself access back w
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session2),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -17589,7 +19023,7 @@ test("account can remove access from itself but can't grant itself access back w
                 {leaseId},
             ),
         ).rejects.toThrow(
-            new PermissionDeniedError('Actor does not have "Edit" access level to task'),
+            new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'),
         );
 
         await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
@@ -17607,8 +19041,10 @@ test("won't create lease if committed action doesn't remove access", async () =>
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session2),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -17704,7 +19140,7 @@ test("won't create lease if committed action doesn't remove access", async () =>
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -17719,8 +19155,10 @@ test("can't create lease with actions you aren't allowed to commit", async () =>
     const [task1, task2, collection1] = await runAllPromises([
         TestTask.create(session2),
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session2),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -17778,8 +19216,8 @@ test("can't create lease with actions you aren't allowed to commit", async () =>
         ),
     ).rejects.toThrow(
         new PermissionDeniedError(
-            'Couldn\'t apply lease actions: Actor does not have "Edit" access level to task',
-            {cause: new PermissionDeniedError('Actor does not have "Edit" access level to task')},
+            "Couldn't apply lease actions: Actor doesn't have \"Edit\" access level to task",
+            {cause: new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task')},
         ),
     );
 
@@ -17793,8 +19231,10 @@ test("account can't remove access from itself then grant it back with lease that
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session2),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -18044,8 +19484,10 @@ test("account can remove access from itself but can't grant it back if another u
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session2),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -18129,7 +19571,7 @@ test("account can remove access from itself but can't grant it back if another u
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -18143,8 +19585,10 @@ test("account can remove access from itself but can't grant it back if another u
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session2),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -18228,7 +19672,7 @@ test("account can remove access from itself but can't grant it back if another u
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -18242,8 +19686,10 @@ test("account can remove access from itself but can't grant it back if another u
 
     const [task1, collection1] = await runAllPromises([
         TestTask.create(session2),
-        TestTaskCollection.createPublic(session2),
+        TestTaskCollection.create(session2),
     ]);
+
+    await collection1.access.grantDefault(session2);
 
     const leaseId = generateId<TaskActionTransactionLeaseId>();
 
@@ -18332,7 +19778,7 @@ test("account can remove access from itself but can't grant it back if another u
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -18346,7 +19792,8 @@ test("counts notes step count contributions for each account", async () => {
     const session3 = await space.createSession();
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     expect(
@@ -18481,17 +19928,18 @@ test("throws error for users that only have view access when trying to access ta
         fileIds: [],
     });
 
-    const collection = await TestTaskCollection.createPrivate(creatorSession);
+    const collection = await TestTaskCollection.create(creatorSession);
 
-    await collection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
-            [creatorSession.account.id, {level: "Manage"}],
-            [manageSession.account.id, {level: "Manage"}],
+    await collection.access.set(creatorSession, {
+        accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+            [creatorSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
         ]),
         defaultGrant: null,
+        urlGrant: null,
     });
 
     await task.addCollection(creatorSession, collection);
@@ -18584,18 +20032,19 @@ test("throws error for users that only have view access when trying to create ta
         fileIds: [],
     };
 
-    const collection = await TestTaskCollection.createPrivate(creatorSession);
+    const collection = await TestTaskCollection.create(creatorSession);
     await task.addCollection(creatorSession, collection);
 
-    await collection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
-            [creatorSession.account.id, {level: "Manage"}],
-            [manageSession.account.id, {level: "Manage"}],
+    await collection.access.set(creatorSession, {
+        accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+            [creatorSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
         ]),
         defaultGrant: null,
+        urlGrant: null,
     });
 
     await task.updateAssignee(creatorSession, assigneeSession);
@@ -18643,7 +20092,8 @@ test("throws error for users that only have view access when trying to update ta
 
     const task = await TestTask.create(creatorSession);
 
-    const collection = await TestTaskCollection.createPublic(creatorSession);
+    const collection = await TestTaskCollection.create(creatorSession);
+    await collection.access.grantDefault(creatorSession);
     await task.addCollection(creatorSession, collection);
 
     const creatorTaskComment = await task.createComment(creatorSession, "test1");
@@ -18722,15 +20172,16 @@ test("throws error for users that only have view access when trying to update ta
         updateTaskCommentContent(manageSession.action(), updatedManageTaskCommentDetails),
     ).resolves.not.toBeNull();
 
-    await collection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
-            [creatorSession.account.id, {level: "Manage"}],
-            [manageSession.account.id, {level: "Manage"}],
+    await collection.access.set(creatorSession, {
+        accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+            [creatorSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
         ]),
         defaultGrant: null,
+        urlGrant: null,
     });
 
     await task.updateAssignee(creatorSession, assigneeSession);
@@ -18829,7 +20280,8 @@ test("throws error for users that only have view access when trying to delete ta
     ]);
 
     const task = await TestTask.create(creatorSession);
-    const collection = await TestTaskCollection.createPublic(creatorSession);
+    const collection = await TestTaskCollection.create(creatorSession);
+    await collection.access.grantDefault(creatorSession);
     await task.addCollection(creatorSession, collection);
 
     await task.updateAssignee(creatorSession, assigneeSession);
@@ -18843,15 +20295,16 @@ test("throws error for users that only have view access when trying to delete ta
     const unauthorizedTaskComment = await task.createComment(unauthorizedSession, "test1");
     const assigneeTaskComment = await task.createComment(assigneeSession, "test1");
 
-    await collection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
-            [creatorSession.account.id, {level: "Manage"}],
-            [manageSession.account.id, {level: "Manage"}],
+    await collection.access.set(creatorSession, {
+        accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+            [creatorSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
         ]),
         defaultGrant: null,
+        urlGrant: null,
     });
 
     await expect(
@@ -18922,22 +20375,24 @@ test("throws error for users that only have view access when trying to get task 
 
     const task = await TestTask.create(creatorSession);
 
-    const collection = await TestTaskCollection.createPublic(creatorSession);
+    const collection = await TestTaskCollection.create(creatorSession);
+    await collection.access.grantDefault(creatorSession);
     await task.addCollection(creatorSession, collection);
 
     await task.createComment(creatorSession, "test1");
     await task.createComment(creatorSession, "test2");
     await task.createComment(creatorSession, "test3");
 
-    await collection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
-            [creatorSession.account.id, {level: "Manage"}],
-            [manageSession.account.id, {level: "Manage"}],
+    await collection.access.set(creatorSession, {
+        accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+            [creatorSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
         ]),
         defaultGrant: null,
+        urlGrant: null,
     });
 
     await task.updateAssignee(creatorSession, assigneeSession);
@@ -19029,22 +20484,24 @@ test("throws error for users that only have view access when trying to get task 
 
     const task = await TestTask.create(creatorSession);
 
-    const collection = await TestTaskCollection.createPublic(creatorSession);
+    const collection = await TestTaskCollection.create(creatorSession);
+    await collection.access.grantDefault(creatorSession);
     await task.addCollection(creatorSession, collection);
 
     await task.createComment(creatorSession, "test1");
     await task.createComment(creatorSession, "test2");
     await task.createComment(creatorSession, "test3");
 
-    await collection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
-            [creatorSession.account.id, {level: "Manage"}],
-            [manageSession.account.id, {level: "Manage"}],
+    await collection.access.set(creatorSession, {
+        accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+            [creatorSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
         ]),
         defaultGrant: null,
+        urlGrant: null,
     });
 
     await task.updateAssignee(creatorSession, assigneeSession);
@@ -19113,7 +20570,7 @@ test("throws error for users that only have view access when trying to get task 
     ).resolves.not.toBeNull();
 });
 
-test("throws error for users that only have view access when trying to get initial task comments", async () => {
+test("returns null for users that only have view access when trying to get initial task comments", async () => {
     const space = await TestSpace.create(context);
 
     const [
@@ -19136,74 +20593,402 @@ test("throws error for users that only have view access when trying to get initi
 
     const task = await TestTask.create(creatorSession);
 
-    const collection = await TestTaskCollection.createPublic(creatorSession);
+    await task.typeNotes(creatorSession, "Test notes");
+
+    const collection = await TestTaskCollection.create(creatorSession);
+    await collection.access.grantDefault(creatorSession);
     await task.addCollection(creatorSession, collection);
 
-    await task.createComment(creatorSession, "test1");
-    await task.createComment(creatorSession, "test2");
-    await task.createComment(creatorSession, "test3");
-
-    await collection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
-            [creatorSession.account.id, {level: "Manage"}],
-            [manageSession.account.id, {level: "Manage"}],
+    await collection.access.set(creatorSession, {
+        accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+            [creatorSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
         ]),
         defaultGrant: null,
+        urlGrant: null,
     });
 
     await task.updateAssignee(creatorSession, assigneeSession);
 
+    const comment0 = await task.createComment(creatorSession, "test1");
+    const comment1 = await task.createComment(assigneeSession, "test2");
+    const comment2 = await task.createComment(creatorSession, "test3");
+
     await expect(
-        getTaskNotesContentAndInitialComments(assigneeSession.action(), {
+        getTaskNotesContentAndOptionalInitialComments(assigneeSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
-    ).resolves.not.toBeNull();
+    ).resolves.toEqual({
+        notes: {
+            version: 1,
+            content: {
+                doc: createSimpleTaskNotesContent("Test notes"),
+                references: emptyContentReferences,
+            },
+        },
+        initialComments: {
+            commentCount: 3,
+            otherReferencedComments: [],
+            lastCommentChangeTime: null,
+            comments: [
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 0,
+                    author: await creatorSession.get(),
+                    createdTime: comment0.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test1"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 1,
+                    author: await assigneeSession.get(),
+                    createdTime: comment1.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test2"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 2,
+                    author: await creatorSession.get(),
+                    createdTime: comment2.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test3"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+            ],
+        },
+    });
 
     await expect(
-        getTaskNotesContentAndInitialComments(unauthorizedSession.action(), {
+        getTaskNotesContentAndOptionalInitialComments(unauthorizedSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        getTaskNotesContentAndInitialComments(viewerSession.action(), {
+        getTaskNotesContentAndOptionalInitialComments(viewerSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
-    ).rejects.toThrow(PermissionDeniedError);
+    ).resolves.toEqual({
+        notes: {
+            version: 1,
+            content: {
+                doc: createSimpleTaskNotesContent("Test notes"),
+                references: emptyContentReferences,
+            },
+        },
+        initialComments: null,
+    });
 
     await expect(
-        getTaskNotesContentAndInitialComments(commenterSession.action(), {
+        getTaskNotesContentAndOptionalInitialComments(commenterSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
-    ).resolves.not.toBeNull();
+    ).resolves.toEqual({
+        notes: {
+            version: 1,
+            content: {
+                doc: createSimpleTaskNotesContent("Test notes"),
+                references: emptyContentReferences,
+            },
+        },
+        initialComments: {
+            commentCount: 3,
+            otherReferencedComments: [],
+            lastCommentChangeTime: null,
+            comments: [
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 0,
+                    author: await creatorSession.get(),
+                    createdTime: comment0.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test1"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 1,
+                    author: await assigneeSession.get(),
+                    createdTime: comment1.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test2"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 2,
+                    author: await creatorSession.get(),
+                    createdTime: comment2.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test3"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+            ],
+        },
+    });
 
     await expect(
-        getTaskNotesContentAndInitialComments(editorSession.action(), {
+        getTaskNotesContentAndOptionalInitialComments(editorSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
-    ).resolves.not.toBeNull();
+    ).resolves.toEqual({
+        notes: {
+            version: 1,
+            content: {
+                doc: createSimpleTaskNotesContent("Test notes"),
+                references: emptyContentReferences,
+            },
+        },
+        initialComments: {
+            commentCount: 3,
+            otherReferencedComments: [],
+            lastCommentChangeTime: null,
+            comments: [
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 0,
+                    author: await creatorSession.get(),
+                    createdTime: comment0.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test1"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 1,
+                    author: await assigneeSession.get(),
+                    createdTime: comment1.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test2"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 2,
+                    author: await creatorSession.get(),
+                    createdTime: comment2.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test3"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+            ],
+        },
+    });
 
     await expect(
-        getTaskNotesContentAndInitialComments(manageSession.action(), {
+        getTaskNotesContentAndOptionalInitialComments(manageSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
-    ).resolves.not.toBeNull();
+    ).resolves.toEqual({
+        notes: {
+            version: 1,
+            content: {
+                doc: createSimpleTaskNotesContent("Test notes"),
+                references: emptyContentReferences,
+            },
+        },
+        initialComments: {
+            commentCount: 3,
+            otherReferencedComments: [],
+            lastCommentChangeTime: null,
+            comments: [
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 0,
+                    author: await creatorSession.get(),
+                    createdTime: comment0.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test1"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 1,
+                    author: await assigneeSession.get(),
+                    createdTime: comment1.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test2"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 2,
+                    author: await creatorSession.get(),
+                    createdTime: comment2.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test3"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+            ],
+        },
+    });
 
     await expect(
-        getTaskNotesContentAndInitialComments(creatorSession.action(), {
+        getTaskNotesContentAndOptionalInitialComments(creatorSession.action(), {
             taskId: task.id,
             commentsLimit: 10,
         }),
-    ).resolves.not.toBeNull();
+    ).resolves.toEqual({
+        notes: {
+            version: 1,
+            content: {
+                doc: createSimpleTaskNotesContent("Test notes"),
+                references: emptyContentReferences,
+            },
+        },
+        initialComments: {
+            commentCount: 3,
+            otherReferencedComments: [],
+            lastCommentChangeTime: null,
+            comments: [
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 0,
+                    author: await creatorSession.get(),
+                    createdTime: comment0.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test1"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 1,
+                    author: await assigneeSession.get(),
+                    createdTime: comment1.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test2"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+                new TaskCommentModel({
+                    taskId: task.id,
+                    index: 2,
+                    author: await creatorSession.get(),
+                    createdTime: comment2.createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("test3"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                        files: [],
+                    },
+                }),
+            ],
+        },
+    });
 });
 
 test("throws error for users that only have view access when trying to get task comments from backfill", async () => {
@@ -19229,7 +21014,8 @@ test("throws error for users that only have view access when trying to get task 
 
     const task = await TestTask.create(creatorSession);
 
-    const collection = await TestTaskCollection.createPublic(creatorSession);
+    const collection = await TestTaskCollection.create(creatorSession);
+    await collection.access.grantDefault(creatorSession);
     await task.addCollection(creatorSession, collection);
 
     const creatorTaskComment = await task.createComment(creatorSession, "test1");
@@ -19238,15 +21024,16 @@ test("throws error for users that only have view access when trying to get task 
 
     await task.createComment(manageSession, "test1");
 
-    await collection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
-            [creatorSession.account.id, {level: "Manage"}],
-            [manageSession.account.id, {level: "Manage"}],
+    await collection.access.set(creatorSession, {
+        accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+            [creatorSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
         ]),
         defaultGrant: null,
+        urlGrant: null,
     });
 
     await task.updateAssignee(creatorSession, assigneeSession);
@@ -19381,19 +21168,21 @@ test("throws error for users without proper access trying to get the Task Owner"
 
     const task = await TestTask.create(creatorSession);
 
-    const collection = await TestTaskCollection.createPublic(creatorSession);
+    const collection = await TestTaskCollection.create(creatorSession);
+    await collection.access.grantDefault(creatorSession);
     await task.addCollection(creatorSession, collection);
 
-    await collection.updateAccessPolicy(creatorSession, {
-        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
-            [creatorSession.account.id, {level: "Manage"}],
-            [manageSession.account.id, {level: "Manage"}],
+    await collection.access.set(creatorSession, {
+        accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+            [creatorSession.account.id, {level: "Manage", generation: 0}],
+            [manageSession.account.id, {level: "Manage", generation: 1}],
             [editorSession.account.id, {level: "Edit"}],
             [assigneeSession.account.id, {level: "Edit"}],
             [commenterSession.account.id, {level: "Comment"}],
             [viewerSession.account.id, {level: "View"}],
         ]),
         defaultGrant: null,
+        urlGrant: null,
     });
 
     await expect(getTaskOwner(creatorSession.action(), task.id)).resolves.not.toBeNull();
@@ -19424,7 +21213,8 @@ test("authorizing task access as session actor is cached", async () => {
     const [session1, session2] = await space.createSessions(2);
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     await ProcessContextModule.waitForTestTasks();
@@ -19482,7 +21272,8 @@ test("authorizing task access as system actor is cached", async () => {
     const [session1] = await space.createSessions(2);
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     await ProcessContextModule.waitForTestTasks();
@@ -19540,7 +21331,8 @@ test("authorizing task access after getting task as session actor is cached", as
     const [session1, session2] = await space.createSessions(2);
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     await ProcessContextModule.waitForTestTasks();
@@ -19553,20 +21345,20 @@ test("authorizing task access after getting task as session actor is cached", as
 
         expect(getCount()).toEqual(0);
 
-        await getTaskNotesContentAndInitialComments(actionContext, {
+        await getTaskNotesContentAndOptionalInitialComments(actionContext, {
             taskId: task.id,
             commentsLimit: 100,
         });
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(3);
 
         await authorizeTaskAccess(actionContext, task.id, "View");
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(3);
 
         await authorizeTaskAccess(actionContext, task.id, "View");
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(3);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -19576,7 +21368,7 @@ test("authorizing task access after getting task as session actor is cached", as
             ]);
         }
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(3);
     }
 
     dynamoClientExecuteActionTestCounter.resetForTest();
@@ -19655,7 +21447,8 @@ test("authorizing task access after getting task as system actor is cached", asy
     const [session1] = await space.createSessions(2);
 
     const task = await TestTask.create(session1);
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
     await ProcessContextModule.waitForTestTasks();
@@ -19689,39 +21482,6 @@ test("authorizing task access after getting task as system actor is cached", asy
         }
 
         expect(getCount()).toEqual(1);
-    }
-
-    dynamoClientExecuteActionTestCounter.resetForTest();
-
-    {
-        const actionContext = space.systemAction();
-
-        expect(getCount()).toEqual(0);
-
-        await getTaskNotesContentAndInitialComments(actionContext, {
-            taskId: task.id,
-            commentsLimit: 100,
-        });
-
-        expect(getCount()).toEqual(2);
-
-        await authorizeTaskAccess(actionContext, task.id, "View");
-
-        expect(getCount()).toEqual(2);
-
-        await authorizeTaskAccess(actionContext, task.id, "View");
-
-        expect(getCount()).toEqual(2);
-
-        for (let i = 0; i < 5; i++) {
-            await runAllPromises([
-                authorizeTaskAccess(actionContext, task.id, "View"),
-                authorizeTaskAccess(actionContext, task.id, "View"),
-                authorizeTaskAccess(actionContext, task.id, "View"),
-            ]);
-        }
-
-        expect(getCount()).toEqual(2);
     }
 
     dynamoClientExecuteActionTestCounter.resetForTest();
@@ -19793,4 +21553,1068 @@ test("authorizing task access after getting task as system actor is cached", asy
 
         expect(getCount()).toEqual(2);
     }
+});
+
+test("can authorize task collections in various states as various actors", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession();
+
+    const [
+        publicCollection,
+        publicDeletedCollection,
+        privateCollection,
+        privateDeletedCollection,
+        urlPublicCollection,
+        urlPublicDeletedCollection,
+    ] = await runAllPromises([
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+    ]);
+
+    await publicCollection.access.grantDefault(session1);
+    await publicDeletedCollection.access.grantDefault(session1);
+
+    await privateCollection.access.grant(session1, session2, "Comment");
+    await privateDeletedCollection.access.grant(session1, session2, "Comment");
+
+    await urlPublicCollection.access.grantUrl(session1);
+    await urlPublicDeletedCollection.access.grantUrl(session1);
+
+    await publicDeletedCollection.delete(session1);
+    await privateDeletedCollection.delete(session1);
+    await urlPublicDeletedCollection.delete(session1);
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), publicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), publicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), publicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), publicCollection.id, "View"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(context.anonymousAction(), publicCollection.id, "View"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), publicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSpace.systemAction(), publicCollection.id, "View"),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), publicCollection.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), publicCollection.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), publicCollection.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), publicCollection.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(context.anonymousAction(), publicCollection.id, "Comment"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), publicCollection.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSpace.systemAction(), publicCollection.id, "Comment"),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), publicCollection.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), publicCollection.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), publicCollection.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), publicCollection.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(context.anonymousAction(), publicCollection.id, "Edit"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), publicCollection.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSpace.systemAction(), publicCollection.id, "Edit"),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), publicDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), publicDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), publicDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), publicDeletedCollection.id, "View"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(
+            context.anonymousAction(),
+            publicDeletedCollection.id,
+            "View",
+        ),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), publicDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSpace.systemAction(),
+            publicDeletedCollection.id,
+            "View",
+        ),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), publicDeletedCollection.id, "Comment"),
+    ).rejects.toThrow(
+        'Can only view deleted task collection, access level "Comment" is not allowed',
+    );
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), publicDeletedCollection.id, "Comment"),
+    ).rejects.toThrow(
+        'Can only view deleted task collection, access level "Comment" is not allowed',
+    );
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), publicDeletedCollection.id, "Comment"),
+    ).rejects.toThrow(
+        'Can only view deleted task collection, access level "Comment" is not allowed',
+    );
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), publicDeletedCollection.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(
+            context.anonymousAction(),
+            publicDeletedCollection.id,
+            "Comment",
+        ),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), publicDeletedCollection.id, "Comment"),
+    ).rejects.toThrow(
+        'Can only view deleted task collection, access level "Comment" is not allowed',
+    );
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSpace.systemAction(),
+            publicDeletedCollection.id,
+            "Comment",
+        ),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), publicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), publicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), publicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), publicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(
+            context.anonymousAction(),
+            publicDeletedCollection.id,
+            "Edit",
+        ),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), publicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSpace.systemAction(),
+            publicDeletedCollection.id,
+            "Edit",
+        ),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), privateCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), privateCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), privateCollection.id, "View"),
+    ).rejects.toThrow('Actor doesn\'t have "View" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), privateCollection.id, "View"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(context.anonymousAction(), privateCollection.id, "View"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), privateCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSpace.systemAction(), privateCollection.id, "View"),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), privateCollection.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), privateCollection.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), privateCollection.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), privateCollection.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(context.anonymousAction(), privateCollection.id, "Comment"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), privateCollection.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSpace.systemAction(), privateCollection.id, "Comment"),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), privateCollection.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), privateCollection.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), privateCollection.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), privateCollection.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(context.anonymousAction(), privateCollection.id, "Edit"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), privateCollection.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSpace.systemAction(), privateCollection.id, "Edit"),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), privateDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), privateDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), privateDeletedCollection.id, "View"),
+    ).rejects.toThrow('Actor doesn\'t have "View" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), privateDeletedCollection.id, "View"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(
+            context.anonymousAction(),
+            privateDeletedCollection.id,
+            "View",
+        ),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), privateDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSpace.systemAction(),
+            privateDeletedCollection.id,
+            "View",
+        ),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), privateDeletedCollection.id, "Comment"),
+    ).rejects.toThrow(
+        'Can only view deleted task collection, access level "Comment" is not allowed',
+    );
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), privateDeletedCollection.id, "Comment"),
+    ).rejects.toThrow(
+        'Can only view deleted task collection, access level "Comment" is not allowed',
+    );
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), privateDeletedCollection.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSession.action(),
+            privateDeletedCollection.id,
+            "Comment",
+        ),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(
+            context.anonymousAction(),
+            privateDeletedCollection.id,
+            "Comment",
+        ),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), privateDeletedCollection.id, "Comment"),
+    ).rejects.toThrow(
+        'Can only view deleted task collection, access level "Comment" is not allowed',
+    );
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSpace.systemAction(),
+            privateDeletedCollection.id,
+            "Comment",
+        ),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), privateDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), privateDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), privateDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), privateDeletedCollection.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(
+            context.anonymousAction(),
+            privateDeletedCollection.id,
+            "Edit",
+        ),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), privateDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSpace.systemAction(),
+            privateDeletedCollection.id,
+            "Edit",
+        ),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), urlPublicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), urlPublicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), urlPublicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), urlPublicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(context.anonymousAction(), urlPublicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), urlPublicCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSpace.systemAction(), urlPublicCollection.id, "View"),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), urlPublicCollection.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), urlPublicCollection.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), urlPublicCollection.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), urlPublicCollection.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(context.anonymousAction(), urlPublicCollection.id, "Comment"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), urlPublicCollection.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSpace.systemAction(), urlPublicCollection.id, "Comment"),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), urlPublicCollection.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), urlPublicCollection.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), urlPublicCollection.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), urlPublicCollection.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(context.anonymousAction(), urlPublicCollection.id, "Edit"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), urlPublicCollection.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSpace.systemAction(), urlPublicCollection.id, "Edit"),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), urlPublicDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), urlPublicDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), urlPublicDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), urlPublicDeletedCollection.id, "View"),
+    ).rejects.toThrow("Only space members may read deleted task collections");
+    await expect(
+        authorizeTaskCollectionAccess(
+            context.anonymousAction(),
+            urlPublicDeletedCollection.id,
+            "View",
+        ),
+    ).rejects.toThrow("Only space members may read deleted task collections");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), urlPublicDeletedCollection.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSpace.systemAction(),
+            urlPublicDeletedCollection.id,
+            "View",
+        ),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), urlPublicDeletedCollection.id, "Comment"),
+    ).rejects.toThrow(
+        'Can only view deleted task collection, access level "Comment" is not allowed',
+    );
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), urlPublicDeletedCollection.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), urlPublicDeletedCollection.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSession.action(),
+            urlPublicDeletedCollection.id,
+            "Comment",
+        ),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(
+            context.anonymousAction(),
+            urlPublicDeletedCollection.id,
+            "Comment",
+        ),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(
+            space.systemAction(),
+            urlPublicDeletedCollection.id,
+            "Comment",
+        ),
+    ).rejects.toThrow(
+        'Can only view deleted task collection, access level "Comment" is not allowed',
+    );
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSpace.systemAction(),
+            urlPublicDeletedCollection.id,
+            "Comment",
+        ),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+
+    await expect(
+        authorizeTaskCollectionAccess(session1.action(), urlPublicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskCollectionAccess(session2.action(), urlPublicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(session3.action(), urlPublicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    await expect(
+        authorizeTaskCollectionAccess(otherSession.action(), urlPublicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    await expect(
+        authorizeTaskCollectionAccess(
+            context.anonymousAction(),
+            urlPublicDeletedCollection.id,
+            "Edit",
+        ),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskCollectionAccess(space.systemAction(), urlPublicDeletedCollection.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskCollectionAccess(
+            otherSpace.systemAction(),
+            urlPublicDeletedCollection.id,
+            "Edit",
+        ),
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+});
+
+test("can authorize tasks in various states as various actors", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession();
+
+    const [
+        publicCollection,
+        publicDeletedCollection,
+        privateCollection,
+        privateDeletedCollection,
+        urlPublicCollection,
+        urlPublicDeletedCollection,
+        publicTask,
+        publicDeletedTask,
+        privateTask,
+        privateDeletedTask,
+        urlPublicTask,
+        urlPublicDeletedTask,
+    ] = await runAllPromises([
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+    ]);
+
+    await publicCollection.access.grantDefault(session1);
+    await publicDeletedCollection.access.grantDefault(session1);
+
+    await privateCollection.access.grant(session1, session2, "Comment");
+    await privateDeletedCollection.access.grant(session1, session2, "Comment");
+
+    await urlPublicCollection.access.grantUrl(session1);
+    await urlPublicDeletedCollection.access.grantUrl(session1);
+
+    await publicTask.addCollection(session1, publicCollection);
+    await publicDeletedTask.addCollection(session1, publicDeletedCollection);
+    await privateTask.addCollection(session1, privateCollection);
+    await privateDeletedTask.addCollection(session1, privateDeletedCollection);
+    await urlPublicTask.addCollection(session1, urlPublicCollection);
+    await urlPublicDeletedTask.addCollection(session1, urlPublicDeletedCollection);
+
+    await publicDeletedTask.delete(session1);
+    await privateDeletedTask.delete(session1);
+    await urlPublicDeletedTask.delete(session1);
+
+    await expect(
+        authorizeTaskAccess(session1.action(), publicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), publicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session3.action(), publicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(authorizeTaskAccess(otherSession.action(), publicTask.id, "View")).rejects.toThrow(
+        "Actor doesn't have access to task's space",
+    );
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), publicTask.id, "View"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), publicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), publicTask.id, "View"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), publicTask.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), publicTask.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session3.action(), publicTask.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSession.action(), publicTask.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), publicTask.id, "Comment"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), publicTask.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), publicTask.id, "Comment"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), publicTask.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), publicTask.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session3.action(), publicTask.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(authorizeTaskAccess(otherSession.action(), publicTask.id, "Edit")).rejects.toThrow(
+        "Actor doesn't have access to task's space",
+    );
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), publicTask.id, "Edit"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), publicTask.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), publicTask.id, "Edit"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), publicDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), publicDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session3.action(), publicDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSession.action(), publicDeletedTask.id, "View"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), publicDeletedTask.id, "View"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), publicDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), publicDeletedTask.id, "View"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), publicDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    await expect(
+        authorizeTaskAccess(session2.action(), publicDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    await expect(
+        authorizeTaskAccess(session3.action(), publicDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    await expect(
+        authorizeTaskAccess(otherSession.action(), publicDeletedTask.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), publicDeletedTask.id, "Comment"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), publicDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), publicDeletedTask.id, "Comment"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), publicDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskAccess(session2.action(), publicDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskAccess(session3.action(), publicDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskAccess(otherSession.action(), publicDeletedTask.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), publicDeletedTask.id, "Edit"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), publicDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), publicDeletedTask.id, "Edit"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), privateTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), privateTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(authorizeTaskAccess(session3.action(), privateTask.id, "View")).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to task',
+    );
+    await expect(
+        authorizeTaskAccess(otherSession.action(), privateTask.id, "View"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), privateTask.id, "View"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), privateTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), privateTask.id, "View"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), privateTask.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), privateTask.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(authorizeTaskAccess(session3.action(), privateTask.id, "Comment")).rejects.toThrow(
+        'Actor doesn\'t have "Comment" access level to task',
+    );
+    await expect(
+        authorizeTaskAccess(otherSession.action(), privateTask.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), privateTask.id, "Comment"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), privateTask.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), privateTask.id, "Comment"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), privateTask.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(authorizeTaskAccess(session2.action(), privateTask.id, "Edit")).rejects.toThrow(
+        'Actor doesn\'t have "Edit" access level to task',
+    );
+    await expect(authorizeTaskAccess(session3.action(), privateTask.id, "Edit")).rejects.toThrow(
+        'Actor doesn\'t have "Edit" access level to task',
+    );
+    await expect(
+        authorizeTaskAccess(otherSession.action(), privateTask.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), privateTask.id, "Edit"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), privateTask.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), privateTask.id, "Edit"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), privateDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), privateDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session3.action(), privateDeletedTask.id, "View"),
+    ).rejects.toThrow('Actor doesn\'t have "View" access level to task');
+    await expect(
+        authorizeTaskAccess(otherSession.action(), privateDeletedTask.id, "View"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), privateDeletedTask.id, "View"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), privateDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), privateDeletedTask.id, "View"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), privateDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    await expect(
+        authorizeTaskAccess(session2.action(), privateDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    await expect(
+        authorizeTaskAccess(session3.action(), privateDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    await expect(
+        authorizeTaskAccess(otherSession.action(), privateDeletedTask.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), privateDeletedTask.id, "Comment"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), privateDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), privateDeletedTask.id, "Comment"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), privateDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskAccess(session2.action(), privateDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    await expect(
+        authorizeTaskAccess(session3.action(), privateDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    await expect(
+        authorizeTaskAccess(otherSession.action(), privateDeletedTask.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), privateDeletedTask.id, "Edit"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), privateDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), privateDeletedTask.id, "Edit"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), urlPublicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), urlPublicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session3.action(), urlPublicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSession.action(), urlPublicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), urlPublicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(space.systemAction(), urlPublicTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), urlPublicTask.id, "View"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), urlPublicTask.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), urlPublicTask.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    await expect(
+        authorizeTaskAccess(session3.action(), urlPublicTask.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    await expect(
+        authorizeTaskAccess(otherSession.action(), urlPublicTask.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), urlPublicTask.id, "Comment"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), urlPublicTask.id, "Comment"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), urlPublicTask.id, "Comment"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), urlPublicTask.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(authorizeTaskAccess(session2.action(), urlPublicTask.id, "Edit")).rejects.toThrow(
+        'Actor doesn\'t have "Edit" access level to task',
+    );
+    await expect(authorizeTaskAccess(session3.action(), urlPublicTask.id, "Edit")).rejects.toThrow(
+        'Actor doesn\'t have "Edit" access level to task',
+    );
+    await expect(
+        authorizeTaskAccess(otherSession.action(), urlPublicTask.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), urlPublicTask.id, "Edit"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), urlPublicTask.id, "Edit"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), urlPublicTask.id, "Edit"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), urlPublicDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session2.action(), urlPublicDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(session3.action(), urlPublicDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSession.action(), urlPublicDeletedTask.id, "View"),
+    ).rejects.toThrow("Only space members may read deleted tasks");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), urlPublicDeletedTask.id, "View"),
+    ).rejects.toThrow("Only space members may read deleted tasks");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), urlPublicDeletedTask.id, "View"),
+    ).resolves.not.toThrow();
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), urlPublicDeletedTask.id, "View"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), urlPublicDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    await expect(
+        authorizeTaskAccess(session2.action(), urlPublicDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    await expect(
+        authorizeTaskAccess(session3.action(), urlPublicDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    await expect(
+        authorizeTaskAccess(otherSession.action(), urlPublicDeletedTask.id, "Comment"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), urlPublicDeletedTask.id, "Comment"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), urlPublicDeletedTask.id, "Comment"),
+    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), urlPublicDeletedTask.id, "Comment"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+
+    await expect(
+        authorizeTaskAccess(session1.action(), urlPublicDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskAccess(session2.action(), urlPublicDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    await expect(
+        authorizeTaskAccess(session3.action(), urlPublicDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    await expect(
+        authorizeTaskAccess(otherSession.action(), urlPublicDeletedTask.id, "Edit"),
+    ).rejects.toThrow("Actor doesn't have access to task's space");
+    await expect(
+        authorizeTaskAccess(context.anonymousAction(), urlPublicDeletedTask.id, "Edit"),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        authorizeTaskAccess(space.systemAction(), urlPublicDeletedTask.id, "Edit"),
+    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    await expect(
+        authorizeTaskAccess(otherSpace.systemAction(), urlPublicDeletedTask.id, "Edit"),
+    ).rejects.toThrow("System actor doesn't have access to task's space");
+});
+
+test("account has access to tasks they create and tasks they're assigned until they're removed from the space", async () => {
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({hasInternalAccess: true});
+    const [session1, session2] = await space.createSessions(2);
+
+    const task1 = await TestTask.create(session1);
+
+    const task2 = await TestTask.create(session2);
+    await task2.updateAssignee(session2, session1);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "View")).resolves.not.toThrow();
+
+    await expect(authorizeTaskAccess(session1.action(), task2.id, "View")).resolves.not.toThrow();
+
+    await expect(
+        authorizeTaskAccess(session1.action(), task1.id, "Comment"),
+    ).resolves.not.toThrow();
+
+    await expect(
+        authorizeTaskAccess(session1.action(), task2.id, "Comment"),
+    ).resolves.not.toThrow();
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).resolves.not.toThrow();
+
+    await expect(authorizeTaskAccess(session1.action(), task2.id, "Edit")).resolves.not.toThrow();
+
+    await removeSpaceAccountAsAdmin(adminSession.action(), {
+        spaceId: space.id,
+        accountId: session1.account.id,
+    });
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "View")).rejects.toThrow(
+        "Actor doesn't have access to task's space",
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task2.id, "View")).rejects.toThrow(
+        "Actor doesn't have access to task's space",
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Comment")).rejects.toThrow(
+        "Actor doesn't have access to task's space",
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task2.id, "Comment")).rejects.toThrow(
+        "Actor doesn't have access to task's space",
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
+        "Actor doesn't have access to task's space",
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task2.id, "Edit")).rejects.toThrow(
+        "Actor doesn't have access to task's space",
+    );
+});
+
+test("can't revoke access from a collection manager that invited you", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3a, session3b] = await space.createSessions(4);
+
+    const collection = await TestTaskCollection.create(session1);
+
+    await collection.access.grant(session1, session2);
+    await collection.access.grant(session2, session3a);
+    await collection.access.grant(session2, session3b);
+
+    await expect(collection.access.revoke(session3a, session2)).rejects.toThrow(
+        "Can't revoke manage access from an account with a manage generation less than our actor",
+    );
+
+    await expect(collection.access.revoke(session3a, session1)).rejects.toThrow(
+        "Can't revoke manage access from an account with a manage generation less than our actor",
+    );
+
+    await collection.access.revoke(session3a, session3b);
 });

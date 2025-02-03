@@ -14,7 +14,7 @@ import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affin
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     getDocumentCommentThreadAndInitialComments,
-    getDocumentIfExists,
+    getDocumentWithOptionalCommentsIfExists,
 } from "~/server/documents/data/documents_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -42,7 +42,7 @@ const LoaderSchema = Schema.object({
 });
 
 export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
-    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
+    const context = await unauthenticatedContext.actor.authenticate();
 
     const url = new URL(request.url);
     const documentId = Schema.id<DocumentId>().deserialize(params.documentId ?? null);
@@ -51,7 +51,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
         .deserialize(url.searchParams.get("comments"));
 
     const [document, commentThreadResult] = await runAllPromises([
-        getDocumentIfExists(context, documentId),
+        getDocumentWithOptionalCommentsIfExists(context, documentId),
         commentThreadId
             ? getDocumentCommentThreadAndInitialComments(context, {
                   documentId,
@@ -108,6 +108,13 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     return nextUrl.toString() !== currentUrl.toString();
 };
 
+// TODO(calebmer): Documents shared via URL (where `accessPolicy.urlGrant` is
+// non-null) on iOS Safari don't hide the bottom bar when the user scrolls down
+// because we don't use `<body>` scrolling. Instead we have an inner scroll
+// view which breaks Safari's nice "hide bottom bar on scroll" interaction.
+//
+// Ideally we'd have a special code path that uses `<body>` scrolling just for
+// documents shared via URL.
 export default function DocumentRoute() {
     const {document: initialDocument, commentThreadResult} = useLoaderDataWithSchema(LoaderSchema);
     const params = useParams();

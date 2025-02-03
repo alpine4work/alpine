@@ -8,6 +8,7 @@ import {MarkType, NodeType} from "prosemirror-model";
 import {TextSelection} from "prosemirror-state";
 import {findWrapping} from "prosemirror-transform";
 import {addSharedContentEditorInputRules} from "~/client/content/shared/build_shared_content_editor_input_rules_plugin.js";
+import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -23,7 +24,7 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
     // `@` opens a mention search/selector interface
     rules.push(
         new InputRule(/(?:^|\s)@$/, state => {
-            const {$from, $to} = state.selection;
+            const {$from, $to} = trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection);
 
             // Don't open the mention floater if we're in a code block.
             if (
@@ -222,7 +223,7 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
         );
 
         return new InputRule(regExp, (state, match, start, end) => {
-            const $from = state.doc.resolve(state.selection.from);
+            const {$from} = trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection);
             const offset = match[1]!.length;
             const isInCodeBlockLine = $from.node().type.name === "codeBlockLine";
 

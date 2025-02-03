@@ -71,6 +71,7 @@ export function createDurableObject<
         fetch(context: WorkerActionContext, request: Request, route: Route): MaybePromise<Response>;
         connectForTest?(
             context: WorkerSessionActionContext,
+            options?: object,
         ): Promise<
             WebSocketServerTestConnection<
                 WorkerProcessContextModules,
@@ -111,6 +112,7 @@ export function createDurableObject<
         connectForTest: (
             context: WorkerSessionActionContext,
             idName: string,
+            options?: Parameters<NonNullable<DurableObject["connectForTest"]>>[1],
         ) => Promise<ReturnType<NonNullable<DurableObject["connectForTest"]>>>;
     };
 } {
@@ -366,6 +368,7 @@ export function createDurableObject<
             connectForTest: (
                 context: WorkerSessionActionContext,
                 idName: string,
+                options?: Parameters<NonNullable<DurableObject["connectForTest"]>>[1],
             ) => Promise<ReturnType<NonNullable<DurableObject["connectForTest"]>>>;
         } {
             assert(import.meta.jest);
@@ -400,7 +403,7 @@ export function createDurableObject<
 
                     return object.fetch(actionContext, request, route);
                 },
-                connectForTest: async (actionContext, idName) => {
+                connectForTest: async (actionContext, idName, options) => {
                     const object = await getOrSetDefaultMapValue(objectByIdName, idName, () =>
                         initialize({
                             processContext,
@@ -415,9 +418,10 @@ export function createDurableObject<
                             "Underlying durable object must implement `connectForTest()`",
                         );
 
-                    const connection = (await object.connectForTest(actionContext)) as Awaited<
-                        ReturnType<NonNullable<DurableObject["connectForTest"]>>
-                    >;
+                    const connection = (await object.connectForTest(
+                        actionContext,
+                        options,
+                    )) as Awaited<ReturnType<NonNullable<DurableObject["connectForTest"]>>>;
 
                     connections.push(connection);
 

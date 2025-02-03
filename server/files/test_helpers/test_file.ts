@@ -47,6 +47,8 @@ export async function uploadTestFile(context: TestSessionActionContext, spaceId:
     await finishUploadingAndStartProcessingFile(context, {
         spaceId,
         fileId,
+        // We manually finish processing the file below.
+        withoutProcessJobForTest: true,
     });
 
     const fileUploader = await getFileUploaderAsUploader(context, spaceId, fileId);
@@ -85,7 +87,10 @@ export class TestFile {
     }
 
     public static async create(session: TestSpaceSession): Promise<TestFile> {
-        const {fileId} = await uploadTestFile(session.action(), session.space.id);
+        const {fileId} = await uploadTestFile(
+            session.context.action(session, {serviceName: "EdgeService"}),
+            session.space.id,
+        );
 
         return new TestFile(session.context, session.space, fileId, null);
     }

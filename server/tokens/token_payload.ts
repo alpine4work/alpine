@@ -21,33 +21,37 @@ export type SystemTokenPayload = {
     readonly spaceId: SpaceId;
 };
 
-export type TokenPayload = SessionTokenPayload | SystemTokenPayload;
+export type AnonymousTokenPayload = {
+    readonly type: "Anonymous";
+};
+
+export type TokenPayload = SessionTokenPayload | SystemTokenPayload | AnonymousTokenPayload;
 
 export const TokenPayloadSchema = Schema.object({
     sid: Schema.id<SessionId>().optional(),
     aid: Schema.id<AccountId>().optional(),
     // "w" stands for "workspace" since "s" is taken.
     wid: Schema.id<SpaceId>().optional(),
+    ano: Schema.value(1).optional(),
 })
     .transform<TokenPayload>({
         serialize: payload => {
             switch (payload.type) {
-                case "Session": {
-                    return {
-                        sid: payload.sessionId,
-                        aid: payload.accountId,
-                    };
-                }
-                case "System": {
-                    return {
-                        wid: payload.spaceId,
-                    };
-                }
+                case "Session":
+                    return {sid: payload.sessionId, aid: payload.accountId};
+                case "System":
+                    return {wid: payload.spaceId};
+                case "Anonymous":
+                    return {ano: 1};
                 default:
                     throw exhaustive(payload);
             }
         },
         deserialize: payload => {
+            if (payload.ano) {
+                return {type: "Anonymous"};
+            }
+
             if (payload.wid) {
                 return {
                     type: "System",

@@ -12,6 +12,7 @@ ts_project(
         "//:node_modules/unicode-default-word-boundary",
         "//:node_modules/y-prosemirror",
         "//:node_modules/yjs",
+        "//shared/access",
         "//shared/accounts",
         "//shared/content",
         "//shared/crdt",

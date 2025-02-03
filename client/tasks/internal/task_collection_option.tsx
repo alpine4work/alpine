@@ -14,11 +14,15 @@ export const taskCollectionOptionSecondaryTextColor = "grey-40";
 export function TaskCollectionOption({
     collectionResult,
     isPending = false,
+    withoutSnippet,
 }: {
     collectionResult: TaskCollectionModelSearchResult;
     isPending?: boolean;
+    withoutSnippet?: boolean;
 }) {
     const {timeZone} = useClientInfo();
+
+    const currentTime = useCurrentTimeRoundedToHour();
 
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
@@ -44,17 +48,19 @@ export function TaskCollectionOption({
             </Box>
             <Box flexGrow="1" overflow="hidden">
                 <Box fontStyle="truncate">{collectionResult.collection.getName()}</Box>
-                <Box fontSize="50" color={taskCollectionOptionSecondaryTextColor}>
-                    {printTaskCollectionSearchResultBodyTextSnippet({
-                        timeZone,
-                        currentTime: useCurrentTimeRoundedToHour(),
-                        createdTime: new Date(collectionResult.collection.getCreatedTime()[0]),
-                        lastTaskAddedTime: collectionResult.lastTaskAddedTime
-                            ? new Date(collectionResult.lastTaskAddedTime[0])
-                            : null,
-                        openTaskCount: collectionResult.openTaskCount,
-                    })}
-                </Box>
+                {!withoutSnippet && (
+                    <Box fontSize="50" color={taskCollectionOptionSecondaryTextColor}>
+                        {printTaskCollectionSearchResultBodyTextSnippet({
+                            timeZone,
+                            currentTime,
+                            createdTime: new Date(collectionResult.collection.getCreatedTime()[0]),
+                            lastTaskAddedTime: collectionResult.lastTaskAddedTime
+                                ? new Date(collectionResult.lastTaskAddedTime[0])
+                                : null,
+                            openTaskCount: collectionResult.openTaskCount,
+                        })}
+                    </Box>
+                )}
             </Box>
             {shouldShowPendingSpinner && (
                 <Box alignSelf="center" flexShrink="0" marginLeft="0.5">

@@ -131,7 +131,7 @@ test("can't update collection from a different space", async () => {
                     type: "Create",
                     creatorId: null,
                     name: "Test",
-                    accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                    accessPolicy: {accountGrantById: new Map(), defaultGrant: null, urlGrant: null},
                 },
             },
         ],
@@ -237,7 +237,8 @@ test("inlines closer account name in index", async () => {
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task2.addCollection(session1, collection);
 
     expect(session1.account.initialName).not.toEqual(session2.account.initialName);
@@ -322,7 +323,8 @@ test("inlines assigner and assignee account names in index", async () => {
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task2.addCollection(session1, collection);
 
     expect(session1.account.initialName).not.toEqual(session2.account.initialName);
@@ -496,7 +498,8 @@ test("updating account name updates inlined closer account name in index", async
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task2.addCollection(session1, collection);
 
     const newAccountName1 = generateId();
@@ -819,7 +822,8 @@ test("updating account name updates inlined assigner and assignee account names 
         TestTask.create(session2),
     ]);
 
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
     await task2.addCollection(session1, collection);
     await task3.addCollection(session2, collection);
 
@@ -1097,7 +1101,8 @@ test("if account name updates during indexing it will still be correctly update 
     const session1 = await space.createSession();
     const session2 = await space.createSession();
 
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
 
     const task = await TestTask.create(session1);
     await task.addCollection(session1, collection);
@@ -1296,7 +1301,11 @@ test("effective task collection name fuzzy searching", async () => {
     const session = await space.createSession();
 
     await runAllPromises(
-        bookNames.map(bookName => TestTaskCollection.createPublic(session, {name: bookName})),
+        bookNames.map(async bookName => {
+            const collection = await TestTaskCollection.create(session, {name: bookName});
+            await collection.access.grantDefault(session);
+            return collection;
+        }),
     );
 
     await ProcessContextModule.waitForTestTasks();
@@ -1438,36 +1447,53 @@ test("excludes collections account doesn't have access to when searching", async
     const session3 = await space.createSession();
     const otherSession = await otherSpace.createSession();
 
-    const [, , , , collection5, collection6, collection7, collection8, collection9, collection10] =
-        await runAllPromises([
-            TestTaskCollection.createPrivate(session1),
-            TestTaskCollection.createPrivate(session2),
-            TestTaskCollection.createPrivate(session1),
-            TestTaskCollection.createPrivate(session2),
-            TestTaskCollection.createPrivate(session1),
-            TestTaskCollection.createPrivate(session2),
-            TestTaskCollection.createPrivate(session1),
-            TestTaskCollection.createPrivate(session2),
-            TestTaskCollection.createPublic(session1),
-            TestTaskCollection.createPublic(session1),
-            TestTaskCollection.createPublic(otherSession),
-        ]);
+    const [
+        ,
+        ,
+        ,
+        ,
+        collection5,
+        collection6,
+        collection7,
+        collection8,
+        collection9,
+        collection10,
+        collection11,
+    ] = await runAllPromises([
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session2),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session2),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session2),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session2),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(session1),
+        TestTaskCollection.create(otherSession),
+    ]);
 
-    await collection5.updateAccessPolicy(session1, {
-        accountGrantById: new Map([
-            [session1.account.id, {level: "Manage"}],
-            [session3.account.id, {level: "Manage"}],
-        ]),
-        defaultGrant: null,
-    });
-
-    await collection6.updateAccessPolicy(session2, {
-        accountGrantById: new Map([
-            [session2.account.id, {level: "Manage"}],
-            [session3.account.id, {level: "Manage"}],
-        ]),
-        defaultGrant: null,
-    });
+    await runAllPromises([
+        collection5.access.set(session1, {
+            accountGrantById: new Map([
+                [session1.account.id, {level: "Manage", generation: 0}],
+                [session3.account.id, {level: "Manage", generation: 1}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        }),
+        collection6.access.set(session2, {
+            accountGrantById: new Map([
+                [session2.account.id, {level: "Manage", generation: 0}],
+                [session3.account.id, {level: "Manage", generation: 1}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        }),
+        collection9.access.grantDefault(session1),
+        collection10.access.grantDefault(session1),
+        collection11.access.grantDefault(otherSession),
+    ]);
 
     await collection10.delete(session1);
 
@@ -1499,7 +1525,8 @@ test("updates approximate action counts", async () => {
     const task2 = await TestTask.create(session2);
     const task3 = await TestTask.create(session2, {title: "Hello, world!"});
 
-    const collection = await TestTaskCollection.createPublic(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
 
     await ProcessContextModule.waitForTestTasks();
 

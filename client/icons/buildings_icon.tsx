@@ -7,10 +7,16 @@ export function BuildingsIcon({
     color,
     size,
     style,
+    role,
+    "aria-hidden": ariaHidden,
+    "aria-label": ariaLabel,
 }: {
     color?: string;
     size?: string | number;
     style?: CSSProperties;
+    role?: string;
+    "aria-hidden"?: boolean;
+    "aria-label"?: string;
 }) {
     const {
         color: contextColor,
@@ -34,6 +40,9 @@ export function BuildingsIcon({
                 ...context.style,
                 ...style,
             }}
+            role={role}
+            aria-hidden={ariaHidden}
+            aria-label={ariaLabel}
         >
             <path fill="none" d="M0 0h256v256H0z" />
             <path

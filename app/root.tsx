@@ -8,24 +8,29 @@ import {
 } from "@remix-run/react";
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {IconContext} from "phosphor-react";
-import {ReactElement, useCallback, useContext, useEffect, useMemo, useRef} from "react";
+import {
+    ContextType,
+    ReactElement,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {
     UNSAFE_DataRouterContext as DataRouterContext,
     UNSAFE_DataRouterStateContext as DataRouterStateContext,
-    isRouteErrorResponse,
-    useRouteError,
 } from "react-router";
-import {notFoundErrorDisplayMessage} from "~/app/helpers/not_found_error_display_message.js";
 import {stylesUrl} from "~/app/helpers/styles_url.js";
 import {BazelBuildIndicator} from "~/app/router/bazel_build_indicator.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
+import {RootErrorBoundary} from "~/app/router/root_error_boundary.js";
 import {handleCopyEventIfNotTextInputElement} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
 import {handleDragStartEventIfNotTextInputElement} from "~/client/content/handle_drag_start_event_if_not_text_input_element.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
 import {BottomBarFrameContextProvider} from "~/client/design/bottom_bar_frame_context_provider.js";
-import {Box} from "~/client/design/box.js";
-import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {MobileFullScreenModalContextProvider} from "~/client/design/mobile_full_screen_modal.js";
 import {RootOverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {ReporterContextProvider} from "~/client/design/reporter_context_provider.js";
@@ -37,37 +42,34 @@ import {GlobalKeyDownRootContextProvider} from "~/client/helpers/global_key_down
 import {useAppInitialRenderContextProvider} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
-import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {useClientInfoContextProvider} from "~/client/remix/client_info_context.js";
 import {CurrentTimeContextProvider} from "~/client/remix/current_time_context_provider.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {usePlatformContextProvider} from "~/client/remix/platform_context.js";
 import {useSpacingScaleContextProvider} from "~/client/remix/spacing_scale_context.js";
+import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {NavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
-import {useRouteErrorTitle} from "~/client/spaces/route_metadata.js";
 import {fontsCriticalCss} from "~/client/styles/core/fonts_critical_css.js";
-import {sprinkles} from "~/client/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {contentCodeBlockLanguages} from "~/shared/content/code/content_code_block_language.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {FailedPreconditionError, NotFoundError, UnknownError} from "~/shared/error/error.js";
-import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {UnknownError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {getRealmId} from "~/shared/id/realm_id.js";
 import {BrowserId} from "~/shared/id/types/id_types.js";
 import {ClientInfoSchema, defaultClientInfo} from "~/shared/remix/client_info.js";
 import {propagateEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
 import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
@@ -140,16 +142,86 @@ export async function loader({context}: LoaderArgs) {
 
 const rootNativeMobileOutletParentRouteIds = ["root"] as const;
 
-export default function Root() {
-    const remixContext = useContext(RemixContext);
-    assert(remixContext, "Expected Remix context");
+function renderRootHead(loaderData: SchemaType<typeof LoaderSchema> | null) {
+    return (
+        <head>
+            <meta charSet="utf-8" />
+            <meta
+                name="viewport"
+                // - `user-scalable=no`: Don't allow pinch to zoom. This is against
+                //    industry accessibility guidelines. We want our site to feel like an app
+                //    and apps don't allow zooming. Zooming is a very web feeling behavior. To
+                //    help users with accessibility needs we should add support for font
+                //    scaling.
+                //
+                // - `viewport-fit=cover`: Render content under [safe area insets][2]. We use
+                //   `env(safe-area-inset-*)` to make sure we add the appropriate amount of
+                //   padding.
+                //
+                // [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag
+                // [2]: https://webkit.org/blog/7929/designing-websites-for-iphone-x/
+                content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+            />
+            <meta
+                // Ask Google to not index any of our routes.
+                // https://developers.google.com/search/docs/crawling-indexing/block-indexing
+                //
+                // TODO(calebmer): This should be decided on a route-by-route basis instead of
+                // global configuration that can't be configured.
+                name="robots"
+                content="noindex"
+            />
+            <meta
+                // Don't automatically detect format of various text bits on iOS. If we want
+                // format detection we'll manually add it ourselves. Format detection doesn't
+                // play nicely with React server rendering.
+                // https://nextjs.org/docs/messages/react-hydration-error#common-ios-issues
+                name="format-detection"
+                content="telephone=no, date=no, email=no, address=no"
+            />
+            <Meta />
+            <style dangerouslySetInnerHTML={{__html: fontsCriticalCss}} />
+            <Links />
+            <ColorSchemeManager />
+            {loaderData?.isIntegrationTest && (
+                // If we're running an integration test then add noop `react-refresh`
+                // globals so we don't get any reference errors. Our SWC development config
+                // applies the `react-refresh` transform.
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `globalThis.$RefreshReg$ = () => {}; globalThis.$RefreshSig$ = () => value => value;`,
+                    }}
+                />
+            )}
+        </head>
+    );
+}
 
-    const dataRouterContext = useContext(DataRouterContext);
-    assert(dataRouterContext, "Expected data router context");
+function renderRootBodyScripts(platform: Platform) {
+    return (
+        <>
+            <ScrollRestoration />
+            <BazelBuildIndicator platform={platform} />
+            <script
+                // Let our native app know we're ready once the server render has finished.
+                // This script intentionally runs before React hydration since we can
+                // immediately show the server rendered HTML to the user.
+                //
+                // Wrapped in a double `requestAnimationFrame()`. We want to let
+                // native know we're ready after the browser paints so we don't have a flash of
+                // unstyled content. Or a flash of the old content in case we're reloading.
+                dangerouslySetInnerHTML={{
+                    __html: "if (window.__NativeMobileBridge) { requestAnimationFrame(() => requestAnimationFrame(() => window.__NativeMobileBridge.health.ready())); }",
+                }}
+            />
+            <Scripts />
+        </>
+    );
+}
 
-    const dataRouterStateContext = useContext(DataRouterStateContext);
-    assert(dataRouterStateContext, "Expected data router state context");
-
+function useRootAppContext(
+    dataRouterStateContext: NonNullable<ContextType<typeof DataRouterStateContext>>,
+) {
     // Incidentally, re-rendering when loader data is fulfilled here also causes
     // our `<Meta>` to re-render which fills in the right HTML document title.
     const loadingIndicatorLoaderDataResult = usePromise(
@@ -192,6 +264,21 @@ export default function Root() {
         loadingIndicatorLoaderDataResult.value,
         context,
     ]);
+
+    return context;
+}
+
+export default function Root() {
+    const remixContext = useContext(RemixContext);
+    assert(remixContext, "Expected Remix context");
+
+    const dataRouterContext = useContext(DataRouterContext);
+    assert(dataRouterContext, "Expected data router context");
+
+    const dataRouterStateContext = useContext(DataRouterStateContext);
+    assert(dataRouterStateContext, "Expected data router state context");
+
+    const context = useRootAppContext(dataRouterStateContext);
 
     // If there are any unhandled browser errors then report them with our tracer.
     // We put uncaught error handling here because we want it to include propagated
@@ -240,48 +327,7 @@ export default function Root() {
         };
     }, [context.tracer]);
 
-    // `useLoaderData()` doesn't work in an error boundary or catch boundary.
-    // We use this exact component for error and catch boundaries to avoid
-    // remounting when navigating between errors and non-errors. So manually
-    // deserialize the data for this route.
-    const loaderData = useMemo(
-        () =>
-            dataRouterStateContext.loaderData.root
-                ? getLoaderDataWithSchema(LoaderSchema, dataRouterStateContext.loaderData.root)
-                : null,
-        [dataRouterStateContext.loaderData.root],
-    );
-
-    const routeError = useRouteError();
-
-    const error = useMemo(() => {
-        if (!routeError) return undefined;
-
-        if (isRouteErrorResponse(routeError)) {
-            if (routeError.status === 404) {
-                return new NotFoundError("Route not found", {
-                    displayMessage: notFoundErrorDisplayMessage,
-                });
-            }
-
-            if (routeError.status === 405) {
-                return new FailedPreconditionError("Method not allowed");
-            }
-
-            return new UnknownError(
-                quote`Response thrown with status ${routeError.status} ${routeError.statusText}`,
-            );
-        }
-
-        return routeError;
-    }, [routeError]);
-
-    // In case we don't have loader data (an error was thrown) fallback to trying
-    // to read the current date.
-    const initialTime = useMemo(
-        () => loaderData?.initialTime ?? new Date(),
-        [loaderData?.initialTime],
-    );
+    const loaderData = useLoaderDataWithSchema(LoaderSchema);
 
     const nativeMobileRouterState = isNativeMobileRouterState(dataRouterStateContext)
         ? dataRouterStateContext
@@ -290,6 +336,7 @@ export default function Root() {
     const nodes: Array<ReactElement> = [];
 
     const onUpdateMetaTitle = useCallback((title: string) => {
+        // eslint-disable-next-line react-compiler/react-compiler
         document.title = title;
     }, []);
 
@@ -308,18 +355,7 @@ export default function Root() {
                 style={outletContainerStyle}
             >
                 <UpdateMetaTitleContextProvider onUpdateMetaTitle={onUpdateMetaTitle}>
-                    {error !== undefined ? (
-                        <RootErrorRenderer
-                            error={error}
-                            title={
-                                isRouteErrorResponse(routeError) && routeError.status === 404
-                                    ? "Couldn’t find page"
-                                    : undefined
-                            }
-                        />
-                    ) : (
-                        <Outlet />
-                    )}
+                    <Outlet />
                 </UpdateMetaTitleContextProvider>
             </div>,
         );
@@ -330,32 +366,17 @@ export default function Root() {
             match => match.route.id === "routes/s.$spaceId",
         );
 
-        const getPrimaryNode = (entryKey: string) =>
-            // NOTE(calebmer): There may be a cleaner way to handle errors. Since error
-            // handling only happens for the primary route, if an inert route has an error
-            // then nothing will be rendered in the inert route? That's probably fine.
-            error !== undefined ? (
-                <div key={entryKey} style={outletContainerStyle}>
-                    <RootErrorRenderer
-                        error={error}
-                        title={
-                            isRouteErrorResponse(routeError) && routeError.status === 404
-                                ? "Couldn’t find page"
-                                : undefined
-                        }
-                    />
-                </div>
-            ) : (
-                <NativeMobileOutlet
-                    key={entryKey}
-                    parentRouteIds={rootNativeMobileOutletParentRouteIds}
-                    tracer={context.tracer.getRoot()}
-                    inertRouterState={null}
-                    onUpdateMetaTitle={onUpdateMetaTitle}
-                    globalLoadingIndicator={null}
-                    style={outletContainerStyle}
-                />
-            );
+        const getPrimaryNode = (entryKey: string) => (
+            <NativeMobileOutlet
+                key={entryKey}
+                parentRouteIds={rootNativeMobileOutletParentRouteIds}
+                tracer={context.tracer.getRoot()}
+                inertRouterState={null}
+                onUpdateMetaTitle={onUpdateMetaTitle}
+                globalLoadingIndicator={null}
+                style={outletContainerStyle}
+            />
+        );
 
         // When in our native mobile app, we render multiple routes to the DOM at once!
         // We render the active route and we render previous routes in an inert state.
@@ -470,7 +491,7 @@ export default function Root() {
     const wrappedChildren5 = (
         <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
             <AppContextProvider value={context}>
-                <CurrentTimeContextProvider initialTime={initialTime}>
+                <CurrentTimeContextProvider initialTime={loaderData.initialTime}>
                     <NavigationContextProvider>
                         <GlobalKeyDownRootContextProvider>
                             <BottomBarFrameContextProvider>
@@ -493,10 +514,8 @@ export default function Root() {
 
     const {clientInfo, children: wrappedChildren4} = useClientInfoContextProvider(
         {
-            // If there was an error at our root loader and we couldn't load `BrowserId`
-            // then use the `RealmId` as the `BrowserId`.
-            browserId: loaderData?.browserId ?? (getRealmId() as any as BrowserId),
-            initialClientInfo: loaderData?.clientInfo ?? defaultClientInfo,
+            browserId: loaderData.browserId,
+            initialClientInfo: loaderData.clientInfo,
         },
         wrappedChildren5,
     );
@@ -513,8 +532,8 @@ export default function Root() {
 
     const wrappedChildren = useGlobalContextProvider(
         useAppInitialRenderContextProvider(
-            initialTime,
-            loaderData?.initialAppRenderId,
+            loaderData.initialTime,
+            loaderData.initialAppRenderId,
             wrappedChildren2,
         ),
     );
@@ -551,103 +570,98 @@ export default function Root() {
             data-color={getColorSchemeWithoutListeningIfBrowser()}
             data-engine={clientInfo.renderingEngine.toLowerCase()}
         >
-            <head>
-                <meta charSet="utf-8" />
-                <meta
-                    name="viewport"
-                    // - `user-scalable=no`: Don't allow pinch to zoom. This is against
-                    //    industry accessibility guidelines. We want our site to feel like an app
-                    //    and apps don't allow zooming. Zooming is a very web feeling behavior. To
-                    //    help users with accessibility needs we should add support for font
-                    //    scaling.
-                    //
-                    // - `viewport-fit=cover`: Render content under [safe area insets][2]. We use
-                    //   `env(safe-area-inset-*)` to make sure we add the appropriate amount of
-                    //   padding.
-                    //
-                    // [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag
-                    // [2]: https://webkit.org/blog/7929/designing-websites-for-iphone-x/
-                    content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
-                />
-                <meta
-                    // Ask Google to not index any of our routes.
-                    // https://developers.google.com/search/docs/crawling-indexing/block-indexing
-                    //
-                    // TODO(calebmer): This should be decided on a route-by-route basis instead of
-                    // global configuration that can't be configured.
-                    name="robots"
-                    content="noindex"
-                />
-                <meta
-                    // Don't automatically detect format of various text bits on iOS. If we want
-                    // format detection we'll manually add it ourselves. Format detection doesn't
-                    // play nicely with React server rendering.
-                    // https://nextjs.org/docs/messages/react-hydration-error#common-ios-issues
-                    name="format-detection"
-                    content="telephone=no, date=no, email=no, address=no"
-                />
-                <Meta />
-                <style dangerouslySetInnerHTML={{__html: fontsCriticalCss}} />
-                <Links />
-                <ColorSchemeManager />
-                {loaderData?.isIntegrationTest && (
-                    // If we're running an integration test then add noop `react-refresh`
-                    // globals so we don't get any reference errors. Our SWC development config
-                    // applies the `react-refresh` transform.
-                    <script
-                        dangerouslySetInnerHTML={{
-                            __html: `globalThis.$RefreshReg$ = () => {}; globalThis.$RefreshSig$ = () => value => value;`,
-                        }}
-                    />
-                )}
-            </head>
+            {renderRootHead(loaderData)}
             <body>
                 {wrappedChildren}
-                <ScrollRestoration />
-                <BazelBuildIndicator platform={platform} />
-                <script
-                    // Let our native app know we're ready once the server render has finished.
-                    // This script intentionally runs before React hydration since we can
-                    // immediately show the server rendered HTML to the user.
-                    //
-                    // Wrapped in a double `requestAnimationFrame()`. We want to let
-                    // native know we're ready after the browser paints so we don't have a flash of
-                    // unstyled content. Or a flash of the old content in case we're reloading.
-                    dangerouslySetInnerHTML={{
-                        __html: "if (window.__NativeMobileBridge) { requestAnimationFrame(() => requestAnimationFrame(() => window.__NativeMobileBridge.health.ready())); }",
-                    }}
-                />
-                <Scripts />
+                {renderRootBodyScripts(platform)}
             </body>
         </html>
     );
 }
 
-function RootErrorRenderer({error: _error, title}: {error: unknown; title?: string}) {
-    // It appears that Remix does not `useMemo()` its error object. So stabilize
-    // the object reference here. Our error rendering components use referential
-    // identity to determine whether we need to log the error.
-    const error = useStableValue(ErrorSchema, _error);
+// This error boundary route mainly renders 404 errors. We add a default error
+// boundary to all root route children in `app_client_routes.ts` and
+// `app_server_routes.ts`. So we don't need to re-render the full `<html>`
+// document if a child errors.
+export {RootErrorBoundaryWrapper as ErrorBoundary};
+function RootErrorBoundaryWrapper() {
+    const dataRouterStateContext = useContext(DataRouterStateContext);
+    assert(dataRouterStateContext, "Expected data router state context");
 
-    const defaultTitle = useRouteErrorTitle();
+    const context = useRootAppContext(dataRouterStateContext);
+
+    // `useLoaderData()` doesn't work in an error boundary or catch boundary.
+    // We use this exact component for error and catch boundaries to avoid
+    // remounting when navigating between errors and non-errors. So manually
+    // deserialize the data for this route.
+    const loaderData = useMemo(
+        () =>
+            dataRouterStateContext.loaderData.root
+                ? getLoaderDataWithSchema(LoaderSchema, dataRouterStateContext.loaderData.root)
+                : null,
+        [dataRouterStateContext.loaderData.root],
+    );
+
+    const [fallbackInitialTime] = useState(() => new Date());
+
+    // In case we don't have loader data (an error was thrown) fallback to trying
+    // to read the current date.
+    const initialTime = useMemo(
+        () => loaderData?.initialTime ?? fallbackInitialTime,
+        [fallbackInitialTime, loaderData?.initialTime],
+    );
+
+    const wrappedChildren5 = (
+        <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
+            <AppContextProvider value={context}>
+                <NavigationContextProvider>
+                    <RootErrorBoundary />
+                </NavigationContextProvider>
+            </AppContextProvider>
+        </IconContext.Provider>
+    );
+
+    const {clientInfo, children: wrappedChildren4} = useClientInfoContextProvider(
+        {
+            // If there was an error at our root loader and we couldn't load `BrowserId`
+            // then use the `RealmId` as the `BrowserId`.
+            browserId: loaderData?.browserId ?? (getRealmId() as any as BrowserId),
+            initialClientInfo: loaderData?.clientInfo ?? defaultClientInfo,
+        },
+        wrappedChildren5,
+    );
+
+    const {spacingScale, children: wrappedChildren3} = useSpacingScaleContextProvider(
+        clientInfo,
+        wrappedChildren4,
+    );
+
+    const {platform, children: wrappedChildren2} = usePlatformContextProvider(
+        clientInfo,
+        wrappedChildren3,
+    );
+
+    const wrappedChildren = useGlobalContextProvider(
+        useAppInitialRenderContextProvider(
+            initialTime,
+            loaderData?.initialAppRenderId,
+            wrappedChildren2,
+        ),
+    );
 
     return (
-        <Box display="flex" justifyContent="center" padding="safe-area-inset">
-            <main
-                className={sprinkles({
-                    width: "full",
-                    maxWidth: "128",
-                    paddingX: "8",
-                    paddingY: {desktop: "32", mobile: "20"},
-                })}
-            >
-                <ErrorBodyRenderer title={title ?? defaultTitle} error={error} />
-            </main>
-        </Box>
+        <html
+            lang="en"
+            data-platform={platform}
+            data-spacing={spacingScale}
+            data-color={getColorSchemeWithoutListeningIfBrowser()}
+            data-engine={clientInfo.renderingEngine.toLowerCase()}
+        >
+            {renderRootHead(loaderData)}
+            <body>
+                {wrappedChildren}
+                {renderRootBodyScripts(platform)}
+            </body>
+        </html>
     );
 }
-
-// We use the same `<Root>` component for the error boundary component so that
-// if Remix navigates between root and error boundary we don't remount the
-// HTML. (Which appears to cause CSS to flash off.)
-export const ErrorBoundary = Root;

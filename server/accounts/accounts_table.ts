@@ -14,8 +14,12 @@ import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {FromEmailAddress} from "~/server/emails/from_email_address.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
-import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
+import {
+    AccountModelWithoutSpace,
+    unknownAccountId,
+} from "~/shared/accounts/account_model_without_space.js";
 import {Context} from "~/shared/context/context.js";
 import {
     FailedPreconditionError,
@@ -52,7 +56,7 @@ export const appleReviewerAccountEmailAddress = "apple.reviewer@alpine.inc" as E
 /**
  * This is a secret string shared between our company and Apple. An Apple
  * reviewer may use this string to log into a space made just for them. It's
- * not that big a deal if the strong leaks. All the account has access to is
+ * not that big a deal if the string leaks. All the account has access to is
  * their own space.
  */
 const appleReviewerAccountPassword = "968706";
@@ -500,6 +504,17 @@ export async function getAccountByIdAsAdmin(
     accountId: AccountId,
 ): Promise<AccountModelWithoutSpace> {
     await authorizeInternalAccess(context);
+
+    // Pretend like the unknown account doesn't exist. We do have an unknown
+    // account record in our database as a safety precaution to make sure we
+    // don't accidentally create an account with the unknown `AccountId`. But we
+    // should never return that data. Instead if you want data for an unknown
+    // account call `AccountModel.getUnknown()`.
+    //
+    // Calling `getAccount(unknownAccountId)` should always fail with a not
+    // found error.
+    if (accountId === unknownAccountId)
+        throw new NotFoundError("Unknown account is treated as if it doesn't exist");
 
     const accountItem = await AccountsTable.getItem(context, {
         partitionType: "Account",
@@ -1042,7 +1057,10 @@ export async function authorizeInternalAccess(context: Context<{actor: DynamoAct
             break;
         }
         case "System": {
-            throw new PermissionDeniedError("System does not have internal access");
+            throw new PermissionDeniedError("System actor does not have internal access");
+        }
+        case "Anonymous": {
+            throw unauthenticatedSessionError();
         }
         default:
             throw exhaustive(context.actor);
@@ -1062,6 +1080,16 @@ async function dangerouslyGetAccountAndHasInternalAccessIfExistsWithoutCaching(
     accountId: AccountId | ContentMentionAccountId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ) {
+    // Pretend like the unknown account doesn't exist. We do have an unknown
+    // account record in our database as a safety precaution to make sure we
+    // don't accidentally create an account with the unknown `AccountId`. But we
+    // should never return that data. Instead if you want data for an unknown
+    // account call `AccountModel.getUnknown()`.
+    //
+    // Calling `getAccount(unknownAccountId)` should always fail with a not
+    // found error.
+    if (accountId === unknownAccountId) return null;
+
     const accountItem = await AccountsTable.getItemIfExists(
         context,
         {
@@ -1092,6 +1120,16 @@ export async function dangerouslyGetAccountIfExistsWithoutCaching(
     accountId: AccountId | ContentMentionAccountId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ) {
+    // Pretend like the unknown account doesn't exist. We do have an unknown
+    // account record in our database as a safety precaution to make sure we
+    // don't accidentally create an account with the unknown `AccountId`. But we
+    // should never return that data. Instead if you want data for an unknown
+    // account call `AccountModel.getUnknown()`.
+    //
+    // Calling `getAccount(unknownAccountId)` should always fail with a not
+    // found error.
+    if (accountId === unknownAccountId) return null;
+
     const accountItem = await AccountsTable.getItemIfExists(
         context,
         {
@@ -1282,6 +1320,9 @@ export async function deleteAccountAppleDeviceTokenIfExists(
         case "System": {
             // System actor can delete device tokens for any account...
             break;
+        }
+        case "Anonymous": {
+            throw unauthenticatedSessionError();
         }
         default:
             throw exhaustive(context.actor);

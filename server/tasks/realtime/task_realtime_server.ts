@@ -1,4 +1,4 @@
-import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
@@ -25,6 +25,7 @@ import {
     TaskRealtimeTaskSubscriptionCallbacks,
 } from "~/server/tasks/realtime/task_realtime_task_subscription.js";
 import {TaskRealtimeUpdateEventBuilderBase} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
+import {AccessLevel} from "~/shared/access/access_policy.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -39,7 +40,6 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {TaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
@@ -48,7 +48,7 @@ import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protoco
 // query store is made evictable it is guaranteed to survive at least one
 // eviction call. This means items will be evicted from the query store at most
 // within two minutes of becoming evictable.
-const taskRealtimeServerEvictionInterval = 1000 * 60;
+const taskRealtimeServerEvictionMs = 1000 * 60;
 
 /**
  * The horizontally scalable task realtime server. We don't actually run the
@@ -161,7 +161,7 @@ export class TaskRealtimeServer {
             const endTime = Date.now();
             state.evictTimeout = createTimeout(
                 evict,
-                taskRealtimeServerEvictionInterval - (endTime - startTime),
+                taskRealtimeServerEvictionMs - (endTime - startTime),
             );
         };
 
@@ -169,7 +169,7 @@ export class TaskRealtimeServer {
             discoveredPromise: discoveredPromise.then(() => ({
                 discoveredTime: Date.now(),
             })),
-            evictTimeout: createTimeout(evict, taskRealtimeServerEvictionInterval),
+            evictTimeout: createTimeout(evict, taskRealtimeServerEvictionMs),
         };
 
         this._state = state;
@@ -514,7 +514,7 @@ export class TaskRealtimeServer {
      * from DynamoDB.
      */
     public async authorizeQueryAccess(
-        context: ServerSessionActionContext,
+        context: ServerActionContext,
         {
             spaceId,
             filters,
@@ -525,24 +525,20 @@ export class TaskRealtimeServer {
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
         },
     ) {
-        await runAllPromises([
-            // Authorize space access in parallel...
-            authorizeSpaceAccess(context, spaceId),
-
-            authorizeTaskQueryAccess(
-                context,
-                {
-                    filters,
-                    sorts,
-                },
-                {
-                    getTaskIndexDocIfExists: taskId =>
-                        this._storeBySpaceId.get(spaceId)?.getTaskIfLoaded(taskId),
-                    getCollectionIndexDocIfExists: collectionId =>
-                        this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
-                },
-            ),
-        ]);
+        await authorizeTaskQueryAccess(
+            context,
+            {
+                spaceId,
+                filters,
+                sorts,
+            },
+            {
+                getTaskIndexDocIfExists: taskId =>
+                    this._storeBySpaceId.get(spaceId)?.getTaskIfLoaded(taskId),
+                getCollectionIndexDocIfExists: collectionId =>
+                    this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
+            },
+        );
     }
 
     /**
@@ -553,22 +549,17 @@ export class TaskRealtimeServer {
      * from DynamoDB.
      */
     public async authorizeTaskAccess(
-        context: ServerSessionActionContext,
+        context: ServerActionContext,
         spaceId: SpaceId,
         taskId: TaskId,
-        expectedAccessLevel: TaskCollectionAccessLevel,
+        expectedAccessLevel: AccessLevel,
     ) {
-        await runAllPromises([
-            // Authorize space access in parallel...
-            authorizeSpaceAccess(context, spaceId),
-
-            authorizeTaskAccess(context, taskId, expectedAccessLevel, {
-                getTaskIndexDocIfExists: taskId =>
-                    this._storeBySpaceId.get(spaceId)?.getTaskIfLoaded(taskId),
-                getCollectionIndexDocIfExists: collectionId =>
-                    this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
-            }),
-        ]);
+        await authorizeTaskAccess(context, taskId, expectedAccessLevel, {
+            getTaskIndexDocIfExists: taskId =>
+                this._storeBySpaceId.get(spaceId)?.getTaskIfLoaded(taskId),
+            getCollectionIndexDocIfExists: collectionId =>
+                this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
+        });
     }
 
     /**
@@ -579,19 +570,14 @@ export class TaskRealtimeServer {
      * from DynamoDB.
      */
     public async authorizeCollectionAccess(
-        context: ServerSessionActionContext,
+        context: ServerActionContext,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
-        expectedAccessLevel: TaskCollectionAccessLevel,
+        expectedAccessLevel: AccessLevel,
     ) {
-        await runAllPromises([
-            // Authorize space access in parallel...
-            authorizeSpaceAccess(context, spaceId),
-
-            authorizeTaskCollectionAccess(context, collectionId, expectedAccessLevel, {
-                getCollectionIndexDocIfExists: collectionId =>
-                    this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
-            }),
-        ]);
+        await authorizeTaskCollectionAccess(context, collectionId, expectedAccessLevel, {
+            getCollectionIndexDocIfExists: collectionId =>
+                this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
+        });
     }
 }

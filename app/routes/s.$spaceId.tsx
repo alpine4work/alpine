@@ -1,7 +1,6 @@
 import {Outlet, ShouldRevalidateFunction, useSearchParams} from "@remix-run/react";
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {
-    Component,
     ContextType,
     ReactElement,
     ReactNode,
@@ -13,12 +12,7 @@ import {
     useState,
 } from "react";
 import {flushSync} from "react-dom";
-import {
-    UNSAFE_DataRouterStateContext as DataRouterStateContext,
-    To,
-    useParams,
-    useRouteError,
-} from "react-router";
+import {UNSAFE_DataRouterStateContext as DataRouterStateContext, To, useParams} from "react-router";
 import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicator_space_outlet_container.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
@@ -47,9 +41,9 @@ import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_rend
 import {useLocalStorage} from "~/client/helpers/use_local_storage.js";
 import {PeekStackContextProvider, PeekStackContextProviderRef} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {SearchModal} from "~/client/search/search_modal.js";
 import {
@@ -61,7 +55,6 @@ import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_t
 import {SpaceLayoutNativeMobileInboxController} from "~/client/spaces/layout/space_layout_native_mobile_inbox_controller.js";
 import {SpaceLayoutSideBar} from "~/client/spaces/layout/space_layout_side_bar.js";
 import {SpaceLayoutWebMobileTabBar} from "~/client/spaces/layout/space_layout_web_mobile_tab_bar.js";
-import {SpaceRouteErrorRenderer} from "~/client/spaces/layout/space_route_error_renderer.js";
 import {SpaceContextProvider} from "~/client/spaces/space_context_provider.js";
 import {spaceLayoutWebMobileTabBarHeight} from "~/client/styles/space_layout_shared_styles.js";
 import {sprinkles} from "~/client/styles/styles.js";
@@ -69,16 +62,21 @@ import {
     TaskRealtimeClientContextProvider,
     clientLoaderTaskStoreLoaderData,
 } from "~/client/tasks/core/task_realtime_client_context_provider.js";
-import {getInbox} from "~/server/notifications/data/notifications_table.js";
+import {
+    InboxSessionActionContextWithBroadcast,
+    getInbox,
+} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {getAccount, getSpace} from "~/server/spaces/spaces_table.js";
-import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {
-    DynamoGeneralRealtimeItem,
-    createDynamoGeneralRealtimeItemSchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {UnknownError} from "~/shared/error/error.js";
+    authorizeSpaceAccessIfPossible,
+    getAccount,
+    getSpace,
+} from "~/server/spaces/spaces_table.js";
+import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
+import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
+import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {
     FileAttachmentTarget,
     deserializeFileAttachmentTargetString,
@@ -87,8 +85,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -114,11 +111,19 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
-export const LoaderSchema = Schema.object({
-    space: SpaceModel.schema(),
-    currentAccount: AccountModel.schema,
-    hasInternalAccess: Schema.boolean,
-    inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
+export const LoaderSchema = Schema.union({
+    WithAccess: Schema.object({
+        type: Schema.value("WithAccess"),
+        space: SpaceModel.schema(),
+        currentAccount: AccountModel.schema,
+        hasInternalAccess: Schema.boolean,
+        inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
+    }),
+    WithoutAccess: Schema.object({
+        type: Schema.value("WithoutAccess"),
+        space: SpaceModel.schema(),
+        currentAccountWithoutSpace: AccountModelWithoutSpace.schema.nullable(),
+    }),
 });
 
 export function links(): Array<LinkDescriptor> {
@@ -167,32 +172,108 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({currentParams, nextP
 export async function loader({context: loaderContext, params}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
 
-    const context = (await loaderContext.actor.authenticate()).actor.authorizeSession();
+    const context = await loaderContext.actor.authenticate();
 
-    const [space, currentAccount, {hasInternalAccess}, inbox] = await runAllPromises([
-        getSpace(context, spaceId),
-        getAccount(context, spaceId, context.actor.getAccountId()),
-        context.actor.getAccountAndHasInternalAccess(),
-        getInbox(context, {spaceId}),
-    ]);
+    switch (context.actor.type) {
+        case "System": {
+            // Allowing a system actor to load our app would be very dangerous! Since
+            // system actors have read/write access to everything in the space.
+            throw new PermissionDeniedError("Can't load the application with a system actor");
+        }
 
-    const propagateEventData: TracerEventData = {
-        context: {
-            accountId: currentAccount.id,
-            spaceId: space.id,
-        },
-    };
+        case "Anonymous": {
+            const space = new SpaceModel({
+                id: spaceId,
+                // If you don't have space access, you're not allowed to see the space's name.
+                // Use an empty string as a placeholder.
+                name: "",
+            });
 
-    return jsonWithSchema(
-        LoaderSchema,
-        {
-            space,
-            currentAccount,
-            hasInternalAccess,
-            inbox,
-        },
-        {propagateEventData},
-    );
+            const propagateEventData: TracerEventData = {
+                context: {
+                    isAnonymous: true,
+                    spaceId,
+                    withoutSpaceAccess: true,
+                },
+            };
+
+            return jsonWithSchema(
+                LoaderSchema,
+                {type: "WithoutAccess", space, currentAccountWithoutSpace: null},
+                {propagateEventData},
+            );
+        }
+
+        case "Session": {
+            try {
+                const [space, currentAccount, {hasInternalAccess}, inbox] = await runAllPromises([
+                    getSpace(context, spaceId),
+                    getAccount(context, spaceId, context.actor.getAccountId()),
+                    context.actor.getAccountAndHasInternalAccess(),
+                    getInbox(context as InboxSessionActionContextWithBroadcast, {spaceId}),
+                ]);
+
+                const propagateEventData: TracerEventData = {
+                    context: {
+                        accountId: currentAccount.id,
+                        spaceId: space.id,
+                    },
+                };
+
+                return jsonWithSchema(
+                    LoaderSchema,
+                    {
+                        type: "WithAccess",
+                        space,
+                        currentAccount,
+                        hasInternalAccess,
+                        inbox,
+                    },
+                    {propagateEventData},
+                );
+            } catch (error) {
+                // If we failed to load the space route because the session actor doesn't have
+                // access to the space then we still want to attempt to load the page in
+                // `WithoutAccess` mode. In case the underlying content has URL sharing turned
+                // on.
+                //
+                // In order to figure out if the error was a space authorization issue, we call
+                // `authorizeSpaceAccessIfPossible()` and rethrow the error if that succeeds.
+                // That function only returns an error result if the session actor doesn't have
+                // space access.
+                const spaceAuthorizationResult = await authorizeSpaceAccessIfPossible(
+                    context,
+                    spaceId,
+                );
+                if (spaceAuthorizationResult.ok) throw error;
+
+                const {account} = await context.actor.getAccountAndHasInternalAccess();
+
+                const space = new SpaceModel({
+                    id: spaceId,
+                    // If you don't have space access, you're not allowed to see the space's name.
+                    // Use an empty string as a placeholder.
+                    name: "",
+                });
+
+                const propagateEventData: TracerEventData = {
+                    context: {
+                        accountId: account.id,
+                        spaceId,
+                        withoutSpaceAccess: true,
+                    },
+                };
+
+                return jsonWithSchema(
+                    LoaderSchema,
+                    {type: "WithoutAccess", space, currentAccountWithoutSpace: account},
+                    {propagateEventData},
+                );
+            }
+        }
+        default:
+            throw exhaustive(context.actor);
+    }
 }
 
 const SearchDebugOptionsSchema = Schema.object({
@@ -234,60 +315,26 @@ SpaceLayoutRoute.clientLoaderTaskStoreLoaderData = clientLoaderTaskStoreLoaderDa
  */
 export default function SpaceLayoutRoute() {
     const dataRouterStateContext = assertExists(useContext(DataRouterStateContext));
-    const rawLoaderData = dataRouterStateContext.loaderData["routes/s.$spaceId"];
+    const loaderData = useLoaderDataWithSchema(LoaderSchema);
 
-    // `useLoaderData()` doesn't work in an error boundary. We use this exact
-    // component for error and catch boundaries to avoid remounting when navigating
-    // between errors and non-errors. So manually deserialize the data for this
-    // route.
-    const loaderData = useMemo(
-        () => (rawLoaderData ? getLoaderDataWithSchema(LoaderSchema, rawLoaderData) : null),
-        [rawLoaderData],
-    );
-
-    const error = useRouteError();
-
-    // If it's our `/s/:spaceId` route itself throwing then we won't be able to
-    // render the space chrome. So render our root error renderer.
-    if (!loaderData) {
-        return <SpaceRouteErrorRenderer error={error} />;
-    }
-
-    return (
-        <SpaceLayoutRouteInner
-            dataRouterStateContext={dataRouterStateContext}
-            loaderData={loaderData}
-            error={error}
-        />
-    );
-}
-
-function SpaceLayoutRouteInner({
-    dataRouterStateContext,
-    loaderData,
-    error,
-}: {
-    dataRouterStateContext: NonNullable<ContextType<typeof DataRouterStateContext>>;
-    loaderData: SchemaType<typeof LoaderSchema>;
-    error: unknown;
-}) {
+    const params = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     const context = useAppContext();
     const isInitialAppRender = useIsInitialAppRender();
     const clientInfo = useClientInfo();
     const platform = usePlatform();
 
+    const spaceId = params.spaceId as SpaceId;
+
     const peekStackRef = useRef<PeekStackContextProviderRef>(null);
 
-    const {space, currentAccount, hasInternalAccess, inbox: initialInbox} = loaderData;
-
     useEffect(() => {
-        if (hasInternalAccess) {
+        if (loaderData.type === "WithAccess" && loaderData.hasInternalAccess) {
             attachDevConsoleForAccountInProduction();
         }
-    }, [hasInternalAccess]);
+    }, [loaderData]);
 
-    const accountsStore = useAccountClientStoreForSpaceId(space.id);
+    const accountsStore = useAccountClientStoreForSpaceId(spaceId);
 
     useDevConsoleTool("accounts", () => ({
         store: accountsStore,
@@ -368,10 +415,13 @@ function SpaceLayoutRouteInner({
     // If we switch to mobile then clear the `search` URL parameter
     // since mobile can't render the search modal.
     useEffect(() => {
-        if (platform !== "mobile") return;
-        if (searchParams.get("search") === null) return;
-        setSearchQueryText(null);
-    }, [platform, searchParams, setSearchQueryText]);
+        if (
+            (loaderData.type !== "WithAccess" || platform === "mobile") &&
+            searchParams.get("search") !== null
+        ) {
+            setSearchQueryText(null);
+        }
+    }, [loaderData.type, platform, searchParams, setSearchQueryText]);
 
     const [debugOptions, setDebugOptions] = useLocalStorage(
         "cyberworlds/searchDebugOptions",
@@ -457,6 +507,7 @@ function SpaceLayoutRouteInner({
     for (const [searchParamName, searchParamValue] of searchParams) {
         switch (searchParamName) {
             case "search": {
+                if (loaderData.type !== "WithAccess") continue;
                 if (platform === "mobile") continue;
                 if (isInitialAppRender) continue;
 
@@ -464,15 +515,12 @@ function SpaceLayoutRouteInner({
                 hasAddedSearchModal = true;
 
                 modals.push(
-                    <ModalErrorBoundary key={searchParamName} type="search" error={error}>
-                        <SearchModal
-                            onClose={handleSearchModalClose}
-                            pushPeekStack={handleSearchModalPushPeekStack}
-                            debugOptions={
-                                debugOptions.isDebugModeEnabled ? debugOptions.options : null
-                            }
-                        />
-                    </ModalErrorBoundary>,
+                    <SearchModal
+                        key={searchParamName}
+                        onClose={handleSearchModalClose}
+                        pushPeekStack={handleSearchModalPushPeekStack}
+                        debugOptions={debugOptions.isDebugModeEnabled ? debugOptions.options : null}
+                    />,
                 );
                 break;
             }
@@ -516,25 +564,25 @@ function SpaceLayoutRouteInner({
                 };
 
                 modals.push(
-                    <ModalErrorBoundary
-                        key={`${searchParamName}-${fileId}-${platform}`}
-                        type="file"
-                        error={error}
-                    >
-                        <ContentFileViewerModal
-                            fileId={fileId}
-                            attachmentTarget={fileAttachmentTarget}
-                            onClose={handleClose}
-                        />
-                    </ModalErrorBoundary>,
+                    <ContentFileViewerModal
+                        key={searchParamName}
+                        fileId={fileId}
+                        attachmentTarget={fileAttachmentTarget}
+                        onClose={handleClose}
+                    />,
                 );
                 break;
             }
         }
     }
 
+    const hasSpaceLayoutWebMobileTabBar =
+        loaderData.type === "WithAccess" && platform === "mobile" && !clientInfo.isNativeMobile;
+
     return (
         <GlobalKeyDownEvent
+            // Re-render everything when the space changes.
+            key={spaceId}
             onGlobalKeyDown={event => {
                 switch (event.key) {
                     // Disable Home/End browser behavior when not focused in a text input. When
@@ -586,7 +634,9 @@ function SpaceLayoutRouteInner({
                             event.preventDefault();
                             event.stopPropagation();
 
-                            setSearchQueryText("");
+                            if (loaderData.type === "WithAccess") {
+                                setSearchQueryText("");
+                            }
                         }
                         break;
                     }
@@ -597,14 +647,23 @@ function SpaceLayoutRouteInner({
                 {globalLoadingIndicator => (
                     <ContextMenuContextProvider>
                         <SpaceContextProvider
-                            // Re-render everything when the space changes.
-                            key={space.id}
-                            space={space}
-                            currentAccount={currentAccount}
+                            space={loaderData.space}
+                            currentAccount={
+                                loaderData.type === "WithAccess" ? loaderData.currentAccount : null
+                            }
+                            currentAccountWithoutSpace={
+                                loaderData.type === "WithAccess"
+                                    ? loaderData.currentAccount
+                                    : loaderData.currentAccountWithoutSpace
+                            }
                         >
                             <TaskRealtimeClientContextProvider
-                                spaceId={space.id}
-                                currentAccountId={currentAccount.id}
+                                spaceId={spaceId}
+                                currentAccountId={
+                                    loaderData.type === "WithAccess"
+                                        ? loaderData.currentAccount.id
+                                        : loaderData.currentAccountWithoutSpace?.id ?? null
+                                }
                             >
                                 <PeekStackContextProvider
                                     ref={peekStackRef}
@@ -614,20 +673,18 @@ function SpaceLayoutRouteInner({
                                 >
                                     <SpaceLayoutRouteOutlet
                                         dataRouterStateContext={dataRouterStateContext}
-                                        error={error}
-                                        space={space}
-                                        initialInbox={initialInbox}
+                                        loaderData={loaderData}
                                         setSearchQueryText={setSearchQueryText}
                                         globalLoadingIndicator={globalLoadingIndicator}
                                     />
                                 </PeekStackContextProvider>
                                 {modals}
-                                {platform === "mobile" && !clientInfo.isNativeMobile && (
-                                    <SpaceLayoutWebMobileTabBar initialInbox={initialInbox} />
+                                {hasSpaceLayoutWebMobileTabBar && (
+                                    <SpaceLayoutWebMobileTabBar initialInbox={loaderData.inbox} />
                                 )}
-                                {clientInfo.isNativeMobile && (
+                                {loaderData.type === "WithAccess" && clientInfo.isNativeMobile && (
                                     <SpaceLayoutNativeMobileInboxController
-                                        initialInbox={initialInbox}
+                                        initialInbox={loaderData.inbox}
                                     />
                                 )}
                             </TaskRealtimeClientContextProvider>
@@ -641,16 +698,12 @@ function SpaceLayoutRouteInner({
 
 function SpaceLayoutRouteOutlet({
     dataRouterStateContext,
-    error,
-    space,
-    initialInbox,
+    loaderData,
     setSearchQueryText,
     globalLoadingIndicator,
 }: {
     dataRouterStateContext: NonNullable<ContextType<typeof DataRouterStateContext>>;
-    error: unknown;
-    space: SpaceModel;
-    initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
+    loaderData: SchemaType<typeof LoaderSchema>;
     setSearchQueryText: (queryText: string) => void;
     globalLoadingIndicator: GlobalLoadingIndicator | null;
 }) {
@@ -704,10 +757,14 @@ function SpaceLayoutRouteOutlet({
     // elements on mobile devices. (Like the URL bar.)
     const outletContainerHeight =
         resizedWindowHeightForMobileWebKit !== null
-            ? platform === "mobile" && !clientInfo.isNativeMobile
+            ? loaderData.type === "WithAccess" &&
+              platform === "mobile" &&
+              !clientInfo.isNativeMobile
                 ? `min(${resizedWindowHeightForMobileWebKit}px, 100svh - ${spacing[spaceLayoutWebMobileTabBarHeight]})`
                 : `min(${resizedWindowHeightForMobileWebKit}px, 100svh)`
-            : platform === "mobile" && !clientInfo.isNativeMobile
+            : loaderData.type === "WithAccess" &&
+              platform === "mobile" &&
+              !clientInfo.isNativeMobile
             ? `calc(100svh - ${spacing[spaceLayoutWebMobileTabBarHeight]})`
             : "100svh";
 
@@ -766,23 +823,20 @@ function SpaceLayoutRouteOutlet({
                             // Make sure inert content is not in the accessibility tree.
                             aria-hidden={isInert ? "true" : undefined}
                         >
-                            {platform !== "mobile" && (
+                            {loaderData.type === "WithAccess" && platform !== "mobile" && (
                                 <SpaceLayoutSideBar
-                                    space={space}
-                                    initialInbox={initialInbox}
+                                    space={loaderData.space}
+                                    currentAccount={loaderData.currentAccount}
+                                    initialInbox={loaderData.inbox}
                                     onSearchPress={() => setSearchQueryText("")}
                                 />
                             )}
-                            {error !== undefined ? (
-                                <SpaceRouteErrorRenderer error={error} />
-                            ) : (
-                                <LoadingIndicatorSpaceOutletContainer
-                                    routeId="routes/s.$spaceId"
-                                    hasSpaceLayoutSidebar={platform !== "mobile"}
-                                >
-                                    <Outlet />
-                                </LoadingIndicatorSpaceOutletContainer>
-                            )}
+                            <LoadingIndicatorSpaceOutletContainer
+                                routeId="routes/s.$spaceId"
+                                hasSpaceLayoutSidebar={platform !== "mobile"}
+                            >
+                                <Outlet />
+                            </LoadingIndicatorSpaceOutletContainer>
                             {globalLoadingIndicatorForMobile && (
                                 <Box
                                     pointerEvents="none"
@@ -795,6 +849,7 @@ function SpaceLayoutRouteOutlet({
                                         // Position with `top` instead of using `bottom: 0` so the saving indicator is
                                         // below the keyboard when the keyboard opens.
                                         top:
+                                            loaderData.type === "WithAccess" &&
                                             platform === "mobile"
                                                 ? `calc(100svh - ${addRemLengths(
                                                       spaceLayoutWebMobileTabBarHeight,
@@ -856,35 +911,22 @@ function SpaceLayoutRouteOutlet({
             }
 
             nodes.push(
-                // NOTE(calebmer): There may be a cleaner way to handle errors. Since error
-                // handling only happens for the primary route, if an inert route has an error
-                // then nothing will be rendered in the inert route? That's probably fine.
-                error !== undefined ? (
-                    <div
-                        key={nativeMobileRouterState.entryKey}
-                        className={outletContainerClassName}
-                        style={outletContainerStyle}
-                    >
-                        <SpaceRouteErrorRenderer error={error} />
-                    </div>
-                ) : (
-                    <NativeMobileOutlet
-                        key={nativeMobileRouterState.entryKey}
-                        parentRouteIds={spaceNativeMobileOutletParentRouteIds}
-                        tracer={context.tracer.getRoot()}
-                        isInert={isInert}
-                        inertRouterState={null}
-                        onUpdateMetaTitle={updateMetaTitle}
-                        globalLoadingIndicator={globalLoadingIndicatorForMobile}
-                        className={outletContainerClassName}
-                        style={outletContainerStyle}
-                        renderOutlet={outlet => (
-                            <LoadingIndicatorSpaceOutletContainer routeId="routes/s.$spaceId">
-                                {outlet}
-                            </LoadingIndicatorSpaceOutletContainer>
-                        )}
-                    />
-                ),
+                <NativeMobileOutlet
+                    key={nativeMobileRouterState.entryKey}
+                    parentRouteIds={spaceNativeMobileOutletParentRouteIds}
+                    tracer={context.tracer.getRoot()}
+                    isInert={isInert}
+                    inertRouterState={null}
+                    onUpdateMetaTitle={updateMetaTitle}
+                    globalLoadingIndicator={globalLoadingIndicatorForMobile}
+                    className={outletContainerClassName}
+                    style={outletContainerStyle}
+                    renderOutlet={outlet => (
+                        <LoadingIndicatorSpaceOutletContainer routeId="routes/s.$spaceId">
+                            {outlet}
+                        </LoadingIndicatorSpaceOutletContainer>
+                    )}
+                />,
             );
         }
 
@@ -916,29 +958,20 @@ function SpaceLayoutRouteOutlet({
         return nodes;
     }, [
         context.tracer,
-        error,
         globalLoadingIndicatorForMobile,
-        initialInbox,
         isInert,
+        loaderData,
         nativeMobileRouterState,
         outletContainerHeight,
         params.spaceId,
         platform,
         setSearchQueryText,
-        space,
         updateMetaTitle,
     ]);
 
     // React supports rendering an array as children but TypeScript gets confused.
     return nodes as any as ReactElement;
 }
-
-// We use the same component for the error boundary so we don't remount the
-// space context and top bar if an error in a child component occurs.
-//
-// Making sure there's no remount on error requires careful patching to Remix
-// and React Router.
-export const ErrorBoundary = SpaceLayoutRoute;
 
 /**
  * Handle `Home` or `End` keyboard presses. Moving the cursor to the start or
@@ -1047,47 +1080,6 @@ function handleHomeOrEndKeyDownForTextInputElement(event: KeyboardEvent) {
                 selection.addRange(range);
             }
         }
-    }
-}
-
-let modalErrorBoundaryTypesByError: WeakMap<object, Set<string>> | null = null;
-
-/**
- * Protect against infinite error loops with `<SearchModal>`. If
- * `<SearchModal>` errs on initial render while rendering we'll re-render at
- * the nearest error boundary which will attempt to render `<SearchModal>`
- * again because `search` is in the URL causing an infinite error loop. With
- * this error boundary if `<SearchModal>` errs, we make sure not to render it
- * again by clearing `search` from the URL.
- */
-class ModalErrorBoundary extends Component<{
-    type: string;
-    error: unknown;
-    children: ReactNode;
-}> {
-    public override componentDidCatch(error: unknown) {
-        if (!isObject(error)) error = new UnknownError(String(error));
-
-        modalErrorBoundaryTypesByError ??= new WeakMap();
-
-        getOrSetDefaultMapValue(
-            modalErrorBoundaryTypesByError,
-            error as object,
-            () => new Set(),
-        ).add(this.props.type);
-
-        throw error;
-    }
-
-    public override render() {
-        if (
-            isObject(this.props.error) &&
-            modalErrorBoundaryTypesByError?.get(this.props.error)?.has(this.props.type)
-        ) {
-            return null;
-        }
-
-        return this.props.children;
     }
 }
 

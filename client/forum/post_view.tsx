@@ -1,10 +1,10 @@
 import {Memo, useCallback, useEffect, useRef, useState} from "react";
-import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {getPostMoreActions} from "~/client/forum/get_post_more_actions.js";
 import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
 import {PostContentViewInitialScroll} from "~/client/forum/post_content_view.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView, PostListViewRef} from "~/client/forum/post_list_view.js";
+import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";

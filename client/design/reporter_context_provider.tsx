@@ -1,5 +1,5 @@
 import {addSeconds} from "date-fns/addSeconds";
-import {Info, X} from "phosphor-react";
+import {X} from "phosphor-react";
 import {
     Memo,
     ReactNode,
@@ -33,7 +33,6 @@ import {ErrorBase} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
@@ -48,13 +47,22 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
  *
  * [1]: https://sheribyrnehaber.medium.com/designing-toast-messages-for-accessibility-fb610ac364be
  */
-const defaultErrorToastDurationSeconds = 6;
+const defaultToastDurationSeconds = 6;
 
 /**
  * Toasts display brief, temporary notifications. They're meant to be noticed
  * but not disrupt a user's experience.
  */
-type Toast = ErrorToast;
+type Toast = InfoToast | ErrorToast;
+
+/**
+ * A toast displaying some quick, transient, information to the user.
+ */
+type InfoToast = {
+    readonly type: "Info";
+    readonly message: ReactNode;
+    readonly durationSeconds?: number;
+};
 
 /**
  * A toast displaying an error message. It lets the user know an error has
@@ -85,6 +93,8 @@ type ErrorToast = {
      * tracer from this context when logging the error.
      */
     readonly reportingContext: AppContext;
+
+    readonly durationSeconds?: undefined;
 };
 
 let nextReporterModalDialogId = 1;
@@ -108,7 +118,6 @@ type ReporterState = {
           readonly activeToast: {
               readonly toast: Toast;
               readonly startTime: Date;
-              readonly durationSeconds: number;
               readonly isAnimatingOut: boolean;
           } | null;
           readonly toastQueue: ReadonlyArray<Toast>;
@@ -258,7 +267,6 @@ function reduceReporterState(state: ReporterState, action: ReporterAction): Repo
                     activeToast: {
                         toast: action.toast,
                         startTime: action.time,
-                        durationSeconds: defaultErrorToastDurationSeconds,
                         isAnimatingOut: false,
                     },
                 };
@@ -287,7 +295,6 @@ function reduceReporterState(state: ReporterState, action: ReporterAction): Repo
                     activeToast: {
                         toast: state.toastQueue[0],
                         startTime: new Date(),
-                        durationSeconds: defaultErrorToastDurationSeconds,
                         isAnimatingOut: false,
                     },
                     toastQueue: state.toastQueue.slice(1),
@@ -358,6 +365,7 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
                         undefined,
                         context,
                     ),
+                    showInfoToast: reporter.showInfoToast.bind(undefined, context),
                 };
 
                 return newReporter as Memo<typeof newReporter>;
@@ -396,6 +404,18 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
             logErrorWithoutDisplaying: (context, title, error) => {
                 context.tracer.getRoot().logUncaughtException(title, error);
             },
+
+            showInfoToast: (context, message, options) => {
+                dispatch({
+                    type: "ShowToast",
+                    time: new Date(),
+                    toast: {
+                        type: "Info",
+                        message,
+                        durationSeconds: options?.durationSeconds,
+                    },
+                });
+            },
         };
 
         return reporter;
@@ -431,7 +451,6 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
                                 <ToastView
                                     toast={state.activeToast.toast}
                                     startTime={state.activeToast.startTime}
-                                    durationSeconds={state.activeToast.durationSeconds}
                                     onDismiss={dismissToast}
                                 />
                             </Box>
@@ -450,17 +469,15 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
 function ToastView({
     toast,
     startTime,
-    durationSeconds,
     onDismiss,
 }: {
     toast: Toast;
     startTime: Date;
-    durationSeconds: number;
     onDismiss: Memo<(options?: {withoutAnimation?: boolean}) => void>;
 }) {
     const expirationTime = useMemo(
-        () => addSeconds(startTime, durationSeconds),
-        [durationSeconds, startTime],
+        () => addSeconds(startTime, toast.durationSeconds ?? defaultToastDurationSeconds),
+        [startTime, toast.durationSeconds],
     );
 
     useEffect(() => {
@@ -474,14 +491,6 @@ function ToastView({
         return () => timeout.clear();
     }, [expirationTime, onDismiss, startTime]);
 
-    // Right now the only toast type we have is the error toast type. A couple
-    // things we should change for other toast types:
-    //
-    // - Different expiration times
-    // - No error icon (different icon or no icon)
-    // - Don't use `role="alert"` and instead use `role="status"`
-    cast<"Error">(toast.type);
-
     const [isInitialRender, setIsInitialRender] = useState(true);
     useLayoutEffect(() => {
         setIsInitialRender(false);
@@ -490,7 +499,8 @@ function ToastView({
     // If this is not a system error and has a display message (e.g.
     // `PermissionDeniedError`) then we don't show the red warning icon. Since this
     // error is probably expected.
-    const dontShowErrorIcon =
+    const withErrorIcon =
+        toast.type === "Error" &&
         toast.error instanceof ErrorBase &&
         !isSystemError(toast.error) &&
         !!toast.error.displayMessage;
@@ -506,17 +516,13 @@ function ToastView({
             display="flex"
         >
             <Box flexGrow="1" alignSelf="center" display="flex" paddingX="3" paddingY="2">
-                <Box flexShrink="0" color="grey-50" paddingRight="1.5">
-                    <Box position="relative" style={{top: 1}}>
-                        {dontShowErrorIcon ? (
-                            <Info size={spacing["4"]} />
-                        ) : (
-                            <ErrorIcon size={spacing["4"]} />
-                        )}
+                {withErrorIcon && (
+                    <Box flexShrink="0" color="grey-50" paddingRight="1.5">
+                        <ErrorIcon size={spacing["4"]} />
                     </Box>
-                </Box>
+                )}
                 <Box flexGrow="1" role="alert">
-                    {!isInitialRender && (
+                    {!isInitialRender &&
                         // [According to MDN][1], live regions (`role="alert"`, `role="status"`,
                         // `aria-live="assertive"`, `aria-live="polite"`) only notify users of assistive
                         // technology when the element updates. Not when it is added to the DOM. So we
@@ -524,17 +530,20 @@ function ToastView({
                         // the alert content.
                         //
                         // [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/alert_role
-                        <ErrorDisplayMessageRenderer
-                            error={toast.error}
-                            fontSize="75"
-                            // Add punctuation to the title since it was written standalone.
-                            prefixMessage={`${toast.title}.`}
-                            isSingleLine={true}
-                        />
-                    )}
+                        (toast.type === "Info" ? (
+                            toast.message
+                        ) : (
+                            <ErrorDisplayMessageRenderer
+                                error={toast.error}
+                                fontSize="75"
+                                // Add punctuation to the title since it was written standalone.
+                                prefixMessage={`${toast.title}.`}
+                                isSingleLine={true}
+                            />
+                        ))}
                 </Box>
             </Box>
-            <Box flexShrink="0" paddingTop="1" paddingBottom="2" paddingRight="1" paddingLeft="0">
+            <Box flexShrink="0" paddingTop="0.5" paddingBottom="1.5" paddingRight="0.5">
                 <IconButton
                     variant="quiet-above-grey-5-dark-background"
                     size="xs"

@@ -62,7 +62,7 @@ export const taskRowViewFirstColumnWidth = `min(${addRemLengths(
     taskRowViewFirstColumnExtraPaddingLeft,
 )}, ${taskRowViewColumnMinViewportWidth} + ${taskRowViewFirstColumnExtraPaddingLeft})`;
 
-const taskRowViewCollectionsColumnCellOverlayExtraWidth = subtractRemLengths(
+export const taskRowViewCollectionsColumnCellOverlayExtraWidth = subtractRemLengths(
     "2.5",
     taskRowViewColumnPaddingX,
 );

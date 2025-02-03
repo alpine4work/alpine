@@ -4,6 +4,7 @@ ts_project(
     name = "documents",
     visibility = ["//visibility:public"],
     deps = [
+        "//shared/access",
         "//shared/accounts",
         "//shared/content",
         "//shared/error",

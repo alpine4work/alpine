@@ -1,8 +1,12 @@
+import {AccessLevelSchema, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {ContentReferencedIdsSchema} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {DocumentContentReferencedIdsSchema} from "~/shared/documents/document_content_referenced_ids.js";
 import {DocumentContentReferencesSchema} from "~/shared/documents/document_content_references.js";
-import {DocumentContentStepSchema} from "~/shared/documents/document_content_schema.js";
+import {
+    DocumentContentSchema,
+    DocumentContentStepSchema,
+} from "~/shared/documents/document_content_schema.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
@@ -29,6 +33,12 @@ export const authorizeDocumentAccess = defineRpc({
     name: "authorizeDocumentAccess",
     input: {
         documentId: Schema.id<DocumentId>(),
+        expectedAccessLevel: AccessLevelSchema,
+        // If true, also calls `authorizeSpaceAccess()`. If a document has a non-null
+        // `accessPolicy.urlGrant` then space access isn't required. Setting this true
+        // makes sure the actor has space access even if `accessPolicy.urlGrant` is
+        // non-null.
+        withSpaceAccess: Schema.boolean.optional(),
     },
     output: {},
 });
@@ -52,6 +62,28 @@ export const getDocument = defineRpc({
     },
     output: {
         document: DocumentModel.schema(),
+    },
+});
+
+// This RPC returns document content with comment marks even if the actor is a
+// viewer! It's a privilege escalation that's only allowed if the collaboration
+// service is calling this RPC. The collaboration service durable object needs
+// the full document content to function. If a viewer initializes the durable
+// object and an editor connects later, the editor still needs to see the
+// document with comment marks.
+//
+// The collaboration service needs to implement additional authorization checks
+// to make sure it doesn't return document content with comment marks to users
+// who only have view access.
+export const getDocumentContentForCollaborationServiceInitialization = defineRpc({
+    name: "getDocumentContentForCollaborationServiceInitialization",
+    input: {
+        documentId: Schema.id<DocumentId>(),
+    },
+    output: {
+        spaceId: Schema.id<SpaceId>(),
+        version: Schema.integer,
+        content: DocumentContentSchema,
     },
 });
 
@@ -98,6 +130,7 @@ export const updateDocumentContent = defineRpc({
                 createdTime: Schema.date.optional(),
             }),
         ),
+        intentionallyUpdateAccessPolicy: AccessPolicySchema.optional(),
         resolveCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()).optional(),
         unresolveCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()).optional(),
     },

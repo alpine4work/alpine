@@ -1,6 +1,7 @@
+import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {
     DocumentContentWithReferencesSchema,
-    UncheckedDocumentContentWithReferencesSchema,
+    DocumentWithOptionalTitleContentWithReferencesSchema,
 } from "~/shared/documents/document_content_references.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
@@ -39,7 +40,7 @@ export class DocumentCommentThreadModel extends Model(
          * When the comment is no longer referenced in the document you can render this
          * content snippet in the comment thread's preview component.
          */
-        fallbackContentSnippet: UncheckedDocumentContentWithReferencesSchema.nullable(),
+        fallbackContentSnippet: DocumentWithOptionalTitleContentWithReferencesSchema.nullable(),
 
         /**
          * Is the document comment thread resolved?
@@ -177,6 +178,7 @@ export class DocumentPreviewModel
             spaceId: Schema.id<SpaceId>(),
             version: Schema.integer,
             titleWithoutFallback: Schema.string,
+            accessPolicy: AccessPolicySchema,
         }),
     )
     implements DocumentPreviewInterface

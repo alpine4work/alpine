@@ -145,7 +145,7 @@ export function ContentFileViewerModalDesktop({
             // don't benefit from using lighter grey colors in dark mode. Use the standard
             // dark mode shades in our content file viewer modal.
             withoutElevatedGrey
-            borderRadius="2"
+            borderRadius="2.5"
             withoutCloseButton
             withBlurBackdropFilter
             onClose={onClose}

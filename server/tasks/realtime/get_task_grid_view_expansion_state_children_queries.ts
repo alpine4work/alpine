@@ -1,8 +1,11 @@
 import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
-import {isTaskIndexDocAccessAuthorized} from "~/server/tasks/data/task_table.js";
+import {
+    TaskAuthorizationActor,
+    authorizeTaskIndexDocAccessIfPossibleForActor,
+} from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
-import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {
     TaskGridViewExpansionState,
     TaskGridViewExpansionTaskState,
@@ -26,7 +29,7 @@ export function getTaskGridViewExpansionStateChildrenQueries<Result>(
     {
         server,
         spaceId,
-        accountId,
+        actor,
         limit,
         tasks,
         gridViewExpansionState,
@@ -34,7 +37,7 @@ export function getTaskGridViewExpansionStateChildrenQueries<Result>(
     }: {
         server: TaskRealtimeServer;
         spaceId: SpaceId;
-        accountId: AccountId;
+        actor: TaskAuthorizationActor;
         limit: number;
         tasks: ReadonlyArray<TaskIndexDoc>;
         gridViewExpansionState: TaskGridViewExpansionState;
@@ -117,9 +120,9 @@ export function getTaskGridViewExpansionStateChildrenQueries<Result>(
                 const childrenQueryPromise = (async () => {
                     const task = await server.getTask(context, spaceId, taskId);
 
-                    const isAccessAuthorized = await isTaskIndexDocAccessAuthorized(
+                    const authorizationResult = await authorizeTaskIndexDocAccessIfPossibleForActor(
                         context,
-                        accountId,
+                        actor,
                         task,
                         "View",
                         {
@@ -132,7 +135,7 @@ export function getTaskGridViewExpansionStateChildrenQueries<Result>(
                     // We may have tasks in our expansion state that the user lost access too (e.g.
                     // the task was deleted or it moved collections). Since we preload child query
                     // tasks as an optimization, ignore tasks we no longer have access to.
-                    if (!isAccessAuthorized) return null;
+                    if (!authorizationResult.ok) return null;
 
                     return loadQuery({
                         filters: childrenFilters,

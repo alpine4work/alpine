@@ -9,10 +9,12 @@ import {
     AppServiceSystemActionContextModules,
 } from "~/app/app_service_context.js";
 import {AppService, AppServiceConstants} from "~/app/app_service_types.js";
+import {createAppServerRoutes} from "~/app/router/app_server_routes.js";
 import {seedDynamo} from "~/app/seed_dynamo.js";
 import {Session} from "~/server/accounts/accounts_table.js";
 import {
     DynamoActorContextModule,
+    DynamoAnonymousActorContextModule,
     DynamoSessionActorContextModule,
     DynamoSystemActorContextModule,
     DynamoUnknownActorContextModule,
@@ -219,7 +221,10 @@ async function createAppService({
     // In production (and integration tests) we have one Node.js runtime for Remix
     // code and our custom `app_service_worker.ts` server so the above features
     // will work.
-    const handleRequest = createRequestHandler(build, process.env.NODE_ENV);
+    const handleRequest = createRequestHandler(
+        {...build, routes: createAppServerRoutes(build.routes)},
+        process.env.NODE_ENV,
+    );
 
     const requestListener = createStandardizedRequestListener<
         "HealthCheck" | "ClearSpaceAccountsCacheForTest" | Array<RouteMatch<ServerRoute>> | null
@@ -476,7 +481,7 @@ function createActorContextModule(
             if (!session) {
                 // Remove our session cookie if the session was deleted from the database.
                 sessionCookie.dangerouslySet(null);
-                return null;
+                return DynamoAnonymousActorContextModule.dangerouslyNew("AppClient");
             }
 
             // If we receive a session cookie, we treat the request as if it came from a
@@ -515,11 +520,16 @@ function createActorContextModule(
                         authorizationHeaderPayload.spaceId,
                     );
                 }
+                case "Anonymous": {
+                    return DynamoAnonymousActorContextModule.dangerouslyNew(serviceName);
+                }
                 default:
                     throw exhaustive(authorizationHeaderPayload);
             }
         }
 
-        return null;
+        // 3. If we don't have a session cookie or `Authorization` header then this is
+        //    an anonymous request.
+        return DynamoAnonymousActorContextModule.dangerouslyNew("AppClient");
     });
 }

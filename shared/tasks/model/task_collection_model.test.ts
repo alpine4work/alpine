@@ -15,8 +15,9 @@ test("merging identical tasks returns a referentially equal value to the first o
         creatorId: null,
         name: "Test",
         accessPolicy: {
-            accountGrantById: new Map([[accountId, {level: "Manage"}]]),
+            accountGrantById: new Map([[accountId, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
+            urlGrant: null,
         },
     });
     const collection2 = TaskCollectionModel.createFromAction(spaceId, collectionId, createdTime, {
@@ -24,8 +25,9 @@ test("merging identical tasks returns a referentially equal value to the first o
         creatorId: null,
         name: "Test",
         accessPolicy: {
-            accountGrantById: new Map([[accountId, {level: "Manage"}]]),
+            accountGrantById: new Map([[accountId, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
+            urlGrant: null,
         },
     });
 
@@ -46,8 +48,9 @@ test("merging tasks returns a referentially equal value to the first one if the 
         creatorId: null,
         name: "Test",
         accessPolicy: {
-            accountGrantById: new Map([[accountId, {level: "Manage"}]]),
+            accountGrantById: new Map([[accountId, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
+            urlGrant: null,
         },
     });
     const collection2 = TaskCollectionModel.createFromAction(spaceId, collectionId, createdTime, {
@@ -55,8 +58,9 @@ test("merging tasks returns a referentially equal value to the first one if the 
         creatorId: null,
         name: "Test",
         accessPolicy: {
-            accountGrantById: new Map([[accountId, {level: "Manage"}]]),
+            accountGrantById: new Map([[accountId, {level: "Manage", generation: 0}]]),
             defaultGrant: null,
+            urlGrant: null,
         },
     });
 

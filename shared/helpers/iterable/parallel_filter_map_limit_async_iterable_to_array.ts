@@ -1,4 +1,4 @@
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 
 /**
@@ -31,13 +31,9 @@ export async function parallelFilterMapLimitAsyncIterableToArray<Value, NewValue
     limit: number,
     filterMap: (value: Value, index: number) => Promise<NewValue | null>,
 ): Promise<Array<NewValue>> {
-    let hasRejection = false;
-    let firstRejectionReason;
-    let hasSystemError = false;
-    let firstSystemError;
-
     const array: Array<{index: number; value: NewValue}> = [];
     const promises = new Set<Promise<unknown>>();
+    const errors: Array<unknown> = [];
     let limitStallPromiseResolver: PromiseResolver<{done: boolean}> | null = null;
     let filteredValueCount = 0;
 
@@ -46,7 +42,7 @@ export async function parallelFilterMapLimitAsyncIterableToArray<Value, NewValue
     try {
         for await (const value of iterable) {
             // If we have an error, stop iterating!
-            if (hasRejection) break;
+            if (errors.length > 0) break;
 
             const index = currentIndex;
             currentIndex += 1;
@@ -81,14 +77,7 @@ export async function parallelFilterMapLimitAsyncIterableToArray<Value, NewValue
                     limitStallPromiseResolver?.resolve({done: true});
                     limitStallPromiseResolver = null;
 
-                    // TODO(calebmer): Log all rejections in our telemetry, not just the first one.
-                    if (!hasRejection) firstRejectionReason = error;
-                    hasRejection = true;
-
-                    if (!hasSystemError && isSystemError(error)) {
-                        hasSystemError = true;
-                        firstSystemError = error;
-                    }
+                    errors.push(error);
                 },
             );
 
@@ -106,10 +95,7 @@ export async function parallelFilterMapLimitAsyncIterableToArray<Value, NewValue
         // promise threw while we were awaiting, rethrow that error.
         await Promise.allSettled(promises);
 
-        // If we had a system error, prioritize throwing that. Otherwise throw the
-        // first error we saw.
-        if (hasSystemError) throw firstSystemError;
-        if (hasRejection) throw firstRejectionReason;
+        if (errors.length > 0) throw createAggregateError(errors);
     }
 
     return array.sort((a, b) => a.index - b.index).map(({value}) => value);

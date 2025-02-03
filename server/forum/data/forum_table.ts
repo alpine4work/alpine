@@ -35,6 +35,7 @@ import {
     getFileFromAttachment,
     getPostDraftFileAttachments,
 } from "~/server/files/data/files_table.js";
+import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
@@ -65,6 +66,7 @@ import {
     DynamoItemKey,
     DynamoItemPartitionKey,
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {
     DataLossError,
     DeadlineExceededError,
@@ -74,7 +76,6 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
     ChannelContributorsModel,
@@ -937,10 +938,7 @@ export async function runMoveForumChannelsAndPostsMigration(
     let n = 0;
     const mutexes = createArrayWithLength(8, () => new Mutex());
 
-    let hasError = false;
-    let firstError: unknown;
-    let hasSystemError = false;
-    let firstSystemError: unknown;
+    const errors: Array<unknown> = [];
 
     for await (const item of ForumTable.expensiveScan(context, {
         segmentIndex,
@@ -967,16 +965,7 @@ export async function runMoveForumChannelsAndPostsMigration(
                 } catch (error) {
                     // eslint-disable-next-line no-console
                     console.error("Migration transaction failed:", error);
-
-                    if (!hasError) {
-                        hasError = true;
-                        firstError = error;
-                    }
-
-                    if (!hasSystemError && isSystemError(error)) {
-                        hasSystemError = true;
-                        firstSystemError = error;
-                    }
+                    errors.push(error);
                 }
             });
         }
@@ -984,8 +973,7 @@ export async function runMoveForumChannelsAndPostsMigration(
 
     await runAllPromises(mutexes.map(mutex => mutex.waitForUnlock()));
 
-    if (hasSystemError) throw firstSystemError;
-    if (hasError) throw firstError;
+    if (errors.length > 0) throw createAggregateError(errors);
 }
 
 export async function seedTestChannels(
@@ -2658,6 +2646,9 @@ export async function authorizePostAccess(
                     }
                     break;
                 }
+                case "Anonymous": {
+                    throw unauthenticatedSessionError();
+                }
                 default:
                     throw exhaustive(context.actor);
             }
@@ -3979,6 +3970,9 @@ export async function authorizePostDraftAccess(
                 throw new PermissionDeniedError("Can't access drafts from other accounts");
             }
             break;
+        }
+        case "Anonymous": {
+            throw unauthenticatedSessionError();
         }
         default:
             throw exhaustive(context.actor);

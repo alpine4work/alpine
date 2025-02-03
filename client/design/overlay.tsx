@@ -39,7 +39,12 @@ import {
 } from "~/client/helpers/use_resize_observer.js";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
-import {RemLength, Spacing, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {
+    ParsableRemLength,
+    RemLength,
+    Spacing,
+    convertRemLengthToPx,
+} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -113,7 +118,7 @@ export type OverlayProps = {
      *
      * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
      */
-    offset?: Spacing | `-${Spacing}` | RemLength;
+    offset?: ParsableRemLength;
 
     /**
      * How far the offset should move along the reference.
@@ -122,7 +127,7 @@ export type OverlayProps = {
      *
      * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
      */
-    offsetAlong?: Spacing | `-${Spacing}` | RemLength;
+    offsetAlong?: ParsableRemLength;
 
     /**
      * If true, the overlay tries to stay visible within the nearest parent
@@ -183,9 +188,13 @@ export type OverlayProps = {
      * true then we render in the root overlay boundary and render a cover
      * across the entire DOM.
      *
+     * The string `"ContextMenu"` is a special blocking level above everything
+     * else. Since the context menu needs to render on top of absolutely
+     * everything, even when there's another blocking modal.
+     *
      * Defaults to `false`.
      */
-    isBlocking?: boolean;
+    isBlocking?: boolean | "ContextMenu";
 
     /**
      * When `isBlocking` is true if you don't want to render in the root overlay
@@ -307,13 +316,18 @@ function Overlay(
     const defaultTargetElementId = useId();
 
     const getPortalElement =
-        isBlocking && !withoutRootBlockingScope
-            ? overlaySink.getRootBlockingPortalElement
+        isBlocking !== false && !withoutRootBlockingScope
+            ? isBlocking === "ContextMenu"
+                ? overlaySink.getContextMenuBlockingPortalElement
+                : overlaySink.getBlockingPortalElement
             : overlaySink.getPortalElement;
 
-    const getBlockingCoverPortalElement = isBlocking
-        ? overlaySink.getRootBlockingPortalElement
-        : null;
+    const getBlockingCoverPortalElement =
+        isBlocking !== false
+            ? isBlocking === "ContextMenu"
+                ? overlaySink.getContextMenuBlockingPortalElement
+                : overlaySink.getBlockingPortalElement
+            : null;
 
     const [elementState, setElementState] = useState<{
         portalElement: HTMLDivElement | null;
@@ -377,7 +391,8 @@ function Overlay(
                 "Expected the overlay prop of an `<Overlay>` component to render an element with a ref to an HTML element",
             );
             const overlayElement = overlayRef.current;
-            const blockingCover = isBlocking ? assertExists(blockingCoverRef.current) : null;
+            const blockingCover =
+                isBlocking !== false ? assertExists(blockingCoverRef.current) : null;
 
             const getOptions = () => {
                 // Getting the value of 1rem without subscribing so that all our `<Overlay>`
@@ -514,7 +529,8 @@ function Overlay(
                         {
                             name: "updateBlockingCoverRead",
                             enabled:
-                                isBlocking && (withoutRootBlockingScope || withoutBlockingTarget),
+                                isBlocking !== false &&
+                                (withoutRootBlockingScope || withoutBlockingTarget),
                             phase: "main" as const,
                             requires: ["hide"],
                             fn: ({state}: {state: State}) => {
@@ -532,7 +548,8 @@ function Overlay(
                         {
                             name: "updateBlockingCoverWrite",
                             enabled:
-                                isBlocking && (withoutRootBlockingScope || withoutBlockingTarget),
+                                isBlocking !== false &&
+                                (withoutRootBlockingScope || withoutBlockingTarget),
                             phase: "write" as const,
                             fn: ({state}: {state: State}) => {
                                 const popperRelativeCoord: {x: number; y: number} | undefined =
@@ -623,7 +640,7 @@ function Overlay(
                 if (
                     sameWidth ||
                     sameHeight ||
-                    (isBlocking && (withoutRootBlockingScope || withoutBlockingTarget))
+                    (isBlocking !== false && (withoutRootBlockingScope || withoutBlockingTarget))
                 ) {
                     addSuppressResizeLoopErrorNotificationForElement(targetElement);
                 }
@@ -679,7 +696,8 @@ function Overlay(
                     if (
                         sameWidth ||
                         sameHeight ||
-                        (isBlocking && (withoutRootBlockingScope || withoutBlockingTarget))
+                        (isBlocking !== false &&
+                            (withoutRootBlockingScope || withoutBlockingTarget))
                     ) {
                         removeSuppressResizeLoopErrorNotificationForElement(targetElement);
                     }
@@ -739,7 +757,7 @@ function Overlay(
                 // This intentionally comes before `children` so that React executes
                 // `overlayRef` before `targetRef`.
                 createPortal(
-                    !isBlocking ? (
+                    isBlocking === false ? (
                         overlay
                     ) : (
                         // If a blocking overlay itself renders overlays then those need to go in the
@@ -751,7 +769,7 @@ function Overlay(
                     portalElement,
                 )}
             {isVisible &&
-                isBlocking &&
+                isBlocking !== false &&
                 blockingCoverPortalElement &&
                 // When we have a blocking overlay add a cover to the document to prevent
                 // scrolling, hover effects, and any other interaction while the context menu
@@ -781,13 +799,15 @@ function BlockingOverlayScopeContextProvider({children}: {children: ReactNode}) 
         <OverlaySinkContext.Provider
             value={useMemo(
                 () => ({
-                    getRootPortalElement: parentOverlaySink.getRootBlockingPortalElement,
+                    getRootPortalElement: parentOverlaySink.getBlockingPortalElement,
                     // If you render another blocking overlay inside of a blocking overlay then the
                     // first blocking overlay must be covered. To do this we create a new portal
                     // location for new blocking overlays that will render on top of old blocking
                     // overlays.
-                    getRootBlockingPortalElement: () => blockingPortalRef.current,
-                    getPortalElement: parentOverlaySink.getRootBlockingPortalElement,
+                    getBlockingPortalElement: () => blockingPortalRef.current,
+                    getContextMenuBlockingPortalElement:
+                        parentOverlaySink.getContextMenuBlockingPortalElement,
+                    getPortalElement: parentOverlaySink.getBlockingPortalElement,
                     insetLeft: null,
                     insetRight: null,
                 }),

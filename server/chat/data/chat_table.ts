@@ -18,6 +18,7 @@ import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condit
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
 import {FileAuthorizer, getFileFromAttachment} from "~/server/files/data/files_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
@@ -1106,6 +1107,11 @@ export async function authorizeChatAccess(
 
             return {spaceId: chatItem.spaceId};
         }
+
+        case "Anonymous": {
+            throw unauthenticatedSessionError();
+        }
+
         default:
             throw exhaustive(context.actor);
     }
@@ -1169,6 +1175,9 @@ export async function authorizeChatAccessForAccount(
                     // If we have access to the space (authorized above), we have access to
                     // the chat...
                     break;
+                }
+                case "Anonymous": {
+                    throw unauthenticatedSessionError();
                 }
                 default:
                     throw exhaustive(context.actor);
@@ -1415,8 +1424,9 @@ async function createChatModelFromItems(
                 throw new PermissionDeniedError("Account doesn't have access to chat");
             break;
         }
-        case "System": {
-            // All you need for system access is access to the space.
+        case "System":
+        case "Anonymous": {
+            // Already authenticated these with `authorizeSpaceAccess()`.
             break;
         }
         default:
@@ -1515,8 +1525,9 @@ export async function getChatAccountIds(
                 throw new PermissionDeniedError("Account doesn't have access to chat");
             break;
         }
-        case "System": {
-            // All you need for system access is access to the space.
+        case "System":
+        case "Anonymous": {
+            // Already authenticated these with `authorizeSpaceAccess()`.
             break;
         }
         default:

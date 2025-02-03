@@ -1,7 +1,6 @@
 import {SpinnerGap} from "phosphor-react";
 import {useCallback, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
-import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {InboxEntryView} from "~/client/inbox/inbox_entry_view.js";
 import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty.js";
@@ -11,6 +10,7 @@ import {
     useUnarchiveInboxEntry,
 } from "~/client/inbox/use_archive_inbox_entry.js";
 import {useInboxState} from "~/client/inbox/use_inbox_state.js";
+import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";

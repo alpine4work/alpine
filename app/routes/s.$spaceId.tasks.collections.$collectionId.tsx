@@ -21,6 +21,7 @@ import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {authorizeSpaceAccessIfPossible} from "~/server/spaces/spaces_table.js";
 import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
 import {
     authorizeTaskCollectionAccess,
@@ -84,7 +85,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {collectionState}})
 ]);
 
 export async function loader({request, params, context: unauthenticatedContext}: LoaderArgs) {
-    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
+    const context = await unauthenticatedContext.actor.authenticate();
 
     const url = new URL(request.url);
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
@@ -111,6 +112,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
     }
 
     if (createSearchParam !== null) {
+        const sessionContext = context.actor.authorizeSession();
+
         try {
             const colorSearchParam = url.searchParams.get("color");
 
@@ -123,13 +126,17 @@ export async function loader({request, params, context: unauthenticatedContext}:
                     collectionId,
                     collectionAction: {
                         type: "Create",
-                        creatorId: context.actor.getAccountId(),
+                        creatorId: sessionContext.actor.getAccountId(),
                         name: createSearchParam,
                         accessPolicy: {
                             accountGrantById: new Map([
-                                [context.actor.getAccountId(), {level: "Manage"}],
+                                [
+                                    sessionContext.actor.getAccountId(),
+                                    {level: "Manage", generation: 0},
+                                ],
                             ]),
                             defaultGrant: null,
+                            urlGrant: null,
                         },
                     },
                 },
@@ -147,13 +154,13 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 });
             }
 
-            await commitTaskActionTransaction(context, spaceId, actions);
+            await commitTaskActionTransaction(sessionContext, spaceId, actions);
 
             // NOTE(calebmer): Normally affinity points for committing task actions is
             // added on the client through the `affinityManager` object. Since we create
             // the collection on the server here, we need to manually add affinity points.
-            context.process.waitUntil(
-                markSearchAffinityInteraction(context, {
+            sessionContext.process.waitUntil(
+                markSearchAffinityInteraction(sessionContext, {
                     spaceId,
                     affinityId: `TaskCollection:${collectionId}`,
                     interaction: {type: "HighIntentUpdate"},
@@ -171,7 +178,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
             // This check makes this `GET` endpoint idempotent. You can hit the endpoint
             // multiple times and if our collection is already created we'll noop.
             try {
-                await authorizeTaskCollectionAccess(context, collectionId, "View", null);
+                await authorizeTaskCollectionAccess(sessionContext, collectionId, "View", null);
             } catch {
                 throw error;
             }
@@ -194,7 +201,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
         ],
         {
             currentDate: getCurrentDate(context),
-            currentAccountId: context.actor.getAccountId(),
+            currentAccountId:
+                context.actor.type === "Session" ? context.actor.getAccountId() : null,
         },
     );
 
@@ -234,6 +242,9 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 return Object.assign(result, {input: {query: null}});
             }
 
+            const isSpaceAccessAuthorized = (await authorizeSpaceAccessIfPossible(context, spaceId))
+                .ok;
+
             const {normalizedFilters} = normalizedFiltersResult;
 
             const query: {
@@ -245,7 +256,11 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 limit: getTaskGridViewLoadQueryLimit(context.loader.getClientInfo()),
                 filters: normalizedFilters,
                 sorts: normalizedSorts,
-                shouldLoadGridViewExpandedChildTasksForBrowserId: context.loader.getBrowserId(),
+
+                // We only store grid view expansion state for accounts with space access.
+                shouldLoadGridViewExpandedChildTasksForBrowserId: isSpaceAccessAuthorized
+                    ? context.loader.getBrowserId()
+                    : undefined,
             };
 
             const result = await context.tasks.loadQueries(spaceId, {
@@ -265,7 +280,9 @@ export async function loader({request, params, context: unauthenticatedContext}:
             backfillCollection.type === "Authorized" &&
             backfillCollection.collection.id === collectionId,
     );
-    const queryOutput = loadQueryResult ? assertExists(loadQueryResult.queries[0]) : null;
+    const queryOutput = loadQueryResult.input.query
+        ? assertExists(loadQueryResult.queries[0])
+        : null;
 
     return jsonWithSchema(
         LoaderSchema,

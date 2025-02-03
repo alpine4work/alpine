@@ -5,7 +5,6 @@ import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {
     mobileNavigationBarActionsWidthFittingFlexBasis,
     navigationBarHeight,
@@ -18,6 +17,7 @@ import {TextInput} from "~/client/design/text_input.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -55,7 +55,7 @@ export function ChannelMobileEditor({
     }));
 
     const [{descriptionState, hasDescriptionChanged}, setDescriptionState] = useState(() => ({
-        descriptionState: ContentEditorState.create(initialDescription, {selectionAt: "start"}),
+        descriptionState: ContentEditorState.create(initialDescription, {selection: "start"}),
         hasDescriptionChanged: false,
     }));
 

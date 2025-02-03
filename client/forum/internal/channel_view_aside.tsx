@@ -235,7 +235,7 @@ function ChannelViewAsideDescriptionEditor({
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const [state, setState] = useState(() =>
-        ContentEditorState.create(initialDescription, {selectionAt: "end"}),
+        ContentEditorState.create(initialDescription, {selection: "end"}),
     );
 
     const [isSaving, setIsSaving] = useState(false);
@@ -294,7 +294,7 @@ function ChannelViewAsideDescriptionEditor({
                             if (isSaving && transaction.docChanged) return;
                             setState(state);
                         }}
-                        onEscape={event => {
+                        onEscapeKeyDown={event => {
                             event.preventDefault();
                             event.stopPropagation();
 
@@ -302,7 +302,7 @@ function ChannelViewAsideDescriptionEditor({
 
                             onCancel();
                         }}
-                        onEnterFromPhysicalKeyboard={event => {
+                        onEnterKeyDownFromPhysicalKeyboard={event => {
                             event.preventDefault();
                             event.stopPropagation();
 

@@ -1,20 +1,17 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {createDocument} from "~/server/documents/data/documents_table.js";
-import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
-import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
     createSimpleDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 const {context, services} = createTestServices();
-const space = createTestSpace(context);
-const session1 = createTestSession(context, space, {name: "Logan Roy"});
-const session2 = createTestSession(context, space, {name: "Siobahn Roy"});
-createTestSession(context, space, {name: "Kendall Roy"});
 
 test("can comment on a document and use the comment thread sidebar", async ({
     browser,
@@ -25,10 +22,17 @@ test("can comment on a document and use the comment thread sidebar", async ({
 }) => {
     assert(viewport);
 
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: createSimpleDocumentContent("Hello, world!"),
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession({name: "Logan Roy"}),
+        space.createSession({name: "Siobahn Roy"}),
+        space.createSession({name: "Kendall Roy"}),
+    ]);
+
+    const document = await TestDocument.create(session1, {
+        content: createSimpleDocumentContent(session1.account.id, "Hello, world!"),
     });
+    await document.access.grantDefault(session1);
 
     await services.signIn(browserContext1, session1);
     await page1.goto(`/s/${space.id}/documents/${document.id}`);
@@ -56,6 +60,8 @@ test("can comment on a document and use the comment thread sidebar", async ({
             .getByRole("textbox", {name: "Document"})
             .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
+
+    await expect(page1.getByRole("textbox", {name: "Document"})).toBeFocused();
 
     await page1.evaluate("dev.contentEditor.setTextSelection(10, 15)");
 
@@ -438,6 +444,9 @@ test("can leave multiple comments on a document and navigate between them", asyn
 }) => {
     assert(viewport);
 
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({name: "Logan Roy"});
+
     const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: assertDocumentContent(
@@ -469,6 +478,8 @@ test("can leave multiple comments on a document and navigate between them", asyn
             .getByRole("textbox", {name: "Document"})
             .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
+
+    await expect(page.getByRole("textbox", {name: "Document"})).toBeFocused();
 
     await page.evaluate("dev.contentEditor.setTextSelection(8, 11)");
 
@@ -510,6 +521,8 @@ test("can leave multiple comments on a document and navigate between them", asyn
             .getByRole("textbox", {name: "Document"})
             .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
+
+    await expect(page.getByRole("textbox", {name: "Document"})).toBeFocused();
 
     await page.evaluate("dev.contentEditor.setTextSelection(23, 26)");
 
@@ -604,6 +617,9 @@ test("can leave a document comment across multiple paragraphs", async ({
 }) => {
     assert(viewport);
 
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({name: "Logan Roy"});
+
     const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: assertDocumentContent(
@@ -635,6 +651,8 @@ test("can leave a document comment across multiple paragraphs", async ({
             .getByRole("textbox", {name: "Document"})
             .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
+
+    await expect(page.getByRole("textbox", {name: "Document"})).toBeFocused();
 
     await page.evaluate("dev.contentEditor.setTextSelection(8, 26)");
 

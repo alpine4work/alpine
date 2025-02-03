@@ -1,10 +1,4 @@
-import {Fragment, Slice} from "prosemirror-model";
-import {AddMarkStep, ReplaceStep} from "prosemirror-transform";
-import {
-    createDocument,
-    createDocumentComment,
-    updateDocumentContent,
-} from "~/server/documents/data/documents_table.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     getInboxEntries,
@@ -27,16 +21,10 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {
-    DocumentContentProsemirrorSchema,
-    emptyDocumentContent,
-} from "~/shared/documents/document_content_schema.js";
 import {DocumentPreviewModel} from "~/shared/documents/document_model.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     InboxDocumentCommentThreadEntryModel,
@@ -79,11 +67,6 @@ const context = createTestContext({
     },
 });
 
-function textSlice(text: string) {
-    if (text.length === 0) return Slice.empty;
-    return new Slice(Fragment.from(DocumentContentProsemirrorSchema.text(text)), 0, 0);
-}
-
 // Exercise idempotency by running the test suite again with jobs
 // processed twice.
 for (const [currentProcessingType, processingMultiple] of [
@@ -109,136 +92,19 @@ for (const [currentProcessingType, processingMultiple] of [
                 scenario.session3.account.id,
             );
 
-            const document1 = await createDocument(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                content: emptyDocumentContent,
-            });
+            const document1 = await TestDocument.create(scenario.session1);
+            await document1.access.grantDefault(scenario.session1);
+            const document2 = await TestDocument.create(scenario.session2);
+            await document2.access.grantDefault(scenario.session2);
 
-            const document2 = await createDocument(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                content: emptyDocumentContent,
-            });
+            await document1.type(scenario.session1, "Hello, world!");
+            await document2.type(scenario.session2, "Hello, world!");
 
-            await updateDocumentContent(context.action(scenario.session1), {
-                id: document1.id,
-                version: 0,
-                steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
-                clientId: generateId(),
-            });
-
-            await updateDocumentContent(context.action(scenario.session2), {
-                id: document2.id,
-                version: 0,
-                steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
-                clientId: generateId(),
-            });
-
-            const commentThread1Id = generateId<DocumentCommentThreadId>();
-            const commentThread1CreatedTime = new Date();
-
-            await updateDocumentContent(context.action(scenario.session2), {
-                id: document1.id,
-                version: 1,
-                steps: [
-                    new AddMarkStep(
-                        10,
-                        11,
-                        DocumentContentProsemirrorSchema.mark("comment", {
-                            commentThreadId: commentThread1Id,
-                        }),
-                    ),
-                ],
-                clientId: generateId(),
-                createCommentThreads: [
-                    {
-                        commentThreadId: commentThread1Id,
-                        initialCommentContent: createSimpleMessageContent("test1"),
-                        initialCommentFileIds: [],
-                        createdTime: commentThread1CreatedTime,
-                    },
-                ],
-            });
-
-            await ProcessContextModule.waitForTestTasks();
-
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentNewCommentThreadsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    document: new DocumentPreviewModel({
-                        id: document1.id,
-                        createdTime: document1.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 2,
-                        titleWithoutFallback: "",
-                    }),
-                    bucketGeneration: 0,
-                    commentThreadCount: 1,
-                    commentThreadAuthorCount: 1,
-                    firstComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: commentThread1CreatedTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("test1"),
-                            references: emptyContentReferences,
-                        }),
-                    },
-                    otherCommentThreadAuthor: null,
-                }),
-            ]);
-
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
-
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
-
-            const commentThread2Id = generateId<DocumentCommentThreadId>();
-            const commentThread2CreatedTime = new Date();
-
-            await updateDocumentContent(context.action(scenario.session2), {
-                id: document1.id,
-                version: 2,
-                steps: [
-                    new AddMarkStep(
-                        11,
-                        12,
-                        DocumentContentProsemirrorSchema.mark("comment", {
-                            commentThreadId: commentThread2Id,
-                        }),
-                    ),
-                ],
-                clientId: generateId(),
-                createCommentThreads: [
-                    {
-                        commentThreadId: commentThread2Id,
-                        initialCommentContent: createSimpleMessageContent("test2"),
-                        initialCommentFileIds: [],
-                        createdTime: commentThread2CreatedTime,
-                    },
-                ],
-            });
+            const commentThread1 = await document1.createCommentThread(
+                scenario.session2,
+                {from: 10, to: 11},
+                "test1",
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -261,13 +127,14 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
-                    commentThreadCount: 2,
+                    commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
                     firstComment: {
                         author: await scenario.session2.get(),
-                        createdTime: commentThread1CreatedTime,
+                        createdTime: commentThread1.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("test1"),
                             references: emptyContentReferences,
@@ -295,31 +162,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const commentThread3Id = generateId<DocumentCommentThreadId>();
-            const commentThread3CreatedTime = new Date();
-
-            await updateDocumentContent(context.action(scenario.session3), {
-                id: document1.id,
-                version: 3,
-                steps: [
-                    new AddMarkStep(
-                        12,
-                        13,
-                        DocumentContentProsemirrorSchema.mark("comment", {
-                            commentThreadId: commentThread3Id,
-                        }),
-                    ),
-                ],
-                clientId: generateId(),
-                createCommentThreads: [
-                    {
-                        commentThreadId: commentThread3Id,
-                        initialCommentContent: createSimpleMessageContent("test3"),
-                        initialCommentFileIds: [],
-                        createdTime: commentThread3CreatedTime,
-                    },
-                ],
-            });
+            await document1.createCommentThread(scenario.session2, {from: 11, to: 12}, "test2");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -342,13 +185,72 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         version: 4,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
+                    }),
+                    bucketGeneration: 0,
+                    commentThreadCount: 2,
+                    commentThreadAuthorCount: 1,
+                    firstComment: {
+                        author: await scenario.session2.get(),
+                        createdTime: commentThread1.createdTime,
+                        contentTextSnippet: printContentSingleLineTextSnippet({
+                            doc: createSimpleMessageContent("test1"),
+                            references: emptyContentReferences,
+                        }),
+                    },
+                    otherCommentThreadAuthor: null,
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session2), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session3), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            await document1.createCommentThread(scenario.session3, {from: 12, to: 13}, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(context.action(scenario.session1), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxDocumentNewCommentThreadsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session1.account.id,
+                    loudNotificationCount: 0,
+                    document: new DocumentPreviewModel({
+                        id: document1.id,
+                        createdTime: document1.createdTime,
+                        spaceId: scenario.space.id,
+                        version: 5,
+                        titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 3,
                     commentThreadAuthorCount: 2,
                     firstComment: {
                         author: await scenario.session2.get(),
-                        createdTime: commentThread1CreatedTime,
+                        createdTime: commentThread1.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("test1"),
                             references: emptyContentReferences,
@@ -376,31 +278,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const commentThread4Id = generateId<DocumentCommentThreadId>();
-            const commentThread4CreatedTime = new Date();
-
-            await updateDocumentContent(context.action(scenario.session2), {
-                id: document2.id,
-                version: 1,
-                steps: [
-                    new AddMarkStep(
-                        10,
-                        11,
-                        DocumentContentProsemirrorSchema.mark("comment", {
-                            commentThreadId: commentThread4Id,
-                        }),
-                    ),
-                ],
-                clientId: generateId(),
-                createCommentThreads: [
-                    {
-                        commentThreadId: commentThread4Id,
-                        initialCommentContent: createSimpleMessageContent("test4"),
-                        initialCommentFileIds: [],
-                        createdTime: commentThread4CreatedTime,
-                    },
-                ],
-            });
+            await document2.createCommentThread(scenario.session2, {from: 10, to: 11}, "test4");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -421,15 +299,16 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document1.id,
                         createdTime: document1.createdTime,
                         spaceId: scenario.space.id,
-                        version: 4,
+                        version: 5,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 3,
                     commentThreadAuthorCount: 2,
                     firstComment: {
                         author: await scenario.session2.get(),
-                        createdTime: commentThread1CreatedTime,
+                        createdTime: commentThread1.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("test1"),
                             references: emptyContentReferences,
@@ -457,31 +336,11 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const commentThread5Id = generateId<DocumentCommentThreadId>();
-            const commentThread5CreatedTime = new Date();
-
-            await updateDocumentContent(context.action(scenario.session1), {
-                id: document2.id,
-                version: 2,
-                steps: [
-                    new AddMarkStep(
-                        11,
-                        12,
-                        DocumentContentProsemirrorSchema.mark("comment", {
-                            commentThreadId: commentThread5Id,
-                        }),
-                    ),
-                ],
-                clientId: generateId(),
-                createCommentThreads: [
-                    {
-                        commentThreadId: commentThread5Id,
-                        initialCommentContent: createSimpleMessageContent("test5"),
-                        initialCommentFileIds: [],
-                        createdTime: commentThread5CreatedTime,
-                    },
-                ],
-            });
+            const commentThread5 = await document2.createCommentThread(
+                scenario.session1,
+                {from: 11, to: 12},
+                "test5",
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -502,15 +361,16 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document1.id,
                         createdTime: document1.createdTime,
                         spaceId: scenario.space.id,
-                        version: 4,
+                        version: 5,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 3,
                     commentThreadAuthorCount: 2,
                     firstComment: {
                         author: await scenario.session2.get(),
-                        createdTime: commentThread1CreatedTime,
+                        createdTime: commentThread1.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("test1"),
                             references: emptyContentReferences,
@@ -537,15 +397,16 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document2.id,
                         createdTime: document2.createdTime,
                         spaceId: scenario.space.id,
-                        version: 3,
+                        version: 4,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
                     firstComment: {
                         author: await scenario.session1.get(),
-                        createdTime: commentThread5CreatedTime,
+                        createdTime: commentThread5.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("test5"),
                             references: emptyContentReferences,
@@ -573,43 +434,16 @@ for (const [currentProcessingType, processingMultiple] of [
         test("mentioning a user in the initial comment thread creates a comment thread entry", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const document = await createDocument(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                content: emptyDocumentContent,
-            });
+            const document = await TestDocument.create(scenario.session1);
+            await document.access.grantDefault(scenario.session1);
 
-            await updateDocumentContent(context.action(scenario.session1), {
-                id: document.id,
-                version: 0,
-                steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
-                clientId: generateId(),
-            });
+            await document.type(scenario.session1, "Hello, world!");
 
-            const commentThread1Id = generateId<DocumentCommentThreadId>();
-            const commentThread1CreatedTime = new Date();
-
-            await updateDocumentContent(context.action(scenario.session2), {
-                id: document.id,
-                version: 1,
-                steps: [
-                    new AddMarkStep(
-                        10,
-                        11,
-                        DocumentContentProsemirrorSchema.mark("comment", {
-                            commentThreadId: commentThread1Id,
-                        }),
-                    ),
-                ],
-                clientId: generateId(),
-                createCommentThreads: [
-                    {
-                        commentThreadId: commentThread1Id,
-                        initialCommentContent: scenario.mentionAccount1MessageContent,
-                        initialCommentFileIds: [],
-                        createdTime: commentThread1CreatedTime,
-                    },
-                ],
-            });
+            const commentThread1 = await document.createCommentThread(
+                scenario.session2,
+                {from: 10, to: 11},
+                scenario.mentionAccount1MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -630,14 +464,15 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document.id,
                         createdTime: document.createdTime,
                         spaceId: scenario.space.id,
-                        version: 2,
+                        version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
-                    commentThreadId: commentThread1Id,
+                    commentThreadId: commentThread1.id,
                     firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
                         author: await scenario.session2.get(),
-                        createdTime: commentThread1CreatedTime,
+                        createdTime: commentThread1.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
@@ -671,31 +506,11 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const commentThread2Id = generateId<DocumentCommentThreadId>();
-            const commentThread2CreatedTime = new Date();
-
-            await updateDocumentContent(context.action(scenario.session2), {
-                id: document.id,
-                version: 2,
-                steps: [
-                    new AddMarkStep(
-                        11,
-                        12,
-                        DocumentContentProsemirrorSchema.mark("comment", {
-                            commentThreadId: commentThread2Id,
-                        }),
-                    ),
-                ],
-                clientId: generateId(),
-                createCommentThreads: [
-                    {
-                        commentThreadId: commentThread2Id,
-                        initialCommentContent: scenario.mentionAccount3MessageContent,
-                        initialCommentFileIds: [],
-                        createdTime: commentThread2CreatedTime,
-                    },
-                ],
-            });
+            const commentThread2 = await document.createCommentThread(
+                scenario.session2,
+                {from: 11, to: 12},
+                scenario.mentionAccount3MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -716,14 +531,15 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document.id,
                         createdTime: document.createdTime,
                         spaceId: scenario.space.id,
-                        version: 3,
+                        version: 4,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
-                    commentThreadId: commentThread1Id,
+                    commentThreadId: commentThread1.id,
                     firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
                         author: await scenario.session2.get(),
-                        createdTime: commentThread1CreatedTime,
+                        createdTime: commentThread1.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
@@ -746,15 +562,16 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document.id,
                         createdTime: document.createdTime,
                         spaceId: scenario.space.id,
-                        version: 3,
+                        version: 4,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
                     firstComment: {
                         author: await scenario.session2.get(),
-                        createdTime: commentThread2CreatedTime,
+                        createdTime: commentThread2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount3MessageContent,
                             references: {
@@ -795,14 +612,15 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document.id,
                         createdTime: document.createdTime,
                         spaceId: scenario.space.id,
-                        version: 3,
+                        version: 4,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
-                    commentThreadId: commentThread2Id,
+                    commentThreadId: commentThread2.id,
                     firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
                         author: await scenario.session2.get(),
-                        createdTime: commentThread2CreatedTime,
+                        createdTime: commentThread2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount3MessageContent,
                             references: {
@@ -822,43 +640,16 @@ for (const [currentProcessingType, processingMultiple] of [
         test("replying creates an inbox entry for subscribers", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const document = await createDocument(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                content: emptyDocumentContent,
-            });
+            const document = await TestDocument.create(scenario.session1);
+            await document.access.grantDefault(scenario.session1);
 
-            await updateDocumentContent(context.action(scenario.session1), {
-                id: document.id,
-                version: 0,
-                steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
-                clientId: generateId(),
-            });
+            await document.type(scenario.session1, "Hello, world!");
 
-            const commentThreadId = generateId<DocumentCommentThreadId>();
-            const commentThreadCreatedTime = new Date();
-
-            await updateDocumentContent(context.action(scenario.session2), {
-                id: document.id,
-                version: 1,
-                steps: [
-                    new AddMarkStep(
-                        10,
-                        11,
-                        DocumentContentProsemirrorSchema.mark("comment", {
-                            commentThreadId,
-                        }),
-                    ),
-                ],
-                clientId: generateId(),
-                createCommentThreads: [
-                    {
-                        commentThreadId,
-                        initialCommentContent: createSimpleMessageContent("comment1"),
-                        initialCommentFileIds: [],
-                        createdTime: commentThreadCreatedTime,
-                    },
-                ],
-            });
+            const commentThread = await document.createCommentThread(
+                scenario.session2,
+                {from: 10, to: 11},
+                "comment1",
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -879,15 +670,16 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document.id,
                         createdTime: document.createdTime,
                         spaceId: scenario.space.id,
-                        version: 2,
+                        version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
                     firstComment: {
                         author: await scenario.session2.get(),
-                        createdTime: commentThreadCreatedTime,
+                        createdTime: commentThread.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -915,13 +707,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const comment2 = await createDocumentComment(context.action(scenario.session3), {
-                documentId: document.id,
-                commentThreadId: commentThreadId,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment2"),
-                fileIds: [],
-            });
+            const comment2 = await commentThread.createComment(scenario.session3, "comment2");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -942,15 +728,16 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document.id,
                         createdTime: document.createdTime,
                         spaceId: scenario.space.id,
-                        version: 2,
+                        version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
                     firstComment: {
                         author: await scenario.session2.get(),
-                        createdTime: commentThreadCreatedTime,
+                        createdTime: commentThread.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -977,10 +764,11 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document.id,
                         createdTime: document.createdTime,
                         spaceId: scenario.space.id,
-                        version: 2,
+                        version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
-                    commentThreadId,
+                    commentThreadId: commentThread.id,
                     firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
                         author: await scenario.session3.get(),
@@ -1004,13 +792,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const comment3 = await createDocumentComment(context.action(scenario.session2), {
-                documentId: document.id,
-                commentThreadId: commentThreadId,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment3"),
-                fileIds: [],
-            });
+            const comment3 = await commentThread.createComment(scenario.session2, "comment3");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1031,15 +813,16 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document.id,
                         createdTime: document.createdTime,
                         spaceId: scenario.space.id,
-                        version: 2,
+                        version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
                     firstComment: {
                         author: await scenario.session2.get(),
-                        createdTime: commentThreadCreatedTime,
+                        createdTime: commentThread.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -1075,10 +858,11 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document.id,
                         createdTime: document.createdTime,
                         spaceId: scenario.space.id,
-                        version: 2,
+                        version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
-                    commentThreadId,
+                    commentThreadId: commentThread.id,
                     firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
                         author: await scenario.session2.get(),
@@ -1093,13 +877,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const comment4 = await createDocumentComment(context.action(scenario.session1), {
-                documentId: document.id,
-                commentThreadId: commentThreadId,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment4"),
-                fileIds: [],
-            });
+            const comment4 = await commentThread.createComment(scenario.session1, "comment4");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1120,15 +898,16 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document.id,
                         createdTime: document.createdTime,
                         spaceId: scenario.space.id,
-                        version: 2,
+                        version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
                     bucketGeneration: 0,
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
                     firstComment: {
                         author: await scenario.session2.get(),
-                        createdTime: commentThreadCreatedTime,
+                        createdTime: commentThread.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -1155,10 +934,11 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document.id,
                         createdTime: document.createdTime,
                         spaceId: scenario.space.id,
-                        version: 2,
+                        version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
-                    commentThreadId,
+                    commentThreadId: commentThread.id,
                     firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
                         author: await scenario.session1.get(),
@@ -1190,10 +970,11 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document.id,
                         createdTime: document.createdTime,
                         spaceId: scenario.space.id,
-                        version: 2,
+                        version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
-                    commentThreadId,
+                    commentThreadId: commentThread.id,
                     firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
                         author: await scenario.session1.get(),
@@ -1212,43 +993,16 @@ for (const [currentProcessingType, processingMultiple] of [
         test("comment notification events processed out of order result in the same latest comment", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const document = await createDocument(context.action(scenario.session3), {
-                spaceId: scenario.space.id,
-                content: emptyDocumentContent,
-            });
+            const document = await TestDocument.create(scenario.session3);
+            await document.access.grantDefault(scenario.session3);
 
-            await updateDocumentContent(context.action(scenario.session3), {
-                id: document.id,
-                version: 0,
-                steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
-                clientId: generateId(),
-            });
+            await document.type(scenario.session3, "Hello, world!");
 
-            const commentThreadId = generateId<DocumentCommentThreadId>();
-            const commentThreadCreatedTime = new Date();
-
-            await updateDocumentContent(context.action(scenario.session2), {
-                id: document.id,
-                version: 1,
-                steps: [
-                    new AddMarkStep(
-                        10,
-                        11,
-                        DocumentContentProsemirrorSchema.mark("comment", {
-                            commentThreadId,
-                        }),
-                    ),
-                ],
-                clientId: generateId(),
-                createCommentThreads: [
-                    {
-                        commentThreadId,
-                        initialCommentContent: createSimpleMessageContent("comment0"),
-                        initialCommentFileIds: [],
-                        createdTime: commentThreadCreatedTime,
-                    },
-                ],
-            });
+            const commentThread = await document.createCommentThread(
+                scenario.session2,
+                {from: 10, to: 11},
+                "comment0",
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1270,13 +1024,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            await createDocumentComment(context.action(scenario.session1), {
-                documentId: document.id,
-                commentThreadId,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment1"),
-                fileIds: [],
-            });
+            await commentThread.createComment(scenario.session1, "comment1");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1287,21 +1035,12 @@ for (const [currentProcessingType, processingMultiple] of [
                 scenario.session3.account.id,
             );
 
-            await createDocumentComment(context.action(scenario.session1), {
-                documentId: document.id,
-                commentThreadId,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-                fileIds: [],
-            });
+            await commentThread.createComment(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
-            const comment3 = await createDocumentComment(context.action(scenario.session3), {
-                documentId: document.id,
-                commentThreadId,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment3"),
-                fileIds: [],
-            });
+            const comment3 = await commentThread.createComment(scenario.session3, "comment3");
 
             const {unpause: unpause1} = await pause1Promise;
             const {unpause: unpause2} = await pause2Promise;
@@ -1323,10 +1062,11 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document.id,
                         createdTime: document.createdTime,
                         spaceId: scenario.space.id,
-                        version: 2,
+                        version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
-                    commentThreadId,
+                    commentThreadId: commentThread.id,
                     loudNotificationCount: 0,
                     firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
@@ -1358,10 +1098,11 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document.id,
                         createdTime: document.createdTime,
                         spaceId: scenario.space.id,
-                        version: 2,
+                        version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
-                    commentThreadId,
+                    commentThreadId: commentThread.id,
                     loudNotificationCount: 0,
                     firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
@@ -1396,10 +1137,11 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document.id,
                         createdTime: document.createdTime,
                         spaceId: scenario.space.id,
-                        version: 2,
+                        version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
-                    commentThreadId,
+                    commentThreadId: commentThread.id,
                     loudNotificationCount: 0,
                     firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
@@ -1431,10 +1173,11 @@ for (const [currentProcessingType, processingMultiple] of [
                         id: document.id,
                         createdTime: document.createdTime,
                         spaceId: scenario.space.id,
-                        version: 2,
+                        version: 3,
                         titleWithoutFallback: "",
+                        accessPolicy: expect.any(Object),
                     }),
-                    commentThreadId,
+                    commentThreadId: commentThread.id,
                     loudNotificationCount: 1,
                     firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
@@ -1458,65 +1201,40 @@ for (const [currentProcessingType, processingMultiple] of [
         const session1 = await space.createSession({hasInternalAccess: true});
         const session2 = await space.createSession();
 
-        const document = await createDocument(session1.action(), {
-            spaceId: space.id,
-            content: emptyDocumentContent,
-        });
+        const document = await TestDocument.create(session1);
+        await document.access.grantDefault(session1);
 
-        await updateDocumentContent(session1.action(), {
-            id: document.id,
-            version: 0,
-            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
-            clientId: generateId(),
-        });
+        await document.type(session1, "Hello, world!");
 
-        const commentThreadId = generateId<DocumentCommentThreadId>();
-        const commentThreadCreatedTime = new Date();
-
-        await updateDocumentContent(session2.action(), {
-            id: document.id,
-            version: 1,
-            steps: [
-                new AddMarkStep(
-                    10,
-                    11,
-                    DocumentContentProsemirrorSchema.mark("comment", {
-                        commentThreadId,
-                    }),
-                ),
-            ],
-            clientId: generateId(),
-            createCommentThreads: [
-                {
-                    commentThreadId,
-                    initialCommentContent: createSimpleMessageContent("Test comment 0"),
-                    initialCommentFileIds: [],
-                    createdTime: commentThreadCreatedTime,
-                },
-            ],
-        });
+        const commentThread = await document.createCommentThread(
+            session2,
+            {from: 10, to: 11},
+            "Test comment 0",
+        );
 
         await expect(
             getInboxEntry(session2.action(), {
                 spaceId: space.id,
-                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+                key: {
+                    type: "DocumentCommentThread",
+                    documentId: document.id,
+                    commentThreadId: commentThread.id,
+                },
             }),
         ).rejects.toThrow(NotFoundError);
 
-        await createDocumentComment(session1.action(), {
-            documentId: document.id,
-            commentThreadId,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 1"),
-            fileIds: [],
-        });
+        await commentThread.createComment(session1, "Test comment 1");
 
         await ProcessContextModule.waitForTestTasks();
 
         expect(
             await getInboxEntry(session2.action(), {
                 spaceId: space.id,
-                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+                key: {
+                    type: "DocumentCommentThread",
+                    documentId: document.id,
+                    commentThreadId: commentThread.id,
+                },
             }),
         ).toEqual({
             key: expect.any(String),
@@ -1528,20 +1246,18 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         });
 
-        await createDocumentComment(session1.action(), {
-            documentId: document.id,
-            commentThreadId,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 2"),
-            fileIds: [],
-        });
+        await commentThread.createComment(session1, "Test comment 2");
 
         await ProcessContextModule.waitForTestTasks();
 
         expect(
             await getInboxEntry(session2.action(), {
                 spaceId: space.id,
-                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+                key: {
+                    type: "DocumentCommentThread",
+                    documentId: document.id,
+                    commentThreadId: commentThread.id,
+                },
             }),
         ).toEqual({
             key: expect.any(String),
@@ -1553,20 +1269,18 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         });
 
-        await createDocumentComment(session1.action(), {
-            documentId: document.id,
-            commentThreadId,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 3"),
-            fileIds: [],
-        });
+        await commentThread.createComment(session1, "Test comment 3");
 
         await ProcessContextModule.waitForTestTasks();
 
         expect(
             await getInboxEntry(session2.action(), {
                 spaceId: space.id,
-                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+                key: {
+                    type: "DocumentCommentThread",
+                    documentId: document.id,
+                    commentThreadId: commentThread.id,
+                },
             }),
         ).toEqual({
             key: expect.any(String),
@@ -1589,41 +1303,41 @@ for (const [currentProcessingType, processingMultiple] of [
         await expect(
             getInboxEntry(session2.action(), {
                 spaceId: space.id,
-                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+                key: {
+                    type: "DocumentCommentThread",
+                    documentId: document.id,
+                    commentThreadId: commentThread.id,
+                },
             }),
         ).rejects.toThrow(PermissionDeniedError);
 
-        await createDocumentComment(session1.action(), {
-            documentId: document.id,
-            commentThreadId,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 4"),
-            fileIds: [],
-        });
+        await commentThread.createComment(session1, "Test comment 4");
 
         await ProcessContextModule.waitForTestTasks();
 
         await expect(
             getInboxEntry(session2.action(), {
                 spaceId: space.id,
-                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+                key: {
+                    type: "DocumentCommentThread",
+                    documentId: document.id,
+                    commentThreadId: commentThread.id,
+                },
             }),
         ).rejects.toThrow(PermissionDeniedError);
 
-        await createDocumentComment(session1.action(), {
-            documentId: document.id,
-            commentThreadId,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 5"),
-            fileIds: [],
-        });
+        await commentThread.createComment(session1, "Test comment 5");
 
         await ProcessContextModule.waitForTestTasks();
 
         await expect(
             getInboxEntry(session2.action(), {
                 spaceId: space.id,
-                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+                key: {
+                    type: "DocumentCommentThread",
+                    documentId: document.id,
+                    commentThreadId: commentThread.id,
+                },
             }),
         ).rejects.toThrow(PermissionDeniedError);
 
@@ -1635,7 +1349,11 @@ for (const [currentProcessingType, processingMultiple] of [
         expect(
             await getInboxEntry(session2.action(), {
                 spaceId: space.id,
-                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+                key: {
+                    type: "DocumentCommentThread",
+                    documentId: document.id,
+                    commentThreadId: commentThread.id,
+                },
             }),
         ).toEqual({
             key: expect.any(String),
@@ -1647,20 +1365,18 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         });
 
-        await createDocumentComment(session1.action(), {
-            documentId: document.id,
-            commentThreadId,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 6"),
-            fileIds: [],
-        });
+        await commentThread.createComment(session1, "Test comment 6");
 
         await ProcessContextModule.waitForTestTasks();
 
         expect(
             await getInboxEntry(session2.action(), {
                 spaceId: space.id,
-                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+                key: {
+                    type: "DocumentCommentThread",
+                    documentId: document.id,
+                    commentThreadId: commentThread.id,
+                },
             }),
         ).toEqual({
             key: expect.any(String),
@@ -1672,20 +1388,18 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         });
 
-        await createDocumentComment(session1.action(), {
-            documentId: document.id,
-            commentThreadId,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 7"),
-            fileIds: [],
-        });
+        await commentThread.createComment(session1, "Test comment 7");
 
         await ProcessContextModule.waitForTestTasks();
 
         expect(
             await getInboxEntry(session2.action(), {
                 spaceId: space.id,
-                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+                key: {
+                    type: "DocumentCommentThread",
+                    documentId: document.id,
+                    commentThreadId: commentThread.id,
+                },
             }),
         ).toEqual({
             key: expect.any(String),

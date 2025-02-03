@@ -11,7 +11,7 @@ import {
 } from "~/client/helpers/use_resize_observer.js";
 import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {scrollbarStyles, sprinkles} from "~/client/styles/styles.js";
-import {RemLength, parseRemLength} from "~/shared/design/core/spacing.js";
+import {ParsableRemLength, parseRemLength} from "~/shared/design/core/spacing.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -42,7 +42,7 @@ const minScrollbarThumbHeightRem = parseRemLength(minScrollbarThumbHeight);
 const scrollbarThumbHitWidthRem =
     scrollbarThumbInteractiveMarginRem + scrollbarThumbWidthRem + scrollbarThumbMarginRem;
 
-export type ScrollbarInset = RemLength | number;
+export type ScrollbarInset = ParsableRemLength | number;
 
 export type ScrollbarInsetDynamic =
     | ScrollbarInset
@@ -566,6 +566,8 @@ export function initializeScrollbar(
         // old height. So calculate `element.scrollHeight` excluding the scrollbar.
         let scrollHeight = 0;
 
+        const elementComputedStyle = getComputedStyle(element);
+
         // The caller may pass in their own `getScrollHeight()` implementation to
         // bypass our calculation. This is useful for `<VirtualizedScrollView>` which
         // carefully computes its own scroll height. Sometimes we've observed the
@@ -574,36 +576,24 @@ export function initializeScrollbar(
         if (getScrollHeight !== undefined) {
             scrollHeight = getScrollHeight();
         } else {
+            const elementRect = element.getBoundingClientRect();
+
             for (const childNode of element.childNodes) {
                 if (!(childNode instanceof HTMLElement)) continue;
 
                 // Ignore our scrollbar element.
                 if (childNode === scrollbarElement) continue;
 
-                // The offset from the top of our child to the top of our scroll area
-                // `element`.
-                //
-                // If `childNode.offsetParent === element` (true if `element` has the CSS
-                // `position: relative`) then that's `childNode.offsetTop`.
-                //
-                // However, if `childNode.offsetParent !== element` we need to subtract
-                // `element.offsetTop` to get our child's offset relative to `element` instead
-                // of relative to their shared parent.
-                const childOffsetTop =
-                    childNode.offsetTop -
-                    (childNode.offsetParent !== element ? element.offsetTop : 0);
+                const childNodeRect = childNode.getBoundingClientRect();
 
-                // If the child's overflow is visible then we should use `scrollHeight` instead
-                // of `offsetHeight` since `offsetHeight` will be clipped to the overflow
-                // bounds. The overflowed content contributes to `element`'s `scrollHeight`.
+                // The offset from the top of our child to the top of our scroll area
+                // `element`. We use `getBoundingClientRect()` for subpixel accuracy.
                 //
-                // As of 2023-12-08, `<DocumentContentEditor>` is an example where this is
-                // necessary. The content element is the screen height but has more visible
-                // content underneath.
-                const childHeight =
-                    getComputedStyle(childNode).overflowY === "visible"
-                        ? childNode.scrollHeight
-                        : childNode.offsetHeight;
+                // TODO(calebmer): `getBoundingClientRect()` returns values with CSS transforms
+                // applied. Which we don't want for our position calculations here. We need
+                // some code here to detect if CSS transforms are applied and invert them.
+                const childOffsetTop = childNodeRect.top - elementRect.top;
+                const childHeight = childNodeRect.height;
 
                 // Children can be positioned in many surprising ways between `display: flex`
                 // or `float: right` or `position: absolute`. To determine the height of our
@@ -620,16 +610,18 @@ export function initializeScrollbar(
         let paddingTopPx: number;
         let paddingBottomPx: number;
         {
-            const {paddingTop, paddingBottom} = getComputedStyle(element);
-
-            paddingTopPx = parseFloat(paddingTop);
+            paddingTopPx = parseFloat(elementComputedStyle.paddingTop);
             if (isNaN(paddingTopPx)) paddingTopPx = 0;
 
-            paddingBottomPx = parseFloat(paddingBottom);
+            paddingBottomPx = parseFloat(elementComputedStyle.paddingBottom);
             if (isNaN(paddingBottomPx)) paddingBottomPx = 0;
 
-            scrollHeight = Math.max(scrollHeight, paddingTopPx);
-            scrollHeight += paddingBottomPx;
+            // If a custom scroll height function was provided then we've already fully
+            // computed the scroll height for this element.
+            if (getScrollHeight !== undefined) {
+                scrollHeight = Math.max(scrollHeight, paddingTopPx);
+                scrollHeight += paddingBottomPx;
+            }
         }
 
         // Optimization: If `scrollHeight` and `clientHeight` don't change then don't

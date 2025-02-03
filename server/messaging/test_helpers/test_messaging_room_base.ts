@@ -6,12 +6,18 @@ import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {InternalError} from "~/shared/error/error.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
     createSimpleMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
+
+const testMessageCountByConstructor = new DefaultMap<
+    typeof TestMessagingRoomBase,
+    {current: number}
+>(() => ({current: 1}));
 
 type TestMessagingRoomCreateMessageOptions = {
     parent?: TestMessage;
@@ -21,6 +27,10 @@ type TestMessagingRoomCreateMessageOptions = {
 export abstract class TestMessagingRoomBase {
     public abstract readonly context: TestContext;
     public abstract readonly space: TestSpace;
+
+    protected static _getMessageNoun(): string {
+        return "message";
+    }
 
     protected abstract _getRoomKey(): string;
 
@@ -50,9 +60,16 @@ export abstract class TestMessagingRoomBase {
         options: {messageIndex: number},
     ): Promise<{deletedTime: Date}>;
 
+    public static createDefaultMessageContent() {
+        return `Test ${this._getMessageNoun()} ${testMessageCountByConstructor.getOrSetDefault(this)
+            .current++}`;
+    }
+
     protected async _actuallyCreateMessage(
         session: TestSession,
-        content: string | MessageContent,
+        content: string | MessageContent = (
+            this.constructor as typeof TestMessagingRoomBase
+        ).createDefaultMessageContent(),
         {parent, files}: TestMessagingRoomCreateMessageOptions = {},
     ): Promise<TestMessage<this>> {
         if (parent) {
@@ -81,7 +98,7 @@ export abstract class TestMessagingRoomBase {
 export abstract class TestMessageRoomBase extends TestMessagingRoomBase {
     public sendMessage(
         session: TestSession,
-        content: string | MessageContent,
+        content?: string | MessageContent,
         options?: TestMessagingRoomCreateMessageOptions,
     ) {
         return this._actuallyCreateMessage(session, content, options);
@@ -89,9 +106,13 @@ export abstract class TestMessageRoomBase extends TestMessagingRoomBase {
 }
 
 export abstract class TestCommentRoomBase extends TestMessageRoomBase {
+    protected static override _getMessageNoun(): string {
+        return "comment";
+    }
+
     public createComment(
         session: TestSession,
-        content: string | MessageContent,
+        content?: string | MessageContent,
         options?: TestMessagingRoomCreateMessageOptions,
     ) {
         return this._actuallyCreateMessage(session, content, options);

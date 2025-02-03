@@ -9,7 +9,6 @@ import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {Context} from "~/shared/context/context.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -25,7 +24,6 @@ const AppStaticBucketManifestFileSchema = Schema.object({
     path: Schema.string,
     contentMd5: Schema.string,
     uploadTime: Schema.date,
-    shouldExpire: Schema.boolean,
 });
 
 type AppStaticBucketManifest = SchemaType<typeof AppStaticBucketManifestSchema>;
@@ -40,11 +38,11 @@ const AppStaticBucketManifestSchema = Schema.object({
  * old static files around for 14 days after a deploy that removes them so
  * clients running old code can continue to reference the old static files.
  *
- * This function uploads all files from `//app:app_static`. However, all the
- * files are marked as expiring. That way if a deploy rolls back the assets
- * will be available to any users who load the new client before a rollback
- * starts for 14 days. You must run `cleanupAppStaticFilesAfterDeploy()` after
- * a successful deploy to make sure new assets don't expire.
+ * This function uploads all files from `//app:app_static`. It's important to
+ * do this before a deploy so that as users start to make requests against an
+ * `AppService` running new code the static assets will be available. If a
+ * deploy rolls back then we'll delete the uploaded files 14 days after they
+ * were uploaded.
  */
 export async function uploadAppStaticFilesBeforeDeploy(
     context: Context<DynamoContextModules & {r2: CloudflareR2ContextModule}>,
@@ -94,17 +92,6 @@ export async function uploadAppStaticFilesBeforeDeploy(
                         path: childRelativePath,
                         contentMd5: await getFileMd5Hash(childPath),
                         uploadTime: currentTime,
-                        // Files we upload before a deploy should expire. If the deploy succeeds we
-                        // switch this to false. If the deploy fails then the static files will be kept
-                        // for our static file retention period (currently 14 days) after which they'll
-                        // be deleted.
-                        //
-                        // We need new static files during a deploy since some users may see newly
-                        // deployed services while other users will see the previously deployed
-                        // service. If the deploy rolls back, if a user has loaded a page with the new
-                        // `AppService` they'll continue to need the static assets from the deploy we
-                        // rolled back.
-                        shouldExpire: true,
                     });
                 }
             }),
@@ -126,7 +113,6 @@ export async function uploadAppStaticFilesBeforeDeploy(
                 path: oldFile.path,
                 contentMd5: newFile.contentMd5,
                 uploadTime: maxDate([oldFile.uploadTime, newFile.uploadTime]),
-                shouldExpire: oldFile.shouldExpire && newFile.shouldExpire,
             });
         }
     }
@@ -221,23 +207,16 @@ export async function cleanupAppStaticFilesAfterDeploy(
     const expiredPaths = new Set<string>();
 
     const newManifest: AppStaticBucketManifest = {
-        files: filterMapArray(oldManifest.files, oldFile => {
-            const newFile: AppStaticBucketManifestFile = {
-                path: oldFile.path,
-                contentMd5: oldFile.contentMd5,
-                uploadTime: oldFile.uploadTime,
-                shouldExpire: !paths.has(oldFile.path),
-            };
-
+        files: oldManifest.files.filter(file => {
             if (
-                newFile.shouldExpire &&
-                isDateDefinitelyLessThanWithUncertaintyWindow(newFile.uploadTime, expirationTime)
+                !paths.has(file.path) &&
+                isDateDefinitelyLessThanWithUncertaintyWindow(file.uploadTime, expirationTime)
             ) {
-                expiredPaths.add(newFile.path);
-                return;
+                expiredPaths.add(file.path);
+                return false;
             }
 
-            return newFile;
+            return true;
         }),
     };
 

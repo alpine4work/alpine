@@ -5,20 +5,21 @@ import {
     TaskClientStoreTaskEntry,
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {
+    AccessLevel,
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
+    maxAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
-import {
-    TaskCollectionAccessLevel,
-    maxTaskCollectionAccessLevel,
-} from "~/shared/tasks/task_collection_access_policy.js";
 
 export type TaskAccess =
-    | {readonly type: "Deleted"}
-    | {readonly type: "PermissionGranted"; readonly level: TaskCollectionAccessLevel}
-    | {readonly type: "PermissionDenied"};
+    | {readonly type: "Deleted"; readonly level: "View" | "Comment"}
+    | {readonly type: "PermissionGranted"; readonly level: AccessLevel}
+    | {readonly type: "PermissionDenied"; readonly level: null};
 
 // Used to intern `TaskAccess` objects. Since there are only a small number of
 // `TaskAccess` objects we intern them so we can always return the same
@@ -42,7 +43,7 @@ const taskAccessInternMap = new Map<string, TaskAccess>();
  * that we no longer have access.
  */
 export function createTaskEntryAccessStore(
-    currentAccountId: AccountId,
+    currentAccountId: AccountId | null | undefined,
     referencesSubscription: TaskClientQuery | TaskClientTaskSubscription,
     taskEntryStore: Store<TaskClientStoreTaskEntry>,
 ): Store<TaskAccess> {
@@ -60,36 +61,42 @@ export function createTaskEntryAccessStore(
  */
 export function computeTaskEntryAccess(
     get: <Value>(store: Store<Value>) => Value,
-    currentAccountId: AccountId,
+    currentAccountId: AccountId | null | undefined,
     referencesSubscription: TaskClientQuery | TaskClientTaskSubscription,
     taskEntry: TaskClientStoreTaskEntry,
 ): TaskAccess {
     const getTaskAccess = (taskEntry: TaskClientStoreTaskEntry): TaskAccess => {
         // The task is not loaded. Assume we don't have permission. Principle of
         // least privilege.
-        if (!taskEntry.task) return {type: "PermissionDenied"};
+        if (!taskEntry.task) return {type: "PermissionDenied", level: null};
 
         // If the task is marked as unauthorized, we don't have permission. Even if the
         // task was previously loaded. Our client might not see the action which makes
         // the task unauthorized.
-        if (taskEntry.authorizationState.value !== "Authorized") return {type: "PermissionDenied"};
+        if (taskEntry.authorizationState.value !== "Authorized")
+            return {type: "PermissionDenied", level: null};
 
-        // The task is deleted. Special access rules apply.
-        if (taskEntry.task.isDeleted()) {
-            return {type: "Deleted"};
+        if (currentAccountId) {
+            // The task creator has edit access level on their own task.
+            if (taskEntry.task.getCreator().accountId === currentAccountId) {
+                if (taskEntry.task.isDeleted()) {
+                    return {type: "Deleted", level: "Comment"};
+                } else {
+                    return {type: "PermissionGranted", level: "Edit"};
+                }
+            }
+
+            // The task assignee has edit access level on their own task.
+            if (taskEntry.task.getAssignee()?.assignee.accountId === currentAccountId) {
+                if (taskEntry.task.isDeleted()) {
+                    return {type: "Deleted", level: "Comment"};
+                } else {
+                    return {type: "PermissionGranted", level: "Edit"};
+                }
+            }
         }
 
-        // The task creator has edit access level on their own task.
-        if (taskEntry.task.getCreator().accountId === currentAccountId) {
-            return {type: "PermissionGranted", level: "Edit"};
-        }
-
-        // The task assignee has edit access level on their own task.
-        if (taskEntry.task.getAssignee()?.assignee.accountId === currentAccountId) {
-            return {type: "PermissionGranted", level: "Edit"};
-        }
-
-        const accessLevels: Array<TaskCollectionAccessLevel> = [];
+        const accessLevels: Array<AccessLevel> = [];
 
         // We inherit the highest access level of our collections.
         for (const {collectionId} of taskEntry.task.getCollections().getArray()) {
@@ -119,11 +126,25 @@ export function computeTaskEntryAccess(
             }
         }
 
-        if (accessLevels.length === 0) return {type: "PermissionDenied"};
+        if (accessLevels.length === 0) return {type: "PermissionDenied", level: null};
+
+        let accessLevel = accessLevels[0]!;
+
+        for (let i = 1; i < accessLevels.length; i++) {
+            accessLevel = maxAccessLevel(accessLevel, accessLevels[i]!);
+        }
+
+        // If the task was deleted, you can still see it but you can't edit it.
+        if (taskEntry.task.isDeleted()) {
+            return {
+                type: "Deleted",
+                level: hasAccessLevel(accessLevel, "Comment") ? "Comment" : "View",
+            };
+        }
 
         return {
             type: "PermissionGranted",
-            level: accessLevels.slice(1).reduce(maxTaskCollectionAccessLevel, accessLevels[0]!),
+            level: accessLevel,
         };
     };
 
@@ -139,7 +160,7 @@ export function computeTaskEntryAccess(
  * `isTaskCollectionAccessAuthorized()`).
  */
 export function getTaskCollectionEntryAccess(
-    currentAccountId: AccountId,
+    currentAccountId: AccountId | null | undefined,
     collectionEntry: TaskClientStoreCollectionEntry,
 ): TaskAccess {
     const access = computeTaskCollectionEntryAccess(currentAccountId, collectionEntry);
@@ -148,50 +169,36 @@ export function getTaskCollectionEntryAccess(
 }
 
 function computeTaskCollectionEntryAccess(
-    currentAccountId: AccountId,
+    currentAccountId: AccountId | null | undefined,
     collectionEntry: TaskClientStoreCollectionEntry,
 ): TaskAccess {
     // The collection is not loaded. Assume we don't have permission. Principle of
     // least privilege.
     if (!collectionEntry.collection) {
-        return {type: "PermissionDenied"};
+        return {type: "PermissionDenied", level: null};
     }
 
     // If the collection is marked as unauthorized, we don't have permission. Even
     // if the task was previously loaded. Our client might not see the action which
     // makes the task unauthorized.
     if (collectionEntry.authorizationState.value !== "Authorized") {
-        return {type: "PermissionDenied"};
+        return {type: "PermissionDenied", level: null};
     }
 
     // Deleted collections don't grant access.
     if (collectionEntry.collection.isDeleted()) {
-        return {type: "Deleted"};
+        return {type: "Deleted", level: "View"};
     }
 
     const accessPolicy = collectionEntry.collection.getAccessPolicy();
+    const accessLevel = getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccountId);
 
-    const accessLevels: Array<TaskCollectionAccessLevel> = [];
-
-    if (accessPolicy.defaultGrant) {
-        // If we ever add other default grant types then TypeScript will error here
-        // forcing us to update this code.
-        cast<"Space">(accessPolicy.defaultGrant.type);
-
-        accessLevels.push(accessPolicy.defaultGrant.level);
-    }
-
-    const accountGrant = accessPolicy.accountGrantById.get(currentAccountId);
-    if (accountGrant) {
-        accessLevels.push(accountGrant.level);
-    }
-
-    if (accessLevels.length === 0) {
-        return {type: "PermissionDenied"};
+    if (accessLevel === null) {
+        return {type: "PermissionDenied", level: null};
     }
 
     return {
         type: "PermissionGranted",
-        level: accessLevels.slice(1).reduce(maxTaskCollectionAccessLevel, accessLevels[0]!),
+        level: accessLevel,
     };
 }

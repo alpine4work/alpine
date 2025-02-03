@@ -16,6 +16,7 @@ import {
     HybridLogicalTimeType,
     SortableHybridLogicalTimeType,
 } from "~/server/tasks/data/internal/hybrid_logical_time_type.js";
+import {AccessPolicyRegister, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
@@ -23,10 +24,6 @@ import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_inter
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
-import {
-    TaskCollectionAccessPolicyRegister,
-    TaskCollectionAccessPolicySchema,
-} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 
 const TaskCollectionNameType = createCrdtRegisterOpensearchType(
@@ -77,9 +74,9 @@ const TaskCollectionColorType = createCrdtRegisterOpensearchType(
         .nullable(),
 );
 
-const TaskCollectionAccessPolicyType = createCrdtRegisterOpensearchType(
-    TaskCollectionAccessPolicyRegister,
-    new OpensearchIndexIgnoredObjectType(TaskCollectionAccessPolicySchema),
+const AccessPolicyType = createCrdtRegisterOpensearchType(
+    AccessPolicyRegister,
+    new OpensearchIndexIgnoredObjectType(AccessPolicySchema),
 );
 
 /**
@@ -129,7 +126,7 @@ export const TaskCollectionIndexDocType = OpensearchIndexObjectType.new({
 
         name: TaskCollectionNameType,
         color: TaskCollectionColorType,
-        accessPolicy: TaskCollectionAccessPolicyType,
+        accessPolicy: AccessPolicyType,
     },
     computed: {
         fields: {
@@ -139,6 +136,25 @@ export const TaskCollectionIndexDocType = OpensearchIndexObjectType.new({
             accessPolicyAccountGrantIds: new OpensearchIndexArrayType(
                 new OpensearchIndexKeywordType({isFilterable: true}).validate<AccountId>(isId),
             ),
+
+            // NOTE(calebmer, 2025-01-14): When I first designed the `AccessPolicy` type I
+            // thought public sharing via URL would be expressed as a union on the grant
+            // type. So the type of `defaultGrant` would be
+            // `{type: "Space"; level: AccessLevel} | {type: "Internet"; level: AccessLevel}`
+            // or something like this. The problem with this design is we want to be able
+            // to express an `AccessPolicy` where the public internet has `View` access
+            // and internal space accounts have `Edit` access. Using a union makes it
+            // more challenging to express this. So we scrapped the union and now
+            // `defaultGrant` only refers to space access.
+            //
+            // However, since we've written this `accessPolicyDefaultGrantType` type to
+            // OpenSearch, we can't change this to the ideal field (which would be a
+            // boolean named something like `hasDefaultGrantInAccessPolicy`) without a
+            // migration. So for now we're leaving the idea of a default grant type in
+            // OpenSearch and basically treating it as a boolean.
+            //
+            // One more thing: If someone is running a migration in the future to change
+            // this they should consider reusing `SearchEntityIndexAccessPolicyType` here.
             accessPolicyDefaultGrantType: new OpensearchIndexKeywordType({isFilterable: true})
                 .validate((type): type is "Space" => type === "Space")
                 .nullable(),
@@ -155,7 +171,8 @@ export const TaskCollectionIndexDocType = OpensearchIndexObjectType.new({
             accessPolicyAccountGrantIds: Array.from(
                 collection.accessPolicy.value.accountGrantById.keys(),
             ),
-            accessPolicyDefaultGrantType: collection.accessPolicy.value.defaultGrant?.type ?? null,
+            accessPolicyDefaultGrantType:
+                collection.accessPolicy.value.defaultGrant !== null ? ("Space" as const) : null,
         }),
     },
 });

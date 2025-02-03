@@ -61,6 +61,7 @@ export function LoadingIndicatorSpaceOutletContainer({
             <Box flexGrow="1" overflow="hidden" position="relative" zIndex="0">
                 <RouteShimmer
                     routeId={matches[matches.length - 1]?.route.id ?? null}
+                    searchParams={searchParams}
                     withInboxBanner={withInboxBanner}
                 />
             </Box>
@@ -72,6 +73,7 @@ export function LoadingIndicatorSpaceOutletContainer({
             <>
                 <LoadingIndicatorDebugOverlay
                     matches={matches}
+                    searchParams={searchParams}
                     withInboxBanner={withInboxBanner}
                     hasSpaceLayoutSidebar={hasSpaceLayoutSidebar}
                 />
@@ -85,10 +87,12 @@ export function LoadingIndicatorSpaceOutletContainer({
 
 function LoadingIndicatorDebugOverlay({
     matches,
+    searchParams,
     withInboxBanner,
     hasSpaceLayoutSidebar,
 }: {
     matches: Array<AgnosticDataRouteMatch>;
+    searchParams: URLSearchParams;
     withInboxBanner: boolean;
     hasSpaceLayoutSidebar: boolean;
 }) {
@@ -112,6 +116,7 @@ function LoadingIndicatorDebugOverlay({
             <Box position="absolute" inset="0" zIndex="-10" backgroundColor="grey-0" opacity="60" />
             <RouteShimmer
                 routeId={matches[matches.length - 1]?.route.id ?? null}
+                searchParams={searchParams}
                 withInboxBanner={withInboxBanner}
             />
         </Box>

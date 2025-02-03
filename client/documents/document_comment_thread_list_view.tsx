@@ -14,7 +14,6 @@ import {
 } from "react";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useMessagingViewDropTarget} from "~/client/content/messaging/use_messaging_view_drop_target.js";
-import {NavigationBarResult} from "~/client/design/navigation_bar_types.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {DocumentCommentInput} from "~/client/documents/internal/document_comment_input.js";
@@ -33,6 +32,7 @@ import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
 import {renderMessageListItem} from "~/client/messaging/render_message_list_item.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
+import {NavigationBarResult} from "~/client/navigation/navigation_bar_types.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";

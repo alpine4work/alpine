@@ -325,7 +325,7 @@ export function useTaskGridViewVirtualizedList({
     const isDragging = !!dndContext.active;
 
     const [draggingData] = useStateWithDependencies(
-        isDragging => {
+        ([isDragging]) => {
             if (!isDragging) return null;
 
             const draggingData = dndContext.active?.data.current as
@@ -340,7 +340,7 @@ export function useTaskGridViewVirtualizedList({
     const reactId = useId();
 
     const [bottomGhostTaskId, setBottomGhostTaskId] = useStateWithDependencies(
-        rootQuery => {
+        ([rootQuery]) => {
             if (!rootQuery) return null;
             if (!initialAppRenderId) return generateId<TaskId>();
 
@@ -1179,12 +1179,16 @@ export function useTaskGridViewVirtualizedList({
             taskRowByGridKeyRef.current.get(gridKey)?.focusTitleSelection(selection);
         },
 
-        focusNextTaskTitleCoord: (gridKey: TaskGridViewTaskKey, coord: number) => {
+        focusNextTaskTitleCoord: (gridKey: TaskGridViewTaskKey, coord: number | null) => {
+            coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
+            if (coord === null) {
+                events.focusNextTaskCell(gridKey, "Title");
+                return;
+            }
+
             const itemIndex = assertExists(
                 viewRef.current?.getIndexByKeyIfExists(`Task:${gridKey}`),
             );
-
-            coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
             for (let index = itemIndex + 1; index < itemCount; index++) {
                 const taskRow = events.getTaskRowByIndexIfExists(index);
@@ -1200,12 +1204,16 @@ export function useTaskGridViewVirtualizedList({
             };
         },
 
-        focusPreviousTaskTitleCoord: (gridKey: TaskGridViewTaskKey, coord: number) => {
+        focusPreviousTaskTitleCoord: (gridKey: TaskGridViewTaskKey, coord: number | null) => {
+            coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
+            if (coord === null) {
+                events.focusPreviousTaskCell(gridKey, "Title");
+                return;
+            }
+
             const itemIndex = assertExists(
                 viewRef.current?.getIndexByKeyIfExists(`Task:${gridKey}`),
             );
-
-            coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
             for (let index = itemIndex - 1; index >= 0; index--) {
                 const taskRow = events.getTaskRowByIndexIfExists(index);

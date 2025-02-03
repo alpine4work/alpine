@@ -1,3 +1,4 @@
+import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {ContentSelectionSchema} from "~/shared/content/content_selection_schema.js";
 import {DocumentContentReferencesSchema} from "~/shared/documents/document_content_references.js";
 import {DocumentContentStepSchema} from "~/shared/documents/document_content_schema.js";
@@ -83,6 +84,7 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                         initialCommentFileIds: Schema.array(Schema.id<FileId>()).default([]),
                     }),
                 ),
+                intentionallyUpdateAccessPolicy: AccessPolicySchema.nullable().default(null),
                 /**
                  * Atomically update our presence state in the same action as we update
                  * our content.

@@ -72,7 +72,7 @@ function reduce(state: PostEditingState, action: PostEditingAction): PostEditing
                 contentEditorState: ContentEditorState.create(action.currentContent, {
                     // Put the selection at the start of the post so the cursor is visible when we
                     // enter edit mode and we don't have to scroll.
-                    selectionAt: "start",
+                    selection: "start",
                 }),
                 initialContent: action.currentContent.doc,
                 isSaving: false,

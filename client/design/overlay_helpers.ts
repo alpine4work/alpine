@@ -6,6 +6,23 @@ import {
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
+ * Get the current overlay portal element. This will be inside the nearest
+ * `<OverlayScopeContextProvider>`.
+ */
+export function useOverlayPortalElement() {
+    const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
+    assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
+
+    const [portalElement, setPortalElement] = useState(overlaySink.getPortalElement);
+
+    useEffect(() => {
+        setPortalElement(overlaySink.getPortalElement);
+    }, [overlaySink.getPortalElement]);
+
+    return portalElement;
+}
+
+/**
  * Get the overlay portal element at the root of our app. We may have nested
  * portal overlay elements in, for instance, scroll views so overlays move with
  * the scroll view and can't escape.
@@ -30,17 +47,17 @@ export function useOverlayRootPortalElement() {
  * have nested portal overlay elements in, for instance, scroll views so
  * overlays move with the scroll view and can't escape.
  */
-export function useOverlayRootBlockingPortalElement() {
+export function useOverlayBlockingPortalElement() {
     const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
     assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
 
     const [rootBlockingPortalElement, setRootBlockingPortalElement] = useState(
-        overlaySink.getRootBlockingPortalElement,
+        overlaySink.getBlockingPortalElement,
     );
 
     useEffect(() => {
-        setRootBlockingPortalElement(overlaySink.getRootBlockingPortalElement);
-    }, [overlaySink.getRootBlockingPortalElement]);
+        setRootBlockingPortalElement(overlaySink.getBlockingPortalElement);
+    }, [overlaySink.getBlockingPortalElement]);
 
     return rootBlockingPortalElement;
 }

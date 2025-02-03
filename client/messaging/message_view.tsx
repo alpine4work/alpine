@@ -67,6 +67,8 @@ import {
     messageViewParentFontSize,
     messageViewParentLineHeightPx,
     messageViewRailGap,
+    messageViewTimestampDividerHeight,
+    messageViewTimestampDividerMarginY,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     backgroundColorVar,
@@ -74,7 +76,7 @@ import {
     contentStyles,
     contentViewStyles,
     emojiFontFamily,
-    messagingStyles,
+    grey5SemiTransparentColorVar,
     pulseAnimationWithReducedOpacityClassName,
     sprinkles,
     wiggleAnimation,
@@ -483,7 +485,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 },
             ]);
 
-            if (currentAccount.id === message.author.id && message.payload.type === "Content") {
+            if (currentAccount?.id === message.author.id && message.payload.type === "Content") {
                 const messagePayload = message.payload;
 
                 const editContextMenuActions: Array<MenuAction> = [];
@@ -966,8 +968,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         return (
             <div
                 className={sprinkles({
-                    paddingTop: !isFirstMessage ? "2" : undefined,
-                    paddingBottom: "2",
+                    paddingTop: !isFirstMessage ? messageViewTimestampDividerMarginY : undefined,
+                    paddingBottom: messageViewTimestampDividerMarginY,
                     display: "flex",
                     justifyContent: "center",
                     fontSize: "50",
@@ -977,7 +979,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 style={{
                     // Use a spacing value that evaluates to a whole pixel number on all spacing
                     // scales. This way `<MessageView>` heights can be measured in whole pixels.
-                    lineHeight: spacing["4"],
+                    lineHeight: spacing[messageViewTimestampDividerHeight],
                 }}
             >
                 {formattedDate}
@@ -1379,21 +1381,22 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                 }}
             >
                 <div
-                    className={classNames(
+                    className={sprinkles({
+                        pointerEvents: "none",
+                        position: "absolute",
+                        borderLeftWidth: "thick",
+                        borderTopWidth: "thick",
+                        borderTopLeftRadius: "2.5",
+                    })}
+                    style={{
                         // We render the border left/top color as a white with some opacity (which when
                         // blended results in `grey-5`) so that when we render the context menu (right
                         // click) `grey-5` background the border is rendered on top of the background
                         // color.
-                        messagingStyles.parentMessageConnectorClassName,
-                        sprinkles({
-                            pointerEvents: "none",
-                            position: "absolute",
-                            borderLeftWidth: "thick",
-                            borderTopWidth: "thick",
-                            borderTopLeftRadius: "2.5",
-                        }),
-                    )}
-                    style={{
+                        borderLeftColor: grey5SemiTransparentColorVar,
+                        borderTopColor: grey5SemiTransparentColorVar,
+                        borderStyle: "solid",
+
                         top: `calc(${
                             messageViewParentAvatarOffsetYRem +
                             parentMessageAccountAvatarSizeRem / 2
@@ -1605,7 +1608,7 @@ function MessageViewTouchMenu<RoomKey extends string, Message extends MessageMod
         },
     });
 
-    if (currentAccount.id === message.author.id && message.payload.type === "Content") {
+    if (currentAccount?.id === message.author.id && message.payload.type === "Content") {
         const messagePayload = message.payload;
 
         const editContextMenuActions: Array<MenuAction> = [];

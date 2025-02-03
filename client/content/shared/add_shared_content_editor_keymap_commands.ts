@@ -5,6 +5,7 @@ import {
     isTrackingSomeSelectionWithinSharedContentEditor,
     trackSelectionWithinSharedContentEditor,
 } from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
+import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
@@ -60,7 +61,7 @@ function wrapWithPunctuation(
     {withoutAutoBalancing = false}: {withoutAutoBalancing?: boolean} = {},
 ): Command {
     return (state, dispatch) => {
-        const {$from, $to} = state.selection;
+        const {$from, $to} = trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection);
         const nodeFrom = $from.node();
         const nodeTo = $to.node();
 

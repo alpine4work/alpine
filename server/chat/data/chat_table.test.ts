@@ -18,13 +18,14 @@ import {
     sendChatMessageToAccountsBeforeCreateChatTestCheckpoint,
     updateChatMessageContent,
 } from "~/server/chat/data/chat_table.js";
+import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {NotFoundError, PermissionDeniedError, UnauthenticatedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
@@ -3305,6 +3306,13 @@ test("can not get chat you don't have access to", async () => {
         getChatAccountIds(context.action(scenario.sessionA3), message.chatId),
     ).rejects.toThrow(PermissionDeniedError);
 
+    await expect(getChat(context.anonymousAction(), message.chatId)).rejects.toThrow(
+        UnauthenticatedError,
+    );
+    await expect(getChatAccountIds(context.anonymousAction(), message.chatId)).rejects.toThrow(
+        UnauthenticatedError,
+    );
+
     await expect(getChat(context.action(scenario.sessionB1), message.chatId)).rejects.toThrow(
         PermissionDeniedError,
     );
@@ -3565,6 +3573,50 @@ test("can not authorize which accounts are in the chat if system context does no
             scenario.sessionB1.account.id,
         ),
     ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("only authorizes chat access for accounts in a chat", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const chat = await TestChat.get(session1, session2);
+
+    await authorizeChatAccess(session1.action(), chat.id);
+
+    await authorizeChatAccess(session2.action(), chat.id);
+
+    await expect(authorizeChatAccess(session3.action(), chat.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await authorizeChatAccess(space.systemAction(), chat.id);
+
+    await expect(authorizeChatAccess(otherSpace.systemAction(), chat.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(authorizeChatAccess(context.anonymousAction(), chat.id)).rejects.toThrow(
+        UnauthenticatedError,
+    );
+
+    await authorizeChatAccessForAccount(session1.action(), chat.id, session1.account.id);
+
+    await authorizeChatAccessForAccount(session2.action(), chat.id, session1.account.id);
+
+    await expect(
+        authorizeChatAccessForAccount(session3.action(), chat.id, session1.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await authorizeChatAccessForAccount(space.systemAction(), chat.id, session1.account.id);
+
+    await expect(
+        authorizeChatAccessForAccount(otherSpace.systemAction(), chat.id, session1.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        authorizeChatAccessForAccount(context.anonymousAction(), chat.id, session1.account.id),
+    ).rejects.toThrow(UnauthenticatedError);
 });
 
 test("authorizing chat access as session actor is cached", async () => {
@@ -3969,7 +4021,7 @@ testMessagingImplementation<ChatId>(context, {
         context,
         {roomKey: chatId, limit, afterMessageIndex, beforeMessageIndex},
     ) {
-        return getChatMessagesFromStart(context, {
+        return getChatMessagesFromStart(context.actor.authorizeSession(), {
             chatId,
             limit,
             afterMessageIndex,
@@ -3980,7 +4032,7 @@ testMessagingImplementation<ChatId>(context, {
         context,
         {roomKey: chatId, limit, afterMessageIndex, beforeMessageIndex},
     ) {
-        return getChatMessagesFromEnd(context, {
+        return getChatMessagesFromEnd(context.actor.authorizeSession(), {
             chatId,
             limit,
             afterMessageIndex,

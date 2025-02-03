@@ -47,6 +47,7 @@ import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/cr
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
 import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
 import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/helpers/get_marks_spanning_across_entire_range.js";
+import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {Box} from "~/client/design/box.js";
 import {useIsContextMenuOpen} from "~/client/design/context_menu.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
@@ -67,6 +68,7 @@ import {
     overlayFadeInAnimationDurationMs,
     sprinkles,
 } from "~/client/styles/styles.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {linkClassName} from "~/shared/content/content_styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
@@ -79,18 +81,22 @@ import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_f
 
 export function ContentEditorPointerToolbar({
     state,
+    accessLevel,
     viewRef,
     previousState,
     isFocused,
+    hasSelectionEnteredWhenUnfocused,
     setDecorationCallbacks,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
+    accessLevel: AccessLevel;
     viewRef: RefObject<EditorView | null>;
     previousState: Exclude<
         ContentEditorFloaterState,
         ContentEditorPointerToolbarFloaterState
     > | null;
     isFocused: boolean;
+    hasSelectionEnteredWhenUnfocused: boolean;
     setDecorationCallbacks: Dispatch<
         SetStateAction<
             ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
@@ -193,7 +199,11 @@ export function ContentEditorPointerToolbar({
         return () => timeout.clear();
     }, [isWaitingForTripleClickAfterDoubleClick]);
 
-    const initialSelection = useConstant(() => state.selection);
+    const selection = useMemo(
+        () => trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection),
+        [state.selection],
+    );
+    const initialSelection = useConstant(() => selection);
 
     const [
         hasSelectionChangedOrPointerMovedSinceMount,
@@ -210,8 +220,8 @@ export function ContentEditorPointerToolbar({
         // show the pointer toolbar until your selection moves.
         if (
             previousState !== null &&
-            (previousState.range.from !== initialSelection.from ||
-                previousState.range.to !== initialSelection.to)
+            (previousState.range.from !== initialSelection.$from.pos ||
+                previousState.range.to !== initialSelection.$to.pos)
         ) {
             return true;
         }
@@ -221,21 +231,29 @@ export function ContentEditorPointerToolbar({
 
     if (
         !hasSelectionChangedOrPointerMovedSinceMount &&
-        (state.selection.from !== initialSelection.from ||
-            state.selection.to !== initialSelection.to)
+        (selection.$from.pos !== initialSelection.$from.pos ||
+            selection.$to.pos !== initialSelection.$to.pos)
     ) {
         setHasSelectionChangedOrPointerMovedSinceMount(true);
     }
 
     const isContextMenuOpen = useIsContextMenuOpen();
 
+    const shouldShowCommentOnly: boolean = useMemo(
+        () =>
+            !!state.schema.marks.comment &&
+            hasAccessLevel(accessLevel, "Comment") &&
+            !hasAccessLevel(accessLevel, "Edit"),
+        [accessLevel, state.schema.marks.comment],
+    );
+
     const shouldShowIgnoringInteractionModality = useMemo(() => {
         return (
-            isFocused &&
+            (isFocused || (shouldShowCommentOnly && hasSelectionEnteredWhenUnfocused)) &&
             // Don't show while the context menu is open.
             !isContextMenuOpen &&
             // Make sure some characters are selected before showing the selection toolbar.
-            state.selection.from !== state.selection.to &&
+            selection.$from.pos !== selection.$to.pos &&
             // Only show the pointer toolbar for a text selection. This includes the
             // `AllSelection`.
             state.selection instanceof TextSelection &&
@@ -252,11 +270,15 @@ export function ContentEditorPointerToolbar({
             // Styling just a node boundary is kind of ridiculous so since it looks weird
             // to show the toolbar on a node boundary, disable the toolbar entirely on node
             // boundary selections.
+            //
+            // TODO(calebmer): Do we need this anymore now that we have
+            // `trimSelectionInvisibleExtensionIntoAdjacentNodes()`? I'd expect boundary
+            // selections to become empty?
             !isNodeBoundarySlice(state.doc.slice(state.selection.from, state.selection.to)) &&
             // Don't show the toolbar if the selection overlaps with the title. The title
             // can only be at the beginning of a document so checking whether
             // `selection.from` is in the title is sufficient for detecting overlap.
-            state.selection.$from.parent.type.name !== "title" &&
+            selection.$from.parent.type.name !== "title" &&
             // Don't show the toolbar if the user's pointer is dragging to select text.
             !hasPointerMovedWhileDown &&
             // If the user has double clicked (to select a word) then we wait to see if
@@ -267,9 +289,14 @@ export function ContentEditorPointerToolbar({
         );
     }, [
         hasPointerMovedWhileDown,
+        hasSelectionEnteredWhenUnfocused,
         isContextMenuOpen,
         isFocused,
         isWaitingForTripleClickAfterDoubleClick,
+        selection.$from.parent.type.name,
+        selection.$from.pos,
+        selection.$to.pos,
+        shouldShowCommentOnly,
         state.doc,
         state.selection,
     ]);
@@ -389,14 +416,14 @@ export function ContentEditorPointerToolbar({
     if (
         shouldShow &&
         showState.isShowing &&
-        (showState.selectionFrom !== state.selection.from ||
-            showState.selectionTo !== state.selection.to)
+        (showState.selectionFrom !== selection.$from.pos ||
+            showState.selectionTo !== selection.$to.pos)
     ) {
         showState = showState.isShowing
             ? {
                   ...showState,
-                  selectionFrom: state.selection.from,
-                  selectionTo: state.selection.to,
+                  selectionFrom: selection.$from.pos,
+                  selectionTo: selection.$to.pos,
                   animation: showState.animation === "FadingOut" ? "FadingIn" : showState.animation,
                   // Close the link input when the selection changes.
                   extraOverlay: null,
@@ -433,8 +460,8 @@ export function ContentEditorPointerToolbar({
             const timeoutId = setTimeout(() => {
                 setShowState({
                     isShowing: true,
-                    selectionFrom: state.selection.from,
-                    selectionTo: state.selection.to,
+                    selectionFrom: selection.$from.pos,
+                    selectionTo: selection.$to.pos,
                     animation: "FadingIn",
                     extraOverlay: null,
                 });
@@ -446,10 +473,10 @@ export function ContentEditorPointerToolbar({
         }
     }, [
         hasSelectionChangedOrPointerMovedSinceMount,
+        selection.$from.pos,
+        selection.$to.pos,
         shouldShow,
         showState.isShowing,
-        state.selection.from,
-        state.selection.to,
     ]);
 
     useEffect(() => {
@@ -519,6 +546,7 @@ export function ContentEditorPointerToolbar({
             selectionFrom={Math.min(state.doc.nodeSize - 2, showState.selectionFrom)}
             selectionTo={Math.min(state.doc.nodeSize - 2, showState.selectionTo)}
             animation={showState.animation}
+            shouldShowCommentOnly={shouldShowCommentOnly}
             isLinkInputOpen={showState.extraOverlay === "LinkInput"}
             onLinkInputOpen={() =>
                 setShowState(prevState =>
@@ -555,6 +583,7 @@ function ContentEditorPointerToolbarOverlay({
     selectionFrom,
     selectionTo,
     animation,
+    shouldShowCommentOnly,
     isLinkInputOpen,
     onLinkInputOpen,
     onLinkInputClose,
@@ -567,6 +596,7 @@ function ContentEditorPointerToolbarOverlay({
     selectionFrom: number;
     selectionTo: number;
     animation: "FadingIn" | "FadingOut" | null;
+    shouldShowCommentOnly: boolean;
     isLinkInputOpen: boolean;
     onLinkInputOpen: () => void;
     onLinkInputClose: () => void;
@@ -594,7 +624,7 @@ function ContentEditorPointerToolbarOverlay({
             fallbackPlacements={["bottom-start"]}
             overflowTop={navigationBarHeight}
             offset="3"
-            offsetAlong="-4"
+            offsetAlong={shouldShowCommentOnly ? "-1" : "-4"}
             overlay={
                 <div
                     className={overlayAnimateContainerClassName}
@@ -624,20 +654,27 @@ function ContentEditorPointerToolbarOverlay({
                         )}
                         style={{marginLeft: -1, marginRight: -1}}
                     >
-                        <ContentEditorPointerToolbarButtons
-                            state={state}
-                            viewRef={viewRef}
-                            selectionFrom={selectionFrom}
-                            selectionTo={selectionTo}
-                            sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                            isFadingOut={animation === "FadingOut"}
-                            isLinkInputOpen={isLinkInputOpen}
-                            onLinkInputOpen={onLinkInputOpen}
-                            onLinkInputClose={onLinkInputClose}
-                            isHighlightSelectorOpen={isHighlightSelectorOpen}
-                            onHighlightSelectorOpen={onHighlightSelectorOpen}
-                            onHighlightSelectorClose={onHighlightSelectorClose}
-                        />
+                        {shouldShowCommentOnly ? (
+                            <ContentEditorPointerToolbarButtonsCommentOnly
+                                viewRef={viewRef}
+                                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                            />
+                        ) : (
+                            <ContentEditorPointerToolbarButtons
+                                state={state}
+                                viewRef={viewRef}
+                                selectionFrom={selectionFrom}
+                                selectionTo={selectionTo}
+                                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                                isFadingOut={animation === "FadingOut"}
+                                isLinkInputOpen={isLinkInputOpen}
+                                onLinkInputOpen={onLinkInputOpen}
+                                onLinkInputClose={onLinkInputClose}
+                                isHighlightSelectorOpen={isHighlightSelectorOpen}
+                                onHighlightSelectorOpen={onHighlightSelectorOpen}
+                                onHighlightSelectorClose={onHighlightSelectorClose}
+                            />
+                        )}
                     </Box>
                 </div>
             }
@@ -971,6 +1008,7 @@ function ContentEditorPointerToolbarButtons({
 
 function ContentEditorPointerToolbarButton({
     description,
+    withoutDescriptionTooltip,
     keyboardShortcutHint,
     viewRef,
     isTooltipDisabledWithoutAnimation,
@@ -983,6 +1021,7 @@ function ContentEditorPointerToolbarButton({
     onTooltipStateChange,
 }: {
     description: string;
+    withoutDescriptionTooltip?: boolean;
     keyboardShortcutHint: string;
     viewRef: RefObject<EditorView | null>;
     isTooltipDisabledWithoutAnimation: boolean;
@@ -1012,7 +1051,7 @@ function ContentEditorPointerToolbarButton({
     // Change this state only when `isPressed` changes. If it becomes active while
     // pressed we don't want to change the color.
     const [isPressedAndActive] = useStateWithDependencies(
-        isPressed => isPressed && isActive,
+        ([isPressed]) => isPressed && isActive,
         [isPressed],
     );
 
@@ -1024,10 +1063,14 @@ function ContentEditorPointerToolbarButton({
             // Don't allow flipping the tooltip down into selection content.
             fallbackPlacements={emptyArray}
             content={
-                <Box paddingY="0.5">
-                    {description}
+                withoutDescriptionTooltip ? (
                     <Box color="grey-50">{keyboardShortcutHint}</Box>
-                </Box>
+                ) : (
+                    <Box paddingY="0.5">
+                        {description}
+                        <Box color="grey-50">{keyboardShortcutHint}</Box>
+                    </Box>
+                )
             }
             onStateChange={onTooltipStateChange}
         >
@@ -1357,4 +1400,45 @@ function isNodeBoundarySlice(slice: Slice): boolean {
     }
 
     return firstNode.childCount === 0 && secondNode.childCount === 0;
+}
+
+function ContentEditorPointerToolbarButtonsCommentOnly({
+    viewRef,
+    sharedTooltipLifecycleRef,
+}: {
+    viewRef: RefObject<EditorView | null>;
+    sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
+}) {
+    const {isAppleDevice} = useClientInfo();
+
+    return (
+        <ContentEditorPointerToolbarButton
+            description="Comment"
+            withoutDescriptionTooltip={true}
+            keyboardShortcutHint={isAppleDevice ? "⌘+Shift+C" : "Ctrl+Shift+C"}
+            viewRef={viewRef}
+            isTooltipDisabledWithoutAnimation={false}
+            sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+            isActive={false}
+            command={(state, dispatch) => {
+                let isCommentSupported = false;
+                state.doc.nodesBetween(state.selection.from, state.selection.to, node => {
+                    if (!node.inlineContent) return;
+                    isCommentSupported ||=
+                        !!state.schema.marks.comment &&
+                        node.type.allowsMarkType(state.schema.marks.comment);
+                });
+
+                if (!isCommentSupported) return false;
+
+                dispatch?.(state.tr.setMeta(openCommentInputFloaterMetaKey, true));
+                return true;
+            }}
+        >
+            <Box display="flex" gap="1">
+                <ChatCircleText />
+                <Box color="grey-100">Comment</Box>
+            </Box>
+        </ContentEditorPointerToolbarButton>
+    );
 }

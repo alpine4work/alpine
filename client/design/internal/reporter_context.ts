@@ -1,4 +1,4 @@
-import {Memo, createContext} from "react";
+import {Memo, ReactNode, createContext} from "react";
 import {AppContext} from "~/client/context/app_context.js";
 import {ModalDialogProps} from "~/client/design/modal_dialog_props.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
@@ -59,6 +59,15 @@ export type Reporter = Memo<{
      * disrupting their experience.
      */
     logErrorWithoutDisplaying(title: string, error: unknown): void;
+
+    /**
+     * Show a toast with a short message to the user. Only works on desktop
+     * platforms. The toast will disappear after a couple seconds.
+     *
+     * Useful if you need to provide further context about an action the user
+     * just took.
+     */
+    showInfoToast(message: ReactNode, options?: {durationSeconds?: number}): void;
 }>;
 
 // A `ReporterWithoutContext` object needs to be provided an `AppContext` since
@@ -74,6 +83,11 @@ export type ReporterWithoutContext = {
         context: AppContext,
         title: string,
         error: unknown,
+    ) => void;
+    readonly showInfoToast: (
+        context: AppContext,
+        message: ReactNode,
+        options?: {durationSeconds?: number},
     ) => void;
 };
 

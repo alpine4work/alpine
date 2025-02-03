@@ -12,29 +12,22 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {
-    createDocument,
-    getDocument,
     getDocumentContentSteps,
     getDocumentsTableForTest,
     updateDocumentContent,
     updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint,
 } from "~/server/documents/data/documents_table.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
-import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {
-    emptyDocumentContent,
-    DocumentContentProsemirrorSchema as schema,
-} from "~/shared/documents/document_content_schema.js";
+import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 
 import.meta.jest.setTimeout(1000 * 20);
 
 const context = createTestContext();
-const space = createTestSpace(context);
-const session = createTestSession(context, space);
 
 function textSlice(text: string) {
     return new Slice(Fragment.from(schema.text(text)), 0, 0);
@@ -53,10 +46,10 @@ afterEach(() => {
 test(
     "snapshot updates after many steps committed individually",
     async () => {
-        const {id: documentId} = await createDocument(context.action(session), {
-            spaceId: space.id,
-            content: emptyDocumentContent,
-        });
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session);
 
         let text = "";
 
@@ -65,8 +58,8 @@ test(
         for (let i = 1; i <= 240; i++) {
             const newText = `${i} `;
 
-            await updateDocumentContent(context.action(session), {
-                id: documentId,
+            await updateDocumentContent(session.action(), {
+                id: document.id,
                 version: i - 1,
                 steps: [new ReplaceStep(3 + text.length, 3 + text.length, textSlice(newText))],
                 clientId: generateId(),
@@ -83,7 +76,7 @@ test(
                             context,
                             {
                                 partitionType: "Document",
-                                documentId,
+                                documentId: document.id,
                                 sortRangeType: "Snapshot",
                             },
                             {
@@ -93,11 +86,11 @@ test(
                     )?.version,
                 );
 
-                const document = await getDocument(context.action(session), documentId);
-                expect(document.version).toEqual(i);
-                expect(document.content.doc.toJSON()).toEqual(
+                const documentResult = await document.get();
+                expect(documentResult.version).toEqual(i);
+                expect(documentResult.content.doc.toJSON()).toEqual(
                     schema
-                        .node("doc", {}, [
+                        .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                             schema.node("title", {}, []),
                             schema.node("paragraph", {}, [schema.text(text)]),
                         ])
@@ -115,8 +108,8 @@ test(
 
         expect(
             (
-                await getDocumentContentSteps(context.action(session), {
-                    id: documentId,
+                await getDocumentContentSteps(session.action(), {
+                    id: document.id,
                     startVersion: 0,
                     endVersion: 240,
                 })
@@ -125,8 +118,8 @@ test(
 
         expect(
             (
-                await getDocumentContentSteps(context.action(session), {
-                    id: documentId,
+                await getDocumentContentSteps(session.action(), {
+                    id: document.id,
                     startVersion: 10,
                     endVersion: 20,
                 })
@@ -135,8 +128,8 @@ test(
 
         expect(
             (
-                await getDocumentContentSteps(context.action(session), {
-                    id: documentId,
+                await getDocumentContentSteps(session.action(), {
+                    id: document.id,
                     startVersion: 110,
                     endVersion: 120,
                 })
@@ -145,8 +138,8 @@ test(
 
         expect(
             (
-                await getDocumentContentSteps(context.action(session), {
-                    id: documentId,
+                await getDocumentContentSteps(session.action(), {
+                    id: document.id,
                     startVersion: 210,
                     endVersion: 220,
                 })
@@ -155,8 +148,8 @@ test(
 
         expect(
             (
-                await getDocumentContentSteps(context.action(session), {
-                    id: documentId,
+                await getDocumentContentSteps(session.action(), {
+                    id: document.id,
                     startVersion: 180,
                     endVersion: 220,
                 })
@@ -170,10 +163,10 @@ test(
 test(
     "snapshot updates after many steps committed at once",
     async () => {
-        const {id: documentId} = await createDocument(context.action(session), {
-            spaceId: space.id,
-            content: emptyDocumentContent,
-        });
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session);
 
         let text = "";
 
@@ -200,8 +193,8 @@ test(
             const step6 = new ReplaceStep(3 + text.length, 3 + text.length, textSlice(newText6));
             text += newText6;
 
-            await updateDocumentContent(context.action(session), {
-                id: documentId,
+            await updateDocumentContent(session.action(), {
+                id: document.id,
                 version: i - 1,
                 steps: [step1, step2, step3, step4, step5, step6],
                 clientId: generateId(),
@@ -215,7 +208,7 @@ test(
                         context,
                         {
                             partitionType: "Document",
-                            documentId,
+                            documentId: document.id,
                             sortRangeType: "Snapshot",
                         },
                         {
@@ -225,11 +218,11 @@ test(
                 )?.version,
             );
 
-            const document = await getDocument(context.action(session), documentId);
-            expect(document.version).toEqual(i + 5);
-            expect(document.content.doc.toJSON()).toEqual(
+            const documentResult = await document.get();
+            expect(documentResult.version).toEqual(i + 5);
+            expect(documentResult.content.doc.toJSON()).toEqual(
                 schema
-                    .node("doc", {}, [
+                    .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                         schema.node("title", {}, []),
                         schema.node("paragraph", {}, [schema.text(text)]),
                     ])
@@ -246,10 +239,10 @@ test(
 test(
     "can read document while in the middle of updating a snapshot",
     async () => {
-        const {id: documentId} = await createDocument(context.action(session), {
-            spaceId: space.id,
-            content: emptyDocumentContent,
-        });
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session);
 
         let text = "";
 
@@ -275,10 +268,10 @@ test(
             text += newText6;
 
             const requestPausePromise =
-                updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint.pauseForTest(documentId);
+                updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint.pauseForTest(document.id);
 
-            const requestPromise = updateDocumentContent(context.action(session), {
-                id: documentId,
+            const requestPromise = updateDocumentContent(session.action(), {
+                id: document.id,
                 version: i - 1,
                 steps: [step1, step2, step3, step4, step5, step6],
                 clientId: generateId(),
@@ -287,7 +280,7 @@ test(
                 // function. So to avoid waiting forever, make sure to call it here at the end
                 // of the request.
                 await updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint.waitForTest(
-                    documentId,
+                    document.id,
                 );
             });
 
@@ -295,11 +288,11 @@ test(
 
             // Read the document before the request is unpaused so old steps have not been
             // deleted yet.
-            const document = await getDocument(context.action(session), documentId);
-            expect(document.version).toEqual(i + 5);
-            expect(document.content.doc.toJSON()).toEqual(
+            const documentResult = await document.get();
+            expect(documentResult.version).toEqual(i + 5);
+            expect(documentResult.content.doc.toJSON()).toEqual(
                 schema
-                    .node("doc", {}, [
+                    .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                         schema.node("title", {}, []),
                         schema.node("paragraph", {}, [schema.text(text)]),
                     ])
@@ -319,10 +312,10 @@ test(
 test(
     "can update document at a version before the document snapshot",
     async () => {
-        const {id: documentId} = await createDocument(context.action(session), {
-            spaceId: space.id,
-            content: emptyDocumentContent,
-        });
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session);
 
         let text = "";
 
@@ -376,8 +369,8 @@ test(
             // in the cache and instead need to go read them from the database.
             import.meta.jest.runAllTimers();
 
-            await updateDocumentContent(context.action(session), {
-                id: documentId,
+            await updateDocumentContent(session.action(), {
+                id: document.id,
                 version: 0,
                 steps: [step1, step2, step3, step4, step5, step6],
                 clientId: generateId(),
@@ -387,11 +380,11 @@ test(
 
             // Read the document before the request is unpaused so old steps have not been
             // deleted yet.
-            const document = await getDocument(context.action(session), documentId);
-            expect(document.version).toEqual(i + 5);
-            expect(document.content.doc.toJSON()).toEqual(
+            const documentResult = await document.get();
+            expect(documentResult.version).toEqual(i + 5);
+            expect(documentResult.content.doc.toJSON()).toEqual(
                 schema
-                    .node("doc", {}, [
+                    .node("doc", {accessPolicy: document.initialAccessPolicy}, [
                         schema.node("title", {}, []),
                         schema.node("paragraph", {}, [schema.text(text)]),
                     ])

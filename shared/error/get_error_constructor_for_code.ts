@@ -28,7 +28,7 @@ export function getErrorConstructorForCode(
     code: ErrorCode,
 ): new (
     message: string,
-    options?: {cause?: unknown; displayMessage?: ErrorDisplayMessage},
+    options?: {cause?: unknown; displayMessage?: ErrorDisplayMessage; aggregateDedupeKey?: string},
 ) => ErrorBase {
     switch (code) {
         case ErrorCode.Cancelled:

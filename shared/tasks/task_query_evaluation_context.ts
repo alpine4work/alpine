@@ -6,6 +6,6 @@ import {AccountId} from "~/shared/id/types/id_types.js";
  * For example, filters relative to the current date need the current date.
  */
 export type TaskQueryEvaluationContext = {
-    readonly currentAccountId: AccountId;
+    readonly currentAccountId: AccountId | null;
     readonly currentDate: CalendarDate;
 };

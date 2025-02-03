@@ -14,6 +14,7 @@ import {useBrowserId} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {unwrapLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable} from "~/client/tasks/core/subscribe_to_task_client_store_subscriptions_if_realtime_unavailable.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
@@ -200,7 +201,7 @@ export function TaskRealtimeClientContextProvider({
     children,
 }: {
     spaceId: SpaceId;
-    currentAccountId: AccountId;
+    currentAccountId: AccountId | null;
     children: ReactNode;
 }) {
     const dataRouterStateContext = useContext(DataRouterStateContext);
@@ -209,19 +210,21 @@ export function TaskRealtimeClientContextProvider({
     const browserId = useBrowserId();
 
     const context = useAppContext();
+    const reporter = useReporter();
     const contextRef = useRef(context);
+    const reporterRef = useRef(reporter);
     useLayoutEffectWithoutServerSideWarning(() => {
         contextRef.current = context;
+        reporterRef.current = reporter;
     });
 
-    const reporter = useReporter();
     const {currentAccount} = useSpaceContext();
 
     const accountStore = useAccountClientStore();
 
-    // We need to hold a strong reference to `Store<AccountModelData>` so
-    // `accountStore.weakGetAccountStoreByIdIfExists()` will always be able to
-    // return the data for the current account.
+    // We need to hold a strong reference to `Store<AccountModelData>` for the
+    // current account so `accountStore.weakGetAccountStoreByIdIfExists()` will
+    // always be able to return the data for the current account.
     //
     // The task system depends on current account data existing in
     // `AccountClientStore`. Any `AccountId` in a `TaskAction` we pass to
@@ -234,7 +237,10 @@ export function TaskRealtimeClientContextProvider({
     // `AccountClientStore` and also prevent garbage collection of `currentAccount`
     // from `AccountClientStore`.
     useStateWithDependencies(
-        (accountStore, currentAccount) => accountStore.getAccountStore(currentAccount),
+        ([accountStore, currentAccount]) => {
+            if (!currentAccount) return;
+            return accountStore.getAccountStore(currentAccount);
+        },
         [accountStore, currentAccount],
     );
 
@@ -249,7 +255,7 @@ export function TaskRealtimeClientContextProvider({
                 spaceId,
                 currentAccountId,
                 browserId,
-                onDisplayError: ({title, error}) => reporter.displayError(title, error),
+                onDisplayError: ({title, error}) => reporterRef.current.displayError(title, error),
             });
 
             // Initialize `TaskClientStore` with initial loader data. After initialization,
@@ -310,6 +316,25 @@ export function TaskRealtimeClientContextProvider({
         );
         clientEntry.isMounted = true;
 
+        // Accounts without space access aren't allowed to connect to our realtime
+        // service. We'd constantly get authorization errors.
+        if (!currentAccount) {
+            const unsubscribe = subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable(
+                () => contextRef.current,
+                {
+                    store: client.store,
+                    onDisplayError: ({title, error}) =>
+                        reporterRef.current.displayError(title, error),
+                },
+            );
+
+            return () => {
+                clientEntry.isMounted = false;
+
+                unsubscribe();
+            };
+        }
+
         const subscriptionsStore = client.store.getSubscriptionsStore();
 
         const getSubscriptionCount = () => {
@@ -350,7 +375,7 @@ export function TaskRealtimeClientContextProvider({
                 client.disconnect();
             }
         };
-    }, [client, spaceId]);
+    }, [client, currentAccount, spaceId]);
 
     useDevConsoleTool("tasks", () => ({store: client.store}));
 

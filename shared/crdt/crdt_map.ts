@@ -12,6 +12,7 @@ export type CrdtMapClass<Key extends string | number, Value extends {}> = {
     readonly empty: CrdtMap<Key, Value>;
     readonly schema: Schema<CrdtMap<Key, Value>>;
     readonly actionSchema: Schema<CrdtMapAction<Key, Value>>;
+    from(entries: Iterable<[Key, CrdtRegister<Value | null>]>): CrdtMap<Key, Value>;
 };
 
 export interface CrdtMap<Key extends string | number, Value extends {}> {
@@ -64,7 +65,7 @@ export interface CrdtMap<Key extends string | number, Value extends {}> {
      * the "actual" entries of the underlying map. If you wanted to clone the
      * map exactly you'd use this and apply appropriate actions.
      */
-    actualEntries(): IterableIterator<[Key, {value: Value | null; version: HybridLogicalTime}]>;
+    actualEntries(): IterableIterator<[Key, CrdtRegister<Value | null>]>;
 
     /**
      * Returns a new iterator of all the entries in the map.
@@ -174,6 +175,10 @@ export function createCrdtMap<Key extends string | number, Value extends {}>(
             }),
         });
 
+        public static from(entries: Iterable<[Key, CrdtRegister<Value | null>]>): CrdtMap {
+            return new CrdtMap(ImmutableMap.from(entries));
+        }
+
         public get(key: Key): Value | undefined {
             return this._map.get(key)?.value ?? undefined;
         }
@@ -222,9 +227,7 @@ export function createCrdtMap<Key extends string | number, Value extends {}>(
             }
         }
 
-        public actualEntries(): IterableIterator<
-            [Key, {value: Value | null; version: HybridLogicalTime}]
-        > {
+        public actualEntries(): IterableIterator<[Key, CrdtRegister<Value | null>]> {
             return this._map.entries();
         }
 

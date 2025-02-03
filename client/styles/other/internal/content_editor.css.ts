@@ -1,6 +1,7 @@
 import {globalStyle, style} from "@vanilla-extract/css";
 import {darkColorSchemeSelector} from "~/client/styles/core/styles_core.js";
 import {
+    checkListItemCheckboxContainerClassName,
     docClassName,
     mentionClassName,
     narrowRouteLayoutDocClassName,
@@ -54,6 +55,11 @@ export const containerClassName = style({
 
 globalStyle(`${containerClassName} > ${docClassName}`, {
     minHeight: "100%",
+});
+
+export const hasNoEditAccessClassName = style({});
+
+globalStyle(`${containerClassName}:not(${hasNoEditAccessClassName}) > ${docClassName}`, {
     // Always use a text cursor when in an editor. This matters when
     // `contenteditable="false"`. For instance on initial render or on mobile. On
     // mobile `contenteditable="false"` but tapping switches the editor to
@@ -62,6 +68,14 @@ globalStyle(`${containerClassName} > ${docClassName}`, {
     // while debugging) let's give them the text cursor affordance.
     cursor: "text",
 });
+
+globalStyle(
+    `${containerClassName}${hasNoEditAccessClassName} ${checkListItemCheckboxContainerClassName}`,
+    {
+        cursor: "inherit",
+        userSelect: "inherit",
+    },
+);
 
 globalStyle(
     [

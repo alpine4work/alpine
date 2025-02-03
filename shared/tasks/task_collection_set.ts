@@ -1,4 +1,5 @@
 import {CrdtMap, CrdtMapAction, createCrdtMap} from "~/shared/crdt/crdt_map.js";
+import {CrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {
     HybridLogicalClock,
     HybridLogicalTime,
@@ -65,6 +66,10 @@ export class TaskCollectionSet {
 
     public static readonly actionSchema = TaskCollectionSetEntries.actionSchema;
 
+    public static from(entries: Iterable<[TaskCollectionId, CrdtRegister<OrderKey | null>]>) {
+        return new TaskCollectionSet(TaskCollectionSetEntries.from(entries));
+    }
+
     /**
      * Get all the collections in the set in order.
      *
@@ -99,6 +104,14 @@ export class TaskCollectionSet {
         return this._array;
     }
 
+    public entriesWithVersion() {
+        return this._entries.entriesWithVersion();
+    }
+
+    public actualEntries() {
+        return this._entries.actualEntries();
+    }
+
     public has(collectionId: TaskCollectionId): boolean {
         return this._entries.has(collectionId);
     }
@@ -109,6 +122,14 @@ export class TaskCollectionSet {
 
     public getVersion(collectionId: TaskCollectionId): HybridLogicalTime | undefined {
         return this._entries.getWithVersion(collectionId)?.version;
+    }
+
+    public getOrderKeyAndVersion(
+        collectionId: TaskCollectionId,
+    ): {orderKey: OrderKey; version: HybridLogicalTime} | undefined {
+        const entry = this._entries.getWithVersion(collectionId);
+        if (entry === undefined) return undefined;
+        return {orderKey: entry.value, version: entry.version};
     }
 
     public getLastOrderKey(): OrderKey | null {

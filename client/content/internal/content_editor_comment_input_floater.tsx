@@ -18,7 +18,7 @@ import {createPortal} from "react-dom";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {
     ContentEditorState,
-    createCommentThreadMetaKey,
+    createContentCommentThreadMetaKey,
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
@@ -42,7 +42,7 @@ import {MenuButton} from "~/client/design/menu_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
-import {useOverlayRootBlockingPortalElement} from "~/client/design/overlay_helpers.js";
+import {useOverlayBlockingPortalElement} from "~/client/design/overlay_helpers.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
@@ -368,7 +368,7 @@ function ContentEditorCommentInput({
             );
         }
 
-        transaction.setMeta(createCommentThreadMetaKey, {
+        transaction.setMeta(createContentCommentThreadMetaKey, {
             commentThreadId,
             initialCommentContent: content,
             initialCommentFileIds: files.map(({file}) => file.id),
@@ -466,7 +466,6 @@ function ContentEditorCommentInput({
                             actions={[
                                 {
                                     label: "Image",
-                                    iconSize: "4",
                                     icon: <Image />,
                                     onPress: () => {
                                         selectFiles(assertExists(containerRef.current), {
@@ -496,7 +495,6 @@ function ContentEditorCommentInput({
                                 },
                                 {
                                     label: "Video",
-                                    iconSize: "4",
                                     icon: <VideoIcon />,
                                     onPress: () => {
                                         selectFiles(assertExists(containerRef.current), {
@@ -526,7 +524,6 @@ function ContentEditorCommentInput({
                                 },
                                 {
                                     label: "Audio",
-                                    iconSize: "4",
                                     icon: <WaveformIcon />,
                                     onPress: () => {
                                         selectFiles(assertExists(containerRef.current), {
@@ -556,7 +553,6 @@ function ContentEditorCommentInput({
                                 },
                                 {
                                     label: "File",
-                                    iconSize: "4",
                                     icon: <File />,
                                     onPress: () => {
                                         selectFiles(assertExists(containerRef.current), {
@@ -646,7 +642,7 @@ function ContentEditorCommentInput({
                                     paddingBottom:
                                         messageInputEditorPaddingYPx[platform][spacingScale],
                                 }}
-                                onEnterFromPhysicalKeyboard={event => {
+                                onEnterKeyDownFromPhysicalKeyboard={event => {
                                     event.preventDefault();
                                     event.stopPropagation();
                                     assertExists(sendButtonRef.current).press();
@@ -824,7 +820,7 @@ function ContentEditorCommentInputDragOverlay({
 }) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
-    const rootBlockingPortalElement = useOverlayRootBlockingPortalElement();
+    const rootBlockingPortalElement = useOverlayBlockingPortalElement();
 
     const [rect, setRect] = useState<{
         top: number;

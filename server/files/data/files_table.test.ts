@@ -24,6 +24,7 @@ import {
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
+    UnauthenticatedError,
 } from "~/shared/error/error.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
@@ -518,6 +519,13 @@ test("can't finish file preview processing with a different account", async () =
             fileImagePreviewPlaceholder1,
         ),
     ).rejects.toThrow(new PermissionDeniedError("Account is not the file's uploader account"));
+
+    await expect(
+        fileUploader.finishProcessingImagePreviewPlaceholder(
+            context.anonymousAction(),
+            fileImagePreviewPlaceholder1,
+        ),
+    ).rejects.toThrow(new UnauthenticatedError("Unauthenticated session"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -5486,6 +5494,57 @@ test("can't finish processing file alternative with error as the wrong system ac
     );
 });
 
+test("can't finish processing file alternative with error as an anonymous actor", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "application/msword",
+        contentLength: 100,
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {isProcessing: true},
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAlternativeWithError(context.anonymousAction(), {
+            type: "PasswordProtected",
+        }),
+    ).rejects.toThrow(new UnauthenticatedError("Unauthenticated session"));
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {isProcessing: true},
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+});
+
 test("can finish processing file audio preview", async () => {
     {
         const space = await TestSpace.create(context);
@@ -6770,6 +6829,10 @@ test("only the uploader account can access their file", async () => {
     await expect(
         getFileAsUploader(otherSession.action(), space.id, fileUploader.fileId),
     ).rejects.toThrow(new PermissionDeniedError("Account didn't upload file"));
+
+    await expect(
+        getFileAsUploader(context.anonymousAction(), space.id, fileUploader.fileId),
+    ).rejects.toThrow(new UnauthenticatedError("Unauthenticated session"));
 });
 
 test("can get file from attachment after it's been attached", async () => {
@@ -6888,9 +6951,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(
-        new PermissionDeniedError("Account doesn't have access to space (and 1 other error)"),
-    );
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 
     await expect(
         getFileFromAttachment(
@@ -6947,9 +7008,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(
-        new PermissionDeniedError("Account doesn't have access to space (and 1 other error)"),
-    );
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 
     await expect(
         getFileFromAttachment(
@@ -7003,9 +7062,7 @@ test("can't attach file as uploader if not the uploader", async () => {
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(
-        new PermissionDeniedError("Account doesn't have access to space (and 1 other error)"),
-    );
+    ).rejects.toThrow(new PermissionDeniedError("Account didn't upload file (and 1 other error)"));
 
     await expect(
         attachFileAsUploader(
@@ -7024,6 +7081,15 @@ test("can't attach file as uploader if not the uploader", async () => {
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
     ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await expect(
+        getFileFromAttachment(
+            context.anonymousAction(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
+        ),
+    ).rejects.toThrow(new UnauthenticatedError("Unauthenticated session"));
 });
 
 test("can't attach file if you don't have view access to the target", async () => {
@@ -7547,9 +7613,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(
-        new PermissionDeniedError("Account doesn't have access to space (and 1 other error)"),
-    );
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 
     await expect(
         getFileFromAttachment(

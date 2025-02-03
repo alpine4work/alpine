@@ -147,6 +147,7 @@ const testCases: Record<
                 const [session1, session2] = await space.createSessions(2);
 
                 const document = await TestDocument.create(session1);
+                await document.access.grantDefault(session1);
                 const {range: range1} = await document.type(session1, "Hello");
                 await document.type(session1, ", ");
                 const {range: range2} = await document.type(session1, "world");
@@ -307,7 +308,7 @@ const testCases: Record<
                 const task = await TestTask.create(session);
 
                 await services.signIn(browserContext, session);
-                await page.goto(`/s/${space.id}/tasks/${task.id}`);
+                await page.goto(`/s/${space.id}/tasks/${task.id}?comments=show`);
 
                 return {
                     type: "MessageInput",

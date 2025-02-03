@@ -23,6 +23,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
     FailedPreconditionError,
     InvalidArgumentError,
+    NotFoundError,
     PermissionDeniedError,
     UnknownError,
 } from "~/shared/error/error.js";
@@ -396,12 +397,19 @@ export async function resizeFile(
                 });
 
                 await waitForProcessExit(subprocess).catch(error => {
+                    const ErrorConstructor =
+                        /^\[in#0 [^\]]*\] Error opening input: Server returned 404 Not Found/m.test(
+                            stderr,
+                        )
+                            ? NotFoundError
+                            : UnknownError;
+
                     // We include the stderr in error messages even in production since it shouldn't
                     // contain sensitive user data. It may contain the file's duration and other
                     // metadata but it shouldn't be harmful for a developer to read that.
                     //
                     // However, including the stderr will really help us debug any issues.
-                    throw new UnknownError(
+                    throw new ErrorConstructor(
                         `${
                             error instanceof Error ? error.message : String(error)
                         }\n\nstderr:\n${stderr.trim()}`,

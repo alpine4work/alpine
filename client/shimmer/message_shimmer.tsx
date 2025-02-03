@@ -16,7 +16,7 @@ import {Spacing, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 
-const messageShimmerRagRight: ReadonlyArray<Spacing> = [
+const messageShimmerRagRights: ReadonlyArray<Spacing> = [
     // 1x frequency
     "0",
     "1",
@@ -165,11 +165,11 @@ function MessageShimmer(
                             ragRight={
                                 index === length - 1 || !stableRandom
                                     ? undefined
-                                    : messageShimmerRagRight[
+                                    : messageShimmerRagRights[
                                           stableRandom.randomInteger(
                                               "ragRight",
                                               index,
-                                              messageShimmerRagRight.length,
+                                              messageShimmerRagRights.length,
                                           )
                                       ]
                             }

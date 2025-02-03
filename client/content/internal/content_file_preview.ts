@@ -156,6 +156,28 @@ export function renderContentFilePreview({
         html.setAttribute("data-testid", `ContentFilePreview:${file.contentType}`);
     }
 
+    // This space helps Chrome's selection logic. In many cases we've observed that
+    // when selecting an element's contents instead of ending the selection at the
+    // end of the element, Chrome will end the selection at the beginning of the
+    // next selectable text node it finds! So when we don't have this text nodes,
+    // Chrome automatically selects all files until the next selectable text node
+    // underneath.
+    //
+    // To test this case but two files on top of each other with some text
+    // above/below. Then start dragging from the text above down. Without this
+    // text, Chrome selects both files immediately once the paragraph at the top
+    // has been selected. Since it's ending its selection in the next selectable
+    // text node (the paragraph below).
+    {
+        const selectionBoundaryHtml = new HtmlElementGenerator("span");
+        selectionBoundaryHtml.setAttribute(
+            "style",
+            "position: absolute; opacity: 0; user-select: text; -webkit-user-select: text",
+        );
+        html.appendChild(selectionBoundaryHtml);
+        selectionBoundaryHtml.appendChild(new HtmlTextGenerator(" "));
+    }
+
     if (!file) {
         const blankHtml = new HtmlElementGenerator("div");
         html.appendChild(blankHtml);
@@ -1306,6 +1328,7 @@ export function addContentFilePreviewBehavior(
         rootNavigate,
         getReporter,
         onShiftMouseDown,
+        isLongPressDisabled,
         onLongPress,
         onDrag,
         onOpenViewer,
@@ -1320,6 +1343,7 @@ export function addContentFilePreviewBehavior(
         rootNavigate: NavigateFunction;
         getReporter: () => Reporter;
         onShiftMouseDown?: (event: PointerEvent) => void;
+        isLongPressDisabled?: () => boolean;
         onLongPress?: () => void;
         onDrag?: (dragPromise: Promise<void>) => void;
         onOpenViewer?: () => {preventDefault: boolean} | void;
@@ -1404,15 +1428,18 @@ export function addContentFilePreviewBehavior(
             (event.altKey || event.shiftKey)
         ) {
             onShiftMouseDown?.(event);
-        } else if (isPointerDownAndOver && onLongPress) {
+        } else if (isPointerDownAndOver && onLongPress && !isLongPressDisabled?.()) {
             // Emulate a `UILongPressGestureRecognizer` on iOS. Which [waits for a touch to
             // last 0.5 seconds][1] before firing.
             //
             // [1]: https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
             longPressTimeout = createTimeout(() => {
                 longPressTimeout = null;
-                isLongPress = true;
-                onLongPress();
+
+                if (!isLongPressDisabled?.()) {
+                    isLongPress = true;
+                    onLongPress();
+                }
             }, 500);
         }
     };

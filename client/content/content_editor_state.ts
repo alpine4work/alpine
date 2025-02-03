@@ -1,7 +1,15 @@
 import {collab, getVersion, receiveTransaction, sendableSteps} from "prosemirror-collab";
 import {history, redoDepth, undoDepth} from "prosemirror-history";
 import {Node} from "prosemirror-model";
-import {Command, EditorState, Plugin, PluginKey, Selection, Transaction} from "prosemirror-state";
+import {
+    Command,
+    EditorState,
+    Plugin,
+    PluginKey,
+    Selection,
+    SelectionBookmark,
+    Transaction,
+} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {ContentEditorFloaterState} from "~/client/content/internal/content_editor_floater_state.js";
@@ -19,6 +27,7 @@ import {contentTableColumnResizingPlugin} from "~/client/content/internal/table/
 import {contentTableEditingPlugin} from "~/client/content/internal/table/content_table_editing_plugin.js";
 import {contentTableGripPlugin} from "~/client/content/internal/table/content_table_grip_plugin.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {
     ContentReferences,
@@ -49,7 +58,8 @@ import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_f
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
-export const createCommentThreadMetaKey = "createCommentThread";
+export const createContentCommentThreadMetaKey = "createCommentThread";
+export const intentionallyUpdateContentAccessPolicyMetaKey = "intentionallyUpdateAccessPolicy";
 
 function buildPlugins<Content extends ContentWithReferences>({
     schema,
@@ -111,10 +121,10 @@ export class ContentEditorState<Content extends ContentWithReferences> {
         content: ContentWithReferences & {doc: ContentDoc},
         options: {
             /**
-             * Where should we put our selection when the user first focuses the
-             * content editor?
+             * The initial selection to use for the editor state. If the string "start" or
+             * "end" then we'll automatically put the selection at that side of the doc.
              */
-            selectionAt?: "start" | "end";
+            selection?: "start" | "end" | Selection | SelectionBookmark;
 
             /**
              * Should the undo/redo keyboard shortcuts be disabled on this editor? When
@@ -138,7 +148,7 @@ export class ContentEditorState<Content extends ContentWithReferences> {
     private static _create<Content extends ContentWithReferences>({
         content,
         reduceReferences,
-        selectionAt = "start",
+        selection = "start",
         disableUndoKeyboardShortcuts = false,
     }: {
         /** The initial content of the editor. */
@@ -157,7 +167,7 @@ export class ContentEditorState<Content extends ContentWithReferences> {
             action: ContentEditorReferencesAction<Content["references"]>,
         ) => Content["references"];
 
-        selectionAt?: "start" | "end";
+        selection?: "start" | "end" | Selection | SelectionBookmark;
         disableUndoKeyboardShortcuts?: boolean;
     }): ContentEditorState<Content> {
         const schema = content.doc.type.schema;
@@ -175,9 +185,13 @@ export class ContentEditorState<Content extends ContentWithReferences> {
                 doc: content.doc,
                 plugins,
                 selection:
-                    selectionAt === "end"
+                    selection === "start"
+                        ? Selection.atStart(content.doc)
+                        : selection === "end"
                         ? Selection.atEnd(content.doc)
-                        : Selection.atStart(content.doc),
+                        : selection instanceof Selection
+                        ? selection
+                        : selection.resolve(content.doc),
             }),
         );
     }
@@ -188,6 +202,7 @@ export class ContentEditorState<Content extends ContentWithReferences> {
     public static createCollaborative<Content extends ContentWithReferences>({
         version,
         content,
+        selection = "start",
         reduceReferences,
         clientId = generateId<ContentEditorClientId>(),
         disableUndoKeyboardShortcuts = false,
@@ -202,6 +217,12 @@ export class ContentEditorState<Content extends ContentWithReferences> {
          * start with empty content.
          */
         content: Content;
+
+        /**
+         * The initial selection to use for the editor state. If the string "start" or
+         * "end" then we'll automatically put the selection at that side of the doc.
+         */
+        selection?: "start" | "end" | Selection | SelectionBookmark;
 
         /**
          * The editor may dispatch actions to update the content's references. This
@@ -258,6 +279,14 @@ export class ContentEditorState<Content extends ContentWithReferences> {
             EditorState.create({
                 doc: content.doc,
                 plugins,
+                selection:
+                    selection === "start"
+                        ? Selection.atStart(content.doc)
+                        : selection === "end"
+                        ? Selection.atEnd(content.doc)
+                        : selection instanceof Selection
+                        ? selection
+                        : selection.resolve(content.doc),
             }),
         );
 
@@ -499,6 +528,29 @@ export class ContentEditorState<Content extends ContentWithReferences> {
     ): ContentEditorState<Content> {
         return new ContentEditorState(
             this._state.apply(updateContentEditorReferences(this._state.tr, action)),
+        );
+    }
+
+    /**
+     * Set the access policy for this content.
+     *
+     * Throws an error if the content doesn't have an access policy. Makes sure
+     * the `intentionallyUpdateAccessPolicy` option is set when running this
+     * update on the backend.
+     */
+    public setAccessPolicy(accessPolicy: AccessPolicy): ContentEditorState<Content> {
+        assert(this._state.schema.topNodeType.spec.attrs?.accessPolicy);
+
+        return new ContentEditorState(
+            this._state.apply(
+                this._state.tr
+                    .setDocAttribute("accessPolicy", accessPolicy)
+                    .setMeta(intentionallyUpdateContentAccessPolicyMetaKey, accessPolicy)
+                    // Don't allow undoing access policy changes with cmd-z. Trying to undo an
+                    // access policy change will cause an error since it doesn't have the
+                    // `intentionallyUpdateAccessPolicy` property set.
+                    .setMeta("addToHistory", false),
+            ),
         );
     }
 

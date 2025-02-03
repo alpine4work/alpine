@@ -1,4 +1,4 @@
-import {Selection} from "prosemirror-state";
+import {Selection, SelectionBookmark} from "prosemirror-state";
 import {Step, StepMap} from "prosemirror-transform";
 import {
     CollaborativeContentEditorAction,
@@ -8,9 +8,15 @@ import {
 } from "~/client/content/collaborative_content_editor_state.js";
 import {
     ContentEditorReferencesAction,
-    createCommentThreadMetaKey,
+    createContentCommentThreadMetaKey,
+    intentionallyUpdateContentAccessPolicyMetaKey,
     reduceContentReferencesShared,
 } from "~/client/content/content_editor_state.js";
+import {
+    AccessPolicy,
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
 import {
     DocumentContentReferences,
@@ -20,10 +26,9 @@ import {
 } from "~/shared/documents/document_content_references.js";
 import {
     DocumentContent,
-    emptyDocumentContent,
+    createEmptyDocumentContent,
     isDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {DocumentModel} from "~/shared/documents/document_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
@@ -31,6 +36,7 @@ import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {
+    AccountId,
     DocumentCommentThreadId,
     FileId,
     WebSocketConnectionId,
@@ -48,6 +54,12 @@ export type DocumentContentEditorState = CollaborativeContentEditorState<
 
 type DocumentContentEditorExtraState = {
     /**
+     * The `AccountId` of the `currentAccount` in `SpaceContext`. Used for
+     * evaluating access. Null if there's no user logged in.
+     */
+    readonly currentAccountId: AccountId | null;
+
+    /**
      * Comment threads we have sent to the server that we're waiting on
      * acknowledgement for.
      *
@@ -58,6 +70,14 @@ type DocumentContentEditorExtraState = {
         readonly initialCommentContent: MessageContent;
         readonly initialCommentFileIds: ReadonlyArray<FileId>;
     }> | null;
+
+    /**
+     * When we update an access policy we need to send an
+     * `intentionallyUpdateAccessPolicy` property to the server so the server knows
+     * the access policy change isn't ProseMirror accidentally changing a document
+     * attribute.
+     */
+    readonly pendingIntentionallyUpdateAccessPolicy: AccessPolicy | null;
 
     /**
      * Remember some number of steps in our state to map phantom selections from
@@ -113,17 +133,32 @@ type DocumentContentEditorExtraState = {
 };
 
 export function getInitialDocumentContentEditorState(
-    initialDocument: DocumentModel | null,
+    options:
+        | {
+              currentAccountId: AccountId | null;
+              initialVersion: number;
+              initialContent: DocumentContentWithReferences;
+              initialSelection?: Selection | SelectionBookmark;
+          }
+        | {
+              currentAccountId: AccountId;
+              initialVersion?: undefined;
+              initialContent?: undefined;
+              initialSelection?: undefined;
+          },
 ): DocumentContentEditorState {
     return getInitialCollaborativeContentEditorState({
-        initialVersion: initialDocument?.version ?? 0,
-        initialContent: initialDocument?.content ?? {
-            doc: emptyDocumentContent,
+        initialVersion: options.initialVersion ?? 0,
+        initialContent: options.initialContent ?? {
+            doc: createEmptyDocumentContent(options.currentAccountId),
             references: emptyDocumentContentReferences,
         },
+        initialSelection: options.initialSelection,
         reduceReferences: reduceDocumentContentReferences,
         extra: {
+            currentAccountId: options.currentAccountId,
             pendingCreateCommentThreads: null,
+            pendingIntentionallyUpdateAccessPolicy: null,
             rememberedSteps: [],
             ourPresenceState: null,
             otherPresenceStateByConnectionId: ImmutableMap.empty(),
@@ -141,8 +176,11 @@ type DocumentContentEditorExtraAction =
     | DocumentContentEditorAugmentRememberedStepsAction
     | DocumentContentEditorSetAllOtherPresenceStatesAction
     | DocumentContentEditorUpdateOtherPresenceStateAction
+    | DocumentContentEditorClearOurPresenceStateAction
+    | DocumentContentEditorUnclearOurPresenceStateAction
     | DocumentContentEditorUpdateCommentThreadReferenceAction
-    | DocumentContentEditorUpdateCommentThreadResolutionStatesAction;
+    | DocumentContentEditorUpdateCommentThreadResolutionStatesAction
+    | DocumentContentEditorResetToPersistedVersionAction;
 
 type DocumentContentEditorAugmentRememberedStepsAction = {
     readonly type: "AugmentRememberedSteps";
@@ -165,6 +203,14 @@ type DocumentContentEditorUpdateOtherPresenceStateAction = {
     readonly state: DocumentCollaborationPresenceState | null;
 };
 
+type DocumentContentEditorClearOurPresenceStateAction = {
+    readonly type: "ClearOurPresenceState";
+};
+
+type DocumentContentEditorUnclearOurPresenceStateAction = {
+    readonly type: "UnclearOurPresenceState";
+};
+
 type DocumentContentEditorUpdateCommentThreadReferenceAction = {
     readonly type: "UpdateCommentThreadReference";
     readonly commentThreadId: DocumentCommentThreadId;
@@ -179,37 +225,55 @@ type DocumentContentEditorUpdateCommentThreadResolutionStatesAction = {
     readonly unresolveCommentThreadIds: ReadonlyArray<DocumentCommentThreadId>;
 };
 
+type DocumentContentEditorResetToPersistedVersionAction = {
+    readonly type: "ResetToPersistedVersion";
+};
+
 export function reduceDocumentContentEditorState(
     state: DocumentContentEditorState,
     actions: ReadonlyArray<DocumentContentEditorAction>,
 ): DocumentContentEditorState {
-    const oldPendingSendableSteps = state.pendingSendableSteps;
-    const oldRememberedSteps = state.extra.rememberedSteps;
-    const oldOtherPresenceStateByConnectionId = state.extra.otherPresenceStateByConnectionId;
+    const oldState = state;
 
     state = baseReduceDocumentContentEditorState(state, actions);
 
     // If `pendingSendableSteps` changed then there's some extra state we need
     // to update...
-    if (oldPendingSendableSteps !== state.pendingSendableSteps) {
+    if (oldState.pendingSendableSteps !== state.pendingSendableSteps) {
         if (!state.pendingSendableSteps) {
             state = {
                 ...state,
                 extra: {
                     ...state.extra,
                     pendingCreateCommentThreads: null,
+                    pendingIntentionallyUpdateAccessPolicy: null,
                 },
             };
         } else {
+            let isLastTransactionIntentionallyUpdatingAccessPolicy = false;
+            let lastIntentionallyUpdateAccessPolicy: AccessPolicy | null = null;
+
             // We can have multiple steps from the same origin transaction. So uniquify our
             // new comment thread objects.
+            const transactions = new Set(state.pendingSendableSteps.origins);
+
             const createCommentThreads = Array.from(
-                filterMapIterable(new Set(state.pendingSendableSteps.origins), transaction => {
+                filterMapIterable(transactions, transaction => {
                     const createCommentThread: {
                         commentThreadId: DocumentCommentThreadId;
                         initialCommentContent: MessageContentWithReferences;
                         initialCommentFileIds: ReadonlyArray<FileId>;
-                    } | null = transaction.getMeta(createCommentThreadMetaKey) ?? null;
+                    } | null = transaction.getMeta(createContentCommentThreadMetaKey) ?? null;
+
+                    const intentionallyUpdateAccessPolicy: AccessPolicy | null =
+                        transaction.getMeta(intentionallyUpdateContentAccessPolicyMetaKey) ?? null;
+
+                    if (intentionallyUpdateAccessPolicy !== null) {
+                        isLastTransactionIntentionallyUpdatingAccessPolicy = true;
+                        lastIntentionallyUpdateAccessPolicy = intentionallyUpdateAccessPolicy;
+                    } else {
+                        isLastTransactionIntentionallyUpdatingAccessPolicy = false;
+                    }
 
                     if (!createCommentThread) return;
 
@@ -226,26 +290,48 @@ export function reduceDocumentContentEditorState(
                 extra: {
                     ...state.extra,
                     pendingCreateCommentThreads: createCommentThreads,
+                    pendingIntentionallyUpdateAccessPolicy: lastIntentionallyUpdateAccessPolicy,
                     // Make sure our presence state is up-to-date as well since we will send it to
                     // the server along with our sendable steps.
-                    ourPresenceState: {
-                        version: state.editorState.getVersion(),
-                        selection: state.editorState.getSelection(),
-                    },
+                    //
+                    // If we're updating the access policy in this action and the old presence state
+                    // is null then don't set a new presence state which'll flash our cursor at the
+                    // start of the document.
+                    ourPresenceState:
+                        isLastTransactionIntentionallyUpdatingAccessPolicy &&
+                        oldState.extra.ourPresenceState === null
+                            ? null
+                            : {
+                                  version: state.editorState.getVersion(),
+                                  selection: state.editorState.getSelection(),
+                              },
                 },
             };
         }
     }
 
-    // If `rememberedSteps` or `otherPresenceStateByConnectionId` changed, then
-    // discard any `rememberedSteps` we don't need anymore for rebasing
-    // presence state selections.
+    // If `persistedVersion`, `rememberedSteps`, or
+    // `otherPresenceStateByConnectionId` changed, then discard any
+    // `rememberedSteps` we don't need anymore for rebasing presence state
+    // selections.
     if (
-        state.extra.rememberedSteps !== oldRememberedSteps ||
-        state.extra.otherPresenceStateByConnectionId !== oldOtherPresenceStateByConnectionId
+        state.persistedVersion !== oldState.persistedVersion ||
+        state.extra.rememberedSteps !== oldState.extra.rememberedSteps ||
+        state.extra.otherPresenceStateByConnectionId !==
+            oldState.extra.otherPresenceStateByConnectionId
     ) {
         let discardRememberedStepsBeforeVersion = state.editorState.getVersion();
 
+        // We remember steps between the persisted version and the `editorState`'s
+        // confirmed version so we can implement the `ResetToPersistedVersion` action
+        // properly. If we see that action then we look up the old document from
+        // `rememberedSteps`.
+        if (state.persistedVersion < discardRememberedStepsBeforeVersion)
+            discardRememberedStepsBeforeVersion = state.persistedVersion;
+
+        // We remember steps between the current version and the version for any of our
+        // presence states so that we can map the presence state position from the
+        // version where it was created to the latest document version.
         for (const presenceState of state.extra.otherPresenceStateByConnectionId.values()) {
             if (presenceState.version < discardRememberedStepsBeforeVersion)
                 discardRememberedStepsBeforeVersion = presenceState.version;
@@ -257,6 +343,29 @@ export function reduceDocumentContentEditorState(
         );
 
         state = {...state, extra: {...state.extra, rememberedSteps: newRememberedSteps}};
+    }
+
+    // We don't allow `state.extra.ourPresenceState.selection` to be empty if the
+    // user doesn't have edit access. This is tied to how `<ContentEditor>` is
+    // rendered in read-only mode. In read-only mode the browser selection renders
+    // when you've selected a range of text but doesn't render the cursor in
+    // positions. Even though ProseMirror computes single position selections when
+    // the user clicks in a read-only `<ContentEditor>`.
+    if (
+        oldState.extra.ourPresenceState !== state.extra.ourPresenceState ||
+        oldState.editorState !== state.editorState ||
+        oldState.extra.currentAccountId !== state.extra.currentAccountId
+    ) {
+        if (state.extra.ourPresenceState?.selection.empty) {
+            const accessLevel = getAccountAccessLevelAssumingSpaceAccess(
+                state.editorState.getDoc().attrs.accessPolicy,
+                state.extra.currentAccountId,
+            );
+
+            if (!hasAccessLevel(accessLevel, "Edit")) {
+                state = {...state, extra: {...state.extra, ourPresenceState: null}};
+            }
+        }
     }
 
     return state;
@@ -419,6 +528,31 @@ const baseReduceDocumentContentEditorState = createCollaborativeContentEditorSta
                 },
             };
         }
+        case "ClearOurPresenceState": {
+            if (state.extra.ourPresenceState === null) return state;
+
+            return {
+                ...state,
+                extra: {
+                    ...state.extra,
+                    ourPresenceState: null,
+                },
+            };
+        }
+        case "UnclearOurPresenceState": {
+            if (state.extra.ourPresenceState !== null) return state;
+
+            return {
+                ...state,
+                extra: {
+                    ...state.extra,
+                    ourPresenceState: {
+                        version: state.editorState.getVersion(),
+                        selection: state.editorState.getSelection(),
+                    },
+                },
+            };
+        }
         case "UpdateCommentThreadReference": {
             return {
                 ...state,
@@ -479,6 +613,18 @@ const baseReduceDocumentContentEditorState = createCollaborativeContentEditorSta
                 },
             };
         }
+        case "ResetToPersistedVersion": {
+            return getInitialDocumentContentEditorState({
+                currentAccountId: state.extra.currentAccountId,
+                initialVersion: state.persistedVersion,
+                initialContent: {
+                    doc: getDocumentContentEditorStatePersistedContent(state),
+                    references: state.editorState.getContent().references,
+                },
+                // Try to maintain the user's selection while resetting state.
+                initialSelection: state.editorState.getSelection().getBookmark(),
+            });
+        }
         default:
             throw exhaustive(action.extra);
     }
@@ -535,4 +681,31 @@ export function reduceDocumentContentReferences(
         default:
             return reduceContentReferencesShared(references, action);
     }
+}
+
+/**
+ * Get the persisted `DocumentContent` based on our editor state. The persisted
+ * content lags behind the content in our editor state since the editor state
+ * may include local changes and may include optimistic changes that have been
+ * accepted by the durable object but not our database.
+ */
+export function getDocumentContentEditorStatePersistedContent(
+    state: DocumentContentEditorState,
+): DocumentContent {
+    const version = state.editorState.getVersion();
+
+    // If we're at the persisted version then return the doc as-is. If `version` is
+    // less than `state.persistedVersion` then we've probably received some
+    // realtime events out-of-order. We may still be waiting on the steps from
+    // persisted content from realtime. Don't throw while we're in this state.
+    if (version <= state.persistedVersion) {
+        return state.editorState.getDocWithoutSendableSteps();
+    }
+
+    const oldContent =
+        state.extra.rememberedSteps[
+            state.extra.rememberedSteps.length - (version - state.persistedVersion)
+        ]!.contentBeforeStep.get();
+
+    return oldContent;
 }

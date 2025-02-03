@@ -16,6 +16,7 @@ import {
     getDocumentCommentThreadAndInitialCommentsIfExists,
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
+    getDocumentContentForCollaborationServiceInitialization,
     getDocumentContentSteps,
     getDocumentPreviewIfExists,
     getResolvedDocumentCommentThreadRanges,
@@ -24,8 +25,7 @@ import {
 } from "~/server/documents/data/documents_table.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
-import {getAccount} from "~/server/spaces/spaces_table.js";
-import {emptyDocumentContent} from "~/shared/documents/document_content_schema.js";
+import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {DocumentCommentModel} from "~/shared/documents/document_model.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -36,7 +36,16 @@ export default implementRpcs(definitions, {
     authorizeDocumentAccess: {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, input) => {
-            await authorizeDocumentAccess(context.actor.authorizeSession(), input.documentId);
+            const {spaceId} = await authorizeDocumentAccess(
+                context.actor.authorizeSession(),
+                input.documentId,
+                input.expectedAccessLevel,
+            );
+
+            if (input.withSpaceAccess) {
+                await authorizeSpaceAccess(context, spaceId);
+            }
+
             return {};
         },
     },
@@ -47,17 +56,28 @@ export default implementRpcs(definitions, {
             const {id, createdTime} = await createDocument(context.actor.authorizeSession(), {
                 id: input.documentId,
                 spaceId: input.spaceId,
-                content: emptyDocumentContent,
             });
             return {documentId: id, createdTime};
         },
     },
 
     getDocument: {
-        visibility: ["DocumentCollaborationService"],
+        visibility: ["AppClient"],
         execute: async (context, input) => {
             const document = await getDocument(context.actor.authorizeSession(), input.documentId);
             return {document};
+        },
+    },
+
+    getDocumentContentForCollaborationServiceInitialization: {
+        visibility: ["DocumentCollaborationService"],
+        execute: async (context, input) => {
+            const {spaceId, version, content} =
+                await getDocumentContentForCollaborationServiceInitialization(
+                    context.actor.authorizeSession(),
+                    input.documentId,
+                );
+            return {spaceId, version, content};
         },
     },
 
@@ -95,6 +115,7 @@ export default implementRpcs(definitions, {
                     steps: input.steps,
                     clientId: input.clientId,
                     createCommentThreads: input.createCommentThreads,
+                    intentionallyUpdateAccessPolicy: input.intentionallyUpdateAccessPolicy,
                     resolveCommentThreadIds: input.resolveCommentThreadIds,
                     unresolveCommentThreadIds: input.unresolveCommentThreadIds,
                 },
@@ -106,7 +127,7 @@ export default implementRpcs(definitions, {
     getDocumentContentReferences: {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, {documentId, referencedIds}) => {
-            const {spaceId} = await authorizeDocumentAccess(context, documentId);
+            const {spaceId} = await authorizeDocumentAccess(context, documentId, "View");
 
             const [references, {commentThreadById, resolvedCommentThreadIds}] =
                 await runAllPromises([
@@ -220,9 +241,12 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             const [{contentUpdatedTime}, contentReferences] = await runAllPromises([
                 updateDocumentCommentContent(context.actor.authorizeSession(), input),
-                authorizeDocumentAccess(context.actor.authorizeSession(), input.documentId).then(
-                    ({spaceId}) =>
-                        getMessageContentReferencesForNode(context, spaceId, input.content),
+                authorizeDocumentAccess(
+                    context.actor.authorizeSession(),
+                    input.documentId,
+                    "Comment",
+                ).then(({spaceId}) =>
+                    getMessageContentReferencesForNode(context, spaceId, input.content),
                 ),
             ]);
 

@@ -776,7 +776,8 @@ test("can change status", async ({page, context: browserContext}) => {
 test("can update collections", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
-    const collection = await TestTaskCollection.createPublic(session, {name: "test1"});
+    const collection = await TestTaskCollection.create(session, {name: "test1"});
+    await collection.access.grantDefault(session);
     const task = await TestTask.create(session, {title: "test"});
     await task.addCollection(session, collection);
 

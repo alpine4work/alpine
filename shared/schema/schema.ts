@@ -564,6 +564,23 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     }
 
     /**
+     * Same as `Schema.union()` but you can provide a custom key to use for the
+     * union's type instead of the identifier `type`.
+     */
+    public static unionWithKey<
+        const TypeKey extends string,
+        Config extends UnionSchemaObjectConfigWithKeyBase<TypeKey, Config>,
+    >(
+        typeKey: TypeKey,
+        config: Config,
+    ): UnionSchema<UnionSchemaObjectConfigWithKeyType<TypeKey, Config>> {
+        return UnionSchema._new(config, {
+            serializedTypeKey: typeKey,
+            deserializedTypeKey: typeKey,
+        });
+    }
+
+    /**
      * A simpler version of `Schema.union()` that supports switching on a boolean
      * property.
      *
@@ -1481,6 +1498,19 @@ export type UnionSchemaObjectConfigBase<Config> = {
 export type UnionSchemaObjectConfigType<Config extends UnionSchemaObjectConfigBase<Config>> =
     SchemaType<Config[keyof Config]>;
 
+export type UnionSchemaObjectConfigWithKeyBase<TypeKey extends string, Config> = {
+    [Key in keyof Config]: Schema<any> & {
+        // We need to put our `Key` type constraint on `deserialize` instead of the
+        // type parameter so the object type can be covariant instead of invariant.
+        deserialize: (value: SchemaSerializedValue) => Record<TypeKey, Key>;
+    };
+};
+
+export type UnionSchemaObjectConfigWithKeyType<
+    TypeKey extends string,
+    Config extends UnionSchemaObjectConfigWithKeyBase<TypeKey, Config>,
+> = SchemaType<Config[keyof Config]>;
+
 /**
  * Schema for a union object value.
  *
@@ -1536,6 +1566,7 @@ export class UnionSchema<Value> extends Schema<Value> {
         options?: {
             getType?: undefined;
             serializedTypeKey?: string;
+            deserializedTypeKey?: string;
         },
     ): UnionSchema<UnionSchemaObjectConfigType<Config>>;
     public static _new<Config extends {[key: string]: Schema<any> | UnionSchemaVariant<any>}>(
@@ -1543,6 +1574,7 @@ export class UnionSchema<Value> extends Schema<Value> {
         options: {
             getType: (value: SchemaType<Config[keyof Config]>) => keyof Config;
             serializedTypeKey?: string;
+            deserializedTypeKey?: string;
         },
     ): UnionSchema<SchemaType<Config[keyof Config]>>;
     public static _new<Config extends {[key: string]: Schema<any> | UnionSchemaVariant<any>}>(
@@ -1550,9 +1582,11 @@ export class UnionSchema<Value> extends Schema<Value> {
         {
             getType,
             serializedTypeKey = "type",
+            deserializedTypeKey = "type",
         }: {
             getType?: (value: SchemaType<Config[keyof Config]>) => keyof Config;
             serializedTypeKey?: string;
+            deserializedTypeKey?: string;
         } = {},
     ): UnionSchema<SchemaType<Config[keyof Config]>> {
         const schemaEntries = Object.entries(config);
@@ -1561,27 +1595,46 @@ export class UnionSchema<Value> extends Schema<Value> {
             schemaEntries.map(([type, schema]) => {
                 assert(isIdentifier(type));
 
-                if (schema instanceof UnionSchemaVariant) {
-                    assert(schema.serializedTypeKey === serializedTypeKey);
-                    return [type, schema];
-                } else if (getType === undefined && schema instanceof ObjectSchema) {
-                    // If the developer did not provide a custom type lookup and gave us an object
-                    // schema, we can inspect the object schema for information about the serialized
-                    // type in its `type` property.
-                    const variant = UnionSchemaVariant.fromObject(schema);
-                    assert(variant.serializedTypeKey === serializedTypeKey);
-                    return [type, variant];
-                } else {
-                    return [
-                        type,
-                        new UnionSchemaVariant({
-                            schema,
-                            type,
-                            serializedTypeKey,
-                            serializedTypeValue: null,
-                        }),
-                    ];
+                let serializedTypeValue: string | number | boolean | null = type;
+                if (getType === undefined && schema instanceof ObjectSchema) {
+                    const typePropertySchema = schema.propertySchemaByKey.get(deserializedTypeKey);
+                    assert(
+                        typePropertySchema?.valueSchema instanceof ValueSchema,
+                        quote`Expected value schema for union variant\'s ${deserializedTypeKey} property`,
+                    );
+
+                    const actualType = typePropertySchema.valueSchema.value;
+                    serializedTypeValue = typePropertySchema.valueSchema.serializedValue;
+                    assert(
+                        typeof actualType === "string" && isIdentifier(actualType),
+                        "Expected type to be an identifier string",
+                    );
+                    assert(
+                        typeof serializedTypeValue === "string" &&
+                            isIdentifier(serializedTypeValue),
+                        "Expected serialized type to be an identifier string",
+                    );
+                    assert(
+                        actualType === type,
+                        quote`Expected value schema for union variant\'s ${deserializedTypeKey} property to be ${type}`,
+                    );
                 }
+
+                const variantSchema =
+                    schema instanceof UnionSchemaVariant
+                        ? schema
+                        : new UnionSchemaVariant({
+                              schema,
+                              type,
+                              serializedTypeKey,
+                              serializedTypeValue,
+                              deserializedTypeKey,
+                          });
+
+                assert(variantSchema.serializedTypeKey === serializedTypeKey);
+                assert(variantSchema.deserializedTypeKey === deserializedTypeKey);
+
+                return [type, variantSchema];
             }),
         );
 
@@ -1610,7 +1663,8 @@ export class UnionSchema<Value> extends Schema<Value> {
                 ),
             }),
             serialize: value => {
-                const type = getType !== undefined ? getType(value) : (value as any).type;
+                const type =
+                    getType !== undefined ? getType(value) : (value as any)[deserializedTypeKey];
                 const schema = schemaByType.get(type);
                 assert(schema);
                 return schema.serialize(value);
@@ -1647,7 +1701,10 @@ export class UnionSchema<Value> extends Schema<Value> {
             validate:
                 validateByType.size > 0
                     ? value => {
-                          const type = getType !== undefined ? getType(value) : (value as any).type;
+                          const type =
+                              getType !== undefined
+                                  ? getType(value)
+                                  : (value as any)[deserializedTypeKey];
                           const validate = validateByType.get(type);
                           validate?.(value);
                       }
@@ -1680,56 +1737,34 @@ export class UnionSchemaVariant<Value> {
      */
     public readonly serializedTypeValue: string;
 
+    /**
+     * The key we use for the deserialized type property. Defaults to "type". If a
+     * `getType()` function is provided in union schema initialization then this is
+     * only used for debugging.
+     */
+    public readonly deserializedTypeKey: string;
+
     constructor({
         schema,
         type,
         serializedTypeKey,
         serializedTypeValue,
+        deserializedTypeKey,
     }: {
         schema: Schema<Value>;
         type: string;
-        serializedTypeKey: string | null;
-        serializedTypeValue: string | null;
+        serializedTypeKey: string;
+        serializedTypeValue: string;
+        deserializedTypeKey: string;
     }) {
         assert(isIdentifier(type));
         assert(!serializedTypeValue || isIdentifier(serializedTypeValue));
 
         this.schema = schema;
         this.type = type;
-        this.serializedTypeKey = serializedTypeKey ?? "type";
-        this.serializedTypeValue = serializedTypeValue ?? type;
-    }
-
-    /**
-     * Infers the `type` from an object schema's properties.
-     */
-    public static fromObject<Value extends {readonly type: string}>(
-        schema: ObjectSchema<Value>,
-    ): UnionSchemaVariant<Value> {
-        const typePropertySchema = schema.propertySchemaByKey.get("type");
-        assert(
-            typePropertySchema?.valueSchema instanceof ValueSchema,
-            'Expected value schema for union variant\'s "type" property',
-        );
-
-        const type = typePropertySchema.valueSchema.value;
-        const serializedTypeKey = typePropertySchema.serializedKey ?? "type";
-        const serializedTypeValue = typePropertySchema.valueSchema.serializedValue;
-        assert(
-            typeof type === "string" && isIdentifier(type),
-            "Expected type to be an identifier string",
-        );
-        assert(
-            typeof serializedTypeValue === "string" && isIdentifier(serializedTypeValue),
-            "Expected serialized type to be an identifier string",
-        );
-
-        return new UnionSchemaVariant({
-            schema,
-            type,
-            serializedTypeKey,
-            serializedTypeValue,
-        });
+        this.serializedTypeKey = serializedTypeKey;
+        this.serializedTypeValue = serializedTypeValue;
+        this.deserializedTypeKey = deserializedTypeKey;
     }
 
     public serialize(value: Value): SchemaSerializedObjectValue {
@@ -1757,21 +1792,11 @@ export class UnionSchemaVariant<Value> {
         return withSchemaDeserializationStackFrame(
             {
                 type: "UnionVariant",
-                // Ideally this would be the deserialized type key not `serializedTypeKey`.
-                typeKey: "type",
+                typeKey: this.deserializedTypeKey,
                 typeValue: this.type,
             },
             () => this.schema.deserialize(value) as any,
         );
-    }
-
-    public originalUnionType(serializedTypeValue: string) {
-        return new UnionSchemaVariant({
-            schema: this.schema,
-            type: this.type,
-            serializedTypeKey: this.serializedTypeKey,
-            serializedTypeValue,
-        });
     }
 }
 

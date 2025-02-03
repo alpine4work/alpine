@@ -5,8 +5,11 @@ import {FocusScope} from "react-aria";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
+import {useOverlayBlockingPortalElement} from "~/client/design/overlay_helpers.js";
+import {
+    OverlayScopeContextProvider,
+    RootOverlayScopeContextProvider,
+} from "~/client/design/overlay_scope_context_provider.js";
 import {
     isElementOwnedBy,
     setElementOwnedBy,
@@ -123,7 +126,7 @@ export function Modal({
     /**
      * Border radius for the modal content.
      */
-    borderRadius?: "1.5" | "2";
+    borderRadius?: "1.5" | "2" | "2.5";
 
     /**
      * Background color for the modal content.
@@ -192,7 +195,7 @@ export function Modal({
     const modalAlertRef = useRef<HTMLDivElement>(null);
 
     const portalElement = assertExists(
-        useOverlayRootPortalElement(),
+        useOverlayBlockingPortalElement(),
         "Can not render modal before portal element is available",
     );
     const [isFadingOut, setIsFadingOut] = useState(false);
@@ -261,6 +264,7 @@ export function Modal({
     return createPortal(
         <Box
             ref={modalRef}
+            className={modalStyles.modalContainerClassName}
             position="fixed"
             // Render over other overlays.
             zIndex="80"
@@ -269,7 +273,9 @@ export function Modal({
             justifyContent="center"
             alignItems="center"
             padding={margin}
-            style={{animation: isFadingOut ? modalStyles.modalFadeOutAnimation : undefined}}
+            style={{
+                animation: isFadingOut ? modalStyles.modalFadeOutAnimation : undefined,
+            }}
             overflow="hidden"
             data-ownedby={dataOwnedBy}
         >
@@ -290,109 +296,113 @@ export function Modal({
                 onPointerDown={!withoutCloseInteractions ? onCloseWithAnimation : undefined}
             />
             <FocusScope restoreFocus contain>
-                <GlobalKeyDownEventModal>
-                    <GlobalKeyDownEvent
-                        onGlobalKeyDown={event => {
-                            if (!withoutCloseInteractions && event.key === "Escape") {
-                                event.stopPropagation();
-                                event.preventDefault();
-                                onCloseWithoutAnimation();
-                            }
-                        }}
-                    >
-                        <section
-                            ref={modalAlertRef}
-                            role="alertdialog"
-                            // It's important the modal is focusable for `<FocusScope contain>`. That way
-                            // when you click out of a focusable element in the modal, focus goes to this
-                            // element instead of `document.body`. If `<FocusScope contain>` sees focus on
-                            // `document.body` then it will move focus right back to the element that was
-                            // blurred which is not what the user wants.
-                            tabIndex={-1}
-                            aria-modal="true"
-                            aria-label={ariaLabel}
-                            aria-labelledby={ariaLabelledBy}
-                            aria-describedby={ariaDescribedBy}
-                            className={classNames(
-                                !withoutElevatedGrey && greyElevated1ClassName,
-                                sprinkles({
-                                    position: "relative",
-                                    zIndex: "0",
-                                    width: "full",
-                                    height,
-                                    backgroundColor,
-                                    boxShadow: "elevation-40",
-                                    borderRadius,
-                                    display: "flex",
-                                    overflow: "hidden",
-                                }),
-                            )}
-                            style={{
-                                maxWidth:
-                                    maxWidth === "full"
-                                        ? "100%"
-                                        : isRemLength(maxWidth)
-                                        ? maxWidth
-                                        : spacing[maxWidth],
-                                maxHeight:
-                                    maxHeight === "full"
-                                        ? "100%"
-                                        : isRemLength(maxHeight)
-                                        ? maxHeight
-                                        : spacing[maxHeight],
-                                animation: !withoutOpenAnimation
-                                    ? modalStyles.modalOverlayFadeInAnimation
-                                    : undefined,
-                                backdropFilter: withBlurBackdropFilter ? "blur(15px)" : undefined,
-                                WebkitBackdropFilter: withBlurBackdropFilter
-                                    ? "blur(15px)"
-                                    : undefined,
+                <RootOverlayScopeContextProvider>
+                    <GlobalKeyDownEventModal>
+                        <GlobalKeyDownEvent
+                            onGlobalKeyDown={event => {
+                                if (!withoutCloseInteractions && event.key === "Escape") {
+                                    event.stopPropagation();
+                                    event.preventDefault();
+                                    onCloseWithoutAnimation();
+                                }
                             }}
                         >
-                            <Box
-                                width="full"
-                                maxHeight="full"
-                                overflow="hidden"
+                            <section
+                                ref={modalAlertRef}
+                                role="alertdialog"
+                                // It's important the modal is focusable for `<FocusScope contain>`. That way
+                                // when you click out of a focusable element in the modal, focus goes to this
+                                // element instead of `document.body`. If `<FocusScope contain>` sees focus on
+                                // `document.body` then it will move focus right back to the element that was
+                                // blurred which is not what the user wants.
+                                tabIndex={-1}
+                                aria-modal="true"
+                                aria-label={ariaLabel}
+                                aria-labelledby={ariaLabelledBy}
+                                aria-describedby={ariaDescribedBy}
+                                className={classNames(
+                                    !withoutElevatedGrey && greyElevated1ClassName,
+                                    sprinkles({
+                                        position: "relative",
+                                        zIndex: "0",
+                                        width: "full",
+                                        height,
+                                        backgroundColor,
+                                        boxShadow: "elevation-40",
+                                        borderRadius,
+                                        display: "flex",
+                                        overflow: "hidden",
+                                    }),
+                                )}
                                 style={{
-                                    animation: isFadingOut
-                                        ? modalStyles.modalContentFadeOutAnimation
-                                        : !withoutOpenAnimation
-                                        ? modalStyles.modalContentFadeInAnimation
+                                    maxWidth:
+                                        maxWidth === "full"
+                                            ? "100%"
+                                            : isRemLength(maxWidth)
+                                            ? maxWidth
+                                            : spacing[maxWidth],
+                                    maxHeight:
+                                        maxHeight === "full"
+                                            ? "100%"
+                                            : isRemLength(maxHeight)
+                                            ? maxHeight
+                                            : spacing[maxHeight],
+                                    animation: !withoutOpenAnimation
+                                        ? modalStyles.modalOverlayFadeInAnimation
+                                        : undefined,
+                                    backdropFilter: withBlurBackdropFilter
+                                        ? "blur(15px)"
+                                        : undefined,
+                                    WebkitBackdropFilter: withBlurBackdropFilter
+                                        ? "blur(15px)"
                                         : undefined,
                                 }}
                             >
-                                <OverlayScopeContextProvider
-                                // Render an overlay scope so any initially mounted overlays get the same
-                                // opacity/scale animations as the modal content.
-                                //
-                                // `<FocusRing>` is a common example of an initially mounted overlay when we
-                                // auto-focus some content in the modal.
+                                <Box
+                                    width="full"
+                                    maxHeight="full"
+                                    overflow="hidden"
+                                    style={{
+                                        animation: isFadingOut
+                                            ? modalStyles.modalContentFadeOutAnimation
+                                            : !withoutOpenAnimation
+                                            ? modalStyles.modalContentFadeInAnimation
+                                            : undefined,
+                                    }}
                                 >
-                                    {typeof children === "function"
-                                        ? children({
-                                              onCloseWithAnimation,
-                                              onCloseWithoutAnimation,
-                                          })
-                                        : children}
-                                    {!withoutCloseInteractions && !withoutCloseButton && (
-                                        <Box position="absolute" top="1.5" right="1.5">
-                                            <IconButton
-                                                size="xs"
-                                                description="Close"
-                                                withoutTooltip={true}
-                                                // Our animation principle is to respond to user input immediately
-                                                // without animation.
-                                                onPress={onCloseWithoutAnimation}
-                                            >
-                                                <X />
-                                            </IconButton>
-                                        </Box>
-                                    )}
-                                </OverlayScopeContextProvider>
-                            </Box>
-                        </section>
-                    </GlobalKeyDownEvent>
-                </GlobalKeyDownEventModal>
+                                    <OverlayScopeContextProvider
+                                    // Render an overlay scope so any initially mounted overlays get the same
+                                    // opacity/scale animations as the modal content.
+                                    //
+                                    // `<FocusRing>` is a common example of an initially mounted overlay when we
+                                    // auto-focus some content in the modal.
+                                    >
+                                        {typeof children === "function"
+                                            ? children({
+                                                  onCloseWithAnimation,
+                                                  onCloseWithoutAnimation,
+                                              })
+                                            : children}
+                                        {!withoutCloseInteractions && !withoutCloseButton && (
+                                            <Box position="absolute" top="1.5" right="1.5">
+                                                <IconButton
+                                                    size="xs"
+                                                    description="Close"
+                                                    withoutTooltip={true}
+                                                    // Our animation principle is to respond to user input immediately
+                                                    // without animation.
+                                                    onPress={onCloseWithoutAnimation}
+                                                >
+                                                    <X />
+                                                </IconButton>
+                                            </Box>
+                                        )}
+                                    </OverlayScopeContextProvider>
+                                </Box>
+                            </section>
+                        </GlobalKeyDownEvent>
+                    </GlobalKeyDownEventModal>
+                </RootOverlayScopeContextProvider>
             </FocusScope>
         </Box>,
         portalElement,

@@ -10,6 +10,7 @@ ts_project(
     deps = [
         "//:node_modules/prosemirror-model",
         "//:node_modules/prosemirror-transform",
+        "//server/access/test_helpers",
         "//server/documents/data",
         "//server/dynamo/test_helpers",
         "//server/messaging/test_helpers",

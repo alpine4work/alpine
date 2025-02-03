@@ -7,6 +7,7 @@ import {
     TaskClientStoreUndoManager,
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -29,7 +30,7 @@ export function getTaskStatusMenuActions({
 }: {
     context: AppContext;
     timeZone: TimeZone;
-    currentAccount: AccountModel;
+    currentAccount: AccountModel | null;
     store: TaskClientStore;
     undoManager: TaskClientStoreUndoManager | null;
     affinityManager: TaskClientStoreSearchAffinityManager;
@@ -66,7 +67,7 @@ export function getTaskStatusMenuActionsWithoutFullTask({
 }: {
     context: AppContext;
     timeZone: TimeZone;
-    currentAccount: AccountModel;
+    currentAccount: AccountModel | null;
     store: TaskClientStore;
     undoManager: TaskClientStoreUndoManager | null;
     affinityManager: TaskClientStoreSearchAffinityManager;
@@ -86,6 +87,10 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                     ),
                     iconPlacement: "end",
                     onPress: () => {
+                        // Currently, accounts without space access can't edit tasks. The max
+                        // permission level of `urlGrant` is `View`.
+                        assert(currentAccount);
+
                         const time1 = store.clock.now();
                         const time2 = store.clock.now();
                         const currentAssignee = getAssigneeSnapshot();
@@ -145,6 +150,10 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                     ),
                     iconPlacement: "end",
                     onPress: () => {
+                        // Currently, accounts without space access can't edit tasks. The max
+                        // permission level of `urlGrant` is `View`.
+                        assert(currentAccount);
+
                         const time = store.clock.now();
 
                         const runCommitTaskActionTransaction = () => {
@@ -227,6 +236,10 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                     ),
                     iconPlacement: "end",
                     onPress: () => {
+                        // Currently, accounts without space access can't edit tasks. The max
+                        // permission level of `urlGrant` is `View`.
+                        assert(currentAccount);
+
                         const time = store.clock.now();
 
                         const runCommitTaskActionTransaction = () => {
@@ -305,6 +318,10 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                     icon: <TaskDisplayStatusCircle displayStatus="OpenActive" size="3" />,
                     iconPlacement: "end",
                     onPress: () => {
+                        // Currently, accounts without space access can't edit tasks. The max
+                        // permission level of `urlGrant` is `View`.
+                        assert(currentAccount);
+
                         const time1 = store.clock.now();
                         const time2 = store.clock.now();
                         const currentAssignee = getAssigneeSnapshot();

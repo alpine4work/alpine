@@ -1,5 +1,5 @@
 import {setInteractionModality} from "@react-aria/interactions";
-import {CaretRight, ChatCircleDots, IconContext, Lock, Trash} from "phosphor-react";
+import {CaretRight, ChatCircleDots, Lock} from "phosphor-react";
 import {
     Memo,
     ReactNode,
@@ -22,7 +22,6 @@ import {Button} from "~/client/design/button.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {MenuAction} from "~/client/design/menu.js";
-import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {Tooltip} from "~/client/design/tooltip.js";
@@ -33,14 +32,14 @@ import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
-import {PencilSimpleSlashIcon} from "~/client/icons/pencil_simple_slash_icon.js";
+import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {getPlatformRouteLayout, useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {contentStyles, invertSelectionColorsClassName, sprinkles} from "~/client/styles/styles.js";
+import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {
     taskDetailViewDenseFieldGap,
     taskDetailViewFieldLabelFontSize,
@@ -57,8 +56,8 @@ import {
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
 import {
+    TaskAccess,
     computeTaskEntryAccess,
-    createTaskEntryAccessStore,
 } from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskStatusMenuActionsWithoutFullTask} from "~/client/tasks/internal/get_task_status_menu_actions.js";
@@ -92,6 +91,7 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
+import {hasAccessLevel} from "~/shared/access/access_policy.js";
 import {Context} from "~/shared/context/context.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
@@ -108,26 +108,29 @@ import {
     emptyTaskTitleModel,
     taskFallbackTitle,
 } from "~/shared/tasks/model/task_title_model.js";
-import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
-const taskDetailViewReadOnlyReasonStickyBannerHeight = "8";
-
 export function TaskDetailView({
     taskSubscription,
+    taskAccess: access,
     childrenQuery,
     affinityManager,
     initialChildrenGridViewExpansionState,
     notesClient,
+    showComments,
+    onShowCommentsChange,
 }: {
     taskSubscription: TaskClientTaskSubscription;
+    taskAccess: TaskAccess;
     childrenQuery: TaskClientQuery;
     affinityManager: TaskClientStoreSearchAffinityManager;
     initialChildrenGridViewExpansionState: TaskGridViewExpansionState;
     notesClient: TaskDetailNotesContentEditorWebSocketClient;
+    showComments: boolean;
+    onShowCommentsChange: Memo<(showComments: boolean) => void>;
 }) {
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
@@ -150,51 +153,7 @@ export function TaskDetailView({
         ),
     );
 
-    const readOnlyReason = useStore(
-        useMemo(
-            () =>
-                createTaskEntryAccessStore(
-                    currentAccount.id,
-                    taskSubscription,
-                    taskSubscription.taskEntryStore,
-                ).map(access => {
-                    switch (access.type) {
-                        case "Deleted": {
-                            // TODO(calebmer): Add an "undelete" button when we support undo?
-                            return {
-                                icon: <Trash />,
-                                message: "This task was deleted. You can’t make changes",
-                            };
-                        }
-                        case "PermissionDenied": {
-                            // TODO(calebmer): If the user removed their own access by removing a
-                            // collection or changing the assignee, we should hint to them that they're
-                            // allowed to undo and give them an undo button.
-                            return {
-                                icon: <PencilSimpleSlashIcon />,
-                                message: "You’ve lost access to this task. You can’t make changes",
-                            };
-                        }
-                        case "PermissionGranted": {
-                            if (hasTaskCollectionAccessLevel(access.level, "Edit")) return null;
-
-                            // TODO(calebmer): If the user removed their own access by removing a
-                            // collection or changing the assignee, we should hint to them that they're
-                            // allowed to undo and give them an undo button.
-                            return {
-                                icon: <PencilSimpleSlashIcon />,
-                                message: "You’re aren’t allowed to make changes to this task",
-                            };
-                        }
-                        default:
-                            throw exhaustive(access);
-                    }
-                }),
-            [currentAccount.id, taskSubscription],
-        ),
-    );
-
-    const isReadOnly = readOnlyReason !== null;
+    const hasEditAccessLevel = useMemo(() => hasAccessLevel(access.level, "Edit"), [access.level]);
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const childrenGridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
@@ -281,13 +240,13 @@ export function TaskDetailView({
     } = useTaskGridViewVirtualizedList({
         capabilities: useMemo(
             () => ({
-                isReadOnly,
+                isReadOnly: !hasEditAccessLevel,
                 hasParentTaskTitle: false,
                 hasMultilineTitle: true,
                 hasDenseFields: true,
                 hasColumns: false,
             }),
-            [isReadOnly],
+            [hasEditAccessLevel],
         ),
         store,
         query: {
@@ -595,7 +554,7 @@ export function TaskDetailView({
         [pushUndoStackEntry, taskId],
     );
 
-    const contextMenuActions = useMemo(() => {
+    const {menuActions, contextMenuActions} = useMemo(() => {
         const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
 
         contextMenuActions.push([
@@ -609,7 +568,7 @@ export function TaskDetailView({
             },
         ]);
 
-        if (!isReadOnly) {
+        if (hasEditAccessLevel) {
             contextMenuActions.push(
                 getTaskStatusMenuActionsWithoutFullTask({
                     context,
@@ -671,8 +630,32 @@ export function TaskDetailView({
             ]);
         }
 
-        return contextMenuActions;
+        const menuActions = [...contextMenuActions];
+
+        if (hasAccessLevel(access.level, "Comment")) {
+            menuActions.unshift([
+                {
+                    icon: <ChatCircleDots />,
+                    iconPlacement: "end",
+                    label: "Comments",
+                    pressErrorTitle: "Couldn't open comments",
+                    onPress: async () => {
+                        if (routeLayout === "narrow") {
+                            await navigate(`/s/${spaceId}/tasks/${taskId}/comments?from=task`);
+                        } else {
+                            onShowCommentsChange(!showComments);
+                        }
+                    },
+                },
+            ]);
+        }
+
+        return {menuActions, contextMenuActions} as any as {
+            menuActions: Memo<ReadonlyArray<ReadonlyArray<MenuAction>>>;
+            contextMenuActions: Memo<ReadonlyArray<ReadonlyArray<MenuAction>>>;
+        };
     }, [
+        access.level,
         affinityManager,
         context,
         currentAccount,
@@ -680,11 +663,14 @@ export function TaskDetailView({
         dueDateInputState.isVisible,
         focusDueDateInput,
         focusPriorityInput,
+        hasEditAccessLevel,
         isAppleDevice,
-        isReadOnly,
         navigate,
+        onShowCommentsChange,
         priorityInputState.isVisible,
         redoEvent,
+        routeLayout,
+        showComments,
         spaceId,
         store,
         taskEntryStore,
@@ -694,24 +680,12 @@ export function TaskDetailView({
         undoManager,
     ]);
 
-    const openTaskCommentsExtraAction =
-        routeLayout === "narrow"
-            ? {
-                  icon: <ChatCircleDots />,
-                  description: "Open comments",
-                  onPress: async () => {
-                      await navigate(`/s/${spaceId}/tasks/${taskId}/comments?from=task`);
-                  },
-                  pressErrorTitle: "Couldn't open comments",
-              }
-            : undefined;
-
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         title: <TaskDetailViewNavigationBarTitle taskSubscription={taskSubscription} />,
-        titleBoundaryRef: titleInputElementRef,
+        getTitleBoundaryElement: useCallback(() => assertExists(titleInputElementRef.current), []),
         titleBoundaryMarginTop: spacing["4"],
-        menuActions: contextMenuActions,
-        extraIconButton: openTaskCommentsExtraAction,
+        menuActions,
+        contextMenuActions,
         desktopMaxWidth: contentStyles.contentMaxWidth,
         desktopControls: (
             <TaskDetailViewStatusButton
@@ -720,35 +694,29 @@ export function TaskDetailView({
                 taskSubscription={taskSubscription}
                 undoManager={undoManager}
                 affinityManager={affinityManager}
-                isReadOnly={isReadOnly}
+                isReadOnly={!hasEditAccessLevel}
                 contextMenuActions={contextMenuActions}
             />
-        ),
-        // The open/close button with the title looks a little weird?
-        withoutDisappearingTitle: !!readOnlyReason && platform !== "mobile",
-        stickyBanner: readOnlyReason && (
-            <Box
-                className={invertSelectionColorsClassName}
-                height={taskDetailViewReadOnlyReasonStickyBannerHeight}
-                paddingX="2"
-                color="grey-0"
-                backgroundColor="grey-90"
-                display="flex"
-                alignItems="center"
-                gap="1.5"
-            >
-                <IconContext.Provider value={{color: "currentColor", size: spacing["4"]}}>
-                    {readOnlyReason.icon}
-                </IconContext.Provider>
-                <Box userSelect="text">{readOnlyReason.message}</Box>
-            </Box>
         ),
     });
 
     return (
         <>
             {childrenGridViewModals}
-            <GlobalKeyDownEvent onGlobalKeyDown={onChildrenGridViewGlobalKeyDown}>
+            <GlobalKeyDownEvent
+                onGlobalKeyDown={event => {
+                    if (event.key === "Escape") {
+                        if (showComments) {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            onShowCommentsChange(false);
+                        }
+                    } else {
+                        onChildrenGridViewGlobalKeyDown(event);
+                    }
+                }}
+            >
                 <VirtualizedScrollView
                     ref={viewRef}
                     elementRef={scrollViewRef}
@@ -793,7 +761,7 @@ export function TaskDetailView({
                                             undoManager={undoManager}
                                             affinityManager={affinityManager}
                                             showSubtasks={showSubtasks}
-                                            readOnlyReason={readOnlyReason}
+                                            hasEditAccessLevel={hasEditAccessLevel}
                                             focusChildrenGridViewStart={focusChildrenGridViewStart}
                                             pushUndoStackEntry={pushUndoStackEntry}
                                             pushUndoStackEntryFromRedo={pushUndoStackEntryFromRedo}
@@ -824,7 +792,7 @@ export function TaskDetailView({
                             undoManager,
                             affinityManager,
                             showSubtasks,
-                            readOnlyReason,
+                            hasEditAccessLevel,
                             focusChildrenGridViewStart,
                             pushUndoStackEntry,
                             pushUndoStackEntryFromRedo,
@@ -914,7 +882,7 @@ function TaskDetailViewMain(
         undoManager,
         affinityManager,
         showSubtasks,
-        readOnlyReason,
+        hasEditAccessLevel,
         focusChildrenGridViewStart,
         pushUndoStackEntry,
         pushUndoStackEntryFromRedo,
@@ -937,7 +905,7 @@ function TaskDetailViewMain(
         undoManager: TaskClientStoreUndoManager;
         affinityManager: TaskClientStoreSearchAffinityManager;
         showSubtasks: boolean;
-        readOnlyReason: Memo<{icon: ReactNode; message: string}> | null;
+        hasEditAccessLevel: boolean;
         focusChildrenGridViewStart: Memo<() => void>;
         pushUndoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
         pushUndoStackEntryFromRedo: Memo<(entry: TaskUndoStackEntry) => void>;
@@ -962,8 +930,6 @@ function TaskDetailViewMain(
     const platform = usePlatform();
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
-
-    const isReadOnly = readOnlyReason !== null;
 
     const {store, taskId, taskEntryStore} = taskSubscription;
     const {task} = useStore(taskEntryStore);
@@ -1087,12 +1053,6 @@ function TaskDetailViewMain(
     return (
         <>
             <Box height="safe-area-inset-top" />
-            {readOnlyReason && (
-                <>
-                    <Spacer space={taskDetailViewReadOnlyReasonStickyBannerHeight} />
-                    <Spacer space="5" />
-                </>
-            )}
             <Box
                 data-testid="TaskDetailViewMain"
                 overflow="hidden"
@@ -1126,7 +1086,7 @@ function TaskDetailViewMain(
                                         taskSubscription={taskSubscription}
                                         undoManager={undoManager}
                                         affinityManager={affinityManager}
-                                        isReadOnly={isReadOnly}
+                                        isReadOnly={!hasEditAccessLevel}
                                     />
                                 )}
                             </Box>
@@ -1138,7 +1098,7 @@ function TaskDetailViewMain(
                         <TaskDetailTitleInput
                             ref={titleInputRef}
                             elementRef={titleInputElementRef}
-                            isReadOnly={isReadOnly}
+                            isReadOnly={!hasEditAccessLevel}
                             title={task?.getTitle() ?? emptyTaskTitleModel.get()}
                             onTitleChange={onTitleChange}
                             placeholder={taskFallbackTitle}
@@ -1186,10 +1146,14 @@ function TaskDetailViewMain(
                         {({"aria-labelledby": ariaLabelledBy}) => (
                             <TaskAssigneeInput
                                 ref={assigneeInputRef}
-                                isReadOnly={isReadOnly}
+                                isReadOnly={!hasEditAccessLevel}
                                 aria-labelledby={ariaLabelledBy}
                                 assigneeAccountData={assigneeAccountData}
                                 onAssigneeAccountChange={assigneeAccount => {
+                                    // Currently, accounts without space access can't edit tasks. The max
+                                    // permission level of `urlGrant` is `View`.
+                                    assert(currentAccount);
+
                                     const time = store.clock.now();
 
                                     store.commitTaskActionTransaction(
@@ -1229,7 +1193,7 @@ function TaskDetailViewMain(
                                 affinityManager={affinityManager}
                                 task={task}
                                 aria-labelledby={ariaLabelledBy}
-                                isReadOnly={isReadOnly}
+                                isReadOnly={!hasEditAccessLevel}
                                 shouldAlignWithDetailViewInputsIfEmpty={true}
                             />
                         )}
@@ -1269,7 +1233,7 @@ function TaskDetailViewMain(
                                     }}
                                 >
                                     <TaskPriorityInput
-                                        isReadOnly={isReadOnly}
+                                        isReadOnly={!hasEditAccessLevel}
                                         // If a task is closed, suppress the urgent warning.
                                         shouldHighlightUrgent={
                                             task?.getDisplayStatus() !== "Closed"
@@ -1333,7 +1297,7 @@ function TaskDetailViewMain(
                                     }}
                                 >
                                     <TaskDateInput
-                                        isReadOnly={isReadOnly}
+                                        isReadOnly={!hasEditAccessLevel}
                                         date={dueDate}
                                         onDateChange={dueDate => {
                                             store.commitTaskActionTransaction(
@@ -1368,7 +1332,7 @@ function TaskDetailViewMain(
                 <TaskDetailNotesField
                     ref={notesFieldRef}
                     taskId={taskId}
-                    isReadOnly={isReadOnly}
+                    isReadOnly={!hasEditAccessLevel}
                     pushUndoStackEntry={pushUndoStackEntry}
                     pushUndoStackEntryFromRedo={pushUndoStackEntryFromRedo}
                     pushRedoStackEntry={pushRedoStackEntry}
@@ -1518,7 +1482,7 @@ function TaskDetailViewParentBreadcrumbs({
 
                 const parentAccess = computeTaskEntryAccess(
                     get,
-                    currentAccount.id,
+                    currentAccount?.id,
                     taskSubscription,
                     parentTaskEntry,
                 );
@@ -1617,7 +1581,7 @@ function TaskDetailViewParentBreadcrumbs({
                 </Box>
             );
         });
-    }, [currentAccount.id, navigate, task, taskSubscription]);
+    }, [currentAccount?.id, navigate, task, taskSubscription]);
 
     return useStore(nodeStore);
 }

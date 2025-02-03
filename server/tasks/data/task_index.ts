@@ -24,7 +24,6 @@ import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
-import {assembleTaskAndReferences} from "~/server/tasks/data/assemble_task_and_references.js";
 import {createEmptyTaskCollectionIndexDoc} from "~/server/tasks/data/create_empty_task_collection_index_doc.js";
 import {createEmptyTaskIndexDoc} from "~/server/tasks/data/create_empty_task_index_doc.js";
 import {getTaskQueryNormalizedFiltersOpensearchQueryClause} from "~/server/tasks/data/internal/get_task_query_normalized_filters_opensearch_query_clause.js";
@@ -33,6 +32,7 @@ import {
     getTaskQueryNormalizedSortsOpensearchSortClause,
 } from "~/server/tasks/data/internal/get_task_query_normalized_sorts_opensearch_sort_clause.js";
 import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
+import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {
     TaskActionContext,
     TaskSessionActionContext,
@@ -54,12 +54,12 @@ import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {areHybridLogicalTimesEqual} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -282,39 +282,74 @@ export async function getTaskFromIndex(
     context.actor.authorizeSystem();
     await authorizeSpaceAccess(context, spaceId);
 
-    let approximateActionCountByAccountId: TaskApproximateActionCountByAccountId | undefined;
+    const task = await context.opensearch.getDocIfExists(TaskIndex, spaceId, taskId);
+    if (!task) throw new NotFoundError("Task not found");
 
-    const {task, referencedTasks, referencedCollections} = await assembleTaskAndReferences(taskId, {
-        getTaskIndexDoc: async referencedTaskId => {
-            const task = await context.opensearch.getDocIfExists(
-                TaskIndex,
-                spaceId,
-                referencedTaskId,
-            );
-            if (!task) throw new NotFoundError("Task not found");
+    const approximateActionCountByAccountId = task.approximateActionCountByAccountId;
 
-            if (referencedTaskId === taskId) {
-                approximateActionCountByAccountId = task.approximateActionCountByAccountId;
-            }
+    const prepareContext = {
+        actor: context.actor,
+        // We've already authorized our system actor has access to the space.
+        isSpaceAccessAuthorized: true,
+        // System actors have access to all task collections. So we don't need to
+        // evaluate the collection access policy.
+        isCollectionAccessAuthorized: async () => true,
+    };
 
-            return task;
-        },
-        getCollectionIndexDoc: async referencedCollectionId => {
-            const collection = await context.opensearch.getDocIfExists(
-                TaskCollectionIndex,
-                spaceId,
-                referencedCollectionId,
-            );
-            if (!collection) throw new NotFoundError("Task collection not found");
-            return collection;
-        },
-    });
+    const taskModel = await prepareTaskForClient(task, prepareContext);
+
+    const promiseWaiter = new PromiseWaiter();
+    const loadingTaskIds = new Set<TaskId>();
+    const loadingCollectionIds = new Set<TaskCollectionId>();
+
+    const rootTaskId = taskId;
+    const referencedTaskModels: Array<TaskModel> = [];
+    const referencedCollectionModels: Array<TaskCollectionModel> = [];
+
+    const trackTaskDependencies = (task: TaskIndexActualDoc) => {
+        const parentTaskId = task.parent.taskId.value;
+        if (parentTaskId && parentTaskId !== rootTaskId && !loadingTaskIds.has(parentTaskId)) {
+            loadingTaskIds.add(parentTaskId);
+            promiseWaiter.waitUntil(async () => {
+                const parentTask = await context.opensearch.getDocIfExists(
+                    TaskIndex,
+                    spaceId,
+                    parentTaskId,
+                );
+                if (!parentTask) throw new NotFoundError("Task not found");
+
+                trackTaskDependencies(parentTask);
+
+                referencedTaskModels.push(await prepareTaskForClient(parentTask, prepareContext));
+            });
+        }
+
+        for (const {collectionId} of task.collections.raw.collections.getArray()) {
+            if (loadingCollectionIds.has(collectionId)) continue;
+
+            loadingCollectionIds.add(collectionId);
+            promiseWaiter.waitUntil(async () => {
+                const collection = await context.opensearch.getDocIfExists(
+                    TaskCollectionIndex,
+                    spaceId,
+                    collectionId,
+                );
+                if (!collection) throw new NotFoundError("Task collection not found");
+
+                referencedCollectionModels.push(prepareTaskCollectionForClient(collection));
+            });
+        }
+    };
+
+    trackTaskDependencies(task);
+
+    await promiseWaiter.wait();
 
     return {
-        task,
-        referencedTasks,
-        referencedCollections,
-        approximateActionCountByAccountId: assertExists(approximateActionCountByAccountId),
+        task: taskModel,
+        referencedTasks: referencedTaskModels,
+        referencedCollections: referencedCollectionModels,
+        approximateActionCountByAccountId,
     };
 }
 

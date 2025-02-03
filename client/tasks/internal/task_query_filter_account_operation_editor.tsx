@@ -18,6 +18,7 @@ import {TaskCurrentAccountAvatar} from "~/client/tasks/internal/task_current_acc
 import {TaskMissingAccountAvatar} from "~/client/tasks/internal/task_missing_account_avatar.js";
 import {TaskQueryFilterEditorMultiSelectComboBox} from "~/client/tasks/internal/task_query_filter_editor_multi_select_combo_box.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/internal/task_query_filter_operator_editor.js";
+import {TaskQueryReferencesForUrlGrantFilterEditor} from "~/client/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -28,6 +29,7 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
+import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskQueryFilterAccountOperation} from "~/shared/tasks/task_query_filter.js";
 import {
@@ -60,12 +62,14 @@ type TaskQueryFilterAccountOperationEditorMultiSelectComboBoxItem =
       };
 
 export function TaskQueryFilterAccountOperationEditor({
+    queryReferencesForUrlGrant,
     inputLabel,
     shouldHideMissingAccountItem = false,
     filterReferences,
     operation,
     onOperationChange,
 }: {
+    queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
     inputLabel: string;
     shouldHideMissingAccountItem?: boolean;
     filterReferences: TaskQueryFilterReferences;
@@ -107,10 +111,10 @@ export function TaskQueryFilterAccountOperationEditor({
 
         const normalizedAccountIds = new Set(accountIds);
         normalizedAccountIds.delete("CurrentAccount");
-        normalizedAccountIds.add(currentAccount.id);
+        if (currentAccount) normalizedAccountIds.add(currentAccount.id);
 
         return normalizedAccountIds as ReadonlySet<AccountId | "MissingAccount">;
-    }, [accountIds, currentAccount.id]);
+    }, [accountIds, currentAccount]);
 
     const oneOfOperatorLabel = normalizedAccountIds.size > 1 ? "is one of" : "is";
     const noneOfOperatorLabel = normalizedAccountIds.size > 1 ? "is not one of" : "is not";
@@ -203,6 +207,7 @@ export function TaskQueryFilterAccountOperationEditor({
                     // eslint-disable-next-line react-compiler/react-compiler
                     // eslint-disable-next-line react-hooks/rules-of-hooks
                     useTaskQueryFilterAccountOperationEditorSearchedItems({
+                        queryReferencesForUrlGrant,
                         searchInputValue,
                         shouldHideMissingAccountItem,
                         accountIds,
@@ -230,7 +235,7 @@ function TaskQueryFilterAccountOperationEditorPreview({
             }
 
             const getAccountIfExists = (accountId: AccountId) =>
-                accountId === currentAccount.id
+                accountId === currentAccount?.id
                     ? currentAccount
                     : filterReferences.accountById.get(accountId);
 
@@ -247,7 +252,7 @@ function TaskQueryFilterAccountOperationEditorPreview({
                 <>
                     <AccountAvatar size="3" account={account} />{" "}
                     <Box paddingLeft="1">
-                        {account.id === currentAccount.id
+                        {account.id === currentAccount?.id
                             ? "me"
                             : getAccountShortNameWithoutFullNameTooltip(
                                   get(accountStore.getAccountStore(account)),
@@ -323,10 +328,12 @@ function TaskQueryFilterAccountOperationEditorPreview({
 }
 
 function useTaskQueryFilterAccountOperationEditorSearchedItems({
+    queryReferencesForUrlGrant,
     searchInputValue,
     shouldHideMissingAccountItem,
     accountIds,
 }: {
+    queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
     searchInputValue: string;
     shouldHideMissingAccountItem: boolean;
     accountIds: ReadonlySet<AccountId | "CurrentAccount" | "MissingAccount">;
@@ -334,31 +341,51 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
     const platform = usePlatform();
     const {currentAccount} = useSpaceContext();
     const accountStore = useAccountClientStore();
-    const allUnsortedAccounts = useExpensivelyLoadAllSpaceAccounts();
-    const isLoading = !allUnsortedAccounts;
+
+    // If `currentAccount` is non-null then `queryReferencesForUrlGrant` should be
+    // null. Since the list of accounts we show the user should be loaded from the
+    // server. Not from query references.
+    if (currentAccount !== null) {
+        assert(queryReferencesForUrlGrant === null);
+    }
+
+    const allAccounts = useExpensivelyLoadAllSpaceAccounts({isDisabled: !currentAccount});
+    const isLoading = currentAccount && !allAccounts;
 
     const [initialAccountIds] = useState(accountIds);
 
     const allItemsStore = useMemo(() => {
-        return Store.mapMany(
-            (allUnsortedAccounts ?? []).map(account => accountStore.getAccountStore(account)),
-            allUnsortedAccountDatas => {
-                const allItems: Array<TaskQueryFilterAccountOperationEditorMultiSelectComboBoxItem> =
-                    allUnsortedAccountDatas.map(accountData => ({
-                        type: "Account",
-                        key: accountData.id,
-                        textValue: accountData.name,
-                        accountData,
-                        node: (
-                            <>
-                                <AccountAvatar size="5" account={accountData} />
-                                <Box flexGrow="1" paddingY="0.5" fontStyle="truncate">
-                                    {accountData.name}
-                                </Box>
-                            </>
-                        ),
-                    }));
+        let accountDatasStore: Store<ReadonlyArray<AccountModelData>>;
+        if (!queryReferencesForUrlGrant) {
+            accountDatasStore = Store.many(
+                (allAccounts ?? []).map(account => accountStore.getAccountStore(account)),
+            );
+        } else {
+            accountDatasStore = new ConstStore(
+                Array.from(queryReferencesForUrlGrant.accountById.values()).sort(
+                    (account1, account2) => defaultCompareStrings(account1.name, account2.name),
+                ),
+            );
+        }
 
+        return accountDatasStore.map(accountDatas => {
+            const allItems: Array<TaskQueryFilterAccountOperationEditorMultiSelectComboBoxItem> =
+                accountDatas.map(accountData => ({
+                    type: "Account",
+                    key: accountData.id,
+                    textValue: accountData.name,
+                    accountData,
+                    node: (
+                        <>
+                            <AccountAvatar size="5" account={accountData} />
+                            <Box flexGrow="1" paddingY="0.5" fontStyle="truncate">
+                                {accountData.name}
+                            </Box>
+                        </>
+                    ),
+                }));
+
+            if (currentAccount) {
                 allItems.push({
                     type: "CurrentAccount",
                     key: "CurrentAccount",
@@ -380,71 +407,63 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
                         </>
                     ),
                 });
+            }
 
-                if (!shouldHideMissingAccountItem || initialAccountIds.has("MissingAccount")) {
-                    allItems.push({
-                        type: "MissingAccount",
-                        key: "MissingAccount",
-                        textValue: "Nobody",
-                        node: (
-                            <>
-                                <TaskMissingAccountAvatar />
-                                <Box
-                                    flexGrow="1"
-                                    paddingY="0.5"
-                                    fontStyle="truncate"
-                                    color="grey-60"
-                                >
-                                    Nobody
-                                </Box>
-                            </>
-                        ),
-                    });
+            if (!shouldHideMissingAccountItem || initialAccountIds.has("MissingAccount")) {
+                allItems.push({
+                    type: "MissingAccount",
+                    key: "MissingAccount",
+                    textValue: "Nobody",
+                    node: (
+                        <>
+                            <TaskMissingAccountAvatar />
+                            <Box flexGrow="1" paddingY="0.5" fontStyle="truncate" color="grey-60">
+                                Nobody
+                            </Box>
+                        </>
+                    ),
+                });
+            }
+
+            allItems.sort((item1, item2) => {
+                if (item1.key === "MissingAccount") return -1;
+                if (item2.key === "MissingAccount") return 1;
+
+                if (item1.key === "CurrentAccount") return -1;
+                if (item2.key === "CurrentAccount") return 1;
+
+                if (item1.key === currentAccount?.id) return -1;
+                if (item2.key === currentAccount?.id) return 1;
+
+                // Sort the selected accounts when the listbox was opened first in our
+                // items list.
+                const isInitialAccount1 = initialAccountIds.has(item1.key);
+                const isInitialAccount2 = initialAccountIds.has(item2.key);
+
+                if (isInitialAccount1 && !isInitialAccount2) return -1;
+                if (isInitialAccount2 && !isInitialAccount1) return 1;
+
+                if (isInitialAccount1 && isInitialAccount2) {
+                    return (
+                        iterableFindIndex(initialAccountIds, accountId => accountId === item1.key) -
+                        iterableFindIndex(initialAccountIds, accountId => accountId === item2.key)
+                    );
                 }
 
-                allItems.sort((item1, item2) => {
-                    if (item1.key === "MissingAccount") return -1;
-                    if (item2.key === "MissingAccount") return 1;
+                // Use the sort order from the server. The server returns accounts in
+                // affinity order.
+                return 0;
+            });
 
-                    if (item1.key === "CurrentAccount") return -1;
-                    if (item2.key === "CurrentAccount") return 1;
-
-                    if (item1.key === currentAccount.id) return -1;
-                    if (item2.key === currentAccount.id) return 1;
-
-                    // Sort the selected accounts when the listbox was opened first in our
-                    // items list.
-                    const isInitialAccount1 = initialAccountIds.has(item1.key);
-                    const isInitialAccount2 = initialAccountIds.has(item2.key);
-
-                    if (isInitialAccount1 && !isInitialAccount2) return -1;
-                    if (isInitialAccount2 && !isInitialAccount1) return 1;
-
-                    if (isInitialAccount1 && isInitialAccount2) {
-                        return (
-                            iterableFindIndex(
-                                initialAccountIds,
-                                accountId => accountId === item1.key,
-                            ) -
-                            iterableFindIndex(
-                                initialAccountIds,
-                                accountId => accountId === item2.key,
-                            )
-                        );
-                    }
-
-                    return defaultCompareStrings(item1.textValue, item2.textValue);
-                });
-
-                return allItems;
-            },
-        );
+            return allItems;
+        });
     }, [
         accountStore,
-        allUnsortedAccounts,
-        currentAccount.id,
+        allAccounts,
+        currentAccount,
         initialAccountIds,
         platform,
+        queryReferencesForUrlGrant,
         shouldHideMissingAccountItem,
     ]);
 

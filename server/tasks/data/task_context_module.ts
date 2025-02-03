@@ -5,12 +5,6 @@ import {
 import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {indexTaskActionTransactionAssumingItsCommitted} from "~/server/tasks/data/task_index.js";
 import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
-import {
-    TaskRealtimeApplyActionTransactionInputSchema,
-    TaskRealtimeGetTaskWithoutDependenciesOutputSchema,
-    TaskRealtimeLoadQueriesInputSchema,
-    TaskRealtimeLoadQueriesOutputSchema,
-} from "~/server/tasks/router/task_realtime_service_procedure_schemas.js";
 import {TaskRealtimeServiceRouterBase} from "~/server/tasks/router/task_realtime_service_router_base.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -34,6 +28,12 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
 import {TaskAction, getTaskActionLabel} from "~/shared/tasks/actions/task_action.js";
+import {
+    TaskRealtimeApplyActionTransactionInputSchema,
+    TaskRealtimeGetTaskWithoutDependenciesOutputSchema,
+    TaskRealtimeLoadQueriesInputSchema,
+    TaskRealtimeLoadQueriesOutputSchema,
+} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 export abstract class TaskContextModuleBase extends ContextModuleBase<{
@@ -279,22 +279,26 @@ export class TaskContextModule extends TaskContextModuleBase {
             ContextModuleBase<{
                 process: ProcessContextModule;
                 tracer: TracerContextModule;
-                actor: DynamoSessionActorContextModule;
+                actor: DynamoActorContextModule;
             }>,
         spaceId: SpaceId,
         input: SchemaType<typeof TaskRealtimeLoadQueriesInputSchema>,
     ): Promise<SchemaType<typeof TaskRealtimeLoadQueriesOutputSchema>> {
         const [host, token] = await runAllPromises([
-            this.router.getStickySessionHost(
-                this._context,
-                spaceId,
-                this._context.actor.getSessionId(),
+            this._context.actor.type === "Session"
+                ? this.router.getStickySessionHost(
+                      this._context,
+                      spaceId,
+                      this._context.actor.getSessionId(),
+                  )
+                : // TODO(calebmer): Probably better to send anonymous actors to a sticky host as
+                  // well based on `BrowserId`. Maybe we should always use `BrowserId` actually
+                  // to simplify code.
+                  this.router.getRandomHost(this._context, spaceId),
+            this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
+                "TaskRealtimeService",
+                this._context.actor.getTokenPayload(),
             ),
-            this._tokenAgent.privateSide.dangerouslySignShortLivedToken("TaskRealtimeService", {
-                type: "Session",
-                sessionId: this._context.actor.getSessionId(),
-                accountId: this._context.actor.getAccountId(),
-            }),
         ]);
 
         return fetchWithTracer(

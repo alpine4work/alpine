@@ -91,7 +91,8 @@ export function visitProsemirrorSlice(slice: Slice, visitor: ProsemirrorVisitor)
 export function visitProsemirrorStep(rootStep: Step, visitor: ProsemirrorVisitor) {
     const step = rootStep as ExhaustiveStep;
     switch (step.jsonID) {
-        case "attr": {
+        case "attr":
+        case "docAttr": {
             visitor.visitAttr?.(step.attr, step.value);
             break;
         }

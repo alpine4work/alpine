@@ -34,6 +34,7 @@ import {
     getTaskCommentPayload,
     getTaskNotesContentWithoutReferences,
 } from "~/server/tasks/data/task_table.js";
+import {AccessLevel, AccessPolicy, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
@@ -74,11 +75,6 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
-import {
-    TaskCollectionAccessLevel,
-    TaskCollectionAccessPolicy,
-    hasTaskCollectionAccessLevel,
-} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 
 const searchEntityMajorContributorCutOff = 0.2;
@@ -146,7 +142,7 @@ interface TaskModelForAuthorization {
  */
 interface TaskCollectionModelForAuthorization {
     isDeleted(): boolean;
-    getAccessPolicy(): TaskCollectionAccessPolicy;
+    getAccessPolicy(): AccessPolicy;
 }
 
 /**
@@ -521,6 +517,23 @@ class SearchEntityReadState {
     }
 }
 
+function getSearchEntityIndexAccessPolicy(
+    accessPolicy: AccessPolicy,
+): SearchEntityIndexAccessPolicy {
+    const defaultGrantType: SearchEntityIndexDefaultGrantType | null =
+        accessPolicy.defaultGrant !== null ? "Space" : null;
+    let accountGrantAccountIds = new Set(accessPolicy.accountGrantById.keys());
+
+    // If we have a space default grant then the individual account grants don't
+    // matter for the search entity. Lets exclude them to save space in the index.
+    if (defaultGrantType !== null) {
+        cast<"Space">(defaultGrantType);
+        accountGrantAccountIds = new Set();
+    }
+
+    return {accountGrantAccountIds, defaultGrantType};
+}
+
 /**
  * Gets a `SearchEntity` object for any searchable thing in our system. This
  * function guarantees read-after-write consistency. If you've waited for a
@@ -643,15 +656,7 @@ async function getDocumentSearchEntity(
 
     return {
         id: `Document:${documentId}`,
-
-        // TODO(calebmer): Documents are currently accessible to everyone in a space.
-        // When we add access controls we need to update this with proper access policy
-        // information.
-        accessPolicy: {
-            accountGrantAccountIds: new Set(),
-            defaultGrantType: "Space",
-        },
-
+        accessPolicy: getSearchEntityIndexAccessPolicy(content.attrs.accessPolicy),
         createdTime,
         title,
         body: getFullText(),
@@ -1059,18 +1064,18 @@ function getTaskSearchEntityAccessPolicy({
     task: TaskModelForAuthorization;
     referencedTaskById: ReadonlyMap<TaskId, TaskModelForAuthorization>;
     referencedCollectionById: ReadonlyMap<TaskCollectionId, TaskCollectionModelForAuthorization>;
-    expectedAccessLevel: TaskCollectionAccessLevel;
+    expectedAccessLevel: AccessLevel;
 }): SearchEntityIndexAccessPolicy {
     let defaultGrantType: SearchEntityIndexDefaultGrantType | null = null;
     let accountGrantAccountIds = new Set<AccountId>();
 
     const trackTaskDependencies = (task: TaskModelForAuthorization) => {
-        if (hasTaskCollectionAccessLevel("Edit", expectedAccessLevel)) {
+        if (hasAccessLevel("Edit", expectedAccessLevel)) {
             accountGrantAccountIds.add(task.getCreator().accountId);
         }
 
         const assignee = task.getAssignee();
-        if (assignee && hasTaskCollectionAccessLevel("Edit", expectedAccessLevel)) {
+        if (assignee && hasAccessLevel("Edit", expectedAccessLevel)) {
             accountGrantAccountIds.add(assignee.assignee.accountId);
         }
 
@@ -1085,20 +1090,17 @@ function getTaskSearchEntityAccessPolicy({
 
             if (
                 accessPolicy.defaultGrant !== null &&
-                hasTaskCollectionAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
+                hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
             ) {
                 if (defaultGrantType === null) {
-                    defaultGrantType = accessPolicy.defaultGrant.type;
+                    defaultGrantType = "Space";
                 } else {
-                    // If we add new default grant types in the future, we'll need to merge the
-                    // default grants to the one which gives the most access.
-                    cast<"Space">(defaultGrantType);
-                    cast<"Space">(accessPolicy.defaultGrant.type);
+                    assert(defaultGrantType === "Space");
                 }
             }
 
             for (const [accountId, grant] of accessPolicy.accountGrantById) {
-                if (hasTaskCollectionAccessLevel(grant.level, expectedAccessLevel)) {
+                if (hasAccessLevel(grant.level, expectedAccessLevel)) {
                     accountGrantAccountIds.add(accountId);
                 }
             }
@@ -1297,17 +1299,6 @@ async function getTaskCollectionSearchEntity(
     const collection = await state.getTaskCollection(collectionId);
     const accessPolicy = collection.getAccessPolicy();
 
-    const defaultGrantType: SearchEntityIndexDefaultGrantType | null =
-        accessPolicy.defaultGrant?.type ?? null;
-    let accountGrantAccountIds = new Set(accessPolicy.accountGrantById.keys());
-
-    // If we have a space default grant then the individual account grants don't
-    // matter for the search entity. Lets exclude them to save space in the index.
-    if (defaultGrantType !== null) {
-        cast<"Space">(defaultGrantType);
-        accountGrantAccountIds = new Set();
-    }
-
     // Index no content for deleted collections.
     if (collection.isDeleted()) {
         return {
@@ -1325,7 +1316,7 @@ async function getTaskCollectionSearchEntity(
 
     return {
         id: `TaskCollection:${collectionId}`,
-        accessPolicy: {accountGrantAccountIds, defaultGrantType},
+        accessPolicy: getSearchEntityIndexAccessPolicy(accessPolicy),
         createdTime: new Date(collection.getCreatedTime()[0]),
         title: collection.getName(),
         body: null,

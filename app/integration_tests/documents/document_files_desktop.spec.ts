@@ -58,7 +58,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(page.getByTestId(/^ContentEditorFileDropTargetIndicator:[^:]+:/)).toBeHidden();
 
-    await page.getByLabel("Document").dispatchEvent("dragenter", {
+    await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragenter", {
         clientX: 738,
         clientY: 407,
         dataTransfer: file1DataTransfer,
@@ -72,7 +72,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 738,
             clientY: 257,
             dataTransfer: file1DataTransfer,
@@ -88,7 +88,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 738,
             clientY: 164,
             dataTransfer: file1DataTransfer,
@@ -104,7 +104,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 738,
             clientY: 577,
             dataTransfer: file1DataTransfer,
@@ -119,11 +119,11 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
         page.getByTestId(/^ContentEditorFileDropTargetIndicator:[^:]+:(?!1839$)/),
     ).toBeHidden();
 
-    await page.getByLabel("Document").dispatchEvent("dragleave");
+    await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragleave");
 
     await expect(page.getByTestId(/^ContentEditorFileDropTargetIndicator:[^:]+:/)).toBeHidden();
 
-    await page.getByLabel("Document").dispatchEvent("dragenter", {
+    await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragenter", {
         clientX: 738,
         clientY: 257,
         dataTransfer: file1DataTransfer,
@@ -136,15 +136,27 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
         page.getByTestId(/^ContentEditorFileDropTargetIndicator:[^:]+:(?!519$)/),
     ).toBeHidden();
 
-    await expect(page.getByLabel("Document").locator("> *").nth(0)).toHaveRole("heading");
-    await expect(page.getByLabel("Document").locator("> *").nth(1)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(2)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(3)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(4)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(5)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(6)).toBeHidden();
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(0)).toHaveRole(
+        "heading",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(1)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(2)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(3)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(4)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(5)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(6)).toBeHidden();
 
-    await page.getByLabel("Document").dispatchEvent("drop", {
+    await page.getByRole("textbox", {name: "Document"}).dispatchEvent("drop", {
         clientX: 738,
         clientY: 407,
         dataTransfer: file1DataTransfer,
@@ -152,21 +164,35 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(page.getByTestId(/^ContentEditorFileDropTargetIndicator:[^:]+:/)).toBeHidden();
 
-    await expect(page.getByLabel("Document").locator("> *").nth(0)).toHaveRole("heading");
-    await expect(page.getByLabel("Document").locator("> *").nth(1)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(2)).not.toHaveRole("paragraph");
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(0)).toHaveRole(
+        "heading",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(1)).toHaveRole(
+        "paragraph",
+    );
+    await expect(
+        page.getByRole("textbox", {name: "Document"}).locator("> *").nth(2),
+    ).not.toHaveRole("paragraph");
     await expect(
         page
-            .getByLabel("Document")
+            .getByRole("textbox", {name: "Document"})
             .locator("> *")
             .nth(2)
             .getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeVisible();
-    await expect(page.getByLabel("Document").locator("> *").nth(3)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(4)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(5)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(6)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(7)).toBeHidden();
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(3)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(4)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(5)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(6)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(7)).toBeHidden();
 
     const file2Contents = await sharp(
         joinPath(
@@ -194,7 +220,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(page.getByTestId(/^ContentEditorFileDropTargetIndicator:[^:]+:/)).toBeHidden();
 
-    await page.getByLabel("Document").dispatchEvent("dragenter", {
+    await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragenter", {
         clientX: 738,
         clientY: 257,
         dataTransfer: file2DataTransfer,
@@ -208,7 +234,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 855,
             clientY: 641,
             dataTransfer: file2DataTransfer,
@@ -224,7 +250,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 504,
             clientY: 343,
             dataTransfer: file2DataTransfer,
@@ -240,7 +266,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 607,
             clientY: 169,
             dataTransfer: file2DataTransfer,
@@ -256,7 +282,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 399,
             clientY: 602,
             dataTransfer: file2DataTransfer,
@@ -272,7 +298,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 955,
             clientY: 602,
             dataTransfer: file2DataTransfer,
@@ -288,7 +314,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 175,
             clientY: 602,
             dataTransfer: file2DataTransfer,
@@ -304,7 +330,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 1068,
             clientY: 602,
             dataTransfer: file2DataTransfer,
@@ -319,22 +345,34 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
         page.getByTestId(/^ContentEditorFileDropTargetIndicator:[^:]+:(?!521$)/),
     ).toBeHidden();
 
-    await expect(page.getByLabel("Document").locator("> *").nth(0)).toHaveRole("heading");
-    await expect(page.getByLabel("Document").locator("> *").nth(1)).toHaveRole("paragraph");
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(0)).toHaveRole(
+        "heading",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(1)).toHaveRole(
+        "paragraph",
+    );
     await expect(
         page
-            .getByLabel("Document")
+            .getByRole("textbox", {name: "Document"})
             .locator("> *")
             .nth(2)
             .getByTestId(/^ContentFilePreview:/),
     ).toHaveAttribute("data-testid", "ContentFilePreview:image/jpeg");
-    await expect(page.getByLabel("Document").locator("> *").nth(3)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(4)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(5)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(6)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(7)).toBeHidden();
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(3)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(4)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(5)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(6)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(7)).toBeHidden();
 
-    await page.getByLabel("Document").dispatchEvent("drop", {
+    await page.getByRole("textbox", {name: "Document"}).dispatchEvent("drop", {
         clientX: 1068,
         clientY: 602,
         dataTransfer: file2DataTransfer,
@@ -342,11 +380,15 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(page.getByTestId(/^ContentEditorFileDropTargetIndicator:[^:]+:/)).toBeHidden();
 
-    await expect(page.getByLabel("Document").locator("> *").nth(0)).toHaveRole("heading");
-    await expect(page.getByLabel("Document").locator("> *").nth(1)).toHaveRole("paragraph");
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(0)).toHaveRole(
+        "heading",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(1)).toHaveRole(
+        "paragraph",
+    );
     await expect(
         page
-            .getByLabel("Document")
+            .getByRole("textbox", {name: "Document"})
             .locator("> *")
             .nth(2)
             .getByTestId(/^ContentFilePreview:/)
@@ -354,7 +396,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toHaveAttribute("data-testid", "ContentFilePreview:image/jpeg");
     await expect(
         page
-            .getByLabel("Document")
+            .getByRole("textbox", {name: "Document"})
             .locator("> *")
             .nth(2)
             .getByTestId(/^ContentFilePreview:/)
@@ -362,16 +404,24 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toHaveAttribute("data-testid", "ContentFilePreview:image/avif");
     await expect(
         page
-            .getByLabel("Document")
+            .getByRole("textbox", {name: "Document"})
             .locator("> *")
             .nth(2)
             .getByTestId(/^ContentFilePreview:/),
     ).toHaveCount(2);
-    await expect(page.getByLabel("Document").locator("> *").nth(3)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(4)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(5)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(6)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(7)).toBeHidden();
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(3)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(4)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(5)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(6)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(7)).toBeHidden();
 
     const file3Contents = await sharp(
         joinPath(
@@ -397,7 +447,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(page.getByTestId(/^ContentEditorFileDropTargetIndicator:[^:]+:/)).toBeHidden();
 
-    await page.getByLabel("Document").dispatchEvent("dragenter", {
+    await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragenter", {
         clientX: 742,
         clientY: 335,
         dataTransfer: file3DataTransfer,
@@ -411,7 +461,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 742,
             clientY: 416,
             dataTransfer: file3DataTransfer,
@@ -427,7 +477,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 500,
             clientY: 322,
             dataTransfer: file3DataTransfer,
@@ -443,7 +493,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 607,
             clientY: 169,
             dataTransfer: file3DataTransfer,
@@ -459,7 +509,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 436,
             clientY: 353,
             dataTransfer: file3DataTransfer,
@@ -475,7 +525,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 916,
             clientY: 396,
             dataTransfer: file3DataTransfer,
@@ -491,7 +541,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 239,
             clientY: 396,
             dataTransfer: file3DataTransfer,
@@ -507,7 +557,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 1095,
             clientY: 396,
             dataTransfer: file3DataTransfer,
@@ -523,7 +573,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 622,
             clientY: 396,
             dataTransfer: file3DataTransfer,
@@ -538,11 +588,15 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
         page.getByTestId(/^ContentEditorFileDropTargetIndicator:[^:]+:(?!521$)/),
     ).toBeHidden();
 
-    await expect(page.getByLabel("Document").locator("> *").nth(0)).toHaveRole("heading");
-    await expect(page.getByLabel("Document").locator("> *").nth(1)).toHaveRole("paragraph");
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(0)).toHaveRole(
+        "heading",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(1)).toHaveRole(
+        "paragraph",
+    );
     await expect(
         page
-            .getByLabel("Document")
+            .getByRole("textbox", {name: "Document"})
             .locator("> *")
             .nth(2)
             .getByTestId(/^ContentFilePreview:/)
@@ -550,7 +604,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toHaveAttribute("data-testid", "ContentFilePreview:image/jpeg");
     await expect(
         page
-            .getByLabel("Document")
+            .getByRole("textbox", {name: "Document"})
             .locator("> *")
             .nth(2)
             .getByTestId(/^ContentFilePreview:/)
@@ -558,18 +612,26 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toHaveAttribute("data-testid", "ContentFilePreview:image/avif");
     await expect(
         page
-            .getByLabel("Document")
+            .getByRole("textbox", {name: "Document"})
             .locator("> *")
             .nth(2)
             .getByTestId(/^ContentFilePreview:/),
     ).toHaveCount(2);
-    await expect(page.getByLabel("Document").locator("> *").nth(3)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(4)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(5)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(6)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(7)).toBeHidden();
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(3)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(4)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(5)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(6)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(7)).toBeHidden();
 
-    await page.getByLabel("Document").dispatchEvent("drop", {
+    await page.getByRole("textbox", {name: "Document"}).dispatchEvent("drop", {
         clientX: 1068,
         clientY: 602,
         dataTransfer: file3DataTransfer,
@@ -577,11 +639,15 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(page.getByTestId(/^ContentEditorFileDropTargetIndicator:[^:]+:/)).toBeHidden();
 
-    await expect(page.getByLabel("Document").locator("> *").nth(0)).toHaveRole("heading");
-    await expect(page.getByLabel("Document").locator("> *").nth(1)).toHaveRole("paragraph");
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(0)).toHaveRole(
+        "heading",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(1)).toHaveRole(
+        "paragraph",
+    );
     await expect(
         page
-            .getByLabel("Document")
+            .getByRole("textbox", {name: "Document"})
             .locator("> *")
             .nth(2)
             .getByTestId(/^ContentFilePreview:/)
@@ -589,7 +655,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toHaveAttribute("data-testid", "ContentFilePreview:image/jpeg");
     await expect(
         page
-            .getByLabel("Document")
+            .getByRole("textbox", {name: "Document"})
             .locator("> *")
             .nth(2)
             .getByTestId(/^ContentFilePreview:/)
@@ -597,7 +663,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toHaveAttribute("data-testid", "ContentFilePreview:image/png");
     await expect(
         page
-            .getByLabel("Document")
+            .getByRole("textbox", {name: "Document"})
             .locator("> *")
             .nth(2)
             .getByTestId(/^ContentFilePreview:/)
@@ -605,20 +671,28 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toHaveAttribute("data-testid", "ContentFilePreview:image/avif");
     await expect(
         page
-            .getByLabel("Document")
+            .getByRole("textbox", {name: "Document"})
             .locator("> *")
             .nth(2)
             .getByTestId(/^ContentFilePreview:/),
     ).toHaveCount(3);
-    await expect(page.getByLabel("Document").locator("> *").nth(3)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(4)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(5)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(6)).toHaveRole("paragraph");
-    await expect(page.getByLabel("Document").locator("> *").nth(7)).toBeHidden();
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(3)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(4)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(5)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(6)).toHaveRole(
+        "paragraph",
+    );
+    await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(7)).toBeHidden();
 
     await expect(page.getByTestId(/^ContentEditorFileDropTargetIndicator:[^:]+:/)).toBeHidden();
 
-    await page.getByLabel("Document").dispatchEvent("dragenter", {
+    await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragenter", {
         clientX: 644,
         clientY: 399,
         dataTransfer: file1DataTransfer,
@@ -632,7 +706,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 644,
             clientY: 326,
             dataTransfer: file1DataTransfer,
@@ -648,7 +722,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 1030,
             clientY: 418,
             dataTransfer: file1DataTransfer,
@@ -664,7 +738,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 607,
             clientY: 169,
             dataTransfer: file1DataTransfer,
@@ -680,7 +754,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 330,
             clientY: 321,
             dataTransfer: file1DataTransfer,
@@ -696,7 +770,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 737,
             clientY: 415,
             dataTransfer: file1DataTransfer,
@@ -712,7 +786,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     ).toBeHidden();
 
     await expect(async () => {
-        await page.getByLabel("Document").dispatchEvent("dragover", {
+        await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 554,
             clientY: 340,
             dataTransfer: file1DataTransfer,
@@ -727,7 +801,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
         page.getByTestId(/^ContentEditorFileDropTargetIndicator:[^:]+:(?!519$)/),
     ).toBeHidden();
 
-    await page.getByLabel("Document").dispatchEvent("dragleave");
+    await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragleave");
 
     await expect(page.getByTestId(/^ContentEditorFileDropTargetIndicator:[^:]+:/)).toBeHidden();
 });
@@ -856,7 +930,9 @@ test("can copy/paste a file within the same space", async ({
     const [session1, session2] = await space.createSessions(2);
 
     const document1 = await TestDocument.create(session1);
+    await document1.access.grantDefault(session1);
     const document2 = await TestDocument.create(session2);
+    await document2.access.grantDefault(session2);
 
     await browserContext1.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext1, session1);
@@ -895,7 +971,7 @@ test("can copy/paste a file within the same space", async ({
     await expect(page1.getByTestId(/^ContentEditorFileDropTargetIndicator:/)).toBeHidden();
     await expect(page1.getByTestId("ContentFilePreview:image/jpeg")).toBeHidden();
 
-    await page1.getByLabel("Document").dispatchEvent("dragenter", {
+    await page1.getByRole("textbox", {name: "Document"}).dispatchEvent("dragenter", {
         clientX: 640,
         clientY: 360,
         dataTransfer: file1DataTransfer,
@@ -904,7 +980,7 @@ test("can copy/paste a file within the same space", async ({
     await expect(page1.getByTestId(/^ContentEditorFileDropTargetIndicator:/)).toBeVisible();
     await expect(page1.getByTestId("ContentFilePreview:image/jpeg")).toBeHidden();
 
-    await page1.getByLabel("Document").dispatchEvent("drop", {
+    await page1.getByRole("textbox", {name: "Document"}).dispatchEvent("drop", {
         clientX: 640,
         clientY: 360,
         dataTransfer: file1DataTransfer,
@@ -934,8 +1010,8 @@ test("can copy/paste a file within the same space", async ({
         ]);
     }, clipboardHtml);
 
-    await page2.getByLabel("Document").focus();
-    await page2.getByLabel("Document").press(`${modifier}+v`);
+    await page2.getByRole("textbox", {name: "Document"}).focus();
+    await page2.getByRole("textbox", {name: "Document"}).press(`${modifier}+v`);
 
     await expect(page2.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
 
@@ -953,7 +1029,9 @@ test("can copy/paste a file across spaces", async ({
     const session2 = await space2.createSession();
 
     const document1 = await TestDocument.create(session1);
+    await document1.access.grantDefault(session1);
     const document2 = await TestDocument.create(session2);
+    await document2.access.grantDefault(session2);
 
     await browserContext1.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext1, session1);
@@ -992,7 +1070,7 @@ test("can copy/paste a file across spaces", async ({
     await expect(page1.getByTestId(/^ContentEditorFileDropTargetIndicator:/)).toBeHidden();
     await expect(page1.getByTestId("ContentFilePreview:image/jpeg")).toBeHidden();
 
-    await page1.getByLabel("Document").dispatchEvent("dragenter", {
+    await page1.getByRole("textbox", {name: "Document"}).dispatchEvent("dragenter", {
         clientX: 640,
         clientY: 360,
         dataTransfer: file1DataTransfer,
@@ -1001,7 +1079,7 @@ test("can copy/paste a file across spaces", async ({
     await expect(page1.getByTestId(/^ContentEditorFileDropTargetIndicator:/)).toBeVisible();
     await expect(page1.getByTestId("ContentFilePreview:image/jpeg")).toBeHidden();
 
-    await page1.getByLabel("Document").dispatchEvent("drop", {
+    await page1.getByRole("textbox", {name: "Document"}).dispatchEvent("drop", {
         clientX: 640,
         clientY: 360,
         dataTransfer: file1DataTransfer,
@@ -1031,8 +1109,8 @@ test("can copy/paste a file across spaces", async ({
         ]);
     }, clipboardHtml);
 
-    await page2.getByLabel("Document").focus();
-    await page2.getByLabel("Document").press(`${modifier}+v`);
+    await page2.getByRole("textbox", {name: "Document"}).focus();
+    await page2.getByRole("textbox", {name: "Document"}).press(`${modifier}+v`);
 
     await expect(page2.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
 

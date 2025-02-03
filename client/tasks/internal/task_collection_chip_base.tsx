@@ -21,7 +21,6 @@ export {TaskCollectionChipBaseForwardRef as TaskCollectionChipBase};
 const chipClassNameBase = sprinkles({
     fontSize: "75",
     paddingY: taskCollectionChipPaddingY,
-    paddingRight: "1.5",
     borderRadius: taskCollectionChipBorderRadius,
     display: "inline-flex",
     alignItems: "center",
@@ -36,14 +35,24 @@ const chipClassNameBase = sprinkles({
 
 const chipClassName = `${chipClassNameBase} ${sprinkles({
     height: taskCollectionChipHeight,
+    paddingRight: "1.5",
 })}`;
 
-const desktopLayoutChipClassName = `${chipClassNameBase} ${sprinkles({
-    height: taskCollectionChipHeight.desktop,
+const chipWithoutRemoveClassName = `${chipClassNameBase} ${sprinkles({
+    height: taskCollectionChipHeight,
+    paddingRight: {desktop: "1.5", mobile: "2.5"},
 })}`;
 
 const chipWithoutColorClassName = `${chipClassName} ${sprinkles({
     paddingLeft: {desktop: "1.5", mobile: "2.5"},
+})}`;
+
+const chipWithoutColorAndWithoutRemoveClassName = `${chipWithoutRemoveClassName} ${sprinkles({
+    paddingLeft: {desktop: "1.5", mobile: "2.5"},
+})}`;
+
+const desktopLayoutChipClassName = `${chipClassNameBase} ${sprinkles({
+    height: taskCollectionChipHeight.desktop,
 })}`;
 
 const desktopLayoutChipWithoutColorClassName = `${desktopLayoutChipClassName} ${sprinkles({
@@ -130,8 +139,12 @@ function TaskCollectionChipBase(
                         ? desktopLayoutChipClassName
                         : desktopLayoutChipWithoutColorClassName
                     : color !== null
-                    ? chipClassName
-                    : chipWithoutColorClassName
+                    ? onRemove
+                        ? chipClassName
+                        : chipWithoutRemoveClassName
+                    : onRemove
+                    ? chipWithoutColorClassName
+                    : chipWithoutColorAndWithoutRemoveClassName
             }
             tabIndex={tabIndex}
             style={{

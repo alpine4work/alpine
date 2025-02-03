@@ -332,6 +332,7 @@ export class WebSocketServer<
             Connection
         >({
             id: connectionId,
+            accountId,
             processContext: connectionProcessContext,
             connectActionContext,
             socket: serverSocket,
@@ -404,6 +405,13 @@ export class WebSocketServer<
             this._expirationInterval.clear();
             this._expirationInterval = null;
         }
+    }
+
+    /**
+     * Does this server have any connected clients?
+     */
+    public hasConnections(): boolean {
+        return this._connections.size > 0;
     }
 
     /**
@@ -785,6 +793,7 @@ class WebSocketServerConnectionWrapper<
 > implements WebSocketServerConnectionWrapperBase<ProcessContextModules, Connection>
 {
     public readonly id: WebSocketConnectionId;
+    private readonly _accountId: AccountId;
     private readonly _processContext: Context<ProcessContextModules>;
     private readonly _socket: WebSocket;
     private readonly _messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
@@ -832,6 +841,7 @@ class WebSocketServerConnectionWrapper<
 
     constructor({
         id,
+        accountId,
         processContext,
         connectActionContext,
         socket,
@@ -841,6 +851,7 @@ class WebSocketServerConnectionWrapper<
         contextForCloseEventListenerRef,
     }: {
         id: WebSocketConnectionId;
+        accountId: AccountId;
         processContext: Context<ProcessContextModules>;
         connectActionContext: Context<SessionActionContextModules>;
         socket: WebSocket;
@@ -852,6 +863,7 @@ class WebSocketServerConnectionWrapper<
         };
     }) {
         this.id = id;
+        this._accountId = accountId;
         this._processContext = processContext;
         this._socket = socket;
         this._messageFromClientSchema = messageFromClientSchema;
@@ -1093,6 +1105,73 @@ class WebSocketServerConnectionWrapper<
             };
         }
 
+        const actuallyAuthorize = (isBlocking: boolean) => {
+            if (
+                context.fork &&
+                // We can only use the current context when the actor of the current context is
+                // the same account as the connection we're trying to authorize. Otherwise
+                // we'll run the authorization function with the wrong account which is very
+                // bad!
+                (context as Context<SessionActionContextModules>).actor.getAccountId() ===
+                    this._accountId
+            ) {
+                return (context as Context<SessionActionContextModules>).tracer.withSpan(
+                    webSocketConnectionAuthorizationSpanName,
+                    (context, span) => {
+                        span.addPropagatedData({context: {webSocketConnectionId: this.id}});
+
+                        // Our authorization promise is blocking if handling procedures or sending the
+                        // connection new events is blocked on the authorization promise finishing.
+                        span.addData({common: {isBlocking}});
+
+                        return this.connection.authorize(
+                            context as Context<SessionActionContextModules>,
+                        );
+                    },
+                );
+            } else {
+                const parentSpan = context.tracer.getTracer();
+
+                if (parentSpan instanceof TracerSpan) {
+                    return this._detachedForker.withForkFromCustomSpan(
+                        parentSpan.startSpan(webSocketConnectionAuthorizationSpanName),
+                        (context, span) => {
+                            span.addPropagatedData({
+                                context: {
+                                    webSocketConnectionId: this.id,
+                                    accountId: this._accountId,
+                                },
+                            });
+
+                            // Our authorization promise is blocking if handling procedures or sending the
+                            // connection new events is blocked on the authorization promise finishing.
+                            span.addData({common: {isBlocking}});
+
+                            return this.connection.authorize(context);
+                        },
+                    );
+                } else {
+                    return this._detachedForker.withFork(
+                        webSocketConnectionAuthorizationSpanName,
+                        (context, span) => {
+                            span.addPropagatedData({
+                                context: {
+                                    webSocketConnectionId: this.id,
+                                    accountId: this._accountId,
+                                },
+                            });
+
+                            // Our authorization promise is blocking if handling procedures or sending the
+                            // connection new events is blocked on the authorization promise finishing.
+                            span.addData({common: {isBlocking}});
+
+                            return this.connection.authorize(context);
+                        },
+                    );
+                }
+            }
+        };
+
         // This branch runs if one of the following is true:
         //
         // 1. This connection hasn't authorized yet; OR
@@ -1117,31 +1196,7 @@ class WebSocketServerConnectionWrapper<
             // Only start a new authorization request if the last one was successful.
             const authorizationPromise = (
                 this._authorizationState?.promise ?? Promise.resolve()
-            ).then(() =>
-                context.fork
-                    ? (context as Context<SessionActionContextModules>).tracer.withSpan(
-                          webSocketConnectionAuthorizationSpanName,
-                          (context, span) => {
-                              // Our authorization promise is blocking if handling procedures or sending the
-                              // connection new events is blocked on the authorization promise finishing.
-                              span.addData({common: {isBlocking: true}});
-
-                              return this.connection.authorize(
-                                  context as Context<SessionActionContextModules>,
-                              );
-                          },
-                      )
-                    : this._detachedForker.withFork(
-                          webSocketConnectionAuthorizationSpanName,
-                          (context, span) => {
-                              // Our authorization promise is blocking if handling procedures or sending the
-                              // connection new events is blocked on the authorization promise finishing.
-                              span.addData({common: {isBlocking: true}});
-
-                              return this.connection.authorize(context);
-                          },
-                      ),
-            );
+            ).then(() => actuallyAuthorize(true));
 
             this._authorizationState = {
                 startTime: currentTime,
@@ -1163,29 +1218,7 @@ class WebSocketServerConnectionWrapper<
             //
             // Only start a new authorization request if the last one was successful.
             const authorizationPromise = this._authorizationState.promise.then(() =>
-                context.fork
-                    ? (context as Context<SessionActionContextModules>).tracer.withSpan(
-                          webSocketConnectionAuthorizationSpanName,
-                          (context, span) => {
-                              // Our authorization promise is blocking if handling procedures or sending the
-                              // connection new events is blocked on the authorization promise finishing.
-                              span.addData({common: {isBlocking: false}});
-
-                              return this.connection.authorize(
-                                  context as Context<SessionActionContextModules>,
-                              );
-                          },
-                      )
-                    : this._detachedForker.withFork(
-                          webSocketConnectionAuthorizationSpanName,
-                          (context, span) => {
-                              // Our authorization promise is blocking if handling procedures or sending the
-                              // connection new events is blocked on the authorization promise finishing.
-                              span.addData({common: {isBlocking: false}});
-
-                              return this.connection.authorize(context);
-                          },
-                      ),
+                actuallyAuthorize(false),
             );
 
             context.process.waitUntil(

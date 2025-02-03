@@ -263,5 +263,20 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
     },
     events: {
         Update: TaskRealtimeUpdateEventSchema,
+        QuerySubscriptionError: Schema.object({
+            type: Schema.value("QuerySubscriptionError"),
+            id: Schema.id<TaskRealtimeQuerySubscriptionId>(),
+            error: ErrorSchema,
+        }),
+        TaskSubscriptionError: Schema.object({
+            type: Schema.value("TaskSubscriptionError"),
+            id: Schema.id<TaskRealtimeTaskSubscriptionId>(),
+            error: ErrorSchema,
+        }),
+        CollectionSubscriptionError: Schema.object({
+            type: Schema.value("CollectionSubscriptionError"),
+            id: Schema.id<TaskRealtimeCollectionSubscriptionId>(),
+            error: ErrorSchema,
+        }),
     },
 });

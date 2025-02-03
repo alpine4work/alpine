@@ -1,4 +1,4 @@
-import {Fragment, Slice} from "prosemirror-model";
+import {Fragment, Node, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {prosemirrorToYXmlFragment} from "y-prosemirror";
 import * as Y from "yjs";
@@ -6,6 +6,8 @@ import {
     TestContext,
     TestSessionActionContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
+import {attachFileAsUploader} from "~/server/files/data/files_table.js";
+import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestCommentRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {OpensearchClientDocWithIdAndVersion} from "~/server/opensearch/opensearch_client.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
@@ -17,6 +19,7 @@ import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js"
 import {getTaskIndexDocIfExistsForTest} from "~/server/tasks/data/task_index.js";
 import {TaskIndexActualDoc, TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {
+    FileTaskAuthorizer,
     TaskEssentialAttributesItem,
     commitTaskActionTransaction,
     createTaskComment,
@@ -28,6 +31,7 @@ import {
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -39,6 +43,7 @@ import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskStatus} from "~/shared/tasks/task_status.js";
 import {
@@ -291,6 +296,8 @@ export class TestTask extends TestCommentRoomBase {
                 },
             },
         ]);
+
+        return {time};
     }
 
     public async updateAssignee(
@@ -321,6 +328,8 @@ export class TestTask extends TestCommentRoomBase {
                 },
             },
         ]);
+
+        return {time};
     }
 
     public async updatePriority(
@@ -358,6 +367,30 @@ export class TestTask extends TestCommentRoomBase {
                 },
             },
         ]);
+
+        return {time};
+    }
+
+    public async updateCollectionPosition(
+        session: TestSpaceSession,
+        collection: TestTaskCollection,
+        position: TaskPosition,
+        {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
+    ) {
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateTask",
+                time,
+                taskId: this.id,
+                taskAction: {
+                    type: "UpdateCollectionPosition",
+                    collectionId: collection.id,
+                    position,
+                },
+            },
+        ]);
+
+        return {time};
     }
 
     public async removeCollection(session: TestSpaceSession, collection: TestTaskCollection) {
@@ -441,10 +474,18 @@ export class TestTask extends TestCommentRoomBase {
      */
     public async typeNotes(
         session: TestSpaceSession,
-        text: string,
+        text: string | Node | ReadonlyArray<Node> | Fragment,
         {secondText}: {secondText?: string} = {},
     ) {
         return this._notesState.withLock(async stateRef => {
+            if (typeof text === "string") {
+                if (text.length === 0) text = Fragment.empty;
+                else text = Fragment.from(schema.text(text));
+            }
+
+            if (text instanceof Node) text = [text];
+            if (isReadonlyArray(text)) text = Fragment.from(text);
+
             const result = await updateTaskNotesContent(session.action(), {
                 spaceId: this.space.id,
                 taskId: this.id,
@@ -453,15 +494,13 @@ export class TestTask extends TestCommentRoomBase {
                     new ReplaceStep(
                         stateRef.current.lastUpdatePos,
                         stateRef.current.lastUpdatePos,
-                        text.length !== 0
-                            ? new Slice(Fragment.from(schema.text(text)), 0, 0)
-                            : Slice.empty,
+                        text.size !== 0 ? new Slice(text, 0, 0) : Slice.empty,
                     ),
                     ...(secondText !== undefined
                         ? [
                               new ReplaceStep(
-                                  stateRef.current.lastUpdatePos + text.length,
-                                  stateRef.current.lastUpdatePos + text.length,
+                                  stateRef.current.lastUpdatePos + text.size,
+                                  stateRef.current.lastUpdatePos + text.size,
                                   secondText.length !== 0
                                       ? new Slice(Fragment.from(schema.text(secondText)), 0, 0)
                                       : Slice.empty,
@@ -473,9 +512,47 @@ export class TestTask extends TestCommentRoomBase {
 
             stateRef.current.lastVersion += 1 + (secondText !== undefined ? 1 : 0);
             stateRef.current.lastUpdatePos +=
-                text.length + (secondText !== undefined ? secondText.length : 0);
+                text.size + (secondText !== undefined ? secondText.length : 0);
 
             return result;
+        });
+    }
+
+    /**
+     * Attach a file to the task's notes. Will attach the file as a block
+     * immediately below the current typing position.
+     */
+    public async attachFile(session: TestSpaceSession, file: TestFile) {
+        await attachFileAsUploader(
+            session.action(),
+            this.space.id,
+            file.id,
+            FileTaskAuthorizer.bind({type: "TaskNotes", taskId: this.id}),
+        );
+
+        await this._notesState.withLock(async stateRef => {
+            const steps = [
+                new ReplaceStep(
+                    stateRef.current.lastUpdatePos + 1,
+                    stateRef.current.lastUpdatePos + 1,
+                    new Slice(
+                        Fragment.from(
+                            schema.node("fileRow", {}, schema.node("file", {fileId: file.id})),
+                        ),
+                        0,
+                        0,
+                    ),
+                ),
+            ];
+
+            await updateTaskNotesContent(session.action(), {
+                spaceId: this.space.id,
+                taskId: this.id,
+                version: stateRef.current.lastVersion,
+                steps,
+            });
+
+            stateRef.current.lastVersion += steps.length;
         });
     }
 }

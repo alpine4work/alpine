@@ -24,6 +24,7 @@ import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {TaskQueryAddFilterMenuButton} from "~/client/tasks/internal/task_query_add_filter_menu_button.js";
 import {TaskQueryAddSortMenuButton} from "~/client/tasks/internal/task_query_add_sort_menu_button.js";
 import {TaskQueryFilterEditor} from "~/client/tasks/internal/task_query_filter_editor.js";
+import {TaskQueryReferencesForUrlGrantFilterEditor} from "~/client/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {TaskQuerySortsEditor} from "~/client/tasks/internal/task_query_sorts_editor.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -46,6 +47,7 @@ export {TaskQueryViewCustomizationBarForwardRef as TaskQueryViewCustomizationBar
 function TaskQueryViewCustomizationBar(
     {
         store,
+        queryReferencesForUrlGrant,
         filters,
         filterReferences,
         onFiltersChange,
@@ -56,6 +58,7 @@ function TaskQueryViewCustomizationBar(
         initiallyFocus = null,
     }: {
         store: TaskClientStore;
+        queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
         filters: ReadonlyArray<TaskQueryFilter>;
         filterReferences: TaskQueryFilterReferences;
         onFiltersChange: (
@@ -135,6 +138,12 @@ function TaskQueryViewCustomizationBar(
                 alignItems="center"
                 gap="2"
                 marginLeft={shouldCollapse ? "-2" : undefined}
+                style={{
+                    // Don't allow item to grow beyond flexbox bounds. By default flexbox items
+                    // have `min-width: auto` which extends with content.
+                    // https://stackoverflow.com/a/66689926/1568890
+                    minWidth: 0,
+                }}
             >
                 {filters.map((filter, index) => {
                     // The first collections filter should get our ref.
@@ -153,6 +162,7 @@ function TaskQueryViewCustomizationBar(
                         <TaskQueryFilterEditor
                             key={index}
                             store={store}
+                            queryReferencesForUrlGrant={queryReferencesForUrlGrant}
                             filter={filter}
                             filterReferences={filterReferences}
                             onFilterChange={(filter, options) => {

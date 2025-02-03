@@ -3,6 +3,7 @@ import {
     AddMarkStep,
     AddNodeMarkStep,
     AttrStep,
+    DocAttrStep,
     RemoveMarkStep,
     RemoveNodeMarkStep,
     ReplaceAroundStep,
@@ -97,6 +98,7 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
 
     const markSchemaByName = new Map<string, Schema<Mark>>();
     const attrSchemaByName = new Map<string, Schema<unknown>>();
+    const docAttrSchemaByName = new Map<string, Schema<unknown>>();
 
     for (const [markTypeName, markType] of Object.entries(schema.marks)) {
         const markAttrSpecEntries = Object.entries(markType.spec.attrs ?? {});
@@ -226,16 +228,30 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
             ),
         );
 
-        for (const [attrName, attrPropertySchema] of NodeAttrsSchema.propertySchemaByKey) {
-            const attrSchema = attrPropertySchema.valueSchema;
+        if (nodeTypeName === "doc") {
+            for (const [attrName, attrPropertySchema] of NodeAttrsSchema.propertySchemaByKey) {
+                const attrSchema = attrPropertySchema.valueSchema;
 
-            const existingAttrSchema = attrSchemaByName.get(attrName);
-            if (existingAttrSchema && existingAttrSchema !== attrSchema)
-                throw new InternalError(
-                    quote`Node ${nodeTypeName} has an attr ${attrName} that shares the same name but different schema with another attr, attrs with the same name must have the same schema`,
-                );
+                const existingAttrSchema = docAttrSchemaByName.get(attrName);
+                if (existingAttrSchema && existingAttrSchema !== attrSchema)
+                    throw new InternalError(
+                        quote`Node ${nodeTypeName} has an attr ${attrName} that shares the same name but different schema with another attr, attrs with the same name must have the same schema`,
+                    );
 
-            attrSchemaByName.set(attrName, attrSchema);
+                docAttrSchemaByName.set(attrName, attrSchema);
+            }
+        } else {
+            for (const [attrName, attrPropertySchema] of NodeAttrsSchema.propertySchemaByKey) {
+                const attrSchema = attrPropertySchema.valueSchema;
+
+                const existingAttrSchema = attrSchemaByName.get(attrName);
+                if (existingAttrSchema && existingAttrSchema !== attrSchema)
+                    throw new InternalError(
+                        quote`Node ${nodeTypeName} has an attr ${attrName} that shares the same name but different schema with another attr, attrs with the same name must have the same schema`,
+                    );
+
+                attrSchemaByName.set(attrName, attrSchema);
+            }
         }
 
         const NodeSchemaBase = Schema.object({
@@ -274,8 +290,13 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
             serialize: node => {
                 assert(node.type.name === nodeTypeName);
 
-                if (!node.type.validContent(node.content))
-                    throw new InvalidArgumentError(`Invalid content for node "${node.type.name}"`);
+                if (!node.type.validContent(node.content)) {
+                    throw new InvalidArgumentError(
+                        `Invalid content for node "${node.type.name}", expected content to match "${
+                            node.type.spec.content ?? ""
+                        }"`,
+                    );
+                }
 
                 return {
                     type: node.type.name,
@@ -365,6 +386,58 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
                 serialize: value => ({
                     stepType: "attr",
                     pos: value.pos,
+                    attr: {type: value.attr, value: value.value},
+                }),
+            })
+            // We need to use a union for `attr` in our schema framework but we want the
+            // serialized/deserialized JSON to be compatible with `prosemirror-transform`'s
+            // JSON which has a slightly different format.
+            //
+            // If/when we add a binary format to our schema framework we won't need this
+            // migration. It is only needed for JSON compatibility with
+            // `prosemirror-transform`.
+            //
+            // https://github.com/ProseMirror/prosemirror-transform/blob/8d6be028eebb28a2d981dee146eacdd2c1cffcd4/src/attr_step.ts#L42-L50
+            .migration({
+                serialize: value => {
+                    assert(isPlainObject(value));
+                    assert(isPlainObject(value.attr));
+                    return {
+                        ...omitObject(value, ["attr"]),
+                        attr: value.attr.type,
+                        value: value.attr.value,
+                    };
+                },
+                deserialize: value => {
+                    if (!isPlainObject(value) || typeof value.attr !== "string") return value;
+                    return {
+                        ...omitObject(value, ["attr", "value"]),
+                        attr: {
+                            type: value.attr,
+                            value: value.value,
+                        },
+                    };
+                },
+            });
+
+        const DocAttrStepSchema = Schema.object({
+            stepType: Schema.value("docAttr"),
+            attr: Schema.union(
+                Object.fromEntries(
+                    Array.from(docAttrSchemaByName, ([attrName, attrSchema]) => [
+                        attrName,
+                        Schema.object({
+                            type: Schema.value(attrName),
+                            value: attrSchema,
+                        }),
+                    ]),
+                ),
+            ),
+        })
+            .transform<DocAttrStep>({
+                deserialize: value => new DocAttrStep(value.attr.type, value.attr.value),
+                serialize: value => ({
+                    stepType: "docAttr",
                     attr: {type: value.attr, value: value.value},
                 }),
             })
@@ -567,6 +640,7 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
             [Key in keyof StepByJsonId]: Schema<StepByJsonId[Key]>;
         } = {
             attr: AttrStepSchema,
+            docAttr: DocAttrStepSchema,
             addMark: AddMarkStepSchema,
             removeMark: RemoveMarkStepSchema,
             addNodeMark: AddNodeMarkStepSchema,

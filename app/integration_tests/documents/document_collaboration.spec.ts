@@ -1,9 +1,7 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
-import {createDocument} from "~/server/documents/data/documents_table.js";
-import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
-import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {emptyDocumentContent} from "~/shared/documents/document_content_schema.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -12,9 +10,6 @@ import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 
 const {context, services} = createTestServices();
-const space = createTestSpace(context);
-const session1 = createTestSession(context, space);
-const session2 = createTestSession(context, space);
 
 // The tests in this file are large and may take a while as we feature multiple
 // browsers collaboratively editing the same content.
@@ -28,10 +23,11 @@ test("can write collaboratively in a document", async ({
 }) => {
     assert(viewport);
 
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1);
 
     const canPrimaryInputHover = await page1.evaluate(
         () => !window.matchMedia("(hover: none)").matches,
@@ -149,10 +145,11 @@ test("can write collaboratively at the same time in a document", async ({
 }) => {
     assert(viewport);
 
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1);
 
     const canPrimaryInputHover = await page1.evaluate(
         () => !window.matchMedia("(hover: none)").matches,

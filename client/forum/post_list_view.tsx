@@ -23,7 +23,6 @@ import {
     flushNavigationBarScrollEventEmitter,
     navigationBarHeight,
 } from "~/client/design/navigation_bar_helpers.js";
-import {NavigationBarResult} from "~/client/design/navigation_bar_types.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
@@ -53,6 +52,7 @@ import {MessageListMessageShimmer} from "~/client/messaging/message_list_message
 import {MessageView} from "~/client/messaging/message_view.js";
 import {MessagingTypingIndicators} from "~/client/messaging/messaging_typing_indicators.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
+import {NavigationBarResult} from "~/client/navigation/navigation_bar_types.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";

@@ -16,37 +16,31 @@
 // and native code so we can use that. Touch events are more dicey.
 
 import {AnimationControls, timeline} from "motion";
-import {
-    MutableRefObject,
-    ReactNode,
-    Ref,
-    RefObject,
-    useImperativeHandle,
-    useRef,
-    useState,
-} from "react";
+import {Memo, MutableRefObject, ReactNode, Ref, useImperativeHandle, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {
-    NavigationBarContent,
-    NavigationBarContentRef,
-} from "~/client/design/navigation_bar_content.js";
-import {
     navigationBarHeight,
     navigationBarHeightRem,
 } from "~/client/design/navigation_bar_helpers.js";
-import {NavigationBarRef} from "~/client/design/navigation_bar_types.js";
-import {OverlayTriggerButtonState} from "~/client/design/overlay_trigger_button.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {scrollbarVisibleAfterScrollDurationMs} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {
+    NavigationBarContent,
+    NavigationBarContentRef,
+} from "~/client/navigation/navigation_bar_content.js";
+import {
+    NavigationBarRef,
+    NavigationBarShareButtonProps,
+} from "~/client/navigation/navigation_bar_types.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {
     getRemPxWithoutListening,
     getSpacingScaleWithoutListening,
 } from "~/client/remix/spacing_scale_context.js";
-import {navigationBarStyles, sprinkles} from "~/client/styles/styles.js";
+import {frostedGlassClassName, navigationBarStyles, sprinkles} from "~/client/styles/styles.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
 import {
     RemLength,
@@ -134,21 +128,19 @@ const initialScrollDirectionState: ScrollDirectionState = {
     animateNavigationBar: null,
 };
 
-export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
+export function NavigationBar({
     handleRef,
     navigationBarRef: externalNavigationBarRef,
     withScrollAway,
     title,
-    titleBoundaryRef,
+    getTitleBoundaryElement,
     titleBoundaryMarginTop,
     withoutDisappearingTitle,
     subtitle,
     menuActions,
-    onMenuStateChange,
+    contextMenuActions,
     shareButton,
-    stickyBanner,
     replaceActions,
-    extraIconButton,
     titleJustifyContent,
     desktopControls,
     desktopMaxWidth,
@@ -158,6 +150,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontWeight,
     desktopTitleLeftSlop,
     withoutMobileBackButton,
+    onMobileClose,
     onMobileCancel,
 }: {
     handleRef: MutableRefObject<{
@@ -169,21 +162,14 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     navigationBarRef: Ref<NavigationBarRef> | undefined;
     withScrollAway: boolean;
     title: ReactNode;
-    titleBoundaryRef: RefObject<TitleBoundaryElement> | undefined;
+    getTitleBoundaryElement: Memo<() => HTMLElement> | undefined;
     titleBoundaryMarginTop: Spacing | RemLength | undefined;
     withoutDisappearingTitle: boolean;
     subtitle: ReactNode | undefined;
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
-    onMenuStateChange: ((state: OverlayTriggerButtonState) => void) | undefined;
-    shareButton: {} | undefined;
-    stickyBanner: ReactNode;
+    contextMenuActions: ReadonlyArray<ReadonlyArray<MenuAction>>;
+    shareButton: NavigationBarShareButtonProps | undefined;
     replaceActions: ReactNode;
-    extraIconButton?: {
-        icon: ReactNode;
-        description: string;
-        pressErrorTitle: string;
-        onPress: () => Promise<void>;
-    };
     titleJustifyContent: "center" | "flex-start" | undefined;
     desktopControls: ReactNode;
     desktopMaxWidth: Spacing | RemLength | undefined;
@@ -193,6 +179,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontWeight: "semi-bold" | "bold";
     desktopTitleLeftSlop: Spacing | undefined;
     withoutMobileBackButton: boolean;
+    onMobileClose: (() => void) | undefined;
     onMobileCancel: (() => void) | undefined;
 }) {
     const [scrollViewSize, setScrollViewSize] = useState<{height: number; width: number} | null>(
@@ -225,7 +212,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     const lastScrollHeightRef = useRef(0);
     const lastScrollDirectionRef = useRef(scrollDirectionState.scrollDirection);
     const lastNavigationBarTopOffsetRef = useRef(scrollDirectionState.navigationBarTopOffset);
-    const lastIsNavigationBarTitleVisibleRef = useRef(false);
+    const lastIsNavigationBarTitleVisibleRef = useRef<boolean | null>(null);
 
     useImperativeHandle(
         externalNavigationBarRef,
@@ -284,9 +271,9 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 navigationBarContentElement ??= navigationBarContent.getElement();
 
                 if (withoutDisappearingTitle) return null;
-                if (!titleBoundaryRef?.current) return null;
+                if (getTitleBoundaryElement === undefined) return null;
 
-                let titleBoundaryParentElement: HTMLElement = titleBoundaryRef.current;
+                let titleBoundaryParentElement = getTitleBoundaryElement();
 
                 let titleBoundaryOffset =
                     Math.max(
@@ -386,13 +373,27 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     navigationBarTitleElement.style.pointerEvents = isNavigationBarTitleVisible
                         ? "auto"
                         : "none";
-                    navigationBarTitleElement.classList.remove(
-                        navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
-                    );
-                    if (!withScrollAway && !withoutDisappearingTitle) {
-                        navigationBarTitleElement.classList.add(
-                            navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
-                        );
+
+                    if (lastIsNavigationBarTitleVisible !== null) {
+                        if (isNavigationBarTitleVisible) {
+                            navigationBarTitleElement.classList.remove(
+                                navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
+                            );
+                            if (!withScrollAway && !withoutDisappearingTitle) {
+                                navigationBarTitleElement.classList.add(
+                                    navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
+                                );
+                            }
+                        } else {
+                            navigationBarTitleElement.classList.add(
+                                navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
+                            );
+                            if (!withScrollAway && !withoutDisappearingTitle) {
+                                navigationBarTitleElement.classList.remove(
+                                    navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
+                                );
+                            }
+                        }
                     }
                 }
             };
@@ -557,13 +558,25 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                         navigationBarTitleElement.style.pointerEvents = isNavigationBarTitleVisible
                             ? "auto"
                             : "none";
-                        navigationBarTitleElement.classList.remove(
-                            navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
-                        );
-                        if (!withScrollAway && !withoutDisappearingTitle) {
-                            navigationBarTitleElement.classList.add(
-                                navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
+
+                        if (isNavigationBarTitleVisible) {
+                            navigationBarTitleElement.classList.remove(
+                                navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
                             );
+                            if (!withScrollAway && !withoutDisappearingTitle) {
+                                navigationBarTitleElement.classList.add(
+                                    navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
+                                );
+                            }
+                        } else {
+                            navigationBarTitleElement.classList.add(
+                                navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
+                            );
+                            if (!withScrollAway && !withoutDisappearingTitle) {
+                                navigationBarTitleElement.classList.remove(
+                                    navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
+                                );
+                            }
                         }
                     }
                 }
@@ -643,13 +656,33 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                         // thread and not the web thread. This causes some jankiness as JavaScript is
                         // behind native so opacity may not be updated in a timely manner.
                         //
-                        // I'd love to move these opacity updates to [CSS scroll-driven animations][1]
-                        // when they're available in WebKit.
+                        // I'd love to move these opacity updates (this opacity update and the
+                        // `navigationBarBackgroundElement` opacity update) to [CSS scroll-driven
+                        // animations][1] when they're available in WebKit.
                         //
                         // [1]: https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_scroll-driven_animations
                         navigationBarContentElement.style.opacity = `${
                             1 - Math.min(1, navigationBarScrollPercentage * 2)
                         }`;
+                    }
+
+                    // We don't want our navigation bar to be visible when the user has scrolled to
+                    // the top of the view. Because the frosted glass effect will show a blur for
+                    // content immediately underneath the navigation bar. For example, the task
+                    // title in a `<TaskDetailView>`.
+                    {
+                        const lastIsNavigationBarBackgroundVisible =
+                            lastScrollOffset - lastNavigationBarScrollOffset >= 1;
+                        const isNavigationBarBackgroundVisible =
+                            scrollOffset - navigationBarScrollOffset >= 1;
+
+                        if (
+                            lastIsNavigationBarBackgroundVisible !==
+                            isNavigationBarBackgroundVisible
+                        ) {
+                            navigationBarBackgroundElement.style.display =
+                                isNavigationBarBackgroundVisible ? "block" : "none";
+                        }
                     }
 
                     // Handle the transition from a visible navigation bar title to a hidden
@@ -703,8 +736,11 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
                         const remPx = getRemPxWithoutListening();
 
-                        const lastIsNavigationBarTitleVisible =
-                            lastIsNavigationBarTitleVisibleRef.current;
+                        // Assert is ok since this ref should be initialized by the `initialize()`
+                        // function.
+                        const lastIsNavigationBarTitleVisible = assertExists(
+                            lastIsNavigationBarTitleVisibleRef.current,
+                        );
 
                         // Reveal the navigation bar if:
                         //
@@ -829,7 +865,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 onPrepareSmoothScrollTo,
             };
         },
-        [titleBoundaryMarginTop, titleBoundaryRef, withScrollAway, withoutDisappearingTitle],
+        [getTitleBoundaryElement, titleBoundaryMarginTop, withScrollAway, withoutDisappearingTitle],
     );
 
     const lastAnimatedScrollDirectionStateRef = useRef(scrollDirectionState);
@@ -954,15 +990,15 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     <Box position="relative" zIndex="0" paddingTop="safe-area-inset">
                         <Box
                             ref={navigationBarBackgroundRef}
+                            className={frostedGlassClassName}
                             position="absolute"
                             zIndex="-10"
                             top="0"
                             left="0"
                             right="0"
-                            backgroundColor="grey-0"
-                            display="flex"
-                            justifyContent="center"
-                            pointerEvents="auto"
+                            // Start with `display: none`. `onScroll` will change it to `display: block`
+                            // when we scroll.
+                            display="none"
                             style={{
                                 height: `calc(${spacing[navigationBarHeight]} + var(--safe-area-inset-top, 0px))`,
                             }}
@@ -973,10 +1009,9 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             withDisappearingTitle={!withoutDisappearingTitle}
                             subtitle={subtitle}
                             menuActions={menuActions}
-                            onMenuStateChange={onMenuStateChange}
+                            contextMenuActions={contextMenuActions}
                             shareButton={shareButton}
                             replaceActions={replaceActions}
-                            extraIconButton={extraIconButton}
                             titleJustifyContent={titleJustifyContent}
                             desktopControls={desktopControls}
                             desktopMaxWidth={desktopMaxWidth}
@@ -986,9 +1021,9 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             desktopTitleFontWeight={desktopTitleFontWeight}
                             desktopTitleLeftSlop={desktopTitleLeftSlop}
                             withoutMobileBackButton={withoutMobileBackButton}
+                            onMobileClose={onMobileClose}
                             onMobileCancel={onMobileCancel}
                         />
-                        {stickyBanner}
                     </Box>
                 </div>
             </div>

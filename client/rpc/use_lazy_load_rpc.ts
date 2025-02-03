@@ -91,11 +91,11 @@ export function useLazyLoadRpc<Input, Output extends {}>(
  */
 export function useIdlyPreloadRpc<Input, Output extends {}>(
     rpc: RpcDefinition<Input, Output>,
-    input: Input,
+    input: Input | null,
 ) {
     const context = useAppContext();
     const fetcher = useMemo(() => createRpcCacheFetcher(context, rpc), [context, rpc]);
-    const key = useMemo(() => getRpcCacheKey(rpc, input), [input, rpc]);
+    const key = useMemo(() => (input !== null ? getRpcCacheKey(rpc, input) : null), [input, rpc]);
 
     useIdlyPreloadSwr(key, fetcher);
 }

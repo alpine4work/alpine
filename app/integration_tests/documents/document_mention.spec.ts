@@ -1,16 +1,11 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
-import {createDocument} from "~/server/documents/data/documents_table.js";
-import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
-import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {emptyDocumentContent} from "~/shared/documents/document_content_schema.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 const {context, services} = createTestServices();
-const space = createTestSpace(context);
-const session1 = createTestSession(context, space, {name: "Logan Roy"});
-const session2 = createTestSession(context, space, {name: "Siobahn Roy"});
-createTestSession(context, space, {name: "Kendall Roy"});
 
 test("can search for an account in mention menu", async ({
     page,
@@ -20,10 +15,15 @@ test("can search for an account in mention menu", async ({
 }) => {
     assert(viewport);
 
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const space = await TestSpace.create(context);
+    const [session1] = await runAllPromises([
+        space.createSession({name: "Logan Roy"}),
+        space.createSession({name: "Siobahn Roy"}),
+        space.createSession({name: "Kendall Roy"}),
+    ]);
+
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1);
 
     const canPrimaryInputHover = await page.evaluate(
         () => !window.matchMedia("(hover: none)").matches,
@@ -80,11 +80,15 @@ test("can see a mention added by another user", async ({
 }) => {
     assert(viewport);
 
-    const document = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession({name: "Logan Roy"}),
+        space.createSession({name: "Siobahn Roy"}),
+        space.createSession({name: "Kendall Roy"}),
+    ]);
 
+    const document = await TestDocument.create(session1);
+    await document.access.grantDefault(session1);
     const canPrimaryInputHover = await page1.evaluate(
         () => !window.matchMedia("(hover: none)").matches,
     );

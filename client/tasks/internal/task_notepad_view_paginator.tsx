@@ -14,6 +14,7 @@ import {taskNotepadViewPaginatorHeight} from "~/client/styles/tasks_shared_style
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
@@ -44,6 +45,10 @@ export function TaskNotepadViewPaginator({
     const currentTime = useCurrentTimeRoundedToHour();
 
     const createNotepadPage = useEvent(async () => {
+        // Currently, accounts without space access can't edit tasks. The max
+        // permission level of `urlGrant` is `View`.
+        assert(currentAccount);
+
         const synchronizedSystemClock = await getSynchronizedSystemClock();
 
         const newNotepadPageId = generateTaskNotepadPageId(synchronizedSystemClock);

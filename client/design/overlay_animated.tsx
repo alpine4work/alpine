@@ -1,14 +1,17 @@
+import classNames from "classnames";
 import {AnimationControls, animate} from "motion";
 import {Ref, forwardRef, useRef, useState} from "react";
 import {Overlay, OverlayProps, OverlayRef} from "~/client/design/overlay.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {
+    Sprinkles,
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
     overlayFadeInAnimationDurationMs,
     overlayFadeInOutTimingFunction,
     overlayFadeOutAnimationDurationMs,
+    sprinkles,
 } from "~/client/styles/styles.js";
 import {parseCubicBezier} from "~/shared/design/core/easing.js";
 import {spacing} from "~/shared/design/core/spacing.js";
@@ -45,6 +48,7 @@ function OverlayAnimated(
         disableAnimationIn = false,
         disableAnimationOut = false,
         overlay: originalOverlay,
+        overlayZIndex,
         onActuallyVisibleChange,
         ...props
     }: OverlayProps & {
@@ -69,6 +73,13 @@ function OverlayAnimated(
          * Defaults to `false`.
          */
         disableAnimationOut?: boolean;
+
+        /**
+         * The `zIndex` to use for the overlay wrapper `<div>`. Setting `zIndex` on the
+         * element you pass into `overlay` won't work since there's a wrapper `<div>`
+         * added by `<OverlayAnimated>`.
+         */
+        overlayZIndex?: Sprinkles["zIndex"];
 
         /**
          * Called when whether the overlay is actually hidden/visible changes. If the
@@ -112,7 +123,13 @@ function OverlayAnimated(
     // `<Overlay>` will translate this intermediate `<div>` and we'll animate the
     // child.
     const overlay = (
-        <div ref={overlayContainerRef} className={overlayAnimateContainerClassName}>
+        <div
+            ref={overlayContainerRef}
+            className={classNames(
+                overlayAnimateContainerClassName,
+                overlayZIndex ? sprinkles({zIndex: overlayZIndex}) : undefined,
+            )}
+        >
             {useElementWithRef(originalOverlay, overlayRef)}
         </div>
     );

@@ -29,6 +29,9 @@ const reporterForTest: Reporter | null = import.meta.jest
           logErrorWithoutDisplaying: () => {
               throw new UnimplementedError("Can't log error in test");
           },
+          showInfoToast: () => {
+              throw new UnimplementedError("Can't show toast in test");
+          },
       })
     : null;
 

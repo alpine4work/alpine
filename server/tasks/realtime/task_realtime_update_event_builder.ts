@@ -1,18 +1,16 @@
-import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
-import {
-    ServerProcessContext,
-    ServerProcessContextModules,
-} from "~/server/context/server_process_context.js";
+import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {prepareTaskActionForClient} from "~/server/tasks/data/prepare_task_action_for_client.js";
 import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
+import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
-import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {TaskAuthorizationActor} from "~/server/tasks/data/task_table.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {
@@ -21,7 +19,8 @@ import {
     isHybridLogicalTimeLessThan,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {
     AccountId,
@@ -40,7 +39,12 @@ export interface TaskRealtimeUpdateEventConnection {
     readonly clock: HybridLogicalClock;
     readonly spaceId: SpaceId;
     readonly accountId: AccountId;
+    readonly actor: TaskAuthorizationActor;
     sendEvent(context: ServerProcessContext, event: TaskRealtimeEvent): void;
+    isReferencedCollectionAccessAuthorized(
+        context: TaskSystemActionContext,
+        collectionId: TaskCollectionId,
+    ): Promise<boolean>;
 }
 
 type TaskRealtimeUpdateEventBackfillTask =
@@ -65,6 +69,7 @@ type TaskRealtimeUpdateEventBackfillCollection =
           readonly type: "Unauthorized";
           readonly collectionId: TaskCollectionId;
           readonly authorizationStateVersion: HybridLogicalTime | undefined;
+          readonly wasPreviouslyAuthorized: boolean;
       };
 
 type TaskRealtimeWorkingUpdateEvent = {
@@ -276,6 +281,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
         connection: TaskRealtimeUpdateEventConnection,
         collectionId: TaskCollectionId,
         authorizationStateVersion: HybridLogicalTime,
+        wasPreviouslyAuthorized: boolean,
     ) {
         assert(!this._isFinished);
 
@@ -288,6 +294,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
                 event.defaultAuthorizationStateVersion !== authorizationStateVersion
                     ? authorizationStateVersion
                     : undefined,
+            wasPreviouslyAuthorized,
         });
     }
 
@@ -307,12 +314,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
     }
 
     protected async _buildEvent(
-        context: Context<
-            ServerProcessContextModules & {
-                cache: CacheContextModule;
-                actor: DynamoActorContextModule;
-            }
-        >,
+        context: TaskSystemActionContext,
         connection: TaskRealtimeUpdateEventConnection,
         event: TaskRealtimeWorkingUpdateEvent,
     ): Promise<TaskRealtimeUpdateEvent | null> {
@@ -329,40 +331,116 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
 
         const accountIds = new Set<AccountId>();
 
-        const actions = Array.from(
-            filterMapIterable(
-                event.actions,
-                action => prepareTaskActionForClient(connection.accountId, action) ?? undefined,
+        const prepareContext = {
+            actor: connection.actor,
+            // You may only connect to `TaskRealtimeConnection` if you have space access.
+            // If we allow anonymous accounts or session accounts without space access to
+            // connect then we'll need to update this.
+            isSpaceAccessAuthorized: true,
+            isCollectionAccessAuthorized: (collectionId: TaskCollectionId) =>
+                connection.isReferencedCollectionAccessAuthorized(context, collectionId),
+        };
+
+        const [unfilteredActions, backfillTasks] = await runAllPromises([
+            runAllPromises(
+                mapIterable(event.actions, async unpreparedAction => {
+                    const action = await prepareTaskActionForClient(
+                        unpreparedAction,
+                        prepareContext,
+                    );
+                    if (action === null) return;
+
+                    collectReferencedAccountIdsFromTaskAction(accountIds, action);
+
+                    return action;
+                }),
             ),
+            runAllPromises(
+                mapIterable(event.backfillTasks, async unpreparedTask => {
+                    if (unpreparedTask.type === "Unauthorized") return unpreparedTask;
+
+                    const task = await prepareTaskForClient(unpreparedTask.task, prepareContext);
+
+                    collectReferencedAccountIdsFromTaskModelData(accountIds, task.rawData);
+
+                    return {
+                        type: "Authorized" as const,
+                        task,
+                        authorizationStateVersion: unpreparedTask.authorizationStateVersion,
+                    };
+                }),
+            ),
+        ]);
+
+        const actions = unfilteredActions.filter(isNonNullable);
+
+        const backfillCollections = filterMapArray(
+            event.backfillCollections,
+            unpreparedCollection => {
+                if (unpreparedCollection.type === "Unauthorized") {
+                    // If the collection was never authorized in the first place then don't backfill
+                    // the unauthorized collection. We should have completely filtered out the
+                    // unauthorized collection from `actions` and `backfillTasks` via
+                    // `prepareTaskActionForClient()` and `prepareTaskForClient()`. So let's not
+                    // share the existence of a potentially referenced unauthorized collection as
+                    // well.
+                    //
+                    // If the collection was previously authorized and became unauthorized then
+                    // we'll need to share that with the client so the client can update the
+                    // collection in their local state.
+                    //
+                    // TODO(calebmer, #task-correctness): There's a correctness bug here.
+                    // `wasPreviouslyAuthorized` only tells us if the collection was previously
+                    // authorized in the current connection. If the client received the collection
+                    // in a previous connection, went offline, the collection becomes authorized,
+                    // then the client reconnects the client will permanently think the collection
+                    // is authorized since `TaskRealtimeService` won't send an update telling the
+                    // client the collection is now unauthorized. If we always sent the unauthorized
+                    // backfill message that would fix our correctness bug but introduce a security
+                    // bug!
+                    //
+                    // The security bug is an attacker could determine, by loading a query with one
+                    // task at a time, the unauthorized `TaskCollectionId`s referenced by a task.
+                    // This information could be used maliciously be an attacker (e.g. an attacker
+                    // might be able to intuit a manager is collecting evidence for firing someone
+                    // in a private collection based on seeing the `TaskCollectionId` on certain
+                    // tasks). Right now we're trading a correctness bug for a security bug. In the
+                    // future, we should find a way to fix the correctness bug without opening a
+                    // security hole.
+                    //
+                    // My current idea to fix this is when the client starts a realtime connection
+                    // for it to send a procedure in the background with all visible
+                    // `TaskCollectionId`s and then the server will respond with which are
+                    // authorized/unauthorized. This fixes the correctness issue without
+                    // introducing a security flaw. The client already knows the
+                    // `TaskCollectionId`s so we're not sharing any new information with the
+                    // client.
+                    if (!unpreparedCollection.wasPreviouslyAuthorized) return;
+
+                    return {
+                        type: "Unauthorized" as const,
+                        collectionId: unpreparedCollection.collectionId,
+                        authorizationStateVersion: unpreparedCollection.authorizationStateVersion,
+                    };
+                }
+
+                return {
+                    type: "Authorized" as const,
+                    collection: prepareTaskCollectionForClient(unpreparedCollection.collection),
+                    authorizationStateVersion: unpreparedCollection.authorizationStateVersion,
+                };
+            },
         );
 
-        for (const action of actions) {
-            collectReferencedAccountIdsFromTaskAction(accountIds, action);
+        // We may remove some unauthorized `actions` or `backfillCollections` so check
+        // again if the event is empty.
+        if (
+            actions.length === 0 &&
+            backfillTasks.length === 0 &&
+            backfillCollections.length === 0
+        ) {
+            return null;
         }
-
-        const backfillTasks = event.backfillTasks.map(backfillTask => {
-            if (backfillTask.type === "Unauthorized") return backfillTask;
-
-            const task = prepareTaskForClient(connection.accountId, backfillTask.task);
-
-            collectReferencedAccountIdsFromTaskModelData(accountIds, task.rawData);
-
-            return {
-                type: "Authorized" as const,
-                task,
-                authorizationStateVersion: backfillTask.authorizationStateVersion,
-            };
-        });
-
-        const backfillCollections = event.backfillCollections.map(backfillCollection => {
-            if (backfillCollection.type === "Unauthorized") return backfillCollection;
-
-            return {
-                type: "Authorized" as const,
-                collection: prepareTaskCollectionForClient(backfillCollection.collection),
-                authorizationStateVersion: backfillCollection.authorizationStateVersion,
-            };
-        });
 
         // It's important that accounts referenced by `actions` are read with a
         // `Strong` read consistency so we don't read stale account data after the
@@ -380,7 +458,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
 
         return {
             type: "Update",
-            actions,
+            actions: actions.filter((action): action is TaskAction => action !== undefined),
             backfillTasks,
             backfillCollections,
             defaultAuthorizationStateVersion: event.defaultAuthorizationStateVersion,
@@ -443,14 +521,7 @@ export class TaskRealtimeActionTransactionUpdateEventBuilder extends TaskRealtim
      * finalizing events. Once all `waitUntil()` promises have resolved you may
      * not call any new methods on this class.
      */
-    public async finishAndSendEvents(
-        context: Context<
-            ServerProcessContextModules & {
-                cache: CacheContextModule;
-                actor: DynamoActorContextModule;
-            }
-        >,
-    ) {
+    public async finishAndSendEvents(context: TaskSystemActionContext) {
         await taskRealtimeStoreBeforeSendEventTestCheckpoint.waitForTest(this._spaceId);
 
         await this._finish();
@@ -498,12 +569,7 @@ export class TaskRealtimeConnectionUpdateEventBuilder extends TaskRealtimeUpdate
      * responsible for sending this event to the client.
      */
     public async finishAndBuildEvent(
-        context: Context<
-            ServerProcessContextModules & {
-                cache: CacheContextModule;
-                actor: DynamoActorContextModule;
-            }
-        >,
+        context: TaskSystemActionContext,
     ): Promise<TaskRealtimeUpdateEvent | null> {
         await taskRealtimeStoreBeforeSendEventTestCheckpoint.waitForTest(this._spaceId);
 

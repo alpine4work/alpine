@@ -1,3 +1,4 @@
+import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -15,6 +16,10 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
  * render the assignee and sort by assignee) but the `AccountId` in a notepad
  * page ID is not referenced since those accounts aren't rendered in the UI.
  * (The client should also only ever see its own notepad pages anyway.)
+ *
+ * `prepareTaskActionForClient()` will replace accounts we're not allowed to
+ * see with `unknownAccountId`. So we skip over any accounts with an unknown
+ * `AccountId` in this function.
  */
 export function collectReferencedAccountIdsFromTaskAction(
     accountIds: Set<AccountId>,
@@ -24,19 +29,23 @@ export function collectReferencedAccountIdsFromTaskAction(
         case "UpdateTask": {
             switch (action.taskAction.type) {
                 case "Create": {
-                    accountIds.add(action.taskAction.creatorId);
+                    if (action.taskAction.creatorId !== unknownAccountId)
+                        accountIds.add(action.taskAction.creatorId);
                     return;
                 }
                 case "UpdateStatus": {
                     if (action.taskAction.status.type === "Closed") {
-                        accountIds.add(action.taskAction.status.closerId);
+                        if (action.taskAction.status.closerId !== unknownAccountId)
+                            accountIds.add(action.taskAction.status.closerId);
                     }
                     return;
                 }
                 case "UpdateAssignee": {
                     if (action.taskAction.assignee) {
-                        accountIds.add(action.taskAction.assignee.assigneeId);
-                        accountIds.add(action.taskAction.assignee.assignerId);
+                        if (action.taskAction.assignee.assigneeId !== unknownAccountId)
+                            accountIds.add(action.taskAction.assignee.assigneeId);
+                        if (action.taskAction.assignee.assignerId !== unknownAccountId)
+                            accountIds.add(action.taskAction.assignee.assignerId);
                     }
                     return;
                 }
@@ -93,7 +102,7 @@ export function collectReferencedAccountIdsFromTaskAction(
         case "UpdateAccountName": {
             // We need to send an up-to-date `AccountModel` to the client with
             // `UpdateAccountName` actions.
-            accountIds.add(action.accountId);
+            if (action.accountId !== unknownAccountId) accountIds.add(action.accountId);
             return;
         }
         default:

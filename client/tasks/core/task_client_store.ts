@@ -286,7 +286,7 @@ export class TaskClientStore {
     private readonly _internal: TaskClientStoreInternal;
     public readonly accountStore: AccountClientStore;
     public readonly spaceId: SpaceId;
-    public readonly currentAccountId: AccountId;
+    public readonly currentAccountId: AccountId | null;
     public readonly clock: HybridLogicalClock;
 
     constructor({
@@ -297,7 +297,7 @@ export class TaskClientStore {
     }: {
         accountStore: AccountClientStore;
         spaceId: SpaceId;
-        currentAccountId: AccountId;
+        currentAccountId: AccountId | null;
         onError: (
             options:
                 | {display: true; title: string; error: unknown}
@@ -339,6 +339,10 @@ export class TaskClientStore {
 
     public getTaskAssigneeAccountStore(task: TaskModel): Store<AccountModelData> | null {
         return this._internal.getTaskAssigneeAccountStore(task);
+    }
+
+    public getReferencedAccountStoreIfExists(accountId: AccountId): Store<AccountModelData> | null {
+        return this._internal.getReferencedAccountStoreIfExists(accountId);
     }
 
     public getSubscriptionsStore() {
@@ -462,7 +466,11 @@ export class TaskClientStore {
         return this._internal.createAndRetainCollectionSubscription(collectionId);
     }
 
-    public onCollectionSubscriptionUnsubscribed(subscription: TaskClientCollectionSubscription) {
+    /**
+     * Only `TaskRealtimeClient` should call this function. Which is why it's
+     * prefixed with an underscore.
+     */
+    public _onCollectionSubscriptionUnsubscribed(subscription: TaskClientCollectionSubscription) {
         this._internal.onCollectionSubscriptionUnsubscribed(subscription);
     }
 }
@@ -479,7 +487,7 @@ export class TaskClientStoreInternal {
 
     public readonly accountStore: AccountClientStore;
     public readonly spaceId: SpaceId;
-    public readonly currentAccountId: AccountId;
+    public readonly currentAccountId: AccountId | null;
     private readonly _onError: (
         options: {display: true; title: string; error: unknown} | {display: false; error: unknown},
     ) => void;
@@ -591,7 +599,7 @@ export class TaskClientStoreInternal {
         }: {
             accountStore: AccountClientStore;
             spaceId: SpaceId;
-            currentAccountId: AccountId;
+            currentAccountId: AccountId | null;
             onError: (
                 options:
                     | {display: true; title: string; error: unknown}
@@ -676,6 +684,15 @@ export class TaskClientStoreInternal {
 
         return assertExists(this._referencedAccountStoreById.get(assignee.assignee.accountId))
             .store;
+    }
+
+    /**
+     * Gets an account store referenced by a task if the account is actually
+     * referenced by one of our tasks. Returns null if the account isn't referenced
+     * by one of our tasks.
+     */
+    public getReferencedAccountStoreIfExists(accountId: AccountId): Store<AccountModelData> | null {
+        return this._referencedAccountStoreById.get(accountId)?.store ?? null;
     }
 
     public retainTaskEntryStore(taskId: TaskId) {

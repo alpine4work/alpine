@@ -1785,8 +1785,11 @@ test("sorts by collection position", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                    ]),
                     defaultGrant: null,
+                    urlGrant: null,
                 },
             },
         },
@@ -1799,8 +1802,11 @@ test("sorts by collection position", async () => {
                 creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
-                    accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                    ]),
                     defaultGrant: null,
+                    urlGrant: null,
                 },
             },
         },

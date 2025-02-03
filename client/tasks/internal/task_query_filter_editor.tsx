@@ -17,6 +17,7 @@ import {
 } from "~/client/tasks/internal/task_query_filter_date_operation_editor.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/internal/task_query_filter_operator_editor.js";
 import {TaskQueryPriorityFilterOperationEditor} from "~/client/tasks/internal/task_query_priority_filter_operation_editor.js";
+import {TaskQueryReferencesForUrlGrantFilterEditor} from "~/client/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {TaskQueryTitleFilterOperationEditor} from "~/client/tasks/internal/task_query_title_filter_operation_editor.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -25,6 +26,7 @@ import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_refere
 
 export function TaskQueryFilterEditor({
     store,
+    queryReferencesForUrlGrant,
     filter,
     filterReferences,
     onFilterChange,
@@ -32,6 +34,7 @@ export function TaskQueryFilterEditor({
     collectionsOperationValueTriggerButtonRef = null,
 }: {
     store: TaskClientStore;
+    queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
     filter: TaskQueryFilter;
     filterReferences: TaskQueryFilterReferences;
     onFilterChange: (
@@ -63,6 +66,7 @@ export function TaskQueryFilterEditor({
                     operation={
                         <TaskQueryCollectionsFilterOperationEditor
                             store={store}
+                            queryReferencesForUrlGrant={queryReferencesForUrlGrant}
                             filter={filter}
                             filterReferences={filterReferences}
                             onFilterChange={onFilterChange}
@@ -107,6 +111,7 @@ export function TaskQueryFilterEditor({
                     name="Assignee"
                     operation={
                         <TaskQueryFilterAccountOperationEditor
+                            queryReferencesForUrlGrant={queryReferencesForUrlGrant}
                             inputLabel="Assignee"
                             filterReferences={filterReferences}
                             operation={filter.operation}
@@ -125,6 +130,7 @@ export function TaskQueryFilterEditor({
                     name="Creator"
                     operation={
                         <TaskQueryFilterAccountOperationEditor
+                            queryReferencesForUrlGrant={queryReferencesForUrlGrant}
                             inputLabel="Creator"
                             // Tasks always have a creator so hide the `MissingAccount` filter option.
                             shouldHideMissingAccountItem={true}
@@ -145,6 +151,7 @@ export function TaskQueryFilterEditor({
                     name="Assigner"
                     operation={
                         <TaskQueryFilterAccountOperationEditor
+                            queryReferencesForUrlGrant={queryReferencesForUrlGrant}
                             inputLabel="Assigner"
                             filterReferences={filterReferences}
                             operation={filter.operation}

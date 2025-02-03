@@ -13,8 +13,7 @@ import {FocusScope} from "react-aria";
 import {createPortal} from "react-dom";
 import {BottomBarFrameContextProvider} from "~/client/design/bottom_bar_frame_context_provider.js";
 import {Box} from "~/client/design/box.js";
-import {MobileFullScreenModalContext} from "~/client/design/internal/modal_full_screen_modal_context.js";
-import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";
+import {MobileFullScreenModalContext} from "~/client/design/internal/mobile_full_screen_modal_context.js";
 import {RootOverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {
     trackNavigationAnimationFinish,
@@ -29,12 +28,8 @@ import {
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {usePlatform} from "~/client/remix/platform_context.js";
-import {spaceLayoutWebMobileTabBarHeight} from "~/client/styles/space_layout_shared_styles.js";
 import {easeOutCubic, parseCubicBezier} from "~/shared/design/core/easing.js";
-import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -118,13 +113,6 @@ export function MobileFullScreenModal({
         useContext(MobileFullScreenModalContext),
         "Expected parent `<MobileFullScreenModalContextProvider>` component",
     );
-    const portalElement = assertExists(
-        useOverlayRootPortalElement(),
-        "Can not render modal before portal element is available",
-    );
-
-    const platform = usePlatform();
-    const clientInfo = useClientInfo();
 
     const isMounted = useIsMounted();
     const modalContainerRef = useRef<HTMLDivElement>(null);
@@ -377,14 +365,6 @@ export function MobileFullScreenModal({
                 // Focusable but not in tab order so `<FocusScope>` can put focus here if
                 // nothing else is focused.
                 tabIndex={-1}
-                style={{
-                    // If this is mobile web then make space for the web tab bar. Our modal
-                    // shouldn't render behind the tab bar.
-                    bottom:
-                        platform === "mobile" && !clientInfo.isNativeMobile
-                            ? spacing[spaceLayoutWebMobileTabBarHeight]
-                            : undefined,
-                }}
             >
                 <MobileFullScreenModalContextProvider>
                     <RootOverlayScopeContextProvider
@@ -433,7 +413,7 @@ export function MobileFullScreenModal({
         </FocusScope>,
         // Render the mobile modal in `<body>`. So if it's a child of some native
         // bottom bar it doesn't get any weird positioning.
-        portalElement,
+        document.body,
     );
 }
 

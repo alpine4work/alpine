@@ -34,6 +34,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 export function addUnfocusableButtonBehaviorToElement(
     element: HTMLElement,
     {
+        isDisabled,
         defaultClassName = "",
         hoverClassName = "",
         pressClassName = "",
@@ -41,6 +42,7 @@ export function addUnfocusableButtonBehaviorToElement(
         onHoverEnd,
         onPress,
     }: {
+        isDisabled?: () => boolean;
         defaultClassName?: string;
         hoverClassName?: string;
         pressClassName?: string;
@@ -63,7 +65,9 @@ export function addUnfocusableButtonBehaviorToElement(
 
     const maybeUpdateStyle = () => {
         const oldState = state;
-        const newState = isPointerDownAndOver
+        const newState = isDisabled?.()
+            ? null
+            : isPointerDownAndOver
             ? "Pressed"
             : isPointerOver || isTriggeredOverlayOpen
             ? "Hovered"
@@ -117,7 +121,7 @@ export function addUnfocusableButtonBehaviorToElement(
         isPointerDownAndOver = false;
         maybeUpdateStyle();
 
-        if (wasPointerDownAndOver) onPress?.(event);
+        if (wasPointerDownAndOver && !isDisabled?.()) onPress?.(event);
     };
 
     const handlePointerEnter = () => {
@@ -125,7 +129,7 @@ export function addUnfocusableButtonBehaviorToElement(
         isPointerOver = true;
         maybeUpdateStyle();
 
-        if (!wasPointerOver) onHoverStart?.();
+        if (!wasPointerOver && !isDisabled?.()) onHoverStart?.();
     };
 
     const handlePointerLeave = () => {
@@ -134,7 +138,7 @@ export function addUnfocusableButtonBehaviorToElement(
         isPointerDownAndOver = false;
         maybeUpdateStyle();
 
-        if (wasPointerOver) onHoverEnd?.();
+        if (wasPointerOver && !isDisabled?.()) onHoverEnd?.();
     };
 
     const handlePointerCancel = () => {

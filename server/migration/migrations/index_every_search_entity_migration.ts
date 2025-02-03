@@ -7,7 +7,7 @@ import {
 } from "~/server/forum/data/forum_table.js";
 import {expensiveScanEverySpaceAccountForMigration} from "~/server/spaces/spaces_table.js";
 import {expensiveScanEveryTaskAndTaskCollectionForMigration} from "~/server/tasks/data/task_table.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -58,10 +58,7 @@ async function runIndexSearchEntityMigrationModules(
 ) {
     const mutexes = createArrayWithLength(subSegmentCount, () => new Mutex());
 
-    let hasError = false;
-    let firstError: unknown;
-    let hasSystemError = false;
-    let firstSystemError: unknown;
+    const errors: Array<unknown> = [];
 
     let n = 0;
     for (let i = 0; i < subSegmentCount; i++) {
@@ -80,16 +77,7 @@ async function runIndexSearchEntityMigrationModules(
                 } catch (error) {
                     // eslint-disable-next-line no-console
                     console.error("Migration module failed:", error);
-
-                    if (!hasError) {
-                        hasError = true;
-                        firstError = error;
-                    }
-
-                    if (!hasSystemError && isSystemError(error)) {
-                        hasSystemError = true;
-                        firstSystemError = error;
-                    }
+                    errors.push(error);
                 }
             });
         }
@@ -97,8 +85,7 @@ async function runIndexSearchEntityMigrationModules(
 
     await runAllPromises(mutexes.map(mutex => mutex.waitForUnlock()));
 
-    if (hasSystemError) throw firstSystemError;
-    if (hasError) throw firstError;
+    if (errors.length > 0) throw createAggregateError(errors);
 }
 
 function createDynamoScanMigrationModule<Item>(

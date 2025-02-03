@@ -2,6 +2,7 @@ import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/core/create_get_task_action_referenced_sortable_account.js";
 import {TaskClientStore, TaskClientStoreTaskEntry} from "~/client/tasks/core/task_client_store.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -20,7 +21,7 @@ import {upcastTaskStatusWithSortableAccount} from "~/shared/tasks/task_status.js
 // store or accessing `store.clock`.
 interface TaskClientStoreInterface {
     readonly spaceId: SpaceId;
-    readonly currentAccountId: AccountId;
+    readonly currentAccountId: AccountId | null;
     readonly accountStore: AccountClientStore;
     getTaskEntryStoreIfExists(task: TaskId): Store<TaskClientStoreTaskEntry> | null;
 }
@@ -93,6 +94,10 @@ export function createTaskUndoActionsIfPossible(
     store: TaskClientStoreInterface,
     actions: ReadonlyArray<TaskAction>,
 ): TaskUndoActions | null {
+    // Currently, accounts without space access can't edit tasks. The max
+    // permission level of `urlGrant` is `View`.
+    assert(store.currentAccountId);
+
     // The new actions that are returned will have identical `time`s to the
     // `action`s you passed in. Before applying the undo actions you must replace
     // all action times with new ones. The new times you generate must preserve the

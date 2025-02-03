@@ -19,6 +19,7 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {OverlayPlacement} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {Tooltip} from "~/client/design/tooltip.js";
@@ -81,12 +82,7 @@ export type MenuStandardAction = {
     /**
      * An optional icon element rendered next to the action label.
      */
-    readonly icon?: ReactNode | ((props: {size: "3" | "4"; isDisabled: boolean}) => ReactNode);
-
-    /**
-     * What should the size of the icon be? By default it's based on the menu size.
-     */
-    readonly iconSize?: "3" | "4";
+    readonly icon?: ReactNode | ((props: {size: "4"; isDisabled: boolean}) => ReactNode);
 
     /**
      * Is the icon at the front or back of the menu item? Defaults to `start`.
@@ -127,7 +123,7 @@ export type MenuStandardAction = {
      * `pressErrorTitle` property to communicate to the user what failed after
      * the press.
      */
-    readonly onPress: () => void | Promise<void>;
+    readonly onPress: () => MaybePromise<{withoutClose: boolean} | void>;
 
     /**
      * If an error occurs while running `onPress` we will report the error to the user with
@@ -171,7 +167,7 @@ export type MenuCustomAction = {
      * `pressErrorTitle` property to communicate to the user what failed after
      * the press.
      */
-    readonly onPress: () => void | Promise<void>;
+    readonly onPress: () => MaybePromise<{withoutClose: boolean} | void>;
 
     /**
      * If an error occurs while running `onPress` we will report the error to the user with
@@ -267,68 +263,23 @@ export type MenuChildrenAction = {
     readonly onFocusWithinChange?: (isFocusWithin: boolean) => void;
 };
 
-export type MenuSize = "base" | "lg" | "xl" | "brand-icons";
+export type MenuSize = "base" | "lg";
 export type MenuMaxHeight = "48" | "64" | "96";
 
 const menuSizeConstants: {
     [Key in MenuSize]: {
         [Key in "desktop" | "mobile"]: {
             width: Spacing;
-            iconSize: "3" | "4";
-            itemPaddingY: Spacing;
-            height?: Spacing;
         };
     };
 } = {
     base: {
-        desktop: {
-            width: "32",
-            iconSize: "3",
-            itemPaddingY: "1",
-        },
-        mobile: {
-            width: "48",
-            iconSize: "4",
-            itemPaddingY: "1.5",
-        },
+        desktop: {width: "48"},
+        mobile: {width: "64"},
     },
     lg: {
-        desktop: {
-            width: "48",
-            iconSize: "3",
-            itemPaddingY: "1",
-        },
-        mobile: {
-            width: "64",
-            iconSize: "4",
-            itemPaddingY: "1.5",
-        },
-    },
-    xl: {
-        desktop: {
-            width: "64",
-            iconSize: "4",
-            itemPaddingY: "1.5",
-        },
-        mobile: {
-            width: "64",
-            iconSize: "4",
-            itemPaddingY: "1.5",
-        },
-    },
-    "brand-icons": {
-        desktop: {
-            width: "48",
-            iconSize: "4",
-            itemPaddingY: "1.5",
-            height: "8",
-        },
-        mobile: {
-            width: "48",
-            iconSize: "4",
-            itemPaddingY: "1.5",
-            height: "8",
-        },
+        desktop: {width: "64"},
+        mobile: {width: "64"},
     },
 };
 
@@ -450,8 +401,9 @@ const Menu = forwardRef(function Menu(
 
     const [openedActionKey, setOpenedActionKey] = useState<Key | null>(null);
 
-    const flattenedActions = useMemo(() => {
+    const {flattenedActions, hasSiblingSelectedAction} = useMemo(() => {
         let keys: Set<Key> | undefined;
+        let hasSiblingSelectedAction = false;
 
         const flattenedActions: Array<{type: "Action"; action: MenuAction} | {type: "Divider"}> =
             [];
@@ -464,6 +416,14 @@ const Menu = forwardRef(function Menu(
                 if (nestedAction.hasChildren) {
                     assert(!keys?.has(nestedAction.key));
                     (keys ??= new Set()).add(nestedAction.key);
+                }
+
+                if (
+                    !nestedAction.withCustomLayout &&
+                    !nestedAction.hasChildren &&
+                    nestedAction.isSelected
+                ) {
+                    hasSiblingSelectedAction = true;
                 }
 
                 flattenedActions.push({type: "Action", action: nestedAction});
@@ -481,11 +441,15 @@ const Menu = forwardRef(function Menu(
                     (keys ??= new Set()).add(action.key);
                 }
 
+                if (!action.withCustomLayout && !action.hasChildren && action.isSelected) {
+                    hasSiblingSelectedAction = true;
+                }
+
                 flattenedActions.push({type: "Action", action});
             }
         }
 
-        return flattenedActions;
+        return {flattenedActions, hasSiblingSelectedAction};
     }, [nestedActions]);
 
     assert(flattenedActions.length > 0);
@@ -795,6 +759,7 @@ const Menu = forwardRef(function Menu(
                                 ref={menuItemRefs[index]}
                                 size={size}
                                 action={action.action}
+                                hasSiblingSelectedAction={hasSiblingSelectedAction}
                                 parentPlacement={placement}
                                 onCloseWithAnimation={onCloseWithAnimation}
                                 onCloseWithoutAnimation={onCloseWithoutAnimation}
@@ -831,6 +796,7 @@ export const MenuItem = forwardRef(function MenuItem(
     {
         size = "base",
         action,
+        hasSiblingSelectedAction = false,
         parentPlacement,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
@@ -843,6 +809,7 @@ export const MenuItem = forwardRef(function MenuItem(
     }: {
         size?: MenuSize;
         action: MenuAction;
+        hasSiblingSelectedAction?: boolean;
         parentPlacement?: OverlayPlacement;
         onCloseWithAnimation: () => void;
         onCloseWithoutAnimation: () => void;
@@ -913,6 +880,7 @@ export const MenuItem = forwardRef(function MenuItem(
                         size={size}
                         menuItemId={id}
                         action={action}
+                        hasSiblingSelectedAction={hasSiblingSelectedAction}
                         onCloseWithAnimation={onCloseWithAnimation}
                         onCloseWithoutAnimation={onCloseWithoutAnimation}
                         skipTooltipHoverDelay={skipHoverDelay}
@@ -930,6 +898,7 @@ export const MenuItem = forwardRef(function MenuItem(
                 size={size}
                 menuItemId={id}
                 action={action}
+                hasSiblingSelectedAction={hasSiblingSelectedAction}
                 onCloseWithAnimation={onCloseWithAnimation}
                 onCloseWithoutAnimation={onCloseWithoutAnimation}
                 isNotFocusable={isNotFocusable}
@@ -945,6 +914,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         size,
         menuItemId,
         action,
+        hasSiblingSelectedAction,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
         skipTooltipHoverDelay,
@@ -955,6 +925,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         size: MenuSize;
         menuItemId: string;
         action: MenuStandardAction;
+        hasSiblingSelectedAction: boolean;
         onCloseWithAnimation: () => void;
         onCloseWithoutAnimation: () => void;
         skipTooltipHoverDelay?: () => void;
@@ -967,14 +938,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
     const platform = usePlatform();
     const reporter = useReporter();
 
-    const {
-        width,
-        iconSize: defaultIconSize,
-        itemPaddingY,
-        height,
-    } = menuSizeConstants[size][platform];
-
-    const iconSize = action.iconSize ?? defaultIconSize;
+    const {width} = menuSizeConstants[size][platform];
 
     const [pendingState, setPendingState] = useState<
         | {isPending: false; shouldShowPendingSpinner: false}
@@ -1011,9 +975,9 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
 
             const {pressErrorTitle} = action;
 
-            let promise;
+            let result;
             try {
-                promise = action.onPress();
+                result = action.onPress();
             } catch (error) {
                 reporter.displayError(
                     pressErrorTitle ??
@@ -1030,8 +994,8 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
             // - Only close the menu if the action succeeds
             // - Show a loading spinner after a short delay
             // - Show a toast if there was an error
-            if (!(promise instanceof Promise)) {
-                if (!shouldNotCloseAfterPress) {
+            if (!(result instanceof Promise)) {
+                if (!result?.withoutClose && !shouldNotCloseAfterPress) {
                     onCloseWithoutAnimation();
                 }
             } else {
@@ -1044,9 +1008,9 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                     "If `onPress` returns a promise then the `pressErrorTitle` prop is required",
                 );
 
-                promise.then(
-                    () => {
-                        if (!shouldNotCloseAfterPress) {
+                result.then(
+                    result => {
+                        if (!result?.withoutClose && !shouldNotCloseAfterPress) {
                             // Our animation principle is to respond to user input immediately
                             // without animation.
                             //
@@ -1086,7 +1050,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
     }, [pendingState]);
 
     const icon = action.icon && (
-        <Box flexShrink="0" minWidth={iconSize} minHeight={iconSize}>
+        <Box flexShrink="0" minWidth="4" minHeight="4">
             <IconContext.Provider
                 value={{
                     color: isVisuallyDisabled
@@ -1094,12 +1058,12 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                         : isPressed
                         ? colorSchemeVars["grey-100"]
                         : colorSchemeVars["grey-80"],
-                    size: spacing[iconSize],
+                    size: spacing["4"],
                     weight: "regular",
                 }}
             >
                 {typeof action.icon === "function"
-                    ? action.icon({size: iconSize, isDisabled})
+                    ? action.icon({size: "4", isDisabled})
                     : action.icon}
             </IconContext.Provider>
         </Box>
@@ -1122,9 +1086,9 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                       }
                     : {})}
                 minWidth={width}
-                height={height}
-                paddingX="2"
-                paddingY={itemPaddingY}
+                paddingLeft={action.icon && action.iconPlacement === "start" ? "1.5" : "2"}
+                paddingRight="1.5"
+                paddingY="1.5"
                 borderRadius="1"
                 // NOTE(calebmer): We don't have a red destructive menu item style because it
                 // seems silly to call attention to the destructive action with color.
@@ -1175,16 +1139,18 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                         </Box>
                     </Box>
                 )}
-                {action.isSelected && (
-                    <Box flexShrink="0">
+                {action.isSelected ? (
+                    <Box flexShrink="0" width="4" height="4" marginLeft="1">
                         <Check
-                            size={spacing[iconSize]}
+                            size={spacing["4"]}
                             color={
                                 isPressed ? colorSchemeVars["grey-100"] : colorSchemeVars["grey-80"]
                             }
                         />
                     </Box>
-                )}
+                ) : hasSiblingSelectedAction ? (
+                    <Box flexShrink="0" width="4" height="4" marginLeft="1" />
+                ) : null}
                 {action.iconPlacement === "end" && icon}
             </Box>
         </FocusRing>
@@ -1222,9 +1188,9 @@ function MenuCustomItem({
         onPress: event => {
             const {pressErrorTitle} = action;
 
-            let promise;
+            let result;
             try {
-                promise = action.onPress();
+                result = action.onPress();
             } catch (error) {
                 reporter.displayError(
                     pressErrorTitle ??
@@ -1241,8 +1207,8 @@ function MenuCustomItem({
             // - Only close the menu if the action succeeds
             // - Show a loading spinner after a short delay
             // - Show a toast if there was an error
-            if (!(promise instanceof Promise)) {
-                if (!shouldNotCloseAfterPress) {
+            if (!(result instanceof Promise)) {
+                if (!result?.withoutClose && !shouldNotCloseAfterPress) {
                     onCloseWithoutAnimation();
                 }
             } else {
@@ -1255,9 +1221,9 @@ function MenuCustomItem({
                     "If `onPress` returns a promise then the `pressErrorTitle` prop is required",
                 );
 
-                promise.then(
-                    () => {
-                        if (!shouldNotCloseAfterPress) {
+                result.then(
+                    result => {
+                        if (!result?.withoutClose && !shouldNotCloseAfterPress) {
                             // Our animation principle is to respond to user input immediately
                             // without animation.
                             //
@@ -1411,7 +1377,7 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
     const overlayMenuRef = useRef<HTMLDivElement>(null);
     const hoverTriangleContainerRef = useRef<HTMLDivElement>(null);
 
-    const {width, iconSize, itemPaddingY, height} = menuSizeConstants[size][platform];
+    const {width} = menuSizeConstants[size][platform];
 
     const [isHovered, setIsHovered] = useState(false);
 
@@ -1672,16 +1638,16 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
     }, [hoverTriangleState, isOpened, onCloseEvent, placement]);
 
     const icon = action.icon && (
-        <Box flexShrink="0" minWidth={iconSize} minHeight={iconSize}>
+        <Box flexShrink="0" minWidth="4" minHeight="4">
             <IconContext.Provider
                 value={{
                     color: isPressed ? colorSchemeVars["grey-100"] : colorSchemeVars["grey-80"],
-                    size: spacing[iconSize],
+                    size: spacing["4"],
                     weight: "regular",
                 }}
             >
                 {typeof action.icon === "function"
-                    ? action.icon({size: iconSize, isDisabled: false})
+                    ? action.icon({size: "4", isDisabled: false})
                     : action.icon}
             </IconContext.Provider>
         </Box>
@@ -1696,6 +1662,10 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
             offsetAlong="-1"
             fallbackPlacements={emptyArray}
             onActuallyVisibleChange={action.onOpenChange}
+            // Make sure we render over the item's `<FocusRing>`. For example when the user
+            // presses the left arrow so the child menu animates closed while the
+            // `<FocusRing>` is visible.
+            overlayZIndex="10"
             overlay={
                 <Box ref={overlayRef}>
                     {hoverTriangleState && (
@@ -1709,39 +1679,41 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
                             pointerEvents="none"
                         />
                     )}
-                    <Menu
-                        ref={overlayMenuRef}
-                        size={action.size ?? size}
-                        actions={actions ?? emptyArray}
-                        placement={placement === "left" ? "left-start" : "right-start"}
-                        onCloseWithAnimation={onCloseWithAnimation}
-                        onCloseWithoutAnimation={onCloseWithoutAnimation}
-                        isNotFocusable={isNotFocusable}
-                        shouldNotCloseAfterActionPress={shouldNotCloseAfterPress}
-                        onFocusWithinChange={action.onFocusWithinChange}
-                        onArrowLeftKeyDown={event => {
-                            if (placement !== "right") return;
+                    <OverlayScopeContextProvider>
+                        <Menu
+                            ref={overlayMenuRef}
+                            size={action.size ?? size}
+                            actions={actions ?? emptyArray}
+                            placement={placement === "left" ? "left-start" : "right-start"}
+                            onCloseWithAnimation={onCloseWithAnimation}
+                            onCloseWithoutAnimation={onCloseWithoutAnimation}
+                            isNotFocusable={isNotFocusable}
+                            shouldNotCloseAfterActionPress={shouldNotCloseAfterPress}
+                            onFocusWithinChange={action.onFocusWithinChange}
+                            onArrowLeftKeyDown={event => {
+                                if (placement !== "right") return;
 
-                            event.preventDefault();
-                            event.stopPropagation();
+                                event.preventDefault();
+                                event.stopPropagation();
 
-                            const itemElement = assertExists(itemRef.current);
+                                const itemElement = assertExists(itemRef.current);
 
-                            onClose();
-                            itemElement.focus({preventScroll: true});
-                        }}
-                        onArrowRightKeyDown={event => {
-                            if (placement !== "left") return;
+                                onClose();
+                                itemElement.focus({preventScroll: true});
+                            }}
+                            onArrowRightKeyDown={event => {
+                                if (placement !== "left") return;
 
-                            event.preventDefault();
-                            event.stopPropagation();
+                                event.preventDefault();
+                                event.stopPropagation();
 
-                            const itemElement = assertExists(itemRef.current);
+                                const itemElement = assertExists(itemRef.current);
 
-                            onClose();
-                            itemElement.focus({preventScroll: true});
-                        }}
-                    />
+                                onClose();
+                                itemElement.focus({preventScroll: true});
+                            }}
+                        />
+                    </OverlayScopeContextProvider>
                 </Box>
             }
         >
@@ -1818,9 +1790,9 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
                           }
                         : {})}
                     minWidth={width}
-                    height={height}
-                    paddingX="2"
-                    paddingY={itemPaddingY}
+                    paddingLeft={action.icon ? "1.5" : "2"}
+                    paddingRight="1.5"
+                    paddingY="1.5"
                     borderRadius="1"
                     color="grey-100"
                     backgroundColor={
@@ -1840,8 +1812,8 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
                     </Box>
                     <Box
                         flexShrink="0"
-                        width={iconSize}
-                        height={iconSize}
+                        width="4"
+                        height="4"
                         display="flex"
                         justifyContent="center"
                         alignItems="center"
@@ -1853,18 +1825,15 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
                                 color={colorSchemeVars["grey-70"]}
                             />
                         ) : (
-                            <IconContext.Provider
-                                value={{
-                                    color:
-                                        isPressed || isHoverTrianglePressed
-                                            ? colorSchemeVars["grey-100"]
-                                            : colorSchemeVars["grey-80"],
-                                    size: spacing[iconSize],
-                                    weight: "regular",
-                                }}
-                            >
-                                <CaretRight />
-                            </IconContext.Provider>
+                            <CaretRight
+                                color={
+                                    isPressed || isHoverTrianglePressed
+                                        ? colorSchemeVars["grey-100"]
+                                        : colorSchemeVars["grey-80"]
+                                }
+                                size={spacing["4"]}
+                                weight="regular"
+                            />
                         )}
                     </Box>
                 </Box>

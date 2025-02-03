@@ -18,6 +18,7 @@ ts_project(
         "//client/dev",
         "//client/helpers",
         "//client/messaging",
+        "//client/navigation",
         "//client/remix",
         "//client/styles",
         "//client/virtualized",

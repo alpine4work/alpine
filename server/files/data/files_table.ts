@@ -13,6 +13,7 @@ import {
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {fileProcessorDeclarationByContentType} from "~/server/files/data/file_processor_declaration_by_content_type.js";
+import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {
@@ -436,6 +437,8 @@ export async function startUploadingFile(
         attachTargetAuthorizer?: FileAuthorizer | null;
     },
 ): Promise<{fileId: FileId}> {
+    await authorizeSpaceAccess(context, spaceId);
+
     // If we're attaching the file to a target as a part of the upload, verify we
     // have edit access to the target.
     await attachTargetAuthorizer?.authorizeTargetAccess(context, spaceId, "Edit");
@@ -599,14 +602,20 @@ export async function finishUploadingAndStartProcessingFile(
         spaceId,
         fileId,
         validateContentLength,
+        withoutProcessJobForTest,
     }: {
         spaceId: SpaceId;
         fileId: FileId;
         validateContentLength?: number;
+        withoutProcessJobForTest?: boolean;
     },
 ): Promise<FileModel> {
     if (!import.meta.jest && context.actor.serviceName !== "EdgeService") {
         throw new PermissionDeniedError('Only "EdgeService" can upload files');
+    }
+
+    if (withoutProcessJobForTest) {
+        assert(process.env.NODE_ENV === "test");
     }
 
     return context.dynamo.retryTransaction(async context => {
@@ -648,7 +657,7 @@ export async function finishUploadingAndStartProcessingFile(
         const {hasAlternative, hasPreview} =
             fileProcessorDeclarationByContentType[item.contentType];
 
-        if (hasAlternative || hasPreview) {
+        if (!withoutProcessJobForTest && (hasAlternative || hasPreview)) {
             // Now that the file has finished uploading we can start processing it. Wait
             // for the message to be added to our queue. If sending the process file
             // message fails we want to fail the entire upload.
@@ -733,6 +742,9 @@ export class FileUploader {
                     throw new PermissionDeniedError("System actor is not for the file's space");
                 }
                 break;
+            }
+            case "Anonymous": {
+                throw unauthenticatedSessionError();
             }
             default:
                 throw exhaustive(context.actor);
@@ -1478,9 +1490,6 @@ function getFileItemIfExistsWithCache(
         );
 
         if (!item) return null;
-
-        await authorizeSpaceAccess(context, item.spaceId);
-
         return item;
     };
 
@@ -1506,16 +1515,17 @@ async function getFileItemIfExistsAsUploader(
 
     switch (context.actor.type) {
         case "System": {
-            // System actors have access to all files in the space. We already validated
-            // above that we have access to the space.
+            await authorizeSpaceAccess(context, spaceId);
             break;
         }
         case "Session": {
-            // other than the uploader to read a file.
             if (item.uploaderId !== context.actor.getAccountId()) {
                 throw new PermissionDeniedError("Account didn't upload file");
             }
             break;
+        }
+        case "Anonymous": {
+            throw unauthenticatedSessionError();
         }
         default:
             throw exhaustive(context.actor);
@@ -1750,14 +1760,12 @@ export async function getFileIfExistsFromAttachment(
     }: {consistency?: DynamoReadConsistency; accessLevel?: "View" | "Edit"} = {},
 ): Promise<FileModel | null> {
     const [item, , targetItem] = await runAllPromises([
-        // 1. Make sure we have access to the space the file is in
-        //    (`authorizeSpaceAccess()` is called by this function)
         getFileItemIfExistsWithCache(context, spaceId, fileId, {consistency}),
 
-        // 2. Make sure we have access to the file's attachment target
+        // 1. Make sure we have access to the file's attachment target
         targetAuthorizer.authorizeTargetAccess(context, spaceId, accessLevel),
 
-        // 3. Make sure the file is actually attached to the provided target
+        // 2. Make sure the file is actually attached to the provided target
         (async () => {
             let targetItem = await FilesTable.getItemIfExists(
                 context,

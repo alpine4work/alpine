@@ -1013,7 +1013,9 @@ function normalizeTaskQueryFilterAccountOperation(
                 break;
             }
             case "CurrentAccount": {
-                accountIds.add(evaluationContext.currentAccountId);
+                if (evaluationContext.currentAccountId !== null) {
+                    accountIds.add(evaluationContext.currentAccountId);
+                }
                 break;
             }
             case "MissingAccount": {

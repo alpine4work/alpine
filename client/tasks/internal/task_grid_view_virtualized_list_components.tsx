@@ -61,6 +61,7 @@ import {TaskRowView, TaskRowViewRef} from "~/client/tasks/internal/task_row_view
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
@@ -102,7 +103,6 @@ function TaskGridViewColumnHeader(
                 shouldRenderWithRelativePositioning
                     ? {
                           position: "relative",
-                          backgroundColor: "grey-0",
                       }
                     : {
                           position: "absolute",
@@ -133,7 +133,7 @@ function TaskGridViewColumnHeader(
                 <Box zIndex="-10" position="absolute" inset="0" backgroundColor="grey-0">
                     <Box
                         position="absolute"
-                        left="0"
+                        left={screenPaddingX}
                         right={screenPaddingX}
                         height="border"
                         backgroundColor="grey-5"
@@ -306,8 +306,7 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
 
         return (
             <Box
-                paddingLeft={!capabilities.hasColumns ? screenPaddingX : undefined}
-                paddingRight={screenPaddingX}
+                paddingX={screenPaddingX}
                 maxWidth={rowMaxWidth ?? undefined}
                 marginX="center"
                 // Create an illusion that the text editor extends into the margins by giving
@@ -497,12 +496,7 @@ function TaskGridViewRowShimmer({
                 onSelectAll: focusPreviousTaskTitleAll,
             })}
         >
-            <TaskRowShimmer
-                hasColumns={capabilities.hasColumns}
-                width={width}
-                ragRight={ragRight}
-                indentation={indentation}
-            />
+            <TaskRowShimmer width={width} ragRight={ragRight} indentation={indentation} />
         </Box>
     );
 }
@@ -689,6 +683,10 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             return;
         }
 
+        // Currently, accounts without space access can't edit tasks. The max
+        // permission level of `urlGrant` is `View`.
+        assert(currentAccount);
+
         const newTaskId = generateId<TaskId>();
 
         disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
@@ -720,6 +718,10 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
         // manually sorted query. We don't have control of task order in an
         // auto-sorted query.
         if (!isQueryManuallySorted) return;
+
+        // Currently, accounts without space access can't edit tasks. The max
+        // permission level of `urlGrant` is `View`.
+        assert(currentAccount);
 
         if (!taskId) {
             // This method doesn't support bottom ghost tasks. You can't create a task

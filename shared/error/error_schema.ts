@@ -39,11 +39,12 @@ export const ErrorDisplayMessageSchema: Schema<ErrorDisplayMessage> = Schema.arr
 
 type ErrorBaseWithCause = {
     readonly message: string;
-    readonly code?: number | undefined;
-    readonly displayMessage?: ErrorDisplayMessage | undefined;
-    readonly name?: string | undefined;
-    readonly stack?: string | undefined;
-    readonly cause?: ErrorBaseWithCause | undefined;
+    readonly code?: number;
+    readonly displayMessage?: ErrorDisplayMessage;
+    readonly aggregateDedupeKey?: string;
+    readonly name?: string;
+    readonly stack?: string;
+    readonly cause?: ErrorBaseWithCause;
 };
 
 const ErrorBaseWithCauseRecursiveSchema = Schema.declare<ErrorBaseWithCause>();
@@ -52,6 +53,7 @@ const ErrorBaseWithCauseSchema = Schema.object({
     code: Schema.integer.optional(),
     message: Schema.string,
     displayMessage: ErrorDisplayMessageSchema.optional(),
+    aggregateDedupeKey: Schema.string.optional(),
     name: Schema.string.optional(),
     stack: Schema.string.optional(),
     cause: ErrorBaseWithCauseRecursiveSchema.optional(),
@@ -139,6 +141,7 @@ function serializeErrorBase(error: unknown) {
         code: getErrorCode(error),
         message: error instanceof Error ? error.message : "",
         displayMessage: error instanceof ErrorBase ? error.displayMessage : undefined,
+        aggregateDedupeKey: error instanceof ErrorBase ? error.aggregateDedupeKey : undefined,
         // In development include the stack trace of the error so we can show it to
         // the developer.
         ...(process.env.NODE_ENV !== "production" && error instanceof Error
@@ -169,6 +172,7 @@ function deserializeError(
 
         error = new ErrorConstructor(serializedError.message, {
             displayMessage: serializedError.displayMessage,
+            aggregateDedupeKey: serializedError.aggregateDedupeKey,
             cause: serializedError.cause ? deserializeError(serializedError.cause) : undefined,
         });
     }

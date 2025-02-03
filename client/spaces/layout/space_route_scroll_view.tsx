@@ -1,11 +1,11 @@
 import {ReactNode, Ref, forwardRef} from "react";
 import {Box} from "~/client/design/box.js";
-import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
-import {NavigationBarProps} from "~/client/design/navigation_bar_types.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
+import {NavigationBarProps} from "~/client/navigation/navigation_bar_types.js";
 
 const SpaceRouteScrollViewForwardRef = forwardRef(SpaceRouteScrollView);
 export {SpaceRouteScrollViewForwardRef as SpaceRouteScrollView};

@@ -461,6 +461,10 @@ function TaskNotepadViewActiveSectionDroppable({
             assigneeActivePosition,
             nextAssigneeActivePosition,
             getDropActions: (task, position) => {
+                // Currently, accounts without space access can't edit tasks. The max
+                // permission level of `urlGrant` is `View`.
+                assert(currentAccount);
+
                 const actions: Array<TaskAction> = [];
 
                 const updateTime = new TaskFilterableTime({

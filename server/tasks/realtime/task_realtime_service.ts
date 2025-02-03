@@ -5,7 +5,7 @@ import {
     DynamoSystemActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
 import {
-    ServerSessionActionContext,
+    ServerActionContext,
     ServerSessionActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
@@ -27,21 +27,19 @@ import {
     serviceOpensearchOptions,
 } from "~/server/opensearch/create_service_opensearch_context_module.js";
 import {createDynamoActorContextModule} from "~/server/spaces/create_dynamo_actor_context_module.js";
-import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {
+    authorizeSpaceAccess,
+    authorizeSpaceAccessIfPossible,
+} from "~/server/spaces/spaces_table.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {
     TaskSystemActionContext,
     TaskSystemActionContextModules,
 } from "~/server/tasks/data/task_action_context.js";
+import {authorizeTaskCollectionIndexDocAccessIfPossibleForActor} from "~/server/tasks/data/task_table.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
-import {
-    TaskRealtimeApplyActionTransactionInputSchema,
-    TaskRealtimeGetTaskWithoutDependenciesOutputSchema,
-    TaskRealtimeLoadQueriesInputSchema,
-    TaskRealtimeLoadQueriesOutputSchema,
-} from "~/server/tasks/router/task_realtime_service_procedure_schemas.js";
 import {taskRealtimeServiceDiscoveryWaitMs} from "~/server/tasks/router/task_realtime_service_router_base.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -64,8 +62,14 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
-import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
+import {
+    TaskRealtimeApplyActionTransactionInputSchema,
+    TaskRealtimeGetTaskWithoutDependenciesOutputSchema,
+    TaskRealtimeLoadQueriesInputSchema,
+    TaskRealtimeLoadQueriesOutputSchema,
+} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 import {WebSocketClosingWithErrorMessageSchema} from "~/shared/web_socket/web_socket_schema.js";
@@ -335,17 +339,18 @@ export async function run({
                     throw new InvalidArgumentError(quote`Invalid request method ${request.method}`);
                 }
 
-                if (actorContextModule.serviceName !== "AppService") {
-                    throw new PermissionDeniedError("Only `AppService` can load queries");
-                }
-
-                if (!(actorContextModule instanceof DynamoSessionActorContextModule)) {
-                    throw new PermissionDeniedError("Only session actors can load queries");
+                if (
+                    actorContextModule.serviceName !== "AppService" &&
+                    actorContextModule.serviceName !== "EdgeService"
+                ) {
+                    throw new PermissionDeniedError(
+                        "Only `AppService` or `EdgeService` can load queries",
+                    );
                 }
 
                 return baseActionContext.with(
                     {actor: actorContextModule},
-                    async (context: ServerSessionActionContext) => {
+                    async (context: ServerActionContext) => {
                         const input = TaskRealtimeLoadQueriesInputSchema.deserialize(
                             await request.json(),
                         );
@@ -388,35 +393,71 @@ export async function run({
                     throw new PermissionDeniedError("Only `AppService` can load queries");
                 }
 
-                if (!(actorContextModule instanceof DynamoSessionActorContextModule)) {
-                    throw new PermissionDeniedError("Only session actors can load queries");
-                }
-
-                return baseActionContext.with({actor: actorContextModule}, async context => {
-                    await server.authorizeTaskAccess(context, spaceId, route.taskId, "View");
-
-                    return dangerouslyEscalateToSystemContext(context, spaceId, async context => {
-                        const task = await server.getTask(context, spaceId, route.taskId);
-
-                        const taskModel = prepareTaskForClient(
-                            actorContextModule.getAccountId(),
-                            task,
+                return baseActionContext.with(
+                    {actor: actorContextModule},
+                    async originalContext => {
+                        await server.authorizeTaskAccess(
+                            originalContext,
+                            spaceId,
+                            route.taskId,
+                            "View",
                         );
 
-                        return new Response(
-                            JSON.stringify(
-                                TaskRealtimeGetTaskWithoutDependenciesOutputSchema.serialize({
-                                    ok: true,
-                                    task: taskModel,
-                                }),
-                            ),
-                            {
-                                status: 200,
-                                headers: {"content-type": "application/json"},
+                        return dangerouslyEscalateToSystemContext(
+                            originalContext,
+                            spaceId,
+                            async context => {
+                                const task = await server.getTask(context, spaceId, route.taskId);
+
+                                const prepareContext = {
+                                    actor: originalContext.actor,
+                                    isSpaceAccessAuthorized: (
+                                        await authorizeSpaceAccessIfPossible(
+                                            originalContext,
+                                            spaceId,
+                                        )
+                                    ).ok,
+                                    isCollectionAccessAuthorized: async (
+                                        collectionId: TaskCollectionId,
+                                    ) => {
+                                        const collection = await server.getCollection(
+                                            context,
+                                            spaceId,
+                                            collectionId,
+                                        );
+
+                                        const result =
+                                            await authorizeTaskCollectionIndexDocAccessIfPossibleForActor(
+                                                context,
+                                                originalContext.actor,
+                                                collection,
+                                                "View",
+                                            );
+
+                                        return result.ok;
+                                    },
+                                };
+
+                                const taskModel = await prepareTaskForClient(task, prepareContext);
+
+                                return new Response(
+                                    JSON.stringify(
+                                        TaskRealtimeGetTaskWithoutDependenciesOutputSchema.serialize(
+                                            {
+                                                ok: true,
+                                                task: taskModel,
+                                            },
+                                        ),
+                                    ),
+                                    {
+                                        status: 200,
+                                        headers: {"content-type": "application/json"},
+                                    },
+                                );
                             },
                         );
-                    });
-                });
+                    },
+                );
             }
             default:
                 throw exhaustive(route);

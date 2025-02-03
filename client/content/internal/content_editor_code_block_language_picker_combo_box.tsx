@@ -243,6 +243,7 @@ function ContentEditorCodeBlockLanguagePickerComboBoxOverlay({
                             backgroundColor: "transparent",
                             borderTopRadius: "1.5",
                             borderBottomRadius: "none",
+                            borderBottom: "grey-5",
                         })}
                         placeholder="Language"
                         // Allow iOS and MacOS autocorrect and spell checking. By default `react-aria`

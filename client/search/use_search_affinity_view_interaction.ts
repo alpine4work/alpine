@@ -23,7 +23,7 @@ const SessionStorageSchema = Schema.object({
  */
 export function useSearchAffinityViewInteraction(affinityId: SearchAffinityId | null) {
     const context = useAppContext();
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
     // When rendered in a peek, the peek may disable view interaction tracking. If
     // you only briefly view a search entity from within the search window's peek,
@@ -35,6 +35,11 @@ export function useSearchAffinityViewInteraction(affinityId: SearchAffinityId | 
     // affinity score. We don't add to affinity scores while the page is
     // hidden. We resume if the user reopens the page.
     useEffect(() => {
+        // If the actor doesn't have space access, don't send view search affinity
+        // requests. They'll be rejected with `PermissionDeniedError` or
+        // `UnauthenticatedError` anyway.
+        if (!currentAccount) return;
+
         if (!affinityId) return;
         if (withoutSearchAffinityViewInteraction) return;
 
@@ -139,5 +144,5 @@ export function useSearchAffinityViewInteraction(affinityId: SearchAffinityId | 
                 state = null;
             }
         };
-    }, [context, affinityId, space.id, withoutSearchAffinityViewInteraction]);
+    }, [context, affinityId, space.id, withoutSearchAffinityViewInteraction, currentAccount]);
 }
