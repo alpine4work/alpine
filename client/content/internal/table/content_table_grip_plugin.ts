@@ -49,12 +49,12 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                         decorations.push(
                             Decoration.widget(rowCells[0].pos, () => {
                                 const button = document.createElement("a");
-                                button.className = contentStyles.gripTableClassName;
+                                button.className = contentStyles.tableGripButtonClassName;
 
                                 button.title = "Select table";
 
                                 if (isTableSelected(selection)) {
-                                    button.className += " selected";
+                                    button.className += ` ${contentStyles.tableGripButtonSelectedClassName}`;
                                 }
                                 button.addEventListener("mousedown", event => {
                                     event.preventDefault();
@@ -79,7 +79,8 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                             decorations.push(
                                 Decoration.widget(pos + 1, () => {
                                     const betweenGrip = document.createElement("div");
-                                    betweenGrip.className = contentStyles.betweenRowGripClassName;
+                                    betweenGrip.className =
+                                        contentStyles.tableBetweenRowGripClassName;
                                     betweenGrip.title = "Add row";
 
                                     const plusSign = document.createElement("span");
@@ -110,16 +111,16 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                         decorations.push(
                             Decoration.widget(pos + 1, () => {
                                 const rowSelected = isRowSelected(index)(selection);
-                                let className = contentStyles.gripRowClassName;
+                                let className = contentStyles.tableGripRowClassName;
 
                                 if (rowSelected) {
-                                    className += " selected";
+                                    className += ` ${contentStyles.tableGripSelectedRowClassName}`;
                                 }
                                 if (index === 0) {
-                                    className += " first";
+                                    className += ` ${contentStyles.tableGripFirstRowClassName}`;
                                 }
                                 if (index === rowCells.length - 1) {
-                                    className += " last";
+                                    className += ` ${contentStyles.tableGripLastRowClassName}`;
                                 }
 
                                 const grip = document.createElement("a");
@@ -182,7 +183,7 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                                 Decoration.widget(pos + 1, () => {
                                     const betweenGrip = document.createElement("div");
                                     betweenGrip.className =
-                                        contentStyles.betweenColumnGripClassName;
+                                        contentStyles.tableBetweenColumnGripClassName;
                                     betweenGrip.title = "Add column";
 
                                     const plusSign = document.createElement("span");
@@ -213,16 +214,16 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
                         decorations.push(
                             Decoration.widget(pos + 1, () => {
                                 const colSelected = isColumnSelected(index)(selection);
-                                let className = contentStyles.gripColumnClassName;
+                                let className = contentStyles.tableGripColumnClassName;
 
                                 if (colSelected) {
-                                    className += " selected";
+                                    className += ` ${contentStyles.tableGripSelectedColumnClassName}`;
                                 }
                                 if (index === 0) {
-                                    className += " first";
+                                    className += ` ${contentStyles.tableGripFirstColumnClassName}`;
                                 }
                                 if (index === colCells.length - 1) {
-                                    className += " last";
+                                    className += ` ${contentStyles.tableGripLastColumnClassName}`;
                                 }
 
                                 const grip = document.createElement("a");

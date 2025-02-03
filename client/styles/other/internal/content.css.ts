@@ -2255,9 +2255,7 @@ globalStyle(`${tableWrapperClassName} button`, {
 // like the selectors, colors etc.
 // maybe better way to write these styles than this.
 
-export const gripColumnClassName = "grip-column";
-
-globalStyle(`.${gripColumnClassName}`, {
+export const tableGripColumnClassName = style({
     width: "calc(100% + 1px)",
     borderLeft: `1px solid rgba(0, 0, 0, 0.2)`,
     height: spacing[3],
@@ -2271,60 +2269,65 @@ globalStyle(`.${gripColumnClassName}`, {
     position: "absolute",
     zIndex: 11,
     transform: "translate(0px, -0.2px)",
+    selectors: {
+        [`${darkColorSchemeSelector} &`]: {
+            backgroundColor: "rgba(255, 255, 255, 0.1)",
+            borderColor: "rgba(255, 255, 255, 0.2)",
+        },
+        "&:hover": {
+            backgroundColor: "rgba(0, 0, 0, 0.1)",
+        },
+        [`${darkColorSchemeSelector} &:hover`]: {
+            backgroundColor: "rgba(255, 255, 255, 0.2)",
+        },
+        "&:hover::before": {
+            content: "''",
+            width: spacing[2.5],
+            borderBottom: `2px dotted rgba(0, 0, 0, 0.6)`,
+        },
+        [`${darkColorSchemeSelector} &:hover::before`]: {
+            borderColor: "rgba(255, 255, 255, 0.6)",
+        },
+    },
 });
 
-globalStyle(`${darkColorSchemeSelector} .${gripColumnClassName}`, {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderColor: "rgba(255, 255, 255, 0.2)",
+export const tableGripFirstColumnClassName = style({
+    selectors: {
+        [`${tableGripColumnClassName}&`]: {
+            borderLeft: "none",
+            borderTopLeftRadius: borderRadius["0.5"],
+        },
+    },
 });
 
-globalStyle(`.${gripColumnClassName}:hover`, {
-    backgroundColor: "rgba(0, 0, 0, 0.1)",
+export const tableGripLastColumnClassName = style({
+    selectors: {
+        [`${tableGripColumnClassName}&`]: {
+            borderTopRightRadius: borderRadius["0.5"],
+        },
+    },
 });
 
-globalStyle(`.${gripColumnClassName}:hover::before`, {
-    content: "''",
-    width: spacing[2.5],
-    borderBottom: `2px dotted rgba(0, 0, 0, 0.6)`,
+export const tableGripSelectedColumnClassName = style({
+    selectors: {
+        [`${tableGripColumnClassName}&`]: {
+            backgroundColor: "rgba(0, 0, 0, 0.3)",
+            borderColor: "rgba(0, 0, 0, 0.3)",
+            boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+        },
+        [`${tableGripColumnClassName}&::before`]: {
+            content: "''",
+            width: spacing[2.5],
+            borderBottom: "2px dotted",
+        },
+        [`${darkColorSchemeSelector} ${tableGripColumnClassName}&`]: {
+            backgroundColor: "rgba(255, 255, 255, 0.3)",
+            borderColor: "rgba(255, 255, 255, 0.3)",
+        },
+    },
 });
 
-globalStyle(`${darkColorSchemeSelector} .${gripColumnClassName}:hover`, {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-});
-
-globalStyle(`${darkColorSchemeSelector} .${gripColumnClassName}:hover::before`, {
-    borderColor: "rgba(255, 255, 255, 0.6)",
-});
-
-globalStyle(`.${gripColumnClassName}.first`, {
-    borderLeft: "none",
-    borderTopLeftRadius: borderRadius["0.5"],
-});
-
-globalStyle(`.${gripColumnClassName}.last`, {
-    borderTopRightRadius: borderRadius["0.5"],
-});
-
-globalStyle(`.${gripColumnClassName}.selected`, {
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-    borderColor: "rgba(0, 0, 0, 0.3)",
-    boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-});
-
-globalStyle(`.${gripColumnClassName}.selected::before`, {
-    content: "''",
-    width: spacing[2.5],
-    borderBottom: "2px dotted",
-});
-
-globalStyle(`${darkColorSchemeSelector} .${gripColumnClassName}.selected`, {
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-    borderColor: "rgba(255, 255, 255, 0.3)",
-});
-
-export const gripRowClassName = "grip-row";
-
-globalStyle(`.${gripRowClassName}`, {
+export const tableGripRowClassName = style({
     height: "calc(100% + 1px)",
     borderTop: `1px solid rgba(0, 0, 0, 0.2)`,
     left: `-${spacing[3]}`,
@@ -2339,60 +2342,65 @@ globalStyle(`.${gripRowClassName}`, {
     position: "absolute",
     zIndex: 11,
     transform: "translate(-0.2px, 0px)",
+    selectors: {
+        [`${darkColorSchemeSelector} &`]: {
+            backgroundColor: "rgba(255, 255, 255, 0.1)",
+            borderColor: "rgba(255, 255, 255, 0.2)",
+        },
+        "&:hover": {
+            backgroundColor: "rgba(0, 0, 0, 0.1)",
+        },
+        [`${darkColorSchemeSelector} &:hover`]: {
+            backgroundColor: "rgba(255, 255, 255, 0.2)",
+        },
+        "&:hover::before": {
+            content: "''",
+            height: spacing[2.5],
+            borderLeft: `2px dotted rgba(0, 0, 0, 0.6)`,
+        },
+        [`${darkColorSchemeSelector} &:hover::before`]: {
+            borderColor: "rgba(255, 255, 255, 0.6)",
+        },
+    },
 });
 
-globalStyle(`${darkColorSchemeSelector} .${gripRowClassName}`, {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderColor: "rgba(255, 255, 255, 0.2)",
+export const tableGripFirstRowClassName = style({
+    selectors: {
+        [`${tableGripRowClassName}&`]: {
+            borderTop: "none",
+            borderTopLeftRadius: borderRadius["0.5"],
+        },
+    },
 });
 
-globalStyle(`.${gripRowClassName}:hover`, {
-    backgroundColor: "rgba(0, 0, 0, 0.1)",
+export const tableGripLastRowClassName = style({
+    selectors: {
+        [`${tableGripRowClassName}&`]: {
+            borderBottomLeftRadius: borderRadius["0.5"],
+        },
+    },
 });
 
-globalStyle(`.${gripRowClassName}:hover::before`, {
-    content: "''",
-    height: spacing[2.5],
-    borderLeft: `2px dotted rgba(0, 0, 0, 0.6)`,
+export const tableGripSelectedRowClassName = style({
+    selectors: {
+        [`${tableGripRowClassName}&`]: {
+            backgroundColor: "rgba(0, 0, 0, 0.3)",
+            borderColor: "rgba(0, 0, 0, 0.3)",
+            boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+        },
+        [`${tableGripRowClassName}&::before`]: {
+            content: "''",
+            height: spacing[2.5],
+            borderLeft: "2px dotted",
+        },
+        [`${darkColorSchemeSelector} ${tableGripRowClassName}&`]: {
+            backgroundColor: "rgba(255, 255, 255, 0.3)",
+            borderColor: "rgba(255, 255, 255, 0.3)",
+        },
+    },
 });
 
-globalStyle(`${darkColorSchemeSelector} .${gripRowClassName}:hover`, {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-});
-
-globalStyle(`${darkColorSchemeSelector} .${gripRowClassName}:hover::before`, {
-    borderColor: "rgba(255, 255, 255, 0.6)",
-});
-
-globalStyle(`.${gripRowClassName}.first`, {
-    borderTop: "none",
-    borderTopLeftRadius: borderRadius["0.5"],
-});
-
-globalStyle(`.${gripRowClassName}.last`, {
-    borderBottomLeftRadius: borderRadius["0.5"],
-});
-
-globalStyle(`.${gripRowClassName}.selected`, {
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-    borderColor: "rgba(0, 0, 0, 0.3)",
-    boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-});
-
-globalStyle(`.${gripRowClassName}.selected::before`, {
-    content: "''",
-    height: spacing[2.5],
-    borderLeft: "2px dotted",
-});
-
-globalStyle(`${darkColorSchemeSelector} .${gripRowClassName}.selected`, {
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-    borderColor: "rgba(255, 255, 255, 0.3)",
-});
-
-export const gripTableClassName = "grip-button";
-
-globalStyle(`.${gripTableClassName}`, {
+export const tableGripButtonClassName = style({
     position: "absolute",
     top: "-24px",
     left: "-24px",
@@ -2404,18 +2412,22 @@ globalStyle(`.${gripTableClassName}`, {
     border: `1px solid ${colorSchemeVars["grey-20"]}`,
     opacity: 1,
     transition: "opacity 0.2s",
+    selectors: {
+        [`${darkColorSchemeSelector} &:hover`]: {
+            backgroundColor: "rgba(255, 255, 255, 0.2)",
+        },
+        [`${darkColorSchemeSelector} &:hover::before`]: {
+            borderColor: "rgba(255, 255, 255, 0.6)",
+        },
+    },
 });
 
-globalStyle(`${darkColorSchemeSelector} .${gripTableClassName}.selected`, {
-    backgroundColor: colorSchemeVars["grey-5"],
-});
-
-globalStyle(`${darkColorSchemeSelector} .${gripTableClassName}:hover`, {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-});
-
-globalStyle(`${darkColorSchemeSelector} .${gripTableClassName}:hover::before`, {
-    borderColor: "rgba(255, 255, 255, 0.6)",
+export const tableGripButtonSelectedClassName = style({
+    selectors: {
+        [`${darkColorSchemeSelector} ${tableGripButtonClassName}&`]: {
+            backgroundColor: colorSchemeVars["grey-5"],
+        },
+    },
 });
 
 export const tableAddColumnGripClassName = style({
@@ -2459,7 +2471,7 @@ export const tableAddRowGripClassName = style({
     },
 });
 
-export const betweenColumnGripClassName = style({
+export const tableBetweenColumnGripClassName = style({
     position: "absolute",
     left: "100%",
     top: "-31px",
@@ -2475,7 +2487,7 @@ export const betweenColumnGripClassName = style({
     transform: "translateX(-50%)",
 });
 
-globalStyle(`${betweenColumnGripClassName}::before`, {
+globalStyle(`${tableBetweenColumnGripClassName}::before`, {
     content: '""',
     zIndex: 12,
     position: "absolute",
@@ -2486,15 +2498,15 @@ globalStyle(`${betweenColumnGripClassName}::before`, {
     opacity: 0.6,
 });
 
-globalStyle(`${betweenColumnGripClassName}:hover`, {
+globalStyle(`${tableBetweenColumnGripClassName}:hover`, {
     backgroundColor: colorSchemeVars["theme-60"],
 });
 
-globalStyle(`${betweenColumnGripClassName}:hover::before`, {
+globalStyle(`${tableBetweenColumnGripClassName}:hover::before`, {
     display: "none",
 });
 
-globalStyle(`${betweenColumnGripClassName}:hover > span`, {
+globalStyle(`${tableBetweenColumnGripClassName}:hover > span`, {
     display: "flex",
     color: colorSchemeVars["grey-100"],
     alignItems: "center",
@@ -2503,7 +2515,7 @@ globalStyle(`${betweenColumnGripClassName}:hover > span`, {
     height: "100%",
 });
 
-export const betweenRowGripClassName = style({
+export const tableBetweenRowGripClassName = style({
     position: "absolute",
     top: "100%",
     left: "-31px",
@@ -2519,7 +2531,7 @@ export const betweenRowGripClassName = style({
     transform: "translateY(-50%)",
 });
 
-globalStyle(`${betweenRowGripClassName}::before`, {
+globalStyle(`${tableBetweenRowGripClassName}::before`, {
     content: '""',
     position: "absolute",
     width: "4px",
@@ -2529,15 +2541,15 @@ globalStyle(`${betweenRowGripClassName}::before`, {
     opacity: 0.6,
 });
 
-globalStyle(`${betweenRowGripClassName}:hover`, {
+globalStyle(`${tableBetweenRowGripClassName}:hover`, {
     backgroundColor: colorSchemeVars["theme-60"],
 });
 
-globalStyle(`${betweenRowGripClassName}:hover::before`, {
+globalStyle(`${tableBetweenRowGripClassName}:hover::before`, {
     display: "none",
 });
 
-globalStyle(`${betweenRowGripClassName}:hover > span`, {
+globalStyle(`${tableBetweenRowGripClassName}:hover > span`, {
     display: "flex",
     color: colorSchemeVars["grey-100"],
     alignItems: "center",
