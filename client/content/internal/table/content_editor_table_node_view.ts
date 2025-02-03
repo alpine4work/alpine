@@ -107,7 +107,7 @@ export function updateContentTableColumnsOnResize(
     overrideTableAndColumnWidths?: {
         tableWidth?: number;
         columnWidths: ReadonlyArray<number>;
-        scrollTo?: "left" | "right";
+        scrollLeftPx?: number;
     },
 ): void {
     const platform = getPlatformWithoutListening();
@@ -275,16 +275,8 @@ export function updateContentTableColumnsOnResize(
 
     // While resizing we may need to make sure scroll is locked to the left/right
     // side. For example when dragging to grow the rightmost edge.
-    if (overrideTableAndColumnWidths?.scrollTo !== undefined) {
+    if (overrideTableAndColumnWidths?.scrollLeftPx !== undefined) {
         const tableWrapper2Element = tableWrapper3Element.parentElement!;
-
-        if (overrideTableAndColumnWidths.scrollTo === "left") {
-            tableWrapper2Element.scrollLeft = 0;
-        }
-
-        if (overrideTableAndColumnWidths.scrollTo === "right") {
-            tableWrapper2Element.scrollLeft =
-                tableWrapper2Element.scrollWidth - tableWrapper2Element.clientWidth;
-        }
+        tableWrapper2Element.scrollLeft = overrideTableAndColumnWidths.scrollLeftPx;
     }
 }

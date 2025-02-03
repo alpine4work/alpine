@@ -45,7 +45,7 @@ import {
 } from "~/shared/content/content_styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {pointsAtContentTableCell} from "~/shared/content/table/content_table_shared_util.js";
-import {convertRemLengthToPx, screenPaddingXRem} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -113,8 +113,9 @@ type ContentTableColumnResizeAction =
           readonly type: "SetDragging";
           readonly dragging: {
               readonly startX: number;
-              readonly viewWidthPx: number;
+              readonly viewWithoutPaddingWidthPx: number;
               readonly oldTotalColumnWidthPx: number;
+              readonly oldScrollLeftPx: number;
               readonly state: ContentTableColumnResizeDraggingState;
           } | null;
       };
@@ -176,8 +177,9 @@ class ContentTableColumnResizeState {
     public readonly activeHandle: number | null;
     public readonly dragging: {
         readonly startX: number;
-        readonly viewWidthPx: number;
+        readonly viewWithoutPaddingWidthPx: number;
         readonly oldTotalColumnWidthPx: number;
+        readonly oldScrollLeftPx: number;
         readonly state: ContentTableColumnResizeDraggingState;
     } | null;
 
@@ -185,8 +187,9 @@ class ContentTableColumnResizeState {
         activeHandle: number | null,
         dragging: {
             readonly startX: number;
-            readonly viewWidthPx: number;
+            readonly viewWithoutPaddingWidthPx: number;
             readonly oldTotalColumnWidthPx: number;
+            readonly oldScrollLeftPx: number;
             readonly state: ContentTableColumnResizeDraggingState;
         } | null,
     ) {
@@ -214,8 +217,9 @@ class ContentTableColumnResizeState {
             } else if (tr.docChanged) {
                 state = new ContentTableColumnResizeState(state.activeHandle, {
                     startX: state.dragging.startX,
-                    viewWidthPx: state.dragging.viewWidthPx,
+                    viewWithoutPaddingWidthPx: state.dragging.viewWithoutPaddingWidthPx,
                     oldTotalColumnWidthPx: state.dragging.oldTotalColumnWidthPx,
+                    oldScrollLeftPx: state.dragging.oldScrollLeftPx,
                     state: getContentTableColumnResizeDraggingState(tr.doc, state.activeHandle),
                 });
             }
@@ -329,6 +333,8 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
         const tableElement = draggingState.getTableElement(view);
         if (!tableElement) return false;
 
+        const viewComputedStyle = getComputedStyle(view.dom);
+
         view.dispatch(
             view.state.tr.setMeta(
                 contentTableColumnResizingPluginKey,
@@ -336,8 +342,12 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
                     type: "SetDragging",
                     dragging: {
                         startX: event.clientX,
-                        viewWidthPx: view.dom.offsetWidth,
+                        viewWithoutPaddingWidthPx:
+                            view.dom.clientWidth -
+                            (parseFloat(viewComputedStyle.paddingLeft) +
+                                parseFloat(viewComputedStyle.paddingRight)),
                         oldTotalColumnWidthPx: tableElement.offsetWidth,
+                        oldScrollLeftPx: tableElement.parentElement!.parentElement!.scrollLeft,
                         state: draggingState,
                     },
                 }),
@@ -633,16 +643,18 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
     event: {clientX: number},
     {
         startX,
-        viewWidthPx,
+        viewWithoutPaddingWidthPx,
         oldTotalColumnWidthPx: actualOldTotalColumnWidthPx,
+        oldScrollLeftPx,
         state: {
             columnIndex: column1Index,
             oldTableMap: {columnWidths: oldColumnWidths, totalColumnWidth: oldTotalColumnWidth},
         },
     }: {
         startX: number;
-        viewWidthPx: number;
+        viewWithoutPaddingWidthPx: number;
         oldTotalColumnWidthPx: number;
+        oldScrollLeftPx: number;
         state: {
             columnIndex: number;
             oldTableMap: {
@@ -654,7 +666,7 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
 ): {
     tableWidth?: number;
     columnWidths: ReadonlyArray<number>;
-    scrollTo?: "left" | "right";
+    scrollLeftPx?: number;
 } {
     const offsetPx = event.clientX - startX;
 
@@ -665,7 +677,7 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
     const columnMaxWidthPx = contentStyles.tableColumnMaxWidthRem * remPx;
 
     const blockWidthPx = Math.min(
-        viewWidthPx - screenPaddingXRem[platform] * remPx,
+        viewWithoutPaddingWidthPx,
         contentStyles.blockMaxWidthRem[platform] * remPx,
     );
 
@@ -682,6 +694,35 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         actualOldTotalColumnWidthPx,
         maxTotalColumnWidthPx,
     );
+
+    // For the best UX, as the user drags the column resize handle should perfectly
+    // follow the user's mouse while they drag. If the table width is less than the
+    // view width then the table is centered in the view. Dragging a column to
+    // resize the column 1px ends up moving the column right 0.5px and left 0.5px
+    // while the table width is less than the view width since we need to keep the
+    // table centered.
+    //
+    // This function speeds up the column width change while the table width is
+    // less than the view width by 2x so the column width moves perfectly with the
+    // mouse even while the table is centered.
+    const getAdditionalColumnWidthPxIfChangingTableWidth = (offsetPx: number) => {
+        if (offsetPx > 0) {
+            const doubledOffsetPx = Math.max(
+                0,
+                (viewWithoutPaddingWidthPx - oldTotalColumnWidthPx) / 2,
+            );
+
+            return (
+                Math.min(offsetPx, doubledOffsetPx) * 2 + Math.max(0, offsetPx - doubledOffsetPx)
+            );
+        } else {
+            const doubledOffsetPx = Math.max(0, oldTotalColumnWidthPx - viewWithoutPaddingWidthPx);
+
+            return (
+                Math.max(offsetPx, -doubledOffsetPx) + Math.min(0, offsetPx + doubledOffsetPx) * 2
+            );
+        }
+    };
 
     // There are two branches to this function:
     //
@@ -703,10 +744,7 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         let newColumnWidthPx = clamp(
             columnMinWidthPx,
             oldColumnWidthPx +
-                // Double the speed at which offset grows/shrinks the column. Since when
-                // centered every pixel the table grows is added half to the left and half to
-                // the right.
-                (isLeftResize ? -1 : 1) * offsetPx * 2,
+                getAdditionalColumnWidthPxIfChangingTableWidth((isLeftResize ? -1 : 1) * offsetPx),
             columnMaxWidthPx,
         );
 
@@ -786,12 +824,14 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         return {
             tableWidth: newTableWidth,
             columnWidths: newColumnWidths as Array<number>,
-            scrollTo: isLeftResize ? "left" : "right",
+            scrollLeftPx: isLeftResize
+                ? oldScrollLeftPx
+                : oldScrollLeftPx + (newColumnWidthPx - oldColumnWidthPx),
         };
-    } else if (oldColumnWidths.length <= 3) {
-        // if the number of columns are less than equal to 3 then make sure the
-        // interior column resizer is affecting both the column width and not the
-        // table width
+    } else if (oldColumnWidths.length <= contentStyles.maintainTableWidthMaxColumnCount) {
+        // If the number of columns are less than equal to 4 then make sure the
+        // interior column resizer is affecting only the columns adjacent to the resize
+        // handle and not the table width
         const column2Index = column1Index + 1;
         const oldColumn2Width = oldColumnWidths[column2Index]!;
 
@@ -829,6 +869,7 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
 
         return {
             columnWidths: newColumnWidths,
+            scrollLeftPx: oldScrollLeftPx,
         };
     } else {
         const oldColumnWidthPxs = resolveContentTableColumnWidthPx(
@@ -838,22 +879,29 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
             columnMinWidthPx,
         );
 
+        const oldColumn1Width = oldColumnWidths[column1Index]!;
         const oldColumn1WidthPx = oldColumnWidthPxs[column1Index]!;
 
         // Calculate new width based on drag offset
-        const newColumn1WidthPx = clamp(
+        let newColumn1WidthPx = clamp(
             columnMinWidthPx,
-            oldColumn1WidthPx + offsetPx,
+            oldColumn1WidthPx + getAdditionalColumnWidthPxIfChangingTableWidth(offsetPx),
             columnMaxWidthPx,
         );
-        // Calculate how much the table needs to grow/shrink
-        const widthDifference = newColumn1WidthPx - oldColumn1WidthPx;
-        const expectedNewTotalColumnWidthPx = oldTotalColumnWidthPx + widthDifference;
+
+        const expectedNewTotalColumnWidthPx =
+            oldTotalColumnWidthPx + (newColumn1WidthPx - oldColumn1WidthPx);
+
         const newTotalColumnWidthPx = clamp(
             minTotalColumnWidthPx,
             expectedNewTotalColumnWidthPx,
             maxTotalColumnWidthPx,
         );
+
+        // If the new column width violates total column width min/max bounds then we
+        // need to adjust the new column width back down to what'll work with our total
+        // column width min/max bounds.
+        newColumn1WidthPx += newTotalColumnWidthPx - expectedNewTotalColumnWidthPx;
 
         // Calculate new relative width for the resized column:
         //
@@ -862,7 +910,7 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         // width, the old width of the column being resized, and the new width of
         // the column being resized:
         //
-        // ```ts
+        // ```
         // newTotalColumnWidth = oldTotalColumnWidth - oldColumn1Width + newColumn1Width
         // ```
         //
@@ -870,14 +918,14 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         // width of the column being resized: Here we are comparing the ratio of
         // the relatives values to the ratio of the pixels values.
         //
-        // ```ts
+        // ```
         // newColumn1Width / newTotalColumnWidth = newColumn1WidthPx / newTotalColumnWidthPx
         // ```
         //
         // If we simplify this using 1st equality we get:
         //
-        // ```ts
-        // newColumn1Width / (oldTotalColumnWidth - oldColumnWidth + newColumn1Width) = newColumnWidth1Px / newTotalColumnWidthPx
+        // ```
+        // newColumn1Width / (oldTotalColumnWidth - oldColumn1Width + newColumn1Width) = newColumn1WidthPx / newTotalColumnWidthPx
         // ```
         //
         // which can be written as: a / (b - c + a) = d / f
@@ -888,7 +936,7 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         //
         // [1]: https://www.wolframalpha.com/input?i=solve+for+a++a+%2F+%28b+-+c+%2B+a%29+%3D+d+%2F+f
         const newColumn1Width =
-            (newColumn1WidthPx * (oldTotalColumnWidth - oldTotalColumnWidthPx)) /
+            (newColumn1WidthPx * (oldColumn1Width - oldTotalColumnWidth)) /
             (newColumn1WidthPx - newTotalColumnWidthPx);
 
         // Keep other columns unchanged
@@ -902,9 +950,19 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
             oldTableWidth * (newTotalColumnWidthPx / oldTotalColumnWidthPx),
         );
 
+        let oldTotalColumnWidthPxBeforeColumn1 = 0;
+        for (let i = 0; i < column1Index; i++)
+            oldTotalColumnWidthPxBeforeColumn1 += oldColumnWidthPxs[i]!;
+
+        const newColumn1ScrollRightPx =
+            oldTotalColumnWidthPxBeforeColumn1 + newColumn1WidthPx - oldScrollLeftPx;
+
         return {
             tableWidth: newTableWidth,
             columnWidths: newColumnWidths,
+            scrollLeftPx:
+                oldScrollLeftPx +
+                Math.floor(Math.max(0, newColumn1ScrollRightPx - (viewWithoutPaddingWidthPx - 1))),
         };
     }
 }
