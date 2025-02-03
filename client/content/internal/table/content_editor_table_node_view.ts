@@ -31,7 +31,10 @@ import {Node} from "prosemirror-model";
 import {NodeViewConstructor} from "prosemirror-view";
 import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/content_table_column_resizing_plugin.js";
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
-import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
+import {
+    getSpacingScaleWithoutListening,
+    subscribeToSpacingScaleChange,
+} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {
     tableWrapper2ClassName,
@@ -67,6 +70,9 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
 
         // Subscribe to spacing scale changes. This also covers all platform changes so
         // we don't need to also subscribe to platform changes.
+        const unsubscribeFromSpacingScaleChange = subscribeToSpacingScaleChange(() => {
+            updateContentTableColumnsOnResize(node, tableElement);
+        });
 
         return {
             dom: tableWrapperElement,
@@ -84,7 +90,9 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
                     (record.target === tableElement || record.target === tableWrapper3Element)
                 );
             },
-            destroy: () => {},
+            destroy: () => {
+                unsubscribeFromSpacingScaleChange();
+            },
         };
     };
 }
