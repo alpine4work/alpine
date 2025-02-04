@@ -72,6 +72,7 @@ import {colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
 import {invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {
+    RemLength,
     Spacing,
     addRemLengths,
     convertRemLengthToPx,
@@ -128,12 +129,15 @@ export const blockMaxWidthRem = mapObjectValues(blockMaxWidth, blockMaxWidth =>
     parseRemLength(blockMaxWidth),
 );
 
-const paragraphMarginSpacing = "2";
+const listItemParagraphMarginSpacing = "2";
+const listItemParagraphMargin = spacing[listItemParagraphMarginSpacing];
+
+const paragraphMarginSpacing = "4";
 const paragraphMargin = spacing[paragraphMarginSpacing];
 export {paragraphMarginSpacing as paragraphMargin};
 export const paragraphMarginRem = parseRemLength(paragraphMargin);
 
-const standaloneBlockMarginSpacing = "4";
+const standaloneBlockMarginSpacing = "6";
 const standaloneBlockMargin = spacing[standaloneBlockMarginSpacing];
 export {standaloneBlockMarginSpacing as standaloneBlockMargin};
 
@@ -434,6 +438,21 @@ globalStyle(listItemClassName, {
     ...omitObject(blockStyles, ["clear"]),
     position: "relative",
     paddingLeft: `calc((${listItemIndentationVar} + 1) * ${listItemIndentation})`,
+    marginTop: standaloneBlockMargin,
+    marginBottom: standaloneBlockMargin,
+});
+
+globalStyle(`${listItemClassName} + ${listItemClassName}`, {
+    marginTop: 0,
+});
+
+globalStyle(`${listItemClassName}:has(+ ${listItemClassName})`, {
+    marginBottom: 0,
+});
+
+globalStyle(`${listItemClassName} ${paragraphClassName}`, {
+    marginTop: listItemParagraphMargin,
+    marginBottom: listItemParagraphMargin,
 });
 
 export const unorderedListItemBulletTop = createObjectFromKeys(
@@ -1983,10 +2002,19 @@ const tableInnerPaddingXDoubled = addRemLengths(tableInnerPaddingX, tableInnerPa
 
 globalStyle(tableWrapperClassName, {
     ...omitObject(blockStyles, ["maxWidth", "marginLeft", "marginRight"]),
-    position: "relative",
-    zIndex: "0",
     marginTop: standaloneBlockMargin,
     marginBottom: standaloneBlockMargin,
+    position: "relative",
+    zIndex: "0",
+    // The table's grips extend into content above and below the table. The user
+    // should be able to click in the area between table controls. We set
+    // `pointerEvents: "auto"` on the table itself.
+    pointerEvents: "none",
+    // The padding top/bottom "freezes" the negative margin of our child
+    // `tableWrapper2ClassName` so it doesn't affect the margins of this parent
+    // element.
+    paddingTop: 1,
+    paddingBottom: 1,
 });
 
 globalStyle(`${tableWrapperClassName}::before`, {
@@ -2018,19 +2046,27 @@ globalStyle(`${tableWrapperClassName}::after`, {
  * has enough of a hit box for the grips on the right side of the table even
  * considering the conflicting column resize handle.
  */
-const tableGripSize = spacing["6"];
+const tableGripSize = spacing["4"];
 
 /**
  * The size of a table between grip plus button when hovered. We render a much
  * smaller dot but when the users cursor is over the dot we render a button of
  * this size.
  */
-const tableBetweenGripSize = spacing["6"];
+const tableBetweenGripButtonSize = spacing["5"];
 
 /**
  * Margin between the table between grip button and the table grip.
  */
-const tableBetweenGripMargin = spacing["1"];
+const tableBetweenGripButtonMargin: RemLength | `-${RemLength}` = `-${spacing["1"]}`;
+
+const tableWrapper3PaddingX = tableInnerPaddingX;
+const tableWrapper3PaddingTop = addRemLengths(
+    tableGripSize,
+    tableBetweenGripButtonSize,
+    tableBetweenGripButtonMargin,
+);
+const tableWrapper3PaddingBottom = tableGripSize;
 
 globalStyle(tableWrapper2ClassName, {
     position: "relative",
@@ -2039,18 +2075,20 @@ globalStyle(tableWrapper2ClassName, {
     overflowY: "hidden",
     overscrollBehaviorX: "contain",
     width: `calc(100% + ${tableInnerPaddingXDoubled})`,
-    marginLeft: `-${tableInnerPaddingX}`,
-    marginRight: `-${tableInnerPaddingX}`,
+    marginLeft: `-${tableWrapper3PaddingX}`,
+    marginRight: `-${tableWrapper3PaddingX}`,
+    marginTop: `-${tableWrapper3PaddingTop}`,
+    marginBottom: `-${tableWrapper3PaddingBottom}`,
 });
 
 globalStyle(tableWrapper3ClassName, {
     width: "100%",
     maxWidth: addRemLengths(blockMaxWidth.desktop, tableInnerPaddingXDoubled),
     margin: "0 auto",
-    paddingLeft: tableInnerPaddingX,
-    paddingRight: tableInnerPaddingX,
-    paddingTop: addRemLengths(tableGripSize, tableBetweenGripSize, tableBetweenGripMargin),
-    paddingBottom: tableGripSize,
+    paddingLeft: tableWrapper3PaddingX,
+    paddingRight: tableWrapper3PaddingX,
+    paddingTop: tableWrapper3PaddingTop,
+    paddingBottom: tableWrapper3PaddingBottom,
 });
 
 globalStyle(`${mobilePlatformSelector} ${tableWrapper3ClassName}`, {
@@ -2058,6 +2096,7 @@ globalStyle(`${mobilePlatformSelector} ${tableWrapper3ClassName}`, {
 });
 
 globalStyle(`${tableWrapperClassName} table`, {
+    pointerEvents: "auto",
     display: "grid",
     position: "relative",
     zIndex: "0",
@@ -2127,7 +2166,7 @@ globalStyle(`${tableWrapperClassName} td`, {
     position: "relative",
     minWidth: `${tableColumnMinWidthRem}rem`,
     maxWidth: `${tableColumnMaxWidthRem}rem`,
-    padding: `${paragraphMargin} ${spacing["3"]}`,
+    padding: `${spacing["3"]} ${spacing["4"]}`,
     boxShadow: `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, 1px 0 0 0 ${colorSchemeVars["grey-10"]}`,
 });
 
@@ -2308,18 +2347,7 @@ export const tableGripRowClassName = style({
     borderTopWidth: 1,
 });
 
-export const tableGripFirstClassName = style({
-    selectors: {
-        [`${tableGripColumnClassName}&`]: {
-            borderLeft: "none",
-            borderTopLeftRadius: spacing["1"],
-        },
-        [`${tableGripRowClassName}&`]: {
-            borderTop: "none",
-            borderTopLeftRadius: spacing["1"],
-        },
-    },
-});
+export const tableGripFirstClassName = style({});
 
 export const tableGripLastClassName = style({
     selectors: {
@@ -2376,34 +2404,30 @@ globalStyle(`${tableGripClassName}${tableGripSelectedClassName} svg`, {
     fill: colorSchemeVars["grey-80"],
 });
 
-const tableGripButtonSize = spacing["5"];
-
 export const tableGripButtonClassName = style({
     position: "absolute",
-    top: `-${addRemLengths(tableGripButtonSize, "1")}`,
-    left: `-${addRemLengths(tableGripButtonSize, "1")}`,
-    borderRadius: "100%",
-    width: tableGripButtonSize,
-    height: tableGripButtonSize,
+    zIndex: "10",
+    top: `-${tableGripSize}`,
+    left: `-${tableGripSize}`,
+    width: tableGripSize,
+    height: tableGripSize,
+    borderTopLeftRadius: spacing["1"],
     cursor: "pointer",
-    zIndex: 10,
-    border: `1px solid ${colorSchemeVars["grey-10"]}`,
+    backgroundColor: tableGripBackgroundColor.light,
+    selectors: {
+        [`${darkColorSchemeSelector} &`]: {
+            backgroundColor: tableGripBackgroundColor.dark,
+        },
+    },
 });
 
 export const tableGripButtonSelectedClassName = style({
     selectors: {
         [`${tableGripButtonClassName}&`]: {
-            backgroundColor: colorSchemeVars["grey-5"],
-            borderColor: colorSchemeVars["grey-20"],
-        },
-    },
-});
-
-export const tableGripButtonPressedClassName = style({
-    selectors: {
-        [`${tableGripButtonClassName}&`]: {
             backgroundColor: colorSchemeVars["grey-10"],
-            borderColor: colorSchemeVars["grey-20"],
+        },
+        [`${darkColorSchemeSelector} ${tableGripButtonClassName}&`]: {
+            backgroundColor: colorSchemeVars["grey-10"],
         },
     },
 });
@@ -2429,19 +2453,23 @@ export const tableBetweenGripClassName = style({
 });
 
 export const tableBetweenColumnGripClassName = style({
-    top: `-${addRemLengths(tableBetweenGripSize, tableGripSize, tableBetweenGripMargin)}`,
+    top: `-${addRemLengths(
+        tableBetweenGripButtonSize,
+        tableGripSize,
+        tableBetweenGripButtonMargin,
+    )}`,
     bottom: "0",
-    transform: "translateX(-50%)",
+    transform: "translateX(-50%) translateX(0.5px)",
     selectors: {
         [[
             `&${tableBetweenGripHoveredClassName}::after`,
             `&${tableBetweenGripPressedClassName}::after`,
         ].join(", ")]: {
             left: `${
-                parseRemLength(tableBetweenGripSize) / 2 -
+                parseRemLength(tableBetweenGripButtonSize) / 2 -
                 parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2
             }rem`,
-            top: addRemLengths(tableBetweenGripSize, tableBetweenGripMargin),
+            top: addRemLengths(tableBetweenGripButtonSize, tableBetweenGripButtonMargin),
             bottom: "0",
             width: tableColumnResizeHandleIndicatorWidth,
         },
@@ -2449,7 +2477,11 @@ export const tableBetweenColumnGripClassName = style({
 });
 
 export const tableBetweenRowGripClassName = style({
-    left: `-${addRemLengths(tableBetweenGripSize, tableGripSize, tableBetweenGripMargin)}`,
+    left: `-${addRemLengths(
+        tableBetweenGripButtonSize,
+        tableGripSize,
+        tableBetweenGripButtonMargin,
+    )}`,
     right: "0",
     transform: "translateY(-50%)",
     selectors: {
@@ -2458,10 +2490,10 @@ export const tableBetweenRowGripClassName = style({
             `&${tableBetweenGripPressedClassName}::after`,
         ].join(", ")]: {
             top: `${
-                parseRemLength(tableBetweenGripSize) / 2 -
+                parseRemLength(tableBetweenGripButtonSize) / 2 -
                 parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2
             }rem`,
-            left: addRemLengths(tableBetweenGripSize, tableBetweenGripMargin),
+            left: addRemLengths(tableBetweenGripButtonSize, tableBetweenGripButtonMargin),
             right: "0",
             height: tableColumnResizeHandleIndicatorWidth,
         },
@@ -2471,8 +2503,8 @@ export const tableBetweenRowGripClassName = style({
 export const tableBetweenGripButtonClassName = style({
     pointerEvents: "auto",
     position: "relative",
-    width: tableBetweenGripSize,
-    height: tableBetweenGripSize,
+    width: tableBetweenGripButtonSize,
+    height: tableBetweenGripButtonSize,
     borderRadius: "100%",
     overflow: "hidden",
     cursor: "pointer",
@@ -2516,8 +2548,8 @@ globalStyle(`${tableBetweenGripButtonClassName} svg`, {
     display: "none",
     pointerEvents: "none",
     fill: colorSchemeVars["grey-0-const"],
-    width: spacing["4"],
-    height: spacing["4"],
+    width: spacing["3"],
+    height: spacing["3"],
 });
 
 globalStyle(
@@ -2579,8 +2611,8 @@ export const tableAddGripClassName = style({
 globalStyle(`${tableAddGripClassName} svg`, {
     pointerEvents: "none",
     fill: colorSchemeVars["grey-50"],
-    width: spacing["4"],
-    height: spacing["4"],
+    width: spacing["3"],
+    height: spacing["3"],
 });
 
 function createChildSelectors(child: "first" | "last") {

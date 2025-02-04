@@ -34,8 +34,10 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
         gripButtonElement.className = contentStyles.tableGripButtonClassName;
 
         addUnfocusableButtonBehaviorToElement(gripButtonElement, {
-            pressClassName: contentStyles.tableGripButtonPressedClassName,
-            onPress: event => {
+            // We use on press start since it looks weird to have a pressed state adjacent
+            // next to a selected state. Better to immediately move the selection. It's
+            // also not a big a deal if the user cancels their press.
+            onPressStart: event => {
                 event.preventDefault();
                 assert(view);
                 view.dispatch(selectTable(view.state.tr));

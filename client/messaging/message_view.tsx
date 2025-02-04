@@ -1697,9 +1697,9 @@ const hasStandaloneMarginByContentBlockNodeTypeName: {[key: string]: boolean} = 
     [Key in ContentBlockNodeTypeName]: boolean;
 }>({
     paragraph: false,
-    unorderedListItem: false,
-    orderedListItem: false,
-    checkListItem: false,
+    unorderedListItem: true,
+    orderedListItem: true,
+    checkListItem: true,
     heading: false,
     divider: false,
     fileFloat: false,
