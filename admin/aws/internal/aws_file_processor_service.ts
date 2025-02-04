@@ -89,10 +89,7 @@ export class AwsFileProcessorService extends Construct {
         // File processing needs a lot of memory so we need larger instance sizes than
         // other services. We've found image resizing particularly quickly runs out of
         // memory when resizing large images.
-        //
-        // TODO(calebmer): Our version of the CDK currently doesn't define
-        // `InstanceClass.M8G`.
-        const instanceType = InstanceType.of("m8g" as InstanceClass, InstanceSize.LARGE);
+        const instanceType = InstanceType.of(InstanceClass.M7G, InstanceSize.LARGE);
         const vCpuCount = getInstanceTypeVCpuCount(instanceType);
 
         // Make sure we have enough storage to process one maximum size file per vCPU.
