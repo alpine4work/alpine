@@ -368,13 +368,13 @@ function getInstanceTypeVCpuCount(instanceType: InstanceType): number {
             return 4;
         case "t4g.2xlarge":
             return 8;
-        case "m8g.medium":
+        case "m7g.medium":
             return 1;
-        case "m8g.large":
+        case "m7g.large":
             return 2;
-        case "m8g.xlarge":
+        case "m7g.xlarge":
             return 4;
-        case "m8g.2xlarge":
+        case "m7g.2xlarge":
             return 8;
         default: {
             throw new InternalError(
