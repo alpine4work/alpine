@@ -267,39 +267,69 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
     if (!pluginState) return;
     if (pluginState.dragging) return;
 
-    const spacingScale = getSpacingScaleWithoutListening();
-    const halfHandleWidth =
-        Math.floor(
-            convertRemLengthToPx(contentStyles.tableColumnResizeHandleWidth, spacingScale) / 2,
-        ) -
-        // Subtract 1px to avoid subpixel rendering edge cases where we think we're
-        // hovering over the resize handle but the DOM element doesn't actually cover
-        // the pixel.
-        1;
+    // If the user is pressing their mouse while moving over the resize handle then
+    // we don't show the resize handle. e.g. If the user is clicking in a cell and
+    // dragging to select cells.
+    if (event.which) return;
 
-    const target = getContentTableCellElementAround(event.target as HTMLElement);
     let cell: number | null = null;
-    if (target) {
-        const {left, right} = target.getBoundingClientRect();
-        if (event.clientX - left <= halfHandleWidth) {
-            cell = getEdgeContentTableCell(view, event, "left", halfHandleWidth);
-        } else if (right - event.clientX <= halfHandleWidth) {
-            cell = getEdgeContentTableCell(view, event, "right", halfHandleWidth);
-        }
+    if (
+        pluginState.activeHandle !== null &&
+        (event.target as HTMLElement).classList.contains(
+            contentStyles.tableColumnResizeHandleClassName,
+        )
+    ) {
+        cell = pluginState.activeHandle;
     } else {
-        const tableTarget = getContentTableElementAround(event.target as HTMLElement);
-        if (tableTarget) {
-            const {left, right} = tableTarget.getBoundingClientRect();
+        const spacingScale = getSpacingScaleWithoutListening();
 
-            // This case occurs when the mouse is outside the table and approaching the
-            // left edge.
-            if (event.clientX <= left && left - event.clientX <= halfHandleWidth) {
+        const halfHandleWidth =
+            Math.floor(
+                convertRemLengthToPx(contentStyles.tableColumnResizeHandleWidth, spacingScale) / 2,
+            ) -
+            // Subtract 1px to avoid subpixel rendering edge cases where we think we're
+            // hovering over the resize handle but the DOM element doesn't actually cover
+            // the pixel.
+            1;
+
+        const target = getContentTableCellElementAround(event.target as HTMLElement);
+        if (target) {
+            const {left, right} = target.getBoundingClientRect();
+            if (event.clientX - left <= halfHandleWidth) {
                 cell = getEdgeContentTableCell(view, event, "left", halfHandleWidth);
-            }
-            // This case occurs when the mouse is outside the table and approaching the
-            // right edge.
-            else if (event.clientX >= right && event.clientX - right <= halfHandleWidth) {
+            } else if (right - event.clientX <= halfHandleWidth) {
                 cell = getEdgeContentTableCell(view, event, "right", halfHandleWidth);
+            }
+        } else {
+            const tableTarget = getContentTableElementAround(event.target as HTMLElement);
+            if (tableTarget) {
+                const {left, right} = tableTarget.getBoundingClientRect();
+
+                // If the table has a selection then the edge resize handles don't have extra
+                // hit slop area outside the table width.
+                const margin = !tableTarget.closest(`.${contentStyles.tableWithSelectionClassName}`)
+                    ? halfHandleWidth
+                    : Math.floor(
+                          convertRemLengthToPx(
+                              contentStyles.tableColumnResizeHandleIndicatorWidth,
+                              spacingScale,
+                          ) / 2,
+                      ) -
+                      // Subtract 1px to avoid subpixel rendering edge cases where we think we're
+                      // hovering over the resize handle but the DOM element doesn't actually cover
+                      // the pixel.
+                      1;
+
+                // This case occurs when the mouse is outside the table and approaching the
+                // left edge.
+                if (event.clientX <= left && left - event.clientX <= margin) {
+                    cell = getEdgeContentTableCell(view, event, "left", margin);
+                }
+                // This case occurs when the mouse is outside the table and approaching the
+                // right edge.
+                else if (event.clientX >= right && event.clientX - right <= margin) {
+                    cell = getEdgeContentTableCell(view, event, "right", margin);
+                }
             }
         }
     }
@@ -591,6 +621,10 @@ function getContentTableElementAround(target: HTMLElement | null): HTMLElement |
                 return childNode as HTMLElement;
             }
         }
+    }
+
+    if (target?.classList.contains(contentStyles.tableGripRowClassName)) {
+        return target.closest("table");
     }
 
     return null;
@@ -1117,18 +1151,16 @@ function handleContentTableColumnResizeStateDecorations(
     const $cell = state.doc.resolve(cell);
 
     if ($cell.parent.type.name === "table") {
-        const table = $cell.parent;
-        const tableMap = ContentTableMap.get(table);
-        const start = $cell.start();
+        const tablePos = $cell.start();
 
-        for (let rowIndex = 0; rowIndex < tableMap.height; rowIndex++) {
-            const index = rowIndex * tableMap.width;
-            const cellPos = tableMap.map[index]!;
-            const pos = start + cellPos + table.nodeAt(cellPos)!.nodeSize - 1;
-            const dom = document.createElement("div");
-            dom.className = `${contentStyles.tableColumnResizeHandleClassName} ${contentStyles.tableLeftEdgeColumnResizeHandleClassName}`;
-            decorations.push(Decoration.widget(pos, dom));
-        }
+        decorations.push(
+            Decoration.widget(tablePos, () => {
+                const dom = document.createElement("div");
+                dom.className = `${contentStyles.tableColumnResizeHandleClassName} ${contentStyles.tableLeftEdgeColumnResizeHandleClassName}`;
+                dom.style.gridColumn = "1";
+                return dom;
+            }),
+        );
 
         return DecorationSet.create(state.doc, decorations);
     } else {
@@ -1140,20 +1172,20 @@ function handleContentTableColumnResizeStateDecorations(
         }
 
         const tableMap = ContentTableMap.get(table);
-        const start = $cell.start(-1);
-        const columnIndex = tableMap.colCount($cell.pos - start);
+        const tablePos = $cell.start(-1);
+        const columnIndex = tableMap.colCount($cell.pos - tablePos);
 
-        for (let rowIndex = 0; rowIndex < tableMap.height; rowIndex++) {
-            const index = columnIndex + rowIndex * tableMap.width;
-            const cellPos = tableMap.map[index]!;
-            const pos = start + cellPos + table.nodeAt(cellPos)!.nodeSize - 1;
-            const dom = document.createElement("div");
-            dom.className =
-                columnIndex === tableMap.width - 1
-                    ? `${contentStyles.tableColumnResizeHandleClassName} ${contentStyles.tableRightEdgeColumnResizeHandleClassName}`
-                    : contentStyles.tableColumnResizeHandleClassName;
-            decorations.push(Decoration.widget(pos, dom));
-        }
+        decorations.push(
+            Decoration.widget(tablePos, () => {
+                const dom = document.createElement("div");
+                dom.className =
+                    columnIndex === tableMap.width - 1
+                        ? `${contentStyles.tableColumnResizeHandleClassName} ${contentStyles.tableRightEdgeColumnResizeHandleClassName}`
+                        : contentStyles.tableColumnResizeHandleClassName;
+                dom.style.gridColumn = `${columnIndex + 2}`;
+                return dom;
+            }),
+        );
 
         return DecorationSet.create(state.doc, decorations);
     }

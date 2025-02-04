@@ -28,6 +28,7 @@ import {
 } from "~/client/styles/other/internal/helpers/extrapolate_highlight_color.js";
 import {
     RawColor,
+    mixRawColors,
     parseRawColor,
     printRawColor,
 } from "~/client/styles/other/internal/helpers/raw_color.js";
@@ -2012,6 +2013,25 @@ globalStyle(`${tableWrapperClassName}::after`, {
     background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
 });
 
+/**
+ * Size of the resize grips on a table. Needs to be large enough that the user
+ * has enough of a hit box for the grips on the right side of the table even
+ * considering the conflicting column resize handle.
+ */
+const tableGripSize = spacing["6"];
+
+/**
+ * The size of a table between grip plus button when hovered. We render a much
+ * smaller dot but when the users cursor is over the dot we render a button of
+ * this size.
+ */
+const tableBetweenGripSize = spacing["6"];
+
+/**
+ * Margin between the table between grip button and the table grip.
+ */
+const tableBetweenGripMargin = spacing["1"];
+
 globalStyle(tableWrapper2ClassName, {
     position: "relative",
     zIndex: "0",
@@ -2021,8 +2041,6 @@ globalStyle(tableWrapper2ClassName, {
     width: `calc(100% + ${tableInnerPaddingXDoubled})`,
     marginLeft: `-${tableInnerPaddingX}`,
     marginRight: `-${tableInnerPaddingX}`,
-    paddingTop: spacing[8],
-    paddingBottom: spacing[8],
 });
 
 globalStyle(tableWrapper3ClassName, {
@@ -2031,6 +2049,8 @@ globalStyle(tableWrapper3ClassName, {
     margin: "0 auto",
     paddingLeft: tableInnerPaddingX,
     paddingRight: tableInnerPaddingX,
+    paddingTop: addRemLengths(tableGripSize, tableBetweenGripSize, tableBetweenGripMargin),
+    paddingBottom: tableGripSize,
 });
 
 globalStyle(`${mobilePlatformSelector} ${tableWrapper3ClassName}`, {
@@ -2141,6 +2161,8 @@ globalStyle(`${tableWrapperClassName} td:last-of-type${tableSelectedCellClassNam
     right: 0,
 });
 
+export const tableWithSelectionClassName = style({});
+
 // We want the hit area for the resize handle to be nice and wide. We'd like to
 // use spacing 6 which is the same value that `useTouchSlop()` uses for the hit
 // range of small buttons on desktop. However, we also want to keep all resize
@@ -2150,14 +2172,17 @@ globalStyle(`${tableWrapperClassName} td:last-of-type${tableSelectedCellClassNam
 const tableColumnResizeHandleWidthSpacing = "5";
 export {tableColumnResizeHandleWidthSpacing as tableColumnResizeHandleWidth};
 const tableColumnResizeHandleWidth = spacing[tableColumnResizeHandleWidthSpacing];
-const tableColumnResizeHandleIndicatorWidth = spacing["1"];
+
+const tableColumnResizeHandleIndicatorWidthSpacing = "1";
+export {tableColumnResizeHandleIndicatorWidthSpacing as tableColumnResizeHandleIndicatorWidth};
+const tableColumnResizeHandleIndicatorWidth = spacing[tableColumnResizeHandleIndicatorWidthSpacing];
 
 export const tableColumnResizeHandleClassName = style({
     position: "absolute",
-    zIndex: "20",
-    right: `calc(-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem - 0.5px)`,
+    zIndex: "40",
     top: 0,
     bottom: -1,
+    transform: "translateX(-50%)",
     width: tableColumnResizeHandleWidth,
     pointerEvents: "auto",
     cursor: "col-resize",
@@ -2171,65 +2196,410 @@ export const tableColumnResizeHandleClassName = style({
             width: tableColumnResizeHandleIndicatorWidth,
             backgroundColor: colorSchemeVars["theme-40-const"],
         },
+
+        // If the selection is in our table and we're showing table grips then we want
+        // to extend our resize handle into the column grip but we don't want the
+        // extended part of the resize handle to be selectable.
+        [`${tableWrapperClassName}${tableWithSelectionClassName} &::before`]: {
+            pointerEvents: "none",
+            content: '""',
+            position: "absolute",
+            left: `calc(50% - ${parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2}rem)`,
+            top: `-${tableGripSize}`,
+            width: tableColumnResizeHandleIndicatorWidth,
+            height: tableGripSize,
+            backgroundColor: colorSchemeVars["theme-40-const"],
+        },
     },
 });
 
 export const tableLeftEdgeColumnResizeHandleClassName = style({
     selectors: {
-        // Increase precedence so the styles within override the ones in our resize
-        // handle block.
-        [`${tableColumnResizeHandleClassName}&`]: {
-            right: "initial",
-            left: `calc(-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem + 0.5px)`,
+        // When the table row/column grips are showing, then edge resize handles don't
+        // have touch slop outside the table. Since that touch slop would conflict with
+        // row grips or the add column button.
+        [`${tableWrapperClassName}${tableWithSelectionClassName} ${tableColumnResizeHandleClassName}&`]:
+            {
+                width: `${
+                    parseRemLength(tableColumnResizeHandleWidth) / 2 +
+                    parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2
+                }rem`,
+                transform: `translateX(-${
+                    parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2
+                }rem)`,
+            },
+        [[
+            `${tableWrapperClassName}${tableWithSelectionClassName} ${tableColumnResizeHandleClassName}&::after`,
+            `${tableWrapperClassName}${tableWithSelectionClassName} ${tableColumnResizeHandleClassName}&::before`,
+        ].join(", ")]: {
+            left: 0,
         },
     },
 });
 
 export const tableRightEdgeColumnResizeHandleClassName = style({
     selectors: {
-        // Increase precedence so the styles within override the ones in our resize
-        // handle block.
-        [`${tableColumnResizeHandleClassName}&`]: {
-            right: `calc(-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem + 0.5px)`,
+        // When the table row/column grips are showing, then edge resize handles don't
+        // have touch slop outside the table. Since that touch slop would conflict with
+        // row grips or the add column button.
+        [`${tableWrapperClassName}${tableWithSelectionClassName} ${tableColumnResizeHandleClassName}&`]:
+            {
+                width: `${
+                    parseRemLength(tableColumnResizeHandleWidth) / 2 +
+                    parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2
+                }rem`,
+                transform: `translateX(-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem)`,
+            },
+        [[
+            `${tableWrapperClassName}${tableWithSelectionClassName} ${tableColumnResizeHandleClassName}&::after`,
+            `${tableWrapperClassName}${tableWithSelectionClassName} ${tableColumnResizeHandleClassName}&::before`,
+        ].join(", ")]: {
+            left: `${
+                parseRemLength(tableColumnResizeHandleWidth) / 2 -
+                parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2
+            }rem`,
         },
     },
 });
 
+const tableGripBackgroundColor = {
+    light: printRawColor(
+        mixRawColors(
+            {...parseRawColor(colors["grey-5"]), alpha: 0.5},
+            parseRawColor(colors["grey-0"]),
+        ),
+    ),
+    dark: printRawColor(
+        mixRawColors(
+            {...parseRawColor(invertedColorsWithShade["grey-5"]), alpha: 0.5},
+            parseRawColor(invertedColorsWithShade["grey-0"]),
+        ),
+    ),
+};
+
+export const tableGripClassName = style({
+    position: "absolute",
+    zIndex: "10",
+    borderStyle: "solid",
+    borderColor: colorSchemeVars["grey-10"],
+    cursor: "grab",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: tableGripBackgroundColor.light,
+    selectors: {
+        [`${darkColorSchemeSelector} &`]: {
+            backgroundColor: tableGripBackgroundColor.dark,
+        },
+    },
+});
+
+export const tableGripColumnClassName = style({
+    width: "100%",
+    height: tableGripSize,
+    top: `-${tableGripSize}`,
+    borderLeftWidth: 1,
+});
+
+export const tableGripRowClassName = style({
+    width: tableGripSize,
+    height: "100%",
+    left: `-${tableGripSize}`,
+    borderTopWidth: 1,
+});
+
+export const tableGripFirstClassName = style({
+    selectors: {
+        [`${tableGripColumnClassName}&`]: {
+            borderLeft: "none",
+            borderTopLeftRadius: spacing["1"],
+        },
+        [`${tableGripRowClassName}&`]: {
+            borderTop: "none",
+            borderTopLeftRadius: spacing["1"],
+        },
+    },
+});
+
+export const tableGripLastClassName = style({
+    selectors: {
+        [`${tableGripColumnClassName}&`]: {
+            borderTopRightRadius: spacing["1"],
+        },
+        [`${tableGripRowClassName}&`]: {
+            height: `calc(100% + 1px)`,
+            borderBottomLeftRadius: spacing["1"],
+        },
+    },
+});
+
+export const tableGripHoveredClassName = style({});
+
+export const tableGripSelectedClassName = style({
+    selectors: {
+        [`${tableGripClassName}&`]: {
+            zIndex: "20",
+            backgroundColor: colorSchemeVars["grey-10"],
+            borderColor: colorSchemeVars["grey-20"],
+        },
+        [`${darkColorSchemeSelector} ${tableGripClassName}&`]: {
+            backgroundColor: colorSchemeVars["grey-10"],
+        },
+        [`${tableGripColumnClassName}&:not(${tableGripLastClassName})`]: {
+            boxShadow: `1px 0 0 0 ${colorSchemeVars["grey-20"]}`,
+        },
+        [`${tableGripRowClassName}&:not(${tableGripLastClassName})`]: {
+            boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-20"]}`,
+        },
+    },
+});
+
+globalStyle(`${tableGripClassName} svg`, {
+    display: "none",
+    pointerEvents: "none",
+    fill: colorSchemeVars["grey-50"],
+    width: spacing["4"],
+    height: spacing["4"],
+});
+
+globalStyle(
+    [
+        `${tableGripClassName}${tableGripHoveredClassName} svg`,
+        `${tableGripClassName}${tableGripSelectedClassName} svg`,
+    ].join(", "),
+    {
+        display: "block",
+    },
+);
+
+globalStyle(`${tableGripClassName}${tableGripSelectedClassName} svg`, {
+    fill: colorSchemeVars["grey-80"],
+});
+
+const tableGripButtonSize = spacing["5"];
+
+export const tableGripButtonClassName = style({
+    position: "absolute",
+    top: `-${addRemLengths(tableGripButtonSize, "1")}`,
+    left: `-${addRemLengths(tableGripButtonSize, "1")}`,
+    borderRadius: "100%",
+    width: tableGripButtonSize,
+    height: tableGripButtonSize,
+    cursor: "pointer",
+    zIndex: 10,
+    border: `1px solid ${colorSchemeVars["grey-10"]}`,
+});
+
+export const tableGripButtonSelectedClassName = style({
+    selectors: {
+        [`${tableGripButtonClassName}&`]: {
+            backgroundColor: colorSchemeVars["grey-5"],
+            borderColor: colorSchemeVars["grey-20"],
+        },
+    },
+});
+
+export const tableGripButtonPressedClassName = style({
+    selectors: {
+        [`${tableGripButtonClassName}&`]: {
+            backgroundColor: colorSchemeVars["grey-10"],
+            borderColor: colorSchemeVars["grey-20"],
+        },
+    },
+});
+
+export const tableBetweenGripHoveredClassName = style({});
+
+export const tableBetweenGripPressedClassName = style({});
+
+export const tableBetweenGripClassName = style({
+    pointerEvents: "none",
+    position: "absolute",
+    zIndex: "40",
+    selectors: {
+        [[
+            `&${tableBetweenGripHoveredClassName}::after`,
+            `&${tableBetweenGripPressedClassName}::after`,
+        ].join(", ")]: {
+            content: '""',
+            position: "absolute",
+            backgroundColor: colorSchemeVars["theme-40-const"],
+        },
+    },
+});
+
+export const tableBetweenColumnGripClassName = style({
+    top: `-${addRemLengths(tableBetweenGripSize, tableGripSize, tableBetweenGripMargin)}`,
+    bottom: "0",
+    transform: "translateX(-50%)",
+    selectors: {
+        [[
+            `&${tableBetweenGripHoveredClassName}::after`,
+            `&${tableBetweenGripPressedClassName}::after`,
+        ].join(", ")]: {
+            left: `${
+                parseRemLength(tableBetweenGripSize) / 2 -
+                parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2
+            }rem`,
+            top: addRemLengths(tableBetweenGripSize, tableBetweenGripMargin),
+            bottom: "0",
+            width: tableColumnResizeHandleIndicatorWidth,
+        },
+    },
+});
+
+export const tableBetweenRowGripClassName = style({
+    left: `-${addRemLengths(tableBetweenGripSize, tableGripSize, tableBetweenGripMargin)}`,
+    right: "0",
+    transform: "translateY(-50%)",
+    selectors: {
+        [[
+            `&${tableBetweenGripHoveredClassName}::after`,
+            `&${tableBetweenGripPressedClassName}::after`,
+        ].join(", ")]: {
+            top: `${
+                parseRemLength(tableBetweenGripSize) / 2 -
+                parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2
+            }rem`,
+            left: addRemLengths(tableBetweenGripSize, tableBetweenGripMargin),
+            right: "0",
+            height: tableColumnResizeHandleIndicatorWidth,
+        },
+    },
+});
+
+export const tableBetweenGripButtonClassName = style({
+    pointerEvents: "auto",
+    position: "relative",
+    width: tableBetweenGripSize,
+    height: tableBetweenGripSize,
+    borderRadius: "100%",
+    overflow: "hidden",
+    cursor: "pointer",
+    zIndex: 10,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    selectors: {
+        "&::before": {
+            display: "block",
+            content: '""',
+            position: "absolute",
+            width: spacing["1"],
+            height: spacing["1"],
+            borderRadius: "50%",
+            backgroundColor: colorSchemeVars["grey-40"],
+        },
+        [[
+            `${tableBetweenGripClassName}${tableBetweenGripHoveredClassName} &`,
+            `${tableBetweenGripClassName}${tableBetweenGripPressedClassName} &`,
+        ].join(", ")]: {
+            backgroundColor: colorSchemeVars["theme-40-const"],
+        },
+        [[
+            `${tableBetweenGripClassName}${tableBetweenGripHoveredClassName} &::before`,
+            `${tableBetweenGripClassName}${tableBetweenGripPressedClassName} &::before`,
+        ].join(", ")]: {
+            display: "none",
+        },
+        [`${tableBetweenGripClassName}${tableBetweenGripPressedClassName} &::after`]: {
+            content: '""',
+            position: "absolute",
+            inset: "0",
+            backgroundColor: colorSchemeVars["grey-100-const"],
+            opacity: buttonPressedOverlayOpacity,
+        },
+    },
+});
+
+globalStyle(`${tableBetweenGripButtonClassName} svg`, {
+    display: "none",
+    pointerEvents: "none",
+    fill: colorSchemeVars["grey-0-const"],
+    width: spacing["4"],
+    height: spacing["4"],
+});
+
+globalStyle(
+    [
+        `${tableBetweenGripClassName}${tableBetweenGripHoveredClassName} ${tableBetweenGripButtonClassName} svg`,
+        `${tableBetweenGripClassName}${tableBetweenGripPressedClassName} ${tableBetweenGripButtonClassName} svg`,
+    ].join(", "),
+    {
+        display: "block",
+    },
+);
+
+export const tableAddGripPressedClassName = style({});
+
+export const tableAddColumnGripClassName = style({});
+
+export const tableAddRowGripClassName = style({});
+
+export const tableAddGripClassName = style({
+    position: "absolute",
+    zIndex: "20",
+    cursor: "pointer",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: tableGripBackgroundColor.light,
+    selectors: {
+        [`${darkColorSchemeSelector} &`]: {
+            backgroundColor: tableGripBackgroundColor.dark,
+        },
+        [`&${tableAddColumnGripClassName}`]: {
+            width: tableGripSize,
+            right: `-${tableGripSize}`,
+            top: 0,
+            bottom: -1,
+            borderTopRightRadius: spacing["1"],
+            borderBottomRightRadius: spacing["1"],
+        },
+        [`&${tableAddRowGripClassName}`]: {
+            height: `calc(${tableGripSize} - 1px)`,
+            bottom: `-${tableGripSize}`,
+            left: 0,
+            right: 0,
+            borderBottomLeftRadius: spacing["1"],
+            borderBottomRightRadius: spacing["1"],
+        },
+        [`&${tableAddGripPressedClassName}`]: {
+            backgroundColor: colorSchemeVars["grey-10"],
+        },
+        [`&${tableAddColumnGripClassName}${tableAddGripPressedClassName}`]: {
+            boxShadow: `-1px 0 0 0 ${colorSchemeVars["grey-20"]}`,
+        },
+        [`&${tableAddRowGripClassName}${tableAddGripPressedClassName}`]: {
+            boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-20"]}`,
+        },
+    },
+});
+
+globalStyle(`${tableAddGripClassName} svg`, {
+    pointerEvents: "none",
+    fill: colorSchemeVars["grey-50"],
+    width: spacing["4"],
+    height: spacing["4"],
+});
+
 function createChildSelectors(child: "first" | "last") {
-    const selectors1 = (firstPseudoSelector: string = `:${child}-child`) => [
-        `${listItemClassName}${firstPseudoSelector} > *:${child}-child`,
-        `${listItemClassName}${firstPseudoSelector} > ${checkListItemContentClassName} > *:${child}-child`,
+    const selectors1 = [
+        `${listItemClassName}:${child}-child > *:${child}-child`,
+        `${listItemClassName}:${child}-child > ${checkListItemContentClassName} > *:${child}-child`,
     ];
 
-    const selectors2 = (firstPseudoSelector: string = `:${child}-child`) => [
-        ...selectors1(firstPseudoSelector),
-        `${quoteBlockClassName}${firstPseudoSelector} > *:${child}-child`,
-        ...selectors1().map(
-            selector => `${quoteBlockClassName}${firstPseudoSelector} > ${selector}`,
-        ),
+    const selectors2 = [
+        ...selectors1,
+        `${quoteBlockClassName}:${child}-child > *:${child}-child`,
+        ...selectors1.map(selector => `${quoteBlockClassName}:${child}-child > ${selector}`),
     ];
 
     const selectors3 = [
-        ...selectors2(),
+        ...selectors2,
         `${tableWrapperClassName} td > *:${child}-child`,
-        ...selectors2().map(selector => `${tableWrapperClassName} td > ${selector}`),
+        ...selectors2.map(selector => `${tableWrapperClassName} td > ${selector}`),
     ];
-
-    // For tables, when resizing a column we may add a resize handle element to the
-    // end of the `<td>` cell. This resize handle element should not cause
-    // `marginBottom` to be rendered on the last child. So add selectors that
-    // detect when our next sibling is the resize handle element.
-    if (child === "last") {
-        selectors3.push(
-            `${tableWrapperClassName} td > *:has(+ ${tableColumnResizeHandleClassName})`,
-        );
-
-        selectors3.push(
-            ...selectors2(`:has(+ ${tableColumnResizeHandleClassName})`).map(
-                selector => `${tableWrapperClassName} td > ${selector}`,
-            ),
-        );
-    }
 
     return [
         `${docClassName} > *:${child}-child`,
@@ -2242,318 +2612,3 @@ createChildSelectors("first").forEach(selector => globalStyle(selector, {marginT
 
 // Make sure the last child in our document never has bottom margin.
 createChildSelectors("last").forEach(selector => globalStyle(selector, {marginBottom: 0}));
-
-// Style for button
-globalStyle(`${tableWrapperClassName} button`, {
-    backgroundColor: colorSchemeVars["theme-selection"],
-    border: `1px solid ${colorSchemeVars["theme-60"]}`,
-    padding: `${spacing[0.5]} ${spacing[1]}`,
-    cursor: "pointer",
-});
-
-// NOCOMMIT: make these styles more consistent with the rest of the styles
-// like the selectors, colors etc.
-// maybe better way to write these styles than this.
-
-export const tableGripColumnClassName = style({
-    width: "calc(100% + 1px)",
-    borderLeft: `1px solid rgba(0, 0, 0, 0.2)`,
-    height: spacing[3],
-    left: 0,
-    top: `-${spacing[3]}`,
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.05)",
-    cursor: "pointer",
-    display: "flex",
-    justifyContent: "center",
-    position: "absolute",
-    zIndex: 11,
-    transform: "translate(0px, -0.2px)",
-    selectors: {
-        [`${darkColorSchemeSelector} &`]: {
-            backgroundColor: "rgba(255, 255, 255, 0.1)",
-            borderColor: "rgba(255, 255, 255, 0.2)",
-        },
-        "&:hover": {
-            backgroundColor: "rgba(0, 0, 0, 0.1)",
-        },
-        [`${darkColorSchemeSelector} &:hover`]: {
-            backgroundColor: "rgba(255, 255, 255, 0.2)",
-        },
-        "&:hover::before": {
-            content: "''",
-            width: spacing[2.5],
-            borderBottom: `2px dotted rgba(0, 0, 0, 0.6)`,
-        },
-        [`${darkColorSchemeSelector} &:hover::before`]: {
-            borderColor: "rgba(255, 255, 255, 0.6)",
-        },
-    },
-});
-
-export const tableGripFirstColumnClassName = style({
-    selectors: {
-        [`${tableGripColumnClassName}&`]: {
-            borderLeft: "none",
-            borderTopLeftRadius: borderRadius["0.5"],
-        },
-    },
-});
-
-export const tableGripLastColumnClassName = style({
-    selectors: {
-        [`${tableGripColumnClassName}&`]: {
-            borderTopRightRadius: borderRadius["0.5"],
-        },
-    },
-});
-
-export const tableGripSelectedColumnClassName = style({
-    selectors: {
-        [`${tableGripColumnClassName}&`]: {
-            backgroundColor: "rgba(0, 0, 0, 0.3)",
-            borderColor: "rgba(0, 0, 0, 0.3)",
-            boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-        },
-        [`${tableGripColumnClassName}&::before`]: {
-            content: "''",
-            width: spacing[2.5],
-            borderBottom: "2px dotted",
-        },
-        [`${darkColorSchemeSelector} ${tableGripColumnClassName}&`]: {
-            backgroundColor: "rgba(255, 255, 255, 0.3)",
-            borderColor: "rgba(255, 255, 255, 0.3)",
-        },
-    },
-});
-
-export const tableGripRowClassName = style({
-    height: "calc(100% + 1px)",
-    borderTop: `1px solid rgba(0, 0, 0, 0.2)`,
-    left: `-${spacing[3]}`,
-    width: spacing[3],
-    top: 0,
-    // marginTop: "-1px",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.05)",
-    cursor: "pointer",
-    display: "flex",
-    justifyContent: "center",
-    position: "absolute",
-    zIndex: 11,
-    transform: "translate(-0.2px, 0px)",
-    selectors: {
-        [`${darkColorSchemeSelector} &`]: {
-            backgroundColor: "rgba(255, 255, 255, 0.1)",
-            borderColor: "rgba(255, 255, 255, 0.2)",
-        },
-        "&:hover": {
-            backgroundColor: "rgba(0, 0, 0, 0.1)",
-        },
-        [`${darkColorSchemeSelector} &:hover`]: {
-            backgroundColor: "rgba(255, 255, 255, 0.2)",
-        },
-        "&:hover::before": {
-            content: "''",
-            height: spacing[2.5],
-            borderLeft: `2px dotted rgba(0, 0, 0, 0.6)`,
-        },
-        [`${darkColorSchemeSelector} &:hover::before`]: {
-            borderColor: "rgba(255, 255, 255, 0.6)",
-        },
-    },
-});
-
-export const tableGripFirstRowClassName = style({
-    selectors: {
-        [`${tableGripRowClassName}&`]: {
-            borderTop: "none",
-            borderTopLeftRadius: borderRadius["0.5"],
-        },
-    },
-});
-
-export const tableGripLastRowClassName = style({
-    selectors: {
-        [`${tableGripRowClassName}&`]: {
-            borderBottomLeftRadius: borderRadius["0.5"],
-        },
-    },
-});
-
-export const tableGripSelectedRowClassName = style({
-    selectors: {
-        [`${tableGripRowClassName}&`]: {
-            backgroundColor: "rgba(0, 0, 0, 0.3)",
-            borderColor: "rgba(0, 0, 0, 0.3)",
-            boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-        },
-        [`${tableGripRowClassName}&::before`]: {
-            content: "''",
-            height: spacing[2.5],
-            borderLeft: "2px dotted",
-        },
-        [`${darkColorSchemeSelector} ${tableGripRowClassName}&`]: {
-            backgroundColor: "rgba(255, 255, 255, 0.3)",
-            borderColor: "rgba(255, 255, 255, 0.3)",
-        },
-    },
-});
-
-export const tableGripButtonClassName = style({
-    position: "absolute",
-    top: "-24px",
-    left: "-24px",
-    borderRadius: "100%",
-    width: spacing[4],
-    height: spacing[4],
-    cursor: "pointer",
-    zIndex: 11,
-    border: `1px solid ${colorSchemeVars["grey-20"]}`,
-    opacity: 1,
-    transition: "opacity 0.2s",
-    selectors: {
-        [`${darkColorSchemeSelector} &:hover`]: {
-            backgroundColor: "rgba(255, 255, 255, 0.2)",
-        },
-        [`${darkColorSchemeSelector} &:hover::before`]: {
-            borderColor: "rgba(255, 255, 255, 0.6)",
-        },
-    },
-});
-
-export const tableGripButtonSelectedClassName = style({
-    selectors: {
-        [`${darkColorSchemeSelector} ${tableGripButtonClassName}&`]: {
-            backgroundColor: colorSchemeVars["grey-5"],
-        },
-    },
-});
-
-export const tableAddColumnGripClassName = style({
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    right: "-24.4px", // Position it outside the table on the right
-    left: "auto", // Reset any left positioning
-    width: "24px", // Same width as column grip
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colorSchemeVars["grey-10"],
-    borderRadius: "0px 4px 4px 0px",
-    color: colorSchemeVars["grey-60"],
-    ":hover": {
-        backgroundColor: colorSchemeVars["grey-20"],
-        color: colorSchemeVars["grey-100"],
-    },
-});
-
-export const tableAddRowGripClassName = style({
-    position: "absolute",
-    bottom: `-14px`, // Position it outside the table at the bottom
-    top: "auto", // Reset any top positioning
-    right: "0", // Align with table right edge
-    left: `-${spacing[3]}`, // Start from the row grip area
-    width: `calc(100% + ${spacing[3]} + ${spacing[3]})`, // Full table width + left and right margins
-    height: spacing[3],
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colorSchemeVars["grey-10"],
-    borderRadius: "0px 0px 4px 4px",
-    color: colorSchemeVars["grey-60"],
-    ":hover": {
-        backgroundColor: colorSchemeVars["grey-20"],
-        color: colorSchemeVars["grey-100"],
-    },
-});
-
-export const tableBetweenColumnGripClassName = style({
-    position: "absolute",
-    left: "100%",
-    top: "-31px",
-    height: "24px",
-    borderRadius: "100%",
-    width: "24px",
-    cursor: "pointer",
-    backgroundColor: "transparent",
-    zIndex: 11,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transform: "translateX(-50%)",
-});
-
-globalStyle(`${tableBetweenColumnGripClassName}::before`, {
-    content: '""',
-    zIndex: 12,
-    position: "absolute",
-    width: "4px",
-    height: "4px",
-    borderRadius: "50%",
-    backgroundColor: colorSchemeVars["grey-60"],
-    opacity: 0.6,
-});
-
-globalStyle(`${tableBetweenColumnGripClassName}:hover`, {
-    backgroundColor: colorSchemeVars["theme-60"],
-});
-
-globalStyle(`${tableBetweenColumnGripClassName}:hover::before`, {
-    display: "none",
-});
-
-globalStyle(`${tableBetweenColumnGripClassName}:hover > span`, {
-    display: "flex",
-    color: colorSchemeVars["grey-100"],
-    alignItems: "center",
-    justifyContent: "center",
-    width: "100%",
-    height: "100%",
-});
-
-export const tableBetweenRowGripClassName = style({
-    position: "absolute",
-    top: "100%",
-    left: "-31px",
-    width: "24px",
-    height: "24px",
-    borderRadius: "100%",
-    cursor: "pointer",
-    backgroundColor: "transparent",
-    zIndex: 11,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transform: "translateY(-50%)",
-});
-
-globalStyle(`${tableBetweenRowGripClassName}::before`, {
-    content: '""',
-    position: "absolute",
-    width: "4px",
-    height: "4px",
-    borderRadius: "50%",
-    backgroundColor: colorSchemeVars["grey-60"],
-    opacity: 0.6,
-});
-
-globalStyle(`${tableBetweenRowGripClassName}:hover`, {
-    backgroundColor: colorSchemeVars["theme-60"],
-});
-
-globalStyle(`${tableBetweenRowGripClassName}:hover::before`, {
-    display: "none",
-});
-
-globalStyle(`${tableBetweenRowGripClassName}:hover > span`, {
-    display: "flex",
-    color: colorSchemeVars["grey-100"],
-    alignItems: "center",
-    justifyContent: "center",
-    width: "100%",
-    height: "100%",
-});

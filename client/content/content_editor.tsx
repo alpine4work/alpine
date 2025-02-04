@@ -1,5 +1,3 @@
-// NOCOMMIT : remove this eslint disable.
-/* eslint-disable @typescript-eslint/unbound-method */
 import classNames from "classnames";
 import {
     File,
@@ -107,12 +105,7 @@ import {ContentEditorTableColumnsMenu} from "~/client/content/internal/table/con
 import {createContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {ContentEditorTableRowsMenu} from "~/client/content/internal/table/content_editor_table_rows_menu.js";
 import {ContentEditorTableSelectionMenu} from "~/client/content/internal/table/content_editor_table_selection_menu.js";
-import {
-    getSelectedColumnGripInContentTable,
-    getSelectedRowGripInContentTable,
-    getSelectedTableGripInContentTable,
-    isInContentTable,
-} from "~/client/content/internal/table/content_table_client_util.js";
+import {isInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
 import {handleContentTablePaste} from "~/client/content/internal/table/content_table_input.js";
 import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
@@ -931,7 +924,6 @@ function ContentEditor<Content extends ContentWithReferences>(
     >(null);
     const lastTransactionRef = useRef<Transaction | null>(null);
     const referencesUpdateEmitterRef = useRef<EventEmitter | null>(null);
-    const selectionUpdateEmitterRef = useRef<EventEmitter | null>(null);
     const tripleClickDragStateRef = useRef<ContentEditorTripleClickDragState | null>(null);
     const draggingFileRef = useRef<{getPos: () => number | null} | null>(null);
 
@@ -3103,12 +3095,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 getContentEditorReferences(newState).references
         ) {
             referencesUpdateEmitterRef.current.emit();
-        }
-
-        // Emit a selection change for any subscribers (typically node views
-        // which depend on content references).
-        if (selectionUpdateEmitterRef.current && oldState.selection !== newState.selection) {
-            selectionUpdateEmitterRef.current.emit();
         }
 
         // Report any added undo/redo stack entries...

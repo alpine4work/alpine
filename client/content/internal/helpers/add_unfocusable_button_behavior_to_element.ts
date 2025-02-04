@@ -40,6 +40,7 @@ export function addUnfocusableButtonBehaviorToElement(
         pressClassName = "",
         onHoverStart,
         onHoverEnd,
+        onPressStart,
         onPress,
     }: {
         isDisabled?: () => boolean;
@@ -48,6 +49,7 @@ export function addUnfocusableButtonBehaviorToElement(
         pressClassName?: string;
         onHoverStart?: () => void;
         onHoverEnd?: () => void;
+        onPressStart?: (event: PointerEvent) => void;
         onPress?: (event: PointerEvent) => void;
     } = {},
 ): () => void {
@@ -114,6 +116,8 @@ export function addUnfocusableButtonBehaviorToElement(
 
         // Prevent focus from moving or text from being selected.
         event.preventDefault();
+
+        onPressStart?.(event);
     };
 
     const handlePointerUp = (event: PointerEvent) => {
