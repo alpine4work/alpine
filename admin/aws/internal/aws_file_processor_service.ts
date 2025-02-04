@@ -1,7 +1,14 @@
 import {Duration} from "aws-cdk-lib";
 import {AutoScalingGroup, BlockDeviceVolume} from "aws-cdk-lib/aws-autoscaling";
 import {Certificate, CertificateValidation} from "aws-cdk-lib/aws-certificatemanager";
-import {InstanceSize, InstanceType, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
+import {
+    InstanceClass,
+    InstanceSize,
+    InstanceType,
+    Port,
+    SubnetType,
+    Vpc,
+} from "aws-cdk-lib/aws-ec2";
 import {
     AmiHardwareType,
     AsgCapacityProvider,
@@ -19,7 +26,6 @@ import {Construct} from "constructs";
 import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
-import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -83,7 +89,10 @@ export class AwsFileProcessorService extends Construct {
         // File processing needs a lot of memory so we need larger instance sizes than
         // other services. We've found image resizing particularly quickly runs out of
         // memory when resizing large images.
-        const instanceType = InstanceType.of(awsServiceInstanceClass, InstanceSize.MEDIUM);
+        //
+        // TODO(calebmer): Our version of the CDK currently doesn't define
+        // `InstanceClass.M8G`.
+        const instanceType = InstanceType.of("m8g" as InstanceClass, InstanceSize.LARGE);
         const vCpuCount = getInstanceTypeVCpuCount(instanceType);
 
         // Make sure we have enough storage to process one maximum size file per vCPU.
@@ -361,6 +370,14 @@ function getInstanceTypeVCpuCount(instanceType: InstanceType): number {
         case "t4g.xlarge":
             return 4;
         case "t4g.2xlarge":
+            return 8;
+        case "m8g.medium":
+            return 1;
+        case "m8g.large":
+            return 2;
+        case "m8g.xlarge":
+            return 4;
+        case "m8g.2xlarge":
             return 8;
         default: {
             throw new InternalError(
