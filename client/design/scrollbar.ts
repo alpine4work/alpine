@@ -592,7 +592,7 @@ export function initializeScrollbar(
                 // TODO(calebmer): `getBoundingClientRect()` returns values with CSS transforms
                 // applied. Which we don't want for our position calculations here. We need
                 // some code here to detect if CSS transforms are applied and invert them.
-                const childOffsetTop = childNodeRect.top - elementRect.top;
+                const childOffsetTop = childNodeRect.top - elementRect.top + element.scrollTop;
                 const childHeight = childNodeRect.height;
 
                 // Children can be positioned in many surprising ways between `display: flex`
