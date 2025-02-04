@@ -101,10 +101,8 @@ import {
     dispatchParentScrollWhenPointerDownAndOverEvent,
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
-import {ContentEditorTableColumnsMenu} from "~/client/content/internal/table/content_editor_table_columns_menu.js";
+import {ContentEditorTableMenu} from "~/client/content/internal/table/content_editor_table_menu.js";
 import {createContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
-import {ContentEditorTableRowsMenu} from "~/client/content/internal/table/content_editor_table_rows_menu.js";
-import {ContentEditorTableSelectionMenu} from "~/client/content/internal/table/content_editor_table_selection_menu.js";
 import {isInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
 import {handleContentTablePaste} from "~/client/content/internal/table/content_table_input.js";
 import {uploadFile} from "~/client/content/internal/upload_file.js";
@@ -235,24 +233,6 @@ import {
 // users may accidentally click on a word that makes sense to them and get this
 // menu which could be frustrating. Long term we also plan on implementing our
 // own spell checking. So the conflicting spell checking is unfortunate.
-
-export type TableMenuState = {
-    readonly key: Id;
-    readonly targetElement: HTMLElement;
-    readonly isVisible: boolean;
-} & (
-    | {
-          readonly type: "row";
-          readonly position: number;
-      }
-    | {
-          readonly type: "column";
-          readonly position: number;
-      }
-    | {
-          readonly type: "selection";
-      }
-);
 
 function wrap<Content extends ContentWithReferences>(
     state: EditorState,
@@ -4227,16 +4207,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     setIsMobileCommentInputOpen(true);
                 }}
             />
-
-            {/* Table menus */}
-            <ContentEditorTableRowsMenu viewRef={viewRef} state={unwrappedState} />
-            <ContentEditorTableColumnsMenu viewRef={viewRef} state={unwrappedState} />
-            <ContentEditorTableSelectionMenu
-                viewRef={viewRef}
-                state={unwrappedState}
-                getReporter={() => reporterRef.current}
-            />
-
+            <ContentEditorTableMenu viewRef={viewRef} state={unwrappedState} />
             {!fileDropTarget &&
                 selectedNodeElement &&
                 // Only show the focus ring for selected nodes while editing. Unless we have
