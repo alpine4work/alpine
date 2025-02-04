@@ -147,7 +147,10 @@ import {DocumentCommentThreadId, DocumentId, FileId} from "~/shared/id/types/id_
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
-import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
+import {
+    alpineCompanyKnownSpaceId,
+    escapeStudiosKnownSpaceId,
+} from "~/shared/spaces/known_space_ids.js";
 
 const documentContentEditorMobileSidebarInsetTop = "48";
 
@@ -1555,7 +1558,9 @@ export function DocumentContentEditor({
                       ]
                     : emptyArray),
                 ...(platform !== "mobile" &&
-                (process.env.NODE_ENV !== "production" || spaceId === alpineCompanyKnownSpaceId)
+                (process.env.NODE_ENV !== "production" ||
+                    spaceId === alpineCompanyKnownSpaceId ||
+                    spaceId === escapeStudiosKnownSpaceId)
                     ? [
                           [
                               cast<MenuAction>({
