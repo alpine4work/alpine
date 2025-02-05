@@ -27,9 +27,23 @@
  * THE SOFTWARE.
  */
 
+import {Trash} from "phosphor-react";
 import {Node} from "prosemirror-model";
 import {NodeViewConstructor} from "prosemirror-view";
 import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/content_table_column_resizing_plugin.js";
+import {
+    addContentTableColumnAfterSelection,
+    addContentTableColumnBeforeSelection,
+    addContentTableRowAfterSelection,
+    addContentTableRowBeforeSelection,
+    deleteContentTableColumn,
+    deleteContentTableRow,
+} from "~/client/content/internal/table/content_table_commands.js";
+import {addContextMenuActions} from "~/client/design/context_menu.js";
+import {ColumnsPlusLeftIcon} from "~/client/icons/columns_plus_left_icon.js";
+import {ColumnsPlusRightIcon} from "~/client/icons/columns_plus_right_icon.js";
+import {RowsPlusBottomIcon} from "~/client/icons/rows_plus_bottom_icon.js";
+import {RowsPlusTopIcon} from "~/client/icons/rows_plus_top_icon.js";
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {
     getSpacingScaleWithoutListening,
@@ -47,7 +61,7 @@ import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 export function createContentEditorTableNodeView(): NodeViewConstructor {
-    return node => {
+    return (node, view) => {
         const tableWrapperElement = document.createElement("div");
         tableWrapperElement.className = tableWrapperClassName;
 
@@ -67,6 +81,66 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
 
         const tableBodyElement = document.createElement("tbody");
         tableElement.appendChild(tableBodyElement);
+
+        tableElement.addEventListener("contextmenu", event => {
+            // Right click must be in table data cell.
+            if (!(event.target as HTMLElement).closest("td")) return;
+
+            addContextMenuActions(event, [
+                [
+                    {
+                        label: "Add row before",
+                        iconPlacement: "end",
+                        icon: <RowsPlusTopIcon />,
+                        onPress: () => {
+                            addContentTableRowBeforeSelection(view.state, view.dispatch);
+                        },
+                    },
+                    {
+                        label: "Add row after",
+                        iconPlacement: "end",
+                        icon: <RowsPlusBottomIcon />,
+                        onPress: () => {
+                            addContentTableRowAfterSelection(view.state, view.dispatch);
+                        },
+                    },
+                    {
+                        label: "Delete row",
+                        iconPlacement: "end",
+                        icon: <Trash />,
+                        onPress: () => {
+                            deleteContentTableRow(view.state, view.dispatch);
+                        },
+                    },
+                ],
+                [
+                    {
+                        label: "Add column before",
+                        iconPlacement: "end",
+                        icon: <ColumnsPlusLeftIcon style={{transform: "translateX(-0.125rem)"}} />,
+                        onPress: () => {
+                            addContentTableColumnBeforeSelection(view.state, view.dispatch);
+                        },
+                    },
+                    {
+                        label: "Add column after",
+                        iconPlacement: "end",
+                        icon: <ColumnsPlusRightIcon style={{transform: "translateX(0.0625rem)"}} />,
+                        onPress: () => {
+                            addContentTableColumnAfterSelection(view.state, view.dispatch);
+                        },
+                    },
+                    {
+                        label: "Delete column",
+                        iconPlacement: "end",
+                        icon: <Trash />,
+                        onPress: () => {
+                            deleteContentTableColumn(view.state, view.dispatch);
+                        },
+                    },
+                ],
+            ]);
+        });
 
         // Subscribe to spacing scale changes. This also covers all platform changes so
         // we don't need to also subscribe to platform changes.

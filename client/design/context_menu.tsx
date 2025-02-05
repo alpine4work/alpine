@@ -342,9 +342,8 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
 
                 const isDisabledForNode = (node: Node | null) => {
                     if (node === null) return true;
-                    if (!(node instanceof Text)) return true;
 
-                    const element = node.parentElement;
+                    const element = !(node instanceof Element) ? node.parentElement : node;
                     if (!element) return true;
 
                     const userSelect =

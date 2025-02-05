@@ -175,6 +175,7 @@ export const ContentEditorTableMenu = ({
             actions = [
                 {
                     label: "Add row before",
+                    iconPlacement: "end",
                     icon: <RowsPlusTopIcon />,
                     onPress: () => {
                         const view = assertExists(viewRef.current);
@@ -183,6 +184,7 @@ export const ContentEditorTableMenu = ({
                 },
                 {
                     label: "Add row after",
+                    iconPlacement: "end",
                     icon: <RowsPlusBottomIcon />,
                     onPress: () => {
                         const view = assertExists(viewRef.current);
@@ -191,6 +193,7 @@ export const ContentEditorTableMenu = ({
                 },
                 {
                     label: "Delete row",
+                    iconPlacement: "end",
                     icon: <Trash />,
                     onPress: () => {
                         const view = assertExists(viewRef.current);
@@ -206,6 +209,7 @@ export const ContentEditorTableMenu = ({
             actions = [
                 {
                     label: "Add column before",
+                    iconPlacement: "end",
                     icon: <ColumnsPlusLeftIcon style={{transform: "translateX(-0.125rem)"}} />,
                     onPress: () => {
                         const view = assertExists(viewRef.current);
@@ -214,6 +218,7 @@ export const ContentEditorTableMenu = ({
                 },
                 {
                     label: "Add column after",
+                    iconPlacement: "end",
                     icon: <ColumnsPlusRightIcon style={{transform: "translateX(0.0625rem)"}} />,
                     onPress: () => {
                         const view = assertExists(viewRef.current);
@@ -222,6 +227,7 @@ export const ContentEditorTableMenu = ({
                 },
                 {
                     label: "Delete column",
+                    iconPlacement: "end",
                     icon: <Trash />,
                     onPress: () => {
                         const view = assertExists(viewRef.current);
@@ -237,6 +243,7 @@ export const ContentEditorTableMenu = ({
             actions = [
                 {
                     label: "Copy table",
+                    iconPlacement: "end",
                     icon: <Copy />,
                     onPress: () => {
                         if (!isInContentTable(state)) return;
@@ -266,6 +273,7 @@ export const ContentEditorTableMenu = ({
                 },
                 {
                     label: "Delete table",
+                    iconPlacement: "end",
                     icon: <Trash />,
                     onPress: () => {
                         const view = assertExists(viewRef.current);
