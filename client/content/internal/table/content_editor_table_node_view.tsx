@@ -154,8 +154,10 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
 
             update: newNode => {
                 if (newNode.type != node.type) return false;
+
                 node = newNode;
                 updateContentTableColumnsOnResize(node, tableElement);
+
                 return true;
             },
             ignoreMutation: record => {
@@ -188,6 +190,7 @@ export function updateContentTableColumnsOnResize(
     const spacingScale = getSpacingScaleWithoutListening();
 
     const tableWrapper3Element = tableElement.parentElement!;
+    const tableWrapper2Element = tableWrapper3Element.parentElement!;
 
     const tableWidth: number = Math.max(
         1,
@@ -199,10 +202,10 @@ export function updateContentTableColumnsOnResize(
     let totalColumnWidth = 0;
     for (const columnWidth of columnWidths) totalColumnWidth += columnWidth;
 
-    const columnMinWidthPx =
-        contentStyles.tableColumnMinWidthRem * remPxBySpacingScale[spacingScale];
-    const columnMaxWidthPx =
-        contentStyles.tableColumnMaxWidthRem * remPxBySpacingScale[spacingScale];
+    const remPx = remPxBySpacingScale[spacingScale];
+
+    const columnMinWidthPx = contentStyles.tableColumnMinWidthRem * remPx;
+    const columnMaxWidthPx = contentStyles.tableColumnMaxWidthRem * remPx;
 
     const totalColumnMinWidthPx = columnMinWidthPx * columnWidths.length;
 
@@ -238,9 +241,7 @@ export function updateContentTableColumnsOnResize(
     {
         totalColumnMaxWidthPx = roundToDevicePx(
             devicePixelRatio,
-            contentStyles.blockMaxWidthRem[platform] *
-                remPxBySpacingScale[spacingScale] *
-                tableWidth,
+            contentStyles.blockMaxWidthRem[platform] * remPx * tableWidth,
         );
 
         let hasNextPass = true;
@@ -298,35 +299,53 @@ export function updateContentTableColumnsOnResize(
         }
     }
 
-    const tableInnerPaddingXDoubledPx =
-        convertRemLengthToPx(contentStyles.tableInnerPaddingX, spacingScale) * 2;
+    const tableOverflowGradientWidthPx = convertRemLengthToPx(
+        contentStyles.tableOverflowGradientWidth,
+        spacingScale,
+    );
 
-    // 100% width includes the inner padding (because of our parent's negative margin).
-    // So the CSS `${100 * tableWidth}%` would give us the size
-    // `(blockWidthPx + tableInnerPaddingXDoubledPx) * tableWidth`. What we actually
-    // want is width to be `blockWidthPx * tableWidth + tableInnerPaddingXDoubledPx`.
-    // So subtract some pixels to get us to the right width.
-    tableWrapper3Element.style.width = `round(nearest, ${100 * tableWidth}% - ${-(
-        tableInnerPaddingXDoubledPx *
-        (1 - tableWidth)
-    )}px, 1px)`;
+    const tableInnerPaddingXPx = convertRemLengthToPx(
+        contentStyles.tableInnerPaddingX,
+        spacingScale,
+    );
 
-    tableWrapper3Element.style.minWidth = `${
-        tableInnerPaddingXDoubledPx + totalColumnMinWidthPx
-    }px`;
+    // 100% width includes the overflow gradient width (because of our parent's
+    // negative margin). So the CSS `${100 * tableWidth}%` would give us the size
+    // `(blockWidthPx + tableOverflowGradientWidthPx * 2) * tableWidth`. What we
+    // actually want is width to be
+    // `blockWidthPx * tableWidth + tableInnerPaddingXPx`. So first we calculate
+    // `blockWidthPx * tableWidth + tableOverflowGradientWidthPx * 2` with
+    // `100% * tableWidth - tableOverflowGradientWidthPx * 2 * (1 - tableWidth)`
+    // to remove the extra pixels from the multiplied 100%. Then we add
+    // `tableInnerPaddingXPx - tableOverflowGradientWidthPx` to get the
+    // remaining pixel difference. This calculation finally leaves us with the
+    // right width.
+    tableWrapper3Element.style.width = `round(nearest, ${100 * tableWidth}% + ${
+        tableOverflowGradientWidthPx * 2 * (1 - tableWidth) +
+        (tableInnerPaddingXPx - tableOverflowGradientWidthPx) * 2
+    }px, 1px)`;
+
+    tableWrapper3Element.style.minWidth = `${totalColumnMinWidthPx + tableInnerPaddingXPx * 2}px`;
 
     tableWrapper3Element.style.maxWidth = `${
-        tableInnerPaddingXDoubledPx +
-        Math.max(
-            tableInnerPaddingXDoubledPx,
-            Math.min(
-                contentStyles.blockMaxWidthRem[platform] *
-                    tableWidth *
-                    remPxBySpacingScale[spacingScale],
-                totalColumnMaxWidthPx,
-            ),
-        )
+        Math.min(
+            contentStyles.blockMaxWidthRem[platform] * remPx * tableWidth,
+            totalColumnMaxWidthPx,
+        ) +
+        tableInnerPaddingXPx * 2
     }px`;
+
+    // Disable scrolling entirely (which could otherwise be allowed in narrow
+    // views, e.g. a peek, by `tableInnerPaddingXPx`) for tables that should be
+    // rendered at block width.
+    if (
+        tableWidth <= 1 &&
+        columnWidths.length <= contentStyles.tableMaxColumnCountForMaintainingBlockWidth
+    ) {
+        tableWrapper2Element.classList.add(contentStyles.tableWrapper2WithoutScrollClassName);
+    } else {
+        tableWrapper2Element.classList.remove(contentStyles.tableWrapper2WithoutScrollClassName);
+    }
 
     // Instead of setting the column fr units to `columnWidths`, we set the column
     // fr units to the resolved column max width rounded to device pixels. When the

@@ -233,7 +233,7 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
 
                 decorations.push(
                     Decoration.node(tablePos - 1, tablePos - 1 + table.nodeSize, {
-                        class: contentStyles.tableWithSelectionClassName,
+                        class: contentStyles.tableWrapperWithSelectionClassName,
                     }),
                 );
 
