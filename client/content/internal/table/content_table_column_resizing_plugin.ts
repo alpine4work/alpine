@@ -307,9 +307,7 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
 
                 // If the table has a selection then the edge resize handles don't have extra
                 // hit slop area outside the table width.
-                const margin = !tableTarget.closest(
-                    `.${contentStyles.tableWrapperWithSelectionClassName}`,
-                )
+                const margin = !tableTarget.closest(`.${contentStyles.tableWithSelectionClassName}`)
                     ? halfHandleWidth
                     : Math.floor(
                           convertRemLengthToPx(
