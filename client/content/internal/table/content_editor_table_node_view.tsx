@@ -58,6 +58,7 @@ import {
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 export function createContentEditorTableNodeView(): NodeViewConstructor {
@@ -154,8 +155,37 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
 
             update: newNode => {
                 if (newNode.type != node.type) return false;
+
                 node = newNode;
                 updateContentTableColumnsOnResize(node, tableElement);
+
+                // `update()` is called when the decorations on the table change.
+                // `contentTableGripPlugin()` will add the
+                // `contentStyles.tableWrapperWithSelectionClassName` CSS class which adds
+                // extra padding for table grips. We don't want this extra padding to change
+                // the scroll position as seen by the user so detect when
+                // `contentStyles.tableWrapperWithSelectionClassName` is added/removed and
+                // adjust the scroll position when that happens.
+                {
+                    const oldTableOffsetLeft = tableElement.offsetLeft;
+                    const oldWithSelection = tableWrapperElement.classList.contains(
+                        contentStyles.tableWrapperWithSelectionClassName,
+                    );
+
+                    scheduleMicrotask(() => {
+                        const newWithSelection = tableWrapperElement.classList.contains(
+                            contentStyles.tableWrapperWithSelectionClassName,
+                        );
+
+                        if (oldWithSelection !== newWithSelection) {
+                            const newTableOffsetLeft = tableElement.offsetLeft;
+
+                            tableWrapper2Element.scrollLeft +=
+                                newTableOffsetLeft - oldTableOffsetLeft;
+                        }
+                    });
+                }
+
                 return true;
             },
             ignoreMutation: record => {
@@ -298,35 +328,36 @@ export function updateContentTableColumnsOnResize(
         }
     }
 
-    const tableInnerPaddingXDoubledPx =
-        convertRemLengthToPx(contentStyles.tableInnerPaddingX, spacingScale) * 2;
+    const tableOverflowGradientWidthPx = convertRemLengthToPx(
+        contentStyles.tableOverflowGradientWidth,
+        spacingScale,
+    );
 
-    // 100% width includes the inner padding (because of our parent's negative margin).
-    // So the CSS `${100 * tableWidth}%` would give us the size
-    // `(blockWidthPx + tableInnerPaddingXDoubledPx) * tableWidth`. What we actually
-    // want is width to be `blockWidthPx * tableWidth + tableInnerPaddingXDoubledPx`.
-    // So subtract some pixels to get us to the right width.
+    // 100% width includes the overflow gradient width (because of our parent's
+    // negative margin). So the CSS `${100 * tableWidth}%` would give us the size
+    // `(blockWidthPx + tableOverflowGradientWidthPx * 2) * tableWidth`. What we
+    // actually want is width to be
+    // `blockWidthPx * tableWidth + tableInnerPaddingXVar`. So first we calculate
+    // `blockWidthPx * tableWidth + tableOverflowGradientWidthPx * 2` with
+    // `100% * tableWidth - tableOverflowGradientWidthPx * 2 * (1 - tableWidth)`
+    // to remove the extra pixels from the multiplied 100%. Then we add
+    // `tableInnerPaddingXVar - tableOverflowGradientWidthPx` to get the
+    // remaining pixel difference. This calculation finally leaves us with the
+    // right width.
     tableWrapper3Element.style.width = `round(nearest, ${100 * tableWidth}% - ${-(
-        tableInnerPaddingXDoubledPx *
+        tableOverflowGradientWidthPx *
+        2 *
         (1 - tableWidth)
-    )}px, 1px)`;
+    )}px + ((${
+        contentStyles.tableInnerPaddingXVar
+    } - ${tableOverflowGradientWidthPx}px) * 2), 1px)`;
 
-    tableWrapper3Element.style.minWidth = `${
-        tableInnerPaddingXDoubledPx + totalColumnMinWidthPx
-    }px`;
+    tableWrapper3Element.style.minWidth = `calc(${totalColumnMinWidthPx}px + (${contentStyles.tableInnerPaddingXVar} * 2))`;
 
-    tableWrapper3Element.style.maxWidth = `${
-        tableInnerPaddingXDoubledPx +
-        Math.max(
-            tableInnerPaddingXDoubledPx,
-            Math.min(
-                contentStyles.blockMaxWidthRem[platform] *
-                    tableWidth *
-                    remPxBySpacingScale[spacingScale],
-                totalColumnMaxWidthPx,
-            ),
-        )
-    }px`;
+    tableWrapper3Element.style.maxWidth = `calc(${Math.min(
+        contentStyles.blockMaxWidthRem[platform] * tableWidth * remPxBySpacingScale[spacingScale],
+        totalColumnMaxWidthPx,
+    )}px + (${contentStyles.tableInnerPaddingXVar} * 2))`;
 
     // Instead of setting the column fr units to `columnWidths`, we set the column
     // fr units to the resolved column max width rounded to device pixels. When the

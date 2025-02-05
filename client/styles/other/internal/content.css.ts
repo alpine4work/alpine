@@ -1995,10 +1995,37 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     zIndex: -10,
 });
 
-const tableInnerPaddingXSpacing = "3";
-export {tableInnerPaddingXSpacing as tableInnerPaddingX};
-const tableInnerPaddingX = spacing[tableInnerPaddingXSpacing];
-const tableInnerPaddingXDoubled = addRemLengths(tableInnerPaddingX, tableInnerPaddingX);
+/**
+ * Size of the resize grips on a table. Needs to be large enough that the user
+ * has enough of a hit box for the grips on the right side of the table even
+ * considering the conflicting column resize handle.
+ */
+const tableGripSize = spacing["4"];
+
+/**
+ * The size of a table between grip plus button when hovered. We render a much
+ * smaller dot but when the users cursor is over the dot we render a button of
+ * this size.
+ */
+const tableBetweenGripButtonSize = spacing["5"];
+
+/**
+ * Margin between the table between grip button and the table grip.
+ */
+const tableBetweenGripButtonMargin: RemLength | `-${RemLength}` = `-${spacing["1"]}`;
+
+const tableOverflowGradientWidthSpacing = "3";
+export {tableOverflowGradientWidthSpacing as tableOverflowGradientWidth};
+const tableOverflowGradientWidth = spacing[tableOverflowGradientWidthSpacing];
+
+export const tableInnerPaddingXVar = createVar("table-inner-padding-x");
+
+const tableWrapper3PaddingTop = addRemLengths(
+    tableGripSize,
+    tableBetweenGripButtonSize,
+    tableBetweenGripButtonMargin,
+);
+const tableWrapper3PaddingBottom = tableGripSize;
 
 globalStyle(tableWrapperClassName, {
     ...omitObject(blockStyles, ["maxWidth", "marginLeft", "marginRight"]),
@@ -2022,10 +2049,10 @@ globalStyle(`${tableWrapperClassName}::before`, {
     pointerEvents: "none",
     position: "absolute",
     zIndex: "10",
-    top: 0,
-    bottom: 0,
-    left: `-${tableInnerPaddingX}`,
-    width: tableInnerPaddingX,
+    top: `-${tableWrapper3PaddingTop}`,
+    bottom: `-${tableWrapper3PaddingBottom}`,
+    left: `-${tableOverflowGradientWidth}`,
+    width: tableOverflowGradientWidth,
     background: `linear-gradient(to right, ${backgroundColorVar}, transparent)`,
 });
 
@@ -2034,39 +2061,14 @@ globalStyle(`${tableWrapperClassName}::after`, {
     pointerEvents: "none",
     position: "absolute",
     zIndex: "10",
-    top: 0,
-    bottom: 0,
-    right: `-${tableInnerPaddingX}`,
-    width: tableInnerPaddingX,
+    top: `-${tableWrapper3PaddingTop}`,
+    bottom: `-${tableWrapper3PaddingBottom}`,
+    right: `-${tableOverflowGradientWidth}`,
+    width: tableOverflowGradientWidth,
     background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
 });
 
-/**
- * Size of the resize grips on a table. Needs to be large enough that the user
- * has enough of a hit box for the grips on the right side of the table even
- * considering the conflicting column resize handle.
- */
-const tableGripSize = spacing["4"];
-
-/**
- * The size of a table between grip plus button when hovered. We render a much
- * smaller dot but when the users cursor is over the dot we render a button of
- * this size.
- */
-const tableBetweenGripButtonSize = spacing["5"];
-
-/**
- * Margin between the table between grip button and the table grip.
- */
-const tableBetweenGripButtonMargin: RemLength | `-${RemLength}` = `-${spacing["1"]}`;
-
-const tableWrapper3PaddingX = tableInnerPaddingX;
-const tableWrapper3PaddingTop = addRemLengths(
-    tableGripSize,
-    tableBetweenGripButtonSize,
-    tableBetweenGripButtonMargin,
-);
-const tableWrapper3PaddingBottom = tableGripSize;
+export const tableWrapperWithSelectionClassName = style({});
 
 globalStyle(tableWrapper2ClassName, {
     position: "relative",
@@ -2074,25 +2076,38 @@ globalStyle(tableWrapper2ClassName, {
     overflowX: "auto",
     overflowY: "hidden",
     overscrollBehaviorX: "contain",
-    width: `calc(100% + ${tableInnerPaddingXDoubled})`,
-    marginLeft: `-${tableWrapper3PaddingX}`,
-    marginRight: `-${tableWrapper3PaddingX}`,
+    width: `calc(100% + (${tableOverflowGradientWidth} * 2))`,
+    marginLeft: `-${tableOverflowGradientWidth}`,
+    marginRight: `-${tableOverflowGradientWidth}`,
     marginTop: `-${tableWrapper3PaddingTop}`,
     marginBottom: `-${tableWrapper3PaddingBottom}`,
+    vars: {
+        [tableInnerPaddingXVar]: tableOverflowGradientWidth,
+    },
 });
+
+globalStyle(
+    `${tableWrapperClassName}${tableWrapperWithSelectionClassName} ${tableWrapper2ClassName}`,
+    {
+        vars: {
+            [tableInnerPaddingXVar]: addRemLengths(
+                tableOverflowGradientWidth,
+                tableGripSize,
+                tableBetweenGripButtonSize,
+                tableBetweenGripButtonMargin,
+            ),
+        },
+    },
+);
 
 globalStyle(tableWrapper3ClassName, {
     width: "100%",
-    maxWidth: addRemLengths(blockMaxWidth.desktop, tableInnerPaddingXDoubled),
+    maxWidth: `calc(${blockMaxWidthVar} + (${tableInnerPaddingXVar} * 2))`,
     margin: "0 auto",
-    paddingLeft: tableWrapper3PaddingX,
-    paddingRight: tableWrapper3PaddingX,
+    paddingLeft: tableInnerPaddingXVar,
+    paddingRight: tableInnerPaddingXVar,
     paddingTop: tableWrapper3PaddingTop,
     paddingBottom: tableWrapper3PaddingBottom,
-});
-
-globalStyle(`${mobilePlatformSelector} ${tableWrapper3ClassName}`, {
-    maxWidth: addRemLengths(blockMaxWidth.mobile, tableInnerPaddingXDoubled),
 });
 
 globalStyle(`${tableWrapperClassName} table`, {
@@ -2200,8 +2215,6 @@ globalStyle(`${tableWrapperClassName} td:last-of-type${tableSelectedCellClassNam
     right: 0,
 });
 
-export const tableWithSelectionClassName = style({});
-
 // We want the hit area for the resize handle to be nice and wide. We'd like to
 // use spacing 6 which is the same value that `useTouchSlop()` uses for the hit
 // range of small buttons on desktop. However, we also want to keep all resize
@@ -2239,7 +2252,7 @@ export const tableColumnResizeHandleClassName = style({
         // If the selection is in our table and we're showing table grips then we want
         // to extend our resize handle into the column grip but we don't want the
         // extended part of the resize handle to be selectable.
-        [`${tableWrapperClassName}${tableWithSelectionClassName} &::before`]: {
+        [`${tableWrapperClassName}${tableWrapperWithSelectionClassName} &::before`]: {
             pointerEvents: "none",
             content: '""',
             position: "absolute",
@@ -2257,7 +2270,7 @@ export const tableLeftEdgeColumnResizeHandleClassName = style({
         // When the table row/column grips are showing, then edge resize handles don't
         // have touch slop outside the table. Since that touch slop would conflict with
         // row grips or the add column button.
-        [`${tableWrapperClassName}${tableWithSelectionClassName} ${tableColumnResizeHandleClassName}&`]:
+        [`${tableWrapperClassName}${tableWrapperWithSelectionClassName} ${tableColumnResizeHandleClassName}&`]:
             {
                 width: `${
                     parseRemLength(tableColumnResizeHandleWidth) / 2 +
@@ -2268,8 +2281,8 @@ export const tableLeftEdgeColumnResizeHandleClassName = style({
                 }rem)`,
             },
         [[
-            `${tableWrapperClassName}${tableWithSelectionClassName} ${tableColumnResizeHandleClassName}&::after`,
-            `${tableWrapperClassName}${tableWithSelectionClassName} ${tableColumnResizeHandleClassName}&::before`,
+            `${tableWrapperClassName}${tableWrapperWithSelectionClassName} ${tableColumnResizeHandleClassName}&::after`,
+            `${tableWrapperClassName}${tableWrapperWithSelectionClassName} ${tableColumnResizeHandleClassName}&::before`,
         ].join(", ")]: {
             left: 0,
         },
@@ -2281,7 +2294,7 @@ export const tableRightEdgeColumnResizeHandleClassName = style({
         // When the table row/column grips are showing, then edge resize handles don't
         // have touch slop outside the table. Since that touch slop would conflict with
         // row grips or the add column button.
-        [`${tableWrapperClassName}${tableWithSelectionClassName} ${tableColumnResizeHandleClassName}&`]:
+        [`${tableWrapperClassName}${tableWrapperWithSelectionClassName} ${tableColumnResizeHandleClassName}&`]:
             {
                 width: `${
                     parseRemLength(tableColumnResizeHandleWidth) / 2 +
@@ -2290,8 +2303,8 @@ export const tableRightEdgeColumnResizeHandleClassName = style({
                 transform: `translateX(-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem)`,
             },
         [[
-            `${tableWrapperClassName}${tableWithSelectionClassName} ${tableColumnResizeHandleClassName}&::after`,
-            `${tableWrapperClassName}${tableWithSelectionClassName} ${tableColumnResizeHandleClassName}&::before`,
+            `${tableWrapperClassName}${tableWrapperWithSelectionClassName} ${tableColumnResizeHandleClassName}&::after`,
+            `${tableWrapperClassName}${tableWrapperWithSelectionClassName} ${tableColumnResizeHandleClassName}&::before`,
         ].join(", ")]: {
             left: `${
                 parseRemLength(tableColumnResizeHandleWidth) / 2 -
