@@ -1,11 +1,10 @@
+import {Copy, Trash} from "phosphor-react";
 import {EditorState} from "prosemirror-state";
 import {EditorView, serializeForClipboard} from "prosemirror-view";
 import {RefObject, useLayoutEffect, useState} from "react";
 import {
-    getSelectedColumnGripInContentTable,
-    getSelectedRowGripInContentTable,
-    getSelectedTableGripInContentTable,
     isInContentTable,
+    selectionContentTableCell,
 } from "~/client/content/internal/table/content_table_client_util.js";
 import {
     addContentTableColumnAfterSelection,
@@ -17,12 +16,21 @@ import {
     deleteContentTableRow,
 } from "~/client/content/internal/table/content_table_commands.js";
 import {Menu, MenuAction} from "~/client/design/menu.js";
+import {OverlayPlacement} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
+import {ColumnsPlusLeftIcon} from "~/client/icons/columns_plus_left_icon.js";
+import {ColumnsPlusRightIcon} from "~/client/icons/columns_plus_right_icon.js";
+import {RowsPlusBottomIcon} from "~/client/icons/rows_plus_bottom_icon.js";
+import {RowsPlusTopIcon} from "~/client/icons/rows_plus_top_icon.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {contentStyles} from "~/client/styles/styles.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {Id, generateId} from "~/shared/id/id.js";
 
 export type ContentEditorTableMenuState = {
@@ -61,169 +69,187 @@ export const ContentEditorTableMenu = ({
             return;
         }
 
-        const view = assertExists(viewRef.current);
+        let isCancelled = false;
 
-        const selectedTableGrip = getSelectedTableGripInContentTable({
-            view,
-            state,
+        // Run after a microtask since our parent effects need to run first and update
+        // the DOM.
+        scheduleMicrotask(() => {
+            if (isCancelled) return;
+
+            const view = assertExists(viewRef.current);
+
+            const $cell = selectionContentTableCell(state);
+            const tablePos = $cell.start(-1);
+
+            let tableElement: HTMLTableElement | null = null;
+            {
+                let element: globalThis.Node | null = view.domAtPos(tablePos).node;
+                while (element && element.nodeName != "TABLE") element = element.parentNode;
+
+                tableElement = element as HTMLTableElement | null;
+            }
+            if (!tableElement) {
+                setMenuState(null);
+                return;
+            }
+
+            {
+                const selectedTableGripButtonElement = tableElement.querySelector(
+                    `.${contentStyles.tableGripButtonClassName}.${contentStyles.tableGripButtonSelectedClassName}`,
+                );
+                if (selectedTableGripButtonElement) {
+                    setMenuState(menuState => {
+                        if (menuState?.targetElement === selectedTableGripButtonElement)
+                            return menuState;
+
+                        return {
+                            type: "selection",
+                            key: generateId(),
+                            targetElement: selectedTableGripButtonElement as HTMLElement,
+                            isVisible: true,
+                        };
+                    });
+                    return;
+                }
+            }
+
+            {
+                const selectedTableGripRowElement = tableElement.querySelector(
+                    `.${contentStyles.tableGripClassName}.${contentStyles.tableGripRowClassName}.${contentStyles.tableGripSelectedClassName}`,
+                );
+                if (selectedTableGripRowElement) {
+                    setMenuState(menuState => {
+                        if (menuState?.targetElement === selectedTableGripRowElement)
+                            return menuState;
+
+                        return {
+                            type: "row",
+                            key: generateId(),
+                            targetElement: selectedTableGripRowElement as HTMLElement,
+                            position: state.selection.$from.pos,
+                            isVisible: true,
+                        };
+                    });
+                    return;
+                }
+            }
+
+            {
+                const selectedTableGripColumnElement = tableElement.querySelector(
+                    `.${contentStyles.tableGripClassName}.${contentStyles.tableGripColumnClassName}.${contentStyles.tableGripSelectedClassName}`,
+                );
+                if (selectedTableGripColumnElement) {
+                    setMenuState(menuState => {
+                        if (menuState?.targetElement === selectedTableGripColumnElement)
+                            return menuState;
+
+                        return {
+                            type: "column",
+                            key: generateId(),
+                            targetElement: selectedTableGripColumnElement as HTMLElement,
+                            position: state.selection.$from.pos,
+                            isVisible: true,
+                        };
+                    });
+                    return;
+                }
+            }
+
+            setMenuState(null);
         });
-        if (selectedTableGrip) {
-            setMenuState({
-                type: "selection",
-                key: generateId(),
-                targetElement: selectedTableGrip as HTMLElement,
-                isVisible: true,
-            });
-            return;
-        }
 
-        const selectedRowGrip = getSelectedRowGripInContentTable({
-            view,
-            state,
-        });
-        if (selectedRowGrip) {
-            setMenuState({
-                type: "row",
-                key: generateId(),
-                targetElement: selectedRowGrip as HTMLElement,
-                position: state.selection.$from.pos,
-                isVisible: true,
-            });
-            return;
-        }
-
-        const selectedColumnGrip = getSelectedColumnGripInContentTable({
-            view,
-            state,
-        });
-        if (selectedColumnGrip) {
-            setMenuState({
-                type: "column",
-                key: generateId(),
-                targetElement: selectedColumnGrip as HTMLElement,
-                position: state.selection.$from.pos,
-                isVisible: true,
-            });
-            return;
-        }
-
-        setMenuState(null);
+        return () => {
+            isCancelled = true;
+        };
     }, [state, viewRef]);
-
-    const onCloseWithAnimation = () => {
-        setMenuState(prev => (prev ? {...prev, isVisible: false} : null));
-    };
-
-    const onCloseWithoutAnimation = () => {
-        setMenuState(null);
-    };
 
     if (!menuState) return null;
 
+    let placement: OverlayPlacement;
     let actions: Array<MenuAction>;
 
     switch (menuState.type) {
         case "row": {
+            placement = "left";
+
             actions = [
                 {
-                    label: "Add row after",
+                    label: "Add row before",
+                    icon: <RowsPlusTopIcon />,
                     onPress: () => {
-                        if (viewRef.current) {
-                            addContentTableRowAfterSelection(state, viewRef.current.dispatch);
-                            onCloseWithAnimation();
-                        }
+                        const view = assertExists(viewRef.current);
+                        addContentTableRowBeforeSelection(state, view.dispatch);
                     },
                 },
                 {
-                    label: "Add row before",
+                    label: "Add row after",
+                    icon: <RowsPlusBottomIcon />,
                     onPress: () => {
-                        if (viewRef.current) {
-                            addContentTableRowBeforeSelection(state, viewRef.current.dispatch);
-                            onCloseWithAnimation();
-                        }
+                        const view = assertExists(viewRef.current);
+                        addContentTableRowAfterSelection(state, view.dispatch);
                     },
                 },
                 {
                     label: "Delete row",
+                    icon: <Trash />,
                     onPress: () => {
-                        if (viewRef.current) {
-                            deleteContentTableRow(state, viewRef.current.dispatch);
-                            onCloseWithAnimation();
-                        }
+                        const view = assertExists(viewRef.current);
+                        deleteContentTableRow(state, view.dispatch);
                     },
                 },
             ];
             break;
         }
         case "column": {
+            placement = "top";
+
             actions = [
                 {
-                    label: "Add column after",
+                    label: "Add column before",
+                    icon: <ColumnsPlusLeftIcon style={{transform: "translateX(-0.125rem)"}} />,
                     onPress: () => {
                         const view = assertExists(viewRef.current);
-
-                        addContentTableColumnAfterSelection(view.state, view.dispatch);
-                        onCloseWithAnimation();
+                        addContentTableColumnBeforeSelection(view.state, view.dispatch);
                     },
                 },
                 {
-                    label: "Add column before",
+                    label: "Add column after",
+                    icon: <ColumnsPlusRightIcon style={{transform: "translateX(0.0625rem)"}} />,
                     onPress: () => {
                         const view = assertExists(viewRef.current);
-
-                        addContentTableColumnBeforeSelection(view.state, view.dispatch);
-                        onCloseWithAnimation();
+                        addContentTableColumnAfterSelection(view.state, view.dispatch);
                     },
                 },
                 {
                     label: "Delete column",
+                    icon: <Trash />,
                     onPress: () => {
                         const view = assertExists(viewRef.current);
-
                         deleteContentTableColumn(view.state, view.dispatch);
-                        onCloseWithAnimation();
                     },
                 },
             ];
             break;
         }
         case "selection": {
+            placement = "top-start";
+
             actions = [
                 {
                     label: "Copy table",
+                    icon: <Copy />,
                     onPress: () => {
+                        if (!isInContentTable(state)) return;
+
                         const view = assertExists(viewRef.current);
-                        const tableGrip = getSelectedTableGripInContentTable({
-                            view,
-                            state: view.state,
-                        });
-                        if (!tableGrip) return;
 
-                        // Find the table node and its position
-                        const tablePos = view.posAtDOM(tableGrip, 0);
-                        const $pos = view.state.doc.resolve(tablePos);
-
-                        // Walk up to find the actual table node
-                        let depth = $pos.depth;
-                        let tableNode = null;
-                        while (depth >= 0) {
-                            const node = $pos.node(depth);
-                            if (node.type.name === "table") {
-                                tableNode = node;
-                                break;
-                            }
-                            depth--;
-                        }
-
-                        if (!tableNode) return;
-
-                        // Get the start position of the table
-                        const startPos = $pos.start(depth);
-                        const endPos = startPos + tableNode.nodeSize;
+                        const $cell = selectionContentTableCell(state);
+                        const table = $cell.node(-1);
+                        const tablePos = $cell.start(-1);
 
                         const {dom, text} = serializeForClipboard(
                             view,
-                            view.state.doc.slice(startPos, endPos),
+                            view.state.doc.slice(tablePos - 1, tablePos - 1 + table.nodeSize),
                         );
 
                         navigator.clipboard
@@ -240,11 +266,10 @@ export const ContentEditorTableMenu = ({
                 },
                 {
                     label: "Delete table",
+                    icon: <Trash />,
                     onPress: () => {
-                        if (viewRef.current) {
-                            deleteContentTable(viewRef.current.state, viewRef.current.dispatch);
-                            onCloseWithAnimation();
-                        }
+                        const view = assertExists(viewRef.current);
+                        deleteContentTable(view.state, view.dispatch);
                     },
                 },
             ];
@@ -256,19 +281,23 @@ export const ContentEditorTableMenu = ({
 
     return (
         <OverlayAnimated
-            isBlocking={false}
+            key={menuState.key}
+            disableAnimationIn={true}
             isVisible={menuState.isVisible}
             offset={defaultTooltipOffset}
-            placement="left-start"
-            fallbackPlacements={["top-start"]}
+            placement={placement}
+            fallbackPlacements={emptyArray}
             overflowBottom={platform === "mobile" ? "18rem" : undefined}
             targetElement={menuState.targetElement}
             overlay={
                 <Menu
                     isNotFocusable={true}
+                    shouldNotCloseAfterActionPress={true}
                     actions={actions}
-                    onCloseWithAnimation={onCloseWithAnimation}
-                    onCloseWithoutAnimation={onCloseWithoutAnimation}
+                    // The menu should stay open while content in the table is selected. Ignore any
+                    // calls to close the menu.
+                    onCloseWithAnimation={noop}
+                    onCloseWithoutAnimation={noop}
                 />
             }
         />
