@@ -2161,20 +2161,14 @@ export const tableColumnMaxWidthRem = blockMaxWidthRem.desktop - tableColumnMinW
 export const tableMaxColumnCountForMaintainingBlockWidth = 4;
 
 /**
- * When we add a new column after `tableMaxColumnCountForMaintainingBlockWidth`
- * this is the desired width of that column.
+ * Snap factor for column resizing. By default, when resizing a column we
+ * snap the column width to `blockWidth / factor`. The column min width, column
+ * max width, and new column desired width should all be multiples of this
+ * increment when we have the max block width. So the user can easily create
+ * columns of those sizes and there will be harmony between the user's column
+ * sizes.
  */
-export const tableNewColumnDesiredWidthRem =
-    blockMaxWidthRem.desktop * (1 / tableMaxColumnCountForMaintainingBlockWidth);
-
-/**
- * Snap increment for column resizing. By default, when resizing a column we
- * snap the column width to multiples of this length. The column min width,
- * column max width, and new column desired width should all be multiples of
- * this increment. So the user can easily create columns of those sizes and
- * there will be harmony between the user's column sizes.
- */
-export const tableColumnWidthSnapIncrementRem = blockMaxWidthRem.desktop * (1 / 12);
+export const tableColumnWidthBlockWidthSnapFactor = 12;
 
 globalStyle(`${tableWrapperClassName} td`, {
     display: "block",

@@ -842,7 +842,8 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
     const snapColumnWidthPx = (columnWidthPx: number) => {
         if (!isSnapping) return columnWidthPx;
 
-        const columnWidthSnapIncrementPx = contentStyles.tableColumnWidthSnapIncrementRem * remPx;
+        const columnWidthSnapIncrementPx =
+            blockWidthPx / contentStyles.tableColumnWidthBlockWidthSnapFactor;
 
         return Math.round(columnWidthPx / columnWidthSnapIncrementPx) * columnWidthSnapIncrementPx;
     };
@@ -1051,20 +1052,6 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
             ),
             columnMaxWidthPx,
         );
-
-        // By default, round column width to the nearest snap increment. If the user is
-        // holding alt then we'll let the user perform a precise pixel by pixel resize.
-        //
-        // By defaulting to snapping to a standard column width increment, we help the
-        // user create beautiful, orderly, tables.
-        if (isSnapping) {
-            const columnWidthSnapIncrementPx =
-                contentStyles.tableColumnWidthSnapIncrementRem * remPx;
-
-            newColumnWidthPx =
-                Math.round(newColumnWidthPx / columnWidthSnapIncrementPx) *
-                columnWidthSnapIncrementPx;
-        }
 
         const expectedNewTotalColumnWidthPx =
             oldTotalColumnWidthPx + (newColumnWidthPx - oldColumnWidthPx);

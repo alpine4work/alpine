@@ -93,7 +93,9 @@ function addContentTableColumn(
         // table they'll have a couple columns of equal width. When we start growing
         // the table, we want the new column to have the same width as the previous
         // columns.
-        const newColumnWidthPx = contentStyles.tableNewColumnDesiredWidthRem * remPx;
+        const newColumnWidthPx =
+            (contentStyles.blockMaxWidthRem.desktop * remPx) /
+            contentStyles.tableMaxColumnCountForMaintainingBlockWidth;
 
         const oldColumnWidthPxs = resolveContentTableColumnWidthPx(
             tableMap.totalColumnWidth,
