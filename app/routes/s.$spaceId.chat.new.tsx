@@ -22,7 +22,7 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {contentStyles, frostedGlassClassName} from "~/client/styles/styles.js";
+import {contentStyles, grey5SemiTransparentColorVar} from "~/client/styles/styles.js";
 import {selectChatForAccounts} from "~/server/chat/data/chat_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -230,16 +230,7 @@ export default function NewChatRoute() {
             display="flex"
             flexDirection="column"
         >
-            <Box
-                ref={accountPickerContainerRef}
-                className={frostedGlassClassName}
-                zIndex="10"
-                position="absolute"
-                top="0"
-                left="0"
-                right="0"
-                paddingTop="safe-area-inset"
-            >
+            <Box ref={accountPickerContainerRef} flexShrink="0" paddingTop="safe-area-inset">
                 {platform === "mobile" && (
                     <NavigationBarContent
                         // We don't have the done button in regular chats so also don't show it here.
@@ -258,6 +249,9 @@ export default function NewChatRoute() {
                     data-testid={
                         isAccountPickerPending ? "ChatAccountPickerContainer:Pending" : undefined
                     }
+                    style={{
+                        boxShadow: `0 1px 0 0 ${grey5SemiTransparentColorVar}`,
+                    }}
                 >
                     <ChatAccountPicker
                         selectedAccounts={selectedAccounts}

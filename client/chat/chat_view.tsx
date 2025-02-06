@@ -19,7 +19,7 @@ import {
     messageViewAccountAvatarSize,
     messageViewRailGap,
 } from "~/client/styles/messaging_shared_styles.js";
-import {contentStyles, frostedGlassClassName, sprinkles} from "~/client/styles/styles.js";
+import {contentStyles, grey5SemiTransparentColorVar, sprinkles} from "~/client/styles/styles.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
@@ -46,14 +46,7 @@ export function ChatView({
     initialScrollToMessageIndex: number | null;
 }) {
     return (
-        <Box
-            position="relative"
-            zIndex="0"
-            width="full"
-            height="full"
-            display="flex"
-            flexDirection="column"
-        >
+        <Box width="full" height="full" display="flex" flexDirection="column">
             <ChatViewTopBar withInboxBanner={withInboxBanner} chat={chat} />
             <ChatMessagingView
                 chat={chat}
@@ -81,13 +74,11 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
 
     return (
         <Box
-            data-testid="ChatViewTopBar"
-            className={frostedGlassClassName}
+            position="relative"
             zIndex="10"
-            position="absolute"
-            top="0"
-            left="0"
-            right="0"
+            data-testid="ChatViewTopBar"
+            flexShrink="0"
+            width="full"
             paddingTop="safe-area-inset"
             display="flex"
             justifyContent="center"
@@ -105,6 +96,9 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
                 paddingBottom={
                     withInboxBanner ? chatViewTopBarWithInboxBannerAdjustmentY[platform] : undefined
                 }
+                style={{
+                    boxShadow: `0 1px 0 0 ${grey5SemiTransparentColorVar}`,
+                }}
             >
                 {platform === "mobile" && (
                     <Box flexShrink="0" paddingLeft="3">
@@ -210,7 +204,6 @@ function ChatMessagingView({
                 otherReferencedMessages: initialOtherReferencedMessages,
                 lastMessageChangeTime: chat.lastMessageChangeTime,
             }}
-            scrollbarInsetTop={navigationBarHeight}
             header={chatMessagingViewHeaderItem}
             randomSeedForShimmer={chat.id}
             fileAttachmentTarget={useMemo(

@@ -21,7 +21,6 @@ import {useAccountClientStore} from "~/client/accounts/account_client_store_cont
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
@@ -38,7 +37,6 @@ import {
     backgroundColorVar,
     colorSchemeVars,
     fontSizes,
-    grey5SemiTransparentColorVar,
     greyElevated2ClassName,
     overlayFadeInAnimationDurationMs,
     overlayFadeOutAnimationDurationMs,
@@ -515,6 +513,7 @@ export function ChatAccountPicker({
                     ref={selectedAccountRefs[index]}
                     cursor="default"
                     height="6"
+                    backgroundColor="grey-5"
                     borderRadius="full"
                     display="flex"
                     alignItems="center"
@@ -525,10 +524,6 @@ export function ChatAccountPicker({
                     // external keyboard, then you can use arrow keys).
                     pointerEvents={platform !== "mobile" ? undefined : "none"}
                     onKeyDown={handleKeyDown}
-                    style={{
-                        // Use a semi-translucent color so the frosted glass effect shows through.
-                        backgroundColor: grey5SemiTransparentColorVar,
-                    }}
                 >
                     <Box paddingLeft="0.5">
                         <AccountAvatar size="5" account={accountData} />
@@ -636,7 +631,7 @@ export function ChatAccountPicker({
                             display: "flex",
                             alignItems: "center",
                             // Smaller on mobile since we render the navigation bar above.
-                            height: platform !== "mobile" ? navigationBarHeight : "10",
+                            height: platform !== "mobile" ? "12" : "10",
                             paddingLeft: {desktop: "4", mobile: "2"},
                             paddingRight: {desktop: "3", mobile: "1.5"},
                             fontSize: {desktop: "100", mobile: "50"},
@@ -655,7 +650,7 @@ export function ChatAccountPicker({
                         rowGap="1.5"
                         columnGap={{desktop: "1.5", mobile: "1"}}
                         // Smaller on mobile since we render the navigation bar above.
-                        paddingY={platform !== "mobile" ? "4" : "2"}
+                        paddingY={platform !== "mobile" ? "3" : "2"}
                         cursor="text"
                     >
                         <div
@@ -743,7 +738,7 @@ export function ChatAccountPicker({
                     <Box
                         flexShrink="0"
                         // Smaller on mobile since we render the navigation bar above.
-                        height={platform !== "mobile" ? navigationBarHeight : "10"}
+                        height={platform !== "mobile" ? "12" : "10"}
                         paddingLeft={{desktop: "3", mobile: "1.5"}}
                         paddingRight={{mobile: screenPaddingX.mobile, desktop: "4"}}
                         display="flex"
