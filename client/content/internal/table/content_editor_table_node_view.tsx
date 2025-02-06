@@ -167,6 +167,7 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
                 // `contentStyles.tableWrapperWithSelectionClassName` is added/removed and
                 // adjust the scroll position when that happens.
                 {
+                    const oldTableScrollLeft = tableWrapper2Element.scrollLeft;
                     const oldTableOffsetLeft = tableElement.offsetLeft;
                     const oldWithSelection = tableWrapperElement.classList.contains(
                         contentStyles.tableWrapperWithSelectionClassName,
@@ -180,8 +181,8 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
                         if (oldWithSelection !== newWithSelection) {
                             const newTableOffsetLeft = tableElement.offsetLeft;
 
-                            tableWrapper2Element.scrollLeft +=
-                                newTableOffsetLeft - oldTableOffsetLeft;
+                            tableWrapper2Element.scrollLeft =
+                                oldTableScrollLeft + (newTableOffsetLeft - oldTableOffsetLeft);
                         }
                     });
                 }
