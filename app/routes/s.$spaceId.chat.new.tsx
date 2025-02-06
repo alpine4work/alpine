@@ -28,6 +28,7 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -230,7 +231,12 @@ export default function NewChatRoute() {
             display="flex"
             flexDirection="column"
         >
-            <Box ref={accountPickerContainerRef} flexShrink="0" paddingTop="safe-area-inset">
+            <Box
+                ref={accountPickerContainerRef}
+                position="relative"
+                flexShrink="0"
+                paddingTop="safe-area-inset"
+            >
                 {platform === "mobile" && (
                     <NavigationBarContent
                         // We don't have the done button in regular chats so also don't show it here.
@@ -239,6 +245,26 @@ export default function NewChatRoute() {
                         title="New message"
                     />
                 )}
+                <Box
+                    pointerEvents="none"
+                    position="absolute"
+                    height="border"
+                    style={{
+                        bottom: -1,
+                        // It's subtle, but `grey5SemiTransparentColorVar` ends up looking a lot nicer
+                        // than if we used `grey-5` directly. This is because the border operates more
+                        // like a shadow. When rendered over some other content (e.g. an image) the
+                        // image's colors show through the border but a little darker.
+                        backgroundColor: grey5SemiTransparentColorVar,
+                        left: `max(-${spacing["3"]}, (100% - ${
+                            spacing[contentStyles.contentMaxWidth]
+                        }) / 2 - ${spacing["3"]})`,
+                        right: `max(-${spacing["3"]}, (100% - ${
+                            spacing[contentStyles.contentMaxWidth]
+                        }) / 2 - ${spacing["3"]})`,
+                        maskImage: `linear-gradient(to right, transparent, black ${spacing["3"]} calc(100% - ${spacing["3"]}), transparent)`,
+                    }}
+                />
                 <Box
                     position="relative"
                     zIndex="10"
@@ -249,9 +275,6 @@ export default function NewChatRoute() {
                     data-testid={
                         isAccountPickerPending ? "ChatAccountPickerContainer:Pending" : undefined
                     }
-                    style={{
-                        boxShadow: `0 1px 0 0 ${grey5SemiTransparentColorVar}`,
-                    }}
                 >
                     <ChatAccountPicker
                         selectedAccounts={selectedAccounts}
