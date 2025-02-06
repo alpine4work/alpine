@@ -25,6 +25,7 @@ import {ColumnsPlusRightIcon} from "~/client/icons/columns_plus_right_icon.js";
 import {RowsPlusBottomIcon} from "~/client/icons/rows_plus_bottom_icon.js";
 import {RowsPlusTopIcon} from "~/client/icons/rows_plus_top_icon.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -59,6 +60,7 @@ export const ContentEditorTableMenu = ({
     state: EditorState;
 }) => {
     const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const reporter = useReporter();
 
     const [menuState, setMenuState] = useState<ContentEditorTableMenuState | null>(null);
@@ -113,7 +115,14 @@ export const ContentEditorTableMenu = ({
                 }
             }
 
-            {
+            // In narrow route layouts, don't render menus when rows/columns are selected.
+            // Since when a row is selected the menu goes out of the peek.
+            //
+            // TODO(calebmer): We could also consider rendering the overlay outside the
+            // peek so it's visible. Or perhaps remove the row/column menus entirely
+            // everywhere. These options are available on right click which may be better
+            // place for them.
+            if (routeLayout === "wide") {
                 const selectedTableGripRowElement = tableElement.querySelector(
                     `.${contentStyles.tableGripClassName}.${contentStyles.tableGripRowClassName}.${contentStyles.tableGripSelectedClassName}`,
                 );
@@ -134,7 +143,14 @@ export const ContentEditorTableMenu = ({
                 }
             }
 
-            {
+            // In narrow route layouts, don't render menus when rows/columns are selected.
+            // Since when a row is selected the menu goes out of the peek.
+            //
+            // TODO(calebmer): We could also consider rendering the overlay outside the
+            // peek so it's visible. Or perhaps remove the row/column menus entirely
+            // everywhere. These options are available on right click which may be better
+            // place for them.
+            if (routeLayout === "wide") {
                 const selectedTableGripColumnElement = tableElement.querySelector(
                     `.${contentStyles.tableGripClassName}.${contentStyles.tableGripColumnClassName}.${contentStyles.tableGripSelectedClassName}`,
                 );
@@ -161,7 +177,7 @@ export const ContentEditorTableMenu = ({
         return () => {
             isCancelled = true;
         };
-    }, [state, viewRef]);
+    }, [routeLayout, state, viewRef]);
 
     if (!menuState) return null;
 
