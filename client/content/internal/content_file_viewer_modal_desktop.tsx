@@ -146,6 +146,9 @@ export function ContentFileViewerModalDesktop({
             // dark mode shades in our content file viewer modal.
             withoutElevatedGrey
             borderRadius="2.5"
+            // Given the attachment viewer opens in direct response to user interaction, it
+            // feels faster to immediately open it without animation.
+            withoutOpenAnimation
             withoutCloseButton
             withBlurBackdropFilter
             onClose={onClose}
