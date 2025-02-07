@@ -39,7 +39,7 @@ const {
 } = (() => {
     const fftSize = 256;
     const viewboxWidth = 600;
-    const viewboxHeight = 100;
+    const viewboxHeight = 50;
 
     // Cut off the last x% of bars as it seems that in practice they rarely
     // have data.
