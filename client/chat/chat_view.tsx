@@ -19,11 +19,11 @@ import {
     messageViewAccountAvatarSize,
     messageViewRailGap,
 } from "~/client/styles/messaging_shared_styles.js";
-import {contentStyles, frostedGlassClassName, sprinkles} from "~/client/styles/styles.js";
+import {contentStyles, grey5SemiTransparentColorVar, sprinkles} from "~/client/styles/styles.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
-import {screenPaddingX} from "~/shared/design/core/spacing.js";
+import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
@@ -46,14 +46,7 @@ export function ChatView({
     initialScrollToMessageIndex: number | null;
 }) {
     return (
-        <Box
-            position="relative"
-            zIndex="0"
-            width="full"
-            height="full"
-            display="flex"
-            flexDirection="column"
-        >
+        <Box width="full" height="full" display="flex" flexDirection="column">
             <ChatViewTopBar withInboxBanner={withInboxBanner} chat={chat} />
             <ChatMessagingView
                 chat={chat}
@@ -81,18 +74,36 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
 
     return (
         <Box
-            data-testid="ChatViewTopBar"
-            className={frostedGlassClassName}
+            position="relative"
             zIndex="10"
-            position="absolute"
-            top="0"
-            left="0"
-            right="0"
+            data-testid="ChatViewTopBar"
+            flexShrink="0"
+            width="full"
             paddingTop="safe-area-inset"
             display="flex"
             justifyContent="center"
             alignItems="center"
         >
+            <Box
+                pointerEvents="none"
+                position="absolute"
+                height="border"
+                style={{
+                    bottom: -1,
+                    // It's subtle, but `grey5SemiTransparentColorVar` ends up looking a lot nicer
+                    // than if we used `grey-5` directly. This is because the border operates more
+                    // like a shadow. When rendered over some other content (e.g. an image) the
+                    // image's colors show through the border but a little darker.
+                    backgroundColor: grey5SemiTransparentColorVar,
+                    left: `max(-${spacing["3"]}, (100% - ${
+                        spacing[contentStyles.contentMaxWidth]
+                    }) / 2 - ${spacing["3"]})`,
+                    right: `max(-${spacing["3"]}, (100% - ${
+                        spacing[contentStyles.contentMaxWidth]
+                    }) / 2 - ${spacing["3"]})`,
+                    maskImage: `linear-gradient(to right, transparent, black ${spacing["3"]} calc(100% - ${spacing["3"]}), transparent)`,
+                }}
+            />
             <Box
                 height={navigationBarHeight}
                 width="full"
@@ -210,7 +221,6 @@ function ChatMessagingView({
                 otherReferencedMessages: initialOtherReferencedMessages,
                 lastMessageChangeTime: chat.lastMessageChangeTime,
             }}
-            scrollbarInsetTop={navigationBarHeight}
             header={chatMessagingViewHeaderItem}
             randomSeedForShimmer={chat.id}
             fileAttachmentTarget={useMemo(

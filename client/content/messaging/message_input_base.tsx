@@ -651,6 +651,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 key={id}
                 data-testid={dataTestId}
                 id={id}
+                position="relative"
                 width="full"
                 backgroundColor="grey-0"
                 style={{
@@ -728,6 +729,28 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                     }
                 }}
             >
+                {(isEditingMessage || replyingToMessage) && (
+                    <Box
+                        pointerEvents="none"
+                        position="absolute"
+                        height="border"
+                        style={{
+                            top: -1,
+                            // It's subtle, but `grey5SemiTransparentColorVar` ends up looking a lot nicer
+                            // than if we used `grey-5` directly. This is because the border operates more
+                            // like a shadow. When rendered over some other content (e.g. an image) the
+                            // image's colors show through the border but a little darker.
+                            backgroundColor: grey5SemiTransparentColorVar,
+                            left: `max(-${spacing["3"]}, (100% - ${
+                                spacing[contentStyles.contentMaxWidth]
+                            }) / 2 - ${spacing["3"]})`,
+                            right: `max(-${spacing["3"]}, (100% - ${
+                                spacing[contentStyles.contentMaxWidth]
+                            }) / 2 - ${spacing["3"]})`,
+                            maskImage: `linear-gradient(to right, transparent, black ${spacing["3"]} calc(100% - ${spacing["3"]}), transparent)`,
+                        }}
+                    />
+                )}
                 <OverlayScopeContextProvider
                 // Render an overlay scope here so that overlays are animated with the
                 // keyboard opening.
@@ -1431,7 +1454,7 @@ function MessageInputReplyingToMessage<
         <Box
             paddingRight={paddingX}
             style={{
-                paddingTop: addRemLengths(messageInputPaddingY[platform], "1"),
+                paddingTop: spacing[messageInputPaddingY[platform]],
                 // Align text with message input placeholder.
                 paddingLeft: `${
                     parseRemLength(

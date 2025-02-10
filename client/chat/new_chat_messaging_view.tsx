@@ -1,7 +1,6 @@
 import {Ref, forwardRef, useCallback, useMemo, useRef} from "react";
 import {chatMessagingViewHeaderItem} from "~/client/chat/internal/chat_messaging_view_header_item.js";
 import {useAppContext} from "~/client/context/app_context.js";
-import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
@@ -67,7 +66,6 @@ function NewChatMessagingView(
                           lastMessageChangeTime: null,
                       }
             }
-            scrollbarInsetTop={navigationBarHeight}
             header={chatMessagingViewHeaderItem}
             randomSeedForShimmer={selectedChat?.chat.id ?? "unknown"}
             isMessageCreationDisabled={!selectedChat}

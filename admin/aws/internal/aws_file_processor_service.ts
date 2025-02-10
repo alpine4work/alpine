@@ -1,7 +1,14 @@
 import {Duration} from "aws-cdk-lib";
 import {AutoScalingGroup, BlockDeviceVolume} from "aws-cdk-lib/aws-autoscaling";
 import {Certificate, CertificateValidation} from "aws-cdk-lib/aws-certificatemanager";
-import {InstanceSize, InstanceType, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
+import {
+    InstanceClass,
+    InstanceSize,
+    InstanceType,
+    Port,
+    SubnetType,
+    Vpc,
+} from "aws-cdk-lib/aws-ec2";
 import {
     AmiHardwareType,
     AsgCapacityProvider,
@@ -19,7 +26,6 @@ import {Construct} from "constructs";
 import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
-import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -83,7 +89,7 @@ export class AwsFileProcessorService extends Construct {
         // File processing needs a lot of memory so we need larger instance sizes than
         // other services. We've found image resizing particularly quickly runs out of
         // memory when resizing large images.
-        const instanceType = InstanceType.of(awsServiceInstanceClass, InstanceSize.MEDIUM);
+        const instanceType = InstanceType.of(InstanceClass.M7G, InstanceSize.LARGE);
         const vCpuCount = getInstanceTypeVCpuCount(instanceType);
 
         // Make sure we have enough storage to process one maximum size file per vCPU.
@@ -179,7 +185,7 @@ export class AwsFileProcessorService extends Construct {
             // NOTE(calebmer, 2024-11-25): I've observed that if you reserve too much
             // memory on `t4g.nano` instances you don't get an error. Instead the tasks are
             // stuck in the "Provisioning" status forever.
-            memoryLimitMiB: 3930,
+            memoryLimitMiB: 7874,
             // Send logs to AWS. Container logs are short-lived and used for debugging
             // obscure machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
@@ -361,6 +367,14 @@ function getInstanceTypeVCpuCount(instanceType: InstanceType): number {
         case "t4g.xlarge":
             return 4;
         case "t4g.2xlarge":
+            return 8;
+        case "m7g.medium":
+            return 1;
+        case "m7g.large":
+            return 2;
+        case "m7g.xlarge":
+            return 4;
+        case "m7g.2xlarge":
             return 8;
         default: {
             throw new InternalError(

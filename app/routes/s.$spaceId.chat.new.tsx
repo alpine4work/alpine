@@ -22,12 +22,13 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {contentStyles, frostedGlassClassName} from "~/client/styles/styles.js";
+import {contentStyles, grey5SemiTransparentColorVar} from "~/client/styles/styles.js";
 import {selectChatForAccounts} from "~/server/chat/data/chat_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -232,12 +233,8 @@ export default function NewChatRoute() {
         >
             <Box
                 ref={accountPickerContainerRef}
-                className={frostedGlassClassName}
-                zIndex="10"
-                position="absolute"
-                top="0"
-                left="0"
-                right="0"
+                position="relative"
+                flexShrink="0"
                 paddingTop="safe-area-inset"
             >
                 {platform === "mobile" && (
@@ -248,6 +245,26 @@ export default function NewChatRoute() {
                         title="New message"
                     />
                 )}
+                <Box
+                    pointerEvents="none"
+                    position="absolute"
+                    height="border"
+                    style={{
+                        bottom: -1,
+                        // It's subtle, but `grey5SemiTransparentColorVar` ends up looking a lot nicer
+                        // than if we used `grey-5` directly. This is because the border operates more
+                        // like a shadow. When rendered over some other content (e.g. an image) the
+                        // image's colors show through the border but a little darker.
+                        backgroundColor: grey5SemiTransparentColorVar,
+                        left: `max(-${spacing["3"]}, (100% - ${
+                            spacing[contentStyles.contentMaxWidth]
+                        }) / 2 - ${spacing["3"]})`,
+                        right: `max(-${spacing["3"]}, (100% - ${
+                            spacing[contentStyles.contentMaxWidth]
+                        }) / 2 - ${spacing["3"]})`,
+                        maskImage: `linear-gradient(to right, transparent, black ${spacing["3"]} calc(100% - ${spacing["3"]}), transparent)`,
+                    }}
+                />
                 <Box
                     position="relative"
                     zIndex="10"

@@ -232,7 +232,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         let marginBottom: Spacing;
 
         if (isLastMessage) {
-            marginBottom = contentStyles.paragraphMargin;
+            marginBottom = messageViewMarginY;
         } else if (!shouldMergeWithNextMessage) {
             marginBottom = messageViewMarginY;
         } else if (

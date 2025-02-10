@@ -38,8 +38,9 @@ export const minFilePreviewAspectRatio = 21 / 50;
  * look bad with our layout engine since they start shrinking (to stay within
  * the document's bounds) until there's barely any visible height.
  *
- * It's the inverse of `minFilePreviewAspectRatio`. Wider images may look
- * better than taller images so we could consider increasing this if there's a
- * good use case.
+ * This is a little larger than the aspect ratio of the Alpine logo (current
+ * SVG is 719px by 227px). Since it's kinda lame that we can't upload our own
+ * logo without cropping. Denominator is 50 so it's easy to see how this value
+ * compares to `minFilePreviewAspectRatio` which has the same denominator.
  */
-export const maxFilePreviewAspectRatio = minFilePreviewAspectRatio ** -1;
+export const maxFilePreviewAspectRatio = 159 / 50;

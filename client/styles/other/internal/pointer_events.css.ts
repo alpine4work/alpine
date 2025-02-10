@@ -7,7 +7,7 @@ export const pointerEventsNoneNotInheritedClassName = style({
 
 const pointerEventsNoneSprinklesNotSelector = sprinkles({pointerEvents: "none"})
     .split(" ")
-    .map(className => `:not(${className})`)
+    .map(className => `:not(.${className})`)
     .join("");
 
 globalStyle(

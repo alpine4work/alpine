@@ -4077,7 +4077,7 @@ Resources:
                 Ref: FileProcessorServiceAutoScalingGroupInstanceProfileE1605C8E
             ImageId:
                 Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
-            InstanceType: t4g.medium
+            InstanceType: m7g.large
             SecurityGroups:
                 - Fn::GetAtt:
                       - FileProcessorServiceAutoScalingGroupInstanceSecurityGroup7CE67433
@@ -4238,7 +4238,7 @@ Resources:
                               Ref: FileProcessorServiceTaskDefinitionContainerLogGroupB6A75F9D
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 3930
+                  Memory: 7874
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4000

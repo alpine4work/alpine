@@ -36,16 +36,22 @@ import {
     NavigationBarShareButtonProps,
 } from "~/client/navigation/navigation_bar_types.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {
     getRemPxWithoutListening,
     getSpacingScaleWithoutListening,
 } from "~/client/remix/spacing_scale_context.js";
-import {frostedGlassClassName, navigationBarStyles, sprinkles} from "~/client/styles/styles.js";
+import {
+    grey5SemiTransparentColorVar,
+    navigationBarStyles,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
 import {
     RemLength,
     Spacing,
     convertRemLengthToPx,
+    isSpacing,
     parseRemLength,
     spacing,
 } from "~/shared/design/core/spacing.js";
@@ -143,8 +149,8 @@ export function NavigationBar({
     replaceActions,
     titleJustifyContent,
     desktopControls,
-    desktopMaxWidth,
-    desktopTitleMaxWidth,
+    desktopMaxWidth: desktopMaxWidthProp,
+    desktopTitleMaxWidth: desktopTitleMaxWidthProp,
     desktopTitleMaxWidthCenterOffset,
     desktopTitleFontSize,
     desktopTitleFontWeight,
@@ -182,6 +188,8 @@ export function NavigationBar({
     onMobileClose: (() => void) | undefined;
     onMobileCancel: (() => void) | undefined;
 }) {
+    const platform = usePlatform();
+
     const [scrollViewSize, setScrollViewSize] = useState<{height: number; width: number} | null>(
         null,
     );
@@ -189,6 +197,7 @@ export function NavigationBar({
     const navigationBarContainerRef = useRef<HTMLDivElement>(null);
     const navigationBarRef = useRef<HTMLDivElement>(null);
     const navigationBarBackgroundRef = useRef<HTMLDivElement>(null);
+    const navigationBarBorderRef = useRef<HTMLDivElement>(null);
     const navigationBarContentRef = useRef<NavigationBarContentRef>(null);
 
     const [scrollDirectionStateFromState, setScrollDirectionState] = useState<ScrollDirectionState>(
@@ -256,6 +265,7 @@ export function NavigationBar({
         () => {
             let navigationBarContainerElement: HTMLDivElement | undefined;
             let navigationBarBackgroundElement: HTMLDivElement | undefined;
+            let navigationBarBorderElement: HTMLDivElement | undefined;
             let navigationBarContent: NavigationBarContentRef | undefined;
             let navigationBarContentElement: HTMLElement | undefined;
             let navigationBarTitleElement: HTMLElement | undefined;
@@ -308,6 +318,7 @@ export function NavigationBar({
 
             const initialize = (element: HTMLElement) => {
                 navigationBarBackgroundElement ??= assertExists(navigationBarBackgroundRef.current);
+                navigationBarBorderElement ??= assertExists(navigationBarBorderRef.current);
                 navigationBarContent ??= assertExists(navigationBarContentRef.current);
                 navigationBarTitleElement ??= navigationBarContent.getTitleElement();
 
@@ -344,6 +355,10 @@ export function NavigationBar({
                     withScrollAway && scrollOffset > navigationBarHeight ? "Up" : "Down");
                 const navigationBarTopOffset = (lastNavigationBarTopOffsetRef.current =
                     withScrollAway ? scrollOffset : 0);
+
+                const navigationBarScrollOffset = !withScrollAway
+                    ? 0
+                    : clamp(0, scrollOffset - navigationBarTopOffset, navigationBarHeight);
 
                 const titleBoundaryOffset = getTitleBoundaryOffset(spacingScale, element);
 
@@ -396,6 +411,13 @@ export function NavigationBar({
                         }
                     }
                 }
+
+                const isNavigationBarBorderVisible =
+                    scrollOffset - navigationBarScrollOffset >= 1 && isNavigationBarTitleVisible;
+
+                navigationBarBorderElement.style.display = isNavigationBarBorderVisible
+                    ? "block"
+                    : "none";
             };
 
             const onResize = (element: HTMLElement) => {
@@ -414,6 +436,7 @@ export function NavigationBar({
             const onScroll = (element: HTMLElement) => {
                 navigationBarContainerElement ??= assertExists(navigationBarContainerRef.current);
                 navigationBarBackgroundElement ??= assertExists(navigationBarBackgroundRef.current);
+                navigationBarBorderElement ??= assertExists(navigationBarBorderRef.current);
                 navigationBarContent ??= assertExists(navigationBarContentRef.current);
                 navigationBarContentElement ??= navigationBarContent.getElement();
                 navigationBarTitleElement ??= navigationBarContent.getTitleElement();
@@ -530,6 +553,11 @@ export function NavigationBar({
                         : scrollOffset - lastNavigationBarScrollOffset;
                     lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
 
+                    // Web code only: Scroll away behavior is disabled when `!withScrollAway`.
+                    const navigationBarScrollOffset = !withScrollAway
+                        ? 0
+                        : clamp(0, scrollOffset - navigationBarTopOffset, navigationBarHeight);
+
                     const lastIsNavigationBarTitleVisible =
                         lastIsNavigationBarTitleVisibleRef.current;
 
@@ -578,6 +606,19 @@ export function NavigationBar({
                                 );
                             }
                         }
+                    }
+
+                    const lastIsNavigationBarBorderVisible =
+                        lastScrollOffset - lastNavigationBarScrollOffset >= 1 &&
+                        lastIsNavigationBarTitleVisible;
+                    const isNavigationBarBorderVisible =
+                        scrollOffset - navigationBarScrollOffset >= 1 &&
+                        isNavigationBarTitleVisible;
+
+                    if (lastIsNavigationBarBorderVisible !== isNavigationBarBorderVisible) {
+                        navigationBarBorderElement.style.display = isNavigationBarBorderVisible
+                            ? "block"
+                            : "none";
                     }
                 }
 
@@ -666,25 +707,6 @@ export function NavigationBar({
                         }`;
                     }
 
-                    // We don't want our navigation bar to be visible when the user has scrolled to
-                    // the top of the view. Because the frosted glass effect will show a blur for
-                    // content immediately underneath the navigation bar. For example, the task
-                    // title in a `<TaskDetailView>`.
-                    {
-                        const lastIsNavigationBarBackgroundVisible =
-                            lastScrollOffset - lastNavigationBarScrollOffset >= 1;
-                        const isNavigationBarBackgroundVisible =
-                            scrollOffset - navigationBarScrollOffset >= 1;
-
-                        if (
-                            lastIsNavigationBarBackgroundVisible !==
-                            isNavigationBarBackgroundVisible
-                        ) {
-                            navigationBarBackgroundElement.style.display =
-                                isNavigationBarBackgroundVisible ? "block" : "none";
-                        }
-                    }
-
                     // Handle the transition from a visible navigation bar title to a hidden
                     // navigation bar title.
                     if (lastIsNavigationBarTitleVisible !== isNavigationBarTitleVisible) {
@@ -713,6 +735,19 @@ export function NavigationBar({
                                 );
                             }
                         }
+                    }
+
+                    const lastIsNavigationBarBorderVisible =
+                        lastScrollOffset - lastNavigationBarScrollOffset >= 1 &&
+                        lastIsNavigationBarTitleVisible;
+                    const isNavigationBarBorderVisible =
+                        scrollOffset - navigationBarScrollOffset >= 1 &&
+                        isNavigationBarTitleVisible;
+
+                    if (lastIsNavigationBarBorderVisible !== isNavigationBarBorderVisible) {
+                        navigationBarBorderElement.style.display = isNavigationBarBorderVisible
+                            ? "block"
+                            : "none";
                     }
                 }
 
@@ -926,6 +961,23 @@ export function NavigationBar({
         });
     }, [scrollDirectionState]);
 
+    const desktopMaxWidth =
+        desktopMaxWidthProp !== undefined
+            ? isSpacing(desktopMaxWidthProp)
+                ? spacing[desktopMaxWidthProp]
+                : desktopMaxWidthProp
+            : undefined;
+
+    const desktopTitleMaxWidth =
+        desktopTitleMaxWidthProp !== undefined
+            ? isSpacing(desktopTitleMaxWidthProp)
+                ? spacing[desktopTitleMaxWidthProp]
+                : desktopTitleMaxWidthProp
+            : undefined;
+
+    const backgroundBorderMaxWidth =
+        platform === "desktop" ? desktopMaxWidth ?? desktopTitleMaxWidth : undefined;
+
     return (
         <div
             ref={navigationBarContainerRef}
@@ -990,19 +1042,45 @@ export function NavigationBar({
                     <Box position="relative" zIndex="0" paddingTop="safe-area-inset">
                         <Box
                             ref={navigationBarBackgroundRef}
-                            className={frostedGlassClassName}
                             position="absolute"
                             zIndex="-10"
                             top="0"
                             left="0"
                             right="0"
-                            // Start with `display: none`. `onScroll` will change it to `display: block`
-                            // when we scroll.
-                            display="none"
+                            backgroundColor="grey-0"
                             style={{
                                 height: `calc(${spacing[navigationBarHeight]} + var(--safe-area-inset-top, 0px))`,
                             }}
-                        />
+                        >
+                            <Box
+                                ref={navigationBarBorderRef}
+                                // Start with `display: none`. `onScroll` will change it to `display: block`
+                                // when we scroll.
+                                display="none"
+                                position="absolute"
+                                height="border"
+                                style={{
+                                    bottom: -1,
+                                    // It's subtle, but `grey5SemiTransparentColorVar` ends up looking a lot nicer
+                                    // than if we used `grey-5` directly. This is because the border operates more
+                                    // like a shadow. When rendered over some other content (e.g. an image) the
+                                    // image's colors show through the border but a little darker.
+                                    backgroundColor: grey5SemiTransparentColorVar,
+                                    left:
+                                        backgroundBorderMaxWidth !== undefined
+                                            ? `max(-${spacing["3"]}, (100% - ${backgroundBorderMaxWidth}) / 2 - ${spacing["3"]})`
+                                            : 0,
+                                    right:
+                                        backgroundBorderMaxWidth !== undefined
+                                            ? `max(-${spacing["3"]}, (100% - ${backgroundBorderMaxWidth}) / 2 - ${spacing["3"]})`
+                                            : 0,
+                                    maskImage:
+                                        backgroundBorderMaxWidth !== undefined
+                                            ? `linear-gradient(to right, transparent, black ${spacing["3"]} calc(100% - ${spacing["3"]}), transparent)`
+                                            : undefined,
+                                }}
+                            />
+                        </Box>
                         <NavigationBarContent
                             ref={navigationBarContentRef}
                             title={title}
@@ -1014,8 +1092,8 @@ export function NavigationBar({
                             replaceActions={replaceActions}
                             titleJustifyContent={titleJustifyContent}
                             desktopControls={desktopControls}
-                            desktopMaxWidth={desktopMaxWidth}
-                            desktopTitleMaxWidth={desktopTitleMaxWidth}
+                            desktopMaxWidth={desktopMaxWidthProp}
+                            desktopTitleMaxWidth={desktopTitleMaxWidthProp}
                             desktopTitleMaxWidthCenterOffset={desktopTitleMaxWidthCenterOffset}
                             desktopTitleFontSize={desktopTitleFontSize}
                             desktopTitleFontWeight={desktopTitleFontWeight}
