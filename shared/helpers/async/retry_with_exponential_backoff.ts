@@ -35,6 +35,9 @@ const originalSetTimeout = setTimeout;
 export function retryWithExponentialBackoff<Value>(
     action: (retry: (error?: unknown) => never) => Promise<Value>,
 ): Promise<Value> {
+    // Important that this retry symbol is local to this function call. That way
+    // when you have nested `retryWithExponentialBackoff()`s we correctly retry the
+    // one whose `retry()` function was called.
     const retrySymbol = Symbol("retry");
 
     const retry = (error?: unknown): never => {

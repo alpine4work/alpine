@@ -7,6 +7,7 @@ import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {tracerEventDataDynamoConsumedCapacityKeys} from "~/server/tracer/tracer_event_data_dynamo.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {InternalError, UnavailableError} from "~/shared/error/error.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -87,6 +88,9 @@ export class DynamoClientInternal {
     }
 
     private async _execute<Input = never, Output = unknown>(
+        // Must pass in a `retry` function since we want to create a new span every
+        // retry attempt.
+        retry: (error?: unknown) => never,
         span: TracerSpan,
         action: DynamoClientAction,
         input: Input,
@@ -138,7 +142,29 @@ export class DynamoClientInternal {
                 });
             }
 
-            throw classifyDynamoError(output);
+            const error = classifyDynamoError(output);
+
+            // The AWS SDK normally handles error retrying automatically but since we make
+            // a direct HTTP request we need to implement retries ourselves.
+            //
+            // > If you're not using an AWS SDK, you should retry original requests that
+            // > receive server errors (5xx). However, client errors (4xx, other than a
+            // > `ThrottlingException` or a `ProvisionedThroughputExceededException`)
+            // > indicate that you need to revise the request itself to correct the problem
+            // > before trying again.
+            //
+            // ([Source][1])
+            //
+            // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html
+            if (
+                (response.status >= 500 && response.status < 600) ||
+                output.__type === "ProvisionedThroughputExceededException" ||
+                output.__type === "ThrottlingException"
+            ) {
+                throw retry(error);
+            }
+
+            throw error;
         }
 
         return output;
@@ -155,58 +181,61 @@ export class DynamoClientInternal {
         expectsStrongReadConsistency: boolean,
         debugItemTypes: DynamoClientDebugItemTypes,
     ): Promise<types.GetItemOutput> {
-        let spanName = "DynamoDB GetItem";
+        return retryWithExponentialBackoff(retry => {
+            let spanName = "DynamoDB GetItem";
 
-        if (input.TableName !== undefined) {
-            spanName += ` ${input.TableName}`;
-        }
-
-        return tracer.withSpan(spanName, async span => {
-            // We need to set `ReturnConsumedCapacity` for tracing.
-            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
-
-            span.addData({
-                dynamodb: {
-                    action: "GetItem",
-                    tableName: input.TableName ?? "",
-                    table: getDebugItemTypesTracerEventData(debugItemTypes),
-                    consistentRead: input.ConsistentRead ?? false,
-                },
-            });
-
-            const output = await this._execute<types.GetItemInput, types.GetItemOutput>(
-                span,
-                "GetItem",
-                {...input, ReturnConsumedCapacity: "INDEXES"},
-            );
-
-            span.addData({
-                dynamodb: {
-                    consumedCapacity: getConsumedCapacityTracerEventData(
-                        output.ConsumedCapacity,
-                        "Read",
-                    ),
-                },
-            });
-
-            if (expectsStrongReadConsistency && !input.ConsistentRead) {
-                const error = new InternalError(
-                    `Expected DynamoDB strong consistency when reading ${printDynamoClientDebugItemTypesForErrorMessage(
-                        debugItemTypes,
-                    )}`,
-                );
-
-                if (process.env.NODE_ENV !== "production") {
-                    throw error;
-                } else {
-                    // In production, add the exception to the span but let it return like normal.
-                    // In case a developer accidentally forgot to make a read strong we don't want
-                    // to break the product for users.
-                    span.addException(error);
-                }
+            if (input.TableName !== undefined) {
+                spanName += ` ${input.TableName}`;
             }
 
-            return output;
+            return tracer.withSpan(spanName, async span => {
+                // We need to set `ReturnConsumedCapacity` for tracing.
+                assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
+
+                span.addData({
+                    dynamodb: {
+                        action: "GetItem",
+                        tableName: input.TableName ?? "",
+                        table: getDebugItemTypesTracerEventData(debugItemTypes),
+                        consistentRead: input.ConsistentRead ?? false,
+                    },
+                });
+
+                const output = await this._execute<types.GetItemInput, types.GetItemOutput>(
+                    retry,
+                    span,
+                    "GetItem",
+                    {...input, ReturnConsumedCapacity: "INDEXES"},
+                );
+
+                span.addData({
+                    dynamodb: {
+                        consumedCapacity: getConsumedCapacityTracerEventData(
+                            output.ConsumedCapacity,
+                            "Read",
+                        ),
+                    },
+                });
+
+                if (expectsStrongReadConsistency && !input.ConsistentRead) {
+                    const error = new InternalError(
+                        `Expected DynamoDB strong consistency when reading ${printDynamoClientDebugItemTypesForErrorMessage(
+                            debugItemTypes,
+                        )}`,
+                    );
+
+                    if (process.env.NODE_ENV !== "production") {
+                        throw error;
+                    } else {
+                        // In production, add the exception to the span but let it return like normal.
+                        // In case a developer accidentally forgot to make a read strong we don't want
+                        // to break the product for users.
+                        span.addException(error);
+                    }
+                }
+
+                return output;
+            });
         });
     }
 
@@ -222,85 +251,86 @@ export class DynamoClientInternal {
         expectsStrongReadConsistency: boolean,
         debugItemTypes: DynamoClientDebugItemTypes,
     ): Promise<types.BatchGetItemOutput> {
-        let spanName = "DynamoDB BatchGetItem";
+        return retryWithExponentialBackoff(retry => {
+            let spanName = "DynamoDB BatchGetItem";
 
-        const tableNames = [];
-        let everyConsistentRead = true;
-        let batchSize = 0;
+            const tableNames = [];
+            let everyConsistentRead = true;
+            let batchSize = 0;
 
-        for (const [tableName, requestItem] of Object.entries(input.RequestItems ?? {})) {
-            tableNames.push(tableName);
-            everyConsistentRead &&= requestItem.ConsistentRead ?? false;
-            batchSize += requestItem.Keys?.length ?? 0;
-        }
-
-        const tableNamesString = tableNames.sort().join("+");
-
-        if (tableNamesString.length > 0) {
-            spanName += ` ${tableNamesString}`;
-        }
-
-        return tracer.withSpan(spanName, async span => {
-            // We need to set `ReturnConsumedCapacity` for tracing.
-            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
-
-            span.addData({
-                dynamodb: {
-                    action: "BatchGetItem",
-                    tableName: tableNamesString,
-                    table: getDebugItemTypesTracerEventData(debugItemTypes),
-                    consistentRead: everyConsistentRead,
-                    batchSize,
-                },
-            });
-
-            const linkedTracers = new Set<TracerSpan>();
-
-            if (tracer instanceof TracerSpan) linkedTracers.add(tracer);
-
-            // Link our other tracers to the batch span so we can see they are related.
-            for (const otherTracer of otherTracers) {
-                if (!(otherTracer instanceof TracerSpan)) continue;
-
-                if (!linkedTracers.has(otherTracer)) {
-                    linkedTracers.add(otherTracer);
-                    otherTracer.link(span);
-                }
+            for (const [tableName, requestItem] of Object.entries(input.RequestItems ?? {})) {
+                tableNames.push(tableName);
+                everyConsistentRead &&= requestItem.ConsistentRead ?? false;
+                batchSize += requestItem.Keys?.length ?? 0;
             }
 
-            const output = await this._execute<types.BatchGetItemInput, types.BatchGetItemOutput>(
-                span,
-                "BatchGetItem",
-                {...input, ReturnConsumedCapacity: "INDEXES"},
-            );
+            const tableNamesString = tableNames.sort().join("+");
 
-            span.addData({
-                dynamodb: {
-                    consumedCapacity: getConsumedCapacityTracerEventData(
-                        output.ConsumedCapacity,
-                        "Read",
-                    ),
-                },
-            });
-
-            if (expectsStrongReadConsistency && !everyConsistentRead) {
-                const error = new InternalError(
-                    `Expected DynamoDB strong consistency when reading ${printDynamoClientDebugItemTypesForErrorMessage(
-                        debugItemTypes,
-                    )}`,
-                );
-
-                if (process.env.NODE_ENV !== "production") {
-                    throw error;
-                } else {
-                    // In production, add the exception to the span but let it return like normal.
-                    // In case a developer accidentally forgot to make a read strong we don't want
-                    // to break the product for users.
-                    span.addException(error);
-                }
+            if (tableNamesString.length > 0) {
+                spanName += ` ${tableNamesString}`;
             }
 
-            return output;
+            return tracer.withSpan(spanName, async span => {
+                // We need to set `ReturnConsumedCapacity` for tracing.
+                assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
+
+                span.addData({
+                    dynamodb: {
+                        action: "BatchGetItem",
+                        tableName: tableNamesString,
+                        table: getDebugItemTypesTracerEventData(debugItemTypes),
+                        consistentRead: everyConsistentRead,
+                        batchSize,
+                    },
+                });
+
+                const linkedTracers = new Set<TracerSpan>();
+
+                if (tracer instanceof TracerSpan) linkedTracers.add(tracer);
+
+                // Link our other tracers to the batch span so we can see they are related.
+                for (const otherTracer of otherTracers) {
+                    if (!(otherTracer instanceof TracerSpan)) continue;
+
+                    if (!linkedTracers.has(otherTracer)) {
+                        linkedTracers.add(otherTracer);
+                        otherTracer.link(span);
+                    }
+                }
+
+                const output = await this._execute<
+                    types.BatchGetItemInput,
+                    types.BatchGetItemOutput
+                >(retry, span, "BatchGetItem", {...input, ReturnConsumedCapacity: "INDEXES"});
+
+                span.addData({
+                    dynamodb: {
+                        consumedCapacity: getConsumedCapacityTracerEventData(
+                            output.ConsumedCapacity,
+                            "Read",
+                        ),
+                    },
+                });
+
+                if (expectsStrongReadConsistency && !everyConsistentRead) {
+                    const error = new InternalError(
+                        `Expected DynamoDB strong consistency when reading ${printDynamoClientDebugItemTypesForErrorMessage(
+                            debugItemTypes,
+                        )}`,
+                    );
+
+                    if (process.env.NODE_ENV !== "production") {
+                        throw error;
+                    } else {
+                        // In production, add the exception to the span but let it return like normal.
+                        // In case a developer accidentally forgot to make a read strong we don't want
+                        // to break the product for users.
+                        span.addException(error);
+                    }
+                }
+
+                return output;
+            });
         });
     }
 
@@ -314,41 +344,44 @@ export class DynamoClientInternal {
         input: types.PutItemInput,
         debugItemTypes: DynamoClientDebugItemTypes,
     ): Promise<types.PutItemOutput> {
-        let spanName = "DynamoDB PutItem";
+        return retryWithExponentialBackoff(retry => {
+            let spanName = "DynamoDB PutItem";
 
-        if (input.TableName !== undefined) {
-            spanName += ` ${input.TableName}`;
-        }
+            if (input.TableName !== undefined) {
+                spanName += ` ${input.TableName}`;
+            }
 
-        return tracer.withSpan(spanName, async span => {
-            // We need to set `ReturnConsumedCapacity` for tracing.
-            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
+            return tracer.withSpan(spanName, async span => {
+                // We need to set `ReturnConsumedCapacity` for tracing.
+                assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
-            span.addData({
-                dynamodb: {
-                    action: "PutItem",
-                    tableName: input.TableName ?? "",
-                    table: getDebugItemTypesTracerEventData(debugItemTypes),
-                    conditionExpression: input.ConditionExpression,
-                },
+                span.addData({
+                    dynamodb: {
+                        action: "PutItem",
+                        tableName: input.TableName ?? "",
+                        table: getDebugItemTypesTracerEventData(debugItemTypes),
+                        conditionExpression: input.ConditionExpression,
+                    },
+                });
+
+                const output = await this._execute<types.PutItemInput, types.PutItemOutput>(
+                    retry,
+                    span,
+                    "PutItem",
+                    {...input, ReturnConsumedCapacity: "INDEXES"},
+                );
+
+                span.addData({
+                    dynamodb: {
+                        consumedCapacity: getConsumedCapacityTracerEventData(
+                            output.ConsumedCapacity,
+                            "Write",
+                        ),
+                    },
+                });
+
+                return output;
             });
-
-            const output = await this._execute<types.PutItemInput, types.PutItemOutput>(
-                span,
-                "PutItem",
-                {...input, ReturnConsumedCapacity: "INDEXES"},
-            );
-
-            span.addData({
-                dynamodb: {
-                    consumedCapacity: getConsumedCapacityTracerEventData(
-                        output.ConsumedCapacity,
-                        "Write",
-                    ),
-                },
-            });
-
-            return output;
         });
     }
 
@@ -362,41 +395,44 @@ export class DynamoClientInternal {
         input: types.DeleteItemInput,
         debugItemTypes: DynamoClientDebugItemTypes,
     ): Promise<types.DeleteItemOutput> {
-        let spanName = "DynamoDB DeleteItem";
+        return retryWithExponentialBackoff(retry => {
+            let spanName = "DynamoDB DeleteItem";
 
-        if (input.TableName !== undefined) {
-            spanName += ` ${input.TableName}`;
-        }
+            if (input.TableName !== undefined) {
+                spanName += ` ${input.TableName}`;
+            }
 
-        return tracer.withSpan(spanName, async span => {
-            // We need to set `ReturnConsumedCapacity` for tracing.
-            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
+            return tracer.withSpan(spanName, async span => {
+                // We need to set `ReturnConsumedCapacity` for tracing.
+                assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
-            span.addData({
-                dynamodb: {
-                    action: "DeleteItem",
-                    tableName: input.TableName ?? "",
-                    table: getDebugItemTypesTracerEventData(debugItemTypes),
-                    conditionExpression: input.ConditionExpression,
-                },
+                span.addData({
+                    dynamodb: {
+                        action: "DeleteItem",
+                        tableName: input.TableName ?? "",
+                        table: getDebugItemTypesTracerEventData(debugItemTypes),
+                        conditionExpression: input.ConditionExpression,
+                    },
+                });
+
+                const output = await this._execute<types.DeleteItemInput, types.DeleteItemOutput>(
+                    retry,
+                    span,
+                    "DeleteItem",
+                    {...input, ReturnConsumedCapacity: "INDEXES"},
+                );
+
+                span.addData({
+                    dynamodb: {
+                        consumedCapacity: getConsumedCapacityTracerEventData(
+                            output.ConsumedCapacity,
+                            "Write",
+                        ),
+                    },
+                });
+
+                return output;
             });
-
-            const output = await this._execute<types.DeleteItemInput, types.DeleteItemOutput>(
-                span,
-                "DeleteItem",
-                {...input, ReturnConsumedCapacity: "INDEXES"},
-            );
-
-            span.addData({
-                dynamodb: {
-                    consumedCapacity: getConsumedCapacityTracerEventData(
-                        output.ConsumedCapacity,
-                        "Write",
-                    ),
-                },
-            });
-
-            return output;
         });
     }
 
@@ -411,64 +447,66 @@ export class DynamoClientInternal {
         input: types.BatchWriteItemInput,
         debugItemTypes: DynamoClientDebugItemTypes,
     ): Promise<types.BatchWriteItemOutput> {
-        let spanName = "DynamoDB BatchWriteItem";
+        return retryWithExponentialBackoff(retry => {
+            let spanName = "DynamoDB BatchWriteItem";
 
-        const tableNames = [];
-        let batchSize = 0;
+            const tableNames = [];
+            let batchSize = 0;
 
-        for (const [tableName, writeRequests] of Object.entries(input.RequestItems ?? {})) {
-            tableNames.push(tableName);
-            batchSize += writeRequests.length;
-        }
-
-        const tableNamesString = tableNames.sort().join("+");
-
-        if (tableNamesString.length > 0) {
-            spanName += ` ${tableNamesString}`;
-        }
-
-        return tracer.withSpan(spanName, async span => {
-            // We need to set `ReturnConsumedCapacity` for tracing.
-            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
-
-            span.addData({
-                dynamodb: {
-                    action: "BatchWriteItem",
-                    tableName: tableNamesString,
-                    table: getDebugItemTypesTracerEventData(debugItemTypes),
-                    batchSize,
-                },
-            });
-
-            const linkedTracers = new Set<TracerSpan>();
-
-            if (tracer instanceof TracerSpan) linkedTracers.add(tracer);
-
-            // Link our other tracers to the batch span so we can see they are related.
-            for (const otherTracer of otherTracers) {
-                if (!(otherTracer instanceof TracerSpan)) continue;
-
-                if (!linkedTracers.has(otherTracer)) {
-                    linkedTracers.add(otherTracer);
-                    otherTracer.link(span);
-                }
+            for (const [tableName, writeRequests] of Object.entries(input.RequestItems ?? {})) {
+                tableNames.push(tableName);
+                batchSize += writeRequests.length;
             }
 
-            const output = await this._execute<
-                types.BatchWriteItemInput,
-                types.BatchWriteItemOutput
-            >(span, "BatchWriteItem", {...input, ReturnConsumedCapacity: "INDEXES"});
+            const tableNamesString = tableNames.sort().join("+");
 
-            span.addData({
-                dynamodb: {
-                    consumedCapacity: getConsumedCapacityTracerEventData(
-                        output.ConsumedCapacity,
-                        "Write",
-                    ),
-                },
+            if (tableNamesString.length > 0) {
+                spanName += ` ${tableNamesString}`;
+            }
+
+            return tracer.withSpan(spanName, async span => {
+                // We need to set `ReturnConsumedCapacity` for tracing.
+                assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
+
+                span.addData({
+                    dynamodb: {
+                        action: "BatchWriteItem",
+                        tableName: tableNamesString,
+                        table: getDebugItemTypesTracerEventData(debugItemTypes),
+                        batchSize,
+                    },
+                });
+
+                const linkedTracers = new Set<TracerSpan>();
+
+                if (tracer instanceof TracerSpan) linkedTracers.add(tracer);
+
+                // Link our other tracers to the batch span so we can see they are related.
+                for (const otherTracer of otherTracers) {
+                    if (!(otherTracer instanceof TracerSpan)) continue;
+
+                    if (!linkedTracers.has(otherTracer)) {
+                        linkedTracers.add(otherTracer);
+                        otherTracer.link(span);
+                    }
+                }
+
+                const output = await this._execute<
+                    types.BatchWriteItemInput,
+                    types.BatchWriteItemOutput
+                >(retry, span, "BatchWriteItem", {...input, ReturnConsumedCapacity: "INDEXES"});
+
+                span.addData({
+                    dynamodb: {
+                        consumedCapacity: getConsumedCapacityTracerEventData(
+                            output.ConsumedCapacity,
+                            "Write",
+                        ),
+                    },
+                });
+
+                return output;
             });
-
-            return output;
         });
     }
 
@@ -482,105 +520,109 @@ export class DynamoClientInternal {
         input: types.TransactWriteItemsInput,
         debugItemTypes: DynamoClientDebugItemTypes,
     ): Promise<types.TransactWriteItemsOutput> {
-        let spanName = "DynamoDB TransactWriteItems";
+        return retryWithExponentialBackoff(retry => {
+            let spanName = "DynamoDB TransactWriteItems";
 
-        const tableNames = new Set<string>();
-        const transactItemsSummary: Array<unknown> = [];
+            const tableNames = new Set<string>();
+            const transactItemsSummary: Array<unknown> = [];
 
-        for (const transactItem of input.TransactItems ?? []) {
-            if (transactItem.ConditionCheck) {
-                if (transactItem.ConditionCheck.TableName)
-                    tableNames.add(transactItem.ConditionCheck.TableName);
+            for (const transactItem of input.TransactItems ?? []) {
+                if (transactItem.ConditionCheck) {
+                    if (transactItem.ConditionCheck.TableName)
+                        tableNames.add(transactItem.ConditionCheck.TableName);
 
-                transactItemsSummary.push({
-                    ConditionCheck: {
-                        TableName: transactItem.ConditionCheck.TableName,
-                        ConditionExpression: transactItem.ConditionCheck.ConditionExpression,
-                    },
-                });
+                    transactItemsSummary.push({
+                        ConditionCheck: {
+                            TableName: transactItem.ConditionCheck.TableName,
+                            ConditionExpression: transactItem.ConditionCheck.ConditionExpression,
+                        },
+                    });
+                }
+
+                if (transactItem.Put) {
+                    if (transactItem.Put.TableName) tableNames.add(transactItem.Put.TableName);
+
+                    transactItemsSummary.push({
+                        Put: {
+                            TableName: transactItem.Put.TableName,
+                            ConditionExpression: transactItem.Put.ConditionExpression,
+                        },
+                    });
+                }
+
+                if (transactItem.Delete) {
+                    if (transactItem.Delete.TableName)
+                        tableNames.add(transactItem.Delete.TableName);
+
+                    transactItemsSummary.push({
+                        Delete: {
+                            TableName: transactItem.Delete.TableName,
+                            ConditionExpression: transactItem.Delete.ConditionExpression,
+                        },
+                    });
+                }
+
+                if (transactItem.Update) {
+                    if (transactItem.Update.TableName)
+                        tableNames.add(transactItem.Update.TableName);
+
+                    transactItemsSummary.push({
+                        Update: {
+                            TableName: transactItem.Update.TableName,
+                            ConditionExpression: transactItem.Update.ConditionExpression,
+                            UpdateExpression: transactItem.Update.UpdateExpression,
+                        },
+                    });
+                }
             }
 
-            if (transactItem.Put) {
-                if (transactItem.Put.TableName) tableNames.add(transactItem.Put.TableName);
+            const tableNamesString = Array.from(tableNames).sort().join("+");
 
-                transactItemsSummary.push({
-                    Put: {
-                        TableName: transactItem.Put.TableName,
-                        ConditionExpression: transactItem.Put.ConditionExpression,
-                    },
-                });
+            if (tableNamesString.length > 0) {
+                spanName += ` ${tableNamesString}`;
             }
 
-            if (transactItem.Delete) {
-                if (transactItem.Delete.TableName) tableNames.add(transactItem.Delete.TableName);
+            return tracer.withSpan(spanName, async span => {
+                // We need to set `ReturnConsumedCapacity` for tracing.
+                assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
-                transactItemsSummary.push({
-                    Delete: {
-                        TableName: transactItem.Delete.TableName,
-                        ConditionExpression: transactItem.Delete.ConditionExpression,
+                span.addData({
+                    dynamodb: {
+                        action: "TransactWriteItems",
+                        tableName: tableNamesString,
+                        table: getDebugItemTypesTracerEventData(debugItemTypes),
+                        transactWrite: {
+                            items: JSON.stringify(transactItemsSummary),
+                            itemCount: input.TransactItems?.length,
+                            clientRequestToken: input.ClientRequestToken,
+                        },
                     },
                 });
-            }
 
-            if (transactItem.Update) {
-                if (transactItem.Update.TableName) tableNames.add(transactItem.Update.TableName);
+                const output = await this._execute<
+                    types.TransactWriteItemsInput,
+                    types.TransactWriteItemsOutput
+                >(retry, span, "TransactWriteItems", {
+                    ...input,
+                    // Make sure to include a `ClientRequestToken` in case the underlying
+                    // `aws4fetch` module retries the transaction. If we were using the AWS SDK
+                    // this would be handled for us. See:
+                    // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html#transaction-best-practices
+                    ClientRequestToken: input.ClientRequestToken ?? generateId(),
+                    ReturnConsumedCapacity: "INDEXES",
+                });
 
-                transactItemsSummary.push({
-                    Update: {
-                        TableName: transactItem.Update.TableName,
-                        ConditionExpression: transactItem.Update.ConditionExpression,
-                        UpdateExpression: transactItem.Update.UpdateExpression,
+                span.addData({
+                    dynamodb: {
+                        consumedCapacity: getConsumedCapacityTracerEventData(
+                            output.ConsumedCapacity,
+                            "Read",
+                        ),
                     },
                 });
-            }
-        }
 
-        const tableNamesString = Array.from(tableNames).sort().join("+");
-
-        if (tableNamesString.length > 0) {
-            spanName += ` ${tableNamesString}`;
-        }
-
-        return tracer.withSpan(spanName, async span => {
-            // We need to set `ReturnConsumedCapacity` for tracing.
-            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
-
-            span.addData({
-                dynamodb: {
-                    action: "TransactWriteItems",
-                    tableName: tableNamesString,
-                    table: getDebugItemTypesTracerEventData(debugItemTypes),
-                    transactWrite: {
-                        items: JSON.stringify(transactItemsSummary),
-                        itemCount: input.TransactItems?.length,
-                        clientRequestToken: input.ClientRequestToken,
-                    },
-                },
+                return output;
             });
-
-            const output = await this._execute<
-                types.TransactWriteItemsInput,
-                types.TransactWriteItemsOutput
-            >(span, "TransactWriteItems", {
-                ...input,
-                // Make sure to include a `ClientRequestToken` in case the underlying
-                // `aws4fetch` module retries the transaction. If we were using the AWS SDK
-                // this would be handled for us. See:
-                // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html#transaction-best-practices
-                ClientRequestToken: input.ClientRequestToken ?? generateId(),
-                ReturnConsumedCapacity: "INDEXES",
-            });
-
-            span.addData({
-                dynamodb: {
-                    consumedCapacity: getConsumedCapacityTracerEventData(
-                        output.ConsumedCapacity,
-                        "Read",
-                    ),
-                },
-            });
-
-            return output;
         });
     }
 
@@ -594,52 +636,54 @@ export class DynamoClientInternal {
         input: types.TransactGetItemsInput,
         debugItemTypes: DynamoClientDebugItemTypes,
     ): Promise<types.TransactGetItemsOutput> {
-        let spanName = "DynamoDB TransactGetItems";
+        return retryWithExponentialBackoff(retry => {
+            let spanName = "DynamoDB TransactGetItems";
 
-        const tableNames = new Set<string>();
-        let size = 0;
+            const tableNames = new Set<string>();
+            let size = 0;
 
-        for (const transactItem of input.TransactItems ?? []) {
-            if (transactItem.Get) {
-                if (transactItem.Get.TableName) tableNames.add(transactItem.Get.TableName);
-                size++;
+            for (const transactItem of input.TransactItems ?? []) {
+                if (transactItem.Get) {
+                    if (transactItem.Get.TableName) tableNames.add(transactItem.Get.TableName);
+                    size++;
+                }
             }
-        }
 
-        const tableNamesString = Array.from(tableNames).sort().join("+");
+            const tableNamesString = Array.from(tableNames).sort().join("+");
 
-        if (tableNamesString.length > 0) {
-            spanName += ` ${tableNamesString}`;
-        }
+            if (tableNamesString.length > 0) {
+                spanName += ` ${tableNamesString}`;
+            }
 
-        return tracer.withSpan(spanName, async span => {
-            // We need to set `ReturnConsumedCapacity` for tracing.
-            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
+            return tracer.withSpan(spanName, async span => {
+                // We need to set `ReturnConsumedCapacity` for tracing.
+                assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
-            span.addData({
-                dynamodb: {
-                    action: "TransactGetItems",
-                    tableName: tableNamesString,
-                    table: getDebugItemTypesTracerEventData(debugItemTypes),
-                    transactGet: {size},
-                },
+                span.addData({
+                    dynamodb: {
+                        action: "TransactGetItems",
+                        tableName: tableNamesString,
+                        table: getDebugItemTypesTracerEventData(debugItemTypes),
+                        transactGet: {size},
+                    },
+                });
+
+                const output = await this._execute<
+                    types.TransactGetItemsInput,
+                    types.TransactGetItemsOutput
+                >(retry, span, "TransactGetItems", {...input, ReturnConsumedCapacity: "INDEXES"});
+
+                span.addData({
+                    dynamodb: {
+                        consumedCapacity: getConsumedCapacityTracerEventData(
+                            output.ConsumedCapacity,
+                            "Read",
+                        ),
+                    },
+                });
+
+                return output;
             });
-
-            const output = await this._execute<
-                types.TransactGetItemsInput,
-                types.TransactGetItemsOutput
-            >(span, "TransactGetItems", {...input, ReturnConsumedCapacity: "INDEXES"});
-
-            span.addData({
-                dynamodb: {
-                    consumedCapacity: getConsumedCapacityTracerEventData(
-                        output.ConsumedCapacity,
-                        "Read",
-                    ),
-                },
-            });
-
-            return output;
         });
     }
 
@@ -661,75 +705,82 @@ export class DynamoClientInternal {
             debugItemTypes: DynamoClientDebugItemTypes;
         },
     ): Promise<types.QueryOutput> {
-        let spanName = "DynamoDB Query";
+        return retryWithExponentialBackoff(retry => {
+            let spanName = "DynamoDB Query";
 
-        if (input.TableName !== undefined) {
-            spanName += ` ${input.TableName}`;
+            if (input.TableName !== undefined) {
+                spanName += ` ${input.TableName}`;
 
-            if (input.IndexName !== undefined) {
-                spanName += ` (${debugIndexName ?? input.IndexName})`;
-            }
-        }
-
-        return tracer.withSpan(spanName, async span => {
-            // We need to set `ReturnConsumedCapacity` for tracing.
-            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
-
-            span.addData({
-                dynamodb: {
-                    action: "Query",
-                    tableName: input.TableName ?? "",
-                    table: getDebugItemTypesTracerEventData(debugItemTypes),
-                    consistentRead: input.ConsistentRead ?? false,
-                    query: {
-                        keyConditionExpression: input.KeyConditionExpression,
-                        indexName:
-                            input.IndexName !== undefined
-                                ? debugIndexName ?? input.IndexName
-                                : undefined,
-                        scanIndexForward: input.ScanIndexForward ?? true,
-                        limit: input.Limit,
-                        hasExclusiveStartKey:
-                            input.ExclusiveStartKey !== undefined ? true : undefined,
-                    },
-                },
-            });
-
-            const output = await this._execute<types.QueryInput, types.QueryOutput>(span, "Query", {
-                ...input,
-                ReturnConsumedCapacity: "INDEXES",
-            });
-
-            span.addData({
-                dynamodb: {
-                    consumedCapacity: getConsumedCapacityTracerEventData(
-                        output.ConsumedCapacity,
-                        "Read",
-                    ),
-                    query: {
-                        scannedCount: output.ScannedCount ?? 0,
-                    },
-                },
-            });
-
-            if (expectsStrongReadConsistency && !input.ConsistentRead) {
-                const error = new InternalError(
-                    `Expected DynamoDB strong consistency when reading ${printDynamoClientDebugItemTypesForErrorMessage(
-                        debugItemTypes,
-                    )}`,
-                );
-
-                if (process.env.NODE_ENV !== "production") {
-                    throw error;
-                } else {
-                    // In production, add the exception to the span but let it return like normal.
-                    // In case a developer accidentally forgot to make a read strong we don't want
-                    // to break the product for users.
-                    span.addException(error);
+                if (input.IndexName !== undefined) {
+                    spanName += ` (${debugIndexName ?? input.IndexName})`;
                 }
             }
 
-            return output;
+            return tracer.withSpan(spanName, async span => {
+                // We need to set `ReturnConsumedCapacity` for tracing.
+                assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
+
+                span.addData({
+                    dynamodb: {
+                        action: "Query",
+                        tableName: input.TableName ?? "",
+                        table: getDebugItemTypesTracerEventData(debugItemTypes),
+                        consistentRead: input.ConsistentRead ?? false,
+                        query: {
+                            keyConditionExpression: input.KeyConditionExpression,
+                            indexName:
+                                input.IndexName !== undefined
+                                    ? debugIndexName ?? input.IndexName
+                                    : undefined,
+                            scanIndexForward: input.ScanIndexForward ?? true,
+                            limit: input.Limit,
+                            hasExclusiveStartKey:
+                                input.ExclusiveStartKey !== undefined ? true : undefined,
+                        },
+                    },
+                });
+
+                const output = await this._execute<types.QueryInput, types.QueryOutput>(
+                    retry,
+                    span,
+                    "Query",
+                    {
+                        ...input,
+                        ReturnConsumedCapacity: "INDEXES",
+                    },
+                );
+
+                span.addData({
+                    dynamodb: {
+                        consumedCapacity: getConsumedCapacityTracerEventData(
+                            output.ConsumedCapacity,
+                            "Read",
+                        ),
+                        query: {
+                            scannedCount: output.ScannedCount ?? 0,
+                        },
+                    },
+                });
+
+                if (expectsStrongReadConsistency && !input.ConsistentRead) {
+                    const error = new InternalError(
+                        `Expected DynamoDB strong consistency when reading ${printDynamoClientDebugItemTypesForErrorMessage(
+                            debugItemTypes,
+                        )}`,
+                    );
+
+                    if (process.env.NODE_ENV !== "production") {
+                        throw error;
+                    } else {
+                        // In production, add the exception to the span but let it return like normal.
+                        // In case a developer accidentally forgot to make a read strong we don't want
+                        // to break the product for users.
+                        span.addException(error);
+                    }
+                }
+
+                return output;
+            });
         });
     }
 
@@ -739,48 +790,55 @@ export class DynamoClientInternal {
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Scan.html
      */
     public Scan(tracer: TracerBase, input: types.ScanInput): Promise<types.ScanOutput> {
-        let spanName = "DynamoDB Scan";
+        return retryWithExponentialBackoff(retry => {
+            let spanName = "DynamoDB Scan";
 
-        if (input.TableName !== undefined) {
-            spanName += ` ${input.TableName}`;
-        }
+            if (input.TableName !== undefined) {
+                spanName += ` ${input.TableName}`;
+            }
 
-        return tracer.withSpan(spanName, async span => {
-            // We need to set `ReturnConsumedCapacity` for tracing.
-            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
+            return tracer.withSpan(spanName, async span => {
+                // We need to set `ReturnConsumedCapacity` for tracing.
+                assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
-            span.addData({
-                dynamodb: {
-                    action: "Scan",
-                    tableName: input.TableName ?? "",
-                    consistentRead: input.ConsistentRead ?? false,
-                    scan: {
-                        indexName: input.IndexName,
-                        limit: input.Limit,
-                        hasExclusiveStartKey:
-                            input.ExclusiveStartKey !== undefined ? true : undefined,
+                span.addData({
+                    dynamodb: {
+                        action: "Scan",
+                        tableName: input.TableName ?? "",
+                        consistentRead: input.ConsistentRead ?? false,
+                        scan: {
+                            indexName: input.IndexName,
+                            limit: input.Limit,
+                            hasExclusiveStartKey:
+                                input.ExclusiveStartKey !== undefined ? true : undefined,
+                        },
                     },
-                },
-            });
+                });
 
-            const output = await this._execute<types.ScanInput, types.ScanOutput>(span, "Scan", {
-                ...input,
-                ReturnConsumedCapacity: "INDEXES",
-            });
-
-            span.addData({
-                dynamodb: {
-                    consumedCapacity: getConsumedCapacityTracerEventData(
-                        output.ConsumedCapacity,
-                        "Read",
-                    ),
-                    scan: {
-                        scannedCount: output.ScannedCount ?? 0,
+                const output = await this._execute<types.ScanInput, types.ScanOutput>(
+                    retry,
+                    span,
+                    "Scan",
+                    {
+                        ...input,
+                        ReturnConsumedCapacity: "INDEXES",
                     },
-                },
-            });
+                );
 
-            return output;
+                span.addData({
+                    dynamodb: {
+                        consumedCapacity: getConsumedCapacityTracerEventData(
+                            output.ConsumedCapacity,
+                            "Read",
+                        ),
+                        scan: {
+                            scannedCount: output.ScannedCount ?? 0,
+                        },
+                    },
+                });
+
+                return output;
+            });
         });
     }
 
@@ -793,27 +851,30 @@ export class DynamoClientInternal {
         tracer: TracerBase,
         input: types.CreateTableInput,
     ): Promise<types.CreateTableOutput> {
-        let spanName = "DynamoDB CreateTable";
+        return retryWithExponentialBackoff(retry => {
+            let spanName = "DynamoDB CreateTable";
 
-        if (input.TableName !== undefined) {
-            spanName += ` ${input.TableName}`;
-        }
+            if (input.TableName !== undefined) {
+                spanName += ` ${input.TableName}`;
+            }
 
-        return tracer.withSpan(spanName, async span => {
-            span.addData({
-                dynamodb: {
-                    action: "CreateTable",
-                    tableName: input.TableName ?? "",
-                },
+            return tracer.withSpan(spanName, async span => {
+                span.addData({
+                    dynamodb: {
+                        action: "CreateTable",
+                        tableName: input.TableName ?? "",
+                    },
+                });
+
+                const output = await this._execute<types.CreateTableInput, types.CreateTableOutput>(
+                    retry,
+                    span,
+                    "CreateTable",
+                    input,
+                );
+
+                return output;
             });
-
-            const output = await this._execute<types.CreateTableInput, types.CreateTableOutput>(
-                span,
-                "CreateTable",
-                input,
-            );
-
-            return output;
         });
     }
 
@@ -826,27 +887,28 @@ export class DynamoClientInternal {
         tracer: TracerBase,
         input: types.DescribeTableInput,
     ): Promise<types.DescribeTableOutput> {
-        let spanName = "DynamoDB DescribeTable";
+        return retryWithExponentialBackoff(retry => {
+            let spanName = "DynamoDB DescribeTable";
 
-        if (input.TableName !== undefined) {
-            spanName += ` ${input.TableName}`;
-        }
+            if (input.TableName !== undefined) {
+                spanName += ` ${input.TableName}`;
+            }
 
-        return tracer.withSpan(spanName, async span => {
-            span.addData({
-                dynamodb: {
-                    action: "DescribeTable",
-                    tableName: input.TableName ?? "",
-                },
+            return tracer.withSpan(spanName, async span => {
+                span.addData({
+                    dynamodb: {
+                        action: "DescribeTable",
+                        tableName: input.TableName ?? "",
+                    },
+                });
+
+                const output = await this._execute<
+                    types.DescribeTableInput,
+                    types.DescribeTableOutput
+                >(retry, span, "DescribeTable", input);
+
+                return output;
             });
-
-            const output = await this._execute<types.DescribeTableInput, types.DescribeTableOutput>(
-                span,
-                "DescribeTable",
-                input,
-            );
-
-            return output;
         });
     }
 
@@ -859,26 +921,28 @@ export class DynamoClientInternal {
         tracer: TracerBase,
         input: types.DescribeTimeToLiveCommandInput,
     ): Promise<types.DescribeTimeToLiveCommandOutput> {
-        let spanName = "DynamoDB DescribeTimeToLive";
+        return retryWithExponentialBackoff(retry => {
+            let spanName = "DynamoDB DescribeTimeToLive";
 
-        if (input.TableName !== undefined) {
-            spanName += ` ${input.TableName}`;
-        }
+            if (input.TableName !== undefined) {
+                spanName += ` ${input.TableName}`;
+            }
 
-        return tracer.withSpan(spanName, async span => {
-            span.addData({
-                dynamodb: {
-                    action: "DescribeTimeToLive",
-                    tableName: input.TableName ?? "",
-                },
+            return tracer.withSpan(spanName, async span => {
+                span.addData({
+                    dynamodb: {
+                        action: "DescribeTimeToLive",
+                        tableName: input.TableName ?? "",
+                    },
+                });
+
+                const output = await this._execute<
+                    types.DescribeTimeToLiveCommandInput,
+                    types.DescribeTimeToLiveCommandOutput
+                >(retry, span, "DescribeTimeToLive", input);
+
+                return output;
             });
-
-            const output = await this._execute<
-                types.DescribeTimeToLiveCommandInput,
-                types.DescribeTimeToLiveCommandOutput
-            >(span, "DescribeTimeToLive", input);
-
-            return output;
         });
     }
 
@@ -891,26 +955,28 @@ export class DynamoClientInternal {
         tracer: TracerBase,
         input: types.UpdateTableCommandInput,
     ): Promise<types.UpdateTableCommandOutput> {
-        let spanName = "DynamoDB UpdateTable";
+        return retryWithExponentialBackoff(retry => {
+            let spanName = "DynamoDB UpdateTable";
 
-        if (input.TableName !== undefined) {
-            spanName += ` ${input.TableName}`;
-        }
+            if (input.TableName !== undefined) {
+                spanName += ` ${input.TableName}`;
+            }
 
-        return tracer.withSpan(spanName, async span => {
-            span.addData({
-                dynamodb: {
-                    action: "UpdateTable",
-                    tableName: input.TableName ?? "",
-                },
+            return tracer.withSpan(spanName, async span => {
+                span.addData({
+                    dynamodb: {
+                        action: "UpdateTable",
+                        tableName: input.TableName ?? "",
+                    },
+                });
+
+                const output = await this._execute<
+                    types.UpdateTableCommandInput,
+                    types.UpdateTableCommandOutput
+                >(retry, span, "UpdateTable", input);
+
+                return output;
             });
-
-            const output = await this._execute<
-                types.UpdateTableCommandInput,
-                types.UpdateTableCommandOutput
-            >(span, "UpdateTable", input);
-
-            return output;
         });
     }
 
@@ -923,26 +989,28 @@ export class DynamoClientInternal {
         tracer: TracerBase,
         input: types.UpdateTimeToLiveCommandInput,
     ): Promise<types.UpdateTimeToLiveCommandOutput> {
-        let spanName = "DynamoDB UpdateTimeToLive";
+        return retryWithExponentialBackoff(retry => {
+            let spanName = "DynamoDB UpdateTimeToLive";
 
-        if (input.TableName !== undefined) {
-            spanName += ` ${input.TableName}`;
-        }
+            if (input.TableName !== undefined) {
+                spanName += ` ${input.TableName}`;
+            }
 
-        return tracer.withSpan(spanName, async span => {
-            span.addData({
-                dynamodb: {
-                    action: "UpdateTimeToLive",
-                    tableName: input.TableName ?? "",
-                },
+            return tracer.withSpan(spanName, async span => {
+                span.addData({
+                    dynamodb: {
+                        action: "UpdateTimeToLive",
+                        tableName: input.TableName ?? "",
+                    },
+                });
+
+                const output = await this._execute<
+                    types.UpdateTimeToLiveCommandInput,
+                    types.UpdateTimeToLiveCommandOutput
+                >(retry, span, "UpdateTimeToLive", input);
+
+                return output;
             });
-
-            const output = await this._execute<
-                types.UpdateTimeToLiveCommandInput,
-                types.UpdateTimeToLiveCommandOutput
-            >(span, "UpdateTimeToLive", input);
-
-            return output;
         });
     }
 }
