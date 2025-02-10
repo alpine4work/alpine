@@ -1,3 +1,4 @@
+import {Fragment, Node as ProseMirrorNode} from "prosemirror-model";
 import {Plugin, PluginKey} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
@@ -11,14 +12,20 @@ import {
     selectTable,
     selectionContentTableCell,
 } from "~/client/content/internal/table/content_table_client_util.js";
+import {contentTableColumnDragPluginKey} from "~/client/content/internal/table/content_table_column_drag_plugin.js";
 import {
     addContentTableColumnAtIndex,
     addContentTableRowAtIndex,
 } from "~/client/content/internal/table/content_table_commands.js";
+import {
+    DraggableType,
+    getDraggableDataFromEvent,
+} from "~/client/content/internal/table/content_table_get_draggable_event_data.js";
+import {contentTableRowDragPluginKey} from "~/client/content/internal/table/content_table_row_drag_plugin.js";
 import {dotsSixIconSvg} from "~/client/icons/dots_six_icon_svg.js";
 import {dotsSixVerticalIconSvg} from "~/client/icons/dots_six_vertical_icon_svg.js";
 import {plusIconSvg} from "~/client/icons/plus_icon_svg.js";
-import {contentStyles} from "~/client/styles/styles.js";
+import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
@@ -26,8 +33,9 @@ import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 
 // NOCOMMIT: update the names of the grips, all of them seems confusing
 // because of similar functionalities.
-export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plugin => {
+export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plugin {
     let view: EditorView | null;
+    let dragCover: HTMLElement | null = null;
 
     const lazyGripButtonElementLazy = new Lazy(() => {
         const gripButtonElement = document.createElement("div");
@@ -124,7 +132,129 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
             onPressStart: event => {
                 event.preventDefault();
                 assert(view);
-                view.dispatch(selectRow(rowIndex)(view.state.tr));
+
+                // Create drag cover
+                dragCover = document.createElement("div");
+                dragCover.className = sprinkles({
+                    position: "fixed",
+                    inset: "0",
+                    zIndex: "70",
+                    cursor: "grabbing",
+                });
+                document.body.appendChild(dragCover);
+
+                // Set initial state
+                view.dispatch(
+                    view.state.tr
+                        .setMeta(contentTableRowDragPluginKey, {
+                            type: "StartDrag",
+                            startY: event.clientY,
+                            rowIndex: rowIndex,
+                            gripElement: gripRowElement,
+                        })
+                        .setSelection(selectRow(rowIndex)(view.state.tr).selection),
+                );
+
+                // Setup pointer move handler
+                const handlePointerMove = (moveEvent: PointerEvent) => {
+                    assert(view);
+                    const state = contentTableRowDragPluginKey.getState(view.state);
+                    assert(state?.dragging);
+
+                    const draggableData = getDraggableDataFromEvent(
+                        moveEvent,
+                        view,
+                        DraggableType.TABLE_ROW,
+                    );
+                    assert(draggableData);
+
+                    const newRowIndex = draggableData.targetAdjustedIndex;
+                    if (newRowIndex === state.dragging.currentRowIndex) return;
+                    view.dispatch(
+                        view.state.tr.setMeta(contentTableRowDragPluginKey, {
+                            type: "UpdateDrag",
+                            currentRowIndex: newRowIndex,
+                        }),
+                    );
+                };
+
+                // Setup pointer up handler
+                const handlePointerUp = () => {
+                    assert(view);
+
+                    const state = contentTableRowDragPluginKey.getState(view.state);
+                    assert(state?.dragging);
+
+                    if (state.dragging.startRowIndex !== state.dragging.currentRowIndex) {
+                        const $cell = selectionContentTableCell(view.state);
+                        const table = $cell.node(-1);
+                        const tableStart = $cell.start(-1);
+                        const map = ContentTableMap.get(table);
+
+                        const tr = view.state.tr;
+                        const fromIndex = state.dragging.startRowIndex;
+                        const toIndex = state.dragging.currentRowIndex;
+
+                        // Move cells logic
+                        const cellsToMove: Array<{
+                            pos: number;
+                            node: ProseMirrorNode;
+                            nodeSize: number;
+                            content: Fragment;
+                        }> = [];
+
+                        // Collect all cells in the row
+                        for (let col = 0; col < map.width; col++) {
+                            const fromPos = map.positionAt(fromIndex, col, table);
+                            const cell = table.nodeAt(fromPos);
+                            if (!cell) continue;
+                            cellsToMove.push({
+                                pos: tableStart + fromPos,
+                                node: cell,
+                                nodeSize: cell.nodeSize,
+                                content: cell.content,
+                            });
+                        }
+
+                        // Move cells
+                        const processCells = (cells: typeof cellsToMove) => {
+                            cells.forEach((cell, idx) => {
+                                const col = fromIndex < toIndex ? map.width - 1 - idx : idx;
+                                const toPos = map.positionAt(toIndex, col, table);
+                                tr.delete(cell.pos, cell.pos + cell.nodeSize);
+                                const tableCellType = table.type.schema.nodes.tableCell;
+                                assert(tableCellType);
+                                const newCell = tableCellType.create(null, cell.content);
+                                tr.insert(tableStart + toPos, newCell);
+                            });
+                        };
+
+                        processCells(
+                            fromIndex < toIndex ? [...cellsToMove].reverse() : cellsToMove,
+                        );
+
+                        assert(view.dispatch(tr), "Failed to move cells");
+                    }
+
+                    // Cleanup
+                    gripRowElement.style.transform = "";
+                    document.removeEventListener("pointermove", handlePointerMove);
+                    document.removeEventListener("pointerup", handlePointerUp);
+                    if (dragCover) {
+                        dragCover.remove();
+                        dragCover = null;
+                    }
+
+                    view.dispatch(
+                        view.state.tr.setMeta(contentTableRowDragPluginKey, {
+                            type: "EndDrag",
+                        }),
+                    );
+                };
+
+                // Add document-level event listeners
+                document.addEventListener("pointermove", handlePointerMove);
+                document.addEventListener("pointerup", handlePointerUp);
             },
         });
 
@@ -144,15 +274,144 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
 
         addUnfocusableButtonBehaviorToElement(gripColumnElement, {
             hoverClassName: contentStyles.tableGripHoveredClassName,
-            // We use on press start since it looks weird to have a pressed state adjacent
-            // next to a selected state. Better to immediately move the selection. It's
-            // also not a big a deal if the user cancels their press.
             onPressStart: event => {
                 event.preventDefault();
-
                 assert(view);
 
-                view.dispatch(selectColumn(columnIndex)(view.state.tr));
+                // Create drag cover
+                dragCover = document.createElement("div");
+                dragCover.className = sprinkles({
+                    position: "fixed",
+                    inset: "0",
+                    zIndex: "70",
+                    cursor: "grabbing",
+                });
+                document.body.appendChild(dragCover);
+
+                // Set initial state
+                view.dispatch(
+                    view.state.tr
+                        .setMeta(contentTableColumnDragPluginKey, {
+                            type: "StartDrag",
+                            startX: event.clientX,
+                            columnIndex: columnIndex,
+                            gripElement: gripColumnElement,
+                        })
+                        .setSelection(selectColumn(columnIndex)(view.state.tr).selection),
+                );
+
+                // Setup pointer move handler
+                const handlePointerMove = (moveEvent: PointerEvent) => {
+                    assert(view);
+                    const draggableData = getDraggableDataFromEvent(
+                        moveEvent,
+                        view,
+                        DraggableType.TABLE_COLUMN,
+                    );
+                    assert(draggableData);
+
+                    const state = contentTableColumnDragPluginKey.getState(view.state);
+                    assert(state?.dragging);
+
+                    const newColumnIndex = draggableData.targetAdjustedIndex;
+                    if (newColumnIndex === state.dragging.currentColumnIndex) return;
+                    view.dispatch(
+                        view.state.tr.setMeta(contentTableColumnDragPluginKey, {
+                            type: "UpdateDrag",
+                            currentColumnIndex: newColumnIndex,
+                        }),
+                    );
+                };
+
+                // Setup pointer up handler
+                const handlePointerUp = () => {
+                    assert(view);
+                    const state = contentTableColumnDragPluginKey.getState(view.state);
+                    assert(state?.dragging);
+
+                    if (state.dragging.startColumnIndex !== state.dragging.currentColumnIndex) {
+                        const $cell = selectionContentTableCell(view.state);
+                        const table = $cell.node(-1);
+                        const tableStart = $cell.start(-1);
+                        const map = ContentTableMap.get(table);
+
+                        const tr = view.state.tr;
+                        const fromIndex = state.dragging.startColumnIndex;
+                        const toIndex = state.dragging.currentColumnIndex;
+
+                        // Move cells logic
+                        const cellsToMove: Array<{
+                            pos: number;
+                            node: ProseMirrorNode;
+                            nodeSize: number;
+                            content: Fragment;
+                        }> = [];
+                        for (let row = 0; row < map.height; row++) {
+                            const fromPos = map.positionAt(row, fromIndex, table);
+                            const cell = table.nodeAt(fromPos);
+                            if (!cell) continue;
+                            cellsToMove.push({
+                                pos: tableStart + fromPos,
+                                node: cell,
+                                nodeSize: cell.nodeSize,
+                                content: cell.content,
+                            });
+                        }
+
+                        // Update column widths
+                        const columnWidths = [...table.attrs.columnWidths];
+                        const [movedWidth] = columnWidths.splice(fromIndex, 1);
+                        columnWidths.splice(toIndex, 0, movedWidth);
+                        tr.setNodeAttribute(tableStart - 1, "columnWidths", columnWidths);
+
+                        // Move cells
+                        const processCells = (cells: typeof cellsToMove) => {
+                            cells.forEach((cell, idx) => {
+                                const row = fromIndex < toIndex ? map.height - 1 - idx : idx;
+                                const toPos = map.positionAt(row, toIndex, table);
+                                tr.delete(cell.pos, cell.pos + cell.nodeSize);
+                                const tableCellType = table.type.schema.nodes.tableCell;
+                                assert(tableCellType);
+                                const newCell = tableCellType.create(null, cell.content);
+                                tr.insert(tableStart + toPos, newCell);
+                            });
+                        };
+
+                        processCells(
+                            fromIndex < toIndex ? [...cellsToMove].reverse() : cellsToMove,
+                        );
+
+                        try {
+                            view.dispatch(tr);
+                        } catch (error) {
+                            assert(error instanceof Error);
+                            view.dispatch(
+                                view.state.tr.setMeta(contentTableColumnDragPluginKey, {
+                                    type: "EndDrag",
+                                }),
+                            );
+                        }
+                    }
+
+                    // Cleanup
+                    gripColumnElement.style.transform = "";
+                    document.removeEventListener("pointermove", handlePointerMove);
+                    document.removeEventListener("pointerup", handlePointerUp);
+                    if (dragCover) {
+                        dragCover.remove();
+                        dragCover = null;
+                    }
+
+                    view.dispatch(
+                        view.state.tr.setMeta(contentTableColumnDragPluginKey, {
+                            type: "EndDrag",
+                        }),
+                    );
+                };
+
+                // Add document-level event listeners
+                document.addEventListener("pointermove", handlePointerMove);
+                document.addEventListener("pointerup", handlePointerUp);
             },
         });
 
@@ -213,6 +472,10 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
             view = editorView;
             return {
                 destroy() {
+                    if (dragCover) {
+                        dragCover.remove();
+                        dragCover = null;
+                    }
                     view = null;
                 },
             };
@@ -354,4 +617,4 @@ export const contentTableGripPlugin = ({isEditable}: {isEditable: boolean}): Plu
         },
     });
     return plugin;
-};
+}
