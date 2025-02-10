@@ -2130,23 +2130,17 @@ export class DocumentContentCacheForUpdate {
             // this process wouldn't know. If another process wrote to the database we
             // can't use our cached entry so should update our cache appropriately.
             if (wasEntryCached) {
-                let _attributes = await DocumentsTable.getItemIfExists(context, {
+                let nullableAttributes = await DocumentsTable.getItemIfExists(context, {
                     partitionType: "Document",
                     documentId: id,
                     sortRangeType: "Attributes",
                 });
 
-                // The document was deleted from the database but not our cache.
-                if (!_attributes) {
-                    this._entries.evictEntry(id);
-                    return null;
-                }
-
-                if (entry.version > _attributes.version) {
+                if (!nullableAttributes || entry.version > nullableAttributes.version) {
                     // If we read a past version of the document that might be because we're using
                     // DynamoDB eventual consistency and we can't yet read the latest write. So try
                     // to load the document one more time but with strong consistency instead.
-                    _attributes = await DocumentsTable.getItemIfExists(
+                    nullableAttributes = await DocumentsTable.getItemIfExists(
                         context,
                         {
                             partitionType: "Document",
@@ -2157,12 +2151,12 @@ export class DocumentContentCacheForUpdate {
                     );
 
                     // The document was deleted from the database but not our cache.
-                    if (!_attributes) {
+                    if (!nullableAttributes) {
                         this._entries.evictEntry(id);
                         return null;
                     }
 
-                    if (entry.version > _attributes.version) {
+                    if (entry.version > nullableAttributes.version) {
                         throw new InternalError(
                             "We've cached document content that has a version number ahead of what's in the database",
                         );
@@ -2170,7 +2164,7 @@ export class DocumentContentCacheForUpdate {
                 }
 
                 // `const` reference so TypeScript doesn't think this is nullable.
-                const attributes = _attributes;
+                const attributes = nullableAttributes;
 
                 // If the version in our cache is less than what's in the database, then let's
                 // load the steps we are missing and apply them to our content.
@@ -3829,19 +3823,17 @@ async function getDocumentStepsBetweenValidatedVersionRange(
         endVersion: number;
     },
 ): Promise<Array<{step: Step; invertedStep: Step; clientId: ContentEditorClientId}>> {
+    assert(Number.isSafeInteger(startVersion));
+    assert(Number.isSafeInteger(endVersion));
+    assert(startVersion < endVersion);
+    assert(startVersion >= 0);
+
     const stepByVersion = new Map<
         number,
         {step: Step; invertedStep: Step; clientId: ContentEditorClientId}
     >();
 
-    for await (const stepTransaction of getDocumentStepTransactionsBetweenValidatedVersionRange(
-        context,
-        {
-            id,
-            startVersion,
-            endVersion,
-        },
-    )) {
+    const processStepTransaction = (stepTransaction: DocumentStepTransactionItem) => {
         for (let i = 0; i < stepTransaction.steps.length; i++) {
             const version = stepTransaction.startVersion + i;
             const step = stepTransaction.steps[i]!;
@@ -3859,51 +3851,24 @@ async function getDocumentStepsBetweenValidatedVersionRange(
                 });
             }
         }
-    }
+    };
 
-    const steps = [];
+    const getSteps = () => {
+        const steps = [];
 
-    for (let version = startVersion; version < endVersion; version++) {
-        const step = stepByVersion.get(version);
-        if (!step) throw new DataLossError("Missing a document step");
-        steps.push(step);
-    }
+        for (let version = startVersion; version < endVersion; version++) {
+            const step = stepByVersion.get(version);
+            if (!step) return null;
+            steps.push(step);
+        }
 
-    return steps;
-}
-
-/**
- * Gets all step transactions between a `startVersion` (inclusive) and an `endVersion`
- * (exclusive).
- *
- * We assume both versions exist in the document and that `startVersion` is
- * less than `endVersion`. If you violate these assumptions you will get
- * `DataLossError`s and `InternalError`s.
- *
- * Returns an async iterator that yields step transactions immediately when we
- * get them in no particular order.
- */
-async function* getDocumentStepTransactionsBetweenValidatedVersionRange(
-    context: DynamoContext,
-    {
-        id,
-        startVersion,
-        endVersion,
-    }: {
-        id: DocumentId;
-        startVersion: number;
-        endVersion: number;
-    },
-): AsyncIterableIterator<DocumentStepTransactionItem> {
-    assert(Number.isSafeInteger(startVersion));
-    assert(Number.isSafeInteger(endVersion));
-    assert(startVersion < endVersion);
-    assert(startVersion >= 0);
+        return steps;
+    };
 
     const stepTransactionContainingStartVersion =
         await getDocumentStepTransactionContainingValidatedVersion(context, id, startVersion);
 
-    yield stepTransactionContainingStartVersion;
+    processStepTransaction(stepTransactionContainingStartVersion);
 
     // If the transaction containing our start version also contains our end
     // version then we're done!
@@ -3918,95 +3883,156 @@ async function* getDocumentStepTransactionsBetweenValidatedVersionRange(
         stepTransactionContainingStartVersion.startVersion +
             stepTransactionContainingStartVersion.steps.length
     ) {
-        return;
+        const steps = getSteps();
+        if (!steps) throw new DataLossError("Missing a document step");
+        return steps;
     }
 
     switch (stepTransactionContainingStartVersion.sortRangeType) {
         // If we start in the after snapshot range then we will also end in the after
         // snapshot range.
         case "StepTransactionsAfterSnapshot": {
-            for await (const stepTransaction of DocumentsTable.query(context, {
-                partitionKey: {
-                    partitionType: "Document",
-                    documentId: id,
-                },
-                startSortKey: {
-                    sortRangeType: "StepTransactionsAfterSnapshot",
-                    startVersion:
-                        stepTransactionContainingStartVersion.startVersion +
-                        stepTransactionContainingStartVersion.steps.length,
-                },
-                endSortKey: {
-                    sortRangeType: "StepTransactionsAfterSnapshot",
-                    startVersion: endVersion - 1,
-                },
-                limit: "All",
-            })) {
-                yield stepTransaction;
+            const queryStepTransactions = async (consistency: DynamoReadConsistency) => {
+                for await (const stepTransaction of DocumentsTable.query(context, {
+                    consistency,
+                    partitionKey: {
+                        partitionType: "Document",
+                        documentId: id,
+                    },
+                    startSortKey: {
+                        sortRangeType: "StepTransactionsAfterSnapshot",
+                        startVersion:
+                            stepTransactionContainingStartVersion.startVersion +
+                            stepTransactionContainingStartVersion.steps.length,
+                    },
+                    endSortKey: {
+                        sortRangeType: "StepTransactionsAfterSnapshot",
+                        startVersion: endVersion - 1,
+                    },
+                    limit: "All",
+                })) {
+                    processStepTransaction(stepTransaction);
+                }
+            };
+
+            await queryStepTransactions("Eventual");
+
+            {
+                const steps = getSteps();
+                if (steps) return steps;
             }
-            return;
+
+            // If we couldn't find all the request steps then try querying again with
+            // strong read consistency. Given this range has been validated we know the
+            // version range MUST exist in the document. So if we don't have all the steps
+            // it's probably due to an eventual consistency lag.
+            //
+            // We find eventual consistency lag is rare enough in practice that it's
+            // cheaper to retry with strong consistency after a failed eventually
+            // consistent read then to always make strong consistency reads.
+            //
+            // It's ok to call `processStepTransaction()` twice for step transactions
+            // we've already seen.
+            await queryStepTransactions("Strong");
+
+            {
+                const steps = getSteps();
+                if (!steps) throw new DataLossError("Missing a document step");
+                return steps;
+            }
         }
         // If we start in the before snapshot range then we might not have all the
         // steps we need in the before snapshot range. So query the before snapshot
         // range and then determine if we also need to query the after snapshot range.
         case "StepTransactionsBeforeSnapshot": {
-            const stepTransactionBeforeSnapshotIterator = DocumentsTable.query(context, {
-                partitionKey: {
-                    partitionType: "Document",
-                    documentId: id,
-                },
-                startSortKey: {
-                    sortRangeType: "StepTransactionsBeforeSnapshot",
-                    startVersion:
-                        stepTransactionContainingStartVersion.startVersion +
-                        stepTransactionContainingStartVersion.steps.length,
-                },
-                endSortKey: {
-                    sortRangeType: "StepTransactionsBeforeSnapshot",
-                    startVersion: endVersion - 1,
-                },
-                limit: "All",
-            });
+            const queryStepTransactions = async (consistency: DynamoReadConsistency) => {
+                const stepTransactionBeforeSnapshotIterator = DocumentsTable.query(context, {
+                    consistency,
+                    partitionKey: {
+                        partitionType: "Document",
+                        documentId: id,
+                    },
+                    startSortKey: {
+                        sortRangeType: "StepTransactionsBeforeSnapshot",
+                        startVersion:
+                            stepTransactionContainingStartVersion.startVersion +
+                            stepTransactionContainingStartVersion.steps.length,
+                    },
+                    endSortKey: {
+                        sortRangeType: "StepTransactionsBeforeSnapshot",
+                        startVersion: endVersion - 1,
+                    },
+                    limit: "All",
+                });
 
-            let lastStepTransactionBeforeSnapshot = null;
+                let lastStepTransactionBeforeSnapshot = null;
 
-            for await (const stepTransaction of stepTransactionBeforeSnapshotIterator) {
-                lastStepTransactionBeforeSnapshot = stepTransaction;
-                yield stepTransaction;
+                for await (const stepTransaction of stepTransactionBeforeSnapshotIterator) {
+                    lastStepTransactionBeforeSnapshot = stepTransaction;
+                    processStepTransaction(stepTransaction);
+                }
+
+                // If the last step transaction we found in the before snapshot range contains
+                // the end version then we're done! Otherwise we need to continue querying in
+                // the after snapshot range.
+                if (
+                    lastStepTransactionBeforeSnapshot &&
+                    endVersion <=
+                        lastStepTransactionBeforeSnapshot.startVersion +
+                            lastStepTransactionBeforeSnapshot.steps.length
+                ) {
+                    return;
+                }
+
+                const stepTransactionAfterSnapshotIterator = DocumentsTable.query(context, {
+                    consistency,
+                    partitionKey: {
+                        partitionType: "Document",
+                        documentId: id,
+                    },
+                    startSortKey: {
+                        sortRangeType: "StepTransactionsAfterSnapshot",
+                        startVersion:
+                            stepTransactionContainingStartVersion.startVersion +
+                            stepTransactionContainingStartVersion.steps.length,
+                    },
+                    endSortKey: {
+                        sortRangeType: "StepTransactionsAfterSnapshot",
+                        startVersion: endVersion - 1,
+                    },
+                    limit: "All",
+                });
+
+                for await (const stepTransactionAfterSnapshot of stepTransactionAfterSnapshotIterator) {
+                    processStepTransaction(stepTransactionAfterSnapshot);
+                }
+            };
+
+            await queryStepTransactions("Eventual");
+
+            {
+                const steps = getSteps();
+                if (steps) return steps;
             }
 
-            // If the last step transaction we found in the before snapshot range contains
-            // the end version then we're done! Otherwise we need to continue querying in
-            // the after snapshot range.
-            if (
-                lastStepTransactionBeforeSnapshot &&
-                endVersion <=
-                    lastStepTransactionBeforeSnapshot.startVersion +
-                        lastStepTransactionBeforeSnapshot.steps.length
-            ) {
-                return;
+            // If we couldn't find all the request steps then try querying again with
+            // strong read consistency. Given this range has been validated we know the
+            // version range MUST exist in the document. So if we don't have all the steps
+            // it's probably due to an eventual consistency lag.
+            //
+            // We find eventual consistency lag is rare enough in practice that it's
+            // cheaper to retry with strong consistency after a failed eventually
+            // consistent read then to always make strong consistency reads.
+            //
+            // It's ok to call `processStepTransaction()` twice for step transactions
+            // we've already seen.
+            await queryStepTransactions("Strong");
+
+            {
+                const steps = getSteps();
+                if (!steps) throw new DataLossError("Missing a document step");
+                return steps;
             }
-
-            const stepTransactionAfterSnapshotIterator = DocumentsTable.query(context, {
-                partitionKey: {
-                    partitionType: "Document",
-                    documentId: id,
-                },
-                startSortKey: {
-                    sortRangeType: "StepTransactionsAfterSnapshot",
-                    startVersion:
-                        stepTransactionContainingStartVersion.startVersion +
-                        stepTransactionContainingStartVersion.steps.length,
-                },
-                endSortKey: {
-                    sortRangeType: "StepTransactionsAfterSnapshot",
-                    startVersion: endVersion - 1,
-                },
-                limit: "All",
-            });
-
-            yield* stepTransactionAfterSnapshotIterator;
-            return;
         }
         default:
             throw exhaustive(stepTransactionContainingStartVersion);
@@ -4047,7 +4073,7 @@ async function getDocumentStepTransactionContainingValidatedVersion(
 ): Promise<DocumentStepTransactionItem> {
     assert(Number.isSafeInteger(version));
 
-    const queryStepTransactionsBeforeSnapshot = async () => {
+    const queryStepTransactionsBeforeSnapshot = async (consistency: DynamoReadConsistency) => {
         // Find the transaction which contains `version`. To do this, we need to query
         // `transaction.startVersion BETWEEN 0 AND version` in descending order and
         // return the first transaction we find.
@@ -4079,6 +4105,7 @@ async function getDocumentStepTransactionContainingValidatedVersion(
         // we're good.
         const stepTransactionBeforeSnapshotContainingVersionArray = await arrayFromAsyncIterable(
             DocumentsTable.query(context, {
+                consistency,
                 limit: 1,
                 descending: true,
                 partitionKey: {
@@ -4122,11 +4149,12 @@ async function getDocumentStepTransactionContainingValidatedVersion(
         return stepTransactionBeforeSnapshotContainingVersion;
     };
 
-    const queryStepTransactionsAfterSnapshot = async () => {
+    const queryStepTransactionsAfterSnapshot = async (consistency: DynamoReadConsistency) => {
         // Same as the query above but on the `StepTransactionsAfterSnapshot` sort
         // range instead of the `StepTransactionsBeforeSnapshot` sort range.
         const stepTransactionAfterSnapshotContainingVersionArray = await arrayFromAsyncIterable(
             DocumentsTable.query(context, {
+                consistency,
                 limit: 1,
                 descending: true,
                 partitionKey: {
@@ -4177,17 +4205,41 @@ async function getDocumentStepTransactionContainingValidatedVersion(
         return stepTransactionAfterSnapshotContainingVersion;
     };
 
-    const [stepTransactionBeforeSnapshot, stepTransactionAfterSnapshot] = await runAllPromises([
-        queryStepTransactionsBeforeSnapshot(),
-        queryStepTransactionsAfterSnapshot(),
-    ]);
+    {
+        const [stepTransactionBeforeSnapshot, stepTransactionAfterSnapshot] = await runAllPromises([
+            queryStepTransactionsBeforeSnapshot("Eventual"),
+            queryStepTransactionsAfterSnapshot("Eventual"),
+        ]);
 
-    // If we have both `stepTransactionBeforeSnapshot` and
-    // `stepTransactionAfterSnapshot` then return the transaction from before the
-    // snapshot since that's the new canonical transaction and soon we should
-    // delete the step transaction after the snapshot.
-    if (stepTransactionBeforeSnapshot) return stepTransactionBeforeSnapshot;
-    if (stepTransactionAfterSnapshot) return stepTransactionAfterSnapshot;
+        // If we have both `stepTransactionBeforeSnapshot` and
+        // `stepTransactionAfterSnapshot` then return the transaction from before the
+        // snapshot since that's the new canonical transaction and we'll soon
+        // delete the step transaction after the snapshot.
+        if (stepTransactionBeforeSnapshot) return stepTransactionBeforeSnapshot;
+        if (stepTransactionAfterSnapshot) return stepTransactionAfterSnapshot;
+    }
+
+    // Given this is a validated document version we know a step transaction
+    // containing the step MUST exist. So try reading again but with strong
+    // consistency since we might not have found the step transaction due to
+    // eventual consistency lag.
+    //
+    // Retrying with strong consistency is cheaper than always using strong
+    // consistency because we've found in practice eventually consistency lags
+    // are pretty rare (1 in 10,000).
+    {
+        const [stepTransactionBeforeSnapshot, stepTransactionAfterSnapshot] = await runAllPromises([
+            queryStepTransactionsBeforeSnapshot("Strong"),
+            queryStepTransactionsAfterSnapshot("Strong"),
+        ]);
+
+        // If we have both `stepTransactionBeforeSnapshot` and
+        // `stepTransactionAfterSnapshot` then return the transaction from before the
+        // snapshot since that's the new canonical transaction and we'll soon
+        // delete the step transaction after the snapshot.
+        if (stepTransactionBeforeSnapshot) return stepTransactionBeforeSnapshot;
+        if (stepTransactionAfterSnapshot) return stepTransactionAfterSnapshot;
+    }
 
     throw new DataLossError("Could not find step transaction containing step");
 }
