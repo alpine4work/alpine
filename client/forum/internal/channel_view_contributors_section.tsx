@@ -41,7 +41,7 @@ export function ChannelViewContributorsSection({
                         marginBottom: channelViewMetadataSectionTitleMarginBottom,
                     })}
                 >
-                    Contributors
+                    People
                 </h3>
             )}
             <AccountAvatarPile
