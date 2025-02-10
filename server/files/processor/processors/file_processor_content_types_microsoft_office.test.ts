@@ -140,8 +140,8 @@ const testCases: {
             imagePreviewSize: {width: 420, height: 94, scale: 2, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                12,
-                "/v7+///////T09P/3d3d//////////////////7+/v//////8fHx/9bW1v/5+fn////////////j4+P/5ubm//////////////////7+/v//////9PT0/97e3v/6+vr//v7+///////Nzc3/zc3N//////////////////7+/v//////8vLy/8fHx//v7+/////////////g4OD/4uLi//////////////////7+/v//////9vb2/93d3f/39/f//v7+///////X19f/1tbW//////////////////7+/v//////8/Pz/9LS0v/y8vL/",
+                16,
+                "/v7+///////+/v7//////9HR0f/c3Nz//////////////////v7+///////x8fH/09PT//r6+v////////////7+/v/////////////////g4OD/5ubm//////////////////7+/v//////9fX1/+Dg4P/6+vr////////////+/v7///////7+/v//////zMzM/8vLy//////////////////+/v7///////Ly8v/FxcX/7+/v///////+/v7//v7+/////////////////97e3v/c3Nz//////////////////v7+///////19fX/2NjY//X19f///////v7+//7+/v///////v7+///////Z2dn/19fX//////////////////7+/v//////9PT0/9TU1P/z8/P///////7+/v8=",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",

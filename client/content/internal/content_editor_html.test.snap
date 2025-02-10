@@ -2100,7 +2100,7 @@ exports[`file row (one file, audio type) 1`] = `
 >
   <div
     class="content_fileRow"
-    style="height: 252px; grid-template-columns: 1fr;"
+    style="height: 188.679px; grid-template-columns: 1fr;"
   >
     <div
       class="content_file"
@@ -2119,7 +2119,7 @@ exports[`file row (one file, audio type) 1`] = `
         />
         <div>
           <svg
-            viewBox="-1 -1 601 101"
+            viewBox="-1 -1 601 51"
             xmlns="http://www.w3.org/2000/svg"
           />
           <div>
@@ -2201,7 +2201,7 @@ exports[`file row (one file, audio type): clipboard 1`] = `
       controls=""
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
       src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694vdt0nc1d3zr0vh2j2jrtvg?exp=1727880774&sig=test-audio"
-      style="display: block; width: 600px; height: 252px;"
+      style="display: block; width: 600px; height: 189px;"
     />
   </div>
 </div>
