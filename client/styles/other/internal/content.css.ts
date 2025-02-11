@@ -600,9 +600,11 @@ export const checkListItemCheckboxIconClassName = style({
 const mobileCodeBlockToolbarMaxWidth = spacing["32"];
 const desktopCodeBlockToolbarMaxWidth = addRemLengths(mobileCodeBlockToolbarMaxWidth, "6");
 
-const codeBlockPaddingRightSpacing = "3";
-const codeBlockPaddingRight = spacing[codeBlockPaddingRightSpacing];
-export {codeBlockPaddingRightSpacing as codeBlockPaddingRight};
+// Padding right needs to be a bit wider than the overflow gradient width so
+// that when we're selecting text and Chrome selects some space after the end
+// of the line (to represent a new line) it isn't covered with a gradient.
+const codeBlockOverflowGradientWidth = spacing["3"];
+const codeBlockPaddingRight = spacing["6"];
 
 globalStyle(codeBlockWrapperClassName, {
     ...blockStyles,
@@ -733,10 +735,13 @@ globalStyle(`${codeBlockLineClassName}::after`, {
     zIndex: "0",
     position: "sticky",
     // Render in margins to make sure there are no rendering artifacts.
-    right: `-${codeBlockPaddingRight}`,
-    width: `${parseRemLength(codeBlockPaddingRight) * 2}rem`,
+    right: `-${codeBlockOverflowGradientWidth}`,
+    width: addRemLengths(codeBlockPaddingRight, codeBlockOverflowGradientWidth),
     height: paragraphFontSize.lineHeight,
-    background: `linear-gradient(to left, ${backgroundColorVar}, ${backgroundColorVar}, transparent)`,
+    background: `linear-gradient(to right, transparent ${subtractRemLengths(
+        codeBlockPaddingRight,
+        codeBlockOverflowGradientWidth,
+    )}, ${backgroundColorVar} ${codeBlockPaddingRight}, ${backgroundColorVar})`,
 });
 
 globalStyle(`${largeSpacingScaleSelector} ${codeBlockLineClassName}::after`, {
@@ -837,8 +842,8 @@ export const codeBlockToolbarOverflowGradientClassName = style({
     position: "absolute",
     top: 0,
     bottom: 0,
-    left: `-${codeBlockPaddingRight}`,
-    width: codeBlockPaddingRight,
+    left: `-${codeBlockOverflowGradientWidth}`,
+    width: codeBlockOverflowGradientWidth,
     background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
 });
 

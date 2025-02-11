@@ -1389,7 +1389,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             // If your slice starts (or ends) with a `codeBlock` then set `openStart` (or
             // `openEnd`) to 0 so we don't inline any of the code block's content (instead
-            // maintaining the code block's structure) with whatever we're pasting against.
+            // maintaining the code block's structure) with whatever we're pasting into.
             {
                 if (slice.content.firstChild?.type.name === "codeBlock" && slice.openStart !== 0) {
                     slice = new Slice(slice.content, 0, slice.openEnd);
@@ -4507,10 +4507,10 @@ function handlePasteAfterResolvingReferences(
     // - You're pasting a file in an empty paragraph (the file should replace the
     //   paragraph)
     if (
+        selection.$from.pos === selection.$to.pos &&
         selection.$from.depth === 1 &&
         selection.$from.parent.type.name === "paragraph" &&
-        selection.$from.parent.nodeSize === 2 &&
-        selection.$from.pos === selection.$to.pos
+        selection.$from.parent.nodeSize === 2
     ) {
         dispatch(
             createTransaction().replace(
@@ -4519,6 +4519,46 @@ function handlePasteAfterResolvingReferences(
                 new Slice(slice.content, 0, slice.openEnd),
             ),
         );
+        return true;
+    }
+
+    // If we're pasting a code block into a code block then we want to update
+    // `openStart` and `openEnd` to 2 so we don't split the code block we're
+    // pasting into. Instead assimilating the pasted code block into the current
+    // code block.
+    //
+    // We need this since `transformPasted` does the inverse. Making sure pasted
+    // code block content always has `openStart` and `openEnd` of 0 so we don't
+    // merge code content with some other node type.
+    if (
+        selection.$from.parent.type.name === "codeBlockLine" &&
+        selection.$to.parent.type.name === "codeBlockLine" &&
+        selection.$from.node(-1) === selection.$to.node(-1) &&
+        (slice.content.firstChild?.type.name === "codeBlock" ||
+            slice.content.lastChild?.type.name === "codeBlock")
+    ) {
+        if (slice.content.firstChild?.type.name === "codeBlock" && slice.openStart < 2) {
+            slice = new Slice(slice.content, 2, slice.openEnd);
+        }
+
+        if (slice.content.lastChild?.type.name === "codeBlock" && slice.openEnd < 2) {
+            slice = new Slice(slice.content, slice.openStart, 2);
+        }
+
+        const transaction = createTransaction();
+
+        const singleNode =
+            slice.openStart === 0 && slice.openEnd === 0 && slice.content.childCount === 1
+                ? slice.content.firstChild
+                : null;
+
+        if (singleNode) {
+            transaction.selection.replaceWith(transaction, singleNode);
+        } else {
+            transaction.selection.replace(transaction, slice);
+        }
+
+        dispatch(transaction.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"));
         return true;
     }
 
