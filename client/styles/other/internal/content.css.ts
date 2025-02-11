@@ -2651,3 +2651,25 @@ createChildSelectors("first").forEach(selector => globalStyle(selector, {marginT
 
 // Make sure the last child in our document never has bottom margin.
 createChildSelectors("last").forEach(selector => globalStyle(selector, {marginBottom: 0}));
+
+export const contentTableColumnDragIndicatorClassName = style({
+    boxShadow: `4px 0 0 0 ${colorSchemeVars["blue-70-opacity-60"]}`,
+    zIndex: "70",
+    position: "relative", // Add position context
+    display: "block", // Ensure it's a block element
+    height: "100%", // Give it height
+    backgroundColor: "transparent", // Ensure background is set
+    pointerEvents: "none", // Allow interactions to pass through
+    selectors: {
+        "&::after": {
+            content: '""',
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: 0,
+            width: "4px",
+            backgroundColor: colorSchemeVars["blue-70-opacity-60"],
+            pointerEvents: "none",
+        },
+    },
+});

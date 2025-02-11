@@ -319,6 +319,7 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                         view.state.tr.setMeta(contentTableColumnDragPluginKey, {
                             type: "UpdateDrag",
                             currentColumnIndex: newColumnIndex,
+                            closestEdge: draggableData.targetClosestEdge,
                         }),
                     );
                 };
