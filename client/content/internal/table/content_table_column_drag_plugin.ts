@@ -125,22 +125,42 @@ export function contentTableColumnDragPlugin(): Plugin {
                     const cell = table.nodeAt(pos);
                     if (!cell) continue;
 
+                    // decoration for the source column, which is being dragged.
                     decorations.push(
                         Decoration.node(tableStart + pos, tableStart + pos + cell.nodeSize, {
-                            style: "opacity: 0.5;",
+                            class: contentStyles.contentTableDraggedColumnClassName,
                         }),
                     );
                 }
 
                 // Calculate positions for the target column
                 for (let row = 0; row < map.height; row++) {
+                    // Skip indicators around the dragged column
+                    if (
+                        currentColumnIndex === startColumnIndex ||
+                        (pluginState.dragging.closestEdge === "right" &&
+                            currentColumnIndex === startColumnIndex - 1) ||
+                        (pluginState.dragging.closestEdge === "left" &&
+                            currentColumnIndex === startColumnIndex + 1)
+                    ) {
+                        continue;
+                    }
+
                     const pos = map.positionAt(row, currentColumnIndex, table);
                     const cell = table.nodeAt(pos);
                     if (!cell) continue;
 
+                    const classes = [contentStyles.contentTableColumnDragIndicatorClassName];
+
+                    if (pluginState.dragging.closestEdge === "left") {
+                        classes.push(contentStyles.contentTableColumnDragLeftIndicatorClassName);
+                    } else if (pluginState.dragging.closestEdge === "right") {
+                        classes.push(contentStyles.contentTableColumnDragRightIndicatorClassName);
+                    }
+
                     decorations.push(
                         Decoration.node(tableStart + pos, tableStart + pos + cell.nodeSize, {
-                            class: contentStyles.contentTableColumnDragIndicatorClassName,
+                            class: classes.join(" "),
                         }),
                     );
                 }

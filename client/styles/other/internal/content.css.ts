@@ -2653,23 +2653,55 @@ createChildSelectors("first").forEach(selector => globalStyle(selector, {marginT
 createChildSelectors("last").forEach(selector => globalStyle(selector, {marginBottom: 0}));
 
 export const contentTableColumnDragIndicatorClassName = style({
-    boxShadow: `4px 0 0 0 ${colorSchemeVars["blue-70-opacity-60"]}`,
+    position: "relative",
     zIndex: "70",
-    position: "relative", // Add position context
-    display: "block", // Ensure it's a block element
-    height: "100%", // Give it height
-    backgroundColor: "transparent", // Ensure background is set
-    pointerEvents: "none", // Allow interactions to pass through
+    display: "block",
+    height: "100%",
+    backgroundColor: "transparent",
+    pointerEvents: "none",
+});
+
+// Add these new classes for left and right indicators
+export const contentTableColumnDragLeftIndicatorClassName = style({
     selectors: {
         "&::after": {
             content: '""',
             position: "absolute",
             top: 0,
             bottom: 0,
-            left: 0,
+            left: 0, // Show at the left edge of current cell
             width: "4px",
             backgroundColor: colorSchemeVars["blue-70-opacity-60"],
             pointerEvents: "none",
         },
     },
+});
+
+export const contentTableColumnDragRightIndicatorClassName = style({
+    // We are not using boxShadow here instead using a different trick to render the
+    // indicator.
+    // Why? Because we already have a lot of boxShadows added, so we need to add
+    // !important to override the default boxShadow. this also overrides the
+    // borders f each cell. which is not the required behavior
+    // boxShadow: ` 2px 0 0 0 ${colorSchemeVars["blue-60"]} !important`,
+    selectors: {
+        "&::after": {
+            content: '""',
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            right: 0, // Show at the right edge of current cell
+            width: "4px",
+            backgroundColor: colorSchemeVars["blue-70-opacity-60"],
+            pointerEvents: "none",
+        },
+    },
+});
+
+// this class added to the column which is being dragged
+export const contentTableDraggedColumnClassName = style({
+    position: "relative",
+    opacity: 0.7,
+    zIndex: 80,
+    boxShadow: `inset 0 0 0 2px ${colorSchemeVars["blue-60"]} !important`,
 });
