@@ -84,10 +84,11 @@ export function getCollaborativelyUpdateContentResult(
                 },
             });
 
-            if (clientVersion > currentVersion)
+            if (clientVersion > currentVersion) {
                 throw new FailedPreconditionError(
                     "Can not update content with steps at version ahead of the content's current version",
                 );
+            }
 
             let content = currentContent;
             let steps: ReadonlyArray<Step>;

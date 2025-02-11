@@ -474,3 +474,108 @@ test("pasting titled content with selection right below title (in empty paragrap
     );
     expect(getSelection()).toEqual({type: "text", anchor: 129, head: 129});
 });
+
+test("can paste Alpine code block content into code block", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {type: "title"},
+                    {
+                        type: "codeBlock",
+                        attrs: {language: "javascript"},
+                        content: [
+                            {
+                                type: "codeBlockLine",
+                                content: [{type: "text", text: "function f1() {"}],
+                            },
+                            {type: "codeBlockLine", content: [{type: "text", text: "let a = 1;"}]},
+                            {type: "codeBlockLine", content: [{type: "text", text: "let b = 2;"}]},
+                            {type: "codeBlockLine"},
+                            {
+                                type: "codeBlockLine",
+                                content: [{type: "text", text: "console.log(a + b);"}],
+                            },
+                            {type: "codeBlockLine", content: [{type: "text", text: "}"}]},
+                            {type: "codeBlockLine"},
+                            {
+                                type: "codeBlockLine",
+                                content: [{type: "text", text: "function f2() {"}],
+                            },
+                            {type: "codeBlockLine"},
+                            {type: "codeBlockLine", content: [{type: "text", text: "}"}]},
+                        ],
+                    },
+                ],
+            })}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(title, codeBlock(codeBlockLine("function f1() {"), codeBlockLine("let a = 1;"), codeBlockLine("let b = 2;"), codeBlockLine, codeBlockLine("console.log(a + b);"), codeBlockLine("}"), codeBlockLine, codeBlockLine("function f2() {"), codeBlockLine, codeBlockLine("}")))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(90))));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(title, codeBlock(codeBlockLine("function f1() {"), codeBlockLine("let a = 1;"), codeBlockLine("let b = 2;"), codeBlockLine, codeBlockLine("console.log(a + b);"), codeBlockLine("}"), codeBlockLine, codeBlockLine("function f2() {"), codeBlockLine, codeBlockLine("}")))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 90, head: 90});
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `\
+<meta charset='utf-8'><pre data-pm-slice="2 2 []"><code data-cy-language="javascript">let c = 1;
+let d = 2;
+
+console.log(c + d);</code></pre>`,
+        ),
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(title, codeBlock(codeBlockLine("function f1() {"), codeBlockLine("let a = 1;"), codeBlockLine("let b = 2;"), codeBlockLine, codeBlockLine("console.log(a + b);"), codeBlockLine("}"), codeBlockLine, codeBlockLine("function f2() {"), codeBlockLine("let c = 1;"), codeBlockLine("let d = 2;"), codeBlockLine, codeBlockLine("console.log(c + d);"), codeBlockLine("}")))',
+    );
+});
+
+test("can paste Alpine code block content into list item and it won't add first line of code block to list item", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {type: "title"},
+                    {
+                        type: "unorderedListItem",
+                        content: [{type: "paragraph", content: [{type: "text", text: "test"}]}],
+                    },
+                ],
+            })}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual('doc(title, unorderedListItem(paragraph("test")))');
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(8))));
+
+    expect(getDoc().toString()).toEqual('doc(title, unorderedListItem(paragraph("test")))');
+    expect(getSelection()).toEqual({type: "text", anchor: 8, head: 8});
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `\
+<meta charset='utf-8'><pre data-pm-slice="2 2 []"><code data-cy-language="javascript">let a = 1;
+let b = 2;
+
+console.log(a + b);</code></pre>`,
+        ),
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(title, unorderedListItem(paragraph("test")), codeBlock(codeBlockLine("let a = 1;"), codeBlockLine("let b = 2;"), codeBlockLine, codeBlockLine("console.log(a + b);")))',
+    );
+});

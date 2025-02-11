@@ -569,31 +569,31 @@ http_archive(
 http_archive(
     name = "zig_macos_x86_64",
     build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-8nC3eymCfrqQDsEyh1HTrB2ie239mPPSCwRcjaUBsTk=",
-    strip_prefix = "zig-macos-x86_64-0.14.0-dev.2183+ee9f00d67",
-    url = "https://ziglang.org/builds/zig-macos-x86_64-0.14.0-dev.2183+ee9f00d67.tar.xz",
+    integrity = "sha256-SRR/yUq2z2XchEUXD3nOBn5+IAL6bmWXlTyRuasejxk=",
+    strip_prefix = "zig-macos-x86_64-0.14.0-dev.3091+42e48b83b",
+    url = "https://ziglang.org/builds/zig-macos-x86_64-0.14.0-dev.3091+42e48b83b.tar.xz",
 )
 
 http_archive(
     name = "zig_macos_aarch64",
     build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-EsReZE46yJCZvf9qPDfPuNMN5tRBKJm8CVBF3G9L54E=",
-    strip_prefix = "zig-macos-aarch64-0.14.0-dev.2183+ee9f00d67",
-    url = "https://ziglang.org/builds/zig-macos-aarch64-0.14.0-dev.2183+ee9f00d67.tar.xz",
+    integrity = "sha256-OpDnAnoEzNXtYtko0vWAsdfX+ubSBM594OdIwL8TEMM=",
+    strip_prefix = "zig-macos-aarch64-0.14.0-dev.3091+42e48b83b",
+    url = "https://ziglang.org/builds/zig-macos-aarch64-0.14.0-dev.3091+42e48b83b.tar.xz",
 )
 
 http_archive(
     name = "zig_linux_x86_64",
     build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-O/hEJmE4XgAgIHunEmuyhC5IHL58HCqKd8loA8NquWI=",
-    strip_prefix = "zig-linux-x86_64-0.14.0-dev.2183+ee9f00d67",
-    url = "https://ziglang.org/builds/zig-linux-x86_64-0.14.0-dev.2183+ee9f00d67.tar.xz",
+    integrity = "sha256-7WIUc/WHJQhgmtApLYPalVEbUGg8d7C/NHn0o5S1PII=",
+    strip_prefix = "zig-linux-x86_64-0.14.0-dev.3091+42e48b83b",
+    url = "https://ziglang.org/builds/zig-linux-x86_64-0.14.0-dev.3091+42e48b83b.tar.xz",
 )
 
 http_archive(
     name = "zig_linux_aarch64",
     build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-QIepC4l9eRqmnQJXqKuN7HFlotG8gP74MvMPw7qf+Bw=",
-    strip_prefix = "zig-linux-aarch64-0.14.0-dev.2183+ee9f00d67",
-    url = "https://ziglang.org/builds/zig-linux-aarch64-0.14.0-dev.2183+ee9f00d67.tar.xz",
+    integrity = "sha256-+uDrm4Pu4IFRPXfIBcRBBTZ5rk068Wr4Ov1YrQsmpXw=",
+    strip_prefix = "zig-linux-aarch64-0.14.0-dev.3091+42e48b83b",
+    url = "https://ziglang.org/builds/zig-linux-aarch64-0.14.0-dev.3091+42e48b83b.tar.xz",
 )

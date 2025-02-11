@@ -107,7 +107,7 @@ export function buildContentEditorKeymapPlugin(
             const parentNode = $from.node($from.depth - 1);
 
             // If we are inside a `codeBlock` and `codeBlockLine` we DO NOT WANT
-            // the`liftEmptyBlock` behavior to break the `codeBlock`, instead we
+            // the `liftEmptyBlock` behavior to break the `codeBlock`, instead we
             // want to use `splitBlock`. `LiftEmptyBlock` behavior splits the
             // `codeBlock` into two separate codeBlocks.
             //
@@ -216,64 +216,6 @@ export function buildContentEditorKeymapPlugin(
             if (dispatch) {
                 dispatch(
                     state.tr.delete($from.pos, $to.pos).split($from.pos, 2, types).scrollIntoView(),
-                );
-            }
-            return true;
-        },
-
-        // If you're at the last line in a code block that has more than 1 line and the
-        // code block line is only spaces then we want to delete the last line and
-        // instead create a paragraph beneath the code block. This allows the user to
-        // easily escape the code block and continue typing prose when they're done
-        // editing.
-        //
-        // To intentionally create many empty lines at the end of a code block the user
-        // needs to put content in the lines then delete that content.
-        //
-        // For example if your cursor is at `|` (and the numbers represent code block
-        // line numbers):
-        //
-        // ```
-        // 1 foo
-        // 2 bar
-        // 3 |
-        // ```
-        //
-        // Then you press enter:
-        //
-        // ```
-        // 1 foo
-        // 2 bar
-        //
-        // |
-        // ```
-        (state, dispatch) => {
-            const {$from, $to} = state.selection;
-            if ($from.pos !== $to.pos) return false;
-
-            const node = $from.node();
-            if (node.type.name !== "codeBlockLine") return false;
-
-            const parentNode = $from.node($from.depth - 1);
-            if (parentNode.childCount < 2) return false;
-
-            const index = $from.index($from.depth - 1);
-            if (index !== parentNode.childCount - 1) return false;
-
-            if (!isNodeSpacesOnly(node)) return false;
-
-            if (dispatch) {
-                const before = $from.before();
-                const after = $from.after();
-
-                const transaction = state.tr
-                    .deleteRange(before, after)
-                    .replaceRangeWith(before + 1, before + 1, state.schema.node("paragraph"));
-
-                dispatch?.(
-                    transaction.setSelection(
-                        new TextSelection(transaction.doc.resolve(before + 2)),
-                    ),
                 );
             }
             return true;

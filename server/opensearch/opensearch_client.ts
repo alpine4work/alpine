@@ -1172,10 +1172,10 @@ export class OpensearchClient implements OpensearchClientInterface {
                       )) = await response.json();
 
                 if (body.error) {
-                    const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
-                    throw new UnknownError(`OpenSearch get document failed: ${errorType}`, {
-                        cause: body.error,
-                    });
+                    throw new UnknownError(
+                        `OpenSearch get document failed: ${formatOpensearchError(body.error)}`,
+                        {cause: body.error},
+                    );
                 }
 
                 return body;
@@ -1261,10 +1261,10 @@ export class OpensearchClient implements OpensearchClientInterface {
                       )) = await response.json();
 
                 if (body.error) {
-                    const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
-                    throw new UnknownError(`OpenSearch get document failed: ${errorType}`, {
-                        cause: body.error,
-                    });
+                    throw new UnknownError(
+                        `OpenSearch get document failed: ${formatOpensearchError(body.error)}`,
+                        {cause: body.error},
+                    );
                 }
 
                 return body;
@@ -1366,10 +1366,12 @@ export class OpensearchClient implements OpensearchClientInterface {
                       } = await response.json();
 
                 if (body.error) {
-                    const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
-                    throw new UnknownError(`OpenSearch multi-get documents failed: ${errorType}`, {
-                        cause: body.error,
-                    });
+                    throw new UnknownError(
+                        `OpenSearch multi-get documents failed: ${formatOpensearchError(
+                            body.error,
+                        )}`,
+                        {cause: body.error},
+                    );
                 }
 
                 return body;
@@ -1399,10 +1401,12 @@ export class OpensearchClient implements OpensearchClientInterface {
         for (const bodyDoc of body.docs) {
             if (!bodyDoc.found) {
                 if (bodyDoc.error) {
-                    const errorType = bodyDoc.error.root_cause?.[0]?.type ?? bodyDoc.error.type;
-                    throw new UnknownError(`OpenSearch multi-get documents failed: ${errorType}`, {
-                        cause: body.error,
-                    });
+                    throw new UnknownError(
+                        `OpenSearch multi-get documents failed: ${formatOpensearchError(
+                            bodyDoc.error,
+                        )}`,
+                        {cause: bodyDoc.error},
+                    );
                 }
                 continue;
             }
@@ -1486,10 +1490,10 @@ export class OpensearchClient implements OpensearchClientInterface {
                         throw error;
                     }
 
-                    const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
-                    throw new UnknownError(`OpenSearch indexing failed: ${errorType}`, {
-                        cause: body.error,
-                    });
+                    throw new UnknownError(
+                        `OpenSearch indexing failed: ${formatOpensearchError(body.error)}`,
+                        {cause: body.error},
+                    );
                 }
 
                 return body;
@@ -1587,10 +1591,10 @@ export class OpensearchClient implements OpensearchClientInterface {
                       } = await response.json();
 
                 if (body.error) {
-                    const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
-                    throw new UnknownError(`OpenSearch indexing failed: ${errorType}`, {
-                        cause: body.error,
-                    });
+                    throw new UnknownError(
+                        `OpenSearch indexing failed: ${formatOpensearchError(body.error)}`,
+                        {cause: body.error},
+                    );
                 }
 
                 return body;
@@ -1628,9 +1632,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                 `OpenSearch bulk partially failed with ${errors.length} error(s) out of ${
                     body.items.length
                 } operation(s)${
-                    errors[0]
-                        ? `, first error: ${errors[0].root_cause?.[0]?.type ?? errors[0].type}`
-                        : ""
+                    errors[0] ? `, first error: ${formatOpensearchError(errors[0])}` : ""
                 }`,
             );
 
@@ -1749,10 +1751,10 @@ export class OpensearchClient implements OpensearchClientInterface {
                     | {error: OpensearchError; hits?: undefined} = await response.json();
 
                 if (body.error) {
-                    const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
-                    throw new UnknownError(`OpenSearch search failed: ${errorType}`, {
-                        cause: body.error,
-                    });
+                    throw new UnknownError(
+                        `OpenSearch search failed: ${formatOpensearchError(body.error)}`,
+                        {cause: body.error},
+                    );
                 }
 
                 return body;
@@ -2122,8 +2124,9 @@ export class OpensearchClient implements OpensearchClientInterface {
                     | {error: OpensearchError} = await response.json();
 
                 if (body.error) {
-                    const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
-                    throw new UnknownError(`OpenSearch update by query failed: ${errorType}`);
+                    throw new UnknownError(
+                        `OpenSearch update by query failed: ${formatOpensearchError(body.error)}`,
+                    );
                 }
 
                 if (body.failures.length > 0) {
@@ -2197,8 +2200,9 @@ export class OpensearchClient implements OpensearchClientInterface {
                       } = await response.json();
 
                 if (body.error) {
-                    const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
-                    throw new UnknownError(`OpenSearch analyze failed: ${errorType}`);
+                    throw new UnknownError(
+                        `OpenSearch analyze failed: ${formatOpensearchError(body.error)}`,
+                    );
                 }
 
                 return body.tokens.map(token => ({
@@ -2268,4 +2272,16 @@ export class TestDisabledOpensearchClient implements OpensearchClientInterface {
     public analyze(): never {
         throw this._newUnavailableError();
     }
+}
+
+function formatOpensearchError(error: OpensearchError) {
+    const errorType = error.root_cause?.[0]?.type ?? error.type;
+
+    // By default, we don't include the full error in error messages since it
+    // might leak user data. However, some error types we trust to not include
+    // user data or if they do include user data the error is because of a critical
+    // issue in our systems that we need more information to debug.
+    if (errorType !== "mapper_parsing_exception") return errorType;
+
+    return `${errorType} (${JSON.stringify(error)})`;
 }

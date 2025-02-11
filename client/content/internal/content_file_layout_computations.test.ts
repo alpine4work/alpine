@@ -265,7 +265,7 @@ test("can layout a file row", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 252, width: 600, widthFr: 1}]);
+    ).toEqual([{height: 251.367, width: 600, widthFr: 1}]);
 
     expect(
         computeContentFileRowLayout([file6.initialData], {
@@ -297,7 +297,7 @@ test("can layout a file row", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 100, width: 238.095, widthFr: 0.396825}]);
+    ).toEqual([{height: 100, width: 318, widthFr: 0.53}]);
 
     expect(
         computeContentFileRowLayout([file10.initialData], {
@@ -313,7 +313,7 @@ test("can layout a file row", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 252, width: 600, widthFr: 1}]);
+    ).toEqual([{height: 188.679, width: 600, widthFr: 1}]);
 
     expect(
         computeContentFileRowLayout([file1.initialData, file2.initialData], {
@@ -367,8 +367,8 @@ test("can layout a file row", () => {
             spacingScale: "small",
         }),
     ).toEqual([
-        {height: 159.346, width: 212.604, widthFr: 0.359128},
-        {height: 159.346, width: 379.396, widthFr: 0.640872},
+        {height: 159.09, width: 212.261, widthFr: 0.35855},
+        {height: 159.09, width: 379.739, widthFr: 0.64145},
     ]);
 
     expect(
@@ -434,8 +434,8 @@ test("can layout a file row", () => {
             spacingScale: "small",
         }),
     ).toEqual([
-        {height: 124.32, width: 296, widthFr: 0.5},
-        {height: 124.32, width: 296, widthFr: 0.5},
+        {height: 93.082, width: 296, widthFr: 0.5},
+        {height: 93.082, width: 296, widthFr: 0.5},
     ]);
 
     expect(

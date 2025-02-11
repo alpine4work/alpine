@@ -1144,7 +1144,7 @@ test("pressing enter in an empty code block will create a new line in the block"
     );
 });
 
-test("pressing enter in an empty code block will create a new line in the block unless at end", async () => {
+test("pressing enter in an empty code block will always create a new line", async () => {
     render(<TestContentEditor />);
 
     await simulateTyping("```");
@@ -1152,7 +1152,24 @@ test("pressing enter in an empty code block will create a new line in the block 
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine, codeBlockLine))");
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
-    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine), paragraph)");
+    expect(getDoc().toString()).toEqual(
+        "doc(codeBlock(codeBlockLine, codeBlockLine, codeBlockLine))",
+    );
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual(
+        "doc(codeBlock(codeBlockLine, codeBlockLine, codeBlockLine, codeBlockLine))",
+    );
+});
+
+test("pressing down in a code block will create a new paragraph", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine))");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine, codeBlockLine))");
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine, codeBlockLine), paragraph)");
 });
 
 test("pressing alt-enter in an empty code block will create a new line in the block", async () => {

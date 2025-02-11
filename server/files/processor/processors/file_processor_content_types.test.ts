@@ -83,8 +83,8 @@ const testCases: {
             imagePreviewSize: {width: 4778, height: 400, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                12,
-                "3Onl/+Lh3f/Sz8D/6uru/+Hh5P/g4OP/4ODj/+Li5f/h4eT/4eHk/93d3f/p6er/wtvS/9TTyP+8t5T/4ODm/+rq7v/n5+v/6ent/+Tk5//p6e3/5ufq/+fn5//p6ez/1ObW/97d4v/j5O7/6ens/+Lh3f/g4N7/4uHe/9/h3//m5eX/5eTj//X19v/s7O7/1eri/+zr3//V2Zz/9vb+/8O/oP+5uaD/vcCq/7nGr//QzcL/zsi8//X1+f/m5ur/3Ozo/+7x6P/H4LX/9vX5/+Tj3//l5eP/5uXi/+fm5f/o5+f/6efm//X19//w8PL/",
+                16,
+                "6enq/+fp6P/c6eX/4uHd/9LPwP/q6u7/4eHk/+Dg4//g4OP/4uLl/+Hh5P/h4eT/3d3d/+np6v/HxsT/3dzd/+bl5f/f5N7/wtvS/9TTyP+8t5T/4ODm/+rq7v/n5+v/6ent/+Tk5//p6e3/5ufq/+fn5//p6ez/3tfV/+Hg5P/o4+D/5eTc/9Tm1v/e3eL/4+Tu/+np7P/i4d3/4ODe/+Lh3v/f4d//5uXl/+Xk4//19fb/7Ozu/9jX2v/l5un/8+Xj/+XY0v/V6uL/7Ovf/9XZnP/29v7/w7+g/7m5oP+9wKr/ucav/9DNwv/OyLz/9fX5/+bm6v/MvbP/29bX//Ps7P/o5OL/3Ozo/+7x6P/H4LX/9vX5/+Tj3//l5eP/5uXi/+fm5f/o5+f/6efm//X19//w8PL/4NnW/+Lh5P8=",
             ]),
         },
     ],
