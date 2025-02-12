@@ -679,20 +679,32 @@ function renderContentFileImagePreviewInner(
         );
     }
 
-    const svg = renderFileImagePreviewPlaceholder(filePreviewPlaceholder);
+    // We don't need a placeholder for images we've preloaded since we don't need
+    // to wait for preloaded images to load from the network.
+    if (file.imagePreviewContentIfSmall !== undefined) {
+        html.setAttribute(
+            "class",
+            classNames(html.getAttribute("class"), contentStyles.loadedFileImagePreviewClassName),
+        );
+    } else {
+        const svg = renderFileImagePreviewPlaceholder(filePreviewPlaceholder);
 
-    const placeholderImageHtml = new HtmlElementGenerator("img");
-    placeholderImageHtml.setAttribute("class", contentStyles.fileImagePreviewPlaceholderClassName);
-    placeholderImageHtml.setAttribute(
-        "style",
-        `max-width: ${fileSize.width}px; max-height: ${fileSize.height}px`,
-    );
-    // The placeholder image is purely decorative. It shouldn't be visible to
-    // assistive technologies.
-    placeholderImageHtml.setAttribute("aria-hidden", "true");
-    placeholderImageHtml.setAttribute("src", convertSvgToDataUrl(svg));
+        const placeholderImageHtml = new HtmlElementGenerator("img");
+        placeholderImageHtml.setAttribute(
+            "class",
+            contentStyles.fileImagePreviewPlaceholderClassName,
+        );
+        placeholderImageHtml.setAttribute(
+            "style",
+            `max-width: ${fileSize.width}px; max-height: ${fileSize.height}px`,
+        );
+        // The placeholder image is purely decorative. It shouldn't be visible to
+        // assistive technologies.
+        placeholderImageHtml.setAttribute("aria-hidden", "true");
+        placeholderImageHtml.setAttribute("src", convertSvgToDataUrl(svg));
 
-    html.appendChild(placeholderImageHtml);
+        html.appendChild(placeholderImageHtml);
+    }
 
     // Render the image if we have a signed preview URL and the signature isn't
     // expired.
@@ -777,14 +789,32 @@ function renderContentFileImagePreviewInner(
             imageSrcset = `${image1xSource}, ${image2xSource} 2x, ${image3xSource} 3x`;
         }
 
-        const imageHtml = renderFileImagePreviewContent({
-            srcset: imageSrcset,
-            // We need to set the image `max-width` and `max-height` since we don't want
-            // the image growing to fill its parent if the image is smaller than the
-            // parent (e.g. a small 32x32 image).
-            maxWidth: `${fileSize.width}px`,
-            maxHeight: `${fileSize.height}px`,
-        });
+        // If we preloaded the image preview content because it was less than 100kb
+        // then our image element source should be a base64 data URL so we can skip
+        // loading data from the network.
+        //
+        // We use `actuallyRenderFileImagePreviewContent()` when using a data URL so we
+        // don't produce a huge cache key with the image's raw data.
+        const imageHtml =
+            file.imagePreviewContentIfSmall !== undefined
+                ? actuallyRenderFileImagePreviewContent({
+                      srcset: `data:${
+                          filePreview.content?.contentType ?? file.contentType
+                      };base64,${file.imagePreviewContentIfSmall}`,
+                      // We need to set the image `max-width` and `max-height` since we don't want
+                      // the image growing to fill its parent if the image is smaller than the
+                      // parent (e.g. a small 32x32 image).
+                      maxWidth: `${fileSize.width}px`,
+                      maxHeight: `${fileSize.height}px`,
+                  })
+                : renderFileImagePreviewContent({
+                      srcset: imageSrcset,
+                      // We need to set the image `max-width` and `max-height` since we don't want
+                      // the image growing to fill its parent if the image is smaller than the
+                      // parent (e.g. a small 32x32 image).
+                      maxWidth: `${fileSize.width}px`,
+                      maxHeight: `${fileSize.height}px`,
+                  });
 
         html.appendChild(imageHtml);
     }
@@ -986,6 +1016,10 @@ function renderFileImagePreviewContent(options: {
     maxWidth: string;
     maxHeight: string;
 }): HtmlGenerator {
+    // This function shouldn't be called with data URLs since that would create
+    // long reuse keys.
+    assert(!options.srcset.startsWith("data:"));
+
     const reuseKey = JSON.stringify([
         options.srcset,
         options.maxWidth.trim(),
@@ -1062,7 +1096,7 @@ function actuallyRenderFileImagePreviewContent({
     // have to show the loading indicator.
     imageHtml.setAttribute("decoding", "sync");
 
-    const srcs = srcset.split(",");
+    const srcs = srcset.startsWith("data:") ? [srcset] : srcset.split(",");
     const firstSrc = srcs[0]!.trim();
 
     // The first source should not include a modifier like 2x. Since it's used as
@@ -1719,7 +1753,13 @@ export function addContentFilePreviewBehavior(
     // Wait until after `isEditorInitialAppRender` to cross fade in our images.
     // That way our cross fade animation won't ever be interrupted by unmounting
     // `<ContentView>` and replacing it with ProseMirror's `EditorView`.
-    if (!isEditorInitialAppRender && imagePreviewContentElement) {
+    if (
+        !isEditorInitialAppRender &&
+        imagePreviewContentElement &&
+        // If we have the file's image content already loaded then we don't need to
+        // wait for the file to load from the network.
+        file?.imagePreviewContentIfSmall === undefined
+    ) {
         const loadedPromise = isHtmlImageElementLoadedAndDecoded(imagePreviewContentElement);
 
         const handleLoad = () => {
@@ -1835,7 +1875,13 @@ export function addContentFilePreviewBehavior(
         // On `<ContentEditor>`'s initial app render when we switch from
         // `<ContentView>` to ProseMirror's `EditorView` we want to reuse the `<img>`
         // element so we don't need to download the image file a second time.
-        if (isEditorInitialAppRender && imagePreviewContentElement) {
+        if (
+            isEditorInitialAppRender &&
+            imagePreviewContentElement &&
+            // We don't reuse the image element for files we've already loaded the content
+            // for since we don't want to create large key strings.
+            file?.imagePreviewContentIfSmall === undefined
+        ) {
             const imagePreviewContentKey = JSON.stringify([
                 imagePreviewContentElement.getAttribute("srcset") ??
                     imagePreviewContentElement.getAttribute("src"),

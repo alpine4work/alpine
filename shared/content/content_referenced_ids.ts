@@ -73,6 +73,9 @@ export function getContentReferencedIdsForSteps(steps: ReadonlyArray<Step>): Con
  *     visitProsemirrorNode(content, visitor);
  * })
  * ```
+ *
+ * Returns referenced IDs in the order we encounter them. So if there are three
+ * files the IDs of the files appear in document order.
  */
 export function collectContentReferencedIds(
     visit: (visitor: ProsemirrorVisitor) => void,

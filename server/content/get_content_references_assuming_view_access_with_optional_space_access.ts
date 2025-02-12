@@ -28,6 +28,7 @@ export async function getContentReferencesAssumingViewAccessWithOptionalSpaceAcc
     spaceId: SpaceId,
     fileAuthorizer: FileAuthorizer,
     content: Node,
+    options?: {withPreloadedFiles?: boolean},
 ): Promise<ContentReferences> {
     const referencedIds = getContentReferencedIdsForNode(content);
 
@@ -36,15 +37,21 @@ export async function getContentReferencesAssumingViewAccessWithOptionalSpaceAcc
     // when we fetch accounts we want to return stubs that only reveal the
     // account's name.
     if ((await authorizeSpaceAccessIfPossible(context, spaceId)).ok) {
-        return getContentReferences(context, spaceId, fileAuthorizer, referencedIds);
+        return getContentReferences(context, spaceId, fileAuthorizer, referencedIds, options);
     } else {
         const [contentReferences, accounts] = await runAllPromises([
-            getContentReferences(context, spaceId, fileAuthorizer, {
-                ...referencedIds,
-                // We can't load the full account with `getAccountIfExists()` since that
-                // requires space access.
-                accountIds: emptySet,
-            }),
+            getContentReferences(
+                context,
+                spaceId,
+                fileAuthorizer,
+                {
+                    ...referencedIds,
+                    // We can't load the full account with `getAccountIfExists()` since that
+                    // requires space access.
+                    accountIds: emptySet,
+                },
+                options,
+            ),
             runAllPromises(
                 mapIterable(referencedIds.accountIds, accountId => {
                     // In this code path, the we assume the actor has been granted view access to

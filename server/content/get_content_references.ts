@@ -1,7 +1,10 @@
 import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
+import {Readable} from "stream";
+import {isCloudflareR2NoSuchKeyError} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
 import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
 import {FileAuthorizer, getFileIfExistsFromAttachment} from "~/server/files/data/files_table.js";
+import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {
     ContentReferencedIds,
@@ -12,8 +15,10 @@ import {ContentReferences} from "~/shared/content/content_references.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileModel, getFileModelDataAttachReadiness} from "~/shared/files/file_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 
@@ -22,9 +27,10 @@ export function getContentReferencesForNode(
     spaceId: SpaceId,
     fileAuthorizer: FileAuthorizer,
     content: Node,
+    options?: {withPreloadedFiles?: boolean},
 ): Promise<ContentReferences> {
     const referencedIds = getContentReferencedIdsForNode(content);
-    return getContentReferences(context, spaceId, fileAuthorizer, referencedIds);
+    return getContentReferences(context, spaceId, fileAuthorizer, referencedIds, options);
 }
 
 // `MessageContent` doesn't have files so you don't need a `FileAuthorizer`.
@@ -48,19 +54,48 @@ export function getContentReferencesForSteps(
 }
 
 /**
+ * The minimum file length (in bytes) to consider the file "small". We load
+ * some small files on the backend and include them in our response so the
+ * client doesn't need to make an additional network request for them.
+ */
+const maxPreloadSmallFileContentLength = 100000;
+
+/**
+ * The maximum amount of small file content we'll load before we stop loading
+ * small file content. We'll only load the first ~4 small files in a document
+ * before not preloading anything else.
+ *
+ * This number was picked because the DynamoDB item limit is 400kb. There's
+ * absolutely no relationship between the DynamoDB item limit and this limit.
+ * We should experiment to see what the right balance here is between UX and
+ * delaying the initial load.
+ */
+const totalPreloadSmallFileContentLengthLimit = maxPreloadSmallFileContentLength * 4;
+
+/**
  * Get entities referenced in content.
  *
  * Must provide a `FileAuthorizer` to authorize files. Accounts are granted
  * access to files that are attached to the content they're looking at.
  * `FileAuthorizer` carries information about the attachment target and how to
  * authorize access to the attachment target.
+ *
+ * If `withPreloadedFiles` is true will preload ~4 files under 100kb so we can
+ * render the files immediately without needing to make a second network
+ * request. This improves the user experience when loading a document with
+ * small files (e.g. an SVG or a logo) without slowing down this initial
+ * request too much. Must explicitly opt-in to file preloading since it can be
+ * expensive if you're loading multiple pieces of content at once.
  */
 export async function getContentReferences(
     context: ServerContentActionContext,
     spaceId: SpaceId,
     fileAuthorizer: FileAuthorizer | "AssertHasNoFiles",
     referencedIds: ContentReferencedIds,
+    {withPreloadedFiles = false}: {withPreloadedFiles?: boolean} = {},
 ): Promise<ContentReferences> {
+    let preloadedSmallFileContentLength = 0;
+
     // IMPORTANT: This function may be called multiple times on the same content in
     // an action. So all data loading functions are cached.
     //
@@ -68,7 +103,10 @@ export async function getContentReferences(
     // function we may load content references once when we build an inbox entry
     // model and again in `printNotificationEventAlertContentBody()` when we print
     // for push notifications.
-    const [accounts, files] = await runAllPromises([
+    //
+    // File preloading is not cached. If the caller explicitly opts in with
+    // `withPreloadedFiles` then they shouldn't expect results to be cached.
+    const [accounts, fileReferences] = await runAllPromises([
         runAllPromises(
             mapIterable(referencedIds.accountIds, accountId => {
                 // You may have copy/pasted some content from a different space. In that case a
@@ -83,7 +121,80 @@ export async function getContentReferences(
                 }
                 return getContentFileReference(context, spaceId, fileId, fileAuthorizer);
             }),
-        ),
+        ).then(fileReferences => {
+            if (!withPreloadedFiles) return fileReferences;
+
+            return runAllPromises(
+                // Go through `fileReferences` in order and preload small files up to our
+                // limit. We make the determination of whether or not to preload synchronously
+                // so there are no race conditions. We'll always preload the same files.
+                //
+                // TODO(calebmer): Should we perform this preload optimization for messages
+                // too? I think it's less important from a UX perspective to preload files for
+                // messages so I'm not implementing it for now. since while images are very
+                // important to interpreting a document's content and it can be disruptive if
+                // they aren't there (e.g. a logo) that's less true for messages where files
+                // are more auxiliary to the message content. Files shared in a messaging view
+                // is more akin to file sharing whereas files attached to a document is more
+                // akin to decorating content.
+                mapIterable(fileReferences, async fileReference => {
+                    if (!fileReference) return null;
+
+                    if (
+                        fileReference.file.initialData.preview?.type !== "Image" ||
+                        fileReference.file.initialData.isUploading ||
+                        fileReference.file.initialData.preview?.isProcessing
+                    ) {
+                        return fileReference;
+                    }
+
+                    const contentLength = isObject(fileReference.file.initialData.preview.content)
+                        ? fileReference.file.initialData.preview.content.contentLength
+                        : fileReference.file.initialData.contentLength;
+
+                    if (
+                        contentLength > maxPreloadSmallFileContentLength ||
+                        preloadedSmallFileContentLength + contentLength >
+                            totalPreloadSmallFileContentLengthLimit
+                    ) {
+                        return fileReference;
+                    }
+
+                    preloadedSmallFileContentLength += contentLength;
+
+                    try {
+                        const object = await context.r2.GetObject({
+                            Bucket: filesBucketName,
+                            Key: isObject(fileReference.file.initialData.preview.content)
+                                ? `${spaceId}/${fileReference.file.id}-preview`
+                                : `${spaceId}/${fileReference.file.id}`,
+                        });
+
+                        assert(object.Body instanceof Readable);
+
+                        const objectBodyChunks = [];
+                        for await (const objectBodyChunk of object.Body) {
+                            objectBodyChunks.push(objectBodyChunk);
+                        }
+                        const objectBody = Buffer.concat(objectBodyChunks);
+
+                        return {
+                            ...fileReference,
+                            file: new FileModel({
+                                ...fileReference.file.initialData,
+                                imagePreviewContentIfSmall: objectBody.toString("base64"),
+                            }),
+                        };
+                    } catch (error) {
+                        // Be resilient against the file not existing in Cloudflare R2 yet. For
+                        // example, while the file is uploading.
+                        if (isCloudflareR2NoSuchKeyError(error)) return fileReference;
+
+                        throw error;
+                    }
+                }),
+            );
+        }),
     ]);
 
     const accountById = new Map(
@@ -94,9 +205,9 @@ export async function getContentReferences(
     );
 
     const fileById = new Map(
-        filterMapIterable(files, file => {
-            if (!file) return;
-            return [file.file.id, file];
+        filterMapIterable(fileReferences, fileReference => {
+            if (!fileReference) return;
+            return [fileReference.file.id, fileReference];
         }),
     );
 

@@ -4949,6 +4949,11 @@ export async function getTaskNotesContentAndOptionalInitialComments(
                                         item.spaceId,
                                         FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
                                         notesItem?.content ?? emptyTaskNotesContent,
+                                        // Preload small files so we don't have to show a placeholder for them. This
+                                        // improves UX at the cost slowing the initial load. Right now we preload
+                                        // <100kb files up to 400kb. We'll have to tune this to find the right balance
+                                        // between UX and the performance hit.
+                                        {withPreloadedFiles: true},
                                     ),
                             },
                         },
@@ -5850,6 +5855,11 @@ export function getTaskNotesContent(
                     item.spaceId,
                     FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
                     notesItem?.content ?? emptyTaskNotesContent,
+                    // Preload small files so we don't have to show a placeholder for them. This
+                    // improves UX at the cost slowing the initial load. Right now we preload
+                    // <100kb files up to 400kb. We'll have to tune this to find the right balance
+                    // between UX and the performance hit.
+                    {withPreloadedFiles: true},
                 ),
             },
         }),

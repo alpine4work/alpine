@@ -1,4 +1,5 @@
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
+import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
@@ -15,6 +16,7 @@ type AppServiceExtraContextModules = {
     languageModel: LanguageModelContextModule;
     apns: ApnsContextModuleBase;
     files: FilesContextModuleBase;
+    r2: CloudflareR2ContextModule;
 };
 
 export type AppServiceProcessContextModules = ServerProcessContextModules &

@@ -281,7 +281,7 @@ export default implementRpcs(definitions, {
 
             const [author, contentReferences, files] = await runAllPromises([
                 getAccount(context, spaceId, authorId),
-                getContentReferences(context, spaceId, fileAuthorizer, contentReferencedIds),
+                getContentReferences(context, spaceId, "AssertHasNoFiles", contentReferencedIds),
                 runAllPromises(
                     mapIterable(fileIds, async fileId => {
                         const file = await getContentFileReference(
