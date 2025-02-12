@@ -1,4 +1,5 @@
 import {authorizeInternalAccess} from "~/server/accounts/accounts_table.js";
+import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {
     getContentReferencesForNode,
     getMessageContentReferencesForNode,
@@ -145,6 +146,7 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 type ForumActionExtraBroadcastContextModules = {
     edge: EdgeServiceContextModuleBase;
     files: FilesContextModuleBase;
+    r2: CloudflareR2ContextModule;
 };
 
 export type ForumActionContextModulesWithBroadcast = ServerActionContextModules &

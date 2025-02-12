@@ -10,6 +10,7 @@ ts_project(
     ],
     deps = [
         "//server/accounts",
+        "//server/cloudflare/r2",
         "//server/dynamo/core",
         "//server/jobs/core",
         "//shared/context",

@@ -1,4 +1,5 @@
 import {IncomingMessage, ServerResponse} from "http";
+import {ServiceCloudflareR2Options} from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
 import {ServerProcessContextOptions} from "~/server/node/create_server_process_context.js";
 import {ServiceTokenAgentOptions} from "~/server/node/create_service_token_agent.js";
 import {ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
@@ -8,7 +9,8 @@ export type AppServiceConstants = {
     readonly tracer: TracerRoot;
     readonly shutdownManager: ShutdownManagerBase;
     readonly options: ServiceTokenAgentOptions &
-        ServerProcessContextOptions & {
+        ServerProcessContextOptions &
+        ServiceCloudflareR2Options & {
             readonly shouldSeedDynamo?: boolean;
             readonly edgeServiceUrl?: string;
             readonly opensearchLocalPort?: string;

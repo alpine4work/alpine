@@ -10,6 +10,10 @@ import {
     ApnsContextModuleBase,
     TestApnsContextModule,
 } from "~/server/apns/apns_context_module.js";
+import {
+    createServiceCloudflareR2ContextModule,
+    serviceCloudflareR2Options,
+} from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
 import {FilesContextModule} from "~/server/context/files_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {
@@ -84,6 +88,7 @@ export const options = {
     ...serviceTokenAgentOptions,
     ...serverProcessContextOptions,
     ...serviceOpensearchOptions,
+    ...serviceCloudflareR2Options,
 } as const;
 
 export async function run({
@@ -251,6 +256,7 @@ export async function run({
         github: githubContextModule,
         scheduler: schedulerContextModule,
         files: new FilesContextModule(tokenAgent),
+        r2: createServiceCloudflareR2ContextModule(options),
     });
 
     const consumer = JobQueueConsumer.start(processContext, {

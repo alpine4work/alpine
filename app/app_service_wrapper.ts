@@ -4,6 +4,7 @@ import createServeStaticMiddleware from "serve-static";
 import {WebSocket} from "ws";
 import {AppServiceConstants, AppServiceModule} from "~/app/app_service_types.js";
 import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js";
+import {serviceCloudflareR2Options} from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
 import {getBazelOutputPath} from "~/server/helpers/node/bazel_output_path.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {serverProcessContextOptions} from "~/server/node/create_server_process_context.js";
@@ -49,6 +50,7 @@ export const options = {
     ...serviceTokenAgentOptions,
     ...serverProcessContextOptions,
     ...serviceOpensearchOptions,
+    ...serviceCloudflareR2Options,
 } as const;
 
 export async function run({

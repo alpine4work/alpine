@@ -2554,6 +2554,9 @@ Resources:
                                 --taskRealtimeServiceEcsTaskDefinitionFamily=CyberworldsStackTaskRe\
                                 altimeServiceTaskDefinition81563AFA
                                 --honeycombApiKey=$HONEYCOMB_API_KEY --cohereApiKey=$COHERE_API_KEY
+                                --cloudflareAccountId=d496846050bfc973d24617456c59242b
+                                --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
+                                --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
                                 --appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY
                                 --edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY
                                 --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
@@ -2671,6 +2674,20 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:AppServiceSecrets:apnsCertificatePrivateKey::"
+                      - Name: CLOUDFLARE_R2_ACCESS_KEY_ID
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:AppServiceSecrets:cloudflareR2AccessKeyId::"
+                      - Name: CLOUDFLARE_R2_SECRET_ACCESS_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:AppServiceSecrets:cloudflareR2SecretAccessKey::"
                   StopTimeout: 120
                   User: www-data
             ExecutionRoleArn:
@@ -3328,6 +3345,9 @@ Resources:
                                 --githubAppClientId=$GITHUB_APP_CLIENT_ID
                                 --githubAppClientSecret=$GITHUB_APP_CLIENT_SECRET
                                 --githubAppInstallationId=$GITHUB_APP_INSTALLATION_ID
+                                --cloudflareAccountId=d496846050bfc973d24617456c59242b
+                                --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
+                                --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
                                 --appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY
                                 --edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY
                                 --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
@@ -3477,6 +3497,20 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:JobQueueServiceSecrets:githubAppInstallationId::"
+                      - Name: CLOUDFLARE_R2_ACCESS_KEY_ID
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:JobQueueServiceSecrets:cloudflareR2AccessKeyId::"
+                      - Name: CLOUDFLARE_R2_SECRET_ACCESS_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:JobQueueServiceSecrets:cloudflareR2SecretAccessKey::"
                   StopTimeout: 120
                   User: www-data
             ExecutionRoleArn:
