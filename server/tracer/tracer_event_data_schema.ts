@@ -167,6 +167,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     },
     common: {
         type: IdentifierStringSchema,
+        branch: IdentifierStringSchema,
         count: Schema.integer,
         isBlocking: Schema.boolean,
         didNothing: Schema.boolean,
@@ -320,6 +321,8 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     content: {
         collaborative: {
             version: Schema.integer,
+            startVersion: Schema.integer,
+            endVersion: Schema.integer,
             stepCount: Schema.integer,
             clientVersion: Schema.integer,
             clientStepCount: Schema.integer,
