@@ -328,7 +328,7 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                                 columnRect.left,
                                 columnRect.top,
                                 columnRect.width,
-                                columnRect.height * tableElement.rows.length,
+                                columnRect.height,
                             ),
                         })
                         .setSelection(selectColumn(columnIndex)(view.state.tr).selection),

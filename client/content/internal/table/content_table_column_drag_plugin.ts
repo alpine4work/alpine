@@ -67,7 +67,6 @@ export function contentTableColumnDragPlugin(): Plugin {
             dragPreviewRoot = createRoot(container);
             document.body.appendChild(container);
         }
-
         dragPreviewRoot.render(
             createElement(ContentTableDragPreview, {
                 width: rect.width,
@@ -76,9 +75,9 @@ export function contentTableColumnDragPlugin(): Plugin {
                 initialY: y,
                 type: "column",
                 onMove: (newX, newY) => {
-                    if (!view) return;
+                    assert(view);
                     const state = contentTableColumnDragPluginKey.getState(view.state);
-                    if (!state?.dragging) return;
+                    assert(state?.dragging);
 
                     const draggableData = getDraggableDataFromEvent(
                         new MouseEvent("mousemove", {clientX: newX, clientY: newY}),
@@ -86,7 +85,7 @@ export function contentTableColumnDragPlugin(): Plugin {
                         DraggableType.TABLE_COLUMN,
                     );
 
-                    if (!draggableData) return;
+                    assert(draggableData);
                     const newColumnIndex = draggableData.targetAdjustedIndex;
                     if (newColumnIndex === state.dragging.currentColumnIndex) return;
 
