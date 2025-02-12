@@ -1353,9 +1353,7 @@ export async function searchBySemantics(
     const [queryEmbeddingVector] = await context.languageModel.model.embed(
         context.tracer.getTracer(),
         [queryText],
-        {
-            inputType: "SearchQuery",
-        },
+        {inputType: "SearchQuery"},
     );
 
     assert(queryEmbeddingVector);

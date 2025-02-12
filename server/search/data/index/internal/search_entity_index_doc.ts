@@ -23,6 +23,7 @@ import {
     SearchEntityMedia,
     SearchEntityMediaSchema,
 } from "~/server/search/data/index/internal/search_entity_media.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {
@@ -523,74 +524,18 @@ export const SearchEntitySemanticIndexDocType = OpensearchIndexObjectType.new({
             fields: mapObjectValues(
                 searchEntitySemanticIndexEmbeddingChunkLanguageModels,
                 languageModelClass => {
-                    const isByteDimensionDataType = languageModelClass.dimensionDataType === "byte";
-
                     return new OpensearchIndexBinaryType()
                         .transform<ReadonlyMap<number, ReadonlyArray<number>>>({
-                            serialize: vectorCache => {
-                                const buffer = new ArrayBuffer(
-                                    vectorCache.size *
-                                        (4 +
-                                            languageModelClass.dimensionCount *
-                                                (isByteDimensionDataType ? 1 : 4)),
-                                );
-
-                                const view = new DataView(buffer);
-                                let byteOffset = 0;
-
-                                for (const [textHash, vector] of vectorCache) {
-                                    view.setUint32(byteOffset, textHash);
-                                    byteOffset += 4;
-
-                                    for (let i = 0; i < languageModelClass.dimensionCount; i++) {
-                                        const dimension = vector[i]!;
-
-                                        if (isByteDimensionDataType) {
-                                            view.setUint8(byteOffset, dimension);
-                                            byteOffset += 1;
-                                        } else {
-                                            view.setFloat32(byteOffset, dimension);
-                                            byteOffset += 4;
-                                        }
-                                    }
-                                }
-
-                                return new Uint8Array(buffer);
-                            },
-                            deserialize: bytes => {
-                                const vectorCache = new Map<number, Array<number>>();
-
-                                const view = new DataView(
-                                    bytes.buffer,
-                                    bytes.byteOffset,
-                                    bytes.byteLength,
-                                );
-                                let byteOffset = 0;
-
-                                while (byteOffset < bytes.byteLength) {
-                                    const textHash = view.getUint32(byteOffset);
-                                    byteOffset += 4;
-
-                                    const vector = [];
-                                    for (let i = 0; i < languageModelClass.dimensionCount; i++) {
-                                        if (isByteDimensionDataType) {
-                                            const dimension = view.getUint8(byteOffset);
-                                            byteOffset += 1;
-
-                                            vector.push(dimension);
-                                        } else {
-                                            const dimension = view.getFloat32(byteOffset);
-                                            byteOffset += 4;
-
-                                            vector.push(dimension);
-                                        }
-                                    }
-
-                                    vectorCache.set(textHash, vector);
-                                }
-
-                                return vectorCache;
-                            },
+                            serialize: vectorCache =>
+                                serializeSearchEntityEmbeddingChunksVectorCache(
+                                    languageModelClass,
+                                    vectorCache,
+                                ),
+                            deserialize: bytes =>
+                                deserializeSearchEntityEmbeddingChunksVectorCache(
+                                    languageModelClass,
+                                    bytes,
+                                ),
                         })
                         .nullable()
                         .store();
@@ -599,3 +544,86 @@ export const SearchEntitySemanticIndexDocType = OpensearchIndexObjectType.new({
         }),
     },
 });
+
+export function serializeSearchEntityEmbeddingChunksVectorCache(
+    languageModelClass: LanguageModelBaseClass,
+    vectorCache: ReadonlyMap<number, ReadonlyArray<number>>,
+): Uint8Array {
+    const isByteDimensionDataType = languageModelClass.dimensionDataType === "byte";
+
+    const buffer = new ArrayBuffer(
+        vectorCache.size *
+            (4 + languageModelClass.dimensionCount * (isByteDimensionDataType ? 1 : 4)),
+    );
+
+    const view = new DataView(buffer);
+    let byteOffset = 0;
+
+    for (const [textHash, vector] of vectorCache) {
+        view.setUint32(byteOffset, textHash);
+        byteOffset += 4;
+
+        for (let i = 0; i < languageModelClass.dimensionCount; i++) {
+            const dimension = vector[i]!;
+
+            if (isByteDimensionDataType) {
+                if (!(-128 <= dimension && dimension <= 127)) {
+                    throw new InternalError(
+                        "Expected byte vector dimension to be between -128 and 127",
+                    );
+                }
+
+                view.setUint8(byteOffset, dimension);
+                byteOffset += 1;
+            } else {
+                view.setFloat32(byteOffset, dimension);
+                byteOffset += 4;
+            }
+        }
+    }
+
+    return new Uint8Array(buffer);
+}
+
+export function deserializeSearchEntityEmbeddingChunksVectorCache(
+    languageModelClass: LanguageModelBaseClass,
+    bytes: Uint8Array,
+): ReadonlyMap<number, ReadonlyArray<number>> {
+    const isByteDimensionDataType = languageModelClass.dimensionDataType === "byte";
+
+    const vectorCache = new Map<number, Array<number>>();
+
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    let byteOffset = 0;
+
+    while (byteOffset < bytes.byteLength) {
+        const textHash = view.getUint32(byteOffset);
+        byteOffset += 4;
+
+        const vector = [];
+        for (let i = 0; i < languageModelClass.dimensionCount; i++) {
+            if (isByteDimensionDataType) {
+                const dimension = view.getUint8(byteOffset);
+                byteOffset += 1;
+
+                // The serialization function converts signed bytes (-128 to 127 range) into
+                // unsigned bytes by wrapping negative values. Unwrap values back to a
+                // signed positive/negative range.
+                if (dimension > 127) {
+                    vector.push(dimension - 256);
+                } else {
+                    vector.push(dimension);
+                }
+            } else {
+                const dimension = view.getFloat32(byteOffset);
+                byteOffset += 4;
+
+                vector.push(dimension);
+            }
+        }
+
+        vectorCache.set(textHash, vector);
+    }
+
+    return vectorCache;
+}
