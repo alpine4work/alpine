@@ -233,7 +233,16 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                             fromIndex < toIndex ? [...cellsToMove].reverse() : cellsToMove,
                         );
 
-                        assert(view.dispatch(tr), "Failed to move cells");
+                        try {
+                            view.dispatch(tr);
+                        } catch (error) {
+                            assert(error instanceof Error);
+                            view.dispatch(
+                                view.state.tr.setMeta(contentTableColumnDragPluginKey, {
+                                    type: "EndDrag",
+                                }),
+                            );
+                        }
                     }
 
                     // Cleanup
@@ -296,6 +305,9 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                             startX: event.clientX,
                             columnIndex: columnIndex,
                             gripElement: gripColumnElement,
+                            closestEdge: null,
+                            mouseX: event.clientX,
+                            mouseY: event.clientY,
                         })
                         .setSelection(selectColumn(columnIndex)(view.state.tr).selection),
                 );
@@ -320,6 +332,8 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                             type: "UpdateDrag",
                             currentColumnIndex: newColumnIndex,
                             closestEdge: draggableData.targetClosestEdge,
+                            mouseX: moveEvent.clientX,
+                            mouseY: moveEvent.clientY,
                         }),
                     );
                 };

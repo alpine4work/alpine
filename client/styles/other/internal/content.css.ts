@@ -2674,9 +2674,9 @@ export const contentTableColumnDragLeftIndicatorClassName = style({
             position: "absolute",
             top: 0,
             bottom: 0,
-            left: 0, // Show at the left edge of current cell
+            left: "-2px",
             width: "4px",
-            backgroundColor: colorSchemeVars["blue-70-opacity-60"],
+            backgroundColor: colorSchemeVars["blue-70"],
             pointerEvents: "none",
         },
     },
@@ -2695,18 +2695,24 @@ export const contentTableColumnDragRightIndicatorClassName = style({
             position: "absolute",
             top: 0,
             bottom: 0,
-            right: 0, // Show at the right edge of current cell
+            right: "-2px",
             width: "4px",
-            backgroundColor: colorSchemeVars["blue-70-opacity-60"],
+            backgroundColor: colorSchemeVars["blue-70"],
             pointerEvents: "none",
         },
     },
 });
 
-// this class added to the column which is being dragged
-export const contentTableDraggedColumnClassName = style({
-    position: "relative",
-    opacity: 0.7,
-    zIndex: 80,
-    boxShadow: `inset 0 0 0 2px ${colorSchemeVars["blue-60"]} !important`,
+// Add new style for drag preview
+export const contentTableColumnDragPreviewClassName = style({
+    position: "absolute",
+    pointerEvents: "none",
+    zIndex: 100,
+    opacity: 0.8,
+    backgroundColor: colorSchemeVars["grey-5"],
+    boxShadow: `0 4px 8px rgba(0, 0, 0, 0.1), inset 0 0 0 2px ${colorSchemeVars["red-60"]}`,
+    borderRadius: "4px",
+    // transform: "translate(-50%, -50%)", // Center the preview around cursor
+    // willChange: "transform, left, top", // Optimize for position changes
+    // transition: "none", // Ensure no transition delay
 });

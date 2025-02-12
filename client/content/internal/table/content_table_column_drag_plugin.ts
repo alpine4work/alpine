@@ -15,6 +15,8 @@ type ContentTableColumnDragState = {
         currentColumnIndex: number;
         closestEdge: "left" | "right" | null;
         gripElement: HTMLElement | null;
+        mouseX?: number;
+        mouseY?: number;
     } | null;
 };
 
@@ -25,11 +27,15 @@ type ContentTableColumnDragAction =
           columnIndex: number;
           gripElement: HTMLElement | null;
           closestEdge: "left" | "right" | null;
+          mouseX: number;
+          mouseY: number;
       }
     | {
           type: "UpdateDrag";
           currentColumnIndex: number;
           closestEdge: "left" | "right" | null;
+          mouseX: number;
+          mouseY: number;
       }
     | {
           type: "EndDrag";
@@ -42,6 +48,13 @@ export const contentTableColumnDragPluginKey = new PluginKey<ContentTableColumnD
 export function contentTableColumnDragPlugin(): Plugin {
     let view: EditorView | null;
     let dragCover: HTMLElement | null = null;
+
+    function removeDragPreview() {
+        if (dragCover) {
+            dragCover.remove();
+            dragCover = null;
+        }
+    }
 
     return new Plugin({
         key: contentTableColumnDragPluginKey,
@@ -57,6 +70,8 @@ export function contentTableColumnDragPlugin(): Plugin {
 
                 switch (action.type) {
                     case "StartDrag":
+                        // Clean up any existing preview
+                        removeDragPreview();
                         return {
                             dragging: {
                                 startX: action.startX,
@@ -64,6 +79,8 @@ export function contentTableColumnDragPlugin(): Plugin {
                                 currentColumnIndex: action.columnIndex,
                                 gripElement: action.gripElement,
                                 closestEdge: null,
+                                mouseX: action.mouseX,
+                                mouseY: action.mouseY,
                             },
                         };
                     case "UpdateDrag":
@@ -73,10 +90,14 @@ export function contentTableColumnDragPlugin(): Plugin {
                                 ...value.dragging,
                                 currentColumnIndex: action.currentColumnIndex,
                                 closestEdge: action.closestEdge,
+                                mouseX: action.mouseX,
+                                mouseY: action.mouseY,
                             },
                         };
-                    case "EndDrag":
+                    case "EndDrag": {
+                        removeDragPreview();
                         return {dragging: null};
+                    }
                 }
             },
         },
@@ -84,24 +105,12 @@ export function contentTableColumnDragPlugin(): Plugin {
             view = editorView;
             return {
                 destroy() {
-                    if (dragCover) {
-                        dragCover.remove();
-                        dragCover = null;
-                    }
-
+                    removeDragPreview();
                     view = null;
                 },
             };
         },
         props: {
-            handleDOMEvents: {
-                pointermove: view => {
-                    const state = contentTableColumnDragPluginKey.getState(view.state);
-                    if (!state?.dragging) return false;
-
-                    return true;
-                },
-            },
             decorations: state => {
                 if (!isInContentTable(state)) return DecorationSet.empty;
                 assert(view);
@@ -116,26 +125,9 @@ export function contentTableColumnDragPlugin(): Plugin {
                 const tableStart = $cell.start(-1);
                 const map = ContentTableMap.get(table);
 
-                // Add decorations for the dragged column
                 const {startColumnIndex, currentColumnIndex} = pluginState.dragging;
 
-                // Calculate positions for the source column
                 for (let row = 0; row < map.height; row++) {
-                    const pos = map.positionAt(row, startColumnIndex, table);
-                    const cell = table.nodeAt(pos);
-                    if (!cell) continue;
-
-                    // decoration for the source column, which is being dragged.
-                    decorations.push(
-                        Decoration.node(tableStart + pos, tableStart + pos + cell.nodeSize, {
-                            class: contentStyles.contentTableDraggedColumnClassName,
-                        }),
-                    );
-                }
-
-                // Calculate positions for the target column
-                for (let row = 0; row < map.height; row++) {
-                    // Skip indicators around the dragged column
                     if (
                         currentColumnIndex === startColumnIndex ||
                         (pluginState.dragging.closestEdge === "right" &&
@@ -163,6 +155,34 @@ export function contentTableColumnDragPlugin(): Plugin {
                             class: classes.join(" "),
                         }),
                     );
+                }
+
+                // Add drag preview that follows the cursor
+                const dragging = pluginState.dragging;
+                const mouseX = dragging?.mouseX;
+                const mouseY = dragging?.mouseY;
+                if (dragging && typeof mouseX === "number" && typeof mouseY === "number") {
+                    // Get the dimensions of the dragged
+                    const firstPos = map.positionAt(0, startColumnIndex, table);
+                    const firstCell = table.nodeAt(firstPos);
+                    if (firstCell) {
+                        const cellDOM = view.nodeDOM(tableStart + firstPos) as HTMLElement;
+                        if (cellDOM) {
+                            const rect = cellDOM.getBoundingClientRect();
+                            // Create a floating drag preview
+                            if (!dragCover) {
+                                dragCover = document.createElement("div");
+                                dragCover.className =
+                                    contentStyles.contentTableColumnDragPreviewClassName;
+                                document.body.appendChild(dragCover);
+                            }
+
+                            dragCover.style.width = `${rect.width}px`;
+                            dragCover.style.height = `${rect.height * map.height}px`;
+                            dragCover.style.left = `${mouseX}px`;
+                            dragCover.style.top = `${mouseY}px`;
+                        }
+                    }
                 }
 
                 return DecorationSet.create(state.doc, decorations);

@@ -1,7 +1,9 @@
-import {getCellsInColumn, isInContentTable} from "./content_table_client_util.js";
 import {Plugin, PluginKey} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
-import {DropTargetType, PluginAction} from "./drag_utils.js";
+import {
+    getCellsInColumn,
+    isInContentTable,
+} from "~/client/content/internal/table/content_table_client_util.js";
 
 type ContentTableRowDragState = {
     dragging: {
@@ -10,26 +12,9 @@ type ContentTableRowDragState = {
         currentRowIndex: number;
         gripElement: HTMLElement | null;
     } | null;
-    dropTargetType: DropTargetType;
     dropTargetIndex: number;
     decorationSet: DecorationSet;
 };
-
-type ContentTableRowDragAction =
-    | {
-          type: "StartDrag";
-          startY: number;
-          rowIndex: number;
-          gripElement: HTMLElement | null;
-      }
-    | {
-          type: "UpdateDrag";
-          currentRowIndex: number;
-      }
-    | {
-          type: "EndDrag";
-      }
-    | PluginAction;
 
 export const contentTableRowDragPluginKey = new PluginKey<ContentTableRowDragState>(
     "contentTableRowDrag",
@@ -45,15 +30,12 @@ export const contentTableRowDragPlugin = (): Plugin => {
             init(): ContentTableRowDragState {
                 return {
                     dragging: null,
-                    dropTargetType: "none",
                     dropTargetIndex: 0,
                     decorationSet: DecorationSet.empty,
                 };
             },
             apply(tr, value, oldState, newState) {
-                const action = tr.getMeta(contentTableRowDragPluginKey) as
-                    | ContentTableRowDragAction
-                    | undefined;
+                const action = tr.getMeta(contentTableRowDragPluginKey);
                 if (!action) return value;
 
                 switch (action.type) {
@@ -80,7 +62,6 @@ export const contentTableRowDragPlugin = (): Plugin => {
                         return {
                             ...value,
                             dragging: null,
-                            dropTargetType: "none",
                             dropTargetIndex: 0,
                             decorationSet: DecorationSet.empty,
                         };
