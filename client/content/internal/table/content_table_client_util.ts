@@ -31,7 +31,6 @@
 
 import {Node, ResolvedPos} from "prosemirror-model";
 import {EditorState, NodeSelection, PluginKey, Selection, Transaction} from "prosemirror-state";
-import {EditorView} from "prosemirror-view";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 

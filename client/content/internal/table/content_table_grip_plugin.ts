@@ -33,7 +33,6 @@ import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 
 // NOCOMMIT: update the names of the grips, all of them seems confusing
 // because of similar functionalities.
-
 export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plugin {
     let view: EditorView | null;
     let dragCover: HTMLElement | null = null;
@@ -156,7 +155,7 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                         .setSelection(selectRow(rowIndex)(view.state.tr).selection),
                 );
 
-                // Setup pointer move handler
+                // Trigger for showing the lines on the edge of any row drag
                 const handlePointerMove = (moveEvent: PointerEvent) => {
                     assert(view);
                     const state = contentTableRowDragPluginKey.getState(view.state);
@@ -289,7 +288,6 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                 assert(view);
 
                 const $cell = selectionContentTableCell(view.state);
-                const table = $cell.node(-1);
                 const tablePos = $cell.start(-1);
 
                 let tableElement: HTMLTableElement | null = null;
@@ -324,17 +322,15 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                             closestEdge: null,
                             mouseX: event.clientX,
                             mouseY: event.clientY,
-                            previewRect: new DOMRect(
-                                columnRect.left,
-                                columnRect.top,
-                                columnRect.width,
-                                columnRect.height,
-                            ),
+                            previewRect: columnRect,
                         })
                         .setSelection(selectColumn(columnIndex)(view.state.tr).selection),
                 );
 
-                // Setup pointer move handler
+                // NOCOMMIT: Check the logic for this as the lines are updating incorrectly
+                //          there is some problem in the getDataFromEvent function
+                // Trigger for showing the lines on the edge of any column drag
+                // this is a hack to show the lines on the edge of any column drag
                 const handlePointerMove = (moveEvent: PointerEvent) => {
                     assert(view);
                     const draggableData = getDraggableDataFromEvent(
@@ -355,13 +351,11 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                             type: "UpdateDrag",
                             currentColumnIndex: newColumnIndex,
                             closestEdge: draggableData.targetClosestEdge,
-                            mouseX: moveEvent.clientX,
-                            mouseY: moveEvent.clientY,
                         }),
                     );
                 };
 
-                // Setup pointer up handler
+                // Logic for applying changes for column drag.
                 const handlePointerUp = () => {
                     assert(view);
                     const state = contentTableColumnDragPluginKey.getState(view.state);
@@ -432,7 +426,6 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                     }
 
                     // Cleanup
-                    gripColumnElement.style.transform = "";
                     document.removeEventListener("pointermove", handlePointerMove);
                     document.removeEventListener("pointerup", handlePointerUp);
                     if (dragCover) {
@@ -656,8 +649,16 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
     });
     return plugin;
 }
-
+/**
+ * function calculates the bounding rectangle for a specific column in an HTML table.
+ * @param tableElement - The table element
+ * @param columnIndex - The index of the column
+ * @returns The rect of the column
+ */
 function getColumnRect(tableElement: HTMLElement, columnIndex: number): DOMRect {
+    // Selects all <td> (table cell) elements that are in the specified column.
+    // nth-child(${columnIndex + 1}) selects the (columnIndex + 1)-th child
+    // because nth-child is one-based.
     const cells = tableElement.querySelectorAll(`td:nth-child(${columnIndex + 1})`);
     let left = Infinity,
         right = -Infinity,

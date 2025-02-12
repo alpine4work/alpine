@@ -1,12 +1,10 @@
 import {Plugin, PluginKey} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
-import {createElement} from "react";
-import {createRoot} from "react-dom/client";
 import {
     isInContentTable,
     selectionContentTableCell,
 } from "~/client/content/internal/table/content_table_client_util.js";
-import {ContentTableDragPreview} from "~/client/content/internal/table/content_table_drag_preview.js";
+import {createDragPreview} from "~/client/content/internal/table/content_table_drag_preview.js";
 import {
     DraggableType,
     getDraggableDataFromEvent,
@@ -52,53 +50,46 @@ export const contentTableColumnDragPluginKey = new PluginKey<ContentTableColumnD
 
 export function contentTableColumnDragPlugin(): Plugin {
     let view: EditorView | null;
-    let dragPreviewRoot: ReturnType<typeof createRoot> | null = null;
+    let dragPreview: {destroy: () => void} | null = null;
 
     function removeDragPreview() {
-        if (dragPreviewRoot) {
-            dragPreviewRoot.unmount();
-            dragPreviewRoot = null;
-        }
+        dragPreview?.destroy();
+        dragPreview = null;
     }
 
     function updateDragPreview(rect: DOMRect, x: number, y: number) {
-        if (!dragPreviewRoot) {
-            const container = document.createElement("div");
-            dragPreviewRoot = createRoot(container);
-            document.body.appendChild(container);
-        }
-        dragPreviewRoot.render(
-            createElement(ContentTableDragPreview, {
-                width: rect.width,
-                height: rect.height,
-                initialX: x,
-                initialY: y,
-                type: "column",
-                onMove: (newX, newY) => {
-                    assert(view);
-                    const state = contentTableColumnDragPluginKey.getState(view.state);
-                    assert(state?.dragging);
+        removeDragPreview();
 
-                    const draggableData = getDraggableDataFromEvent(
-                        new MouseEvent("mousemove", {clientX: newX, clientY: newY}),
-                        view,
-                        DraggableType.TABLE_COLUMN,
-                    );
+        dragPreview = createDragPreview({
+            width: rect.width,
+            height: rect.height,
+            initialX: x,
+            initialY: y,
+            type: "column",
+            onMove: (newX, newY) => {
+                assert(view);
+                const state = contentTableColumnDragPluginKey.getState(view.state);
+                assert(state?.dragging);
 
-                    assert(draggableData);
-                    const newColumnIndex = draggableData.targetAdjustedIndex;
-                    if (newColumnIndex === state.dragging.currentColumnIndex) return;
+                const draggableData = getDraggableDataFromEvent(
+                    new MouseEvent("mousemove", {clientX: newX, clientY: newY}),
+                    view,
+                    DraggableType.TABLE_COLUMN,
+                );
 
-                    view.dispatch(
-                        view.state.tr.setMeta(contentTableColumnDragPluginKey, {
-                            type: "UpdateDrag",
-                            currentColumnIndex: newColumnIndex,
-                            closestEdge: draggableData.targetClosestEdge,
-                        }),
-                    );
-                },
-            }),
-        );
+                assert(draggableData);
+                const newColumnIndex = draggableData.targetAdjustedIndex;
+                if (newColumnIndex === state.dragging.currentColumnIndex) return;
+
+                view.dispatch(
+                    view.state.tr.setMeta(contentTableColumnDragPluginKey, {
+                        type: "UpdateDrag",
+                        currentColumnIndex: newColumnIndex,
+                        closestEdge: draggableData.targetClosestEdge,
+                    }),
+                );
+            },
+        });
     }
 
     return new Plugin({

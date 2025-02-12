@@ -1,6 +1,12 @@
+import {Node as ProseMirrorNode, ResolvedPos} from "prosemirror-model";
 import {EditorView} from "prosemirror-view";
-import {selectionContentTableCell} from "~/client/content/internal/table/content_table_client_util.js";
+import {
+    contentTableCellAround,
+    contentTableCellWrapping,
+    selectionContentTableCell,
+} from "~/client/content/internal/table/content_table_client_util.js";
 import {contentTableColumnDragPluginKey} from "~/client/content/internal/table/content_table_column_drag_plugin.js";
+import {domInCell} from "~/client/content/internal/table/content_table_input.js";
 import {contentTableRowDragPluginKey} from "~/client/content/internal/table/content_table_row_drag_plugin.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -46,7 +52,7 @@ export interface DraggableData {
      *  0: No movement (dropping at same position)
      *  1: Moving column to a later position (right)
      */
-    direction: 1 | -1 | 0;
+    // direction: 1 | -1 | 0;
 }
 
 export const getDraggableDataFromEvent = (
@@ -88,17 +94,12 @@ export const getDraggableDataFromEvent = (
             }
         }
 
-        // Calculate direction
-        const direction =
-            targetAdjustedIndex === sourceIndex ? 0 : targetAdjustedIndex > sourceIndex ? 1 : -1;
-
         return {
             sourceIndex,
             targetType: draggableType,
             targetIndex,
             targetAdjustedIndex,
             targetClosestEdge: closestEdge,
-            direction,
         };
     } else if (draggableType === DraggableType.TABLE_ROW) {
         const dragState = contentTableRowDragPluginKey.getState(view.state);
@@ -127,17 +128,29 @@ export const getDraggableDataFromEvent = (
             }
         }
 
-        // Calculate direction
-        const direction =
-            targetAdjustedIndex === sourceIndex ? 0 : targetAdjustedIndex > sourceIndex ? 1 : -1;
-
         return {
             sourceIndex,
             targetType: draggableType,
             targetIndex,
             targetAdjustedIndex,
             targetClosestEdge: closestEdge,
-            direction,
+            // direction,
         };
     }
+};
+
+export const getCurrentColumnIndex = (
+    event: MouseEvent,
+    view: EditorView,
+    $cell: ResolvedPos,
+): number | undefined => {
+    if (!$cell) return undefined;
+
+    const table = $cell.node(-1);
+    const tableMap = ContentTableMap.get(table);
+    const tableStart = $cell.start(-1);
+    const cellIndex = tableMap.map.indexOf($cell.pos - tableStart);
+    if (cellIndex === undefined) return undefined;
+
+    return cellIndex % tableMap.width;
 };
