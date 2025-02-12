@@ -33,6 +33,7 @@ import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 
 // NOCOMMIT: update the names of the grips, all of them seems confusing
 // because of similar functionalities.
+
 export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plugin {
     let view: EditorView | null;
     let dragCover: HTMLElement | null = null;
@@ -287,6 +288,21 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                 event.preventDefault();
                 assert(view);
 
+                const $cell = selectionContentTableCell(view.state);
+                const table = $cell.node(-1);
+                const tablePos = $cell.start(-1);
+
+                let tableElement: HTMLTableElement | null = null;
+                {
+                    let element: globalThis.Node | null = view.domAtPos(tablePos).node;
+                    while (element && element.nodeName != "TABLE") element = element.parentNode;
+
+                    tableElement = element as HTMLTableElement | null;
+                }
+                assert(tableElement instanceof HTMLElement);
+
+                const columnRect = getColumnRect(tableElement, columnIndex);
+
                 // Create drag cover
                 dragCover = document.createElement("div");
                 dragCover.className = sprinkles({
@@ -308,6 +324,12 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                             closestEdge: null,
                             mouseX: event.clientX,
                             mouseY: event.clientY,
+                            previewRect: new DOMRect(
+                                columnRect.left,
+                                columnRect.top,
+                                columnRect.width,
+                                columnRect.height * tableElement.rows.length,
+                            ),
                         })
                         .setSelection(selectColumn(columnIndex)(view.state.tr).selection),
                 );
@@ -327,6 +349,7 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
 
                     const newColumnIndex = draggableData.targetAdjustedIndex;
                     if (newColumnIndex === state.dragging.currentColumnIndex) return;
+
                     view.dispatch(
                         view.state.tr.setMeta(contentTableColumnDragPluginKey, {
                             type: "UpdateDrag",
@@ -632,4 +655,22 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
         },
     });
     return plugin;
+}
+
+function getColumnRect(tableElement: HTMLElement, columnIndex: number): DOMRect {
+    const cells = tableElement.querySelectorAll(`td:nth-child(${columnIndex + 1})`);
+    let left = Infinity,
+        right = -Infinity,
+        top = Infinity,
+        bottom = -Infinity;
+
+    cells.forEach(cell => {
+        const rect = cell.getBoundingClientRect();
+        left = Math.min(left, rect.left);
+        right = Math.max(right, rect.right);
+        top = Math.min(top, rect.top);
+        bottom = Math.max(bottom, rect.bottom);
+    });
+
+    return new DOMRect(left, top, right - left, bottom - top);
 }

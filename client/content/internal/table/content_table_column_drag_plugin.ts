@@ -1,9 +1,16 @@
 import {Plugin, PluginKey} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
+import {createElement} from "react";
+import {createRoot} from "react-dom/client";
 import {
     isInContentTable,
     selectionContentTableCell,
 } from "~/client/content/internal/table/content_table_client_util.js";
+import {ContentTableDragPreview} from "~/client/content/internal/table/content_table_drag_preview.js";
+import {
+    DraggableType,
+    getDraggableDataFromEvent,
+} from "~/client/content/internal/table/content_table_get_draggable_event_data.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -15,8 +22,7 @@ type ContentTableColumnDragState = {
         currentColumnIndex: number;
         closestEdge: "left" | "right" | null;
         gripElement: HTMLElement | null;
-        mouseX?: number;
-        mouseY?: number;
+        previewRect?: DOMRect;
     } | null;
 };
 
@@ -29,13 +35,12 @@ type ContentTableColumnDragAction =
           closestEdge: "left" | "right" | null;
           mouseX: number;
           mouseY: number;
+          previewRect: DOMRect;
       }
     | {
           type: "UpdateDrag";
           currentColumnIndex: number;
           closestEdge: "left" | "right" | null;
-          mouseX: number;
-          mouseY: number;
       }
     | {
           type: "EndDrag";
@@ -47,13 +52,54 @@ export const contentTableColumnDragPluginKey = new PluginKey<ContentTableColumnD
 
 export function contentTableColumnDragPlugin(): Plugin {
     let view: EditorView | null;
-    let dragCover: HTMLElement | null = null;
+    let dragPreviewRoot: ReturnType<typeof createRoot> | null = null;
 
     function removeDragPreview() {
-        if (dragCover) {
-            dragCover.remove();
-            dragCover = null;
+        if (dragPreviewRoot) {
+            dragPreviewRoot.unmount();
+            dragPreviewRoot = null;
         }
+    }
+
+    function updateDragPreview(rect: DOMRect, x: number, y: number) {
+        if (!dragPreviewRoot) {
+            const container = document.createElement("div");
+            dragPreviewRoot = createRoot(container);
+            document.body.appendChild(container);
+        }
+
+        dragPreviewRoot.render(
+            createElement(ContentTableDragPreview, {
+                width: rect.width,
+                height: rect.height,
+                initialX: x,
+                initialY: y,
+                type: "column",
+                onMove: (newX, newY) => {
+                    if (!view) return;
+                    const state = contentTableColumnDragPluginKey.getState(view.state);
+                    if (!state?.dragging) return;
+
+                    const draggableData = getDraggableDataFromEvent(
+                        new MouseEvent("mousemove", {clientX: newX, clientY: newY}),
+                        view,
+                        DraggableType.TABLE_COLUMN,
+                    );
+
+                    if (!draggableData) return;
+                    const newColumnIndex = draggableData.targetAdjustedIndex;
+                    if (newColumnIndex === state.dragging.currentColumnIndex) return;
+
+                    view.dispatch(
+                        view.state.tr.setMeta(contentTableColumnDragPluginKey, {
+                            type: "UpdateDrag",
+                            currentColumnIndex: newColumnIndex,
+                            closestEdge: draggableData.targetClosestEdge,
+                        }),
+                    );
+                },
+            }),
+        );
     }
 
     return new Plugin({
@@ -70,8 +116,8 @@ export function contentTableColumnDragPlugin(): Plugin {
 
                 switch (action.type) {
                     case "StartDrag":
-                        // Clean up any existing preview
                         removeDragPreview();
+                        updateDragPreview(action.previewRect, action.mouseX, action.mouseY);
                         return {
                             dragging: {
                                 startX: action.startX,
@@ -79,8 +125,7 @@ export function contentTableColumnDragPlugin(): Plugin {
                                 currentColumnIndex: action.columnIndex,
                                 gripElement: action.gripElement,
                                 closestEdge: null,
-                                mouseX: action.mouseX,
-                                mouseY: action.mouseY,
+                                previewRect: action.previewRect,
                             },
                         };
                     case "UpdateDrag":
@@ -90,8 +135,6 @@ export function contentTableColumnDragPlugin(): Plugin {
                                 ...value.dragging,
                                 currentColumnIndex: action.currentColumnIndex,
                                 closestEdge: action.closestEdge,
-                                mouseX: action.mouseX,
-                                mouseY: action.mouseY,
                             },
                         };
                     case "EndDrag": {
@@ -155,34 +198,6 @@ export function contentTableColumnDragPlugin(): Plugin {
                             class: classes.join(" "),
                         }),
                     );
-                }
-
-                // Add drag preview that follows the cursor
-                const dragging = pluginState.dragging;
-                const mouseX = dragging?.mouseX;
-                const mouseY = dragging?.mouseY;
-                if (dragging && typeof mouseX === "number" && typeof mouseY === "number") {
-                    // Get the dimensions of the dragged
-                    const firstPos = map.positionAt(0, startColumnIndex, table);
-                    const firstCell = table.nodeAt(firstPos);
-                    if (firstCell) {
-                        const cellDOM = view.nodeDOM(tableStart + firstPos) as HTMLElement;
-                        if (cellDOM) {
-                            const rect = cellDOM.getBoundingClientRect();
-                            // Create a floating drag preview
-                            if (!dragCover) {
-                                dragCover = document.createElement("div");
-                                dragCover.className =
-                                    contentStyles.contentTableColumnDragPreviewClassName;
-                                document.body.appendChild(dragCover);
-                            }
-
-                            dragCover.style.width = `${rect.width}px`;
-                            dragCover.style.height = `${rect.height * map.height}px`;
-                            dragCover.style.left = `${mouseX}px`;
-                            dragCover.style.top = `${mouseY}px`;
-                        }
-                    }
                 }
 
                 return DecorationSet.create(state.doc, decorations);

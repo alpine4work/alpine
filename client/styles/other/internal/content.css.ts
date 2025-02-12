@@ -2703,16 +2703,30 @@ export const contentTableColumnDragRightIndicatorClassName = style({
     },
 });
 
-// Add new style for drag preview
 export const contentTableColumnDragPreviewClassName = style({
-    position: "absolute",
+    position: "fixed",
+    left: 0,
+    top: 0,
     pointerEvents: "none",
-    zIndex: 100,
-    opacity: 0.8,
-    backgroundColor: colorSchemeVars["grey-5"],
-    boxShadow: `0 4px 8px rgba(0, 0, 0, 0.1), inset 0 0 0 2px ${colorSchemeVars["red-60"]}`,
+    zIndex: 1000,
+    backgroundColor: "rgba(0, 0, 0, 0.005)",
+    border: `2px solid ${colorSchemeVars["blue-60"]}`,
+    willChange: "transform",
+    transition: "none",
+});
+
+export const contentTableColumnDragPreviewIconClassName = style({
+    position: "absolute",
+    top: "-16px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    width: "28px",
+    height: "28px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: colorSchemeVars["blue-80"],
     borderRadius: "4px",
-    // transform: "translate(-50%, -50%)", // Center the preview around cursor
-    // willChange: "transform, left, top", // Optimize for position changes
-    // transition: "none", // Ensure no transition delay
+    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+    // border: `1px solid ${colorSchemeVars["blue-20"]}`,
 });
