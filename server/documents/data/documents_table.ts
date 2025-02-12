@@ -2176,11 +2176,14 @@ export class DocumentContentCacheForUpdate {
                         // forward already.
                         if (entry.version >= attributes.version) return entry;
 
-                        const steps = await getDocumentStepsBetweenValidatedVersionRange(context, {
-                            id,
-                            startVersion: entry.version,
-                            endVersion: attributes.version,
-                        });
+                        const steps = await getDocumentContentStepsBetweenValidatedVersionRange(
+                            context,
+                            {
+                                id,
+                                startVersion: entry.version,
+                                endVersion: attributes.version,
+                            },
+                        );
 
                         let content = entry.content;
 
@@ -2786,16 +2789,14 @@ export async function updateDocumentContent(
                             ),
                         );
                     } else {
-                        const otherSteps = await getDocumentStepsBetweenValidatedVersionRange(
-                            context,
-                            {
+                        const otherSteps =
+                            await getDocumentContentStepsBetweenValidatedVersionRange(context, {
                                 id: documentId,
                                 startVersion: clientVersion,
                                 endVersion:
                                     internalDocument.version -
                                     internalDocument.stepsAfterInitialSnapshot.length,
-                            },
-                        );
+                            });
 
                         return [...otherSteps, ...internalDocument.stepsAfterInitialSnapshot];
                     }
@@ -3792,7 +3793,11 @@ export async function getDocumentContentSteps(
 
     getDocumentContentStepsTestCounter.incrementForTest({id, startVersion, endVersion});
 
-    return getDocumentStepsBetweenValidatedVersionRange(context, {id, startVersion, endVersion});
+    return getDocumentContentStepsBetweenValidatedVersionRange(context, {
+        id,
+        startVersion,
+        endVersion,
+    });
 }
 
 /**
@@ -3811,7 +3816,37 @@ export async function getDocumentContentSteps(
  * historical steps. If we can't find all the steps we need then we check the
  * `StepsAfterSnapshot` range.
  */
-async function getDocumentStepsBetweenValidatedVersionRange(
+async function getDocumentContentStepsBetweenValidatedVersionRange(
+    context: DynamoContext,
+    options: {
+        id: DocumentId;
+        startVersion: number;
+        endVersion: number;
+    },
+): Promise<Array<{step: Step; invertedStep: Step; clientId: ContentEditorClientId}>> {
+    return context.tracer.withSpan("Get document content steps", async (context, span) => {
+        span.addData({
+            content: {
+                collaborative: {
+                    startVersion: options.startVersion,
+                    endVersion: options.endVersion,
+                },
+            },
+        });
+
+        const {branch, steps} =
+            await getDocumentContentStepsBetweenValidatedVersionRangeWithoutSpan(context, options);
+
+        // This function has a couple different code branches that handle various edge
+        // cases. It's useful for debugging to know exactly which branch the function
+        // took. So record the executed branch in our span.
+        span.addData({common: {branch}});
+
+        return steps;
+    });
+}
+
+async function getDocumentContentStepsBetweenValidatedVersionRangeWithoutSpan(
     context: DynamoContext,
     {
         id,
@@ -3822,7 +3857,17 @@ async function getDocumentStepsBetweenValidatedVersionRange(
         startVersion: number;
         endVersion: number;
     },
-): Promise<Array<{step: Step; invertedStep: Step; clientId: ContentEditorClientId}>> {
+): Promise<{
+    branch:
+        | "ShortCircuitStepsAfterSnapshot"
+        | "ShortCircuitStepsBeforeSnapshot"
+        | "StepsAfterSnapshot"
+        | "StepsAfterSnapshotWithStrongConsistency"
+        | "StepsAfterSnapshotMovedBeforeSnapshot"
+        | "StepsBeforeSnapshot"
+        | "StepsBeforeSnapshotWithStrongConsistency";
+    steps: Array<{step: Step; invertedStep: Step; clientId: ContentEditorClientId}>;
+}> {
     assert(Number.isSafeInteger(startVersion));
     assert(Number.isSafeInteger(endVersion));
     assert(startVersion < endVersion);
@@ -3885,7 +3930,14 @@ async function getDocumentStepsBetweenValidatedVersionRange(
     ) {
         const steps = getSteps();
         if (!steps) throw new DataLossError("Missing a document step");
-        return steps;
+        switch (stepTransactionContainingStartVersion.sortRangeType) {
+            case "StepTransactionsAfterSnapshot":
+                return {branch: "ShortCircuitStepsAfterSnapshot", steps};
+            case "StepTransactionsBeforeSnapshot":
+                return {branch: "ShortCircuitStepsBeforeSnapshot", steps};
+            default:
+                throw exhaustive(stepTransactionContainingStartVersion);
+        }
     }
 
     switch (stepTransactionContainingStartVersion.sortRangeType) {
@@ -3919,7 +3971,7 @@ async function getDocumentStepsBetweenValidatedVersionRange(
 
             {
                 const steps = getSteps();
-                if (steps) return steps;
+                if (steps) return {branch: "StepsAfterSnapshot", steps};
             }
 
             // If we couldn't find all the request steps then try querying again with
@@ -3937,8 +3989,42 @@ async function getDocumentStepsBetweenValidatedVersionRange(
 
             {
                 const steps = getSteps();
+                if (steps) return {branch: "StepsAfterSnapshotWithStrongConsistency", steps};
+            }
+
+            // If we still can't find the steps in the `StepTransactionsBeforeSnapshot`
+            // sort range when reading with strong consistency then it's possible we're
+            // updating the document snapshot and we read the first step transaction item
+            // BEFORE the snapshot moved all steps from the `StepTransactionsAfterSnapshot`
+            // sort range to the `StepTransactionsBeforeSnapshot` sort range. Therefore,
+            // querying `StepTransactionsAfterSnapshot` will never produce results since
+            // all the steps have been deleted. So try one last strong consistency query in
+            // the `StepTransactionsBeforeSnapshot` sort range.
+            for await (const stepTransaction of DocumentsTable.query(context, {
+                consistency: "Strong",
+                partitionKey: {
+                    partitionType: "Document",
+                    documentId: id,
+                },
+                startSortKey: {
+                    sortRangeType: "StepTransactionsBeforeSnapshot",
+                    startVersion:
+                        stepTransactionContainingStartVersion.startVersion +
+                        stepTransactionContainingStartVersion.steps.length,
+                },
+                endSortKey: {
+                    sortRangeType: "StepTransactionsBeforeSnapshot",
+                    startVersion: endVersion - 1,
+                },
+                limit: "All",
+            })) {
+                processStepTransaction(stepTransaction);
+            }
+
+            {
+                const steps = getSteps();
                 if (!steps) throw new DataLossError("Missing a document step");
-                return steps;
+                return {branch: "StepsAfterSnapshotMovedBeforeSnapshot", steps};
             }
         }
         // If we start in the before snapshot range then we might not have all the
@@ -4012,7 +4098,7 @@ async function getDocumentStepsBetweenValidatedVersionRange(
 
             {
                 const steps = getSteps();
-                if (steps) return steps;
+                if (steps) return {branch: "StepsBeforeSnapshot", steps};
             }
 
             // If we couldn't find all the request steps then try querying again with
@@ -4031,7 +4117,7 @@ async function getDocumentStepsBetweenValidatedVersionRange(
             {
                 const steps = getSteps();
                 if (!steps) throw new DataLossError("Missing a document step");
-                return steps;
+                return {branch: "StepsBeforeSnapshotWithStrongConsistency", steps};
             }
         }
         default:

@@ -635,7 +635,7 @@ export class OpensearchIndexDocIfVersionCommand<
 type OpensearchError = {
     readonly type: string;
     readonly reason: string;
-    readonly root_cause?: Array<{readonly type: string}>;
+    readonly root_cause?: Array<{readonly type: string; readonly reason: string}>;
     readonly caused_by?: {readonly type: string; readonly reason: string};
 };
 
@@ -1173,7 +1173,7 @@ export class OpensearchClient implements OpensearchClientInterface {
 
                 if (body.error) {
                     throw new UnknownError(
-                        `OpenSearch get document failed: ${formatOpensearchError(body.error)}`,
+                        `OpenSearch get document failed with ${formatOpensearchError(body.error)}`,
                         {cause: body.error},
                     );
                 }
@@ -1262,7 +1262,7 @@ export class OpensearchClient implements OpensearchClientInterface {
 
                 if (body.error) {
                     throw new UnknownError(
-                        `OpenSearch get document failed: ${formatOpensearchError(body.error)}`,
+                        `OpenSearch get document failed with ${formatOpensearchError(body.error)}`,
                         {cause: body.error},
                     );
                 }
@@ -1367,7 +1367,7 @@ export class OpensearchClient implements OpensearchClientInterface {
 
                 if (body.error) {
                     throw new UnknownError(
-                        `OpenSearch multi-get documents failed: ${formatOpensearchError(
+                        `OpenSearch multi-get documents failed with ${formatOpensearchError(
                             body.error,
                         )}`,
                         {cause: body.error},
@@ -1402,7 +1402,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             if (!bodyDoc.found) {
                 if (bodyDoc.error) {
                     throw new UnknownError(
-                        `OpenSearch multi-get documents failed: ${formatOpensearchError(
+                        `OpenSearch multi-get documents failed with ${formatOpensearchError(
                             bodyDoc.error,
                         )}`,
                         {cause: bodyDoc.error},
@@ -1491,7 +1491,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                     }
 
                     throw new UnknownError(
-                        `OpenSearch indexing failed: ${formatOpensearchError(body.error)}`,
+                        `OpenSearch indexing failed with ${formatOpensearchError(body.error)}`,
                         {cause: body.error},
                     );
                 }
@@ -1592,7 +1592,7 @@ export class OpensearchClient implements OpensearchClientInterface {
 
                 if (body.error) {
                     throw new UnknownError(
-                        `OpenSearch indexing failed: ${formatOpensearchError(body.error)}`,
+                        `OpenSearch indexing failed with ${formatOpensearchError(body.error)}`,
                         {cause: body.error},
                     );
                 }
@@ -1632,7 +1632,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                 `OpenSearch bulk partially failed with ${errors.length} error(s) out of ${
                     body.items.length
                 } operation(s)${
-                    errors[0] ? `, first error: ${formatOpensearchError(errors[0])}` : ""
+                    errors[0] ? `, first error is ${formatOpensearchError(errors[0])}` : ""
                 }`,
             );
 
@@ -1752,7 +1752,7 @@ export class OpensearchClient implements OpensearchClientInterface {
 
                 if (body.error) {
                     throw new UnknownError(
-                        `OpenSearch search failed: ${formatOpensearchError(body.error)}`,
+                        `OpenSearch search failed with ${formatOpensearchError(body.error)}`,
                         {cause: body.error},
                     );
                 }
@@ -2125,7 +2125,9 @@ export class OpensearchClient implements OpensearchClientInterface {
 
                 if (body.error) {
                     throw new UnknownError(
-                        `OpenSearch update by query failed: ${formatOpensearchError(body.error)}`,
+                        `OpenSearch update by query failed with ${formatOpensearchError(
+                            body.error,
+                        )}`,
                     );
                 }
 
@@ -2201,7 +2203,7 @@ export class OpensearchClient implements OpensearchClientInterface {
 
                 if (body.error) {
                     throw new UnknownError(
-                        `OpenSearch analyze failed: ${formatOpensearchError(body.error)}`,
+                        `OpenSearch analyze failed with ${formatOpensearchError(body.error)}`,
                     );
                 }
 
@@ -2274,14 +2276,18 @@ export class TestDisabledOpensearchClient implements OpensearchClientInterface {
     }
 }
 
-function formatOpensearchError(error: OpensearchError) {
-    const errorType = error.root_cause?.[0]?.type ?? error.type;
+function formatOpensearchError(error: OpensearchError): string {
+    // TODO(calebmer, #security): It actually may be dangerous for us to include
+    // `error.reason` in the error message. If OpenSearch includes customer data
+    // in `error.reason` then we shouldn't include it in error messages since error
+    // messages are visible to anyone with access to our logs. This would be a
+    // security leak of since any engineer could see customer data!
+    let string = `${error.type}: ${error.reason}`;
 
-    // By default, we don't include the full error in error messages since it
-    // might leak user data. However, some error types we trust to not include
-    // user data or if they do include user data the error is because of a critical
-    // issue in our systems that we need more information to debug.
-    if (errorType !== "mapper_parsing_exception") return errorType;
+    if (error.caused_by) string += `. Caused by ${formatOpensearchError(error.caused_by)}`;
 
-    return `${errorType} (${JSON.stringify(error)})`;
+    if (error.root_cause?.[0])
+        string += `. Root cause ${formatOpensearchError(error.root_cause[0])}`;
+
+    return string;
 }

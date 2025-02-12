@@ -399,6 +399,15 @@ export type TracerEventData = {
         readonly type?: string;
 
         /**
+         * An identifier representing a branch of code that was executed. Should be
+         * low cardinality (recommended below 10 values) to be useful for
+         * grouping/filtering.
+         *
+         * Should be an identifier (should pass `isIdentifier()`).
+         */
+        readonly branch?: string;
+
+        /**
          * A count of something related to the span. You should be able to tell what
          * the count is referring to by the span name.
          */
@@ -938,6 +947,18 @@ export type TracerEventData = {
         readonly collaborative?: {
             /** The actual version of the collaborative content. */
             readonly version?: number;
+
+            /**
+             * The starting version (inclusive) in some collaborative content operation's
+             * version range.
+             */
+            readonly startVersion?: number;
+
+            /**
+             * The ending version (exclusive) in some collaborative content operation's
+             * version range.
+             */
+            readonly endVersion?: number;
 
             /** The number of steps added in an update. */
             readonly stepCount?: number;

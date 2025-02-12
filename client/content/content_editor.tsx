@@ -192,6 +192,7 @@ import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
 import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
@@ -4662,36 +4663,42 @@ function createPhantomSelectionDecorations(doc: Node, selection: Selection, colo
     // Particularly important to show we've selected an empty paragraph or header.
     //
     // Also give selected files a tint so other users know when they're selected.
-    doc.nodesBetween(selection.from, selection.to, (node, pos) => {
-        if (node.type.name === "file") {
+    doc.nodesBetween(
+        // We've found `selection.to` is sometimes `doc.nodeSize - 1` which causes
+        // ProseMirror to throw an error.
+        clamp(0, selection.from, doc.nodeSize - 2),
+        clamp(0, selection.to, doc.nodeSize - 2),
+        (node, pos) => {
+            if (node.type.name === "file") {
+                decorations.push(
+                    Decoration.node(pos, pos + 1, {
+                        class: contentStyles.selectionFileClassNameByColor[color],
+                    }),
+                );
+                return;
+            }
+
+            if (!node.inlineContent) return;
+
+            const newlineIndicatorPos = pos + node.content.size + 1;
+            if (newlineIndicatorPos >= selection.to) return;
+
             decorations.push(
-                Decoration.node(pos, pos + 1, {
-                    class: contentStyles.selectionFileClassNameByColor[color],
+                Decoration.widget(newlineIndicatorPos, () => {
+                    const newlineIndicatorElement = document.createElement("span");
+                    newlineIndicatorElement.textContent = " ";
+                    newlineIndicatorElement.className = contentStyles.phantomSelectionClassName;
+                    newlineIndicatorElement.style.backgroundColor =
+                        colorSchemeVars[`${color}-selection`];
+                    newlineIndicatorElement.style.userSelect = "none";
+                    // In Safari `user-select` is behind a vendor prefix.
+                    newlineIndicatorElement.style.webkitUserSelect = "none";
+                    newlineIndicatorElement.ariaHidden = "true";
+                    return newlineIndicatorElement;
                 }),
             );
-            return;
-        }
-
-        if (!node.inlineContent) return;
-
-        const newlineIndicatorPos = pos + node.content.size + 1;
-        if (newlineIndicatorPos >= selection.to) return;
-
-        decorations.push(
-            Decoration.widget(newlineIndicatorPos, () => {
-                const newlineIndicatorElement = document.createElement("span");
-                newlineIndicatorElement.textContent = " ";
-                newlineIndicatorElement.className = contentStyles.phantomSelectionClassName;
-                newlineIndicatorElement.style.backgroundColor =
-                    colorSchemeVars[`${color}-selection`];
-                newlineIndicatorElement.style.userSelect = "none";
-                // In Safari `user-select` is behind a vendor prefix.
-                newlineIndicatorElement.style.webkitUserSelect = "none";
-                newlineIndicatorElement.ariaHidden = "true";
-                return newlineIndicatorElement;
-            }),
-        );
-    });
+        },
+    );
 
     return decorations;
 }
