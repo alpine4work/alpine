@@ -165,9 +165,7 @@ export function ChannelViewAside({
                             const fileReference = fileReferences[index];
 
                             if (!fileReference) {
-                                return (
-                                    <Box key={`null-${index}`} border="grey-5" borderRadius="1" />
-                                );
+                                return <Box key={`null-${index}`} backgroundColor="grey-5" />;
                             }
 
                             return (

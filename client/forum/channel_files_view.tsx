@@ -285,19 +285,16 @@ export function ChannelFilesView({
                                                 <Box
                                                     width="full"
                                                     height="full"
-                                                    borderRadius={contentStyles.fileBorderRadius}
                                                     backgroundColor="grey-5"
                                                 />
                                                 <Box
                                                     width="full"
                                                     height="full"
-                                                    borderRadius={contentStyles.fileBorderRadius}
                                                     backgroundColor="grey-5"
                                                 />
                                                 <Box
                                                     width="full"
                                                     height="full"
-                                                    borderRadius={contentStyles.fileBorderRadius}
                                                     backgroundColor="grey-5"
                                                 />
                                             </Box>
@@ -315,19 +312,16 @@ export function ChannelFilesView({
                                                 <Box
                                                     width="full"
                                                     height="full"
-                                                    borderRadius={contentStyles.fileBorderRadius}
                                                     backgroundColor="grey-5"
                                                 />
                                                 <Box
                                                     width="full"
                                                     height="full"
-                                                    borderRadius={contentStyles.fileBorderRadius}
                                                     backgroundColor="grey-5"
                                                 />
                                                 <Box
                                                     width="full"
                                                     height="full"
-                                                    borderRadius={contentStyles.fileBorderRadius}
                                                     backgroundColor="grey-5"
                                                 />
                                             </Box>

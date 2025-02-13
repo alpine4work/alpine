@@ -490,7 +490,7 @@ function ChannelRouteShimmer() {
                                 }}
                             >
                                 {createArrayWithLength(channelViewAsidePostFileCount, index => {
-                                    return <Box key={index} border="grey-5" borderRadius="1" />;
+                                    return <Box key={index} border="grey-5" />;
                                 })}
                             </Box>
                         </Box>
@@ -582,7 +582,6 @@ function ChannelFilesRouteShimmer() {
                     <Box
                         key={index}
                         backgroundColor="grey-5"
-                        borderRadius="1"
                         style={{width: fileSizePx, height: fileSizePx}}
                     />
                 ))}
