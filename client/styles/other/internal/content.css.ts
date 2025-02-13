@@ -2703,6 +2703,45 @@ export const contentTableColumnDragRightIndicatorClassName = style({
     },
 });
 
+export const contentTableRowDragIndicatorClassName = style({
+    position: "relative",
+    zIndex: "70",
+    display: "block",
+    width: "100%",
+    backgroundColor: "transparent",
+    pointerEvents: "none",
+});
+
+export const contentTableRowDragTopIndicatorClassName = style({
+    selectors: {
+        "&::after": {
+            content: '""',
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: "-2px",
+            height: "4px",
+            backgroundColor: colorSchemeVars["blue-70"],
+            pointerEvents: "none",
+        },
+    },
+});
+
+export const contentTableRowDragBottomIndicatorClassName = style({
+    selectors: {
+        "&::after": {
+            content: '""',
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: "-2px",
+            height: "4px",
+            backgroundColor: colorSchemeVars["blue-70"],
+            pointerEvents: "none",
+        },
+    },
+});
+
 export const contentTableColumnDragPreviewClassName = style({
     position: "fixed",
     left: 0,
@@ -2728,5 +2767,31 @@ export const contentTableColumnDragPreviewIconClassName = style({
     background: colorSchemeVars["blue-80"],
     borderRadius: "4px",
     boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-    // border: `1px solid ${colorSchemeVars["blue-20"]}`,
+});
+
+export const contentTableRowDragPreviewClassName = style({
+    position: "fixed",
+    left: 0,
+    top: 0,
+    pointerEvents: "none",
+    zIndex: 1000,
+    backgroundColor: "rgba(0, 0, 0, 0.005)",
+    border: `2px solid ${colorSchemeVars["blue-60"]}`,
+    willChange: "transform",
+    transition: "none",
+});
+
+export const contentTableRowDragPreviewIconClassName = style({
+    position: "absolute",
+    left: "-16px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    width: "28px",
+    height: "28px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: colorSchemeVars["red-80"],
+    borderRadius: "4px",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
 });

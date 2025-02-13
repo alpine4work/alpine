@@ -133,6 +133,20 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                 event.preventDefault();
                 assert(view);
 
+                const $cell = selectionContentTableCell(view.state);
+                const tablePos = $cell.start(-1);
+
+                let tableElement: HTMLTableElement | null = null;
+                {
+                    let element: globalThis.Node | null = view.domAtPos(tablePos).node;
+                    while (element && element.nodeName != "TABLE") element = element.parentNode;
+
+                    tableElement = element as HTMLTableElement | null;
+                }
+                assert(tableElement instanceof HTMLElement);
+
+                const rowRect = getRowRect(view, tableElement, rowIndex);
+
                 // Create drag cover
                 dragCover = document.createElement("div");
                 dragCover.className = sprinkles({
@@ -151,6 +165,10 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                             startY: event.clientY,
                             rowIndex: rowIndex,
                             gripElement: gripRowElement,
+                            closestEdge: null,
+                            mouseX: event.clientX,
+                            mouseY: event.clientY,
+                            previewRect: rowRect,
                         })
                         .setSelection(selectRow(rowIndex)(view.state.tr).selection),
                 );
@@ -174,6 +192,7 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                         view.state.tr.setMeta(contentTableRowDragPluginKey, {
                             type: "UpdateDrag",
                             currentRowIndex: newRowIndex,
+                            closestEdge: draggableData.targetClosestEdge,
                         }),
                     );
                 };
@@ -672,6 +691,46 @@ function getColumnRect(tableElement: HTMLElement, columnIndex: number): DOMRect 
         top = Math.min(top, rect.top);
         bottom = Math.max(bottom, rect.bottom);
     });
+
+    return new DOMRect(left, top, right - left, bottom - top);
+}
+
+/**
+ * function calculates the bounding rectangle for a specific row in an HTML table.
+ */
+function getRowRect(view: EditorView, tableElement: HTMLElement, rowIndex: number): DOMRect {
+    assert(view);
+    const $cell = selectionContentTableCell(view.state);
+    const table = $cell.node(-1);
+    const tableStart = $cell.start(-1);
+    const map = ContentTableMap.get(table);
+
+    let left = Infinity,
+        right = -Infinity,
+        top = Infinity,
+        bottom = -Infinity;
+
+    // Iterate through all cells in the row using the table map
+    for (let col = 0; col < map.width; col++) {
+        const pos = map.positionAt(rowIndex, col, table);
+        const cell = table.nodeAt(pos);
+        assert(cell);
+
+        // Get the DOM element for this cell
+        const cellElement = view.nodeDOM(tableStart + pos) as HTMLElement;
+        assert(cellElement);
+
+        const rect = cellElement.getBoundingClientRect();
+        left = Math.min(left, rect.left);
+        right = Math.max(right, rect.right);
+        top = Math.min(top, rect.top);
+        bottom = Math.max(bottom, rect.bottom);
+    }
+
+    // If no valid measurements were found, return empty DOMRect
+    if (left === Infinity || right === -Infinity || top === Infinity || bottom === -Infinity) {
+        return new DOMRect();
+    }
 
     return new DOMRect(left, top, right - left, bottom - top);
 }

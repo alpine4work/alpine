@@ -1,4 +1,5 @@
 import {dotsSixIconSvg} from "~/client/icons/dots_six_icon_svg.js";
+import {dotsSixVerticalIconSvg} from "~/client/icons/dots_six_vertical_icon_svg.js";
 import {contentStyles} from "~/client/styles/styles.js";
 
 interface DragPreviewOptions {
@@ -12,26 +13,36 @@ interface DragPreviewOptions {
 
 export function createDragPreview(options: DragPreviewOptions) {
     const element = document.createElement("div");
-    element.className = contentStyles.contentTableColumnDragPreviewClassName;
+    element.className =
+        options.type === "column"
+            ? contentStyles.contentTableColumnDragPreviewClassName
+            : contentStyles.contentTableRowDragPreviewClassName;
     element.style.width = `${options.width}px`;
     element.style.height = `${options.height}px`;
 
     const iconDiv = document.createElement("div");
-    iconDiv.className = contentStyles.contentTableColumnDragPreviewIconClassName;
-    iconDiv.innerHTML = dotsSixIconSvg();
+    iconDiv.className =
+        options.type === "column"
+            ? contentStyles.contentTableColumnDragPreviewIconClassName
+            : contentStyles.contentTableRowDragPreviewIconClassName;
+    iconDiv.innerHTML = options.type === "column" ? dotsSixIconSvg() : dotsSixVerticalIconSvg();
     element.appendChild(iconDiv);
 
     let rafId: number;
-
     function updatePosition(x: number, y: number) {
-        element.style.transform = `translate(${x - element.offsetWidth / 2}px, ${y - 2}px)`;
+        if (options.type === "column") {
+            // For columns, center horizontally and align to top
+            element.style.transform = `translate(${x - element.offsetWidth / 2}px, ${y - 2}px)`;
+        } else {
+            // For rows, align to left edge and center vertically
+            element.style.transform = `translate(${x - 16}px, ${y - element.offsetHeight / 2}px)`;
+        }
     }
 
     function handleMouseMove(e: MouseEvent) {
         if (rafId) {
             cancelAnimationFrame(rafId);
         }
-
         rafId = requestAnimationFrame(() => {
             const newX = e.clientX;
             const newY = e.clientY;
