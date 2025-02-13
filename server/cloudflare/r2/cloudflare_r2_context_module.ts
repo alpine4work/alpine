@@ -10,9 +10,13 @@ import {
 } from "@aws-sdk/client-s3";
 import {CloudflareR2ClientBase} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 
-export class CloudflareR2ContextModule extends ContextModuleBase<{tracer: TracerContextModule}> {
+export class CloudflareR2ContextModule
+    extends ContextModuleBase<{tracer: TracerContextModule}>
+    implements ForkableContextModuleBase
+{
     private readonly _client: CloudflareR2ClientBase;
 
     constructor(client: CloudflareR2ClientBase) {
@@ -87,5 +91,9 @@ export class CloudflareR2ContextModule extends ContextModuleBase<{tracer: Tracer
             expirationTime,
             input,
         );
+    }
+
+    public fork() {
+        return new CloudflareR2ContextModule(this._client);
     }
 }
