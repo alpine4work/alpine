@@ -789,32 +789,22 @@ function renderContentFileImagePreviewInner(
             imageSrcset = `${image1xSource}, ${image2xSource} 2x, ${image3xSource} 3x`;
         }
 
-        // If we preloaded the image preview content because it was less than 100kb
-        // then our image element source should be a base64 data URL so we can skip
-        // loading data from the network.
-        //
-        // We use `actuallyRenderFileImagePreviewContent()` when using a data URL so we
-        // don't produce a huge cache key with the image's raw data.
-        const imageHtml =
-            file.imagePreviewContentIfSmall !== undefined
-                ? actuallyRenderFileImagePreviewContent({
-                      srcset: `data:${
-                          filePreview.content?.contentType ?? file.contentType
-                      };base64,${file.imagePreviewContentIfSmall}`,
-                      // We need to set the image `max-width` and `max-height` since we don't want
-                      // the image growing to fill its parent if the image is smaller than the
-                      // parent (e.g. a small 32x32 image).
-                      maxWidth: `${fileSize.width}px`,
-                      maxHeight: `${fileSize.height}px`,
-                  })
-                : renderFileImagePreviewContent({
-                      srcset: imageSrcset,
-                      // We need to set the image `max-width` and `max-height` since we don't want
-                      // the image growing to fill its parent if the image is smaller than the
-                      // parent (e.g. a small 32x32 image).
-                      maxWidth: `${fileSize.width}px`,
-                      maxHeight: `${fileSize.height}px`,
-                  });
+        const imageHtml = renderFileImagePreviewContent({
+            // If we preloaded the image preview content because it was less than 100kb
+            // then our image element source should be a base64 data URL so we can skip
+            // loading data from the network.
+            srcset:
+                file.imagePreviewContentIfSmall !== undefined
+                    ? `data:${filePreview.content?.contentType ?? file.contentType};base64,${
+                          file.imagePreviewContentIfSmall
+                      }`
+                    : imageSrcset,
+            // We need to set the image `max-width` and `max-height` since we don't want
+            // the image growing to fill its parent if the image is smaller than the
+            // parent (e.g. a small 32x32 image).
+            maxWidth: `${fileSize.width}px`,
+            maxHeight: `${fileSize.height}px`,
+        });
 
         html.appendChild(imageHtml);
     }
@@ -1016,10 +1006,6 @@ function renderFileImagePreviewContent(options: {
     maxWidth: string;
     maxHeight: string;
 }): HtmlGenerator {
-    // This function shouldn't be called with data URLs since that would create
-    // long reuse keys.
-    assert(!options.srcset.startsWith("data:"));
-
     const reuseKey = JSON.stringify([
         options.srcset,
         options.maxWidth.trim(),
@@ -1875,13 +1861,7 @@ export function addContentFilePreviewBehavior(
         // On `<ContentEditor>`'s initial app render when we switch from
         // `<ContentView>` to ProseMirror's `EditorView` we want to reuse the `<img>`
         // element so we don't need to download the image file a second time.
-        if (
-            isEditorInitialAppRender &&
-            imagePreviewContentElement &&
-            // We don't reuse the image element for files we've already loaded the content
-            // for since we don't want to create large key strings.
-            file?.imagePreviewContentIfSmall === undefined
-        ) {
+        if (isEditorInitialAppRender && imagePreviewContentElement) {
             const imagePreviewContentKey = JSON.stringify([
                 imagePreviewContentElement.getAttribute("srcset") ??
                     imagePreviewContentElement.getAttribute("src"),
