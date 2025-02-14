@@ -31,8 +31,10 @@
 
 import {Node, ResolvedPos} from "prosemirror-model";
 import {EditorState, NodeSelection, PluginKey, Selection, Transaction} from "prosemirror-state";
+import {EditorView} from "prosemirror-view";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 export const contentTableEditingKey = new PluginKey<number>("contentTableEditing");
 
@@ -448,4 +450,71 @@ export function selectedRect(state: EditorState) {
     const map = ContentTableMap.get(table);
     const rect = map.findCell($pos.pos - tableStart);
     return {...rect, tableStart, map, table};
+}
+
+/**
+ * function calculates the bounding rectangle for a specific column in an HTML table.
+ * @param tableElement - The table element
+ * @param columnIndex - The index of the column
+ * @returns The rect of the column
+ */
+export function getColumnRect(tableElement: HTMLElement, columnIndex: number): DOMRect {
+    // Selects all <td> (table cell) elements that are in the specified column.
+    // nth-child(${columnIndex + 1}) selects the (columnIndex + 1)-th child
+    // because nth-child is one-based.
+    const cells = tableElement.querySelectorAll(`td:nth-child(${columnIndex + 1})`);
+    let left = Infinity,
+        right = -Infinity,
+        top = Infinity,
+        bottom = -Infinity;
+
+    cells.forEach(cell => {
+        const rect = cell.getBoundingClientRect();
+        left = Math.min(left, rect.left);
+        right = Math.max(right, rect.right);
+        top = Math.min(top, rect.top);
+        bottom = Math.max(bottom, rect.bottom);
+    });
+
+    return new DOMRect(left, top, right - left, bottom - top);
+}
+
+/**
+ * function calculates the bounding rectangle for a specific row in an HTML table.
+ */
+export function getRowRect(view: EditorView, tableElement: HTMLElement, rowIndex: number): DOMRect {
+    assert(view);
+    const $cell = selectionContentTableCell(view.state);
+    const table = $cell.node(-1);
+    const tableStart = $cell.start(-1);
+    const map = ContentTableMap.get(table);
+
+    let left = Infinity,
+        right = -Infinity,
+        top = Infinity,
+        bottom = -Infinity;
+
+    // Iterate through all cells in the row using the table map
+    for (let col = 0; col < map.width; col++) {
+        const pos = map.positionAt(rowIndex, col, table);
+        const cell = table.nodeAt(pos);
+        assert(cell);
+
+        // Get the DOM element for this cell
+        const cellElement = view.nodeDOM(tableStart + pos) as HTMLElement;
+        assert(cellElement);
+
+        const rect = cellElement.getBoundingClientRect();
+        left = Math.min(left, rect.left);
+        right = Math.max(right, rect.right);
+        top = Math.min(top, rect.top);
+        bottom = Math.max(bottom, rect.bottom);
+    }
+
+    // If no valid measurements were found, return empty DOMRect
+    if (left === Infinity || right === -Infinity || top === Infinity || bottom === -Infinity) {
+        return new DOMRect();
+    }
+
+    return new DOMRect(left, top, right - left, bottom - top);
 }

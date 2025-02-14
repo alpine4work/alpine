@@ -162,24 +162,29 @@ export const contentTableRowDragPlugin = (): Plugin => {
 
                 const {startRowIndex, currentRowIndex} = pluginState.dragging;
 
-                for (let col = 0; col < map.width; col++) {
-                    if (
-                        currentRowIndex === startRowIndex ||
-                        (pluginState.dragging.closestEdge === "bottom" &&
-                            currentRowIndex === startRowIndex - 1) ||
-                        (pluginState.dragging.closestEdge === "top" &&
-                            currentRowIndex === startRowIndex + 1)
-                    ) {
-                        continue;
-                    }
-
+                for (let col = 0; col < map.height; col++) {
                     const pos = map.positionAt(currentRowIndex, col, table);
                     const cell = table.nodeAt(pos);
                     if (!cell) continue;
 
+                    if (startRowIndex === currentRowIndex) {
+                        continue;
+                    }
                     const classes = [contentStyles.contentTableRowDragIndicatorClassName];
 
-                    if (pluginState.dragging.closestEdge === "top") {
+                    // When dragging above the table (currentRowIndex === 0)
+                    if (currentRowIndex === 0 && startRowIndex !== 0) {
+                        classes.push(contentStyles.contentTableRowDragTopIndicatorClassName);
+                    }
+                    // When dragging below the table (currentRowIndex === last row)
+                    else if (
+                        currentRowIndex === map.height - 1 &&
+                        startRowIndex !== map.height - 1
+                    ) {
+                        classes.push(contentStyles.contentTableRowDragBottomIndicatorClassName);
+                    }
+                    // Normal case within table
+                    else if (pluginState.dragging.closestEdge === "top") {
                         classes.push(contentStyles.contentTableRowDragTopIndicatorClassName);
                     } else if (pluginState.dragging.closestEdge === "bottom") {
                         classes.push(contentStyles.contentTableRowDragBottomIndicatorClassName);

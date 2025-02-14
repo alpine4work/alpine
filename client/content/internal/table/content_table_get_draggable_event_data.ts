@@ -59,7 +59,18 @@ export const getDraggableDataFromEvent = (
 
     const table = $cell.node(-1);
     const map = ContentTableMap.get(table);
-    const tableRect = view.dom.getBoundingClientRect();
+    const tablePos = $cell.start(-1);
+
+    let tableElement: HTMLTableElement | null = null;
+    {
+        let element: globalThis.Node | null = view.domAtPos(tablePos).node;
+        while (element && element.nodeName != "TABLE") element = element.parentNode;
+
+        tableElement = element as HTMLTableElement | null;
+    }
+    assert(tableElement instanceof HTMLTableElement);
+
+    const tableRect = tableElement.getBoundingClientRect();
 
     if (draggableType === DraggableType.TABLE_COLUMN) {
         const dragState = contentTableColumnDragPluginKey.getState(view.state);
@@ -78,21 +89,21 @@ export const getDraggableDataFromEvent = (
         const closestEdge = mouseOffset > columnWidth / 2 ? "right" : ("left" as Edge);
 
         // Special handling for first and last columns
-        let targetAdjustedIndex = targetIndex;
-        if (closestEdge === "right") {
-            // Don't allow dropping after the last column
-            if (targetIndex === map.width - 1) {
-                targetAdjustedIndex = map.width - 1;
-            } else {
-                targetAdjustedIndex = targetIndex + 1;
-            }
-        }
+        // let targetAdjustedIndex = targetIndex;
+        // if (closestEdge === "right") {
+        //     // Don't allow dropping after the last column
+        //     if (targetIndex === map.width - 1) {
+        //         targetAdjustedIndex = map.width - 1;
+        //     } else {
+        //         targetAdjustedIndex = targetIndex + 1;
+        //     }
+        // }
 
         return {
             sourceIndex,
             targetType: draggableType,
             targetIndex,
-            targetAdjustedIndex,
+            targetAdjustedIndex: Math.min(targetIndex, map.width - 1),
             targetClosestEdge: closestEdge,
         };
     } else if (draggableType === DraggableType.TABLE_ROW) {
@@ -100,35 +111,56 @@ export const getDraggableDataFromEvent = (
         assert(dragState?.dragging);
         const sourceIndex = dragState.dragging.startRowIndex;
 
-        // Calculate row index from mouse position
-        const relativeY = event.clientY - tableRect.top;
-        const rowHeight = tableRect.height / map.height;
-        const rawTargetIndex = Math.floor(relativeY / rowHeight);
-        const targetIndex = Math.max(0, Math.min(rawTargetIndex, map.height - 1));
+        // Get single row height by dividing total height by number of rows
+        const singleRowHeight = tableRect.height / map.height;
 
-        // Calculate edge position more precisely
-        const targetRowTop = tableRect.top + targetIndex * rowHeight;
-        const mouseOffset = event.clientY - targetRowTop;
-        const closestEdge = mouseOffset > rowHeight / 2 ? "bottom" : ("top" as Edge);
+        // Get mouse position relative to table top
+        const relativeMouseY = event.clientY - tableRect.top;
 
-        // Special handling for first and last rows
-        let targetAdjustedIndex = targetIndex;
-        if (closestEdge === "bottom") {
-            // Don't allow dropping after the last row
-            if (targetIndex === map.height - 1) {
-                targetAdjustedIndex = map.height - 1;
-            } else {
-                targetAdjustedIndex = targetIndex + 1;
-            }
+        // Handle out of bounds cases
+        if (relativeMouseY < 0) {
+            // Above table - clamp to first row
+            return {
+                sourceIndex,
+                targetType: draggableType,
+                targetIndex: 0,
+                targetAdjustedIndex: 0,
+                targetClosestEdge: sourceIndex === 0 ? "top" : "bottom",
+            };
         }
+
+        if (relativeMouseY > tableRect.height) {
+            // Below table - clamp to last row
+            return {
+                sourceIndex,
+                targetType: draggableType,
+                targetIndex: map.height - 1,
+                targetAdjustedIndex: map.height - 1,
+                targetClosestEdge: sourceIndex === map.height - 1 ? "bottom" : "top",
+            };
+        }
+
+        // Calculate which row we're on by dividing relative position by single row height
+        // const targetIndex = Math.min(Math.floor(relativeMouseY / singleRowHeight), map.height - 1);
+        const targetIndex = Math.floor(relativeMouseY / singleRowHeight);
+
+        // Calculate how far into the current row the mouse is
+        const positionInRow = relativeMouseY % singleRowHeight;
+        const closestEdge = positionInRow > singleRowHeight / 2 ? "bottom" : ("top" as Edge);
+        // Adjust target index based on edge
+
+        const targetAdjustedIndex = targetIndex;
+        // if (closestEdge === "bottom") {
+        //     targetAdjustedIndex = Math.min(targetIndex + 1, map.height - 1);
+        // }
+        // console.log({targetIndex, closestEdge, targetAdjustedIndex});
 
         return {
             sourceIndex,
             targetType: draggableType,
             targetIndex,
-            targetAdjustedIndex,
+            targetAdjustedIndex: Math.min(targetAdjustedIndex, map.height - 1),
             targetClosestEdge: closestEdge,
-            // direction,
         };
     }
 };
