@@ -151,7 +151,7 @@ const TaskCollectionIndex = new OpensearchIndex<
 /**
  * The throttle interval for task indexing jobs in seconds. Indexing a
  * task requires reading the entire thing and saving it to OpenSearch which
- * can be expensive. Given how frequently users updating tasks, we throttle
+ * can be expensive. Given how frequently users update tasks, we throttle
  * how frequently a task is indexed.
  *
  * When the user first makes an edit to a task we queue an indexing job
@@ -160,11 +160,19 @@ const TaskCollectionIndex = new OpensearchIndex<
  * finally runs, the update will be picked up. If the user makes an update after
  * the delay has passed then we schedule another indexing job with a new delay.
  *
- * We pick a minute since we're ok with it taking a bit for new task
- * changes to be indexed. Reindexing can be expensive so we want to capture as
- * many updates as possible when we reindex.
+ * We throttle updates to every 10 seconds for the first ~10 minutes of
+ * continuous editing to a task (the first 60 indexes). Then after that we
+ * throttle updates to once every 60 seconds. Reindexing large tasks can be
+ * expensive so we use the number of prior indexes as a proxy for how large a
+ * task is and slow down indexing once it reaches a certain threshold.
  */
-const taskIndexSearchEntityJobDelaySeconds = 60;
+function getTaskIndexSearchEntityJobDelaySeconds(generation: number) {
+    // For the first 10 minutes (60 * 10 / 60) update every 10 seconds.
+    if (generation <= 60) return 10;
+
+    // After that initial period, update every 60 seconds.
+    return 60;
+}
 
 /**
  * Ensure our task indexes exist in our local environment. This function is
@@ -632,28 +640,27 @@ class TaskActionTransactionIndexState {
                     // right version number if we didn't read the previous task so our bulk update
                     // will fail if the task is being updated instead of created.
                     if (!oldTask || !newTask.lastIndexSearchEntityJob) {
-                        const updatedTraits: TaskIndexSearchEntityJob["updatedTraits"] = {
-                            type: "Some",
-                            traits: [],
+                        const newIndexSearchEntityJob: TaskIndexSearchEntityJob = {
+                            sendTime: currentTime,
+                            generation: 0,
+                            delaySeconds: getTaskIndexSearchEntityJobDelaySeconds(0),
+                            updatedTraits: {type: "Some", traits: []},
                         };
 
                         newTask = {
                             ...newTask,
-                            lastIndexSearchEntityJob: {
-                                sendTime: currentTime,
-                                updatedTraits,
-                            },
+                            lastIndexSearchEntityJob: newIndexSearchEntityJob,
                         };
 
                         jobs.push({
-                            delaySeconds: taskIndexSearchEntityJobDelaySeconds,
+                            delaySeconds: newIndexSearchEntityJob.delaySeconds,
                             job: {
                                 type: "IndexSearchEntity",
                                 spaceId,
                                 update: {
                                     type: "Task",
                                     taskId: newTask.id,
-                                    updatedTraits,
+                                    updatedTraits: newIndexSearchEntityJob.updatedTraits,
                                 },
                             },
                         });
@@ -742,28 +749,34 @@ class TaskActionTransactionIndexState {
                             isDatePossiblyLessThanWithUncertaintyWindow(
                                 new Date(
                                     oldTask.lastIndexSearchEntityJob.sendTime.getTime() +
-                                        taskIndexSearchEntityJobDelaySeconds * 1000,
+                                        oldTask.lastIndexSearchEntityJob.delaySeconds * 1000,
                                 ),
                                 currentTime,
                             )
                         ) {
+                            const newIndexSearchEntityJob: TaskIndexSearchEntityJob = {
+                                sendTime: currentTime,
+                                generation: oldTask.lastIndexSearchEntityJob.generation + 1,
+                                delaySeconds: getTaskIndexSearchEntityJobDelaySeconds(
+                                    oldTask.lastIndexSearchEntityJob.generation + 1,
+                                ),
+                                updatedTraits: {type: "Some", traits: updatedTraits},
+                            };
+
                             newTask = {
                                 ...newTask,
-                                lastIndexSearchEntityJob: {
-                                    sendTime: currentTime,
-                                    updatedTraits: {type: "Some", traits: updatedTraits},
-                                },
+                                lastIndexSearchEntityJob: newIndexSearchEntityJob,
                             };
 
                             jobs.push({
-                                delaySeconds: taskIndexSearchEntityJobDelaySeconds,
+                                delaySeconds: newIndexSearchEntityJob.delaySeconds,
                                 job: {
                                     type: "IndexSearchEntity",
                                     spaceId,
                                     update: {
                                         type: "Task",
                                         taskId: newTask.id,
-                                        updatedTraits: {type: "Some", traits: updatedTraits},
+                                        updatedTraits: newIndexSearchEntityJob.updatedTraits,
                                     },
                                 },
                             });
@@ -1767,7 +1780,7 @@ export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
             isDatePossiblyLessThanWithUncertaintyWindow(
                 new Date(
                     task.lastIndexSearchEntityJob.sendTime.getTime() +
-                        taskIndexSearchEntityJobDelaySeconds * 1000,
+                        task.lastIndexSearchEntityJob.delaySeconds * 1000,
                 ),
                 currentTime,
             )
@@ -1776,15 +1789,21 @@ export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
             // but should be easy to add.
             const updatedTraits: Array<never> = [];
 
+            const newIndexSearchEntityJob: TaskIndexSearchEntityJob = {
+                sendTime: currentTime,
+                generation: task.lastIndexSearchEntityJob.generation + 1,
+                delaySeconds: getTaskIndexSearchEntityJobDelaySeconds(
+                    task.lastIndexSearchEntityJob.generation + 1,
+                ),
+                updatedTraits: {type: "Some", traits: updatedTraits},
+            };
+
             await context.opensearch.indexDocIfVersion(
                 TaskIndex,
                 spaceId,
                 {
                     ...task,
-                    lastIndexSearchEntityJob: {
-                        sendTime: currentTime,
-                        updatedTraits: {type: "Some", traits: updatedTraits},
-                    },
+                    lastIndexSearchEntityJob: newIndexSearchEntityJob,
                 },
                 {retryVersionConflictError: retry},
             );
@@ -1796,12 +1815,10 @@ export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
                     update: {
                         type: "Task",
                         taskId,
-                        updatedTraits: {type: "Some", traits: updatedTraits},
+                        updatedTraits: newIndexSearchEntityJob.updatedTraits,
                     },
                 },
-                {
-                    delaySeconds: taskIndexSearchEntityJobDelaySeconds,
-                },
+                {delaySeconds: newIndexSearchEntityJob.delaySeconds},
             );
         }
     });

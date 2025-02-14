@@ -252,6 +252,12 @@ type DocumentIndexSearchEntityJob = SchemaType<typeof DocumentIndexSearchEntityJ
 
 const DocumentIndexSearchEntityJobSchema = Schema.object({
     sendTime: Schema.date,
+    // NOTE(calebmer, 2025-01-31): Prior to this date we didn't have a generation
+    // number for this object.
+    generation: Schema.integer.min(0).default(0),
+    // NOTE(calebmer, 2025-01-31): We used to always use 60 as the job's
+    // `delaySeconds` prior to this date.
+    delaySeconds: Schema.integer.default(60),
     updatedTraits: Schema.union({
         Any: Schema.object({type: Schema.value("Any")}),
         Some: Schema.object({
@@ -371,6 +377,8 @@ const DocumentsTable = DynamoTableSchema.new({
                             // property. This default should cause us to always schedule new indexing jobs
                             // when updating those documents.
                             sendTime: new Date("2023-12-07T16:35:04.622Z"),
+                            generation: 0,
+                            delaySeconds: 60,
                             updatedTraits: {type: "Any"},
                         }),
 
@@ -766,7 +774,7 @@ export async function* expensiveScanEveryDocumentAndDocumentCommentForMigration(
 /**
  * The throttle interval for document indexing jobs in seconds. Indexing a
  * document requires reading the entire thing and saving it to OpenSearch which
- * can be expensive. Given how frequently users updating documents, we throttle
+ * can be expensive. Given how frequently users update documents, we throttle
  * how frequently a document is indexed.
  *
  * When the user first makes an edit to a document we queue an indexing job
@@ -775,11 +783,20 @@ export async function* expensiveScanEveryDocumentAndDocumentCommentForMigration(
  * finally runs, the update will be picked up. If the user makes an update after
  * the delay has passed then we schedule another indexing job with a new delay.
  *
- * We pick a minute since we're ok with it taking a bit for new document
- * changes to be indexed. Reindexing can be expensive so we want to capture as
- * many updates as possible when we reindex.
+ * We throttle updates to every 10 seconds for the first ~10 minutes of
+ * continuous editing to a document (the first 60 indexes). Then after that we
+ * throttle updates to once every 60 seconds. Reindexing large documents can be
+ * expensive so we use the number of prior indexes as a proxy for how large a
+ * documents is and slow down indexing once it reaches a certain threshold.
  */
-const documentIndexSearchEntityJobDelaySeconds = 60;
+// NOCOMMIT: Newly created documents should jump to the top of a user's affinity list
+function getDocumentIndexSearchEntityJobDelaySeconds(generation: number) {
+    // For the first 10 minutes (60 * 10 / 60) update every 10 seconds.
+    if (generation <= 60) return 10;
+
+    // After that initial period, update every 60 seconds.
+    return 60;
+}
 
 /**
  * Creates a new document with no history using the initial content provided.
@@ -821,7 +838,12 @@ export async function createDocument(
     const createdTime = new Date();
     const version = 0;
 
-    const updatedTraits: DocumentIndexSearchEntityJob["updatedTraits"] = {type: "Any"};
+    const newIndexSearchEntityJob: DocumentIndexSearchEntityJob = {
+        sendTime: createdTime,
+        generation: 0,
+        delaySeconds: getDocumentIndexSearchEntityJobDelaySeconds(0),
+        updatedTraits: {type: "Any"},
+    };
 
     await DynamoTableSchema.executeTransaction(context, [
         DocumentsTable.transactionCreateItem({
@@ -834,10 +856,7 @@ export async function createDocument(
             version,
             titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
             accessPolicy,
-            lastIndexSearchEntityJob: {
-                sendTime: createdTime,
-                updatedTraits,
-            },
+            lastIndexSearchEntityJob: newIndexSearchEntityJob,
             stepCountByAccountId: new DocumentStepCountByAccountId(new Map()),
         }),
         DocumentsTable.transactionCreateOrReplaceItem({
@@ -856,12 +875,10 @@ export async function createDocument(
             update: {
                 type: "Document",
                 documentId: id,
-                updatedTraits,
+                updatedTraits: newIndexSearchEntityJob.updatedTraits,
             },
         },
-        {
-            delaySeconds: documentIndexSearchEntityJobDelaySeconds,
-        },
+        {delaySeconds: newIndexSearchEntityJob.delaySeconds},
     );
 
     context.process.waitUntil(
@@ -3063,7 +3080,7 @@ export async function updateDocumentContent(
                 isDatePossiblyLessThanWithUncertaintyWindow(
                     new Date(
                         internalDocument.lastIndexSearchEntityJob.sendTime.getTime() +
-                            documentIndexSearchEntityJobDelaySeconds * 1000,
+                            internalDocument.lastIndexSearchEntityJob.delaySeconds * 1000,
                     ),
                     currentTime,
                 )
@@ -3071,6 +3088,10 @@ export async function updateDocumentContent(
                 shouldSendIndexSearchEntityJob = true;
                 newLastIndexSearchEntityJob = {
                     sendTime: currentTime,
+                    generation: internalDocument.lastIndexSearchEntityJob.generation + 1,
+                    delaySeconds: getDocumentIndexSearchEntityJobDelaySeconds(
+                        internalDocument.lastIndexSearchEntityJob.generation + 1,
+                    ),
                     updatedTraits: {type: "Some", traits: updatedTraits},
                 };
             }
@@ -3140,9 +3161,7 @@ export async function updateDocumentContent(
                                             updatedTraits: {type: "Some", traits: updatedTraits},
                                         },
                                     },
-                                    {
-                                        delaySeconds: documentIndexSearchEntityJobDelaySeconds,
-                                    },
+                                    {delaySeconds: newLastIndexSearchEntityJob.delaySeconds},
                                 );
                             }
                         },
