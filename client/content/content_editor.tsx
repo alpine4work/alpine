@@ -101,7 +101,6 @@ import {
     dispatchParentScrollWhenPointerDownAndOverEvent,
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
-import {ContentEditorTableMenu} from "~/client/content/internal/table/content_editor_table_menu.js";
 import {createContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {isInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
 import {handleContentTablePaste} from "~/client/content/internal/table/content_table_input.js";
@@ -4208,7 +4207,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                     setIsMobileCommentInputOpen(true);
                 }}
             />
-            <ContentEditorTableMenu viewRef={viewRef} state={unwrappedState} />
             {!fileDropTarget &&
                 selectedNodeElement &&
                 // Only show the focus ring for selected nodes while editing. Unless we have
