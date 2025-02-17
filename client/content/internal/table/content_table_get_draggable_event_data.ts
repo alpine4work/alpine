@@ -4,6 +4,7 @@ import {contentTableColumnDragPluginKey} from "~/client/content/internal/table/c
 import {contentTableRowDragPluginKey} from "~/client/content/internal/table/content_table_row_drag_plugin.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 
 export type TableDirection = "row" | "column";
 export enum DraggableType {
@@ -73,37 +74,75 @@ export const getDraggableDataFromEvent = (
     const tableRect = tableElement.getBoundingClientRect();
 
     if (draggableType === DraggableType.TABLE_COLUMN) {
+        // Logic for getting the target index and closest edge based on the mouse position
+        // For columnWidths [1, 2, 1]:
+        // and your mouse cursor at 0.6
+        //
+        // [      1      |        2     *     |      1      ]         <- Column widths
+        // 0           0.25      0.5   0.6   0.75          1.0        <- Cumulative positions
+
+        // If mouse is at 0.6:
+        // - It's in the second column (0.25 < 0.6 < 0.75)
+        // - Relative position in column = (0.6 - 0.25) / (0.75 - 0.25) = 0.7
+        // - Since 0.7 > 0.5, closest edge is "right"
         const dragState = contentTableColumnDragPluginKey.getState(view.state);
         assert(dragState?.dragging);
         const sourceIndex = dragState.dragging.startColumnIndex;
 
-        // Calculate column index from mouse position
-        const relativeX = event.clientX - tableRect.left;
-        const columnWidth = tableRect.width / map.width;
-        const rawTargetIndex = Math.floor(relativeX / columnWidth);
-        const targetIndex = Math.max(0, Math.min(rawTargetIndex, map.width - 1));
+        // Get the column widths from the table attributes
+        const columnWidths = table.attrs.columnWidths || Array(map.width).fill(1);
 
-        // Calculate edge position more precisely
-        const targetColumnLeft = tableRect.left + targetIndex * columnWidth;
-        const mouseOffset = event.clientX - targetColumnLeft;
-        const closestEdge = mouseOffset > columnWidth / 2 ? "right" : ("left" as Edge);
+        // Calculate total width units
+        let totalWidthUnits = 0;
+        for (const width of columnWidths) {
+            totalWidthUnits += width;
+        }
 
-        // Special handling for first and last columns
-        // let targetAdjustedIndex = targetIndex;
-        // if (closestEdge === "right") {
-        //     // Don't allow dropping after the last column
-        //     if (targetIndex === map.width - 1) {
-        //         targetAdjustedIndex = map.width - 1;
-        //     } else {
-        //         targetAdjustedIndex = targetIndex + 1;
-        //     }
-        // }
+        // Calculate cumulative widths for each column
+        // These represent the right boundary of each column as a fraction of total width
+        //
+        // For columnWidths [1, 2, 1]:
+        // 1. First calculate totalWidthUnits:
+        // 4
+        // 2. Then calculate cumulativeWidths:
+        // // First column (width = 1)
+        // 1/4 = 0.25
+
+        // // Second column (width = 2)
+        // (1 + 2)/4 = 3/4 = 0.75
+
+        // // Third column (width = 1)
+        // (1 + 2 + 1)/4 = 4/4 = 1.0
+        const cumulativeWidths = [];
+        let runningWidth = 0;
+        for (const width of columnWidths) {
+            runningWidth += width;
+            cumulativeWidths.push(runningWidth / totalWidthUnits);
+        }
+
+        // Calculate relative mouse position in terms of total width (0 to 1)
+        const relativeX = (event.clientX - tableRect.left) / tableRect.width;
+
+        // Find target column based on relative position
+        let targetIndex = columnWidths.length - 1;
+        for (let i = 0; i < cumulativeWidths.length; i++) {
+            if (relativeX <= cumulativeWidths[i]!) {
+                targetIndex = i;
+                break;
+            }
+        }
+
+        // Calculate edge position more precisely using the column boundaries
+        const leftBoundary = targetIndex === 0 ? 0 : cumulativeWidths[targetIndex - 1]!;
+        const rightBoundary = cumulativeWidths[targetIndex]!;
+        const columnRelativePosition = (relativeX - leftBoundary) / (rightBoundary - leftBoundary);
+        const closestEdge = columnRelativePosition > 0.5 ? "right" : ("left" as Edge);
 
         return {
             sourceIndex,
             targetType: draggableType,
             targetIndex,
-            targetAdjustedIndex: Math.min(targetIndex, map.width - 1),
+            targetAdjustedIndex: clamp(0, targetIndex, map.width - 1),
             targetClosestEdge: closestEdge,
         };
     } else if (draggableType === DraggableType.TABLE_ROW) {

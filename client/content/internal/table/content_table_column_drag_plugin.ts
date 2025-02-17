@@ -158,15 +158,13 @@ export function contentTableColumnDragPlugin(): Plugin {
                 const tableStart = $cell.start(-1);
                 const map = ContentTableMap.get(table);
 
-                const {startColumnIndex, currentColumnIndex} = pluginState.dragging;
+                const {startColumnIndex, currentColumnIndex, closestEdge} = pluginState.dragging;
 
                 for (let row = 0; row < map.height; row++) {
                     if (
                         currentColumnIndex === startColumnIndex ||
-                        (pluginState.dragging.closestEdge === "right" &&
-                            currentColumnIndex === startColumnIndex - 1) ||
-                        (pluginState.dragging.closestEdge === "left" &&
-                            currentColumnIndex === startColumnIndex + 1)
+                        (closestEdge === "right" && currentColumnIndex === startColumnIndex - 1) ||
+                        (closestEdge === "left" && currentColumnIndex === startColumnIndex + 1)
                     ) {
                         continue;
                     }

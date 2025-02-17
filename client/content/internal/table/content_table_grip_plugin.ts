@@ -365,7 +365,12 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                     assert(state?.dragging);
 
                     const newColumnIndex = draggableData.targetAdjustedIndex;
-                    if (newColumnIndex === state.dragging.currentColumnIndex) return;
+                    if (
+                        newColumnIndex === state.dragging.currentColumnIndex &&
+                        draggableData.targetClosestEdge === state.dragging.closestEdge
+                    ) {
+                        return;
+                    }
 
                     view.dispatch(
                         view.state.tr.setMeta(contentTableColumnDragPluginKey, {
@@ -378,19 +383,25 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
 
                 // Logic for applying changes for column drag.
                 const handlePointerUp = () => {
+                    if (dragCover) {
+                        dragCover.remove();
+                        dragCover = null;
+                    }
                     assert(view);
                     const state = contentTableColumnDragPluginKey.getState(view.state);
                     assert(state?.dragging);
+                    const {startColumnIndex, currentColumnIndex, closestEdge} = state.dragging;
 
-                    if (state.dragging.startColumnIndex !== state.dragging.currentColumnIndex) {
+                    if (startColumnIndex !== currentColumnIndex) {
                         const $cell = selectionContentTableCell(view.state);
                         const table = $cell.node(-1);
                         const tableStart = $cell.start(-1);
                         const map = ContentTableMap.get(table);
 
                         const tr = view.state.tr;
-                        const fromIndex = state.dragging.startColumnIndex;
-                        const toIndex = state.dragging.currentColumnIndex;
+                        const fromIndex = startColumnIndex;
+                        const toIndex =
+                            closestEdge === "left" ? currentColumnIndex - 1 : currentColumnIndex;
 
                         // Move cells logic
                         const cellsToMove: Array<{
@@ -412,15 +423,22 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                         }
 
                         // Update column widths
-                        const columnWidths = [...table.attrs.columnWidths];
+                        const oldColumnWidths =
+                            table.attrs.columnWidths.length === 0
+                                ? [1, 1]
+                                : [...table.attrs.columnWidths];
+
+                        const columnWidths = [...oldColumnWidths];
                         const [movedWidth] = columnWidths.splice(fromIndex, 1);
                         columnWidths.splice(toIndex, 0, movedWidth);
+
                         tr.setNodeAttribute(tableStart - 1, "columnWidths", columnWidths);
 
+                        const leftToRight = fromIndex < toIndex;
                         // Move cells
                         const processCells = (cells: typeof cellsToMove) => {
                             cells.forEach((cell, idx) => {
-                                const row = fromIndex < toIndex ? map.height - 1 - idx : idx;
+                                const row = leftToRight ? map.height - 1 - idx : idx;
                                 const toPos = map.positionAt(row, toIndex, table);
                                 tr.delete(cell.pos, cell.pos + cell.nodeSize);
                                 const tableCellType = table.type.schema.nodes.tableCell;
@@ -430,14 +448,13 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                             });
                         };
 
-                        processCells(
-                            fromIndex < toIndex ? [...cellsToMove].reverse() : cellsToMove,
-                        );
+                        processCells(leftToRight ? [...cellsToMove].reverse() : cellsToMove);
 
                         try {
                             view.dispatch(tr);
                         } catch (error) {
                             assert(error instanceof Error);
+
                             view.dispatch(
                                 view.state.tr.setMeta(contentTableColumnDragPluginKey, {
                                     type: "EndDrag",
@@ -446,13 +463,8 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                         }
                     }
 
-                    // Cleanup
                     document.removeEventListener("pointermove", handlePointerMove);
                     document.removeEventListener("pointerup", handlePointerUp);
-                    if (dragCover) {
-                        dragCover.remove();
-                        dragCover = null;
-                    }
 
                     view.dispatch(
                         view.state.tr.setMeta(contentTableColumnDragPluginKey, {
