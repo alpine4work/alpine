@@ -78,7 +78,7 @@ export function contentTableColumnDragPlugin(): Plugin {
                 );
 
                 assert(draggableData);
-                const newColumnIndex = draggableData.targetAdjustedIndex;
+                const newColumnIndex = draggableData.targetIndex;
                 if (newColumnIndex === state.dragging.currentColumnIndex) return;
 
                 view.dispatch(

@@ -79,8 +79,13 @@ export const contentTableRowDragPlugin = (): Plugin => {
                 );
 
                 assert(draggableData);
-                const newRowIndex = draggableData.targetAdjustedIndex;
-                if (newRowIndex === state.dragging.currentRowIndex) return;
+                const newRowIndex = draggableData.targetIndex;
+                if (
+                    newRowIndex === state.dragging.currentRowIndex &&
+                    draggableData.targetClosestEdge === state.dragging.closestEdge
+                ) {
+                    return;
+                }
 
                 view.dispatch(
                     view.state.tr.setMeta(contentTableRowDragPluginKey, {
@@ -160,35 +165,27 @@ export const contentTableRowDragPlugin = (): Plugin => {
                 const tableStart = $cell.start(-1);
                 const map = ContentTableMap.get(table);
 
-                const {startRowIndex, currentRowIndex} = pluginState.dragging;
+                const {startRowIndex, currentRowIndex, closestEdge} = pluginState.dragging;
 
-                for (let col = 0; col < map.height; col++) {
+                for (let col = 0; col < map.width; col++) {
+                    if (
+                        startRowIndex === currentRowIndex ||
+                        (closestEdge === "bottom" && currentRowIndex === startRowIndex - 1) ||
+                        (closestEdge === "top" && currentRowIndex === startRowIndex + 1)
+                    ) {
+                        continue;
+                    }
+
                     const pos = map.positionAt(currentRowIndex, col, table);
                     const cell = table.nodeAt(pos);
                     if (!cell) continue;
 
-                    if (startRowIndex === currentRowIndex) {
-                        continue;
-                    }
                     const classes = [contentStyles.contentTableRowDragIndicatorClassName];
 
-                    // When dragging above the table (currentRowIndex === 0)
-                    if (currentRowIndex === 0 && startRowIndex !== 0) {
+                    if (closestEdge === "top") {
                         classes.push(contentStyles.contentTableRowDragTopIndicatorClassName);
                     }
-                    // When dragging below the table (currentRowIndex === last row)
-                    else if (
-                        currentRowIndex === map.height - 1 &&
-                        startRowIndex !== map.height - 1
-                    ) {
-                        classes.push(contentStyles.contentTableRowDragBottomIndicatorClassName);
-                    }
-                    // Normal case within table
-                    else if (pluginState.dragging.closestEdge === "top") {
-                        classes.push(contentStyles.contentTableRowDragTopIndicatorClassName);
-                    } else if (pluginState.dragging.closestEdge === "bottom") {
-                        classes.push(contentStyles.contentTableRowDragBottomIndicatorClassName);
-                    }
+                    classes.push(contentStyles.contentTableRowDragBottomIndicatorClassName);
 
                     decorations.push(
                         Decoration.node(tableStart + pos, tableStart + pos + cell.nodeSize, {

@@ -24,12 +24,6 @@ export interface DraggableData {
     targetIndex: number;
 
     /**
-     * The actual index where the column will be inserted, accounting for the drop position.
-     * If dropping on the right edge of a column, this will be targetIndex + 1
-     */
-    targetAdjustedIndex: number;
-
-    /**
      * Which edge of the target column the drag is closest to.
      * Used to determine if we should insert before or after the target column
      *
@@ -141,8 +135,7 @@ export const getDraggableDataFromEvent = (
         return {
             sourceIndex,
             targetType: draggableType,
-            targetIndex,
-            targetAdjustedIndex: clamp(0, targetIndex, map.width - 1),
+            targetIndex: clamp(0, targetIndex, map.width - 1),
             targetClosestEdge: closestEdge,
         };
     } else if (draggableType === DraggableType.TABLE_ROW) {
@@ -153,52 +146,27 @@ export const getDraggableDataFromEvent = (
         // Get single row height by dividing total height by number of rows
         const singleRowHeight = tableRect.height / map.height;
 
-        // Get mouse position relative to table top
+        // Get mouse position relative to table top, clamped to table height
         const relativeMouseY = event.clientY - tableRect.top;
-
-        // Handle out of bounds cases
-        if (relativeMouseY < 0) {
-            // Above table - clamp to first row
-            return {
-                sourceIndex,
-                targetType: draggableType,
-                targetIndex: 0,
-                targetAdjustedIndex: 0,
-                targetClosestEdge: sourceIndex === 0 ? "top" : "bottom",
-            };
-        }
-
         if (relativeMouseY > tableRect.height) {
-            // Below table - clamp to last row
             return {
                 sourceIndex,
                 targetType: draggableType,
                 targetIndex: map.height - 1,
-                targetAdjustedIndex: map.height - 1,
-                targetClosestEdge: sourceIndex === map.height - 1 ? "bottom" : "top",
+                targetClosestEdge: "bottom",
             };
         }
 
-        // Calculate which row we're on by dividing relative position by single row height
-        // const targetIndex = Math.min(Math.floor(relativeMouseY / singleRowHeight), map.height - 1);
         const targetIndex = Math.floor(relativeMouseY / singleRowHeight);
 
         // Calculate how far into the current row the mouse is
         const positionInRow = relativeMouseY % singleRowHeight;
         const closestEdge = positionInRow > singleRowHeight / 2 ? "bottom" : ("top" as Edge);
-        // Adjust target index based on edge
-
-        const targetAdjustedIndex = targetIndex;
-        // if (closestEdge === "bottom") {
-        //     targetAdjustedIndex = Math.min(targetIndex + 1, map.height - 1);
-        // }
-        // console.log({targetIndex, closestEdge, targetAdjustedIndex});
 
         return {
             sourceIndex,
             targetType: draggableType,
-            targetIndex,
-            targetAdjustedIndex: Math.min(targetAdjustedIndex, map.height - 1),
+            targetIndex: clamp(0, targetIndex, map.height - 1),
             targetClosestEdge: closestEdge,
         };
     }

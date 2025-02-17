@@ -217,6 +217,10 @@ export class ContentTableMap {
 
     // Return the position at which the cell at the given row and column
     // starts, or would start, if a cell started there.
+    /**
+     * Returns the position of the cell at the given row and column.
+     * @param row - The row index of the cell  (<= height - 1)
+     */
     positionAt(row: number, col: number, table: Node): number {
         for (let i = 0, rowStart = 0; ; i++) {
             const rowEnd = rowStart + table.child(i).nodeSize;

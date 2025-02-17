@@ -180,6 +180,7 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                     assert(view);
                     const state = contentTableRowDragPluginKey.getState(view.state);
                     assert(state?.dragging);
+                    const {currentRowIndex, closestEdge} = state.dragging;
 
                     const draggableData = getDraggableDataFromEvent(
                         moveEvent,
@@ -188,8 +189,13 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                     );
                     assert(draggableData);
 
-                    const newRowIndex = draggableData.targetAdjustedIndex;
-                    if (newRowIndex === state.dragging.currentRowIndex) return;
+                    const newRowIndex = draggableData.targetIndex;
+                    if (
+                        newRowIndex === currentRowIndex &&
+                        draggableData.targetClosestEdge === closestEdge
+                    ) {
+                        return;
+                    }
                     view.dispatch(
                         view.state.tr.setMeta(contentTableRowDragPluginKey, {
                             type: "UpdateDrag",
@@ -364,7 +370,7 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                     const state = contentTableColumnDragPluginKey.getState(view.state);
                     assert(state?.dragging);
 
-                    const newColumnIndex = draggableData.targetAdjustedIndex;
+                    const newColumnIndex = draggableData.targetIndex;
                     if (
                         newColumnIndex === state.dragging.currentColumnIndex &&
                         draggableData.targetClosestEdge === state.dragging.closestEdge
