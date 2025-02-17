@@ -25,6 +25,7 @@ import {
     ApnsContextModuleBase,
     TestApnsContextModule,
 } from "~/server/apns/apns_context_module.js";
+import {createServiceCloudflareR2ContextModule} from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
 import {FilesContextModule} from "~/server/context/files_context_module.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
@@ -203,6 +204,7 @@ async function createAppService({
         languageModel: new LanguageModelContextModule(languageModel),
         apns: apnsContextModule,
         files: new FilesContextModule(tokenAgent),
+        r2: createServiceCloudflareR2ContextModule(options),
     });
 
     let hasSeededDynamo = false;

@@ -17,6 +17,8 @@ import {
     DynamoUnknownActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
+import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
+import {TestEmptyCloudflareR2Client} from "~/server/cloudflare/r2/test_empty_cloudflare_r2_client.js";
 import {
     FilesContextModuleBase,
     TestFilesContextModule,
@@ -80,6 +82,7 @@ type TestContextExtraModules = {
     opensearch: OpensearchContextModule;
     edge: EdgeServiceContextModuleBase;
     files: FilesContextModuleBase;
+    r2: CloudflareR2ContextModule;
 };
 
 export type TestContextModules = ServerProcessContextModules & TestContextExtraModules;
@@ -424,6 +427,7 @@ export function createTestContext({
         jobs: jobsContextModule,
         edge: new TestLocalEdgeServiceContextModule(),
         files: new TestFilesContextModule(),
+        r2: new CloudflareR2ContextModule(new TestEmptyCloudflareR2Client()),
     });
 
     const helpers: TestContextHelpers<any> = {

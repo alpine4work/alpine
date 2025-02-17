@@ -248,6 +248,8 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--allMiniLmL6V2LanguageModel=${allMiniLmL6V2LanguageModelPath}`,
                 `--apnsCertificate=${apnsCertificatePath}`,
                 `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
+                `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
+                `--fileProcessorServiceUrl=http://localhost:${fileProcessorServicePort}`,
             ],
             {
                 env: process.env,
@@ -350,6 +352,8 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--allMiniLmL6V2LanguageModel=${allMiniLmL6V2LanguageModelPath}`,
                 `--apnsCertificate=${apnsCertificatePath}`,
                 `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
+                `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
+                `--fileProcessorServiceUrl=http://localhost:${fileProcessorServicePort}`,
             ],
             {
                 env: process.env,

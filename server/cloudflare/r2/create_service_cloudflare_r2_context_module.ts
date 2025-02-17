@@ -18,6 +18,14 @@ export const serviceCloudflareR2Options = {
     fileProcessorServiceUrl: {type: "string"},
 } as const;
 
+export type ServiceCloudflareR2Options = {
+    readonly cloudflareR2LocalDataPath?: string;
+    readonly cloudflareAccountId?: string;
+    readonly cloudflareR2AccessKeyId?: string;
+    readonly cloudflareR2SecretAccessKey?: string;
+    readonly fileProcessorServiceUrl?: string;
+};
+
 /**
  * Create a Cloudflare R2 context module. You should run this at the root of
  * your service. Probably in a `runService()` call.
@@ -26,13 +34,7 @@ export const serviceCloudflareR2Options = {
  * `serviceCloudflareR2Options` is an object defining the args you can
  * pass into `parseArgs()`.
  */
-export function createServiceCloudflareR2ContextModule(options: {
-    cloudflareR2LocalDataPath?: string;
-    cloudflareAccountId?: string;
-    cloudflareR2AccessKeyId?: string;
-    cloudflareR2SecretAccessKey?: string;
-    fileProcessorServiceUrl?: string;
-}) {
+export function createServiceCloudflareR2ContextModule(options: ServiceCloudflareR2Options) {
     return new CloudflareR2ContextModule(
         process.env.NODE_ENV !== "production"
             ? (() => {

@@ -7,6 +7,7 @@ import {
     authorizeChatAccessForAccount,
     getChatAccountIds,
 } from "~/server/chat/data/chat_table.js";
+import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {
     getContentReferencesForNode,
     getMessageContentReferencesForNode,
@@ -148,6 +149,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 type InboxActionExtraBroadcastContextModules = {
     edge: EdgeServiceContextModuleBase;
     files: FilesContextModuleBase;
+    r2: CloudflareR2ContextModule;
 };
 
 export type InboxActionContextModulesWithBroadcast = ServerActionContextModules &
@@ -2609,6 +2611,7 @@ async function printNotificationEventAlertContentBody(
     fileAuthorizer: FileAuthorizer,
     event: {spaceId: SpaceId; isContentSnippetComplete: boolean; contentSnippet: Node},
 ) {
+    // We don't render files in the alert content so don't bother preloading files.
     const contentReferences = await getContentReferencesForNode(
         context,
         event.spaceId,

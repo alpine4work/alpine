@@ -1041,8 +1041,6 @@ globalStyle(`${mobilePlatformSelector} ${fileFloatRightClassName}`, {
     marginRight: `max(0rem, (100% - ${blockMaxWidth.mobile}) / 2)`,
 });
 
-export const fileBorderRadius = "1";
-
 globalStyle(fileClassName, {
     zIndex: "10",
     position: "relative",
@@ -1050,7 +1048,6 @@ globalStyle(fileClassName, {
     minWidth: fileMinSize,
     minHeight: fileMinSize,
     maxHeight: fileRowMaxHeight,
-    borderRadius: spacing[fileBorderRadius],
     // Files have an interactive pointer cursor as a hint that when you click on a
     // file it opens up the file viewer. The file alone is not obviously
     // interactive.
@@ -1253,8 +1250,7 @@ globalStyle(`${fileClassName}:not(${fileImageViewerClassName})::before`, {
     zIndex: "40",
     position: "absolute",
     inset: "0",
-    boxShadow: `inset 0 0 0 1px ${grey5SemiTransparentColorVar}`,
-    borderRadius: spacing[fileBorderRadius],
+    boxShadow: `inset 0 0 0 0.5px ${grey5SemiTransparentColorVar}`,
 });
 
 // Turn off borders for files with a transparent background.

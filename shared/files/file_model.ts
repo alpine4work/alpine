@@ -15,6 +15,10 @@ export const FileModelDataSchema = Schema.object({
     isUploading: Schema.boolean,
     alternative: FileAlternativeSchema.nullable().default(null),
     preview: FilePreviewSchema.nullable(),
+    // When `preview` is `"Image"` this is the bas64 encoded image preview content
+    // if it's under 100kb. So we can render the image content for small images
+    // directly without needing to make a network request.
+    imagePreviewContentIfSmall: Schema.string.optional(),
 });
 
 /**
@@ -126,8 +130,29 @@ export function minFileModelDataLoadingCount(
     const loadingCount1 = getFileModelDataLoadingCount(data1);
     const loadingCount2 = getFileModelDataLoadingCount(data2);
 
-    if (loadingCount1 < loadingCount2) return data1;
-    if (loadingCount1 > loadingCount2) return data2;
+    if (loadingCount1 < loadingCount2) {
+        // We're returning `data1` but if `data2` has `imagePreviewContentIfSmall`
+        // let's preserve that.
+        if (!data1.imagePreviewContentIfSmall && data2.imagePreviewContentIfSmall)
+            return {...data1, imagePreviewContentIfSmall: data2.imagePreviewContentIfSmall};
+
+        return data1;
+    }
+
+    if (loadingCount1 > loadingCount2) {
+        // We're returning `data2` but if `data1` has `imagePreviewContentIfSmall`
+        // let's preserve that.
+        if (!data2.imagePreviewContentIfSmall && data1.imagePreviewContentIfSmall)
+            return {...data2, imagePreviewContentIfSmall: data1.imagePreviewContentIfSmall};
+
+        return data2;
+    }
+
+    // We're returning `data1` but if `data2` has `imagePreviewContentIfSmall`
+    // let's preserve that.
+    if (!data1.imagePreviewContentIfSmall && data2.imagePreviewContentIfSmall)
+        return {...data1, imagePreviewContentIfSmall: data2.imagePreviewContentIfSmall};
+
     return data1;
 }
 

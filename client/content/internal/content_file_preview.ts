@@ -679,20 +679,32 @@ function renderContentFileImagePreviewInner(
         );
     }
 
-    const svg = renderFileImagePreviewPlaceholder(filePreviewPlaceholder);
+    // We don't need a placeholder for images we've preloaded since we don't need
+    // to wait for preloaded images to load from the network.
+    if (file.imagePreviewContentIfSmall !== undefined) {
+        html.setAttribute(
+            "class",
+            classNames(html.getAttribute("class"), contentStyles.loadedFileImagePreviewClassName),
+        );
+    } else {
+        const svg = renderFileImagePreviewPlaceholder(filePreviewPlaceholder);
 
-    const placeholderImageHtml = new HtmlElementGenerator("img");
-    placeholderImageHtml.setAttribute("class", contentStyles.fileImagePreviewPlaceholderClassName);
-    placeholderImageHtml.setAttribute(
-        "style",
-        `max-width: ${fileSize.width}px; max-height: ${fileSize.height}px`,
-    );
-    // The placeholder image is purely decorative. It shouldn't be visible to
-    // assistive technologies.
-    placeholderImageHtml.setAttribute("aria-hidden", "true");
-    placeholderImageHtml.setAttribute("src", convertSvgToDataUrl(svg));
+        const placeholderImageHtml = new HtmlElementGenerator("img");
+        placeholderImageHtml.setAttribute(
+            "class",
+            contentStyles.fileImagePreviewPlaceholderClassName,
+        );
+        placeholderImageHtml.setAttribute(
+            "style",
+            `max-width: ${fileSize.width}px; max-height: ${fileSize.height}px`,
+        );
+        // The placeholder image is purely decorative. It shouldn't be visible to
+        // assistive technologies.
+        placeholderImageHtml.setAttribute("aria-hidden", "true");
+        placeholderImageHtml.setAttribute("src", convertSvgToDataUrl(svg));
 
-    html.appendChild(placeholderImageHtml);
+        html.appendChild(placeholderImageHtml);
+    }
 
     // Render the image if we have a signed preview URL and the signature isn't
     // expired.
@@ -778,7 +790,15 @@ function renderContentFileImagePreviewInner(
         }
 
         const imageHtml = renderFileImagePreviewContent({
-            srcset: imageSrcset,
+            // If we preloaded the image preview content because it was less than 100kb
+            // then our image element source should be a base64 data URL so we can skip
+            // loading data from the network.
+            srcset:
+                file.imagePreviewContentIfSmall !== undefined
+                    ? `data:${filePreview.content?.contentType ?? file.contentType};base64,${
+                          file.imagePreviewContentIfSmall
+                      }`
+                    : imageSrcset,
             // We need to set the image `max-width` and `max-height` since we don't want
             // the image growing to fill its parent if the image is smaller than the
             // parent (e.g. a small 32x32 image).
@@ -1062,7 +1082,7 @@ function actuallyRenderFileImagePreviewContent({
     // have to show the loading indicator.
     imageHtml.setAttribute("decoding", "sync");
 
-    const srcs = srcset.split(",");
+    const srcs = srcset.startsWith("data:") ? [srcset] : srcset.split(",");
     const firstSrc = srcs[0]!.trim();
 
     // The first source should not include a modifier like 2x. Since it's used as
@@ -1719,7 +1739,13 @@ export function addContentFilePreviewBehavior(
     // Wait until after `isEditorInitialAppRender` to cross fade in our images.
     // That way our cross fade animation won't ever be interrupted by unmounting
     // `<ContentView>` and replacing it with ProseMirror's `EditorView`.
-    if (!isEditorInitialAppRender && imagePreviewContentElement) {
+    if (
+        !isEditorInitialAppRender &&
+        imagePreviewContentElement &&
+        // If we have the file's image content already loaded then we don't need to
+        // wait for the file to load from the network.
+        file?.imagePreviewContentIfSmall === undefined
+    ) {
         const loadedPromise = isHtmlImageElementLoadedAndDecoded(imagePreviewContentElement);
 
         const handleLoad = () => {

@@ -29,6 +29,7 @@ export class AwsJobQueueService extends Construct {
         {
             vpc,
             ecsCluster,
+            cloudflareAccountId,
             dynamo,
             opensearch,
             sqs,
@@ -36,6 +37,7 @@ export class AwsJobQueueService extends Construct {
         }: {
             vpc: Vpc;
             ecsCluster: AwsEcsCluster;
+            cloudflareAccountId: string;
             dynamo: AwsDynamo;
             opensearch: AwsOpensearchWithConnections;
             sqs: AwsSqs;
@@ -212,6 +214,14 @@ export class AwsJobQueueService extends Construct {
                     secrets,
                     "githubAppInstallationId",
                 ),
+                CLOUDFLARE_R2_ACCESS_KEY_ID: EcsSecret.fromSecretsManager(
+                    secrets,
+                    "cloudflareR2AccessKeyId",
+                ),
+                CLOUDFLARE_R2_SECRET_ACCESS_KEY: EcsSecret.fromSecretsManager(
+                    secrets,
+                    "cloudflareR2SecretAccessKey",
+                ),
             },
             environment: {
                 NODE_ENV: "production",
@@ -236,6 +246,9 @@ export class AwsJobQueueService extends Construct {
                     "--githubAppClientId=$GITHUB_APP_CLIENT_ID",
                     "--githubAppClientSecret=$GITHUB_APP_CLIENT_SECRET",
                     "--githubAppInstallationId=$GITHUB_APP_INSTALLATION_ID",
+                    `--cloudflareAccountId=${cloudflareAccountId}`,
+                    `--cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID`,
+                    `--cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY`,
                     // Intentionally escape `$` here! Our key args accept either a file path
                     // or the name of an environment variable. RSA keys are too long to be included
                     // in a command line string and are hard to quote so we lookup the environment

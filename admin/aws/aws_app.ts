@@ -67,6 +67,7 @@ async function addAwsResources(
     new AwsAppService(stack, {
         vpc,
         ecsCluster,
+        cloudflareAccountId,
         dynamo,
         opensearch,
         sqs,
@@ -76,6 +77,7 @@ async function addAwsResources(
     new AwsJobQueueService(stack, {
         vpc,
         ecsCluster,
+        cloudflareAccountId,
         dynamo,
         opensearch,
         sqs,

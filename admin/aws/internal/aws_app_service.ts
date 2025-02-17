@@ -31,6 +31,7 @@ export class AwsAppService extends Construct {
         {
             vpc,
             ecsCluster,
+            cloudflareAccountId,
             dynamo,
             opensearch,
             sqs,
@@ -38,6 +39,7 @@ export class AwsAppService extends Construct {
         }: {
             vpc: Vpc;
             ecsCluster: AwsEcsCluster;
+            cloudflareAccountId: string;
             dynamo: AwsDynamo;
             opensearch: AwsOpensearchWithConnections;
             sqs: AwsSqs;
@@ -207,6 +209,14 @@ export class AwsAppService extends Construct {
                     secrets,
                     "apnsCertificatePrivateKey",
                 ),
+                CLOUDFLARE_R2_ACCESS_KEY_ID: EcsSecret.fromSecretsManager(
+                    secrets,
+                    "cloudflareR2AccessKeyId",
+                ),
+                CLOUDFLARE_R2_SECRET_ACCESS_KEY: EcsSecret.fromSecretsManager(
+                    secrets,
+                    "cloudflareR2SecretAccessKey",
+                ),
             },
             environment: {
                 NODE_ENV: "production",
@@ -226,6 +236,9 @@ export class AwsAppService extends Construct {
                     `--taskRealtimeServiceEcsTaskDefinitionFamily=${taskRealtimeService.taskDefinition.family}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",
                     "--cohereApiKey=$COHERE_API_KEY",
+                    `--cloudflareAccountId=${cloudflareAccountId}`,
+                    `--cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID`,
+                    `--cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY`,
                     // Intentionally escape `$` here! Our key args accept either a file path
                     // or the name of an environment variable. RSA keys are too long to be included
                     // in a command line string and are hard to quote so we lookup the environment

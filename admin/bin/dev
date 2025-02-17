@@ -31,6 +31,7 @@ Usage:
     dev test --all           Run all unit tests
     dev testlogs             Inspect failed tests
     dev testlogs [path]      Inspect failed tests from a \"bazel_testlogs.zip\" file
+    dev branch [name]        Creates a new branch following our naming convention
     dev deployed             Check if the head commit has been deployed
     dev deployed [commit]    Check if the provided commit has been deployed
     dev --help               Print this message"
@@ -172,6 +173,26 @@ case "$1" in
         # downloads from a web browser like `bazel_testlogs (3).zip`).
         # `bazel run` doesn't work well with paths that contain spaces.
         ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:testlogs -- "$(echo -n "$2" | base64)"
+        ;;
+
+    branch)
+        username=$(git credential fill <<EOF | grep username | cut -d= -f2
+protocol=https
+host=github.com
+EOF
+)
+
+        # We recommend creating branches in the format
+        # `${githubUsername}/${date}-${name}` because:
+        #
+        # 1. It makes it really easy to know who owns a branch
+        #
+        # 2. Branches have a natural lexicographic sorting, new branches are near the
+        #    bottom and old branches are near the top
+        #
+        # 3. In some git UIs (like [Tower](https://www.git-tower.com/mac)) branches
+        #    that start with a slash are put into a collapsible folder.
+        git checkout -b "$username/$(date +%Y-%m-%d)-$2"
         ;;
 
     deployed)

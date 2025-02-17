@@ -1,6 +1,7 @@
 import murmurhash from "murmurhash";
 import {authorizeInternalAccess} from "~/server/accounts/accounts_table.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {ServerContentSessionActionContextModules} from "~/server/context/server_content_action_context.js";
 import {getChannelIfPossible} from "~/server/forum/data/forum_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
@@ -13,6 +14,7 @@ import {
     OpensearchGetDocWithoutSourceCommand,
     OpensearchIndexDocIfVersionCommand,
 } from "~/server/opensearch/opensearch_client.js";
+import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {
     OpensearchIndex,
     OpensearchIndexFlattenedKeysType,
@@ -1751,7 +1753,9 @@ function getChannelStandaloneSearchResult(channel: ChannelModel): {
  * On the client we boost channels an account has an affinity for.
  */
 export async function searchChannelsByKeywords(
-    context: SearchSessionActionContext,
+    context: Context<
+        ServerContentSessionActionContextModules & {opensearch: OpensearchContextModule}
+    >,
     {
         spaceId,
         queryText,
@@ -1873,7 +1877,9 @@ export async function searchChannelsByKeywords(
  * recommendations should be used to boost keyword search results.
  */
 export async function searchChannelsByAffinity(
-    context: SearchSessionActionContext,
+    context: Context<
+        ServerContentSessionActionContextModules & {opensearch: OpensearchContextModule}
+    >,
     {spaceId, limit}: {spaceId: SpaceId; limit: number},
 ): Promise<
     Array<{
