@@ -72,7 +72,7 @@ export const getDraggableDataFromEvent = (
         // For columnWidths [1, 2, 1]:
         // and your mouse cursor at 0.6
         //
-        // [      1      |        2     *     |      1      ]         <- Column widths
+        // [      C1      |         C2     *     |       C3      ]         <- Column widths
         // 0           0.25      0.5   0.6   0.75          1.0        <- Cumulative positions
 
         // If mouse is at 0.6:
@@ -139,6 +139,14 @@ export const getDraggableDataFromEvent = (
             targetClosestEdge: closestEdge,
         };
     } else if (draggableType === DraggableType.TABLE_ROW) {
+        // Logic for getting the target index and closest edge based on the mouse position
+        // Since rows are all of same height, we can just divide the table height by the number of rows
+        // to get the height of each row.
+        //
+        // For example, if the table is 100px high and there are 2 rows, each row is 50px high.
+        // If the mouse is at 25px from the top of the table, the closest row is the first one.
+        // If the mouse is at 75px from the top of the table, the closest row is the second one.
+
         const dragState = contentTableRowDragPluginKey.getState(view.state);
         assert(dragState?.dragging);
         const sourceIndex = dragState.dragging.startRowIndex;

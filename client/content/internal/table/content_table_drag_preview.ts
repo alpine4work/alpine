@@ -31,11 +31,11 @@ export function createDragPreview(options: DragPreviewOptions) {
     let rafId: number;
     function updatePosition(x: number, y: number) {
         if (options.type === "column") {
-            // For columns, center horizontally and align to top
-            element.style.transform = `translate(${x - element.offsetWidth / 2}px, ${y - 2}px)`;
+            // For columns, center horizontally on cursor and align to top
+            element.style.transform = `translate(${x}px, ${y - 2}px) translate(-50%, 0)`;
         } else {
-            // For rows, align to left edge and center vertically
-            element.style.transform = `translate(${x - 16}px, ${y - element.offsetHeight / 2}px)`;
+            // For rows, center vertically on cursor and align to left
+            element.style.transform = `translate(${x}px, ${y}px) translate(-16px, -50%)`;
         }
     }
 
