@@ -2034,10 +2034,6 @@ globalStyle(tableWrapperClassName, {
     marginBottom: standaloneBlockMargin,
     position: "relative",
     zIndex: "0",
-    // The table's grips extend into content above and below the table. The user
-    // should be able to click in the area between table controls. We set
-    // `pointerEvents: "auto"` on the table itself.
-    pointerEvents: "none",
     // The padding top/bottom "freezes" the negative margin of our child
     // `tableWrapper2ClassName` so it doesn't affect the margins of this parent
     // element.
@@ -2082,6 +2078,16 @@ globalStyle(tableWrapper2ClassName, {
     marginRight: `-${tableOverflowGradientWidth}`,
     marginTop: `-${tableWrapper3PaddingTop}`,
     marginBottom: `-${tableWrapper3PaddingBottom}`,
+    // The table's grips extend into content above and below the table. The user
+    // should be able to click in the area between table controls. We set
+    // `pointerEvents: "auto"` on the table itself.
+    //
+    // Importantly, this is on `tableWrapper2ClassName` since we need to detect
+    // `mousemove` events over `tableWrapperClassName` so
+    // `getContentTableElementAround()` in
+    // `content_table_column_resizing_plugin.ts` knows we're hovering in the
+    // margins of a table.
+    pointerEvents: "none",
     vars: {
         [tableInnerPaddingXVar]: tableOverflowGradientWidth,
     },
