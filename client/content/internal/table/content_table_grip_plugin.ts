@@ -354,10 +354,7 @@ export function contentTableGripPlugin({isEditable}: {isEditable: boolean}): Plu
                         .setSelection(selectColumn(columnIndex)(view.state.tr).selection),
                 );
 
-                // NOCOMMIT: Check the logic for this as the lines are updating incorrectly
-                //          there is some problem in the getDataFromEvent function
-                // Trigger for showing the lines on the edge of any column drag
-                // this is a hack to show the lines on the edge of any column drag
+                // Trigger for showing the indicator lines on the edge of any column drag
                 const handlePointerMove = (moveEvent: PointerEvent) => {
                     assert(view);
                     const draggableData = getDraggableDataFromEvent(
