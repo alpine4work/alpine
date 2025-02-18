@@ -36,6 +36,7 @@ import {
     addContentTableColumnBeforeSelection,
     addContentTableRowAfterSelection,
     addContentTableRowBeforeSelection,
+    deleteContentTable,
     deleteContentTableColumn,
     deleteContentTableRow,
 } from "~/client/content/internal/table/content_table_commands.js";
@@ -106,16 +107,6 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
                         },
                     },
                     {
-                        label: "Delete row",
-                        iconPlacement: "end",
-                        icon: <Trash />,
-                        onPress: () => {
-                            deleteContentTableRow(view.state, view.dispatch);
-                        },
-                    },
-                ],
-                [
-                    {
                         label: "Add column before",
                         iconPlacement: "end",
                         icon: <ColumnsPlusLeftIcon style={{transform: "translateX(-0.125rem)"}} />,
@@ -131,12 +122,30 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
                             addContentTableColumnAfterSelection(view.state, view.dispatch);
                         },
                     },
+                ],
+                [
+                    {
+                        label: "Delete row",
+                        iconPlacement: "end",
+                        icon: <Trash />,
+                        onPress: () => {
+                            deleteContentTableRow(view.state, view.dispatch);
+                        },
+                    },
                     {
                         label: "Delete column",
                         iconPlacement: "end",
                         icon: <Trash />,
                         onPress: () => {
                             deleteContentTableColumn(view.state, view.dispatch);
+                        },
+                    },
+                    {
+                        label: "Delete table",
+                        iconPlacement: "end",
+                        icon: <Trash />,
+                        onPress: () => {
+                            deleteContentTable(view.state, view.dispatch);
                         },
                     },
                 ],
