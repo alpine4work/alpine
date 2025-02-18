@@ -66,6 +66,8 @@ import {
 } from "~/shared/content/table/content_table_shared_util.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
@@ -107,8 +109,8 @@ export function contentEditorTablePlugin(): Plugin {
             init() {
                 return new ContentEditorTablePluginState(null, null);
             },
-            apply(tr, prev) {
-                return prev.apply(tr);
+            apply(transaction, oldState) {
+                return oldState.apply(transaction);
             },
         },
         appendTransaction: (transactions, oldState, state) => {
@@ -143,7 +145,7 @@ export function contentEditorTablePlugin(): Plugin {
 
                 drawContentEditorTableCellSelection(elementCache, state, decorations);
 
-                if (pluginState.active !== null) {
+                if (pluginState.active !== null && !pluginState.active.isWaitingForMouseOverDelay) {
                     drawContentEditorTablePluginActiveStateDecorations(
                         elementCache,
                         state,
@@ -156,6 +158,36 @@ export function contentEditorTablePlugin(): Plugin {
                     ? DecorationSet.create(state.doc, decorations)
                     : null;
             },
+        },
+        view: () => {
+            let timeout: Timeout | null = null;
+
+            return {
+                update: view => {
+                    if (timeout !== null) {
+                        timeout.clear();
+                        timeout = null;
+                    }
+
+                    const pluginState = contentEditorTablePluginKey.getState(view.state)!;
+
+                    // We have a short delay before showing column resize handles or row grips so
+                    // that if the user is quickly moving their mouse over the table they won't
+                    // show up. The delay is fast enough that the user perceives the delay as
+                    // instant if they're intentionally moving to the row grip or column resize
+                    // handle.
+                    if (pluginState.active?.isWaitingForMouseOverDelay) {
+                        const finishMouseOverDelayTime =
+                            pluginState.active.mouseOverTime + perceivedAsInstantLimitMs;
+
+                        timeout = createTimeout(() => {
+                            dispatchContentEditorTablePluginAction({
+                                type: "FinishActiveMouseOverDelay",
+                            })(view.state, view.dispatch);
+                        }, finishMouseOverDelayTime - Date.now());
+                    }
+                },
+            };
         },
     });
     return plugin;
@@ -173,7 +205,11 @@ type ContentEditorTablePluginAction =
           readonly type: "ClearActive";
       }
     | {
+          readonly type: "FinishActiveMouseOverDelay";
+      }
+    | {
           readonly type: "SetActiveColumnResizeHandle";
+          readonly mouseOverTime: number;
           readonly cellPos: number;
       }
     | {
@@ -193,6 +229,8 @@ type ContentEditorTablePluginAction =
       }
     | {
           readonly type: "SetActiveRowGrip";
+          readonly mouseOverTime: number;
+          readonly isWaitingForMouseOverDelay: boolean;
           readonly cellPos: number;
       };
 
@@ -206,6 +244,8 @@ function dispatchContentEditorTablePluginAction(action: ContentEditorTablePlugin
 type ContentEditorTablePluginActiveState =
     | {
           readonly type: "ColumnResizeHandle";
+          readonly mouseOverTime: number;
+          readonly isWaitingForMouseOverDelay: boolean;
           readonly cellPos: number;
           readonly dragging: {
               readonly startX: number;
@@ -218,6 +258,8 @@ type ContentEditorTablePluginActiveState =
       }
     | {
           readonly type: "RowGrip";
+          readonly mouseOverTime: number;
+          readonly isWaitingForMouseOverDelay: boolean;
           readonly cellPos: number;
           readonly dragging: null;
       };
@@ -342,9 +384,19 @@ class ContentEditorTablePluginState {
             case "ClearActive": {
                 return new ContentEditorTablePluginState(state.draggingSelectionStartCellPos, null);
             }
+            case "FinishActiveMouseOverDelay": {
+                if (!state.active?.isWaitingForMouseOverDelay) return state;
+
+                return new ContentEditorTablePluginState(state.draggingSelectionStartCellPos, {
+                    ...state.active,
+                    isWaitingForMouseOverDelay: false,
+                });
+            }
             case "SetActiveColumnResizeHandle": {
                 return new ContentEditorTablePluginState(state.draggingSelectionStartCellPos, {
                     type: "ColumnResizeHandle",
+                    mouseOverTime: action.mouseOverTime,
+                    isWaitingForMouseOverDelay: true,
                     cellPos: action.cellPos,
                     dragging: null,
                 });
@@ -372,6 +424,8 @@ class ContentEditorTablePluginState {
             case "SetActiveRowGrip": {
                 return new ContentEditorTablePluginState(state.draggingSelectionStartCellPos, {
                     type: "RowGrip",
+                    mouseOverTime: action.mouseOverTime,
+                    isWaitingForMouseOverDelay: action.isWaitingForMouseOverDelay,
                     cellPos: action.cellPos,
                     dragging: null,
                 });
@@ -474,6 +528,10 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
             if ($cell.parent.type.name === "table") {
                 dispatchContentEditorTablePluginAction({
                     type: "SetActiveRowGrip",
+                    mouseOverTime: Date.now(),
+                    // Don't wait for the mouse over delay if we're moving from a row grip to
+                    // another row grip.
+                    isWaitingForMouseOverDelay: pluginState.active?.type !== "RowGrip",
                     cellPos,
                 })(view.state, view.dispatch);
             } else {
@@ -481,6 +539,7 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
 
                 dispatchContentEditorTablePluginAction({
                     type: "SetActiveColumnResizeHandle",
+                    mouseOverTime: Date.now(),
                     cellPos,
                 })(view.state, view.dispatch);
             }
@@ -501,7 +560,12 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
     if (handleCellSelectionMouseDown(view, event)) return true;
 
     const pluginState = contentEditorTablePluginKey.getState(view.state);
-    if (!pluginState || !pluginState.active || pluginState.active?.dragging) {
+    if (
+        !pluginState ||
+        !pluginState.active ||
+        pluginState.active?.dragging ||
+        pluginState.active.isWaitingForMouseOverDelay
+    ) {
         return false;
     }
 
