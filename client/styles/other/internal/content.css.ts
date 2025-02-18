@@ -2254,7 +2254,7 @@ export const tableRightEdgeColumnResizeHandleClassName = style({
 
 // NOCOMMIT: Remove other grip classes
 export const tableRowGripBaseClassName = style({
-    zIndex: "40",
+    zIndex: "50",
     position: "absolute",
     left: "0",
     height: "calc(100% + 1px)",
@@ -2283,7 +2283,7 @@ globalStyle(`${tableRowGripBaseClassName} > svg`, {
 
 // NOCOMMIT: Remove other grip classes
 export const tableColumnGripBaseClassName = style({
-    zIndex: "40",
+    zIndex: "50",
     position: "absolute",
     left: "0",
     width: "calc(100% + 1px)",

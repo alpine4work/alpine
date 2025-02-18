@@ -53,14 +53,14 @@ type ContentTableRect = ContentTableMapRect & {
  */
 function selectedContentTableRect(state: EditorState): ContentTableRect {
     const sel = state.selection;
-    const $pos = selectionContentTableCell(state);
-    const table = $pos.node(-1);
-    const tablePos = $pos.start(-1);
+    const $cell = selectionContentTableCell(state);
+    const table = $cell.node(-1);
+    const tablePos = $cell.start(-1);
     const tableMap = ContentTableMap.get(table);
     const rect =
         sel instanceof ContentTableCellSelection
             ? tableMap.rectBetween(sel.$anchorCell.pos - tablePos, sel.$headCell.pos - tablePos)
-            : tableMap.findCell($pos.pos - tablePos);
+            : tableMap.findCell($cell.pos - tablePos);
     return {...rect, tablePos, tableMap, table};
 }
 
