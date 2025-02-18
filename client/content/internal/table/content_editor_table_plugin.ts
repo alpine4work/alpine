@@ -1488,6 +1488,12 @@ type ContentEditorTablePluginDecorationElementCache = ReturnType<
 >;
 
 function createContentEditorTablePluginDecorationElementCache() {
+    const cellSelectionElement = new Lazy<HTMLElement>(() => {
+        const cellSelectionElement = document.createElement("div");
+        cellSelectionElement.className = contentStyles.tableCellSelectionElementClassName;
+        return cellSelectionElement;
+    });
+
     const columnResizeHandleElement = new Lazy<HTMLElement>(() => {
         const columnResizeHandleElement = document.createElement("div");
         columnResizeHandleElement.className = contentStyles.tableColumnResizeHandleClassName;
@@ -1515,6 +1521,7 @@ function createContentEditorTablePluginDecorationElementCache() {
     });
 
     return {
+        cellSelectionElement,
         columnResizeHandleElement,
         rightEdgeColumnResizeHandleElement,
         rowGripElement,
@@ -1529,26 +1536,44 @@ function drawContentEditorTableCellSelection(
 ) {
     if (!(state.selection instanceof ContentTableCellSelection)) return;
 
-    if (state.selection.isRowSelection()) {
-        const startRowIndex = state.selection.tableRect.top;
-        const endRowIndex = state.selection.tableRect.bottom - 1;
+    const {tablePos, tableMap, tableRect} = state.selection;
 
+    decorations.push(
+        Decoration.widget(tablePos, () => {
+            const cellSelectionElement = elementCache.cellSelectionElement.get();
+
+            cellSelectionElement.style.gridRow = `${tableRect.top + 1} / ${tableRect.bottom + 1}`;
+            cellSelectionElement.style.gridColumn = `${tableRect.left + 1} / ${
+                tableRect.right + 1
+            }`;
+
+            if (tableRect.right === tableMap.width) {
+                cellSelectionElement.classList.add(
+                    contentStyles.tableRightEdgeCellSelectionElementClassName,
+                );
+            } else {
+                cellSelectionElement.classList.remove(
+                    contentStyles.tableRightEdgeCellSelectionElementClassName,
+                );
+            }
+
+            return cellSelectionElement;
+        }),
+    );
+
+    if (state.selection.isRowSelection()) {
         decorations.push(
-            Decoration.widget(state.selection.tablePos, () => {
+            Decoration.widget(tablePos, () => {
                 const rowSelectionGripElement = elementCache.rowSelectionGripElement.get();
-                rowSelectionGripElement.style.gridRow = `${startRowIndex + 1} / ${endRowIndex + 2}`;
+
+                rowSelectionGripElement.style.gridRow = `${tableRect.top + 1} / ${
+                    tableRect.bottom + 1
+                }`;
+
                 return rowSelectionGripElement;
             }),
         );
     }
-
-    state.selection.forEachCell((node, pos) => {
-        decorations.push(
-            Decoration.node(pos, pos + node.nodeSize, {
-                class: contentStyles.tableSelectedCellClassName,
-            }),
-        );
-    });
 }
 
 // Handles the decorations for the column resize handle

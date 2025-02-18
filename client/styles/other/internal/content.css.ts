@@ -2195,28 +2195,6 @@ globalStyle(`${tableWrapperClassName} td:last-of-type`, {
     boxShadow: `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, inset -1px 0 0 0 ${colorSchemeVars["grey-10"]}`,
 });
 
-export const tableSelectedCellClassName = style({});
-
-globalStyle(`${tableWrapperClassName} td${tableSelectedCellClassName}`, {
-    backgroundColor: colorSchemeVars["grey-5"],
-});
-
-globalStyle(`${tableWrapperClassName} td${tableSelectedCellClassName}::after`, {
-    content: '""',
-    position: "absolute",
-    zIndex: "10",
-    top: 0,
-    left: 0,
-    right: -1,
-    bottom: -1,
-    pointerEvents: "none",
-    border: `1px solid ${colorSchemeVars["grey-20"]}`,
-});
-
-globalStyle(`${tableWrapperClassName} td:last-of-type${tableSelectedCellClassName}::after`, {
-    right: 0,
-});
-
 // We want the hit area for the resize handle to be nice and wide. We'd like to
 // use spacing 6 which is the same value that `useTouchSlop()` uses for the hit
 // range of small buttons on desktop. However, we also want to keep all resize
@@ -2231,9 +2209,26 @@ const tableColumnResizeHandleIndicatorWidthSpacing = "1";
 export {tableColumnResizeHandleIndicatorWidthSpacing as tableColumnResizeHandleIndicatorWidth};
 const tableColumnResizeHandleIndicatorWidth = spacing[tableColumnResizeHandleIndicatorWidthSpacing];
 
-export const tableColumnResizeHandleClassName = style({
+export const tableCellSelectionElementClassName = style({
+    pointerEvents: "none",
+    zIndex: "30",
     position: "absolute",
+    width: "calc(100% + 1px)",
+    height: "calc(100% + 1px)",
+    boxShadow: `inset 0 0 0 2px ${colorSchemeVars["theme-40-const"]}`,
+});
+
+export const tableRightEdgeCellSelectionElementClassName = style({
+    selectors: {
+        [`${tableCellSelectionElementClassName}&`]: {
+            width: "100%",
+        },
+    },
+});
+
+export const tableColumnResizeHandleClassName = style({
     zIndex: "40",
+    position: "absolute",
     top: 0,
     bottom: -1,
     transform: "translateX(-50%)",
@@ -2294,8 +2289,8 @@ export const tableRightEdgeColumnResizeHandleClassName = style({
 
 // NOCOMMIT: Fix the name, remove other grips
 export const tableRowGripBaseClassName = style({
-    position: "absolute",
     zIndex: "40",
+    position: "absolute",
     left: "0",
     height: "calc(100% + 1px)",
     transform: "translateX(-50%)",
