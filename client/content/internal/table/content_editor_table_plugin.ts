@@ -345,21 +345,23 @@ class ContentEditorTablePluginState {
     }
 
     // Applies the transaction to update the resizing state
-    apply(tr: Transaction): ContentEditorTablePluginState {
+    apply(transaction: Transaction): ContentEditorTablePluginState {
         let state: ContentEditorTablePluginState = this;
 
-        if (tr.docChanged) {
+        if (transaction.docChanged) {
             // Update dragging selection start position when the doc changes.
-            if (tr.docChanged && state.draggingSelectionStartCellPos !== null) {
-                const {deleted, pos} = tr.mapping.mapResult(state.draggingSelectionStartCellPos);
+            if (transaction.docChanged && state.draggingSelectionStartCellPos !== null) {
+                const {deleted, pos} = transaction.mapping.mapResult(
+                    state.draggingSelectionStartCellPos,
+                );
 
                 state = new ContentEditorTablePluginState(deleted ? null : pos, state.active);
             }
 
             // Update active cell position when the doc changes.
-            if (tr.docChanged && state.active !== null) {
-                let cellPos: number | null = tr.mapping.map(state.active.cellPos, -1);
-                if (!pointsAtContentTableCell(tr.doc.resolve(cellPos))) {
+            if (transaction.docChanged && state.active !== null) {
+                let cellPos: number | null = transaction.mapping.map(state.active.cellPos, -1);
+                if (!pointsAtContentTableCell(transaction.doc.resolve(cellPos))) {
                     cellPos = null;
                 }
 
@@ -376,7 +378,7 @@ class ContentEditorTablePluginState {
                     dragging: {
                         ...state.active.dragging,
                         state: getContentEditorTablePluginColumnResizeHandleDraggingState(
-                            tr.doc,
+                            transaction.doc,
                             state.active.cellPos,
                         ),
                     },
@@ -384,75 +386,140 @@ class ContentEditorTablePluginState {
             }
         }
 
-        const action: ContentEditorTablePluginAction | null | undefined = tr.getMeta(
+        const action: ContentEditorTablePluginAction | null | undefined = transaction.getMeta(
             contentEditorTablePluginKey,
         );
-        if (!action) return state;
+        if (action) {
+            state = state._applyAction(action);
+        }
 
+        // Don't allow active row grips or column grips within a cell selection. We'll
+        // already be rendering a conflicting "selection" grip.
+        if (transaction.selection instanceof ContentTableCellSelection) {
+            if (state.active?.type === "RowGrip") {
+                const $cell = transaction.doc.resolve(state.active.cellPos);
+                assert($cell.parent.type.name === "table");
+
+                const tablePos = $cell.start();
+                const table = $cell.node();
+                const tableMap = ContentTableMap.get(table);
+                const rowIndex = tableMap.getRowCount($cell.pos + 1 - tablePos);
+
+                if (
+                    transaction.selection.isRowSelection() &&
+                    transaction.selection.tableRect.top <= rowIndex &&
+                    rowIndex < transaction.selection.tableRect.bottom
+                ) {
+                    state = new ContentEditorTablePluginState(
+                        state.draggingSelectionStartCellPos,
+                        null,
+                    );
+                }
+            }
+
+            if (state.active?.type === "ColumnGrip") {
+                const $cell = transaction.doc.resolve(state.active.cellPos);
+
+                let tablePos: number;
+                let table: Node;
+                let tableMap: ContentTableMap;
+                let columnIndex: number;
+
+                if ($cell.parent.type.name === "table") {
+                    tablePos = $cell.start();
+                    table = $cell.node();
+                    tableMap = ContentTableMap.get(table);
+                    columnIndex = tableMap.getColumnCount($cell.pos + 1 - tablePos);
+                } else {
+                    assert($cell.parent.type.name === "tableRow");
+
+                    tablePos = $cell.start(-1);
+                    table = $cell.node(-1);
+                    tableMap = ContentTableMap.get(table);
+                    columnIndex = tableMap.getColumnCount($cell.pos - tablePos) + 1;
+                }
+
+                if (
+                    transaction.selection.isColumnSelection() &&
+                    transaction.selection.tableRect.left <= columnIndex &&
+                    columnIndex < transaction.selection.tableRect.right
+                ) {
+                    state = new ContentEditorTablePluginState(
+                        state.draggingSelectionStartCellPos,
+                        null,
+                    );
+                }
+            }
+        }
+
+        return state;
+    }
+
+    private _applyAction(action: ContentEditorTablePluginAction): ContentEditorTablePluginState {
         switch (action.type) {
             case "ClearDraggingSelectionStartCellPos": {
-                return new ContentEditorTablePluginState(null, state.active);
+                return new ContentEditorTablePluginState(null, this.active);
             }
             case "SetDraggingSelectionStartCellPos": {
-                return new ContentEditorTablePluginState(action.pos, state.active);
+                return new ContentEditorTablePluginState(action.pos, this.active);
             }
             case "ClearActive": {
-                return new ContentEditorTablePluginState(state.draggingSelectionStartCellPos, null);
+                return new ContentEditorTablePluginState(this.draggingSelectionStartCellPos, null);
             }
             case "FinishActiveMouseOverDelay": {
-                if (!state.active?.isWaitingForMouseOverDelay) return state;
+                if (!this.active?.isWaitingForMouseOverDelay) return this;
 
-                return new ContentEditorTablePluginState(state.draggingSelectionStartCellPos, {
-                    ...state.active,
+                return new ContentEditorTablePluginState(this.draggingSelectionStartCellPos, {
+                    ...this.active,
                     isWaitingForMouseOverDelay: false,
                 });
             }
             case "SetActiveColumnResizeHandle": {
-                return new ContentEditorTablePluginState(state.draggingSelectionStartCellPos, {
+                return new ContentEditorTablePluginState(this.draggingSelectionStartCellPos, {
                     type: "ColumnResizeHandle",
                     mouseOverTime: action.mouseOverTime,
                     // Don't delay showing this UI if we already have some other active UI.
-                    isWaitingForMouseOverDelay: state.active === null,
+                    isWaitingForMouseOverDelay: this.active === null,
                     cellPos: action.cellPos,
                     dragging: null,
                 });
             }
             case "SetActiveColumnResizeHandleDragging": {
-                if (state.active?.type !== "ColumnResizeHandle") return state;
+                if (this.active?.type !== "ColumnResizeHandle") return this;
 
-                return new ContentEditorTablePluginState(state.draggingSelectionStartCellPos, {
-                    ...state.active,
+                return new ContentEditorTablePluginState(this.draggingSelectionStartCellPos, {
+                    ...this.active,
                     dragging: action.dragging,
                 });
             }
             case "SetActiveColumnResizeHandleIsSnapping": {
-                if (state.active?.type !== "ColumnResizeHandle") return state;
-                if (!state.active.dragging) return state;
+                if (this.active?.type !== "ColumnResizeHandle") return this;
+                if (!this.active.dragging) return this;
 
-                return new ContentEditorTablePluginState(state.draggingSelectionStartCellPos, {
-                    ...state.active,
+                return new ContentEditorTablePluginState(this.draggingSelectionStartCellPos, {
+                    ...this.active,
                     dragging: {
-                        ...state.active.dragging,
+                        ...this.active.dragging,
                         isSnapping: action.isSnapping,
                     },
                 });
             }
             case "SetActiveRowGrip": {
-                return new ContentEditorTablePluginState(state.draggingSelectionStartCellPos, {
+                return new ContentEditorTablePluginState(this.draggingSelectionStartCellPos, {
                     type: "RowGrip",
                     mouseOverTime: action.mouseOverTime,
                     // Don't delay showing this UI if we already have some other active UI.
-                    isWaitingForMouseOverDelay: state.active === null,
+                    isWaitingForMouseOverDelay: this.active === null,
                     cellPos: action.cellPos,
                     dragging: null,
                 });
             }
             case "SetActiveColumnGrip": {
-                return new ContentEditorTablePluginState(state.draggingSelectionStartCellPos, {
+                return new ContentEditorTablePluginState(this.draggingSelectionStartCellPos, {
                     type: "ColumnGrip",
                     mouseOverTime: action.mouseOverTime,
                     // Don't delay showing this UI if we already have some other active UI.
-                    isWaitingForMouseOverDelay: state.active === null,
+                    isWaitingForMouseOverDelay: this.active === null,
                     cellPos: action.cellPos,
                     dragging: null,
                 });
@@ -1174,30 +1241,6 @@ function handleActiveRowGripMouseDown(view: EditorView, event: MouseEvent) {
             finish();
             return;
         }
-
-        // NOCOMMIT:
-        // const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
-        // if (!pluginState?.active?.dragging) {
-        //     finish();
-        //     return;
-        // }
-
-        // const tableElement = pluginState.active.dragging.state.getTableElement(view);
-        // if (!tableElement) {
-        //     finish();
-        //     return;
-        // }
-
-        // const newTableAndColumnWidths = getContentTableColumnResizeDraggingStateNewColumnWidths(
-        //     event.clientX,
-        //     pluginState.active.dragging,
-        // );
-
-        // updateContentTableColumnsOnResize(
-        //     pluginState.active.dragging.state.oldTable,
-        //     tableElement,
-        //     newTableAndColumnWidths,
-        // );
     }
 
     // Finalizes the resizing process when the mouse is released
@@ -1205,42 +1248,6 @@ function handleActiveRowGripMouseDown(view: EditorView, event: MouseEvent) {
         window.removeEventListener("mouseup", finish);
         window.removeEventListener("mousemove", move);
         dragCoverElement.remove();
-
-        // NOCOMMIT:
-        // const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
-        // if (!pluginState?.active?.dragging) return;
-
-        // const {tableWidth: newTableWidth, columnWidths: newColumnWidths} =
-        //     getContentTableColumnResizeDraggingStateNewColumnWidths(
-        //         lastClientX,
-        //         pluginState.active.dragging,
-        //     );
-
-        // const transaction = view.state.tr;
-
-        // if (newTableWidth === undefined) {
-        //     transaction.setNodeAttribute(
-        //         pluginState.active.dragging.state.tablePos - 1,
-        //         "columnWidths",
-        //         newColumnWidths,
-        //     );
-        // } else {
-        //     transaction.setNodeMarkup(pluginState.active.dragging.state.tablePos - 1, null, {
-        //         ...pluginState.active.dragging.state.oldTable.attrs,
-        //         tableWidth: newTableWidth,
-        //         columnWidths: newColumnWidths,
-        //     });
-        // }
-
-        // view.dispatch(
-        //     transaction.setMeta(
-        //         contentTableColumnResizingPluginKey,
-        //         cast<ContentTableColumnResizeAction>({
-        //             type: "SetActiveColumnResizeHandleDragging",
-        //             dragging: null,
-        //         }),
-        //     ),
-        // );
     }
 
     // Block the DOM with a cover element so we don't trigger hover effects and the
@@ -1302,30 +1309,6 @@ function handleActiveColumnGripMouseDown(view: EditorView, event: MouseEvent) {
             finish();
             return;
         }
-
-        // NOCOMMIT:
-        // const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
-        // if (!pluginState?.active?.dragging) {
-        //     finish();
-        //     return;
-        // }
-
-        // const tableElement = pluginState.active.dragging.state.getTableElement(view);
-        // if (!tableElement) {
-        //     finish();
-        //     return;
-        // }
-
-        // const newTableAndColumnWidths = getContentTableColumnResizeDraggingStateNewColumnWidths(
-        //     event.clientX,
-        //     pluginState.active.dragging,
-        // );
-
-        // updateContentTableColumnsOnResize(
-        //     pluginState.active.dragging.state.oldTable,
-        //     tableElement,
-        //     newTableAndColumnWidths,
-        // );
     }
 
     // Finalizes the resizing process when the mouse is released
@@ -1333,42 +1316,6 @@ function handleActiveColumnGripMouseDown(view: EditorView, event: MouseEvent) {
         window.removeEventListener("mouseup", finish);
         window.removeEventListener("mousemove", move);
         dragCoverElement.remove();
-
-        // NOCOMMIT:
-        // const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
-        // if (!pluginState?.active?.dragging) return;
-
-        // const {tableWidth: newTableWidth, columnWidths: newColumnWidths} =
-        //     getContentTableColumnResizeDraggingStateNewColumnWidths(
-        //         lastClientX,
-        //         pluginState.active.dragging,
-        //     );
-
-        // const transaction = view.state.tr;
-
-        // if (newTableWidth === undefined) {
-        //     transaction.setNodeAttribute(
-        //         pluginState.active.dragging.state.tablePos - 1,
-        //         "columnWidths",
-        //         newColumnWidths,
-        //     );
-        // } else {
-        //     transaction.setNodeMarkup(pluginState.active.dragging.state.tablePos - 1, null, {
-        //         ...pluginState.active.dragging.state.oldTable.attrs,
-        //         tableWidth: newTableWidth,
-        //         columnWidths: newColumnWidths,
-        //     });
-        // }
-
-        // view.dispatch(
-        //     transaction.setMeta(
-        //         contentTableColumnResizingPluginKey,
-        //         cast<ContentTableColumnResizeAction>({
-        //             type: "SetActiveColumnResizeHandleDragging",
-        //             dragging: null,
-        //         }),
-        //     ),
-        // );
     }
 
     // Block the DOM with a cover element so we don't trigger hover effects and the
