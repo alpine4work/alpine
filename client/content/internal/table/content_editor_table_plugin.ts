@@ -43,7 +43,10 @@ import {Command, EditorState, Plugin, PluginKey, Transaction} from "prosemirror-
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {updateContentTableColumnsOnResize} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {contentTableCellAround} from "~/client/content/internal/table/content_table_client_util.js";
-import {selectContentTableRow} from "~/client/content/internal/table/content_table_commands.js";
+import {
+    selectContentTableColumn,
+    selectContentTableRow,
+} from "~/client/content/internal/table/content_table_commands.js";
 import {fixContentTables} from "~/client/content/internal/table/content_table_fix_tables.js";
 import {handleContentTableKeyDown} from "~/client/content/internal/table/content_table_input.js";
 import {dotsSixIconSvg} from "~/client/icons/dots_six_icon_svg.js";
@@ -231,7 +234,11 @@ type ContentEditorTablePluginAction =
     | {
           readonly type: "SetActiveRowGrip";
           readonly mouseOverTime: number;
-          readonly isWaitingForMouseOverDelay: boolean;
+          readonly cellPos: number;
+      }
+    | {
+          readonly type: "SetActiveColumnGrip";
+          readonly mouseOverTime: number;
           readonly cellPos: number;
       };
 
@@ -259,6 +266,13 @@ type ContentEditorTablePluginActiveState =
       }
     | {
           readonly type: "RowGrip";
+          readonly mouseOverTime: number;
+          readonly isWaitingForMouseOverDelay: boolean;
+          readonly cellPos: number;
+          readonly dragging: null;
+      }
+    | {
+          readonly type: "ColumnGrip";
           readonly mouseOverTime: number;
           readonly isWaitingForMouseOverDelay: boolean;
           readonly cellPos: number;
@@ -397,7 +411,8 @@ class ContentEditorTablePluginState {
                 return new ContentEditorTablePluginState(state.draggingSelectionStartCellPos, {
                     type: "ColumnResizeHandle",
                     mouseOverTime: action.mouseOverTime,
-                    isWaitingForMouseOverDelay: true,
+                    // Don't delay showing this UI if we already have some other active UI.
+                    isWaitingForMouseOverDelay: state.active === null,
                     cellPos: action.cellPos,
                     dragging: null,
                 });
@@ -426,7 +441,18 @@ class ContentEditorTablePluginState {
                 return new ContentEditorTablePluginState(state.draggingSelectionStartCellPos, {
                     type: "RowGrip",
                     mouseOverTime: action.mouseOverTime,
-                    isWaitingForMouseOverDelay: action.isWaitingForMouseOverDelay,
+                    // Don't delay showing this UI if we already have some other active UI.
+                    isWaitingForMouseOverDelay: state.active === null,
+                    cellPos: action.cellPos,
+                    dragging: null,
+                });
+            }
+            case "SetActiveColumnGrip": {
+                return new ContentEditorTablePluginState(state.draggingSelectionStartCellPos, {
+                    type: "ColumnGrip",
+                    mouseOverTime: action.mouseOverTime,
+                    // Don't delay showing this UI if we already have some other active UI.
+                    isWaitingForMouseOverDelay: state.active === null,
                     cellPos: action.cellPos,
                     dragging: null,
                 });
@@ -451,12 +477,25 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
 
     const targetElement = event.target as HTMLElement;
 
+    let type: "ColumnResizeHandle" | "RowGrip" | "ColumnGrip" | null = null;
     let cellPos: number | null = null;
     if (
         pluginState.active !== null &&
-        (targetElement.classList.contains(contentStyles.tableColumnResizeHandleClassName) ||
-            targetElement.classList.contains(contentStyles.tableRowGripClassName))
+        targetElement.classList.contains(contentStyles.tableColumnResizeHandleClassName)
     ) {
+        type = "ColumnResizeHandle";
+        cellPos = pluginState.active.cellPos;
+    } else if (
+        pluginState.active !== null &&
+        targetElement.classList.contains(contentStyles.tableRowGripClassName)
+    ) {
+        type = "RowGrip";
+        cellPos = pluginState.active.cellPos;
+    } else if (
+        pluginState.active !== null &&
+        targetElement.classList.contains(contentStyles.tableColumnGripClassName)
+    ) {
+        type = "ColumnGrip";
         cellPos = pluginState.active.cellPos;
     } else {
         const spacingScale = getSpacingScaleWithoutListening();
@@ -472,77 +511,291 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
 
         const cellTargetElement = getContentTableCellElementAround(targetElement);
         if (cellTargetElement) {
-            const {left, right} = cellTargetElement.getBoundingClientRect();
-            if (event.clientX - left <= halfColumnResizeHandleWidth) {
-                cellPos = getEdgeContentTableCell(view, event, "left", halfColumnResizeHandleWidth);
-            } else if (right - event.clientX <= halfColumnResizeHandleWidth) {
-                cellPos = getEdgeContentTableCell(
-                    view,
-                    event,
-                    "right",
-                    halfColumnResizeHandleWidth,
-                );
-            }
-        } else {
-            const tableTargetElement = getContentTableElementAround(targetElement);
-            if (tableTargetElement) {
-                const {left, right} = tableTargetElement.getBoundingClientRect();
+            const {top, bottom, left, right} = cellTargetElement.getBoundingClientRect();
 
-                // This case occurs when the mouse is outside the table and approaching the
-                // left edge.
-                if (event.clientX <= left && left - event.clientX <= halfColumnResizeHandleWidth) {
+            const tryVertical = (): boolean => {
+                if (event.clientX - left <= halfColumnResizeHandleWidth) {
                     cellPos = getEdgeContentTableCell(
                         view,
                         event,
                         "left",
                         halfColumnResizeHandleWidth,
                     );
-                }
-                // This case occurs when the mouse is outside the table and approaching the
-                // right edge.
-                else if (
-                    event.clientX >= right &&
-                    event.clientX - right <= halfColumnResizeHandleWidth
-                ) {
+
+                    if (cellPos !== null) {
+                        const $cell = view.state.doc.resolve(cellPos);
+                        type =
+                            // If we're hovering the left edge of the table then the parent of `$cell` will
+                            // be `table` instead of `tableRow`.
+                            $cell.parent.type.name === "table" ? "RowGrip" : "ColumnResizeHandle";
+                    }
+                    return true;
+                } else if (right - event.clientX <= halfColumnResizeHandleWidth) {
                     cellPos = getEdgeContentTableCell(
                         view,
                         event,
                         "right",
                         halfColumnResizeHandleWidth,
                     );
+
+                    if (cellPos !== null) {
+                        const $cell = view.state.doc.resolve(cellPos);
+                        type =
+                            // If we're hovering the left edge of the table then the parent of `$cell` will
+                            // be `table` instead of `tableRow`.
+                            $cell.parent.type.name === "table" ? "RowGrip" : "ColumnResizeHandle";
+                    }
+                    return true;
+                } else {
+                    return false;
+                }
+            };
+
+            const tryHorizontal = (): boolean => {
+                if (event.clientY - top <= halfColumnResizeHandleWidth) {
+                    cellPos = getEdgeContentTableCell(
+                        view,
+                        event,
+                        "top",
+                        halfColumnResizeHandleWidth,
+                    );
+
+                    // Check that the cell is a part of the first row. We only render a column grip
+                    // for the first row.
+                    if (cellPos !== null) {
+                        const $cell = view.state.doc.resolve(cellPos);
+
+                        let tablePos: number;
+                        let table: Node;
+                        let tableMap: ContentTableMap;
+                        let rowIndex: number;
+
+                        if ($cell.parent.type.name === "table") {
+                            tablePos = $cell.start();
+                            table = $cell.node();
+                            tableMap = ContentTableMap.get(table);
+                            rowIndex = tableMap.getRowCount($cell.pos + 1 - tablePos);
+                        } else {
+                            assert($cell.parent.type.name === "tableRow");
+
+                            tablePos = $cell.start(-1);
+                            table = $cell.node(-1);
+                            tableMap = ContentTableMap.get(table);
+                            rowIndex = tableMap.getRowCount($cell.pos - tablePos);
+                        }
+
+                        if (rowIndex === 0) {
+                            type = "ColumnGrip";
+                        }
+                    }
+
+                    return true;
+                } else if (bottom - event.clientY <= halfColumnResizeHandleWidth) {
+                    cellPos = getEdgeContentTableCell(
+                        view,
+                        event,
+                        "bottom",
+                        halfColumnResizeHandleWidth,
+                    );
+                    return true;
+                } else {
+                    return false;
+                }
+            };
+
+            // If the user was hovering over a column grip then try to maintain the
+            // horizontal column grip before switching to checking for vertical row grips
+            // or column resize handles.
+            if (pluginState.active?.type === "ColumnGrip") {
+                if (!tryHorizontal()) {
+                    tryVertical();
+                }
+            } else {
+                if (!tryVertical()) {
+                    tryHorizontal();
+                }
+            }
+        } else {
+            const tableTargetElement = getContentTableElementAround(targetElement);
+            if (tableTargetElement) {
+                const {top, bottom, left, right} = tableTargetElement.getBoundingClientRect();
+
+                const tryVertical = (): boolean => {
+                    // This case occurs when the mouse is outside the table and approaching the
+                    // left edge.
+                    if (
+                        event.clientX <= left &&
+                        left - event.clientX <= halfColumnResizeHandleWidth
+                    ) {
+                        cellPos = getEdgeContentTableCell(
+                            view,
+                            event,
+                            "left",
+                            halfColumnResizeHandleWidth,
+                        );
+
+                        if (cellPos !== null) {
+                            const $cell = view.state.doc.resolve(cellPos);
+                            type =
+                                // If we're hovering the left edge of the table then the parent of `$cell` will
+                                // be `table` instead of `tableRow`.
+                                $cell.parent.type.name === "table"
+                                    ? "RowGrip"
+                                    : "ColumnResizeHandle";
+                        }
+                        return true;
+                    }
+                    // This case occurs when the mouse is outside the table and approaching the
+                    // right edge.
+                    else if (
+                        event.clientX >= right &&
+                        event.clientX - right <= halfColumnResizeHandleWidth
+                    ) {
+                        cellPos = getEdgeContentTableCell(
+                            view,
+                            event,
+                            "right",
+                            halfColumnResizeHandleWidth,
+                        );
+
+                        if (cellPos !== null) {
+                            const $cell = view.state.doc.resolve(cellPos);
+                            type =
+                                // If we're hovering the left edge of the table then the parent of `$cell` will
+                                // be `table` instead of `tableRow`.
+                                $cell.parent.type.name === "table"
+                                    ? "RowGrip"
+                                    : "ColumnResizeHandle";
+                        }
+                        return true;
+                    } else {
+                        return false;
+                    }
+                };
+
+                const tryHorizontal = (): boolean => {
+                    // This case occurs when the mouse is outside the table and approaching the
+                    // top edge.
+                    if (
+                        event.clientY <= top &&
+                        top - event.clientY <= halfColumnResizeHandleWidth
+                    ) {
+                        cellPos = getEdgeContentTableCell(
+                            view,
+                            event,
+                            "top",
+                            halfColumnResizeHandleWidth,
+                        );
+
+                        // Check that the cell is a part of the first row. We only render a column grip
+                        // for the first row.
+                        if (cellPos !== null) {
+                            const $cell = view.state.doc.resolve(cellPos);
+
+                            let tablePos: number;
+                            let table: Node;
+                            let tableMap: ContentTableMap;
+                            let rowIndex: number;
+
+                            if ($cell.parent.type.name === "table") {
+                                tablePos = $cell.start();
+                                table = $cell.node();
+                                tableMap = ContentTableMap.get(table);
+                                rowIndex = tableMap.getRowCount($cell.pos + 1 - tablePos);
+                            } else {
+                                assert($cell.parent.type.name === "tableRow");
+
+                                tablePos = $cell.start(-1);
+                                table = $cell.node(-1);
+                                tableMap = ContentTableMap.get(table);
+                                rowIndex = tableMap.getRowCount($cell.pos - tablePos);
+                            }
+
+                            if (rowIndex === 0) {
+                                type = "ColumnGrip";
+                            }
+                        }
+
+                        return true;
+                    }
+                    // This case occurs when the mouse is outside the table and approaching the
+                    // bottom edge.
+                    else if (
+                        event.clientY >= bottom &&
+                        event.clientY - bottom <= halfColumnResizeHandleWidth
+                    ) {
+                        cellPos = getEdgeContentTableCell(
+                            view,
+                            event,
+                            "bottom",
+                            halfColumnResizeHandleWidth,
+                        );
+                        return true;
+                    } else {
+                        return false;
+                    }
+                };
+
+                // If the user was hovering over a column grip then try to maintain the
+                // horizontal column grip before switching to checking for vertical row grips
+                // or column resize handles.
+                if (pluginState.active?.type === "ColumnGrip") {
+                    if (!tryHorizontal()) {
+                        tryVertical();
+                    }
+                } else {
+                    if (!tryVertical()) {
+                        tryHorizontal();
+                    }
                 }
             }
         }
     }
 
-    if (cellPos !== (pluginState.active?.cellPos ?? null)) {
+    if (
+        type !== (pluginState.active?.type ?? null) ||
+        cellPos !== (pluginState.active?.cellPos ?? null)
+    ) {
         if (cellPos === null) {
             dispatchContentEditorTablePluginAction({type: "ClearActive"})(
                 view.state,
                 view.dispatch,
             );
         } else {
-            const $cell = view.state.doc.resolve(cellPos);
-
-            // If we're hovering the left edge of the table then the parent of `$cell` will
-            // be `table` instead of `tableRow`.
-            if ($cell.parent.type.name === "table") {
-                dispatchContentEditorTablePluginAction({
-                    type: "SetActiveRowGrip",
-                    mouseOverTime: Date.now(),
-                    // Don't wait for the mouse over delay if we're moving from a row grip to
-                    // another row grip.
-                    isWaitingForMouseOverDelay: pluginState.active?.type !== "RowGrip",
-                    cellPos,
-                })(view.state, view.dispatch);
-            } else {
-                assert($cell.parent.type.name === "tableRow");
-
-                dispatchContentEditorTablePluginAction({
-                    type: "SetActiveColumnResizeHandle",
-                    mouseOverTime: Date.now(),
-                    cellPos,
-                })(view.state, view.dispatch);
+            switch (type) {
+                case null: {
+                    dispatchContentEditorTablePluginAction({type: "ClearActive"})(
+                        view.state,
+                        view.dispatch,
+                    );
+                    break;
+                }
+                case "ColumnResizeHandle": {
+                    dispatchContentEditorTablePluginAction({
+                        type: "SetActiveColumnResizeHandle",
+                        mouseOverTime: Date.now(),
+                        cellPos,
+                    })(view.state, view.dispatch);
+                    break;
+                }
+                case "RowGrip": {
+                    dispatchContentEditorTablePluginAction({
+                        type: "SetActiveRowGrip",
+                        mouseOverTime: Date.now(),
+                        cellPos,
+                    })(view.state, view.dispatch);
+                    break;
+                }
+                case "ColumnGrip": {
+                    dispatchContentEditorTablePluginAction({
+                        type: "SetActiveColumnGrip",
+                        mouseOverTime: Date.now(),
+                        cellPos,
+                    })(view.state, view.dispatch);
+                    break;
+                }
+                default:
+                    throw exhaustive(type);
             }
         }
     }
@@ -572,9 +825,11 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
 
     switch (pluginState.active.type) {
         case "ColumnResizeHandle":
-            return handleActiveColumnResizeHandleMouseDown(view, event);
+            return handleActiveColumnResizeMouseDown(view, event);
         case "RowGrip":
-            return handleActiveRowGripHandleMouseDown(view, event);
+            return handleActiveRowGripMouseDown(view, event);
+        case "ColumnGrip":
+            return handleActiveColumnGripMouseDown(view, event);
         default:
             throw exhaustive(pluginState.active);
     }
@@ -643,9 +898,9 @@ function handleCellSelectionMouseDown(view: EditorView, startEvent: MouseEvent):
 
     // Stop listening to mouse motion events.
     function stop(): void {
-        document.removeEventListener("mouseup", stop);
-        document.removeEventListener("dragstart", stop);
-        document.removeEventListener("mousemove", move);
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+        document.removeEventListener("dragstart", handleDragStart);
         if (
             contentEditorTablePluginKey.getState(view.state)?.draggingSelectionStartCellPos != null
         ) {
@@ -656,7 +911,7 @@ function handleCellSelectionMouseDown(view: EditorView, startEvent: MouseEvent):
         }
     }
 
-    function move(event: MouseEvent): void {
+    function handleMouseMove(event: MouseEvent): void {
         const anchor = contentEditorTablePluginKey.getState(
             view.state,
         )?.draggingSelectionStartCellPos;
@@ -672,9 +927,24 @@ function handleCellSelectionMouseDown(view: EditorView, startEvent: MouseEvent):
         if ($anchor) setCellSelection($anchor, event);
     }
 
-    document.addEventListener("mouseup", stop);
-    document.addEventListener("dragstart", stop);
-    document.addEventListener("mousemove", move);
+    function handleDragStart(event: Event) {
+        // Don't allow browser drag-and-drop if there's currently a cell selection.
+        // We've observed sometimes dragging in a selected cell will trigger browser
+        // drag-and-drop instead of picking a new cell selection.
+        if (view.state.selection instanceof ContentTableCellSelection) {
+            event.preventDefault();
+        } else {
+            stop();
+        }
+    }
+
+    function handleMouseUp() {
+        stop();
+    }
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("dragstart", handleDragStart);
+    document.addEventListener("mouseup", handleMouseUp);
 
     return true;
 }
@@ -689,7 +959,7 @@ function cellUnderMouse(view: EditorView, event: MouseEvent): ResolvedPos | null
     return mousePos ? contentTableCellAround(view.state.doc.resolve(mousePos.pos)) : null;
 }
 
-function handleActiveColumnResizeHandleMouseDown(view: EditorView, event: MouseEvent): boolean {
+function handleActiveColumnResizeMouseDown(view: EditorView, event: MouseEvent): boolean {
     {
         const pluginState = contentEditorTablePluginKey.getState(view.state);
         assert(pluginState?.active?.type === "ColumnResizeHandle");
@@ -882,7 +1152,7 @@ function handleActiveColumnResizeHandleMouseDown(view: EditorView, event: MouseE
     return true;
 }
 
-function handleActiveRowGripHandleMouseDown(view: EditorView, event: MouseEvent) {
+function handleActiveRowGripMouseDown(view: EditorView, event: MouseEvent) {
     // Set initial state
     {
         const pluginState = contentEditorTablePluginKey.getState(view.state);
@@ -894,9 +1164,137 @@ function handleActiveRowGripHandleMouseDown(view: EditorView, event: MouseEvent)
         const tablePos = $cell.start();
         const table = $cell.node();
         const tableMap = ContentTableMap.get(table);
-        const rowIndex = tableMap.getRowCount($cell.pos - tablePos);
+        const rowIndex = tableMap.getRowCount($cell.pos + 1 - tablePos);
 
         selectContentTableRow(tablePos, rowIndex)(view.state, view.dispatch);
+    }
+
+    function move(event: MouseEvent): void {
+        if (!event.which) {
+            finish();
+            return;
+        }
+
+        // NOCOMMIT:
+        // const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
+        // if (!pluginState?.active?.dragging) {
+        //     finish();
+        //     return;
+        // }
+
+        // const tableElement = pluginState.active.dragging.state.getTableElement(view);
+        // if (!tableElement) {
+        //     finish();
+        //     return;
+        // }
+
+        // const newTableAndColumnWidths = getContentTableColumnResizeDraggingStateNewColumnWidths(
+        //     event.clientX,
+        //     pluginState.active.dragging,
+        // );
+
+        // updateContentTableColumnsOnResize(
+        //     pluginState.active.dragging.state.oldTable,
+        //     tableElement,
+        //     newTableAndColumnWidths,
+        // );
+    }
+
+    // Finalizes the resizing process when the mouse is released
+    function finish() {
+        window.removeEventListener("mouseup", finish);
+        window.removeEventListener("mousemove", move);
+        dragCoverElement.remove();
+
+        // NOCOMMIT:
+        // const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
+        // if (!pluginState?.active?.dragging) return;
+
+        // const {tableWidth: newTableWidth, columnWidths: newColumnWidths} =
+        //     getContentTableColumnResizeDraggingStateNewColumnWidths(
+        //         lastClientX,
+        //         pluginState.active.dragging,
+        //     );
+
+        // const transaction = view.state.tr;
+
+        // if (newTableWidth === undefined) {
+        //     transaction.setNodeAttribute(
+        //         pluginState.active.dragging.state.tablePos - 1,
+        //         "columnWidths",
+        //         newColumnWidths,
+        //     );
+        // } else {
+        //     transaction.setNodeMarkup(pluginState.active.dragging.state.tablePos - 1, null, {
+        //         ...pluginState.active.dragging.state.oldTable.attrs,
+        //         tableWidth: newTableWidth,
+        //         columnWidths: newColumnWidths,
+        //     });
+        // }
+
+        // view.dispatch(
+        //     transaction.setMeta(
+        //         contentTableColumnResizingPluginKey,
+        //         cast<ContentTableColumnResizeAction>({
+        //             type: "SetActiveColumnResizeHandleDragging",
+        //             dragging: null,
+        //         }),
+        //     ),
+        // );
+    }
+
+    // Block the DOM with a cover element so we don't trigger hover effects and the
+    // cursor always stays the same.
+    const dragCoverElement = document.createElement("div");
+
+    dragCoverElement.className = sprinkles({
+        position: "absolute",
+        inset: "0",
+        zIndex: "70",
+        cursor: "grabbing",
+    });
+
+    document.body.appendChild(dragCoverElement);
+
+    window.addEventListener("mouseup", finish);
+    window.addEventListener("mousemove", move);
+
+    // Unfocus the content editor while resizing a column. So the browser cursor
+    // and pointer toolbar don't render.
+    view.dom.blur();
+
+    event.preventDefault();
+    return true;
+}
+
+function handleActiveColumnGripMouseDown(view: EditorView, event: MouseEvent) {
+    // Set initial state
+    {
+        const pluginState = contentEditorTablePluginKey.getState(view.state);
+        assert(pluginState?.active?.type === "ColumnGrip");
+
+        const $cell = view.state.doc.resolve(pluginState.active.cellPos);
+
+        let tablePos: number;
+        let table: Node;
+        let tableMap: ContentTableMap;
+        let columnIndex: number;
+
+        if ($cell.parent.type.name === "table") {
+            tablePos = $cell.start();
+            table = $cell.node();
+            tableMap = ContentTableMap.get(table);
+            columnIndex = tableMap.getColumnCount($cell.pos + 1 - tablePos);
+        } else {
+            assert($cell.parent.type.name === "tableRow");
+
+            tablePos = $cell.start(-1);
+            table = $cell.node(-1);
+            tableMap = ContentTableMap.get(table);
+            columnIndex = tableMap.getColumnCount($cell.pos - tablePos) + 1;
+        }
+
+        selectContentTableColumn(tablePos, columnIndex)(view.state, view.dispatch);
     }
 
     function move(event: MouseEvent): void {
@@ -1040,10 +1438,6 @@ function getContentTableElementAround(target: HTMLElement | null): HTMLElement |
         }
     }
 
-    if (target?.classList.contains(contentStyles.tableGripRowClassName)) {
-        return target.closest("table");
-    }
-
     return null;
 }
 
@@ -1051,45 +1445,34 @@ function getContentTableElementAround(target: HTMLElement | null): HTMLElement |
 function getEdgeContentTableCell(
     view: EditorView,
     event: MouseEvent,
-    side: "left" | "right",
+    side: "left" | "right" | "top" | "bottom",
     handleWidth: number,
 ): number | null {
     // posAtCoords returns inconsistent positions when cursor is moving
     // across a collapsed table border. Use an offset to adjust the
     // target viewport coordinates away from the table border.
-    const offset = side == "right" ? -handleWidth : handleWidth;
     const found = view.posAtCoords({
-        left: event.clientX + offset,
-        top: event.clientY,
+        left: event.clientX + (side === "right" ? -handleWidth : side === "left" ? handleWidth : 0),
+        top: event.clientY + (side === "top" ? handleWidth : side === "bottom" ? -handleWidth : 0),
     });
     if (!found) return null;
-    const {pos, inside} = found;
-    let $pos = view.state.doc.resolve(pos);
 
-    // If `$pos` points to a `table` instead of a `tableCell` then try using the
-    // `inside` position instead. This fixes a bug where when hovering over the 1px
-    // between table rows `pos` points into the table. When changing this you need
-    // to test:
-    //
-    // 1. Hovering over the blue part of the resize handle then slowly moving down
-    //    through the row border (resize handle should be visible the entire time)
-    //
-    // 2. Hovering over the transparent part of the resize handle then slowly
-    //    moving down through the row border (resize handle should be visible the
-    //    entire time)
-    if ($pos.parent.type.name === "table" && inside !== -1)
-        $pos = view.state.doc.resolve(inside + 1);
-
+    const {pos} = found;
+    const $pos = view.state.doc.resolve(pos);
     const $cell = contentTableCellAround($pos);
     if (!$cell) return null;
-    if (side == "right") return $cell.pos;
-    const map = ContentTableMap.get($cell.node(-1));
-    const start = $cell.start(-1);
-    const index = map.map.indexOf($cell.pos - start);
-    if (index % map.width !== 0) {
-        return start + map.map[index - 1]!;
+
+    if (side === "right") return $cell.pos;
+
+    const tablePos = $cell.start(-1);
+    const table = $cell.node(-1);
+    const tableMap = ContentTableMap.get(table);
+    const index = tableMap.map.indexOf($cell.pos - tablePos);
+
+    if (index % tableMap.width !== 0) {
+        return tablePos + tableMap.map[index - 1]!;
     } else {
-        return start + map.map[index]! - 1;
+        return tablePos + tableMap.map[index]! - 1;
     }
 }
 
@@ -1577,17 +1960,24 @@ function createContentEditorTablePluginDecorationElementCache() {
     });
 
     const rowSelectionGripElement = new Lazy<HTMLElement>(() => {
-        const rowGripElement = document.createElement("div");
-        rowGripElement.className = `${contentStyles.tableRowGripBaseClassName} ${contentStyles.tableRowSelectionGripClassName}`;
-        rowGripElement.innerHTML = dotsSixVerticalIconSvg();
-        return rowGripElement;
+        const rowSelectionGripElement = document.createElement("div");
+        rowSelectionGripElement.className = `${contentStyles.tableRowGripBaseClassName} ${contentStyles.tableRowSelectionGripClassName}`;
+        rowSelectionGripElement.innerHTML = dotsSixVerticalIconSvg();
+        return rowSelectionGripElement;
+    });
+
+    const columnGripElement = new Lazy<HTMLElement>(() => {
+        const columnGripElement = document.createElement("div");
+        columnGripElement.className = `${contentStyles.tableColumnGripBaseClassName} ${contentStyles.tableColumnGripClassName}`;
+        columnGripElement.innerHTML = dotsSixIconSvg();
+        return columnGripElement;
     });
 
     const columnSelectionGripElement = new Lazy<HTMLElement>(() => {
-        const rowGripElement = document.createElement("div");
-        rowGripElement.className = `${contentStyles.tableColumnGripBaseClassName} ${contentStyles.tableColumnSelectionGripClassName}`;
-        rowGripElement.innerHTML = dotsSixIconSvg();
-        return rowGripElement;
+        const columnSelectionGripElement = document.createElement("div");
+        columnSelectionGripElement.className = `${contentStyles.tableColumnGripBaseClassName} ${contentStyles.tableColumnSelectionGripClassName}`;
+        columnSelectionGripElement.innerHTML = dotsSixIconSvg();
+        return columnSelectionGripElement;
     });
 
     return {
@@ -1596,6 +1986,7 @@ function createContentEditorTablePluginDecorationElementCache() {
         rightEdgeColumnResizeHandleElement,
         rowGripElement,
         rowSelectionGripElement,
+        columnGripElement,
         columnSelectionGripElement,
     };
 }
@@ -1681,23 +2072,6 @@ function drawContentEditorTablePluginActiveStateDecorations(
     const $cell = state.doc.resolve(active.cellPos);
 
     switch (active.type) {
-        case "RowGrip": {
-            assert($cell.parent.type.name === "table");
-
-            const tablePos = $cell.start();
-            const table = $cell.node();
-            const tableMap = ContentTableMap.get(table);
-            const rowIndex = tableMap.getRowCount($cell.pos - tablePos);
-
-            decorations.push(
-                Decoration.widget(tablePos, () => {
-                    const rowGripElement = elementCache.rowGripElement.get();
-                    rowGripElement.style.gridRow = `${rowIndex + 1} / ${rowIndex + 2}`;
-                    return rowGripElement;
-                }),
-            );
-            break;
-        }
         case "ColumnResizeHandle": {
             assert($cell.parent.type.name === "tableRow");
 
@@ -1716,6 +2090,52 @@ function drawContentEditorTablePluginActiveStateDecorations(
                     columnResizeHandleElement.style.gridColumn = `${columnIndex + 2}`;
 
                     return columnResizeHandleElement;
+                }),
+            );
+            break;
+        }
+        case "RowGrip": {
+            assert($cell.parent.type.name === "table");
+
+            const tablePos = $cell.start();
+            const table = $cell.node();
+            const tableMap = ContentTableMap.get(table);
+            const rowIndex = tableMap.getRowCount($cell.pos + 1 - tablePos);
+
+            decorations.push(
+                Decoration.widget(tablePos, () => {
+                    const rowGripElement = elementCache.rowGripElement.get();
+                    rowGripElement.style.gridRow = `${rowIndex + 1} / ${rowIndex + 2}`;
+                    return rowGripElement;
+                }),
+            );
+            break;
+        }
+        case "ColumnGrip": {
+            let tablePos: number;
+            let table: Node;
+            let tableMap: ContentTableMap;
+            let columnIndex: number;
+
+            if ($cell.parent.type.name === "table") {
+                tablePos = $cell.start();
+                table = $cell.node();
+                tableMap = ContentTableMap.get(table);
+                columnIndex = tableMap.getColumnCount($cell.pos + 1 - tablePos);
+            } else {
+                assert($cell.parent.type.name === "tableRow");
+
+                tablePos = $cell.start(-1);
+                table = $cell.node(-1);
+                tableMap = ContentTableMap.get(table);
+                columnIndex = tableMap.getColumnCount($cell.pos - tablePos) + 1;
+            }
+
+            decorations.push(
+                Decoration.widget(tablePos, () => {
+                    const columnGripElement = elementCache.columnGripElement.get();
+                    columnGripElement.style.gridColumn = `${columnIndex + 1} / ${columnIndex + 2}`;
+                    return columnGripElement;
                 }),
             );
             break;

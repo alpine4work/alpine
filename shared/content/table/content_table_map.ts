@@ -168,7 +168,7 @@ export class ContentTableMap {
     // Find the top side of the row at the given position.
     getRowCount(pos: number): number {
         for (let i = 0; i < this.map.length; i++) {
-            if (this.map[i] === pos + 1) {
+            if (this.map[i] === pos) {
                 return Math.floor(i / this.width);
             }
         }

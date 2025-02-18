@@ -2012,14 +2012,21 @@ const tableOverflowGradientWidthSpacing = "3";
 export {tableOverflowGradientWidthSpacing as tableOverflowGradientWidth};
 const tableOverflowGradientWidth = spacing[tableOverflowGradientWidthSpacing];
 
-export const tableInnerPaddingXVar = createVar("table-inner-padding-x");
+// We want the hit area for the resize handle to be nice and wide. We'd like to
+// use spacing 6 which is the same value that `useTouchSlop()` uses for the hit
+// range of small buttons on desktop. However, we also want to keep all resize
+// handles in table bounds so since we have `tableInnerPaddingX` set to 3 we
+// end up with a handle width of 5 to make sure we the edge resize handles
+// don't grow beyond our inner padding.
+const tableColumnResizeHandleWidthSpacing = "5";
+export {tableColumnResizeHandleWidthSpacing as tableColumnResizeHandleWidth};
+const tableColumnResizeHandleWidth = spacing[tableColumnResizeHandleWidthSpacing];
 
-const tableWrapper3PaddingTop = addRemLengths(
-    tableGripSize,
-    tableBetweenGripButtonSize,
-    tableBetweenGripButtonMargin,
-);
-const tableWrapper3PaddingBottom = tableGripSize;
+const tableColumnResizeHandleIndicatorWidthPx = 3;
+
+const tableColumnResizeHandleHalfWidth: RemLength = `${
+    parseRemLength(tableColumnResizeHandleWidth) / 2
+}rem`;
 
 globalStyle(tableWrapperClassName, {
     ...omitObject(blockStyles, ["maxWidth", "marginLeft", "marginRight"]),
@@ -2036,11 +2043,10 @@ globalStyle(tableWrapperClassName, {
 
 globalStyle(`${tableWrapperClassName}::before`, {
     content: '""',
-    pointerEvents: "none",
     position: "absolute",
     zIndex: "10",
-    top: `-${tableWrapper3PaddingTop}`,
-    bottom: `-${tableWrapper3PaddingBottom}`,
+    top: `-${tableColumnResizeHandleHalfWidth}`,
+    bottom: `-${tableColumnResizeHandleHalfWidth}`,
     left: `-${tableOverflowGradientWidth}`,
     width: tableOverflowGradientWidth,
     background: `linear-gradient(to right, ${backgroundColorVar}, transparent)`,
@@ -2051,13 +2057,14 @@ globalStyle(`${tableWrapperClassName}::after`, {
     pointerEvents: "none",
     position: "absolute",
     zIndex: "10",
-    top: `-${tableWrapper3PaddingTop}`,
-    bottom: `-${tableWrapper3PaddingBottom}`,
+    top: `-${tableColumnResizeHandleHalfWidth}`,
+    bottom: `-${tableColumnResizeHandleHalfWidth}`,
     right: `-${tableOverflowGradientWidth}`,
     width: tableOverflowGradientWidth,
     background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
 });
 
+// NOCOMMIT: Delete!
 export const tableWrapperWithSelectionClassName = style({});
 
 globalStyle(tableWrapper2ClassName, {
@@ -2069,45 +2076,21 @@ globalStyle(tableWrapper2ClassName, {
     width: `calc(100% + (${tableOverflowGradientWidth} * 2))`,
     marginLeft: `-${tableOverflowGradientWidth}`,
     marginRight: `-${tableOverflowGradientWidth}`,
-    marginTop: `-${tableWrapper3PaddingTop}`,
-    marginBottom: `-${tableWrapper3PaddingBottom}`,
-    // The table's grips extend into content above and below the table. The user
-    // should be able to click in the area between table controls. We set
-    // `pointerEvents: "auto"` on the table itself.
-    //
-    // Importantly, this is on `tableWrapper2ClassName` since we need to detect
-    // `mousemove` events over `tableWrapperClassName` so
-    // `getContentTableElementAround()` in
-    // `content_table_column_resizing_plugin.ts` knows we're hovering in the
-    // margins of a table.
-    pointerEvents: "none",
-    vars: {
-        [tableInnerPaddingXVar]: tableOverflowGradientWidth,
-    },
+    marginTop: `-${tableColumnResizeHandleHalfWidth}`,
+    marginBottom: `-${tableColumnResizeHandleHalfWidth}`,
 });
-
-globalStyle(
-    `${tableWrapperClassName}${tableWrapperWithSelectionClassName} ${tableWrapper2ClassName}`,
-    {
-        vars: {
-            [tableInnerPaddingXVar]: addRemLengths(
-                tableOverflowGradientWidth,
-                tableGripSize,
-                tableBetweenGripButtonSize,
-                tableBetweenGripButtonMargin,
-            ),
-        },
-    },
-);
 
 globalStyle(tableWrapper3ClassName, {
     width: "100%",
-    maxWidth: `calc(${blockMaxWidthVar} + (${tableInnerPaddingXVar} * 2))`,
+    maxWidth: `calc(${blockMaxWidthVar} + ${addRemLengths(
+        tableOverflowGradientWidth,
+        tableOverflowGradientWidth,
+    )})`,
     margin: "0 auto",
-    paddingLeft: tableInnerPaddingXVar,
-    paddingRight: tableInnerPaddingXVar,
-    paddingTop: tableWrapper3PaddingTop,
-    paddingBottom: tableWrapper3PaddingBottom,
+    paddingLeft: tableOverflowGradientWidth,
+    paddingRight: tableOverflowGradientWidth,
+    paddingTop: tableColumnResizeHandleHalfWidth,
+    paddingBottom: tableColumnResizeHandleHalfWidth,
 });
 
 globalStyle(`${tableWrapperClassName} table`, {
@@ -2187,20 +2170,6 @@ globalStyle(`${tableWrapperClassName} td:last-of-type`, {
     boxShadow: `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, inset -1px 0 0 0 ${colorSchemeVars["grey-10"]}`,
 });
 
-// We want the hit area for the resize handle to be nice and wide. We'd like to
-// use spacing 6 which is the same value that `useTouchSlop()` uses for the hit
-// range of small buttons on desktop. However, we also want to keep all resize
-// handles in table bounds so since we have `tableInnerPaddingX` set to 3 we
-// end up with a handle width of 5 to make sure we the edge resize handles
-// don't grow beyond our inner padding.
-const tableColumnResizeHandleWidthSpacing = "5";
-export {tableColumnResizeHandleWidthSpacing as tableColumnResizeHandleWidth};
-const tableColumnResizeHandleWidth = spacing[tableColumnResizeHandleWidthSpacing];
-
-const tableColumnResizeHandleIndicatorWidthSpacing = "1";
-export {tableColumnResizeHandleIndicatorWidthSpacing as tableColumnResizeHandleIndicatorWidth};
-const tableColumnResizeHandleIndicatorWidth = spacing[tableColumnResizeHandleIndicatorWidthSpacing];
-
 export const tableCellSelectionClassName = style({
     pointerEvents: "none",
     zIndex: "30",
@@ -2223,7 +2192,7 @@ export const tableColumnResizeHandleClassName = style({
     position: "absolute",
     top: 0,
     bottom: -1,
-    transform: "translateX(-50%)",
+    transform: "translateX(calc(-50% + 0.5px))",
     width: tableColumnResizeHandleWidth,
     pointerEvents: "auto",
     cursor: "col-resize",
@@ -2231,10 +2200,10 @@ export const tableColumnResizeHandleClassName = style({
         "&::after": {
             content: '""',
             position: "absolute",
-            left: `calc(50% - ${parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2}rem)`,
+            left: `calc(50% - ${tableColumnResizeHandleIndicatorWidthPx / 2}px)`,
             top: 0,
             bottom: 0,
-            width: tableColumnResizeHandleIndicatorWidth,
+            width: tableColumnResizeHandleIndicatorWidthPx,
             backgroundColor: colorSchemeVars["theme-40-const"],
         },
 
@@ -2245,9 +2214,9 @@ export const tableColumnResizeHandleClassName = style({
             pointerEvents: "none",
             content: '""',
             position: "absolute",
-            left: `calc(50% - ${parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2}rem)`,
+            left: `calc(50% - ${tableColumnResizeHandleIndicatorWidthPx / 2}px)`,
             top: `-${tableGripSize}`,
-            width: tableColumnResizeHandleIndicatorWidth,
+            width: tableColumnResizeHandleIndicatorWidthPx,
             height: tableGripSize,
             backgroundColor: colorSchemeVars["theme-40-const"],
         },
@@ -2256,25 +2225,29 @@ export const tableColumnResizeHandleClassName = style({
 
 export const tableRightEdgeColumnResizeHandleClassName = style({
     selectors: {
+        [`${tableColumnResizeHandleClassName}&`]: {
+            transform: "translateX(calc(-50% - 0.5px))",
+        },
+
+        // NOCOMMIT: Remove
+        //
         // When the table row/column grips are showing, then edge resize handles don't
         // have touch slop outside the table. Since that touch slop would conflict with
         // row grips or the add column button.
         [`${tableWrapperClassName}${tableWrapperWithSelectionClassName} ${tableColumnResizeHandleClassName}&`]:
             {
-                width: `${
-                    parseRemLength(tableColumnResizeHandleWidth) / 2 +
-                    parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2
-                }rem`,
-                transform: `translateX(-${parseRemLength(tableColumnResizeHandleWidth) / 2}rem)`,
+                width: `calc(${parseRemLength(tableColumnResizeHandleWidth) / 2}rem + ${
+                    tableColumnResizeHandleIndicatorWidthPx / 2
+                }px)`,
+                transform: `translateX(calc(-50% + 1px))`,
             },
         [[
             `${tableWrapperClassName}${tableWrapperWithSelectionClassName} ${tableColumnResizeHandleClassName}&::after`,
             `${tableWrapperClassName}${tableWrapperWithSelectionClassName} ${tableColumnResizeHandleClassName}&::before`,
         ].join(", ")]: {
-            left: `${
-                parseRemLength(tableColumnResizeHandleWidth) / 2 -
-                parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2
-            }rem`,
+            left: `calc(${parseRemLength(tableColumnResizeHandleWidth) / 2}rem - ${
+                tableColumnResizeHandleIndicatorWidthPx / 2
+            }px)`,
         },
     },
 });
@@ -2509,13 +2482,12 @@ export const tableBetweenColumnGripClassName = style({
             `&${tableBetweenGripHoveredClassName}::after`,
             `&${tableBetweenGripPressedClassName}::after`,
         ].join(", ")]: {
-            left: `${
-                parseRemLength(tableBetweenGripButtonSize) / 2 -
-                parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2
-            }rem`,
+            left: `calc(${parseRemLength(tableBetweenGripButtonSize) / 2}rem - ${
+                tableColumnResizeHandleIndicatorWidthPx / 2
+            }px)`,
             top: addRemLengths(tableBetweenGripButtonSize, tableBetweenGripButtonMargin),
             bottom: "0",
-            width: tableColumnResizeHandleIndicatorWidth,
+            width: tableColumnResizeHandleIndicatorWidthPx,
         },
     },
 });
@@ -2533,13 +2505,12 @@ export const tableBetweenRowGripClassName = style({
             `&${tableBetweenGripHoveredClassName}::after`,
             `&${tableBetweenGripPressedClassName}::after`,
         ].join(", ")]: {
-            top: `${
-                parseRemLength(tableBetweenGripButtonSize) / 2 -
-                parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2
-            }rem`,
+            top: `calc(${parseRemLength(tableBetweenGripButtonSize) / 2}rem - ${
+                tableColumnResizeHandleIndicatorWidthPx / 2
+            }px)`,
             left: addRemLengths(tableBetweenGripButtonSize, tableBetweenGripButtonMargin),
             right: "0",
-            height: tableColumnResizeHandleIndicatorWidth,
+            height: tableColumnResizeHandleIndicatorWidthPx,
         },
     },
 });

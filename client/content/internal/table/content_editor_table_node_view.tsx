@@ -338,27 +338,27 @@ export function updateContentTableColumnsOnResize(
     // negative margin). So the CSS `${100 * tableWidth}%` would give us the size
     // `(blockWidthPx + tableOverflowGradientWidthPx * 2) * tableWidth`. What we
     // actually want is width to be
-    // `blockWidthPx * tableWidth + tableInnerPaddingXVar`. So first we calculate
-    // `blockWidthPx * tableWidth + tableOverflowGradientWidthPx * 2` with
-    // `100% * tableWidth - tableOverflowGradientWidthPx * 2 * (1 - tableWidth)`
-    // to remove the extra pixels from the multiplied 100%. Then we add
-    // `tableInnerPaddingXVar - tableOverflowGradientWidthPx` to get the
-    // remaining pixel difference. This calculation finally leaves us with the
-    // right width.
+    // `blockWidthPx * tableWidth + tableOverflowGradientWidthPx * 2`. This
+    // calculation leaves us with the right width.
     tableWrapper3Element.style.width = `round(nearest, ${100 * tableWidth}% - ${-(
         tableOverflowGradientWidthPx *
         2 *
         (1 - tableWidth)
-    )}px + ((${
-        contentStyles.tableInnerPaddingXVar
-    } - ${tableOverflowGradientWidthPx}px) * 2), 1px)`;
+    )}px, 1px)`;
 
-    tableWrapper3Element.style.minWidth = `calc(${totalColumnMinWidthPx}px + (${contentStyles.tableInnerPaddingXVar} * 2))`;
+    tableWrapper3Element.style.minWidth = `${
+        totalColumnMinWidthPx + tableOverflowGradientWidthPx * 2
+    }px`;
 
-    tableWrapper3Element.style.maxWidth = `calc(${Math.min(
-        contentStyles.blockMaxWidthRem[platform] * tableWidth * remPxBySpacingScale[spacingScale],
-        totalColumnMaxWidthPx,
-    )}px + (${contentStyles.tableInnerPaddingXVar} * 2))`;
+    tableWrapper3Element.style.maxWidth = `${
+        Math.min(
+            contentStyles.blockMaxWidthRem[platform] *
+                tableWidth *
+                remPxBySpacingScale[spacingScale],
+            totalColumnMaxWidthPx,
+        ) +
+        tableOverflowGradientWidthPx * 2
+    }px`;
 
     // Instead of setting the column fr units to `columnWidths`, we set the column
     // fr units to the resolved column max width rounded to device pixels. When the
