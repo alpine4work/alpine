@@ -59,7 +59,6 @@ import {
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 export function createContentEditorTableNodeView(): NodeViewConstructor {
@@ -167,34 +166,6 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
 
                 node = newNode;
                 updateContentTableColumnsOnResize(node, tableElement);
-
-                // `update()` is called when the decorations on the table change.
-                // `contentTableGripPlugin()` will add the
-                // `contentStyles.tableWrapperWithSelectionClassName` CSS class which adds
-                // extra padding for table grips. We don't want this extra padding to change
-                // the scroll position as seen by the user so detect when
-                // `contentStyles.tableWrapperWithSelectionClassName` is added/removed and
-                // adjust the scroll position when that happens.
-                {
-                    const oldTableScrollLeft = tableWrapper2Element.scrollLeft;
-                    const oldTableOffsetLeft = tableElement.offsetLeft;
-                    const oldWithSelection = tableWrapperElement.classList.contains(
-                        contentStyles.tableWrapperWithSelectionClassName,
-                    );
-
-                    scheduleMicrotask(() => {
-                        const newWithSelection = tableWrapperElement.classList.contains(
-                            contentStyles.tableWrapperWithSelectionClassName,
-                        );
-
-                        if (oldWithSelection !== newWithSelection) {
-                            const newTableOffsetLeft = tableElement.offsetLeft;
-
-                            tableWrapper2Element.scrollLeft =
-                                oldTableScrollLeft + (newTableOffsetLeft - oldTableOffsetLeft);
-                        }
-                    });
-                }
 
                 return true;
             },
