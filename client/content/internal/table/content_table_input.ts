@@ -185,7 +185,7 @@ export function handleContentTableMouseDown(view: EditorView, startEvent: MouseE
 
     // if the user is resizing a column, don't create a cell selection
     const resizeState = contentTableColumnResizingPluginKey.getState(view.state);
-    if (resizeState && (resizeState.activeHandle !== null || resizeState.dragging)) return;
+    if (resizeState && resizeState.active) return;
 
     const startDOMCell = domInCell(view, startEvent.target as Node);
     let $anchor;
