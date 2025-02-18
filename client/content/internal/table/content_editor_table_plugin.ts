@@ -764,34 +764,32 @@ function handleActiveColumnResizeHandleMouseDown(view: EditorView, event: MouseE
         dragCoverElement.remove();
 
         const pluginState = contentEditorTablePluginKey.getState(view.state);
-        if (!pluginState?.active?.dragging) return;
+        const draggingState = pluginState?.active?.dragging;
+        if (!draggingState) return;
 
         const {tableWidth: newTableWidth, columnWidths: newColumnWidths} =
-            getContentTableColumnResizeDraggingStateNewColumnWidths(
-                lastClientX,
-                pluginState.active.dragging,
-            );
-
-        const transaction = view.state.tr;
-
-        if (newTableWidth === undefined) {
-            transaction.setNodeAttribute(
-                pluginState.active.dragging.state.tablePos - 1,
-                "columnWidths",
-                newColumnWidths,
-            );
-        } else {
-            transaction.setNodeMarkup(pluginState.active.dragging.state.tablePos - 1, null, {
-                ...pluginState.active.dragging.state.oldTable.attrs,
-                tableWidth: newTableWidth,
-                columnWidths: newColumnWidths,
-            });
-        }
+            getContentTableColumnResizeDraggingStateNewColumnWidths(lastClientX, draggingState);
 
         dispatchContentEditorTablePluginAction({
             type: "SetActiveColumnResizeHandleDragging",
             dragging: null,
-        })(view.state, view.dispatch);
+        })(view.state, transaction => {
+            if (newTableWidth === undefined) {
+                transaction.setNodeAttribute(
+                    draggingState.state.tablePos - 1,
+                    "columnWidths",
+                    newColumnWidths,
+                );
+            } else {
+                transaction.setNodeMarkup(draggingState.state.tablePos - 1, null, {
+                    ...draggingState.state.oldTable.attrs,
+                    tableWidth: newTableWidth,
+                    columnWidths: newColumnWidths,
+                });
+            }
+
+            view.dispatch(transaction);
+        });
     }
 
     function handleKeyDown(event: KeyboardEvent) {
