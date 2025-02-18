@@ -68,6 +68,8 @@ import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
 const contentEditorTablePluginKey = new PluginKey<ContentEditorTablePluginState>(
@@ -98,6 +100,8 @@ const contentEditorTablePluginKey = new PluginKey<ContentEditorTablePluginState>
  * which commits the column width changes.
  */
 export function contentEditorTablePlugin(): Plugin {
+    const elementCache = createContentEditorTablePluginDecorationElementCache();
+
     const plugin = new Plugin<ContentEditorTablePluginState>({
         key: contentEditorTablePluginKey,
         state: {
@@ -142,6 +146,7 @@ export function contentEditorTablePlugin(): Plugin {
 
                 if (pluginState.active !== null) {
                     decorations = drawContentEditorTablePluginActiveStateDecorations(
+                        elementCache,
                         state,
                         pluginState.active,
                         decorations,
@@ -1477,6 +1482,38 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
     }
 }
 
+type ContentEditorTablePluginDecorationElementCache = ReturnType<
+    typeof createContentEditorTablePluginDecorationElementCache
+>;
+
+function createContentEditorTablePluginDecorationElementCache() {
+    const columnResizeHandleElement = new Lazy<HTMLElement>(() => {
+        const columnResizeHandleElement = document.createElement("div");
+        columnResizeHandleElement.className = contentStyles.tableColumnResizeHandleClassName;
+        return columnResizeHandleElement;
+    });
+
+    const rightEdgeColumnResizeHandleElement = new Lazy<HTMLElement>(() => {
+        const columnResizeHandleElement = document.createElement("div");
+        columnResizeHandleElement.className = `${contentStyles.tableColumnResizeHandleClassName} ${contentStyles.tableRightEdgeColumnResizeHandleClassName}`;
+        return columnResizeHandleElement;
+    });
+
+    const rowGripElementByRowIndex = new LazyMap<number, HTMLElement>(rowIndex => {
+        const rowGripElement = document.createElement("div");
+        rowGripElement.className = contentStyles.tableRowGrip2ClassName;
+        rowGripElement.style.gridRow = `${rowIndex + 1} / ${rowIndex + 2}`;
+        rowGripElement.innerHTML = dotsSixVerticalIconSvg();
+        return rowGripElement;
+    });
+
+    return {
+        columnResizeHandleElement,
+        rightEdgeColumnResizeHandleElement,
+        rowGripElementByRowIndex,
+    };
+}
+
 function drawContentEditorTableCellSelection(
     state: EditorState,
     decorations: DecorationSet,
@@ -1497,6 +1534,7 @@ function drawContentEditorTableCellSelection(
 
 // Handles the decorations for the column resize handle
 function drawContentEditorTablePluginActiveStateDecorations(
+    elementCache: ContentEditorTablePluginDecorationElementCache,
     state: EditorState,
     active: ContentEditorTablePluginActiveState,
     decorations: DecorationSet,
@@ -1514,11 +1552,7 @@ function drawContentEditorTablePluginActiveStateDecorations(
 
             return decorations.add(state.doc, [
                 Decoration.widget(tablePos, () => {
-                    const rowGripElement = document.createElement("div");
-                    rowGripElement.className = contentStyles.tableRowGrip2ClassName;
-                    rowGripElement.style.gridRow = `${rowIndex + 1} / ${rowIndex + 2}`;
-                    rowGripElement.innerHTML = dotsSixVerticalIconSvg();
-                    return rowGripElement;
+                    return elementCache.rowGripElementByRowIndex.get(rowIndex);
                 }),
             ]);
         }
@@ -1532,12 +1566,13 @@ function drawContentEditorTablePluginActiveStateDecorations(
 
             return decorations.add(state.doc, [
                 Decoration.widget(tablePos, () => {
-                    const columnResizeHandleElement = document.createElement("div");
-                    columnResizeHandleElement.className =
+                    const columnResizeHandleElement =
                         columnIndex === tableMap.width - 1
-                            ? `${contentStyles.tableColumnResizeHandleClassName} ${contentStyles.tableRightEdgeColumnResizeHandleClassName}`
-                            : contentStyles.tableColumnResizeHandleClassName;
+                            ? elementCache.rightEdgeColumnResizeHandleElement.get()
+                            : elementCache.columnResizeHandleElement.get();
+
                     columnResizeHandleElement.style.gridColumn = `${columnIndex + 2}`;
+
                     return columnResizeHandleElement;
                 }),
             ]);
