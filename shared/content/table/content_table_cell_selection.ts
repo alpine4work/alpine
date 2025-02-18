@@ -338,7 +338,6 @@ function isTextSelectionAcrossCells({$from, $to}: TextSelection) {
 export function normalizeContentTableCellSelection(
     state: EditorState,
     tr: Transaction | undefined,
-    allowTableNodeSelection: boolean,
 ): Transaction | undefined {
     const sel = (tr || state).selection;
     const doc = (tr || state).doc;
@@ -350,11 +349,6 @@ export function normalizeContentTableCellSelection(
         } else if (typeName === "tableRow") {
             const $cell = doc.resolve(sel.from + 1);
             normalize = ContentTableCellSelection.rowSelection($cell, $cell);
-        } else if (!allowTableNodeSelection) {
-            const map = ContentTableMap.get(sel.node);
-            const start = sel.from + 1;
-            const lastCell = start + map.map[map.width * map.height - 1]!;
-            normalize = ContentTableCellSelection.create(doc, start + 1, lastCell);
         }
     } else if (sel instanceof TextSelection && isCellBoundarySelection(sel)) {
         normalize = TextSelection.create(doc, sel.from);

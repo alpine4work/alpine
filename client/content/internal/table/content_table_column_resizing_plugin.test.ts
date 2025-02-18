@@ -1,4 +1,4 @@
-import {getContentTableColumnResizeDraggingStateNewColumnWidths} from "~/client/content/internal/table/content_table_column_resizing_plugin.js";
+import {getContentTableColumnResizeDraggingStateNewColumnWidths} from "~/client/content/internal/table/content_editor_table_plugin.js";
 
 describe("ContentTableColumnResizingPlugin", () => {
     const assertCloseTo = (received: any, expected: any, precision: number = 3) => {

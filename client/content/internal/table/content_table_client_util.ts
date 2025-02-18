@@ -30,11 +30,9 @@
 // Various helper function for working with tables
 
 import {Node, ResolvedPos} from "prosemirror-model";
-import {EditorState, NodeSelection, PluginKey} from "prosemirror-state";
+import {EditorState, NodeSelection} from "prosemirror-state";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-
-export const contentTableEditingKey = new PluginKey<number>("contentTableEditing");
 
 /**
  * Retrieves the resolved position of the cell surrounding the given position.

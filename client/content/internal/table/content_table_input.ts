@@ -31,17 +31,14 @@
 // table-related functionality.
 
 import {keydownHandler} from "prosemirror-keymap";
-import {Fragment, ResolvedPos, Slice} from "prosemirror-model";
+import {Fragment, Slice} from "prosemirror-model";
 import {Command, EditorState, Selection, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
-    contentTableCellAround,
-    contentTableEditingKey,
     isInContentTable,
     nextContentTableCell,
     selectionContentTableCell,
 } from "~/client/content/internal/table/content_table_client_util.js";
-import {contentTableColumnResizingPluginKey} from "~/client/content/internal/table/content_table_column_resizing_plugin.js";
 import {deleteContentTableCellSelection} from "~/client/content/internal/table/content_table_commands.js";
 import {
     clipContentTableCells,
@@ -51,7 +48,6 @@ import {
 } from "~/client/content/internal/table/content_table_copy_paste.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-import {inSameContentTable} from "~/shared/content/table/content_table_shared_util.js";
 
 type Axis = "horiz" | "vert";
 
@@ -140,7 +136,7 @@ function shiftArrow(axis: Axis, dir: ContentTableInputDirection): Command {
 
 export function handleContentTablePaste(
     view: EditorView,
-    _: ClipboardEvent,
+    event: ClipboardEvent,
     slice: Slice,
 ): boolean {
     if (!isInContentTable(view.state)) return false;
@@ -178,89 +174,6 @@ export function handleContentTablePaste(
     }
 }
 
-// Handle mouse down event for table, responsible for creating a cell selection
-// when the user drags over a cell
-export function handleContentTableMouseDown(view: EditorView, startEvent: MouseEvent): void {
-    if (startEvent.ctrlKey || startEvent.metaKey) return;
-
-    // if the user is resizing a column, don't create a cell selection
-    const resizeState = contentTableColumnResizingPluginKey.getState(view.state);
-    if (resizeState && resizeState.active) return;
-
-    const startDOMCell = domInCell(view, startEvent.target as Node);
-    let $anchor;
-    if (startEvent.shiftKey && view.state.selection instanceof ContentTableCellSelection) {
-        // Adding to an existing cell selection
-        setCellSelection(view.state.selection.$anchorCell, startEvent);
-        startEvent.preventDefault();
-    } else if (
-        startEvent.shiftKey &&
-        startDOMCell &&
-        ($anchor = contentTableCellAround(view.state.selection.$anchor)) != null &&
-        cellUnderMouse(view, startEvent)?.pos != $anchor.pos
-    ) {
-        // Adding to a selection that starts in another cell (causing a
-        // cell selection to be created).
-        setCellSelection($anchor, startEvent);
-        startEvent.preventDefault();
-    } else if (!startDOMCell) {
-        // Not in a cell, let the default behavior happen.
-        return;
-    }
-
-    // Create and dispatch a cell selection between the given anchor and
-    // the position under the mouse.
-    function setCellSelection($anchor: ResolvedPos, event: MouseEvent): void {
-        let $head = cellUnderMouse(view, event);
-        const starting = contentTableEditingKey.getState(view.state) == null;
-        if (!$head || !inSameContentTable($anchor, $head)) {
-            if (starting) $head = $anchor;
-            else return;
-        }
-
-        const selection = new ContentTableCellSelection($anchor, $head);
-        if (starting || !view.state.selection.eq(selection)) {
-            // NOTE(calebmer): UX improvement, empty the DOM selection when we start our
-            // cell selection. If we don't have this then in some cases the DOM selection
-            // continues moving underneath our cursor as we drag.
-            if (starting) window.getSelection()?.empty();
-
-            const tr = view.state.tr.setSelection(selection);
-            if (starting) tr.setMeta(contentTableEditingKey, $anchor.pos);
-            view.dispatch(tr);
-        }
-    }
-
-    // Stop listening to mouse motion events.
-    function stop(): void {
-        view.root.removeEventListener("mouseup", stop);
-        view.root.removeEventListener("dragstart", stop);
-        view.root.removeEventListener("mousemove", move);
-        if (contentTableEditingKey.getState(view.state) != null)
-            view.dispatch(view.state.tr.setMeta(contentTableEditingKey, -1));
-    }
-
-    function move(_event: Event): void {
-        // console.log("move", {_event});
-        const event = _event as MouseEvent;
-        const anchor = contentTableEditingKey.getState(view.state);
-        let $anchor;
-        if (anchor != null) {
-            // Continuing an existing cross-cell selection
-            $anchor = view.state.doc.resolve(anchor);
-        } else if (domInCell(view, event.target as Node) != startDOMCell) {
-            // Moving out of the initial cell -- start a new cell selection
-            $anchor = cellUnderMouse(view, startEvent);
-            if (!$anchor) return stop();
-        }
-        if ($anchor) setCellSelection($anchor, event);
-    }
-
-    view.root.addEventListener("mouseup", stop);
-    view.root.addEventListener("dragstart", stop);
-    view.root.addEventListener("mousemove", move);
-}
-
 // Check whether the cursor is at the end of a cell (so that further
 // motion would move out of the cell)
 function atEndOfCell(view: EditorView, axis: Axis, dir: number): null | number {
@@ -278,23 +191,4 @@ function atEndOfCell(view: EditorView, axis: Axis, dir: number): null | number {
         }
     }
     return null;
-}
-
-function domInCell(view: EditorView, dom: Node | null): Node | null {
-    for (; dom && dom != view.dom; dom = dom.parentNode) {
-        if (dom.nodeName == "TD" || dom.nodeName == "TH") {
-            return dom;
-        }
-    }
-    return null;
-}
-
-// Find the cell under the mouse
-function cellUnderMouse(view: EditorView, event: MouseEvent): ResolvedPos | null {
-    const mousePos = view.posAtCoords({
-        left: event.clientX,
-        top: event.clientY,
-    });
-    if (!mousePos) return null;
-    return mousePos ? contentTableCellAround(view.state.doc.resolve(mousePos.pos)) : null;
 }

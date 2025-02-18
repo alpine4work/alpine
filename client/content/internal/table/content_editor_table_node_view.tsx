@@ -30,7 +30,7 @@
 import {Trash} from "phosphor-react";
 import {Node} from "prosemirror-model";
 import {NodeViewConstructor} from "prosemirror-view";
-import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/content_table_column_resizing_plugin.js";
+import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/content_editor_table_plugin.js";
 import {
     addContentTableColumnAfterSelection,
     addContentTableColumnBeforeSelection,

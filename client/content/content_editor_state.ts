@@ -24,7 +24,7 @@ import {
     openKeyboardLinkFloaterMetaKey,
 } from "~/client/content/internal/content_editor_keymap_plugin.js";
 import {contentTableColumnDragPlugin} from "~/client/content/internal/table/content_table_column_drag_plugin.js";
-import {contentTableColumnResizingPlugin} from "~/client/content/internal/table/content_table_column_resizing_plugin.js";
+import {contentEditorTablePlugin} from "~/client/content/internal/table/content_editor_table_plugin.js";
 import {contentTableEditingPlugin} from "~/client/content/internal/table/content_table_editing_plugin.js";
 import {contentTableGripPlugin} from "~/client/content/internal/table/content_table_grip_plugin.js";
 import {contentTableRowDragPlugin} from "~/client/content/internal/table/content_table_row_drag_plugin.js";
@@ -85,12 +85,11 @@ function buildPlugins<Content extends ContentWithReferences>({
             // out-of-sync with our rendering component.
             depth: disableUndoKeyboardShortcuts ? Number.MAX_SAFE_INTEGER : undefined,
         }),
-        contentTableEditingPlugin({allowTableNodeSelection: true}),
-        contentTableColumnResizingPlugin(),
         // NOCOMMIT: Delete entirely?
         // contentTableGripPlugin({isEditable: true}),
-        contentTableColumnDragPlugin(),
-        contentTableRowDragPlugin(),
+        // NOCOMMIT: Delete entirely?
+        // contentTableColumnDragPlugin(),
+        // contentTableRowDragPlugin(),
         buildContentEditorInputRulesPlugin(schema),
         buildContentEditorKeymapPlugin(schema, {disableUndoKeyboardShortcuts}),
         contentEditorFloaterStatePlugin(),
@@ -100,6 +99,7 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorIsContinuouslyTypingPlugin(),
         contentEditorRememberPosWhileLoadingPlugin(),
         contentEditorCodeBlockPlugin(),
+        contentEditorTablePlugin(),
         sharedContentEditorTrackSelectionWithinPlugin(),
     ];
 
