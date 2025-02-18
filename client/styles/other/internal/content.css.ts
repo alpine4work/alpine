@@ -2293,7 +2293,7 @@ export const tableRightEdgeColumnResizeHandleClassName = style({
 });
 
 // NOCOMMIT: Fix the name, remove other grips
-export const tableRowGrip2ClassName = style({
+export const tableRowGripBaseClassName = style({
     position: "absolute",
     zIndex: "40",
     left: "0",
@@ -2306,7 +2306,10 @@ export const tableRowGrip2ClassName = style({
     alignItems: "center",
 });
 
-globalStyle(`${tableRowGrip2ClassName} > svg`, {
+export const tableRowGripClassName = style({});
+export const tableRowSelectionGripClassName = style({});
+
+globalStyle(`${tableRowGripBaseClassName} > svg`, {
     pointerEvents: "none",
     width: spacing["4"],
     height: spacing["5"],

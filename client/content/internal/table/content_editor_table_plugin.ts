@@ -69,7 +69,6 @@ import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
 const contentEditorTablePluginKey = new PluginKey<ContentEditorTablePluginState>(
@@ -140,12 +139,12 @@ export function contentEditorTablePlugin(): Plugin {
             decorations: state => {
                 const pluginState = contentEditorTablePluginKey.getState(state)!;
 
-                let decorations = DecorationSet.empty;
+                const decorations: Array<Decoration> = [];
 
-                decorations = drawContentEditorTableCellSelection(state, decorations);
+                drawContentEditorTableCellSelection(elementCache, state, decorations);
 
                 if (pluginState.active !== null) {
-                    decorations = drawContentEditorTablePluginActiveStateDecorations(
+                    drawContentEditorTablePluginActiveStateDecorations(
                         elementCache,
                         state,
                         pluginState.active,
@@ -153,7 +152,9 @@ export function contentEditorTablePlugin(): Plugin {
                     );
                 }
 
-                return decorations;
+                return decorations.length !== 0
+                    ? DecorationSet.create(state.doc, decorations)
+                    : null;
             },
         },
     });
@@ -399,7 +400,7 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
     if (
         pluginState.active !== null &&
         (targetElement.classList.contains(contentStyles.tableColumnResizeHandleClassName) ||
-            targetElement.classList.contains(contentStyles.tableRowGrip2ClassName))
+            targetElement.classList.contains(contentStyles.tableRowGripClassName))
     ) {
         cellPos = pluginState.active.cellPos;
     } else {
@@ -1499,10 +1500,16 @@ function createContentEditorTablePluginDecorationElementCache() {
         return columnResizeHandleElement;
     });
 
-    const rowGripElementByRowIndex = new LazyMap<number, HTMLElement>(rowIndex => {
+    const rowGripElement = new Lazy<HTMLElement>(() => {
         const rowGripElement = document.createElement("div");
-        rowGripElement.className = contentStyles.tableRowGrip2ClassName;
-        rowGripElement.style.gridRow = `${rowIndex + 1} / ${rowIndex + 2}`;
+        rowGripElement.className = `${contentStyles.tableRowGripBaseClassName} ${contentStyles.tableRowGripClassName}`;
+        rowGripElement.innerHTML = dotsSixVerticalIconSvg();
+        return rowGripElement;
+    });
+
+    const rowSelectionGripElement = new Lazy<HTMLElement>(() => {
+        const rowGripElement = document.createElement("div");
+        rowGripElement.className = `${contentStyles.tableRowGripBaseClassName} ${contentStyles.tableRowSelectionGripClassName}`;
         rowGripElement.innerHTML = dotsSixVerticalIconSvg();
         return rowGripElement;
     });
@@ -1510,26 +1517,38 @@ function createContentEditorTablePluginDecorationElementCache() {
     return {
         columnResizeHandleElement,
         rightEdgeColumnResizeHandleElement,
-        rowGripElementByRowIndex,
+        rowGripElement,
+        rowSelectionGripElement,
     };
 }
 
 function drawContentEditorTableCellSelection(
+    elementCache: ContentEditorTablePluginDecorationElementCache,
     state: EditorState,
-    decorations: DecorationSet,
-): DecorationSet {
-    if (!(state.selection instanceof ContentTableCellSelection)) return decorations;
+    decorations: Array<Decoration>,
+) {
+    if (!(state.selection instanceof ContentTableCellSelection)) return;
 
-    const cells: Array<Decoration> = [];
+    if (state.selection.isRowSelection()) {
+        const startRowIndex = state.selection.tableRect.top;
+        const endRowIndex = state.selection.tableRect.bottom - 1;
+
+        decorations.push(
+            Decoration.widget(state.selection.tablePos, () => {
+                const rowSelectionGripElement = elementCache.rowSelectionGripElement.get();
+                rowSelectionGripElement.style.gridRow = `${startRowIndex + 1} / ${endRowIndex + 2}`;
+                return rowSelectionGripElement;
+            }),
+        );
+    }
+
     state.selection.forEachCell((node, pos) => {
-        cells.push(
+        decorations.push(
             Decoration.node(pos, pos + node.nodeSize, {
                 class: contentStyles.tableSelectedCellClassName,
             }),
         );
     });
-
-    return decorations.add(state.doc, cells);
 }
 
 // Handles the decorations for the column resize handle
@@ -1537,8 +1556,8 @@ function drawContentEditorTablePluginActiveStateDecorations(
     elementCache: ContentEditorTablePluginDecorationElementCache,
     state: EditorState,
     active: ContentEditorTablePluginActiveState,
-    decorations: DecorationSet,
-): DecorationSet {
+    decorations: Array<Decoration>,
+) {
     const $cell = state.doc.resolve(active.cellPos);
 
     switch (active.type) {
@@ -1550,11 +1569,14 @@ function drawContentEditorTablePluginActiveStateDecorations(
             const tableMap = ContentTableMap.get(table);
             const rowIndex = tableMap.getRowCount($cell.pos - tablePos);
 
-            return decorations.add(state.doc, [
+            decorations.push(
                 Decoration.widget(tablePos, () => {
-                    return elementCache.rowGripElementByRowIndex.get(rowIndex);
+                    const rowGripElement = elementCache.rowGripElement.get();
+                    rowGripElement.style.gridRow = `${rowIndex + 1} / ${rowIndex + 2}`;
+                    return rowGripElement;
                 }),
-            ]);
+            );
+            break;
         }
         case "ColumnResizeHandle": {
             assert($cell.parent.type.name === "tableRow");
@@ -1564,7 +1586,7 @@ function drawContentEditorTablePluginActiveStateDecorations(
             const tableMap = ContentTableMap.get(table);
             const columnIndex = tableMap.getColumnCount($cell.pos - tablePos);
 
-            return decorations.add(state.doc, [
+            decorations.push(
                 Decoration.widget(tablePos, () => {
                     const columnResizeHandleElement =
                         columnIndex === tableMap.width - 1
@@ -1575,7 +1597,8 @@ function drawContentEditorTablePluginActiveStateDecorations(
 
                     return columnResizeHandleElement;
                 }),
-            ]);
+            );
+            break;
         }
         default:
             throw exhaustive(active);

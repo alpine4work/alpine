@@ -43,7 +43,7 @@ import {
 } from "prosemirror-state";
 
 import {Mappable} from "prosemirror-transform";
-import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
+import {ContentTableMap, ContentTableMapRect} from "~/shared/content/table/content_table_map.js";
 import {
     inSameContentTable,
     pointsAtContentTableCell,
@@ -58,38 +58,50 @@ export type ContentTableCellSelectionJson = {
 export class ContentTableCellSelection extends Selection {
     // A resolved position pointing _in front of_ the anchor cell (the one
     // that doesn't move when extending the selection).
-    public $anchorCell: ResolvedPos;
+    public readonly $anchorCell: ResolvedPos;
 
     // A resolved position pointing in front of the head cell (the one
     // moves when extending the selection).
-    public $headCell: ResolvedPos;
+    public readonly $headCell: ResolvedPos;
+
+    public readonly tablePos: number;
+    public readonly table: Node;
+    public readonly tableMap: ContentTableMap;
+    public readonly tableRect: ContentTableMapRect;
 
     // A table selection is identified by its anchor and head cells. The
     // positions given to this constructor should point _before_ two
     // cells in the same table. They may be the same, to select a single
     // cell.
     constructor($anchorCell: ResolvedPos, $headCell: ResolvedPos = $anchorCell) {
+        const tablePos = $anchorCell.start(-1);
         const table = $anchorCell.node(-1);
-        const map = ContentTableMap.get(table);
-        const tableStart = $anchorCell.start(-1);
-        const rect = map.rectBetween($anchorCell.pos - tableStart, $headCell.pos - tableStart);
+        const tableMap = ContentTableMap.get(table);
+        const tableRect = tableMap.rectBetween(
+            $anchorCell.pos - tablePos,
+            $headCell.pos - tablePos,
+        );
 
         const doc = $anchorCell.node(0);
-        const cells = map.cellsInRect(rect).filter(p => p != $headCell.pos - tableStart);
+        const cells = tableMap.cellsInRect(tableRect).filter(p => p != $headCell.pos - tablePos);
         // Make the head cell the first range, so that it counts as the
         // primary part of the selection
-        cells.unshift($headCell.pos - tableStart);
+        cells.unshift($headCell.pos - tablePos);
         const ranges = cells.map(pos => {
             const cell = table.nodeAt(pos);
             if (!cell) {
                 throw RangeError(`No cell with offset ${pos} found`);
             }
-            const from = tableStart + pos + 1;
+            const from = tablePos + pos + 1;
             return new SelectionRange(doc.resolve(from), doc.resolve(from + cell.content.size));
         });
         super(ranges[0]!.$from, ranges[0]!.$to, ranges);
         this.$anchorCell = $anchorCell;
         this.$headCell = $headCell;
+        this.tablePos = tablePos;
+        this.table = table;
+        this.tableMap = tableMap;
+        this.tableRect = tableRect;
     }
 
     public map(doc: Node, mapping: Mappable): ContentTableCellSelection | Selection {
@@ -102,9 +114,9 @@ export class ContentTableCellSelection extends Selection {
         ) {
             const tableChanged = this.$anchorCell.node(-1) != $anchorCell.node(-1);
             if (tableChanged && this.isRowSelection())
-                return ContentTableCellSelection.rowSelection($anchorCell, $headCell);
-            else if (tableChanged && this.isColSelection())
-                return ContentTableCellSelection.colSelection($anchorCell, $headCell);
+                return ContentTableCellSelection.createRowSelection($anchorCell, $headCell);
+            else if (tableChanged && this.isColumnSelection())
+                return ContentTableCellSelection.createColumnSelection($anchorCell, $headCell);
             else return new ContentTableCellSelection($anchorCell, $headCell);
         }
         return TextSelection.between($anchorCell, $headCell);
@@ -113,29 +125,22 @@ export class ContentTableCellSelection extends Selection {
     // Returns a rectangular slice of table rows containing the selected
     // cells.
     public override content(): Slice {
-        const table = this.$anchorCell.node(-1);
-        const map = ContentTableMap.get(table);
-        const tableStart = this.$anchorCell.start(-1);
-
-        const rect = map.rectBetween(
-            this.$anchorCell.pos - tableStart,
-            this.$headCell.pos - tableStart,
-        );
+        const rect = this.tableRect;
         const seen: Record<number, boolean> = {};
         const rows = [];
 
         for (let row = rect.top; row < rect.bottom; row++) {
             const rowContent = [];
             for (
-                let index = row * map.width + rect.left, col = rect.left;
+                let index = row * this.tableMap.width + rect.left, col = rect.left;
                 col < rect.right;
                 col++, index++
             ) {
-                const pos = map.map[index]!;
+                const pos = this.tableMap.map[index]!;
                 if (seen[pos]) continue;
                 seen[pos] = true;
 
-                const cell = table.nodeAt(pos);
+                const cell = this.table.nodeAt(pos);
                 if (!cell) {
                     throw RangeError(`No cell with offset ${pos} found`);
                 }
@@ -143,17 +148,17 @@ export class ContentTableCellSelection extends Selection {
                 // Simply create new cell without colspan/rowspan logic
                 rowContent.push(cell.type.create({}, cell.content));
             }
-            rows.push(table.child(row).copy(Fragment.from(rowContent)));
+            rows.push(this.table.child(row).copy(Fragment.from(rowContent)));
         }
 
         // Get the columnWidths for selected columns
-        const tableAttrs = table.attrs;
+        const tableAttrs = this.table.attrs;
         const selectedColumnWidths = tableAttrs.columnWidths.slice(rect.left, rect.right);
 
         // Create new table fragment with only selected columns width
         const fragment =
-            this.isColSelection() && this.isRowSelection()
-                ? table.type.create(
+            this.isColumnSelection() && this.isRowSelection()
+                ? this.table.type.create(
                       {
                           ...tableAttrs,
                           columnWidths: selectedColumnWidths,
@@ -166,8 +171,8 @@ export class ContentTableCellSelection extends Selection {
     }
 
     public override replace(tr: Transaction, content: Slice = Slice.empty): void {
-        const mapFrom = tr.steps.length,
-            ranges = this.ranges;
+        const mapFrom = tr.steps.length;
+        const ranges = this.ranges;
         for (let i = 0; i < ranges.length; i++) {
             const {$from, $to} = ranges[i]!;
             const mapping = tr.mapping.slice(mapFrom);
@@ -182,52 +187,33 @@ export class ContentTableCellSelection extends Selection {
     }
 
     public forEachCell(f: (node: Node, pos: number) => void): void {
-        const table = this.$anchorCell.node(-1);
-        const map = ContentTableMap.get(table);
-        const tableStart = this.$anchorCell.start(-1);
-
-        const cells = map.cellsInRect(
-            map.rectBetween(this.$anchorCell.pos - tableStart, this.$headCell.pos - tableStart),
-        );
+        const cells = this.tableMap.cellsInRect(this.tableRect);
         for (let i = 0; i < cells.length; i++) {
-            const cell = table.nodeAt(cells[i]!);
+            const cell = this.table.nodeAt(cells[i]!);
             if (!cell) {
-                throw RangeError(`No cell with offset ${cells[i]} found`);
+                throw new RangeError(`No cell with offset ${cells[i]} found`);
             }
-            f(cell, tableStart + cells[i]!);
+            f(cell, this.tablePos + cells[i]!);
         }
     }
-    public isColSelection(): boolean {
-        const table = this.$anchorCell.node(-1);
-        const map = ContentTableMap.get(table);
-        const tableStart = this.$anchorCell.start(-1);
-        const rect = map.rectBetween(
-            this.$anchorCell.pos - tableStart,
-            this.$headCell.pos - tableStart,
-        );
-        return rect.top === 0 && rect.bottom === map.height;
+
+    public isColumnSelection(): boolean {
+        return this.tableRect.top === 0 && this.tableRect.bottom === this.tableMap.height;
     }
 
     public isRowSelection(): boolean {
-        const table = this.$anchorCell.node(-1);
-        const map = ContentTableMap.get(table);
-        const tableStart = this.$anchorCell.start(-1);
-        const rect = map.rectBetween(
-            this.$anchorCell.pos - tableStart,
-            this.$headCell.pos - tableStart,
-        );
-        return rect.left === 0 && rect.right === map.width;
+        return this.tableRect.left === 0 && this.tableRect.right === this.tableMap.width;
     }
 
     // Simplify row/col selection methods since we don't need to handle spans
-    public static colSelection(
+    public static createColumnSelection(
         $anchorCell: ResolvedPos,
         $headCell: ResolvedPos = $anchorCell,
     ): ContentTableCellSelection {
         return new ContentTableCellSelection($anchorCell, $headCell);
     }
 
-    public static rowSelection(
+    public static createRowSelection(
         $anchorCell: ResolvedPos,
         $headCell: ResolvedPos = $anchorCell,
     ): ContentTableCellSelection {
@@ -265,7 +251,7 @@ export class ContentTableCellSelection extends Selection {
         return new ContentTableCellSelection(doc.resolve(json.anchor), doc.resolve(json.head));
     }
 
-    static create(
+    public static create(
         doc: Node,
         anchorCell: number,
         headCell: number = anchorCell,
@@ -348,7 +334,7 @@ export function normalizeContentTableCellSelection(
             normalize = ContentTableCellSelection.create(doc, sel.from);
         } else if (typeName === "tableRow") {
             const $cell = doc.resolve(sel.from + 1);
-            normalize = ContentTableCellSelection.rowSelection($cell, $cell);
+            normalize = ContentTableCellSelection.createRowSelection($cell, $cell);
         }
     } else if (sel instanceof TextSelection && isCellBoundarySelection(sel)) {
         normalize = TextSelection.create(doc, sel.from);
