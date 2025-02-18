@@ -152,17 +152,27 @@ export class ContentTableMap {
 
             return {left, top, right, bottom};
         }
-        throw new RangeError(`No cell with offset ${pos} found`);
+        throw new RangeError(`No table cell with offset ${pos} found`);
     }
 
     // Find the left side of the cell at the given position.
-    colCount(pos: number): number {
+    getColumnCount(pos: number): number {
         for (let i = 0; i < this.map.length; i++) {
-            if (this.map[i] == pos) {
+            if (this.map[i] === pos) {
                 return i % this.width;
             }
         }
-        throw new RangeError(`No cell with offset ${pos} found`);
+        throw new RangeError(`No table cell with offset ${pos} found`);
+    }
+
+    // Find the top side of the row at the given position.
+    getRowCount(pos: number): number {
+        for (let i = 0; i < this.map.length; i++) {
+            if (this.map[i] === pos + 1) {
+                return Math.floor(i / this.width);
+            }
+        }
+        throw new RangeError(`No table row with offset ${pos} found`);
     }
 
     // Find the next cell in the given direction, starting from the cell

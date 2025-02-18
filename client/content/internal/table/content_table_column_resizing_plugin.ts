@@ -35,6 +35,8 @@ import {
     contentTableCellAround,
     contentTableEditingKey,
 } from "~/client/content/internal/table/content_table_client_util.js";
+import {selectContentTableRow} from "~/client/content/internal/table/content_table_commands.js";
+import {dotsSixVerticalIconSvg} from "~/client/icons/dots_six_vertical_icon_svg.js";
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
@@ -95,7 +97,7 @@ export function contentTableColumnResizingPlugin(): Plugin {
                 if (pluginState && pluginState.active) {
                     return handleContentTableColumnResizeStateDecorations(
                         state,
-                        pluginState.active.cellPos,
+                        pluginState.active,
                     );
                 }
             },
@@ -126,6 +128,10 @@ type ContentTableColumnResizeAction =
     | {
           readonly type: "SetActiveColumnResizeHandleIsSnapping";
           readonly isSnapping: boolean;
+      }
+    | {
+          readonly type: "SetActiveRowGrip";
+          readonly cellPos: number;
       };
 
 type ContentTableColumnResizeDraggingState = {
@@ -158,7 +164,7 @@ function getContentTableColumnResizeDraggingState(
         tablePos = $cell.start(-1);
         table = $cell.node(-1);
         tableMap = ContentTableMap.get(table);
-        columnIndex = tableMap.colCount($cell.pos - tablePos);
+        columnIndex = tableMap.getColumnCount($cell.pos - tablePos);
     }
 
     let tableElement: HTMLTableElement | null = null;
@@ -181,18 +187,24 @@ function getContentTableColumnResizeDraggingState(
     };
 }
 
-type ContentTableColumnResizeActiveState = {
-    readonly type: "ColumnResizeHandle";
-    readonly cellPos: number;
-    readonly dragging: {
-        readonly startX: number;
-        readonly viewWithoutPaddingWidthPx: number;
-        readonly oldTotalColumnWidthPx: number;
-        readonly oldScrollLeftPx: number;
-        readonly isSnapping: boolean;
-        readonly state: ContentTableColumnResizeDraggingState;
-    } | null;
-};
+type ContentTableColumnResizeActiveState =
+    | {
+          readonly type: "ColumnResizeHandle";
+          readonly cellPos: number;
+          readonly dragging: {
+              readonly startX: number;
+              readonly viewWithoutPaddingWidthPx: number;
+              readonly oldTotalColumnWidthPx: number;
+              readonly oldScrollLeftPx: number;
+              readonly isSnapping: boolean;
+              readonly state: ContentTableColumnResizeDraggingState;
+          } | null;
+      }
+    | {
+          readonly type: "RowGrip";
+          readonly cellPos: number;
+          readonly dragging: null;
+      };
 
 class ContentTableColumnResizeState {
     public readonly active: ContentTableColumnResizeActiveState | null;
@@ -264,6 +276,13 @@ class ContentTableColumnResizeState {
                     },
                 });
             }
+            case "SetActiveRowGrip": {
+                return new ContentTableColumnResizeState({
+                    type: "RowGrip",
+                    cellPos: action.cellPos,
+                    dragging: null,
+                });
+            }
             default:
                 throw exhaustive(action);
         }
@@ -289,7 +308,8 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
     let cellPos: number | null = null;
     if (
         pluginState.active !== null &&
-        targetElement.classList.contains(contentStyles.tableColumnResizeHandleClassName)
+        (targetElement.classList.contains(contentStyles.tableColumnResizeHandleClassName) ||
+            targetElement.classList.contains(contentStyles.tableRowGrip2ClassName))
     ) {
         cellPos = pluginState.active.cellPos;
     } else {
@@ -360,15 +380,33 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
                 ),
             );
         } else {
-            view.dispatch(
-                view.state.tr.setMeta(
-                    contentTableColumnResizingPluginKey,
-                    cast<ContentTableColumnResizeAction>({
-                        type: "SetActiveColumnResizeHandle",
-                        cellPos,
-                    }),
-                ),
-            );
+            const $cell = view.state.doc.resolve(cellPos);
+
+            // If we're hovering the left edge of the table then the parent of `$cell` will
+            // be `table` instead of `tableRow`.
+            if ($cell.parent.type.name === "table") {
+                view.dispatch(
+                    view.state.tr.setMeta(
+                        contentTableColumnResizingPluginKey,
+                        cast<ContentTableColumnResizeAction>({
+                            type: "SetActiveRowGrip",
+                            cellPos,
+                        }),
+                    ),
+                );
+            } else {
+                assert($cell.parent.type.name === "tableRow");
+
+                view.dispatch(
+                    view.state.tr.setMeta(
+                        contentTableColumnResizingPluginKey,
+                        cast<ContentTableColumnResizeAction>({
+                            type: "SetActiveColumnResizeHandle",
+                            cellPos,
+                        }),
+                    ),
+                );
+            }
         }
     }
 }
@@ -391,11 +429,25 @@ function handleMouseLeave(view: EditorView): void {
 // Initiates the column resizing process on mouse down
 function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
     const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
-    if (!pluginState || pluginState.active === null || pluginState.active.dragging !== null) {
+    if (!pluginState || !pluginState.active || pluginState.active?.dragging) {
         return false;
     }
 
+    switch (pluginState.active.type) {
+        case "ColumnResizeHandle":
+            return handleActiveColumnResizeHandleMouseDown(view, event);
+        case "RowGrip":
+            return handleActiveRowGripHandleMouseDown(view, event);
+        default:
+            throw exhaustive(pluginState.active);
+    }
+}
+
+function handleActiveColumnResizeHandleMouseDown(view: EditorView, event: MouseEvent): boolean {
     {
+        const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
+        assert(pluginState?.active?.type === "ColumnResizeHandle");
+
         const draggingState = getContentTableColumnResizeDraggingState(
             view.state.doc,
             pluginState.active.cellPos,
@@ -597,12 +649,127 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
     window.addEventListener("mousemove", move);
     window.addEventListener("keydown", handleKeyDown, true);
     window.addEventListener("keyup", handleKeyUp, true);
-    event.preventDefault();
 
     // Unfocus the content editor while resizing a column. So the browser cursor
     // and pointer toolbar don't render.
     view.dom.blur();
 
+    event.preventDefault();
+    return true;
+}
+
+function handleActiveRowGripHandleMouseDown(view: EditorView, event: MouseEvent) {
+    // Set initial state
+    {
+        const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
+        assert(pluginState?.active?.type === "RowGrip");
+
+        const $cell = view.state.doc.resolve(pluginState.active.cellPos);
+        assert($cell.parent.type.name === "table");
+
+        const tablePos = $cell.start();
+        const table = $cell.node();
+        const tableMap = ContentTableMap.get(table);
+        const rowIndex = tableMap.getRowCount($cell.pos - tablePos);
+
+        selectContentTableRow(tablePos, rowIndex)(view.state, view.dispatch);
+    }
+
+    function move(event: MouseEvent): void {
+        if (!event.which) {
+            finish();
+            return;
+        }
+
+        // NOCOMMIT:
+        // const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
+        // if (!pluginState?.active?.dragging) {
+        //     finish();
+        //     return;
+        // }
+
+        // const tableElement = pluginState.active.dragging.state.getTableElement(view);
+        // if (!tableElement) {
+        //     finish();
+        //     return;
+        // }
+
+        // const newTableAndColumnWidths = getContentTableColumnResizeDraggingStateNewColumnWidths(
+        //     event.clientX,
+        //     pluginState.active.dragging,
+        // );
+
+        // updateContentTableColumnsOnResize(
+        //     pluginState.active.dragging.state.oldTable,
+        //     tableElement,
+        //     newTableAndColumnWidths,
+        // );
+    }
+
+    // Finalizes the resizing process when the mouse is released
+    function finish() {
+        window.removeEventListener("mouseup", finish);
+        window.removeEventListener("mousemove", move);
+        dragCoverElement.remove();
+
+        // NOCOMMIT:
+        // const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
+        // if (!pluginState?.active?.dragging) return;
+
+        // const {tableWidth: newTableWidth, columnWidths: newColumnWidths} =
+        //     getContentTableColumnResizeDraggingStateNewColumnWidths(
+        //         lastClientX,
+        //         pluginState.active.dragging,
+        //     );
+
+        // const transaction = view.state.tr;
+
+        // if (newTableWidth === undefined) {
+        //     transaction.setNodeAttribute(
+        //         pluginState.active.dragging.state.tablePos - 1,
+        //         "columnWidths",
+        //         newColumnWidths,
+        //     );
+        // } else {
+        //     transaction.setNodeMarkup(pluginState.active.dragging.state.tablePos - 1, null, {
+        //         ...pluginState.active.dragging.state.oldTable.attrs,
+        //         tableWidth: newTableWidth,
+        //         columnWidths: newColumnWidths,
+        //     });
+        // }
+
+        // view.dispatch(
+        //     transaction.setMeta(
+        //         contentTableColumnResizingPluginKey,
+        //         cast<ContentTableColumnResizeAction>({
+        //             type: "SetActiveColumnResizeHandleDragging",
+        //             dragging: null,
+        //         }),
+        //     ),
+        // );
+    }
+
+    // Block the DOM with a cover element so we don't trigger hover effects and the
+    // cursor always stays the same.
+    const dragCoverElement = document.createElement("div");
+
+    dragCoverElement.className = sprinkles({
+        position: "absolute",
+        inset: "0",
+        zIndex: "70",
+        cursor: "grabbing",
+    });
+
+    document.body.appendChild(dragCoverElement);
+
+    window.addEventListener("mouseup", finish);
+    window.addEventListener("mousemove", move);
+
+    // Unfocus the content editor while resizing a column. So the browser cursor
+    // and pointer toolbar don't render.
+    view.dom.blur();
+
+    event.preventDefault();
     return true;
 }
 
@@ -1158,48 +1325,55 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
 // Handles the decorations for the column resize handle
 function handleContentTableColumnResizeStateDecorations(
     state: EditorState,
-    cellPos: number,
+    active: ContentTableColumnResizeActiveState,
 ): DecorationSet {
     const decorations = [];
-    const $cell = state.doc.resolve(cellPos);
+    const $cell = state.doc.resolve(active.cellPos);
 
-    if ($cell.parent.type.name === "table") {
-        const tablePos = $cell.start();
+    switch (active.type) {
+        case "RowGrip": {
+            assert($cell.parent.type.name === "table");
 
-        decorations.push(
-            Decoration.widget(tablePos, () => {
-                const dom = document.createElement("div");
-                dom.className = `${contentStyles.tableColumnResizeHandleClassName} ${contentStyles.tableLeftEdgeColumnResizeHandleClassName}`;
-                dom.style.gridColumn = "1";
-                return dom;
-            }),
-        );
+            const tablePos = $cell.start();
+            const table = $cell.node();
+            const tableMap = ContentTableMap.get(table);
+            const rowIndex = tableMap.getRowCount($cell.pos - tablePos);
 
-        return DecorationSet.create(state.doc, decorations);
-    } else {
-        assert($cell.parent.type.name === "tableRow");
+            decorations.push(
+                Decoration.widget(tablePos, () => {
+                    const rowGripElement = document.createElement("div");
+                    rowGripElement.className = contentStyles.tableRowGrip2ClassName;
+                    rowGripElement.style.gridRow = `${rowIndex + 1} / ${rowIndex + 2}`;
+                    rowGripElement.innerHTML = dotsSixVerticalIconSvg();
+                    return rowGripElement;
+                }),
+            );
 
-        const table = $cell.node(-1);
-        if (!table) {
-            return DecorationSet.empty;
+            return DecorationSet.create(state.doc, decorations);
         }
+        case "ColumnResizeHandle": {
+            assert($cell.parent.type.name === "tableRow");
 
-        const tableMap = ContentTableMap.get(table);
-        const tablePos = $cell.start(-1);
-        const columnIndex = tableMap.colCount($cell.pos - tablePos);
+            const tablePos = $cell.start(-1);
+            const table = $cell.node(-1);
+            const tableMap = ContentTableMap.get(table);
+            const columnIndex = tableMap.getColumnCount($cell.pos - tablePos);
 
-        decorations.push(
-            Decoration.widget(tablePos, () => {
-                const dom = document.createElement("div");
-                dom.className =
-                    columnIndex === tableMap.width - 1
-                        ? `${contentStyles.tableColumnResizeHandleClassName} ${contentStyles.tableRightEdgeColumnResizeHandleClassName}`
-                        : contentStyles.tableColumnResizeHandleClassName;
-                dom.style.gridColumn = `${columnIndex + 2}`;
-                return dom;
-            }),
-        );
+            decorations.push(
+                Decoration.widget(tablePos, () => {
+                    const columnResizeHandleElement = document.createElement("div");
+                    columnResizeHandleElement.className =
+                        columnIndex === tableMap.width - 1
+                            ? `${contentStyles.tableColumnResizeHandleClassName} ${contentStyles.tableRightEdgeColumnResizeHandleClassName}`
+                            : contentStyles.tableColumnResizeHandleClassName;
+                    columnResizeHandleElement.style.gridColumn = `${columnIndex + 2}`;
+                    return columnResizeHandleElement;
+                }),
+            );
 
-        return DecorationSet.create(state.doc, decorations);
+            return DecorationSet.create(state.doc, decorations);
+        }
+        default:
+            throw exhaustive(active);
     }
 }

@@ -9,6 +9,7 @@ import {
     colorSchemeVars,
     darkColorSchemeSelector,
     desktopPlatformSelector,
+    elevationVars,
     emojiFontFamily,
     fontSizes,
     fontStyles,
@@ -2266,30 +2267,6 @@ export const tableColumnResizeHandleClassName = style({
     },
 });
 
-export const tableLeftEdgeColumnResizeHandleClassName = style({
-    selectors: {
-        // When the table row/column grips are showing, then edge resize handles don't
-        // have touch slop outside the table. Since that touch slop would conflict with
-        // row grips or the add column button.
-        [`${tableWrapperClassName}${tableWrapperWithSelectionClassName} ${tableColumnResizeHandleClassName}&`]:
-            {
-                width: `${
-                    parseRemLength(tableColumnResizeHandleWidth) / 2 +
-                    parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2
-                }rem`,
-                transform: `translateX(-${
-                    parseRemLength(tableColumnResizeHandleIndicatorWidth) / 2
-                }rem)`,
-            },
-        [[
-            `${tableWrapperClassName}${tableWrapperWithSelectionClassName} ${tableColumnResizeHandleClassName}&::after`,
-            `${tableWrapperClassName}${tableWrapperWithSelectionClassName} ${tableColumnResizeHandleClassName}&::before`,
-        ].join(", ")]: {
-            left: 0,
-        },
-    },
-});
-
 export const tableRightEdgeColumnResizeHandleClassName = style({
     selectors: {
         // When the table row/column grips are showing, then edge resize handles don't
@@ -2313,6 +2290,32 @@ export const tableRightEdgeColumnResizeHandleClassName = style({
             }rem`,
         },
     },
+});
+
+// NOCOMMIT: Fix the name, remove other grips
+export const tableRowGrip2ClassName = style({
+    position: "absolute",
+    zIndex: "40",
+    left: "0",
+    height: "calc(100% + 1px)",
+    transform: "translateX(-50%)",
+    width: tableColumnResizeHandleWidth,
+    cursor: "grab",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+});
+
+globalStyle(`${tableRowGrip2ClassName} > svg`, {
+    pointerEvents: "none",
+    width: spacing["4"],
+    height: spacing["5"],
+    paddingTop: spacing["0.5"],
+    paddingBottom: spacing["0.5"],
+    backgroundColor: colorSchemeVars["grey-0"],
+    color: colorSchemeVars["grey-70"],
+    boxShadow: elevationVars["elevation-20"],
+    borderRadius: spacing["0.5"],
 });
 
 const tableGripBackgroundColor = {
