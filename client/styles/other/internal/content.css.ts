@@ -130,15 +130,12 @@ export const blockMaxWidthRem = mapObjectValues(blockMaxWidth, blockMaxWidth =>
     parseRemLength(blockMaxWidth),
 );
 
-const listItemParagraphMarginSpacing = "2";
-const listItemParagraphMargin = spacing[listItemParagraphMarginSpacing];
-
-const paragraphMarginSpacing = "4";
+const paragraphMarginSpacing = "2";
 const paragraphMargin = spacing[paragraphMarginSpacing];
 export {paragraphMarginSpacing as paragraphMargin};
 export const paragraphMarginRem = parseRemLength(paragraphMargin);
 
-const standaloneBlockMarginSpacing = "6";
+const standaloneBlockMarginSpacing = "4";
 const standaloneBlockMargin = spacing[standaloneBlockMarginSpacing];
 export {standaloneBlockMarginSpacing as standaloneBlockMargin};
 
@@ -449,11 +446,6 @@ globalStyle(`${listItemClassName} + ${listItemClassName}`, {
 
 globalStyle(`${listItemClassName}:has(+ ${listItemClassName})`, {
     marginBottom: 0,
-});
-
-globalStyle(`${listItemClassName} ${paragraphClassName}`, {
-    marginTop: listItemParagraphMargin,
-    marginBottom: listItemParagraphMargin,
 });
 
 export const unorderedListItemBulletTop = createObjectFromKeys(
