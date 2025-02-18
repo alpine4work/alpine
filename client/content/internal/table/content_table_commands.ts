@@ -186,8 +186,8 @@ export function addContentTableColumnAfterSelection(
 /**
  * Command to add a column after the column with the selection.
  */
-export function addContentTableColumnAtIndex(tablePos: number, columnIndex: number) {
-    return (state: EditorState, dispatch: ((tr: Transaction) => void) | undefined): boolean => {
+export function addContentTableColumnAtIndex(tablePos: number, columnIndex: number): Command {
+    return (state, dispatch) => {
         const table = state.doc.resolve(tablePos).node();
         if (table.type.name !== "table") return false;
 
@@ -338,8 +338,8 @@ export function addContentTableRowAfterSelection(
     return true;
 }
 
-export function addContentTableRowAtIndex(tablePos: number, rowIndex: number) {
-    return (state: EditorState, dispatch?: (tr: Transaction) => void): boolean => {
+export function addContentTableRowAtIndex(tablePos: number, rowIndex: number): Command {
+    return (state, dispatch) => {
         const table = state.doc.resolve(tablePos).node();
         if (table.type.name !== "table") return false;
 
@@ -485,4 +485,64 @@ export function deleteContentTableCellSelection(
         if (tr.docChanged) dispatch(tr);
     }
     return true;
+}
+
+export function selectContentTableColumn(tablePos: number, columnIndex: number): Command {
+    return (state, dispatch) => {
+        const table = state.doc.resolve(tablePos).node();
+        if (table.type.name !== "table") return false;
+
+        const tableMap = ContentTableMap.get(table);
+
+        // Check if the index is valid
+        if (columnIndex < 0 || columnIndex >= tableMap.width) return false;
+
+        if (dispatch) {
+            const cells = tableMap.cellsInRect({
+                left: columnIndex,
+                right: columnIndex + 1,
+                top: 0,
+                bottom: tableMap.height,
+            });
+
+            const head = tablePos + cells[0]!;
+            const anchor = tablePos + cells[cells.length - 1]!;
+            const $head = state.doc.resolve(head);
+            const $anchor = state.doc.resolve(anchor);
+
+            dispatch(state.tr.setSelection(new ContentTableCellSelection($anchor, $head)));
+        }
+
+        return true;
+    };
+}
+
+export function selectContentTableRow(tablePos: number, rowIndex: number): Command {
+    return (state, dispatch) => {
+        const table = state.doc.resolve(tablePos).node();
+        if (table.type.name !== "table") return false;
+
+        const tableMap = ContentTableMap.get(table);
+
+        // Check if the index is valid
+        if (rowIndex < 0 || rowIndex >= tableMap.width) return false;
+
+        if (dispatch) {
+            const cells = tableMap.cellsInRect({
+                left: 0,
+                right: tableMap.width,
+                top: rowIndex,
+                bottom: rowIndex + 1,
+            });
+
+            const head = tablePos + cells[0]!;
+            const anchor = tablePos + cells[cells.length - 1]!;
+            const $head = state.doc.resolve(head);
+            const $anchor = state.doc.resolve(anchor);
+
+            dispatch(state.tr.setSelection(new ContentTableCellSelection($anchor, $head)));
+        }
+
+        return true;
+    };
 }

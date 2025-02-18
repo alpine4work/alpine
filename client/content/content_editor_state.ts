@@ -87,7 +87,8 @@ function buildPlugins<Content extends ContentWithReferences>({
         }),
         contentTableEditingPlugin({allowTableNodeSelection: true}),
         contentTableColumnResizingPlugin(),
-        contentTableGripPlugin({isEditable: true}),
+        // NOCOMMIT: Delete entirely?
+        // contentTableGripPlugin({isEditable: true}),
         contentTableColumnDragPlugin(),
         contentTableRowDragPlugin(),
         buildContentEditorInputRulesPlugin(schema),
