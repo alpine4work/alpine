@@ -46,6 +46,7 @@ import {contentTableCellAround} from "~/client/content/internal/table/content_ta
 import {selectContentTableRow} from "~/client/content/internal/table/content_table_commands.js";
 import {fixContentTables} from "~/client/content/internal/table/content_table_fix_tables.js";
 import {handleContentTableKeyDown} from "~/client/content/internal/table/content_table_input.js";
+import {dotsSixIconSvg} from "~/client/icons/dots_six_icon_svg.js";
 import {dotsSixVerticalIconSvg} from "~/client/icons/dots_six_vertical_icon_svg.js";
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
@@ -1554,7 +1555,7 @@ type ContentEditorTablePluginDecorationElementCache = ReturnType<
 function createContentEditorTablePluginDecorationElementCache() {
     const cellSelectionElement = new Lazy<HTMLElement>(() => {
         const cellSelectionElement = document.createElement("div");
-        cellSelectionElement.className = contentStyles.tableCellSelectionElementClassName;
+        cellSelectionElement.className = contentStyles.tableCellSelectionClassName;
         return cellSelectionElement;
     });
 
@@ -1584,12 +1585,20 @@ function createContentEditorTablePluginDecorationElementCache() {
         return rowGripElement;
     });
 
+    const columnSelectionGripElement = new Lazy<HTMLElement>(() => {
+        const rowGripElement = document.createElement("div");
+        rowGripElement.className = `${contentStyles.tableColumnGripBaseClassName} ${contentStyles.tableColumnSelectionGripClassName}`;
+        rowGripElement.innerHTML = dotsSixIconSvg();
+        return rowGripElement;
+    });
+
     return {
         cellSelectionElement,
         columnResizeHandleElement,
         rightEdgeColumnResizeHandleElement,
         rowGripElement,
         rowSelectionGripElement,
+        columnSelectionGripElement,
     };
 }
 
@@ -1613,11 +1622,11 @@ function drawContentEditorTableCellSelection(
 
             if (tableRect.right === tableMap.width) {
                 cellSelectionElement.classList.add(
-                    contentStyles.tableRightEdgeCellSelectionElementClassName,
+                    contentStyles.tableRightEdgeCellSelectionClassName,
                 );
             } else {
                 cellSelectionElement.classList.remove(
-                    contentStyles.tableRightEdgeCellSelectionElementClassName,
+                    contentStyles.tableRightEdgeCellSelectionClassName,
                 );
             }
 
@@ -1635,6 +1644,30 @@ function drawContentEditorTableCellSelection(
                 }`;
 
                 return rowSelectionGripElement;
+            }),
+        );
+    }
+
+    if (state.selection.isColumnSelection()) {
+        decorations.push(
+            Decoration.widget(tablePos, () => {
+                const columnSelectionGripElement = elementCache.columnSelectionGripElement.get();
+
+                columnSelectionGripElement.style.gridColumn = `${tableRect.left + 1} / ${
+                    tableRect.right + 1
+                }`;
+
+                if (tableRect.right === tableMap.width) {
+                    columnSelectionGripElement.classList.add(
+                        contentStyles.tableRightEdgeColumnGripBaseClassName,
+                    );
+                } else {
+                    columnSelectionGripElement.classList.remove(
+                        contentStyles.tableRightEdgeColumnGripBaseClassName,
+                    );
+                }
+
+                return columnSelectionGripElement;
             }),
         );
     }

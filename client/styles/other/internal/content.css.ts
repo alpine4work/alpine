@@ -2209,7 +2209,7 @@ const tableColumnResizeHandleIndicatorWidthSpacing = "1";
 export {tableColumnResizeHandleIndicatorWidthSpacing as tableColumnResizeHandleIndicatorWidth};
 const tableColumnResizeHandleIndicatorWidth = spacing[tableColumnResizeHandleIndicatorWidthSpacing];
 
-export const tableCellSelectionElementClassName = style({
+export const tableCellSelectionClassName = style({
     pointerEvents: "none",
     zIndex: "30",
     position: "absolute",
@@ -2218,9 +2218,9 @@ export const tableCellSelectionElementClassName = style({
     boxShadow: `inset 0 0 0 2px ${colorSchemeVars["theme-40-const"]}`,
 });
 
-export const tableRightEdgeCellSelectionElementClassName = style({
+export const tableRightEdgeCellSelectionClassName = style({
     selectors: {
-        [`${tableCellSelectionElementClassName}&`]: {
+        [`${tableCellSelectionClassName}&`]: {
             width: "100%",
         },
     },
@@ -2287,7 +2287,7 @@ export const tableRightEdgeColumnResizeHandleClassName = style({
     },
 });
 
-// NOCOMMIT: Fix the name, remove other grips
+// NOCOMMIT: Remove other grip classes
 export const tableRowGripBaseClassName = style({
     zIndex: "40",
     position: "absolute",
@@ -2310,6 +2310,43 @@ globalStyle(`${tableRowGripBaseClassName} > svg`, {
     height: spacing["5"],
     paddingTop: spacing["0.5"],
     paddingBottom: spacing["0.5"],
+    backgroundColor: colorSchemeVars["grey-0"],
+    color: colorSchemeVars["grey-70"],
+    boxShadow: elevationVars["elevation-20"],
+    borderRadius: spacing["0.5"],
+});
+
+// NOCOMMIT: Remove other grip classes
+export const tableColumnGripBaseClassName = style({
+    zIndex: "40",
+    position: "absolute",
+    left: "0",
+    width: "calc(100% + 1px)",
+    transform: "translateY(-50%)",
+    height: tableColumnResizeHandleWidth,
+    cursor: "grab",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+});
+
+export const tableRightEdgeColumnGripBaseClassName = style({
+    selectors: {
+        [`${tableColumnGripBaseClassName}&`]: {
+            width: "100%",
+        },
+    },
+});
+
+export const tableColumnGripClassName = style({});
+export const tableColumnSelectionGripClassName = style({});
+
+globalStyle(`${tableColumnGripBaseClassName} > svg`, {
+    pointerEvents: "none",
+    width: spacing["5"],
+    height: spacing["4"],
+    paddingLeft: spacing["0.5"],
+    paddingRight: spacing["0.5"],
     backgroundColor: colorSchemeVars["grey-0"],
     color: colorSchemeVars["grey-70"],
     boxShadow: elevationVars["elevation-20"],
