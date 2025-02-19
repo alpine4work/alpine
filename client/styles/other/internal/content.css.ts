@@ -2217,7 +2217,7 @@ globalStyle(`${tableRowGripBaseClassName} > svg`, {
     paddingTop: spacing["0.5"],
     paddingBottom: spacing["0.5"],
     backgroundColor: colorSchemeVars["grey-0"],
-    color: colorSchemeVars["grey-70"],
+    fill: colorSchemeVars["grey-70"],
     boxShadow: elevationVars["elevation-20"],
     borderRadius: spacing["0.5"],
 });
@@ -2253,9 +2253,31 @@ globalStyle(`${tableColumnGripBaseClassName} > svg`, {
     paddingLeft: spacing["0.5"],
     paddingRight: spacing["0.5"],
     backgroundColor: colorSchemeVars["grey-0"],
-    color: colorSchemeVars["grey-70"],
+    fill: colorSchemeVars["grey-70"],
     boxShadow: elevationVars["elevation-20"],
     borderRadius: spacing["0.5"],
+});
+
+export const tableDraggingGripRowDropTargetClassName = style({
+    pointerEvents: "none",
+    zIndex: "40",
+    position: "absolute",
+    left: 0,
+    right: 0,
+    transform: "translateY(calc(-50% + 0.5px))",
+    height: tableColumnResizeHandleIndicatorWidthPx,
+    backgroundColor: colorSchemeVars["grey-30"],
+});
+
+export const tableDraggingGripColumnDropTargetClassName = style({
+    pointerEvents: "none",
+    zIndex: "40",
+    position: "absolute",
+    top: 0,
+    bottom: -1,
+    transform: "translateX(calc(-50% + 0.5px))",
+    width: tableColumnResizeHandleIndicatorWidthPx,
+    backgroundColor: colorSchemeVars["grey-30"],
 });
 
 function createChildSelectors(child: "first" | "last") {

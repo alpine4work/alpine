@@ -71,11 +71,13 @@ import {
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
 const contentEditorTablePluginKey = new PluginKey<ContentEditorTablePluginState>(
@@ -146,7 +148,15 @@ export function contentEditorTablePlugin(): Plugin {
 
                 const decorations: Array<Decoration> = [];
 
-                if (pluginState?.type !== "DraggingGrip") {
+                if (pluginState?.type === "DraggingGrip" && pluginState.dropTarget !== null) {
+                    drawContentEditorPluginDraggingGripDropTargetDecorations(
+                        elementCache,
+                        state,
+                        pluginState.tablePos,
+                        pluginState.dropTarget,
+                        decorations,
+                    );
+                } else {
                     drawContentEditorTableCellSelection(elementCache, state, decorations);
                 }
 
@@ -249,10 +259,15 @@ type ContentEditorTablePluginAction =
           readonly cellPos: number;
       }
     | {
-          readonly type: "SetDraggingGrip";
+          readonly type: "ClearDraggingGrip";
       }
     | {
-          readonly type: "ClearDraggingGrip";
+          readonly type: "SetDraggingGrip";
+          readonly tablePos: number;
+      }
+    | {
+          readonly type: "SetDraggingGripDropTarget";
+          readonly dropTarget: ContentEditorTablePluginDraggingGripDropTargetState;
       };
 
 function dispatchContentEditorTablePluginAction(action: ContentEditorTablePluginAction): Command {
@@ -273,6 +288,8 @@ type ContentEditorTablePluginState =
       }
     | {
           readonly type: "DraggingGrip";
+          readonly tablePos: number;
+          readonly dropTarget: ContentEditorTablePluginDraggingGripDropTargetState | null;
       }
     | null;
 
@@ -359,6 +376,10 @@ function getContentEditorTablePluginColumnResizeHandleDraggingState(
     };
 }
 
+type ContentEditorTablePluginDraggingGripDropTargetState =
+    | {readonly type: "Row"; readonly rowIndex: number}
+    | {readonly type: "Column"; readonly columnIndex: number};
+
 function applyContentEditorTablePluginStateTransaction(
     transaction: Transaction,
     state: ContentEditorTablePluginState,
@@ -407,7 +428,8 @@ function applyContentEditorTablePluginStateTransaction(
                 break;
             }
             case "DraggingGrip": {
-                // Noop. No positions stored in this state.
+                const {deleted, pos} = transaction.mapping.mapResult(state.tablePos);
+                state = deleted ? null : {...state, tablePos: pos};
                 break;
             }
             default:
@@ -573,12 +595,20 @@ function applyContentEditorTablePluginStateAction(
                 },
             };
         }
-        case "SetDraggingGrip": {
-            return {type: "DraggingGrip"};
-        }
         case "ClearDraggingGrip": {
             if (state?.type !== "DraggingGrip") return state;
             return null;
+        }
+        case "SetDraggingGrip": {
+            return {
+                type: "DraggingGrip",
+                tablePos: action.tablePos,
+                dropTarget: null,
+            };
+        }
+        case "SetDraggingGripDropTarget": {
+            if (state?.type !== "DraggingGrip") return state;
+            return {...state, dropTarget: action.dropTarget};
         }
         default:
             throw exhaustive(action);
@@ -1319,69 +1349,149 @@ function handleColumnResizeHandleMouseDown(view: EditorView, event: MouseEvent):
     return true;
 }
 
-function handleGripMouseDown(view: EditorView, event: MouseEvent): boolean {
+function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolean {
     // Must have a cell selection to drag the cell selection.
     if (!(view.state.selection instanceof ContentTableCellSelection)) return false;
 
     const isRowSelection = view.state.selection.isRowSelection();
     const isColumnSelection = view.state.selection.isColumnSelection();
 
-    const {tablePos, tableMap, tableRect} = view.state.selection;
+    const {tablePos: initialTablePos, tableRect} = view.state.selection;
 
-    let element: globalThis.Node | null = view.domAtPos(tablePos).node;
+    let element: globalThis.Node | null = view.domAtPos(initialTablePos).node;
     while (element && element.nodeName != "TABLE") element = element.parentNode;
 
-    const tableElement = element as HTMLTableElement | null;
-    if (!tableElement) return false;
+    if (!element) return false;
+    const tableElement = element as HTMLTableElement;
 
     const tableCellSelectionElement = tableElement.querySelector(
         `.${contentStyles.tableCellSelectionClassName}`,
     );
     if (!tableCellSelectionElement) return false;
 
-    const tableCellSelectionRect = tableCellSelectionElement.getBoundingClientRect();
+    const initialTableCellSelectionRect = tableCellSelectionElement.getBoundingClientRect();
 
-    const startX = event.clientX;
-    const startY = event.clientY;
+    const initialX = initialEvent.clientX;
+    const initialY = initialEvent.clientY;
+
+    dispatchContentEditorTablePluginAction({
+        type: "SetDraggingGrip",
+        tablePos: initialTablePos,
+    })(view.state, view.dispatch);
 
     function move(event: MouseEvent): void {
         if (!event.which) {
-            finish();
+            finish(event);
             return;
         }
+
+        const pluginState = contentEditorTablePluginKey.getState(view.state);
+        if (pluginState?.type !== "DraggingGrip") {
+            finish(event);
+            return;
+        }
+
+        // If the user has selected the full table, we allow grips to be clicked and
+        // turn the cursor into a grabbing cursor as feedback for clicking, but
+        // dragging does nothing.
+        if (isRowSelection && isColumnSelection) return;
 
         // Wait until the user has moved more than 4px with their drag to actually
         // start the dragging state. This way if the user clicks on a grip to select
         // the column or row we don't immediately show the drag phantom.
-        if (
-            !isDragging &&
-            Math.sqrt(
-                Math.abs(event.clientX - startX) ** 2 + Math.abs(event.clientY - startY) ** 2,
-            ) >= 4
-        ) {
-            startDragging();
+        if (!hasAddedDragPhantomElement) {
+            const distance = Math.sqrt(
+                Math.abs(event.clientX - initialX) ** 2 + Math.abs(event.clientY - initialY) ** 2,
+            );
+
+            if (distance < 4) {
+                return;
+            } else {
+                addDragPhantomElement();
+            }
         }
 
         if (dragPhantomElement !== null) {
             if (isColumnSelection) {
-                dragPhantomElement.style.transform = `translateX(${event.clientX - startX}px)`;
+                dragPhantomElement.style.transform = `translateX(${event.clientX - initialX}px)`;
             } else {
-                dragPhantomElement.style.transform = `translateY(${event.clientY - startY}px)`;
+                dragPhantomElement.style.transform = `translateY(${event.clientY - initialY}px)`;
             }
+        }
+
+        const dropTarget = getDropTarget(event);
+
+        const isDropTargetEqual =
+            pluginState.dropTarget !== null &&
+            ((pluginState.dropTarget.type === "Row" &&
+                dropTarget.type === "Row" &&
+                pluginState.dropTarget.rowIndex === dropTarget.rowIndex) ||
+                (pluginState.dropTarget.type === "Column" &&
+                    dropTarget.type === "Column" &&
+                    pluginState.dropTarget.columnIndex === dropTarget.columnIndex));
+
+        if (!isDropTargetEqual) {
+            dispatchContentEditorTablePluginAction({
+                type: "SetDraggingGripDropTarget",
+                dropTarget,
+            })(view.state, view.dispatch);
         }
     }
 
     // Finalizes the resizing process when the mouse is released
-    function finish() {
+    function finish(event: MouseEvent) {
         window.removeEventListener("mouseup", finish);
         window.removeEventListener("mousemove", move);
         dragCoverElement.remove();
 
-        if (isDragging) {
-            dispatchContentEditorTablePluginAction({type: "ClearDraggingGrip"})(
-                view.state,
-                view.dispatch,
-            );
+        dispatchContentEditorTablePluginAction({
+            type: "ClearDraggingGrip",
+        })(view.state, view.dispatch);
+
+        // If the user has selected the full table, we allow grips to be clicked and
+        // turn the cursor into a grabbing cursor as feedback for clicking, but
+        // dragging does nothing.
+        if (isRowSelection && isColumnSelection) return;
+
+        if (!hasAddedDragPhantomElement) return;
+
+        const dropTarget = getDropTarget(event);
+    }
+
+    function getDropTarget(event: MouseEvent): ContentEditorTablePluginDraggingGripDropTargetState {
+        const measureResult = measure();
+        const tableRect = tableElement.getBoundingClientRect();
+
+        if (isColumnSelection) {
+            let offsetPx = tableRect.left;
+
+            let columnIndex = 0;
+            for (; columnIndex < measureResult.columnWidthPxs.length; columnIndex++) {
+                const columnWidthPx = measureResult.columnWidthPxs[columnIndex]!;
+
+                if (event.clientX < offsetPx + columnWidthPx / 2) {
+                    break;
+                }
+
+                offsetPx += columnWidthPx;
+            }
+
+            return {type: "Column", columnIndex};
+        } else {
+            let offsetPx = tableRect.top;
+
+            let rowIndex = 0;
+            for (; rowIndex < measureResult.rowHeightPxs.length; rowIndex++) {
+                const rowHeightPx = measureResult.rowHeightPxs[rowIndex]!;
+
+                if (event.clientY < offsetPx + rowHeightPx / 2) {
+                    break;
+                }
+
+                offsetPx += rowHeightPx;
+            }
+
+            return {type: "Row", rowIndex};
         }
     }
 
@@ -1397,17 +1507,16 @@ function handleGripMouseDown(view: EditorView, event: MouseEvent): boolean {
         cursor: "grabbing",
     });
 
-    let isDragging = false;
+    let hasAddedDragPhantomElement = false;
     let dragPhantomElement: HTMLDivElement | null = null;
 
-    function startDragging() {
-        assert(!isDragging);
-        isDragging = true;
+    function addDragPhantomElement() {
+        assert(!hasAddedDragPhantomElement);
+        hasAddedDragPhantomElement = true;
 
-        dispatchContentEditorTablePluginAction({
-            type: "SetDraggingGrip",
-        })(view.state, view.dispatch);
-
+        // If the user has selected the full table, we allow grips to be clicked and
+        // turn the cursor into a grabbing cursor as feedback for clicking, but
+        // dragging does nothing.
         if (isRowSelection && isColumnSelection) return;
 
         dragPhantomElement = document.createElement("div");
@@ -1419,10 +1528,10 @@ function handleGripMouseDown(view: EditorView, event: MouseEvent): boolean {
             display: "grid",
         });
 
-        dragPhantomElement.style.width = `${tableCellSelectionRect.width}px`;
-        dragPhantomElement.style.height = `${tableCellSelectionRect.height}px`;
-        dragPhantomElement.style.left = `${tableCellSelectionRect.left}px`;
-        dragPhantomElement.style.top = `${tableCellSelectionRect.top}px`;
+        dragPhantomElement.style.width = `${initialTableCellSelectionRect.width}px`;
+        dragPhantomElement.style.height = `${initialTableCellSelectionRect.height}px`;
+        dragPhantomElement.style.left = `${initialTableCellSelectionRect.left}px`;
+        dragPhantomElement.style.top = `${initialTableCellSelectionRect.top}px`;
 
         const dragPhantomBorderElement = document.createElement("div");
         dragPhantomElement.appendChild(dragPhantomBorderElement);
@@ -1448,40 +1557,20 @@ function handleGripMouseDown(view: EditorView, event: MouseEvent): boolean {
             dragPhantomGripElement.innerHTML = dotsSixVerticalIconSvg();
         }
 
-        const columnWidthPxs = [];
-        const rowHeightPxs = [];
+        const measureResult = measure();
 
-        let columnIndex = tableRect.left;
-        let rowIndex = tableRect.top;
+        dragPhantomElement.style.gridTemplateColumns = createArrayWithLength(
+            tableRect.right - tableRect.left,
+            i => `${measureResult.columnWidthPxs[tableRect.left + i]!}px`,
+        ).join(" ");
 
-        while (columnIndex < tableRect.right || rowIndex < tableRect.bottom) {
-            const actualColumnIndex = Math.min(columnIndex, tableRect.right - 1);
-            const actualRowIndex = Math.min(rowIndex, tableRect.bottom - 1);
+        dragPhantomElement.style.gridTemplateRows = createArrayWithLength(
+            tableRect.bottom - tableRect.top,
+            i => `${measureResult.rowHeightPxs[tableRect.top + i]!}px`,
+        ).join(" ");
 
-            const tableCellElement = assertExists(
-                tableElement!.querySelector(
-                    `tr:nth-of-type(${actualRowIndex + 1}) td:nth-of-type(${
-                        actualColumnIndex + 1
-                    })`,
-                ),
-            );
-            const tableCellRect = tableCellElement.getBoundingClientRect();
-
-            columnWidthPxs[actualColumnIndex - tableRect.left] =
-                tableCellRect.width - (actualColumnIndex === tableMap.width - 1 ? 1 : 0);
-            rowHeightPxs[actualRowIndex - tableRect.top] = tableCellRect.height;
-
-            columnIndex = Math.min(columnIndex + 1, tableRect.right);
-            rowIndex = Math.min(rowIndex + 1, tableRect.bottom);
-        }
-
-        dragPhantomElement.style.gridTemplateColumns = columnWidthPxs
-            .map(columnWidthPx => `${columnWidthPx}px`)
-            .join(" ");
-
-        dragPhantomElement.style.gridTemplateRows = rowHeightPxs
-            .map(rowHeightPx => `${rowHeightPx}px`)
-            .join(" ");
+        const dragPhantomCellCount =
+            (tableRect.right - tableRect.left) * (tableRect.bottom - tableRect.top);
 
         const dragPhantomCellClassName = sprinkles({
             backgroundColor: "grey-0-opacity-80",
@@ -1489,13 +1578,73 @@ function handleGripMouseDown(view: EditorView, event: MouseEvent): boolean {
 
         const dragPhantomCellBoxShadow = `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, 1px 0 0 0 ${colorSchemeVars["grey-10"]}`;
 
-        for (let i = 0; i < columnWidthPxs.length * rowHeightPxs.length; i++) {
+        for (let i = 0; i < dragPhantomCellCount; i++) {
             const dragPhantomCellElement = document.createElement("div");
             dragPhantomElement.appendChild(dragPhantomCellElement);
 
             dragPhantomCellElement.className = dragPhantomCellClassName;
             dragPhantomCellElement.style.boxShadow = dragPhantomCellBoxShadow;
         }
+    }
+
+    type MeasureResult = {
+        readonly widthPx: number;
+        readonly heightPx: number;
+        readonly columnWidthPxs: ReadonlyArray<number>;
+        readonly rowHeightPxs: ReadonlyArray<number>;
+    };
+
+    let lastMeasureResult: {state: EditorState; result: MeasureResult} | null = null;
+
+    function measure(): MeasureResult {
+        if (lastMeasureResult === null || lastMeasureResult.state !== view.state) {
+            lastMeasureResult = {state: view.state, result: actuallyMeasure()};
+        }
+        return lastMeasureResult.result;
+    }
+
+    function actuallyMeasure(): MeasureResult {
+        const tableRect = tableElement.getBoundingClientRect();
+
+        const firstTableRowElement = assertExists(tableElement.querySelector("tr:first-of-type"));
+        const tableBodyElement = assertExists(firstTableRowElement.parentElement);
+
+        const columnWidthPxs: Array<number> = [];
+        const rowHeightPxs: Array<number> = [];
+
+        for (const tableBodyChildElement of tableBodyElement.childNodes) {
+            if (
+                tableBodyChildElement instanceof HTMLElement &&
+                tableBodyChildElement.nodeName === "TR"
+            ) {
+                const tableCellRect = assertExists(
+                    findMapIterable(tableBodyChildElement.childNodes, tableRowChildElement =>
+                        tableRowChildElement instanceof HTMLElement &&
+                        tableRowChildElement.nodeName === "TD"
+                            ? tableRowChildElement
+                            : undefined,
+                    ),
+                ).getBoundingClientRect();
+                rowHeightPxs.push(tableCellRect.height);
+            }
+        }
+
+        for (const firstTableRowChildElement of firstTableRowElement.childNodes) {
+            if (
+                firstTableRowChildElement instanceof HTMLElement &&
+                firstTableRowChildElement.nodeName === "TD"
+            ) {
+                const tableCellRect = firstTableRowChildElement.getBoundingClientRect();
+                columnWidthPxs.push(tableCellRect.width);
+            }
+        }
+
+        return {
+            widthPx: tableRect.width,
+            heightPx: tableRect.height,
+            columnWidthPxs,
+            rowHeightPxs,
+        };
     }
 
     window.addEventListener("mouseup", finish);
@@ -1505,7 +1654,7 @@ function handleGripMouseDown(view: EditorView, event: MouseEvent): boolean {
     // and pointer toolbar don't render.
     view.dom.blur();
 
-    event.preventDefault();
+    initialEvent.preventDefault();
     return true;
 }
 
@@ -2094,6 +2243,20 @@ function createContentEditorTablePluginDecorationElementCache() {
         return columnSelectionGripElement;
     });
 
+    const draggingGripRowDropTargetElement = new Lazy<HTMLElement>(() => {
+        const draggingGripRowDropTargetElement = document.createElement("div");
+        draggingGripRowDropTargetElement.className =
+            contentStyles.tableDraggingGripRowDropTargetClassName;
+        return draggingGripRowDropTargetElement;
+    });
+
+    const draggingGripColumnDropTargetElement = new Lazy<HTMLElement>(() => {
+        const draggingGripColumnDropTargetElement = document.createElement("div");
+        draggingGripColumnDropTargetElement.className =
+            contentStyles.tableDraggingGripColumnDropTargetClassName;
+        return draggingGripColumnDropTargetElement;
+    });
+
     return {
         cellSelectionElement,
         columnResizeHandleElement,
@@ -2102,6 +2265,8 @@ function createContentEditorTablePluginDecorationElementCache() {
         rowSelectionGripElement,
         columnGripElement,
         columnSelectionGripElement,
+        draggingGripRowDropTargetElement,
+        draggingGripColumnDropTargetElement,
     };
 }
 
@@ -2256,5 +2421,42 @@ function drawContentEditorTablePluginHoveringStateDecorations(
         }
         default:
             throw exhaustive(hovering);
+    }
+}
+
+function drawContentEditorPluginDraggingGripDropTargetDecorations(
+    elementCache: ContentEditorTablePluginDecorationElementCache,
+    state: EditorState,
+    tablePos: number,
+    dropTarget: ContentEditorTablePluginDraggingGripDropTargetState,
+    decorations: Array<Decoration>,
+) {
+    switch (dropTarget.type) {
+        case "Row": {
+            decorations.push(
+                Decoration.widget(tablePos, () => {
+                    const draggingGripRowDropTargetElement =
+                        elementCache.draggingGripRowDropTargetElement.get();
+                    draggingGripRowDropTargetElement.style.gridRow = `${dropTarget.rowIndex + 1}`;
+                    return draggingGripRowDropTargetElement;
+                }),
+            );
+            break;
+        }
+        case "Column": {
+            decorations.push(
+                Decoration.widget(tablePos, () => {
+                    const draggingGripColumnDropTargetElement =
+                        elementCache.draggingGripColumnDropTargetElement.get();
+                    draggingGripColumnDropTargetElement.style.gridColumn = `${
+                        dropTarget.columnIndex + 1
+                    }`;
+                    return draggingGripColumnDropTargetElement;
+                }),
+            );
+            break;
+        }
+        default:
+            throw exhaustive(dropTarget);
     }
 }
