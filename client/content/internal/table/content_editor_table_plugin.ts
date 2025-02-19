@@ -1341,10 +1341,6 @@ function handleGripMouseDown(view: EditorView, event: MouseEvent): boolean {
 
     const tableCellSelectionRect = tableCellSelectionElement.getBoundingClientRect();
 
-    dispatchContentEditorTablePluginAction({
-        type: "SetDraggingGrip",
-    })(view.state, view.dispatch);
-
     const startX = event.clientX;
     const startY = event.clientY;
 
@@ -1352,6 +1348,18 @@ function handleGripMouseDown(view: EditorView, event: MouseEvent): boolean {
         if (!event.which) {
             finish();
             return;
+        }
+
+        // Wait until the user has moved more than 4px with their drag to actually
+        // start the dragging state. This way if the user clicks on a grip to select
+        // the column or row we don't immediately show the drag phantom.
+        if (
+            !isDragging &&
+            Math.sqrt(
+                Math.abs(event.clientX - startX) ** 2 + Math.abs(event.clientY - startY) ** 2,
+            ) >= 4
+        ) {
+            startDragging();
         }
 
         if (dragPhantomElement !== null) {
@@ -1369,10 +1377,12 @@ function handleGripMouseDown(view: EditorView, event: MouseEvent): boolean {
         window.removeEventListener("mousemove", move);
         dragCoverElement.remove();
 
-        dispatchContentEditorTablePluginAction({type: "ClearDraggingGrip"})(
-            view.state,
-            view.dispatch,
-        );
+        if (isDragging) {
+            dispatchContentEditorTablePluginAction({type: "ClearDraggingGrip"})(
+                view.state,
+                view.dispatch,
+            );
+        }
     }
 
     // Block the DOM with a cover element so we don't trigger hover effects and the
@@ -1387,8 +1397,19 @@ function handleGripMouseDown(view: EditorView, event: MouseEvent): boolean {
         cursor: "grabbing",
     });
 
+    let isDragging = false;
     let dragPhantomElement: HTMLDivElement | null = null;
-    if (!(isRowSelection && isColumnSelection)) {
+
+    function startDragging() {
+        assert(!isDragging);
+        isDragging = true;
+
+        dispatchContentEditorTablePluginAction({
+            type: "SetDraggingGrip",
+        })(view.state, view.dispatch);
+
+        if (isRowSelection && isColumnSelection) return;
+
         dragPhantomElement = document.createElement("div");
         dragCoverElement.appendChild(dragPhantomElement);
 
@@ -1438,7 +1459,7 @@ function handleGripMouseDown(view: EditorView, event: MouseEvent): boolean {
             const actualRowIndex = Math.min(rowIndex, tableRect.bottom - 1);
 
             const tableCellElement = assertExists(
-                tableElement.querySelector(
+                tableElement!.querySelector(
                     `tr:nth-of-type(${actualRowIndex + 1}) td:nth-of-type(${
                         actualColumnIndex + 1
                     })`,
