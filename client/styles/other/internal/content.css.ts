@@ -1988,7 +1988,7 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     zIndex: -10,
 });
 
-const tableOverflowGradientWidthSpacing = "3";
+const tableOverflowGradientWidthSpacing = "5";
 export {tableOverflowGradientWidthSpacing as tableOverflowGradientWidth};
 const tableOverflowGradientWidth = spacing[tableOverflowGradientWidthSpacing];
 
@@ -2023,13 +2023,21 @@ globalStyle(tableWrapperClassName, {
 
 globalStyle(`${tableWrapperClassName}::before`, {
     content: '""',
+    pointerEvents: "none",
     position: "absolute",
     zIndex: "10",
     top: `-${tableColumnResizeHandleHalfWidth}`,
     bottom: `-${tableColumnResizeHandleHalfWidth}`,
     left: `-${tableOverflowGradientWidth}`,
     width: tableOverflowGradientWidth,
-    background: `linear-gradient(to right, ${backgroundColorVar}, transparent)`,
+    background: `linear-gradient(to right, ${backgroundColorVar}, transparent ${spacing["3"]}, transparent)`,
+});
+
+// On mobile, we only have `spacing["3"]` margin. So render the gradient in
+// that space even though it covers row grips. Row grips won't be visible since
+// you can't hover on mobile.
+globalStyle(`${mobilePlatformSelector} ${tableWrapperClassName}::before`, {
+    background: `linear-gradient(to right, ${backgroundColorVar}, ${backgroundColorVar} ${spacing["3"]}, transparent)`,
 });
 
 globalStyle(`${tableWrapperClassName}::after`, {
@@ -2041,7 +2049,14 @@ globalStyle(`${tableWrapperClassName}::after`, {
     bottom: `-${tableColumnResizeHandleHalfWidth}`,
     right: `-${tableOverflowGradientWidth}`,
     width: tableOverflowGradientWidth,
-    background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
+    background: `linear-gradient(to left, ${backgroundColorVar}, transparent ${spacing["3"]}, transparent)`,
+});
+
+// On mobile, we only have `spacing["3"]` margin. So render the gradient in
+// that space even though it covers row grips. Row grips won't be visible since
+// you can't hover on mobile.
+globalStyle(`${mobilePlatformSelector} ${tableWrapperClassName}::after`, {
+    background: `linear-gradient(to left, ${backgroundColorVar}, ${backgroundColorVar} ${spacing["3"]}, transparent)`,
 });
 
 globalStyle(tableWrapper2ClassName, {
