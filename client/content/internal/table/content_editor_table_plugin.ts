@@ -74,6 +74,7 @@ import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -1365,6 +1366,7 @@ function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolea
 
     if (!element) return false;
     const tableElement = element as HTMLTableElement;
+    const tableWrapper2Element = assertExists(tableElement.parentElement?.parentElement);
 
     const tableCellSelectionElement = tableElement.querySelector(
         `.${contentStyles.tableCellSelectionClassName}`,
@@ -1373,8 +1375,14 @@ function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolea
 
     const initialTableCellSelectionRect = tableCellSelectionElement.getBoundingClientRect();
 
-    const initialX = initialEvent.clientX;
-    const initialY = initialEvent.clientY;
+    const initialMouseXPx = initialEvent.clientX;
+    const initialMouseYPx = initialEvent.clientY;
+    let mouseXPx = initialMouseXPx;
+    let mouseYPx = initialMouseYPx;
+
+    let autoScrollDirectionX: number = 0;
+    let autoScrollSpeedX: number = 0;
+    let autoScrollInterval: Interval | null = null;
 
     dispatchContentEditorTablePluginAction({
         type: "SetDraggingGrip",
@@ -1382,14 +1390,17 @@ function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolea
     })(view.state, view.dispatch);
 
     function move(event: MouseEvent): void {
+        mouseXPx = event.clientX;
+        mouseYPx = event.clientY;
+
         if (!event.which) {
-            finish(event);
+            finish();
             return;
         }
 
         const pluginState = contentEditorTablePluginKey.getState(view.state);
         if (pluginState?.type !== "DraggingGrip") {
-            finish(event);
+            finish();
             return;
         }
 
@@ -1403,7 +1414,8 @@ function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolea
         // the column or row we don't immediately show the drag phantom.
         if (!hasAddedDragPhantomElement) {
             const distance = Math.sqrt(
-                Math.abs(event.clientX - initialX) ** 2 + Math.abs(event.clientY - initialY) ** 2,
+                Math.abs(mouseXPx - initialMouseXPx) ** 2 +
+                    Math.abs(mouseYPx - initialMouseYPx) ** 2,
             );
 
             if (distance < 4) {
@@ -1415,13 +1427,21 @@ function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolea
 
         if (dragPhantomElement !== null) {
             if (isColumnSelection) {
-                dragPhantomElement.style.transform = `translateX(${event.clientX - initialX}px)`;
+                dragPhantomElement.style.transform = `translateX(${mouseXPx - initialMouseXPx}px)`;
             } else {
-                dragPhantomElement.style.transform = `translateY(${event.clientY - initialY}px)`;
+                dragPhantomElement.style.transform = `translateY(${mouseYPx - initialMouseYPx}px)`;
             }
         }
 
-        const dropTarget = getDropTarget(event);
+        updateDropTarget();
+        updateAutoScroll();
+    }
+
+    function updateDropTarget() {
+        const pluginState = contentEditorTablePluginKey.getState(view.state);
+        if (pluginState?.type !== "DraggingGrip") return;
+
+        const dropTarget = getDropTarget();
 
         const isDropTargetEqual =
             pluginState.dropTarget !== null &&
@@ -1440,10 +1460,52 @@ function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolea
         }
     }
 
+    function updateAutoScroll() {
+        const tableWrapper2Rect = tableWrapper2Element.getBoundingClientRect();
+        const thresholdWidth = tableWrapper2Rect.width * 0.1;
+
+        if (mouseXPx < tableWrapper2Rect.left + thresholdWidth) {
+            autoScrollDirectionX = -1;
+
+            // Speed calculation taken from `getScrollDirectionAndSpeed()`:
+            // https://github.com/clauderic/dnd-kit/blob/e2a1776d0de657669192d3cfd1558e91905b5fad/packages/core/src/utilities/scroll/getScrollDirectionAndSpeed.ts#L37-L41
+            autoScrollSpeedX =
+                10 *
+                Math.abs((tableWrapper2Rect.left + thresholdWidth - mouseXPx) / thresholdWidth);
+        } else if (mouseXPx > tableWrapper2Rect.right - thresholdWidth) {
+            autoScrollDirectionX = 1;
+
+            // Speed calculation taken from `getScrollDirectionAndSpeed()`:
+            // https://github.com/clauderic/dnd-kit/blob/e2a1776d0de657669192d3cfd1558e91905b5fad/packages/core/src/utilities/scroll/getScrollDirectionAndSpeed.ts#L48-L53
+            autoScrollSpeedX =
+                10 *
+                Math.abs((tableWrapper2Rect.right - thresholdWidth - mouseXPx) / thresholdWidth);
+        } else {
+            autoScrollInterval?.clear();
+            autoScrollInterval = null;
+            return;
+        }
+
+        if (autoScrollInterval === null) {
+            autoScrollInterval = createInterval(() => {
+                const deltaX = autoScrollSpeedX * autoScrollDirectionX;
+
+                tableWrapper2Element.scrollLeft += deltaX;
+
+                updateDropTarget();
+
+                // 5ms interval approach taken from `useAutoScroller()`:
+                // https://github.com/clauderic/dnd-kit/blob/e2a1776d0de657669192d3cfd1558e91905b5fad/packages/core/src/hooks/utilities/useAutoScroller.ts#L61
+            }, 5);
+        }
+    }
+
     // Finalizes the resizing process when the mouse is released
-    function finish(event: MouseEvent) {
+    function finish() {
         window.removeEventListener("mouseup", finish);
         window.removeEventListener("mousemove", move);
+        autoScrollInterval?.clear();
+        autoScrollInterval = null;
         dragCoverElement.remove();
 
         const pluginState = contentEditorTablePluginKey.getState(view.state);
@@ -1460,7 +1522,7 @@ function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolea
 
         if (!hasAddedDragPhantomElement) return;
 
-        const dropTarget = getDropTarget(event);
+        const dropTarget = getDropTarget();
 
         switch (dropTarget.type) {
             case "Row": {
@@ -1486,7 +1548,7 @@ function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolea
         }
     }
 
-    function getDropTarget(event: MouseEvent): ContentEditorTablePluginDraggingGripDropTargetState {
+    function getDropTarget(): ContentEditorTablePluginDraggingGripDropTargetState {
         const measureResult = measure();
         const tableRect = tableElement.getBoundingClientRect();
 
@@ -1497,7 +1559,7 @@ function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolea
             for (; columnIndex < measureResult.columnWidthPxs.length; columnIndex++) {
                 const columnWidthPx = measureResult.columnWidthPxs[columnIndex]!;
 
-                if (event.clientX < offsetPx + columnWidthPx / 2) {
+                if (mouseXPx < offsetPx + columnWidthPx / 2) {
                     break;
                 }
 
@@ -1512,7 +1574,7 @@ function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolea
             for (; rowIndex < measureResult.rowHeightPxs.length; rowIndex++) {
                 const rowHeightPx = measureResult.rowHeightPxs[rowIndex]!;
 
-                if (event.clientY < offsetPx + rowHeightPx / 2) {
+                if (mouseYPx < offsetPx + rowHeightPx / 2) {
                     break;
                 }
 
@@ -1601,7 +1663,7 @@ function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolea
             (tableRect.right - tableRect.left) * (tableRect.bottom - tableRect.top);
 
         const dragPhantomCellClassName = sprinkles({
-            backgroundColor: "grey-0-opacity-80",
+            backgroundColor: "grey-0-opacity-90",
         });
 
         const dragPhantomCellBoxShadow = `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, 1px 0 0 0 ${colorSchemeVars["grey-10"]}`;
