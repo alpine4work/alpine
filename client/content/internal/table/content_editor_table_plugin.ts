@@ -1417,9 +1417,11 @@ function handleGripMouseDown(view: EditorView, event: MouseEvent): boolean {
 
         if (isColumnSelection) {
             dragPhantomGripElement.className = contentStyles.tableColumnGripBaseClassName;
+            dragPhantomGripElement.style.width = "100%";
             dragPhantomGripElement.innerHTML = dotsSixIconSvg();
         } else {
             dragPhantomGripElement.className = contentStyles.tableRowGripBaseClassName;
+            dragPhantomGripElement.style.height = "100%";
             dragPhantomGripElement.innerHTML = dotsSixVerticalIconSvg();
         }
 

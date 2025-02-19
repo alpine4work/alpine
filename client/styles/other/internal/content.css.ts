@@ -2153,7 +2153,7 @@ export const tableCellSelectionClassName = style({
     position: "absolute",
     width: "calc(100% + 1px)",
     height: "calc(100% + 1px)",
-    boxShadow: `inset 0 0 0 2px ${colorSchemeVars["theme-40-const"]}`,
+    border: `2px solid ${colorSchemeVars["theme-40-const"]}`,
 });
 
 export const tableRightEdgeCellSelectionClassName = style({
