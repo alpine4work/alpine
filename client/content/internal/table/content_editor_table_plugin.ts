@@ -436,6 +436,7 @@ function applyContentEditorTablePluginStateTransaction(
 
             if (
                 transaction.selection.isRowSelection() &&
+                transaction.selection.tablePos === tablePos &&
                 transaction.selection.tableRect.top <= rowIndex &&
                 rowIndex < transaction.selection.tableRect.bottom
             ) {
@@ -465,6 +466,7 @@ function applyContentEditorTablePluginStateTransaction(
 
             if (
                 transaction.selection.isColumnSelection() &&
+                transaction.selection.tablePos === tablePos &&
                 transaction.selection.tableRect.left <= columnIndex &&
                 columnIndex < transaction.selection.tableRect.right
             ) {
