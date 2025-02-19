@@ -9,13 +9,14 @@
  */
 export function partitionArray<Value>(
     array: ReadonlyArray<Value>,
-    predicate: (value: Value) => boolean,
+    predicate: (value: Value, index: number) => boolean,
 ): [Array<Value>, Array<Value>] {
     const trueArray: Array<Value> = [];
     const falseArray: Array<Value> = [];
 
+    let index = 0;
     for (const value of array) {
-        if (predicate(value)) {
+        if (predicate(value, index++)) {
             trueArray.push(value);
         } else {
             falseArray.push(value);

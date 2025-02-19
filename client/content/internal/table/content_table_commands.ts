@@ -40,6 +40,7 @@ import {contentStyles} from "~/client/styles/styles.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap, ContentTableMapRect} from "~/shared/content/table/content_table_map.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {partitionArray} from "~/shared/helpers/array/partition_array.js";
 
 type ContentTableRect = ContentTableMapRect & {
     tablePos: number;
@@ -172,7 +173,7 @@ export function addContentTableColumnBeforeSelection(
 export function addContentTableColumnAfterSelection(
     state: EditorState,
     dispatch?: (tr: Transaction) => void,
-) {
+): boolean {
     if (!isInContentTable(state)) return false;
 
     if (dispatch) {
@@ -542,6 +543,152 @@ export function selectContentTableRow(tablePos: number, rowIndex: number): Comma
 
             dispatch(state.tr.setSelection(new ContentTableCellSelection($anchor, $head)));
         }
+
+        return true;
+    };
+}
+
+export function moveContentTableRow(
+    tablePos: number,
+    startRowIndex: number, // inclusive
+    endRowIndex: number, // exclusive
+    newRowIndex: number,
+): Command {
+    return (state, dispatch) => {
+        const oldTable = state.doc.resolve(tablePos).node();
+        if (oldTable.type.name !== "table") return false;
+
+        // Rows are moved back to the location they started.
+        if (startRowIndex <= newRowIndex && newRowIndex <= endRowIndex) return false;
+
+        const [movedTableRows, newTableRows] = partitionArray(
+            oldTable.content.content,
+            (oldTableRow, rowIndex) => startRowIndex <= rowIndex && rowIndex < endRowIndex,
+        );
+
+        if (newRowIndex < startRowIndex) {
+            newTableRows.splice(newRowIndex, 0, ...movedTableRows);
+        } else {
+            newTableRows.splice(newRowIndex - (endRowIndex - startRowIndex), 0, ...movedTableRows);
+        }
+
+        const newTable = oldTable.type.create(oldTable.attrs, newTableRows);
+        const newTableMap = ContentTableMap.get(newTable);
+
+        const transaction = state.tr;
+        transaction.replaceWith(tablePos - 1, tablePos + oldTable.nodeSize - 1, newTable);
+
+        const newCellSelection =
+            newRowIndex < startRowIndex
+                ? newTableMap.cellsInRect({
+                      left: 0,
+                      right: newTableMap.width,
+                      top: newRowIndex,
+                      bottom: newRowIndex + (endRowIndex - startRowIndex),
+                  })
+                : newTableMap.cellsInRect({
+                      left: 0,
+                      right: newTableMap.width,
+                      top: newRowIndex - (endRowIndex - startRowIndex),
+                      bottom: newRowIndex,
+                  });
+
+        transaction.setSelection(
+            new ContentTableCellSelection(
+                transaction.doc.resolve(tablePos + newCellSelection[0]!),
+                transaction.doc.resolve(tablePos + newCellSelection[newCellSelection.length - 1]!),
+            ),
+        );
+
+        dispatch?.(transaction);
+
+        return true;
+    };
+}
+
+export function moveContentTableColumn(
+    tablePos: number,
+    startColumnIndex: number, // inclusive
+    endColumnIndex: number, // exclusive
+    newColumnIndex: number,
+): Command {
+    return (state, dispatch) => {
+        const oldTable = state.doc.resolve(tablePos).node();
+        if (oldTable.type.name !== "table") return false;
+
+        // Columns are moved back to the location they started.
+        if (startColumnIndex <= newColumnIndex && newColumnIndex <= endColumnIndex) return false;
+
+        const oldTableMap = ContentTableMap.get(oldTable);
+
+        const [movedColumnWidths, newColumnWidths] = partitionArray(
+            oldTableMap.columnWidths,
+            (oldColumnWidth, columnIndex) =>
+                startColumnIndex <= columnIndex && columnIndex < endColumnIndex,
+        );
+
+        if (newColumnIndex < startColumnIndex) {
+            newColumnWidths.splice(newColumnIndex, 0, ...movedColumnWidths);
+        } else {
+            newColumnWidths.splice(
+                newColumnIndex - (endColumnIndex - startColumnIndex),
+                0,
+                ...movedColumnWidths,
+            );
+        }
+
+        const newTableRows = oldTable.content.content.map(oldTableRow => {
+            const [movedTableCells, newTableCells] = partitionArray(
+                oldTableRow.content.content,
+                (oldTableCell, columnIndex) =>
+                    startColumnIndex <= columnIndex && columnIndex < endColumnIndex,
+            );
+
+            if (newColumnIndex < startColumnIndex) {
+                newTableCells.splice(newColumnIndex, 0, ...movedTableCells);
+            } else {
+                newTableCells.splice(
+                    newColumnIndex - (endColumnIndex - startColumnIndex),
+                    0,
+                    ...movedTableCells,
+                );
+            }
+
+            return oldTableRow.type.create(oldTableRow.attrs, newTableCells);
+        });
+
+        const newTable = oldTable.type.create(
+            {...oldTable.attrs, columnWidths: newColumnWidths},
+            newTableRows,
+        );
+        const newTableMap = ContentTableMap.get(newTable);
+
+        const transaction = state.tr;
+        transaction.replaceWith(tablePos - 1, tablePos + oldTable.nodeSize - 1, newTable);
+
+        const newCellSelection =
+            newColumnIndex < startColumnIndex
+                ? newTableMap.cellsInRect({
+                      left: newColumnIndex,
+                      right: newColumnIndex + (endColumnIndex - startColumnIndex),
+                      top: 0,
+                      bottom: newTableMap.height,
+                  })
+                : newTableMap.cellsInRect({
+                      left: newColumnIndex - (endColumnIndex - startColumnIndex),
+                      right: newColumnIndex,
+                      top: 0,
+                      bottom: newTableMap.height,
+                  });
+
+        transaction.setSelection(
+            new ContentTableCellSelection(
+                transaction.doc.resolve(tablePos + newCellSelection[0]!),
+                transaction.doc.resolve(tablePos + newCellSelection[newCellSelection.length - 1]!),
+            ),
+        );
+
+        dispatch?.(transaction);
 
         return true;
     };

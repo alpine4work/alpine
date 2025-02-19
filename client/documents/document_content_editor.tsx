@@ -1646,6 +1646,9 @@ export function DocumentContentEditor({
                     <Box className={contentEditorStyles.containerClassName}>
                         <GlobalKeyDownEvent
                             onGlobalKeyDown={event => {
+                                // Perform undo/redo on the document even if the document isn't focused. If the
+                                // document is focused and cmd-z is pressed then the document will handle the
+                                // event itself and call `event.preventDefault()` + `event.stopPropagation()`.
                                 switch (event.key) {
                                     case "z": {
                                         if (isAppleDevice ? event.metaKey : event.ctrlKey) {

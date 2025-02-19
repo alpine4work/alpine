@@ -44,6 +44,8 @@ import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {updateContentTableColumnsOnResize} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {contentTableCellAround} from "~/client/content/internal/table/content_table_client_util.js";
 import {
+    moveContentTableColumn,
+    moveContentTableRow,
     selectContentTableColumn,
     selectContentTableRow,
 } from "~/client/content/internal/table/content_table_commands.js";
@@ -1444,6 +1446,9 @@ function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolea
         window.removeEventListener("mousemove", move);
         dragCoverElement.remove();
 
+        const pluginState = contentEditorTablePluginKey.getState(view.state);
+        if (pluginState?.type !== "DraggingGrip") return;
+
         dispatchContentEditorTablePluginAction({
             type: "ClearDraggingGrip",
         })(view.state, view.dispatch);
@@ -1456,6 +1461,29 @@ function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolea
         if (!hasAddedDragPhantomElement) return;
 
         const dropTarget = getDropTarget(event);
+
+        switch (dropTarget.type) {
+            case "Row": {
+                moveContentTableRow(
+                    pluginState.tablePos,
+                    tableRect.top,
+                    tableRect.bottom,
+                    dropTarget.rowIndex,
+                )(view.state, view.dispatch);
+                break;
+            }
+            case "Column": {
+                moveContentTableColumn(
+                    pluginState.tablePos,
+                    tableRect.left,
+                    tableRect.right,
+                    dropTarget.columnIndex,
+                )(view.state, view.dispatch);
+                break;
+            }
+            default:
+                throw exhaustive(dropTarget);
+        }
     }
 
     function getDropTarget(event: MouseEvent): ContentEditorTablePluginDraggingGripDropTargetState {
