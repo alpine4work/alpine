@@ -41,6 +41,7 @@ import {ContentTableCellSelection} from "~/shared/content/table/content_table_ce
 import {ContentTableMap, ContentTableMapRect} from "~/shared/content/table/content_table_map.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {partitionArray} from "~/shared/helpers/array/partition_array.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 type ContentTableRect = ContentTableMapRect & {
     tablePos: number;
@@ -551,35 +552,98 @@ export function selectContentTableRow(tablePos: number, rowIndex: number): Comma
     };
 }
 
+/**
+ * Move a range of table rows to a new position. The table row range is between
+ * `startRowIndex` (inclusive) and `endRowIndex` (exclusive).
+ *
+ * Produces a transaction that deletes rows from their old position and inserts
+ * rows into their new position. Any conflicting transaction steps in cells
+ * outside of the moved rows will be mapped appropriately but any conflicting
+ * transaction steps within the moved rows will be lost.
+ */
 export function moveContentTableRow(
     tablePos: number,
-    startRowIndex: number, // inclusive
-    endRowIndex: number, // exclusive
+    startRowIndex: number,
+    endRowIndex: number,
     newRowIndex: number,
 ): Command {
     return (state, dispatch) => {
-        const oldTable = state.doc.resolve(tablePos).node();
+        const oldTable = state.doc.resolve(tablePos).parent;
         if (oldTable.type.name !== "table") return false;
+
+        const oldTableMap = ContentTableMap.get(oldTable);
+
+        if (newRowIndex < 0) return false;
+        if (newRowIndex > oldTableMap.height) return false;
+
+        if (endRowIndex <= startRowIndex) return false;
+        if (startRowIndex < 0) return false;
+        if (endRowIndex > oldTableMap.height) return false;
 
         // Rows are moved back to the location they started.
         if (startRowIndex <= newRowIndex && newRowIndex <= endRowIndex) return false;
 
-        const [movedTableRows, newTableRows] = partitionArray(
-            oldTable.content.content,
-            (oldTableRow, rowIndex) => startRowIndex <= rowIndex && rowIndex < endRowIndex,
-        );
+        const transaction = state.tr;
 
-        if (newRowIndex < startRowIndex) {
-            newTableRows.splice(newRowIndex, 0, ...movedTableRows);
-        } else {
-            newTableRows.splice(newRowIndex - (endRowIndex - startRowIndex), 0, ...movedTableRows);
+        let deletedNodeSize = 0;
+
+        // Delete the rows we're moving. We delete in reverse order so we can use old
+        // table positions.
+        for (
+            let deleteRowIndex = endRowIndex - 1;
+            deleteRowIndex >= startRowIndex;
+            deleteRowIndex--
+        ) {
+            const tableRow = oldTable.content.content[deleteRowIndex]!;
+
+            const cells = oldTableMap.cellsInRect({
+                left: 0,
+                right: 1,
+                top: deleteRowIndex,
+                bottom: deleteRowIndex + 1,
+            });
+            assert(cells.length === 1);
+
+            const $cell = state.doc.resolve(tablePos + cells[0]!);
+            assert($cell.parent === tableRow);
+
+            deletedNodeSize += $cell.parent.nodeSize;
+            transaction.delete($cell.pos - 1, $cell.pos - 1 + $cell.parent.nodeSize);
         }
 
-        const newTable = oldTable.type.create(oldTable.attrs, newTableRows);
-        const newTableMap = ContentTableMap.get(newTable);
+        let insertPos: number;
+        if (newRowIndex === oldTableMap.height) {
+            insertPos = tablePos - 1 + oldTable.nodeSize - 1;
+        } else {
+            const cells = oldTableMap.cellsInRect({
+                left: 0,
+                right: 1,
+                top: newRowIndex,
+                bottom: newRowIndex + 1,
+            });
+            assert(cells.length === 1);
 
-        const transaction = state.tr;
-        transaction.replaceWith(tablePos - 1, tablePos + oldTable.nodeSize - 1, newTable);
+            insertPos = tablePos + cells[0]! - 1;
+        }
+
+        // Insert the nodes we're moving in their new position. We insert in reverse
+        // order so we can use the same `insertPos` each time.
+        for (
+            let insertRowIndex = endRowIndex - 1;
+            insertRowIndex >= startRowIndex;
+            insertRowIndex--
+        ) {
+            const tableRow = oldTable.content.content[insertRowIndex]!;
+
+            if (newRowIndex < startRowIndex) {
+                transaction.insert(insertPos, tableRow);
+            } else {
+                transaction.insert(insertPos - deletedNodeSize, tableRow);
+            }
+        }
+
+        const newTable = transaction.doc.resolve(tablePos).parent;
+        const newTableMap = ContentTableMap.get(newTable);
 
         const newCellSelection =
             newRowIndex < startRowIndex
@@ -609,20 +673,48 @@ export function moveContentTableRow(
     };
 }
 
+/**
+ * Move a range of table columns to a new position. The table column range is
+ * between `startColumnIndex` (inclusive) and `endColumnIndex` (exclusive).
+ *
+ * Produces a transaction that, for every table row, deletes cells from their
+ * old position and inserts cells into their new position. Any conflicting
+ * transaction steps in cells outside of the moved cells will be mapped
+ * appropriately but any conflicting transaction steps within the moved cells
+ * will be lost.
+ *
+ * Since we need to update each row individually, the transaction produced by
+ * this command may be quite large! It'll have
+ * `rowCount * (endColumnIndex - startColumnIndex) * 2` steps. An alternative
+ * implementation if we run into large transaction problems is to produce a new
+ * table node with moved columns and replace the entire table at once. This
+ * implementation would only have one step but any conflicting transaction
+ * steps would be lost. (The previous implementation of this function replaced
+ * the whole table. See the parent git commit.)
+ */
 export function moveContentTableColumn(
     tablePos: number,
-    startColumnIndex: number, // inclusive
-    endColumnIndex: number, // exclusive
+    startColumnIndex: number,
+    endColumnIndex: number,
     newColumnIndex: number,
 ): Command {
     return (state, dispatch) => {
         const oldTable = state.doc.resolve(tablePos).node();
         if (oldTable.type.name !== "table") return false;
 
+        const oldTableMap = ContentTableMap.get(oldTable);
+
+        if (newColumnIndex < 0) return false;
+        if (newColumnIndex > oldTableMap.height) return false;
+
+        if (endColumnIndex <= startColumnIndex) return false;
+        if (startColumnIndex < 0) return false;
+        if (endColumnIndex > oldTableMap.height) return false;
+
         // Columns are moved back to the location they started.
         if (startColumnIndex <= newColumnIndex && newColumnIndex <= endColumnIndex) return false;
 
-        const oldTableMap = ContentTableMap.get(oldTable);
+        const transaction = state.tr;
 
         const [movedColumnWidths, newColumnWidths] = partitionArray(
             oldTableMap.columnWidths,
@@ -640,34 +732,76 @@ export function moveContentTableColumn(
             );
         }
 
-        const newTableRows = oldTable.content.content.map(oldTableRow => {
-            const [movedTableCells, newTableCells] = partitionArray(
-                oldTableRow.content.content,
-                (oldTableCell, columnIndex) =>
-                    startColumnIndex <= columnIndex && columnIndex < endColumnIndex,
-            );
+        transaction.setNodeAttribute(tablePos - 1, "columnWidths", newColumnWidths);
 
-            if (newColumnIndex < startColumnIndex) {
-                newTableCells.splice(newColumnIndex, 0, ...movedTableCells);
-            } else {
-                newTableCells.splice(
-                    newColumnIndex - (endColumnIndex - startColumnIndex),
-                    0,
-                    ...movedTableCells,
-                );
+        let tableRowNodeSize = 0;
+
+        for (let rowIndex = 0; rowIndex < oldTableMap.height; rowIndex++) {
+            const oldTableRow = oldTable.content.content[rowIndex]!;
+
+            let deletedNodeSize = 0;
+
+            // Delete the cells we're moving. We delete in reverse order so we can use old
+            // table positions.
+            for (
+                let deleteColumnIndex = endColumnIndex - 1;
+                deleteColumnIndex >= startColumnIndex;
+                deleteColumnIndex--
+            ) {
+                const tableCell = oldTableRow.content.content[deleteColumnIndex]!;
+
+                const cells = oldTableMap.cellsInRect({
+                    left: deleteColumnIndex,
+                    right: deleteColumnIndex + 1,
+                    top: rowIndex,
+                    bottom: rowIndex + 1,
+                });
+                assert(cells.length === 1);
+
+                const $cell = state.doc.resolve(tablePos + cells[0]!);
+                assert($cell.parent === oldTableRow);
+                assert($cell.nodeAfter === tableCell);
+
+                deletedNodeSize += $cell.nodeAfter.nodeSize;
+                transaction.delete($cell.pos, $cell.pos + $cell.nodeAfter.nodeSize);
             }
 
-            return oldTableRow.type.create(oldTableRow.attrs, newTableCells);
-        });
+            let insertPos: number;
+            if (newColumnIndex === oldTableMap.width) {
+                insertPos = tablePos + tableRowNodeSize + oldTableRow.nodeSize - 1;
+            } else {
+                const cells = oldTableMap.cellsInRect({
+                    left: newColumnIndex,
+                    right: newColumnIndex + 1,
+                    top: rowIndex,
+                    bottom: rowIndex + 1,
+                });
+                assert(cells.length === 1);
 
-        const newTable = oldTable.type.create(
-            {...oldTable.attrs, columnWidths: newColumnWidths},
-            newTableRows,
-        );
+                insertPos = tablePos + cells[0]!;
+            }
+
+            // Insert the nodes we're moving in their new position. We insert in reverse
+            // order so we can use the same `insertPos` each time.
+            for (
+                let insertColumnIndex = endColumnIndex - 1;
+                insertColumnIndex >= startColumnIndex;
+                insertColumnIndex--
+            ) {
+                const tableCell = oldTableRow.content.content[insertColumnIndex]!;
+
+                if (newColumnIndex < startColumnIndex) {
+                    transaction.insert(insertPos, tableCell);
+                } else {
+                    transaction.insert(insertPos - deletedNodeSize, tableCell);
+                }
+            }
+
+            tableRowNodeSize += oldTableRow.nodeSize;
+        }
+
+        const newTable = transaction.doc.resolve(tablePos).parent;
         const newTableMap = ContentTableMap.get(newTable);
-
-        const transaction = state.tr;
-        transaction.replaceWith(tablePos - 1, tablePos + oldTable.nodeSize - 1, newTable);
 
         const newCellSelection =
             newColumnIndex < startColumnIndex
