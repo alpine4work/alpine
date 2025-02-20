@@ -43,7 +43,7 @@ function createProsemirrorSchemaSpec<Schema extends SchemaSpec<string, string>>(
 export const contentTableProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {
         table: {
-            content: "tableRow{2,}",
+            content: "tableRow+",
             group: "block",
             attrs: {
                 // The width of each column in a table. Each width represents a fraction of the
