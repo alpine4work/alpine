@@ -90,14 +90,6 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
             addContextMenuActions(event, [
                 [
                     {
-                        label: "Add row before",
-                        iconPlacement: "end",
-                        icon: <RowsPlusTopIcon />,
-                        onPress: () => {
-                            addContentTableRowBeforeSelection(view.state, view.dispatch);
-                        },
-                    },
-                    {
                         label: "Add row after",
                         iconPlacement: "end",
                         icon: <RowsPlusBottomIcon />,
@@ -106,11 +98,11 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
                         },
                     },
                     {
-                        label: "Add column before",
+                        label: "Add row before",
                         iconPlacement: "end",
-                        icon: <ColumnsPlusLeftIcon style={{transform: "translateX(-0.125rem)"}} />,
+                        icon: <RowsPlusTopIcon />,
                         onPress: () => {
-                            addContentTableColumnBeforeSelection(view.state, view.dispatch);
+                            addContentTableRowBeforeSelection(view.state, view.dispatch);
                         },
                     },
                     {
@@ -119,6 +111,14 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
                         icon: <ColumnsPlusRightIcon style={{transform: "translateX(0.0625rem)"}} />,
                         onPress: () => {
                             addContentTableColumnAfterSelection(view.state, view.dispatch);
+                        },
+                    },
+                    {
+                        label: "Add column before",
+                        iconPlacement: "end",
+                        icon: <ColumnsPlusLeftIcon style={{transform: "translateX(-0.125rem)"}} />,
+                        onPress: () => {
+                            addContentTableColumnBeforeSelection(view.state, view.dispatch);
                         },
                     },
                 ],
