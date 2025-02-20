@@ -16,10 +16,7 @@ wrangler_bin.wrangler_binary(
 
 wrangler_bin.wrangler_binary(
     name = "wrangler_deploy",
-    args = [
-        "deploy",
-        "--commit-dirty=true",
-    ],
+    args = ["deploy"],
     chdir = package_name(),
     data = [
         "dev_domain_service.ts",
