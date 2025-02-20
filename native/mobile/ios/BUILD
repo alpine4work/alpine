@@ -38,7 +38,7 @@ filegroup(
 #
 # - Debug assertions
 # - Optimized builds
-# - Run environment (e.g. use localhost or cyberworlds.dev domain)
+# - Run environment (e.g. use localhost or alpine.inc domain)
 #
 # This is too much. It provides us no flexibility to, for instance, run on
 # localhost with an optimized build. So over time we should tease apart this
@@ -120,7 +120,7 @@ build_config(
     default_base_url = select({
         ":development_run_environment": "http://localhost:3000",
         ":test_run_environment": "http://localhost:3000",
-        ":production_run_environment": "http://cyberworlds.dev",
+        ":production_run_environment": "http://alpine.inc",
     }),
 )
 

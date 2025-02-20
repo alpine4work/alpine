@@ -56,7 +56,7 @@ export function RequestedAlphaAccessEmailTemplate({
                             To approve the request, visit the{" "}
                             <a
                                 // TODO(calebmer): Should use localhost in development?
-                                href="https://cyberworlds.dev/internal/alpha"
+                                href="https://alpine.inc/internal/alpha"
                                 target="_blank"
                                 rel="noreferrer"
                                 style={{color: colors[`${defaultThemeColor}-60`]}}

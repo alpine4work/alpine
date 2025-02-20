@@ -92,7 +92,7 @@ export function useIsFocusRingVisible({
                 // single focus ring but we end up with two.
                 //
                 // Video reproducing the issue:
-                // https://cyberworlds.dev/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/7q5swjv2f8f5bcfpx2kz4cj1ag
+                // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/7q5swjv2f8f5bcfpx2kz4cj1ag
                 if (event?.type === "focusout" && targetElement.contains(focusedElement)) return;
 
                 const nextIsFocused =

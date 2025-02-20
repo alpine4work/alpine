@@ -74,7 +74,7 @@ import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_d
 import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export function meta() {
-    return [{title: "Cyberworlds"}];
+    return [{title: "Alpine"}];
 }
 
 export function links(): Array<LinkDescriptor> {

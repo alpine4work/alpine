@@ -228,7 +228,7 @@ export class AwsAppService extends Construct {
                 "-c",
                 `/var/www/app/app_production ${[
                     `--port=${port}`,
-                    "--edgeServiceUrl=https://cyberworlds.dev",
+                    "--edgeServiceUrl=https://alpine.inc",
                     `--opensearchHost=${opensearch.opensearchHost}`,
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
@@ -328,7 +328,7 @@ export class AwsAppService extends Construct {
             port: 443,
             certificates: [
                 new Certificate(this, "Certificate", {
-                    domainName: "cyberworlds.dev",
+                    domainName: "alpine.inc",
                     validation: CertificateValidation.fromDns(),
                 }),
             ],

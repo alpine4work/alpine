@@ -33,7 +33,7 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
 // quotes too.
 
 export function meta() {
-    return [{title: "Request access to Cyberworlds"}];
+    return [{title: "Request access to Alpine"}];
 }
 
 export async function loader({context}: LoaderArgs) {
@@ -179,9 +179,8 @@ export default function HomePage() {
                 </h1>
                 <Spacer space="4" />
                 <Box fontSize="200" color="grey-80" style={{lineHeight: "1.5rem"}}>
-                    Cyberworlds is the code name for a new workplace collaboration suite we’re
-                    building. While we have a long way to go, we’re giving some people access to the
-                    product so they can follow along.
+                    Alpine is the modern productivity suite. While we have a long way to go, we’re
+                    giving some people access to the product so they can follow along.
                 </Box>
                 <Spacer space="8" />
                 <fetcher.Form

@@ -4,7 +4,7 @@ import {InternalError} from "~/shared/error/error.js";
 /**
  * Default string we use for the title of browser tabs.
  */
-export const metaDefaultTitle = "Cyberworlds";
+export const metaDefaultTitle = "Alpine";
 
 /**
  * Character we use for separating different parts of a title.

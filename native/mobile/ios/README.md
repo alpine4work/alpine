@@ -51,7 +51,7 @@ bazel build //native/mobile/ios:app \
     --define=apple.add_debugger_entitlement=no \
     --//native/mobile/ios:run_environment=production \
     --//native/mobile/ios:provisioning_profile=local \
-    --//native/mobile/ios:base_url=httsp://cyberworlds.dev
+    --//native/mobile/ios:base_url=https://alpine.inc
 ```
 
 Run the following command to upload the app to Apple. You'll be prompted for a username and

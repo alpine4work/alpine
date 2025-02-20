@@ -20,7 +20,7 @@ import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export function meta() {
-    return [{title: "Sign in to Cyberworlds"}];
+    return [{title: "Sign in to Alpine"}];
 }
 
 export function links(): Array<LinkDescriptor> {

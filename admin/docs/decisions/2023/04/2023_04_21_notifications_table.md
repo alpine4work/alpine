@@ -3,7 +3,7 @@
 ## Context
 
 This cycle I (@calebmer) am building the
-[inbox feature](https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/r0jzswspqf11nmy1g0zh3n6y4r).
+[inbox feature](https://alpine.inc/s/111hc413nfdxa6vwspnhm3ejsc/documents/r0jzswspqf11nmy1g0zh3n6y4r).
 Inbox aggregates all notifications the user receives into an easy to triage surface. You should read
 the principles from that document to understand the product goals. In this document we will focus on
 the technical solutions to implement the final product designs. Specifically the following features:

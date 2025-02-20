@@ -94,7 +94,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // by the rule `//native/mobile/ios:build_config`.
         static let baseUrl = URL(string: webBaseUrl)!
     #else
-        static let baseUrl = URL(string: "https://cyberworlds.dev")!
+        static let baseUrl = URL(string: "https://alpine.inc")!
     #endif
 
     static private var baseUrlAbsoluteStringWithTrailingSlash = baseUrl.absoluteString + "/"
@@ -3050,11 +3050,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 )
             // The global loading indicator doesn't move with the keyboard. Just the
             // tab bar.
-            case .globalLoadingIndicator:
-                -max(
-                    0,
-                    actualTabBarHeight - tabBarScrollOffset
-                )
+            case .globalLoadingIndicator: -max(0, actualTabBarHeight - tabBarScrollOffset)
             }
 
         webBottomBarViewState.withLock { [weak self] in
@@ -3261,8 +3257,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     func canSwitchTab() -> Bool {
         return webViewHealthState.isHealthy && !webViewHealthState.isLoading
-            && webViewHealthState.lastPingTime != nil
-            && webViewHealthState.navigationError == nil
+            && webViewHealthState.lastPingTime != nil && webViewHealthState.navigationError == nil
     }
 
     /// Change the tab currently being displayed in our web navigation controller.
@@ -3788,7 +3783,7 @@ private class WebNavigationEntryController: UIViewController {
                     // This message is copied from `error_display_message_renderer.tsx`. If we update
                     // the message here then we should update it there as well.
                     message:
-                        "An unexpected error occurred, please try again. If the problem continues, let us know at support@cyberworlds.dev",
+                        "An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc",
                     preferredStyle: .alert
                 )
             } else {
