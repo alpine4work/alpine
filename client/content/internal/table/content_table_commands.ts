@@ -526,7 +526,7 @@ export function selectContentTableRow(tablePos: number, rowIndex: number): Comma
         const tableMap = ContentTableMap.get(table);
 
         // Check if the index is valid
-        if (rowIndex < 0 || rowIndex >= tableMap.width) return false;
+        if (rowIndex < 0 || rowIndex >= tableMap.height) return false;
 
         if (dispatch) {
             const cells = tableMap.cellsInRect({
