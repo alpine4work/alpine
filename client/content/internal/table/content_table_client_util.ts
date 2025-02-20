@@ -30,9 +30,10 @@
 // Various helper function for working with tables
 
 import {Node, ResolvedPos} from "prosemirror-model";
-import {EditorState, NodeSelection} from "prosemirror-state";
+import {EditorState, Selection, NodeSelection} from "prosemirror-state";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * Retrieves the resolved position of the cell surrounding the given position.
@@ -86,7 +87,11 @@ export function contentTableCellWrapping($pos: ResolvedPos): null | Node {
  * within a table context.
  */
 export function isInContentTable(state: EditorState): boolean {
-    const $head = state.selection.$head;
+    return isSelectionInContentTable(state.selection);
+}
+
+export function isSelectionInContentTable(selection: Selection): boolean {
+    const $head = selection.$head;
     for (let d = $head.depth; d > 0; d--) if ($head.node(d).type.name === "tableRow") return true;
     return false;
 }
@@ -98,25 +103,28 @@ export function isInContentTable(state: EditorState): boolean {
  * Example usage:
  *
  * ```ts
- * const selectedCellPos = selectionContentTableCell(editorState);
+ * const selectedCellPos = selectionContentTableCell(editorState.selection);
  * console.log(`Selected cell position: ${selectedCellPos.pos}`);
  * ```
  *
  * This function is useful when you need to perform operations on the selected
  * cell, such as modifying its attributes or content.
  */
-export function selectionContentTableCell(state: EditorState): ResolvedPos {
-    const sel = state.selection as ContentTableCellSelection | NodeSelection;
-    if ("$anchorCell" in sel && sel.$anchorCell) {
-        return sel.$anchorCell.pos > sel.$headCell.pos ? sel.$anchorCell : sel.$headCell;
-    } else if ("node" in sel && sel.node && sel.node.type.name === "tableCell") {
-        return sel.$anchor;
+export function selectionContentTableCell(selection: Selection): ResolvedPos {
+    assert(selection instanceof ContentTableCellSelection || selection instanceof NodeSelection);
+
+    if ("$anchorCell" in selection && selection.$anchorCell) {
+        return selection.$anchorCell.pos > selection.$headCell.pos
+            ? selection.$anchorCell
+            : selection.$headCell;
+    } else if ("node" in selection && selection.node && selection.node.type.name === "tableCell") {
+        return selection.$anchor;
     }
-    const $cell = contentTableCellAround(sel.$head) || contentTableCellNear(sel.$head);
+    const $cell = contentTableCellAround(selection.$head) || contentTableCellNear(selection.$head);
     if ($cell) {
         return $cell;
     }
-    throw new RangeError(`No cell found around position ${sel.head}`);
+    throw new RangeError(`No cell found around position ${selection.head}`);
 }
 
 /**

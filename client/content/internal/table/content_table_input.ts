@@ -31,11 +31,11 @@
 // table-related functionality.
 
 import {keydownHandler} from "prosemirror-keymap";
-import {Fragment, Slice} from "prosemirror-model";
+import {Fragment, Node, Slice} from "prosemirror-model";
 import {Command, EditorState, Selection, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
-    isInContentTable,
+    isSelectionInContentTable,
     nextContentTableCell,
     selectionContentTableCell,
 } from "~/client/content/internal/table/content_table_client_util.js";
@@ -135,35 +135,41 @@ function shiftArrow(axis: Axis, dir: ContentTableInputDirection): Command {
 }
 
 export function handleContentTablePaste(
-    view: EditorView,
-    event: ClipboardEvent,
+    doc: Node,
+    selection: Selection,
+    createTransaction: () => Transaction,
+    dispatch: (transaction: Transaction) => void,
     slice: Slice,
 ): boolean {
-    if (!isInContentTable(view.state)) return false;
+    if (!isSelectionInContentTable(selection)) return false;
+
     let cells = pastedContentTableCells(slice);
-    const sel = view.state.selection;
-    if (sel instanceof ContentTableCellSelection) {
-        if (!cells)
+    if (selection instanceof ContentTableCellSelection) {
+        const {schema} = selection.$anchor.doc.type;
+
+        if (!cells) {
             cells = {
                 width: 1,
                 height: 1,
-                rows: [Fragment.from(fitSlice(view.state.schema.nodes.tableCell!, slice))],
+                rows: [Fragment.from(fitSlice(schema.nodes.tableCell!, slice))],
             };
-        const table = sel.$anchorCell.node(-1);
-        const start = sel.$anchorCell.start(-1);
+        }
+        const table = selection.$anchorCell.node(-1);
+        const start = selection.$anchorCell.start(-1);
         const rect = ContentTableMap.get(table).rectBetween(
-            sel.$anchorCell.pos - start,
-            sel.$headCell.pos - start,
+            selection.$anchorCell.pos - start,
+            selection.$headCell.pos - start,
         );
         cells = clipContentTableCells(cells, rect.right - rect.left, rect.bottom - rect.top);
-        insertContentTableCells(view.state, view.dispatch, start, rect, cells);
+        insertContentTableCells(doc, createTransaction, dispatch, start, rect, cells);
         return true;
     } else if (cells) {
-        const $cell = selectionContentTableCell(view.state);
+        const $cell = selectionContentTableCell(selection);
         const start = $cell.start(-1);
         insertContentTableCells(
-            view.state,
-            view.dispatch,
+            doc,
+            createTransaction,
+            dispatch,
             start,
             ContentTableMap.get($cell.node(-1)).findCell($cell.pos - start),
             cells,

@@ -54,7 +54,7 @@ type ContentTableRect = ContentTableMapRect & {
  */
 function selectedContentTableRect(state: EditorState): ContentTableRect {
     const sel = state.selection;
-    const $cell = selectionContentTableCell(state);
+    const $cell = selectionContentTableCell(state.selection);
     const table = $cell.node(-1);
     const tablePos = $cell.start(-1);
     const tableMap = ContentTableMap.get(table);
@@ -431,7 +431,10 @@ function findNextContentTableCell(
 export function goToNextContentTableCell(direction: ContentTableInputDirection): Command {
     return function (state, dispatch) {
         if (!isInContentTable(state)) return false;
-        const cell = findNextContentTableCell(selectionContentTableCell(state), direction);
+        const cell = findNextContentTableCell(
+            selectionContentTableCell(state.selection),
+            direction,
+        );
         if (cell == null) return false;
         if (dispatch) {
             const $cell = state.doc.resolve(cell);

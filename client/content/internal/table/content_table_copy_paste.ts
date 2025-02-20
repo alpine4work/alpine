@@ -233,13 +233,14 @@ function growContentTable(
  * table, at the position pointed at by rect.
  */
 export function insertContentTableCells(
-    state: EditorState,
+    doc: Node,
+    createTransaction: () => Transaction,
     dispatch: (tr: Transaction) => void,
     tableStart: number,
     rect: ContentTableMapRect,
     cells: Area,
 ): void {
-    let table = tableStart ? state.doc.nodeAt(tableStart - 1) : state.doc;
+    let table = tableStart ? doc.nodeAt(tableStart - 1) : doc;
     assert(table, "No table found");
     let map = ContentTableMap.get(table);
     const {top, left} = rect;
@@ -251,18 +252,18 @@ export function insertContentTableCells(
     const right = Math.min(left + pasteWidth, map.width + pasteWidth);
     const bottom = Math.min(top + pasteHeight, map.height + pasteHeight);
 
-    const tr = state.tr;
+    const transaction = createTransaction();
     let mapFrom = 0;
 
     function recomp(): void {
-        table = tableStart ? tr.doc.nodeAt(tableStart - 1) : tr.doc;
+        table = tableStart ? transaction.doc.nodeAt(tableStart - 1) : transaction.doc;
         assert(table, "No table found");
         map = ContentTableMap.get(table);
-        mapFrom = tr.mapping.maps.length;
+        mapFrom = transaction.mapping.maps.length;
     }
 
     // First grow the table if needed
-    if (growContentTable(tr, map, table, tableStart, right, bottom, mapFrom)) {
+    if (growContentTable(transaction, map, table, tableStart, right, bottom, mapFrom)) {
         recomp();
     }
 
@@ -276,9 +277,9 @@ export function insertContentTableCells(
 
             if (from === null || to === null) continue;
 
-            tr.replace(
-                tr.mapping.slice(mapFrom).map(from + tableStart),
-                tr.mapping.slice(mapFrom).map(to + tableStart),
+            transaction.replace(
+                transaction.mapping.slice(mapFrom).map(from + tableStart),
+                transaction.mapping.slice(mapFrom).map(to + tableStart),
                 new Slice(cells.rows[row - top]!, 0, 0),
             );
         }
@@ -289,23 +290,29 @@ export function insertContentTableCells(
         // Try to set selection
         try {
             // First try: select the entire pasted area
-            const $anchorCell = tr.doc.resolve(tableStart + map.positionAt(top, left, table));
+            const $anchorCell = transaction.doc.resolve(
+                tableStart + map.positionAt(top, left, table),
+            );
             const lastRow = Math.min(bottom - 1, map.height - 1);
             const lastCol = Math.min(right - 1, map.width - 1);
-            const $headCell = tr.doc.resolve(tableStart + map.positionAt(lastRow, lastCol, table));
-            tr.setSelection(new ContentTableCellSelection($anchorCell, $headCell));
+            const $headCell = transaction.doc.resolve(
+                tableStart + map.positionAt(lastRow, lastCol, table),
+            );
+            transaction.setSelection(new ContentTableCellSelection($anchorCell, $headCell));
         } catch (e) {
             // Second try: select just the first cell of the paste
             try {
-                const $cell = tr.doc.resolve(tableStart + map.positionAt(top, left, table));
-                tr.setSelection(new ContentTableCellSelection($cell));
+                const $cell = transaction.doc.resolve(
+                    tableStart + map.positionAt(top, left, table),
+                );
+                transaction.setSelection(new ContentTableCellSelection($cell));
             } catch (e) {
                 // If all selection attempts fail, just log a warning
                 console.warn("Could not set table selection after paste");
             }
         }
 
-        dispatch(tr);
+        dispatch(transaction);
     } catch (e) {
         console.warn("Error during table paste operation:", e);
     }
