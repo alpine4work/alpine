@@ -1775,21 +1775,26 @@ function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolea
             i => `${measureResult.rowHeightPxs[tableRect.top + i]!}px`,
         ).join(" ");
 
-        const dragPhantomCellCount =
-            (tableRect.right - tableRect.left) * (tableRect.bottom - tableRect.top);
-
         const dragPhantomCellClassName = sprinkles({
             backgroundColor: "grey-0-opacity-90",
         });
 
         const dragPhantomCellBoxShadow = `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, 1px 0 0 0 ${colorSchemeVars["grey-10"]}`;
+        const lastDragPhantomCellInRowBoxShadow = `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, inset -1px 0 0 0 ${colorSchemeVars["grey-10"]}`;
 
-        for (let i = 0; i < dragPhantomCellCount; i++) {
-            const dragPhantomCellElement = document.createElement("div");
-            dragPhantomElement.appendChild(dragPhantomCellElement);
+        for (let rowIndex = tableRect.top; rowIndex < tableRect.bottom; rowIndex++) {
+            for (let columnIndex = tableRect.left; columnIndex < tableRect.right; columnIndex++) {
+                const dragPhantomCellElement = document.createElement("div");
+                dragPhantomElement.appendChild(dragPhantomCellElement);
 
-            dragPhantomCellElement.className = dragPhantomCellClassName;
-            dragPhantomCellElement.style.boxShadow = dragPhantomCellBoxShadow;
+                dragPhantomCellElement.className = dragPhantomCellClassName;
+
+                if (columnIndex === measureResult.columnWidthPxs.length - 1) {
+                    dragPhantomCellElement.style.boxShadow = lastDragPhantomCellInRowBoxShadow;
+                } else {
+                    dragPhantomCellElement.style.boxShadow = dragPhantomCellBoxShadow;
+                }
+            }
         }
     }
 
