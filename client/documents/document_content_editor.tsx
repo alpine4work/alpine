@@ -2053,6 +2053,8 @@ export function DocumentContentEditor({
             {platform !== "mobile" && (
                 <DocumentPresentationController
                     ref={presentationControllerRef}
+                    editorRef={editorRef}
+                    editorContainerRef={editorContainerRef}
                     editorState={editorState}
                     fileAttachmentTarget={fileAttachmentTarget}
                 />

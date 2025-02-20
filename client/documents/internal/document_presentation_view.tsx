@@ -1,14 +1,14 @@
-import {Memo, useMemo, useState} from "react";
+import {Memo, useState} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
-import {getDocumentPresentationSlides} from "~/client/documents/internal/document_presentation_slide.js";
+import {DocumentPresentationSlide} from "~/client/documents/internal/document_presentation_slide.js";
 import {DocumentPresentationSlideView} from "~/client/documents/internal/document_presentation_slide_view.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {scrollbarStyles} from "~/client/styles/styles.js";
 import {linkClassName} from "~/shared/content/content_styles.js";
-import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
+import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
@@ -20,21 +20,19 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 // - Open to slide we've currently scrolled to
 
 export function DocumentPresentationView({
-    initialContent,
+    slides,
+    references,
+    initialSlideIndex,
     fileAttachmentTarget,
 }: {
-    initialContent: DocumentContentWithReferences;
+    slides: ReadonlyArray<DocumentPresentationSlide>;
+    references: DocumentContentReferences;
+    initialSlideIndex: number;
     fileAttachmentTarget: Memo<FileAttachmentTarget>;
 }) {
     const clientInfo = useClientInfo();
 
     const [sizeRef, size] = useResizeObserver();
-
-    // Freeze content when the presentation opens. The presentation won't
-    // update in realtime to avoid issues while presenting.
-    const [content] = useState(initialContent);
-
-    const slides = useMemo(() => getDocumentPresentationSlides(content.doc), [content.doc]);
 
     const minSlideIndex = 0;
     const maxSlideIndex = slides.length - 1;
@@ -45,7 +43,7 @@ export function DocumentPresentationView({
         readonly undoHistorySlideIndexes: ReadonlyArray<number>;
         readonly redoHistorySlideIndexes: ReadonlyArray<number>;
     }>({
-        slideIndex: 0,
+        slideIndex: initialSlideIndex,
         undoHistorySlideIndexes: emptyArray,
         redoHistorySlideIndexes: emptyArray,
     });
@@ -247,7 +245,7 @@ export function DocumentPresentationView({
                         // Remount when the `slideIndex` changes.
                         key={slideIndex}
                         slide={slide}
-                        references={content.references}
+                        references={references}
                         fileAttachmentTarget={fileAttachmentTarget}
                         size={size}
                     />
