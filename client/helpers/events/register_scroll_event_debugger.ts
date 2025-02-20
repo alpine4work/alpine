@@ -79,7 +79,7 @@ if (typeof window !== "undefined") {
         });
     }
 
-    const methodNames = [
+    const methodNames: ReadonlyArray<keyof Element | "scrollIntoViewIfNeeded"> = [
         "scroll",
         "scrollBy",
         "scrollIntoView",
