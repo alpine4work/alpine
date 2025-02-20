@@ -2300,9 +2300,9 @@ export const tableDraggingGripColumnDropTargetClassName = style({
     backgroundColor: colorSchemeVars["grey-30"],
 });
 
-export const tableAddRowButtonPressedClassName = style({});
+export const tableAddRowBumperPressedClassName = style({});
 
-export const tableAddRowButtonClassName = style({
+export const tableAddRowBumperClassName = style({
     position: "absolute",
     zIndex: "50",
     left: "0",
@@ -2323,7 +2323,7 @@ export const tableAddRowButtonClassName = style({
             height: tableColumnResizeHandleIndicatorWidthPx,
             backgroundColor: colorSchemeVars["theme-40-const"],
         },
-        [`&${tableAddRowButtonPressedClassName}::after`]: {
+        [`&${tableAddRowBumperPressedClassName}::after`]: {
             pointerEvents: "none",
             content: '""',
             position: "absolute",
@@ -2338,7 +2338,7 @@ export const tableAddRowButtonClassName = style({
     },
 });
 
-export const tableAddRowButtonStickyClassName = style({
+export const tableAddRowBumperStickyClassName = style({
     pointerEvents: "none",
     userSelect: "none",
     position: "sticky",
@@ -2352,7 +2352,7 @@ export const tableAddRowButtonStickyClassName = style({
     alignItems: "center",
 });
 
-export const tableAddRowButtonIconButtonClassName = style({
+export const tableAddRowBumperIconButtonClassName = style({
     overflow: "hidden",
     position: "relative",
     zIndex: "0",
@@ -2365,7 +2365,7 @@ export const tableAddRowButtonIconButtonClassName = style({
     borderRadius: borderRadius.full,
     backgroundColor: colorSchemeVars["theme-40-const"],
     selectors: {
-        [`${tableAddRowButtonClassName}${tableAddRowButtonPressedClassName} &::after`]: {
+        [`${tableAddRowBumperClassName}${tableAddRowBumperPressedClassName} &::after`]: {
             content: '""',
             position: "absolute",
             zIndex: "10",
@@ -2376,7 +2376,7 @@ export const tableAddRowButtonIconButtonClassName = style({
     },
 });
 
-globalStyle(`${tableAddRowButtonIconButtonClassName} > svg`, {
+globalStyle(`${tableAddRowBumperIconButtonClassName} > svg`, {
     width: spacing["4"],
     height: spacing["4"],
     fill: colorSchemeVars["grey-0"],

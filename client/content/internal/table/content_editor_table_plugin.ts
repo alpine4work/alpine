@@ -274,7 +274,7 @@ type ContentEditorTablePluginAction =
           readonly cellPos: number;
       }
     | {
-          readonly type: "SetHoveringAddRowButton";
+          readonly type: "SetHoveringAddRowBumper";
           readonly mouseOverTime: number;
           readonly cellPos: number;
       }
@@ -343,7 +343,7 @@ type ContentEditorTablePluginHoveringState =
           readonly dragging: null;
       }
     | {
-          readonly type: "AddRowButton";
+          readonly type: "AddRowBumper";
           readonly mouseOverTime: number;
           readonly isWaitingForMouseOverDelay: boolean;
           readonly cellPos: number;
@@ -622,11 +622,11 @@ function applyContentEditorTablePluginStateAction(
                 },
             };
         }
-        case "SetHoveringAddRowButton": {
+        case "SetHoveringAddRowBumper": {
             return {
                 type: "Hovering",
                 hovering: {
-                    type: "AddRowButton",
+                    type: "AddRowBumper",
                     mouseOverTime: action.mouseOverTime,
                     // Don't delay showing this UI if we already have some other active UI.
                     isWaitingForMouseOverDelay: state?.type !== "Hovering",
@@ -667,7 +667,7 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
 
     const targetElement = event.target as HTMLElement;
 
-    let type: "ColumnResizeHandle" | "RowGrip" | "ColumnGrip" | "AddRowButton" | null = null;
+    let type: "ColumnResizeHandle" | "RowGrip" | "ColumnGrip" | "AddRowBumper" | null = null;
     let cellPos: number | null = null;
     if (
         pluginState &&
@@ -689,9 +689,9 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
         cellPos = pluginState.hovering.cellPos;
     } else if (
         pluginState &&
-        targetElement.classList.contains(contentStyles.tableAddRowButtonClassName)
+        targetElement.classList.contains(contentStyles.tableAddRowBumperClassName)
     ) {
-        type = "AddRowButton";
+        type = "AddRowBumper";
         cellPos = pluginState.hovering.cellPos;
     } else {
         const spacingScale = getSpacingScaleWithoutListening();
@@ -819,7 +819,7 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
                         }
 
                         if (rowIndex === tableMap.height - 1) {
-                            type = "AddRowButton";
+                            type = "AddRowBumper";
                         }
                     }
 
@@ -982,7 +982,7 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
                             }
 
                             if (rowIndex === tableMap.height - 1) {
-                                type = "AddRowButton";
+                                type = "AddRowBumper";
                             }
                         }
 
@@ -1050,9 +1050,9 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
                     })(view.state, view.dispatch);
                     break;
                 }
-                case "AddRowButton": {
+                case "AddRowBumper": {
                     dispatchContentEditorTablePluginAction({
-                        type: "SetHoveringAddRowButton",
+                        type: "SetHoveringAddRowBumper",
                         mouseOverTime: Date.now(),
                         cellPos,
                     })(view.state, view.dispatch);
@@ -1140,7 +1140,7 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
 
             return handleGripMouseDown(view, event);
         }
-        case "AddRowButton": {
+        case "AddRowBumper": {
             // Press events for this element are handled by
             // `addUnfocusableButtonBehaviorToElement()`.
             return false;
@@ -2465,27 +2465,27 @@ function createContentEditorTablePluginDecorationElementCache(
         return draggingGripColumnDropTargetElement;
     });
 
-    const addRowButtonElement = new Lazy<HTMLElement>(() => {
-        const addRowButtonElement = document.createElement("div");
-        addRowButtonElement.className = contentStyles.tableAddRowButtonClassName;
+    const addRowBumperElement = new Lazy<HTMLElement>(() => {
+        const addRowBumperElement = document.createElement("div");
+        addRowBumperElement.className = contentStyles.tableAddRowBumperClassName;
 
-        const addRowButtonStickyElement = document.createElement("div");
-        addRowButtonElement.appendChild(addRowButtonStickyElement);
-        addRowButtonStickyElement.className = contentStyles.tableAddRowButtonStickyClassName;
+        const addRowBumperStickyElement = document.createElement("div");
+        addRowBumperElement.appendChild(addRowBumperStickyElement);
+        addRowBumperStickyElement.className = contentStyles.tableAddRowBumperStickyClassName;
 
-        const addRowButtonIconButtonElement = document.createElement("div");
-        addRowButtonStickyElement.appendChild(addRowButtonIconButtonElement);
-        addRowButtonIconButtonElement.className =
-            contentStyles.tableAddRowButtonIconButtonClassName;
-        addRowButtonIconButtonElement.innerHTML = plusIconSvg();
+        const addRowBumperIconButtonElement = document.createElement("div");
+        addRowBumperStickyElement.appendChild(addRowBumperIconButtonElement);
+        addRowBumperIconButtonElement.className =
+            contentStyles.tableAddRowBumperIconButtonClassName;
+        addRowBumperIconButtonElement.innerHTML = plusIconSvg();
 
-        addUnfocusableButtonBehaviorToElement(addRowButtonElement, {
-            pressClassName: contentStyles.tableAddRowButtonPressedClassName,
+        addUnfocusableButtonBehaviorToElement(addRowBumperElement, {
+            pressClassName: contentStyles.tableAddRowBumperPressedClassName,
             onPress: () => {
                 const view = assertExists(getViewIfExists());
                 const pluginState = contentEditorTablePluginKey.getState(view.state);
                 if (pluginState?.type !== "Hovering") return;
-                if (pluginState.hovering.type !== "AddRowButton") return;
+                if (pluginState.hovering.type !== "AddRowBumper") return;
 
                 const $cell = view.state.doc.resolve(pluginState.hovering.cellPos);
 
@@ -2515,7 +2515,7 @@ function createContentEditorTablePluginDecorationElementCache(
             },
         });
 
-        return addRowButtonElement;
+        return addRowBumperElement;
     });
 
     return {
@@ -2528,7 +2528,7 @@ function createContentEditorTablePluginDecorationElementCache(
         columnSelectionGripElement,
         draggingGripRowDropTargetElement,
         draggingGripColumnDropTargetElement,
-        addRowButtonElement,
+        addRowBumperElement,
     };
 }
 
@@ -2681,7 +2681,7 @@ function drawContentEditorTablePluginHoveringStateDecorations(
             );
             break;
         }
-        case "AddRowButton": {
+        case "AddRowBumper": {
             let tablePos: number;
 
             if ($cell.parent.type.name === "table") {
@@ -2701,11 +2701,11 @@ function drawContentEditorTablePluginHoveringStateDecorations(
                         (parseFloat(viewComputedStyle.paddingLeft) +
                             parseFloat(viewComputedStyle.paddingRight));
 
-                    const addRowButtonElement = elementCache.addRowButtonElement.get();
-                    const addRowButtonStickyElement =
-                        addRowButtonElement.firstElementChild as HTMLElement;
-                    addRowButtonStickyElement.style.maxWidth = `${viewWithoutPaddingWidthPx}px`;
-                    return addRowButtonElement;
+                    const addRowBumperElement = elementCache.addRowBumperElement.get();
+                    const addRowBumperStickyElement =
+                        addRowBumperElement.firstElementChild as HTMLElement;
+                    addRowBumperStickyElement.style.maxWidth = `${viewWithoutPaddingWidthPx}px`;
+                    return addRowBumperElement;
                 }),
             );
             break;
