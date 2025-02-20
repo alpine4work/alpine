@@ -1992,12 +1992,6 @@ const tableOverflowGradientWidthSpacing = "5";
 export {tableOverflowGradientWidthSpacing as tableOverflowGradientWidth};
 const tableOverflowGradientWidth = spacing[tableOverflowGradientWidthSpacing];
 
-// We want the hit area for the resize handle to be nice and wide. We'd like to
-// use spacing 6 which is the same value that `useTouchSlop()` uses for the hit
-// range of small buttons on desktop. However, we also want to keep all resize
-// handles in table bounds so since we have `tableInnerPaddingX` set to 3 we
-// end up with a handle width of 5 to make sure we the edge resize handles
-// don't grow beyond our inner padding.
 const tableColumnResizeHandleWidthSpacing = "5";
 export {tableColumnResizeHandleWidthSpacing as tableColumnResizeHandleWidth};
 const tableColumnResizeHandleWidth = spacing[tableColumnResizeHandleWidthSpacing];
