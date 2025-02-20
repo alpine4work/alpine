@@ -1,0 +1,8 @@
+name = "dev-domain-service"
+main = "dev_domain_service.ts"
+compatibility_date = "2025-02-20"
+workers_dev = false
+
+[route]
+pattern = "cyberworlds.dev/*"
+zone_name = "cyberworlds.dev"
