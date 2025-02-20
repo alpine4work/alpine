@@ -11,7 +11,7 @@ import {Play} from "phosphor-react";
 Play;
 
 export const playIconSvg = ({
-    className,
+    className = "",
     weight = "regular",
 }: {className?: string; weight?: "fill" | "regular"} = {}) =>
     weight === "fill"

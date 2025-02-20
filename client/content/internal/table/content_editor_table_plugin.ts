@@ -41,9 +41,11 @@
 import {Node, ResolvedPos} from "prosemirror-model";
 import {Command, EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
+import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
 import {updateContentTableColumnsOnResize} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {contentTableCellAround} from "~/client/content/internal/table/content_table_client_util.js";
 import {
+    addContentTableRowAtIndex,
     moveContentTableColumn,
     moveContentTableRow,
     selectContentTableColumn,
@@ -53,6 +55,7 @@ import {fixContentTables} from "~/client/content/internal/table/content_table_fi
 import {handleContentTableKeyDown} from "~/client/content/internal/table/content_table_input.js";
 import {dotsSixIconSvg} from "~/client/icons/dots_six_icon_svg.js";
 import {dotsSixVerticalIconSvg} from "~/client/icons/dots_six_vertical_icon_svg.js";
+import {plusIconSvg} from "~/client/icons/plus_icon_svg.js";
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {colorSchemeVars, contentStyles, sprinkles} from "~/client/styles/styles.js";
@@ -111,7 +114,9 @@ const contentEditorTablePluginKey = new PluginKey<ContentEditorTablePluginState>
  * which commits the column width changes.
  */
 export function contentEditorTablePlugin(): Plugin {
-    const elementCache = createContentEditorTablePluginDecorationElementCache();
+    let currentView: EditorView | null = null;
+
+    const elementCache = createContentEditorTablePluginDecorationElementCache(() => currentView);
 
     const plugin = new Plugin<ContentEditorTablePluginState>({
         key: contentEditorTablePluginKey,
@@ -180,11 +185,15 @@ export function contentEditorTablePlugin(): Plugin {
                     : null;
             },
         },
-        view: () => {
+        view: view => {
+            currentView = view;
+
             let timeout: Timeout | null = null;
 
             return {
                 update: view => {
+                    currentView = view;
+
                     if (timeout !== null) {
                         timeout.clear();
                         timeout = null;
@@ -210,6 +219,9 @@ export function contentEditorTablePlugin(): Plugin {
                             })(view.state, view.dispatch);
                         }, finishMouseOverDelayTime - Date.now());
                     }
+                },
+                destroy: () => {
+                    currentView = null;
                 },
             };
         },
@@ -258,6 +270,11 @@ type ContentEditorTablePluginAction =
       }
     | {
           readonly type: "SetHoveringColumnGrip";
+          readonly mouseOverTime: number;
+          readonly cellPos: number;
+      }
+    | {
+          readonly type: "SetHoveringAddRowButton";
           readonly mouseOverTime: number;
           readonly cellPos: number;
       }
@@ -320,6 +337,13 @@ type ContentEditorTablePluginHoveringState =
       }
     | {
           readonly type: "ColumnGrip";
+          readonly mouseOverTime: number;
+          readonly isWaitingForMouseOverDelay: boolean;
+          readonly cellPos: number;
+          readonly dragging: null;
+      }
+    | {
+          readonly type: "AddRowButton";
           readonly mouseOverTime: number;
           readonly isWaitingForMouseOverDelay: boolean;
           readonly cellPos: number;
@@ -598,6 +622,19 @@ function applyContentEditorTablePluginStateAction(
                 },
             };
         }
+        case "SetHoveringAddRowButton": {
+            return {
+                type: "Hovering",
+                hovering: {
+                    type: "AddRowButton",
+                    mouseOverTime: action.mouseOverTime,
+                    // Don't delay showing this UI if we already have some other active UI.
+                    isWaitingForMouseOverDelay: state?.type !== "Hovering",
+                    cellPos: action.cellPos,
+                    dragging: null,
+                },
+            };
+        }
         case "ClearDraggingGrip": {
             if (state?.type !== "DraggingGrip") return state;
             return null;
@@ -630,7 +667,7 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
 
     const targetElement = event.target as HTMLElement;
 
-    let type: "ColumnResizeHandle" | "RowGrip" | "ColumnGrip" | null = null;
+    let type: "ColumnResizeHandle" | "RowGrip" | "ColumnGrip" | "AddRowButton" | null = null;
     let cellPos: number | null = null;
     if (
         pluginState &&
@@ -649,6 +686,12 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
         targetElement.classList.contains(contentStyles.tableColumnGripClassName)
     ) {
         type = "ColumnGrip";
+        cellPos = pluginState.hovering.cellPos;
+    } else if (
+        pluginState &&
+        targetElement.classList.contains(contentStyles.tableAddRowButtonClassName)
+    ) {
+        type = "AddRowButton";
         cellPos = pluginState.hovering.cellPos;
     } else {
         const spacingScale = getSpacingScaleWithoutListening();
@@ -750,6 +793,36 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
                         "bottom",
                         halfColumnResizeHandleWidth,
                     );
+
+                    // Check that the cell is a part of the last row. We only render an add row
+                    // button for the last row.
+                    if (cellPos !== null) {
+                        const $cell = view.state.doc.resolve(cellPos);
+
+                        let tablePos: number;
+                        let table: Node;
+                        let tableMap: ContentTableMap;
+                        let rowIndex: number;
+
+                        if ($cell.parent.type.name === "table") {
+                            tablePos = $cell.start();
+                            table = $cell.node();
+                            tableMap = ContentTableMap.get(table);
+                            rowIndex = tableMap.getRowCount($cell.pos + 1 - tablePos);
+                        } else {
+                            assert($cell.parent.type.name === "tableRow");
+
+                            tablePos = $cell.start(-1);
+                            table = $cell.node(-1);
+                            tableMap = ContentTableMap.get(table);
+                            rowIndex = tableMap.getRowCount($cell.pos - tablePos);
+                        }
+
+                        if (rowIndex === tableMap.height - 1) {
+                            type = "AddRowButton";
+                        }
+                    }
+
                     return true;
                 } else {
                     return false;
@@ -883,6 +956,36 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
                             "bottom",
                             halfColumnResizeHandleWidth,
                         );
+
+                        // Check that the cell is a part of the last row. We only render an add row
+                        // button for the last row.
+                        if (cellPos !== null) {
+                            const $cell = view.state.doc.resolve(cellPos);
+
+                            let tablePos: number;
+                            let table: Node;
+                            let tableMap: ContentTableMap;
+                            let rowIndex: number;
+
+                            if ($cell.parent.type.name === "table") {
+                                tablePos = $cell.start();
+                                table = $cell.node();
+                                tableMap = ContentTableMap.get(table);
+                                rowIndex = tableMap.getRowCount($cell.pos + 1 - tablePos);
+                            } else {
+                                assert($cell.parent.type.name === "tableRow");
+
+                                tablePos = $cell.start(-1);
+                                table = $cell.node(-1);
+                                tableMap = ContentTableMap.get(table);
+                                rowIndex = tableMap.getRowCount($cell.pos - tablePos);
+                            }
+
+                            if (rowIndex === tableMap.height - 1) {
+                                type = "AddRowButton";
+                            }
+                        }
+
                         return true;
                     } else {
                         return false;
@@ -942,6 +1045,14 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
                 case "ColumnGrip": {
                     dispatchContentEditorTablePluginAction({
                         type: "SetHoveringColumnGrip",
+                        mouseOverTime: Date.now(),
+                        cellPos,
+                    })(view.state, view.dispatch);
+                    break;
+                }
+                case "AddRowButton": {
+                    dispatchContentEditorTablePluginAction({
+                        type: "SetHoveringAddRowButton",
                         mouseOverTime: Date.now(),
                         cellPos,
                     })(view.state, view.dispatch);
@@ -1028,6 +1139,11 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
             selectContentTableColumn(tablePos, columnIndex)(view.state, view.dispatch);
 
             return handleGripMouseDown(view, event);
+        }
+        case "AddRowButton": {
+            // Press events for this element are handled by
+            // `addUnfocusableButtonBehaviorToElement()`.
+            return false;
         }
         default:
             throw exhaustive(pluginState.hovering);
@@ -2286,7 +2402,9 @@ type ContentEditorTablePluginDecorationElementCache = ReturnType<
     typeof createContentEditorTablePluginDecorationElementCache
 >;
 
-function createContentEditorTablePluginDecorationElementCache() {
+function createContentEditorTablePluginDecorationElementCache(
+    getViewIfExists: () => EditorView | null,
+) {
     const cellSelectionElement = new Lazy<HTMLElement>(() => {
         const cellSelectionElement = document.createElement("div");
         cellSelectionElement.className = contentStyles.tableCellSelectionClassName;
@@ -2347,6 +2465,59 @@ function createContentEditorTablePluginDecorationElementCache() {
         return draggingGripColumnDropTargetElement;
     });
 
+    const addRowButtonElement = new Lazy<HTMLElement>(() => {
+        const addRowButtonElement = document.createElement("div");
+        addRowButtonElement.className = contentStyles.tableAddRowButtonClassName;
+
+        const addRowButtonStickyElement = document.createElement("div");
+        addRowButtonElement.appendChild(addRowButtonStickyElement);
+        addRowButtonStickyElement.className = contentStyles.tableAddRowButtonStickyClassName;
+
+        const addRowButtonIconButtonElement = document.createElement("div");
+        addRowButtonStickyElement.appendChild(addRowButtonIconButtonElement);
+        addRowButtonIconButtonElement.className =
+            contentStyles.tableAddRowButtonIconButtonClassName;
+        addRowButtonIconButtonElement.innerHTML = plusIconSvg();
+
+        addUnfocusableButtonBehaviorToElement(addRowButtonElement, {
+            pressClassName: contentStyles.tableAddRowButtonPressedClassName,
+            onPress: () => {
+                const view = assertExists(getViewIfExists());
+                const pluginState = contentEditorTablePluginKey.getState(view.state);
+                if (pluginState?.type !== "Hovering") return;
+                if (pluginState.hovering.type !== "AddRowButton") return;
+
+                const $cell = view.state.doc.resolve(pluginState.hovering.cellPos);
+
+                let tablePos: number;
+                let table: Node;
+                let tableMap: ContentTableMap;
+
+                if ($cell.parent.type.name === "table") {
+                    tablePos = $cell.start();
+                    table = $cell.node();
+                    tableMap = ContentTableMap.get(table);
+                } else {
+                    assert($cell.parent.type.name === "tableRow");
+
+                    tablePos = $cell.start(-1);
+                    table = $cell.node(-1);
+                    tableMap = ContentTableMap.get(table);
+                }
+
+                addContentTableRowAtIndex(tablePos, tableMap.height)(view.state, transaction => {
+                    view.dispatch(
+                        // Also clear hovering state since adding a row with the "add row button" means
+                        // the mouse implicitly won't be at the end of the table anymore.
+                        transaction.setMeta(contentEditorTablePluginKey, {type: "ClearHovering"}),
+                    );
+                });
+            },
+        });
+
+        return addRowButtonElement;
+    });
+
     return {
         cellSelectionElement,
         columnResizeHandleElement,
@@ -2357,6 +2528,7 @@ function createContentEditorTablePluginDecorationElementCache() {
         columnSelectionGripElement,
         draggingGripRowDropTargetElement,
         draggingGripColumnDropTargetElement,
+        addRowButtonElement,
     };
 }
 
@@ -2505,6 +2677,35 @@ function drawContentEditorTablePluginHoveringStateDecorations(
                     const columnGripElement = elementCache.columnGripElement.get();
                     columnGripElement.style.gridColumn = `${columnIndex + 1} / ${columnIndex + 2}`;
                     return columnGripElement;
+                }),
+            );
+            break;
+        }
+        case "AddRowButton": {
+            let tablePos: number;
+
+            if ($cell.parent.type.name === "table") {
+                tablePos = $cell.start();
+            } else {
+                assert($cell.parent.type.name === "tableRow");
+
+                tablePos = $cell.start(-1);
+            }
+
+            decorations.push(
+                Decoration.widget(tablePos, view => {
+                    const viewComputedStyle = getComputedStyle(view.dom);
+
+                    const viewWithoutPaddingWidthPx =
+                        view.dom.clientWidth -
+                        (parseFloat(viewComputedStyle.paddingLeft) +
+                            parseFloat(viewComputedStyle.paddingRight));
+
+                    const addRowButtonElement = elementCache.addRowButtonElement.get();
+                    const addRowButtonStickyElement =
+                        addRowButtonElement.firstElementChild as HTMLElement;
+                    addRowButtonStickyElement.style.maxWidth = `${viewWithoutPaddingWidthPx}px`;
+                    return addRowButtonElement;
                 }),
             );
             break;

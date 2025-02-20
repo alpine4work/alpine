@@ -11,7 +11,7 @@ import {Plus} from "phosphor-react";
 Plus;
 
 export const plusIconSvg = ({
-    className,
+    className = "",
     weight = "regular",
 }: {className?: string; weight?: "bold" | "regular"} = {}) =>
     weight === "bold"

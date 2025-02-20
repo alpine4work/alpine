@@ -11,7 +11,7 @@ import {FileDotted} from "phosphor-react";
 FileDotted;
 
 export const fileDottedSvg = ({
-    className,
+    className = "",
     weight = "regular",
 }: {className?: string; weight?: "light" | "bold" | "regular"} = {}) =>
     weight === "light"

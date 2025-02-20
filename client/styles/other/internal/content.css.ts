@@ -2008,6 +2008,11 @@ const tableColumnResizeHandleHalfWidth: RemLength = `${
     parseRemLength(tableColumnResizeHandleWidth) / 2
 }rem`;
 
+// We need more margin bottom than top to render the drop shadow on the
+// "Add row" button without clipping.
+const tableWrapper2MarginTop = tableColumnResizeHandleHalfWidth;
+const tableWrapper2MarginBottom = spacing["6"];
+
 globalStyle(tableWrapperClassName, {
     ...omitObject(blockStyles, ["maxWidth", "marginLeft", "marginRight"]),
     marginTop: standaloneBlockMargin,
@@ -2026,8 +2031,8 @@ globalStyle(`${tableWrapperClassName}::before`, {
     pointerEvents: "none",
     position: "absolute",
     zIndex: "10",
-    top: `-${tableColumnResizeHandleHalfWidth}`,
-    bottom: `-${tableColumnResizeHandleHalfWidth}`,
+    top: `-${tableWrapper2MarginTop}`,
+    bottom: `-${tableWrapper2MarginBottom}`,
     left: `-${tableOverflowGradientWidth}`,
     width: tableOverflowGradientWidth,
     background: `linear-gradient(to right, ${backgroundColorVar}, transparent ${spacing["3"]}, transparent)`,
@@ -2045,8 +2050,8 @@ globalStyle(`${tableWrapperClassName}::after`, {
     pointerEvents: "none",
     position: "absolute",
     zIndex: "10",
-    top: `-${tableColumnResizeHandleHalfWidth}`,
-    bottom: `-${tableColumnResizeHandleHalfWidth}`,
+    top: `-${tableWrapper2MarginTop}`,
+    bottom: `-${tableWrapper2MarginBottom}`,
     right: `-${tableOverflowGradientWidth}`,
     width: tableOverflowGradientWidth,
     background: `linear-gradient(to left, ${backgroundColorVar}, transparent ${spacing["3"]}, transparent)`,
@@ -2068,8 +2073,8 @@ globalStyle(tableWrapper2ClassName, {
     width: `calc(100% + (${tableOverflowGradientWidth} * 2))`,
     marginLeft: `-${tableOverflowGradientWidth}`,
     marginRight: `-${tableOverflowGradientWidth}`,
-    marginTop: `-${tableColumnResizeHandleHalfWidth}`,
-    marginBottom: `-${tableColumnResizeHandleHalfWidth}`,
+    marginTop: `-${tableWrapper2MarginTop}`,
+    marginBottom: `-${tableWrapper2MarginBottom}`,
 });
 
 globalStyle(tableWrapper3ClassName, {
@@ -2081,8 +2086,8 @@ globalStyle(tableWrapper3ClassName, {
     margin: "0 auto",
     paddingLeft: tableOverflowGradientWidth,
     paddingRight: tableOverflowGradientWidth,
-    paddingTop: tableColumnResizeHandleHalfWidth,
-    paddingBottom: tableColumnResizeHandleHalfWidth,
+    paddingTop: tableWrapper2MarginTop,
+    paddingBottom: tableWrapper2MarginBottom,
 });
 
 globalStyle(`${tableWrapperClassName} table`, {
@@ -2293,6 +2298,88 @@ export const tableDraggingGripColumnDropTargetClassName = style({
     transform: "translateX(calc(-50% + 0.5px))",
     width: tableColumnResizeHandleIndicatorWidthPx,
     backgroundColor: colorSchemeVars["grey-30"],
+});
+
+export const tableAddRowButtonPressedClassName = style({});
+
+export const tableAddRowButtonClassName = style({
+    position: "absolute",
+    zIndex: "50",
+    left: "0",
+    right: "0",
+    height: tableColumnResizeHandleWidth,
+    cursor: "pointer",
+    bottom: "0",
+    transform: "translateY(50%)",
+    selectors: {
+        "&::before": {
+            pointerEvents: "none",
+            content: '""',
+            position: "absolute",
+            zIndex: "10",
+            top: `calc(50% - ${tableColumnResizeHandleIndicatorWidthPx / 2 - 0.5}px)`,
+            left: "0",
+            right: "0",
+            height: tableColumnResizeHandleIndicatorWidthPx,
+            backgroundColor: colorSchemeVars["theme-40-const"],
+        },
+        [`&${tableAddRowButtonPressedClassName}::after`]: {
+            pointerEvents: "none",
+            content: '""',
+            position: "absolute",
+            zIndex: "20",
+            top: `calc(50% - ${tableColumnResizeHandleIndicatorWidthPx / 2 - 0.5}px)`,
+            left: "0",
+            right: "0",
+            height: tableColumnResizeHandleIndicatorWidthPx,
+            backgroundColor: colorSchemeVars["grey-100-const"],
+            opacity: buttonPressedOverlayOpacity,
+        },
+    },
+});
+
+export const tableAddRowButtonStickyClassName = style({
+    pointerEvents: "none",
+    userSelect: "none",
+    position: "sticky",
+    zIndex: "50",
+    width: "100%",
+    left: tableOverflowGradientWidth,
+    right: tableOverflowGradientWidth,
+    height: tableColumnResizeHandleWidth,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+});
+
+export const tableAddRowButtonIconButtonClassName = style({
+    overflow: "hidden",
+    position: "relative",
+    zIndex: "0",
+    transform: "translate(0.5px, 0.5px)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    width: spacing["5"],
+    height: spacing["5"],
+    borderRadius: borderRadius.full,
+    backgroundColor: colorSchemeVars["theme-40-const"],
+    selectors: {
+        [`${tableAddRowButtonClassName}${tableAddRowButtonPressedClassName} &::after`]: {
+            content: '""',
+            position: "absolute",
+            zIndex: "10",
+            inset: "0",
+            backgroundColor: colorSchemeVars["grey-100-const"],
+            opacity: buttonPressedOverlayOpacity,
+        },
+    },
+});
+
+globalStyle(`${tableAddRowButtonIconButtonClassName} > svg`, {
+    width: spacing["4"],
+    height: spacing["4"],
+    fill: colorSchemeVars["grey-0"],
 });
 
 function createChildSelectors(child: "first" | "last") {

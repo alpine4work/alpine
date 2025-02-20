@@ -10,7 +10,7 @@ import {CornersIn} from "phosphor-react";
 // eslint-disable-next-line @typescript-eslint/no-unused-expressions
 CornersIn;
 
-export const cornersInIconSvg = ({className}: {className?: string} = {}) =>
+export const cornersInIconSvg = ({className = ""}: {className?: string} = {}) =>
     `<svg xmlns="http://www.w3.org/2000/svg" class="${escapeHtml(
         className,
     )}" viewBox="0 0 256 256"><rect width="256" height="256" fill="none"/><polyline points="208 96 160 96 160 48" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><polyline points="48 160 96 160 96 208" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><polyline points="160 208 160 160 208 160" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/><polyline points="96 48 96 96 48 96" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/></svg>`;

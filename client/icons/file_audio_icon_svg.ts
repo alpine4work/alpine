@@ -1,7 +1,7 @@
 import escapeHTML from "escape-html";
 
 export const fileAudioIconSvg = ({
-    className,
+    className = "",
     weight = "regular",
 }: {
     className?: string;
