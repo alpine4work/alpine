@@ -102,6 +102,7 @@ import {
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {createContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
+import {isSelectionInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
 import {handleContentTablePaste} from "~/client/content/internal/table/content_table_input.js";
 import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
@@ -4494,6 +4495,30 @@ function handlePasteAfterResolvingReferences(
     event: ClipboardEvent,
     slice: Slice,
 ): boolean {
+    if (isSelectionInContentTable(selection)) {
+        // NOCOMMIT:
+        //
+        // table -> put in `remainingSlice`
+        // heading -> converted to bold
+        // divider -> removed
+        // fileRow -> converted to `fileTable` (eventually)
+        // fileFloat -> converted to `fileTable` (eventually)
+        let remainingSlice: Slice;
+        [slice, remainingSlice] = transformPastedForContentTable(slice);
+
+        if (remainingSlice.size > 0) {
+            const originalCreateTransaction = createTransaction;
+            createTransaction = () => {
+                const transaction = originalCreateTransaction();
+
+                // NOCOMMIT: Insert `remainingSlice` with new position
+                // transaction.insert()
+
+                return transaction;
+            };
+        }
+    }
+
     // First check if we're in a table - if so, delegate to table paste handler
     if (handleContentTablePaste(doc, selection, createTransaction, dispatch, slice)) return true;
 
@@ -4568,6 +4593,11 @@ function handlePasteAfterResolvingReferences(
     }
 
     return false;
+}
+
+function transformPastedForContentTable(slice: Slice): [slice: Slice, remainingSlice: Slice] {
+    // NOCOMMIT
+    return [slice, Slice.empty];
 }
 
 /**
