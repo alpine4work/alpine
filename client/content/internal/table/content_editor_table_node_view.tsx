@@ -32,6 +32,10 @@ import {Node} from "prosemirror-model";
 import {NodeViewConstructor} from "prosemirror-view";
 import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/content_editor_table_plugin.js";
 import {
+    isInContentTable,
+    selectedContentTableRect,
+} from "~/client/content/internal/table/content_table_client_util.js";
+import {
     addContentTableColumnAfterSelection,
     addContentTableColumnBeforeSelection,
     addContentTableRowAfterSelection,
@@ -56,13 +60,15 @@ import {
     tableWrapper3ClassName,
     tableWrapperClassName,
 } from "~/shared/content/content_styles.js";
+import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";
 
 export function createContentEditorTableNodeView(): NodeViewConstructor {
-    return (node, view) => {
+    return (node, view, getPos) => {
         const tableWrapperElement = document.createElement("div");
         tableWrapperElement.className = tableWrapperClassName;
 
@@ -84,8 +90,25 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
         tableElement.appendChild(tableBodyElement);
 
         tableElement.addEventListener("contextmenu", event => {
-            // Right click must be in table data cell.
-            if (!(event.target as HTMLElement).closest("td")) return;
+            let selectedTableRect = isInContentTable(view.state)
+                ? selectedContentTableRect(view.state)
+                : null;
+
+            // The selection is in a table but not our table.
+            if (selectedTableRect !== null && selectedTableRect.tablePos - 1 !== getPos()) {
+                selectedTableRect = null;
+            }
+
+            // Right click is considered in our table if:
+            //
+            // - We're right clicking into a `<td>` element. The selection will be moved
+            //   inside this element if it's not there already; OR
+            //
+            // - The selection is currently in the table. This will happen if your
+            //   selection is in the table but you right click on a column resize handle.
+            //   The selection doesn't move and instead stays in the table.
+            if (!((event.target as HTMLElement).closest("td") || selectedTableRect !== null))
+                return;
 
             addContextMenuActions(event, [
                 [
@@ -105,6 +128,8 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
                             addContentTableRowBeforeSelection(view.state, view.dispatch);
                         },
                     },
+                ],
+                [
                     {
                         label: "Add column after",
                         iconPlacement: "end",
@@ -124,7 +149,11 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
                 ],
                 [
                     {
-                        label: "Delete row",
+                        label:
+                            selectedTableRect !== null &&
+                            selectedTableRect.bottom - selectedTableRect.top > 1
+                                ? `Delete ${selectedTableRect.bottom - selectedTableRect.top} rows`
+                                : "Delete row",
                         iconPlacement: "end",
                         icon: <Trash />,
                         onPress: () => {
@@ -132,7 +161,13 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
                         },
                     },
                     {
-                        label: "Delete column",
+                        label:
+                            selectedTableRect !== null &&
+                            selectedTableRect.right - selectedTableRect.left > 1
+                                ? `Delete ${
+                                      selectedTableRect.right - selectedTableRect.left
+                                  } columns`
+                                : "Delete column",
                         iconPlacement: "end",
                         icon: <Trash />,
                         onPress: () => {
@@ -149,6 +184,60 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
                     },
                 ],
             ]);
+
+            // HACK: If our table has a cell selection then ProseMirror represents the
+            // selection in the DOM as a selection against only the bottom right `<td>`
+            // element. In Chrome if the user right clicks in the bottom right `<td>`
+            // element then the selection will be kept in place. However, if the user right
+            // clicks in another cell in the selection then Chrome sets the selection to
+            // the text the user right clicked on!
+            //
+            // We don't like this browser default behavior. Instead, if the user right
+            // clicks within a table cell selection then we want the cell selection to not
+            // change. That way a user can delete multiple rows or multiple columns at
+            // once. Since we can't find the right event to call `event.preventDefault()`
+            // on to prevent the browser's default behavior we do the following:
+            //
+            // If the user right clicks into _this_ table's cell selection (we that the
+            // right click falls within the cell selection element's bounds) then for up to
+            // two animation frames check to see if the selection has changed from our
+            // previous cell selection. If the selection has changed then set the selection
+            // back to our cell selection. By checking on animation frames we guarantee the
+            // user will never see a flicker of the browser setting a different text
+            // selection.
+            if (
+                view.state.selection instanceof ContentTableCellSelection &&
+                view.state.selection.tablePos - 1 === getPos()
+            ) {
+                const tableCellSelectionElement = tableElement.querySelector(
+                    `.${contentStyles.tableCellSelectionClassName}`,
+                );
+
+                if (
+                    tableCellSelectionElement &&
+                    Rectangle.from(tableCellSelectionElement.getBoundingClientRect()).containsPoint(
+                        {x: event.clientX, y: event.clientY},
+                    )
+                ) {
+                    const oldDoc = view.state.doc;
+                    const oldSelection = view.state.selection;
+
+                    requestAnimationFrame(() => {
+                        if (view.state.doc === oldDoc && !view.state.selection.eq(oldSelection)) {
+                            view.dispatch(view.state.tr.setSelection(oldSelection));
+                        }
+
+                        requestAnimationFrame(() => {
+                            if (
+                                view.state.doc === oldDoc &&
+                                !view.state.selection.eq(oldSelection)
+                            ) {
+                                view.dispatch(view.state.tr.setSelection(oldSelection));
+                            }
+                        });
+                    });
+                }
+            }
         });
 
         // Subscribe to spacing scale changes. This also covers all platform changes so

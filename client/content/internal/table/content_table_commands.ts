@@ -31,40 +31,19 @@ import {Node, ResolvedPos, Slice} from "prosemirror-model";
 import {Command, EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/content_editor_table_plugin.js";
 import {
+    ContentTableMapRectWithTable,
     isInContentTable,
     moveContentTableCellForward,
+    selectedContentTableRect,
     selectionContentTableCell,
 } from "~/client/content/internal/table/content_table_client_util.js";
 import type {ContentTableInputDirection} from "~/client/content/internal/table/content_table_input.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
-import {ContentTableMap, ContentTableMapRect} from "~/shared/content/table/content_table_map.js";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {partitionArray} from "~/shared/helpers/array/partition_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-
-type ContentTableRect = ContentTableMapRect & {
-    tablePos: number;
-    table: Node;
-    tableMap: ContentTableMap;
-};
-
-/**
- * Helper to get the selected rectangle in a table, if any. Adds table
- * map, table node, and table start offset to the object for convenience.
- */
-function selectedContentTableRect(state: EditorState): ContentTableRect {
-    const sel = state.selection;
-    const $cell = selectionContentTableCell(state.selection);
-    const table = $cell.node(-1);
-    const tablePos = $cell.start(-1);
-    const tableMap = ContentTableMap.get(table);
-    const rect =
-        sel instanceof ContentTableCellSelection
-            ? tableMap.rectBetween(sel.$anchorCell.pos - tablePos, sel.$headCell.pos - tablePos)
-            : tableMap.findCell($cell.pos - tablePos);
-    return {...rect, tablePos, tableMap, table};
-}
 
 /**
  * Add a column at the given position in a table.
@@ -203,11 +182,11 @@ export function addContentTableColumnAtIndex(tablePos: number, columnIndex: numb
 }
 
 function removeContentTableColumn(
-    {tableMap, table, tablePos}: ContentTableRect,
+    {tableMap, table, tablePos}: ContentTableMapRectWithTable,
     columnIndex: number,
     transaction: Transaction,
 ) {
-    // Update columnWidths array
+    // Update `columnWidths` array
     const newColumnWidths = [...tableMap.columnWidths];
     newColumnWidths.splice(columnIndex, 1);
 
@@ -242,14 +221,11 @@ function removeContentTableColumn(
     if (newTableWidth !== tableMap.tableWidth)
         transaction.setNodeAttribute(tablePos - 1, "tableWidth", newTableWidth);
 
-    // Remove cells from each row
-    for (let row = 0; row < tableMap.height; row++) {
+    // Remove cells from each row in reverse so we don't need to map positions.
+    for (let row = tableMap.height - 1; row >= 0; row--) {
         const pos = tableMap.positionAt(row, columnIndex, table);
         const cell = table.nodeAt(pos)!;
-        transaction.delete(
-            transaction.mapping.map(tablePos + pos),
-            transaction.mapping.map(tablePos + pos + cell.nodeSize),
-        );
+        transaction.delete(tablePos + pos, tablePos + pos + cell.nodeSize);
     }
 }
 
@@ -262,25 +238,22 @@ export function deleteContentTableColumn(
 ): boolean {
     if (!isInContentTable(state)) return false;
 
-    if (dispatch) {
-        const rect = selectedContentTableRect(state);
-        const transaction = state.tr;
-        if (rect.left == 0 && rect.right == rect.tableMap.width) return false;
-        for (let i = rect.right - 1; ; i--) {
-            removeContentTableColumn(rect, i, transaction);
-            if (i == rect.left) break;
-            const table = rect.tablePos
-                ? transaction.doc.nodeAt(rect.tablePos - 1)
-                : transaction.doc;
-            if (!table) {
-                throw new RangeError("No table found");
-            }
-            rect.table = table;
-            rect.tableMap = ContentTableMap.get(table);
-        }
-        dispatch(transaction);
+    const rect = selectedContentTableRect(state);
+    if (rect.left === 0 && rect.right === rect.tableMap.width)
+        return deleteContentTable(state, dispatch);
+
+    const transaction = state.tr;
+
+    for (let i = rect.right - 1; ; i--) {
+        removeContentTableColumn(rect, i, transaction);
+        if (i === rect.left) break;
+        const table = rect.tablePos ? transaction.doc.nodeAt(rect.tablePos - 1) : transaction.doc;
+        if (!table) throw new RangeError("No table found");
+        rect.table = table;
+        rect.tableMap = ContentTableMap.get(table);
     }
 
+    dispatch?.(transaction);
     return true;
 }
 
@@ -356,7 +329,7 @@ export function addContentTableRowAtIndex(tablePos: number, rowIndex: number): C
 
 function removeContentTableRow(
     tr: Transaction,
-    {table, tablePos: tableStart}: ContentTableRect,
+    {table, tablePos: tableStart}: ContentTableMapRectWithTable,
     row: number,
 ): void {
     let rowPos = 0;
@@ -373,22 +346,23 @@ export function deleteContentTableRow(
     dispatch?: (tr: Transaction) => void,
 ): boolean {
     if (!isInContentTable(state)) return false;
-    if (dispatch) {
-        const rect = selectedContentTableRect(state);
-        const tr = state.tr;
-        if (rect.top == 0 && rect.bottom == rect.tableMap.height) return false;
-        for (let i = rect.bottom - 1; ; i--) {
-            removeContentTableRow(tr, rect, i);
-            if (i == rect.top) break;
-            const table = rect.tablePos ? tr.doc.nodeAt(rect.tablePos - 1) : tr.doc;
-            if (!table) {
-                throw RangeError("No table found");
-            }
-            rect.table = table;
-            rect.tableMap = ContentTableMap.get(rect.table);
-        }
-        dispatch(tr);
+
+    const rect = selectedContentTableRect(state);
+    if (rect.top === 0 && rect.bottom === rect.tableMap.height)
+        return deleteContentTable(state, dispatch);
+
+    const transaction = state.tr;
+
+    for (let i = rect.bottom - 1; ; i--) {
+        removeContentTableRow(transaction, rect, i);
+        if (i === rect.top) break;
+        const table = rect.tablePos ? transaction.doc.nodeAt(rect.tablePos - 1) : transaction.doc;
+        if (!table) throw new RangeError("No table found");
+        rect.table = table;
+        rect.tableMap = ContentTableMap.get(rect.table);
     }
+
+    dispatch?.(transaction);
     return true;
 }
 

@@ -30,10 +30,9 @@
 // Various helper function for working with tables
 
 import {Node, ResolvedPos} from "prosemirror-model";
-import {EditorState, Selection, NodeSelection} from "prosemirror-state";
+import {EditorState, NodeSelection, Selection} from "prosemirror-state";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
-import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {ContentTableMap, ContentTableMapRect} from "~/shared/content/table/content_table_map.js";
 
 /**
  * Retrieves the resolved position of the cell surrounding the given position.
@@ -111,13 +110,15 @@ export function isSelectionInContentTable(selection: Selection): boolean {
  * cell, such as modifying its attributes or content.
  */
 export function selectionContentTableCell(selection: Selection): ResolvedPos {
-    assert(selection instanceof ContentTableCellSelection || selection instanceof NodeSelection);
-
-    if ("$anchorCell" in selection && selection.$anchorCell) {
+    if (selection instanceof ContentTableCellSelection && selection.$anchorCell) {
         return selection.$anchorCell.pos > selection.$headCell.pos
             ? selection.$anchorCell
             : selection.$headCell;
-    } else if ("node" in selection && selection.node && selection.node.type.name === "tableCell") {
+    } else if (
+        selection instanceof NodeSelection &&
+        selection.node &&
+        selection.node.type.name === "tableCell"
+    ) {
         return selection.$anchor;
     }
     const $cell = contentTableCellAround(selection.$head) || contentTableCellNear(selection.$head);
@@ -125,6 +126,32 @@ export function selectionContentTableCell(selection: Selection): ResolvedPos {
         return $cell;
     }
     throw new RangeError(`No cell found around position ${selection.head}`);
+}
+
+export type ContentTableMapRectWithTable = ContentTableMapRect & {
+    tablePos: number;
+    table: Node;
+    tableMap: ContentTableMap;
+};
+
+/**
+ * Helper to get the selected rectangle in a table, if any. Adds table
+ * map, table node, and table start offset to the object for convenience.
+ */
+export function selectedContentTableRect(state: EditorState): ContentTableMapRectWithTable {
+    const selection = state.selection;
+    const $cell = selectionContentTableCell(selection);
+    const table = $cell.node(-1);
+    const tablePos = $cell.start(-1);
+    const tableMap = ContentTableMap.get(table);
+    const rect =
+        selection instanceof ContentTableCellSelection
+            ? tableMap.rectBetween(
+                  selection.$anchorCell.pos - tablePos,
+                  selection.$headCell.pos - tablePos,
+              )
+            : tableMap.findCell($cell.pos - tablePos);
+    return {...rect, tablePos, tableMap, table};
 }
 
 /**
