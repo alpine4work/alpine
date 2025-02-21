@@ -125,7 +125,7 @@ export function SearchModal({
         // results to load.
         !!output.results;
 
-    // Whenever the user selects a search result, we accord a high intent affinity
+    // Whenever the user selects a search result, we record a high intent affinity
     // interaction. This is because the user opening a result from search is super
     // high signal that this is an entity they care about. In this way search is a
     // self reinforcing system. The more a user selects an entity, the higher the

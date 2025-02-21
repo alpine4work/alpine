@@ -39,7 +39,10 @@ import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_sess
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
-import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {
+    markSearchAffinityCreateDocumentInteraction,
+    markSearchAffinityInteraction,
+} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
     getAccount,
@@ -789,7 +792,6 @@ export async function* expensiveScanEveryDocumentAndDocumentCommentForMigration(
  * expensive so we use the number of prior indexes as a proxy for how large a
  * documents is and slow down indexing once it reaches a certain threshold.
  */
-// NOCOMMIT: Newly created documents should jump to the top of a user's affinity list
 function getDocumentIndexSearchEntityJobDelaySeconds(generation: number) {
     // For the first 10 minutes (60 * 10 / 60) update every 10 seconds.
     if (generation <= 60) return 10;
@@ -882,10 +884,12 @@ export async function createDocument(
     );
 
     context.process.waitUntil(
-        markSearchAffinityInteraction(context, {
+        // Special interaction that adds a bunch more points then normal interactions.
+        // So newly created documents are always easily accessible in the search
+        // affinity list.
+        markSearchAffinityCreateDocumentInteraction(context, {
             spaceId,
-            affinityId: `Document:${id}`,
-            interaction: {type: "HighIntentUpdate"},
+            documentId: id,
         }),
     );
 

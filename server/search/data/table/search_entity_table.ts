@@ -16,6 +16,7 @@ import {Id, assertId} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
+    DocumentId,
     SpaceId,
     TaskCollectionId,
     TaskId,
@@ -258,6 +259,28 @@ const searchAffinityExpirationPoints = 0.05;
 const searchAffinityActiveTaskAssigneePoints = 150;
 
 /**
+ * The number of points to add to a document's search affinity score when the
+ * document is first created. We want documents to be at the top of the
+ * document creator's affinity list for two to three days. So the creator can
+ * easily get back to the documents they just created.
+ *
+ * As of 2025-02-21 the points of the top five entities in my (@calebmer's)
+ * search affinity list are 71.47, 67.26, 51.62, 42.65, and 36.91. So after
+ * three days this point value needs to decay to something between 71.47 and
+ * 42.65.
+ *
+ * 60 fits this criteria:
+ *
+ * - After  1 day  it's 54.29
+ * - After  2 days it's 49.12
+ * - After  3 days it's 44.45
+ * - After  7 days it's 29.80
+ * - After 14 days it's 14.80
+ * - After 30 days it's  3.00
+ */
+const searchAffinityDocumentCreatorPoints = 60;
+
+/**
  * Apply our exponential decay function to figure out how many affinity points
  * we currently have.
  *
@@ -348,6 +371,29 @@ export function markSearchAffinityInteraction(
         affinityId,
         points,
         isViewInteraction: interaction.type === "View",
+    });
+}
+
+/**
+ * Same as `markSearchAffinityInteraction()` but for a special "create
+ * document" interaction. This interaction may only be performed on the server
+ * as it adds a lot of points we don't want the client to be able to add.
+ */
+export function markSearchAffinityCreateDocumentInteraction(
+    context: ServerSessionActionContext,
+    {
+        spaceId,
+        documentId,
+    }: {
+        spaceId: SpaceId;
+        documentId: DocumentId;
+    },
+) {
+    return addSearchAffinityPoints(context, {
+        spaceId,
+        affinityId: `Document:${documentId}`,
+        points: searchAffinityDocumentCreatorPoints,
+        isViewInteraction: false,
     });
 }
 
