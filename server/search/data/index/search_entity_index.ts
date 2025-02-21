@@ -2,6 +2,7 @@ import murmurhash from "murmurhash";
 import {authorizeInternalAccess} from "~/server/accounts/accounts_table.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerContentSessionActionContextModules} from "~/server/context/server_content_action_context.js";
+import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_table.js";
 import {getChannelIfPossible} from "~/server/forum/data/forum_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
@@ -78,7 +79,6 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -93,11 +93,10 @@ import {
     isDateDefinitelyLessThanWithUncertaintyWindow,
 } from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
@@ -1596,11 +1595,15 @@ export async function getSearchEntitiesTitleAndMediaIfExist(
     context: SearchSessionActionContext,
     {spaceId, entityIds}: {spaceId: SpaceId; entityIds: ReadonlyArray<SearchEntityId>},
 ): Promise<
-    ReadonlyArray<{
-        id: SearchEntityId;
-        title: string | null;
-        media: SearchEntityMedia | null;
-    } | null>
+    ReadonlyArray<
+        | {
+              id: SearchEntityId;
+              title: string | null;
+              media: SearchEntityMedia | null;
+          }
+        | "NotFound"
+        | "PermissionDenied"
+    >
 > {
     await authorizeSpaceAccess(context, spaceId);
 
@@ -1624,8 +1627,8 @@ export async function getSearchEntitiesTitleAndMediaIfExist(
     );
 
     return docs.map(doc => {
-        if (!doc) return null;
-        if (doc.routing !== spaceId) return null;
+        if (!doc) return "NotFound";
+        if (doc.routing !== spaceId) return "NotFound";
 
         const isAccessAuthorized =
             doc.fields["accessPolicy.defaultGrantType"]?.[0] === "Space" ||
@@ -1633,7 +1636,7 @@ export async function getSearchEntitiesTitleAndMediaIfExist(
                 context.actor.getAccountId(),
             );
 
-        if (!isAccessAuthorized) return null;
+        if (!isAccessAuthorized) return "PermissionDenied";
 
         const title = doc.fields.title?.[0] ?? null;
         const media = doc.fields.media?.[0] ?? null;
@@ -1661,25 +1664,33 @@ export async function searchByAffinity(
 
     const currentTime = new Date();
 
-    const affinityIds = await internalGetSearchAffinities(context, {spaceId, limit});
+    const affinities = await internalGetSearchAffinities(context, {spaceId, limit});
+
+    let taskNotepadAffinityIndex: number | null = null;
+    const entityIds: Array<SearchEntityId> = [];
+    const entities: Array<Replace<(typeof affinities)[number], {affinityId: SearchEntityId}>> = [];
+
+    for (let i = 0; i < affinities.length; i++) {
+        const affinity = affinities[i]!;
+
+        if (affinity.affinityId === "TaskNotepad") {
+            taskNotepadAffinityIndex = i;
+        } else {
+            entityIds.push(affinity.affinityId);
+            entities.push(
+                affinity as Replace<(typeof affinities)[number], {affinityId: SearchEntityId}>,
+            );
+        }
+    }
 
     const entitiesTitleAndMedia = await getSearchEntitiesTitleAndMediaIfExist(context, {
         spaceId,
-        entityIds: filterMapArray(affinityIds, ({affinityId}): SearchEntityId | undefined =>
-            affinityId !== "TaskNotepad" ? affinityId : undefined,
-        ),
+        entityIds,
     });
 
-    const entityTitleAndMediaById = new Map(
-        filterMapIterable(entitiesTitleAndMedia, entityTitleAndMedia =>
-            entityTitleAndMedia ? [entityTitleAndMedia.id, entityTitleAndMedia] : undefined,
-        ),
-    );
-
     const results = await runAllPromises(
-        filterMapArray(
-            affinityIds,
-            ({affinityId, points, lastViewedTime}): MaybePromise<SearchResult> | undefined => {
+        entities.map(
+            async ({affinityId, points, lastViewedTime}, i): Promise<SearchResult | null> => {
                 const bodyTextSnippet = [
                     {
                         isHighlighted: false,
@@ -1694,40 +1705,97 @@ export async function searchByAffinity(
                     },
                 ];
 
-                if (affinityId === "TaskNotepad") {
-                    return {
-                        id: affinityId,
-                        score: points,
-                        title: "Task notepad",
-                        bodyTextSnippet,
-                        media: null,
-                    };
+                const entityTitleAndMedia = entitiesTitleAndMedia[i]!;
+                if (typeof entityTitleAndMedia === "string") {
+                    const affinityIdObject = parseSearchEntityId(affinityId);
+
+                    // If we couldn't find a document search entity that might be because the
+                    // document hasn't been indexed in OpenSearch yet. Document indexing is
+                    // throttled since updates to a document happen many times per minute (even once
+                    // per keystroke). That means right after a document is created it won't show up
+                    // in the OpenSearch index until the throttled indexing job runs (10s throttle +
+                    // indexing time).
+                    //
+                    // Instead of not showing the document to the user in their search affinity list
+                    // (which would be a very bad UX since how else will the user find documents
+                    // they just created but accidentally closed?) we read the document from
+                    // DynamoDB (where the document will definitely exist) if the document is not
+                    // found in the OpenSearch index.
+                    //
+                    // If the document was found in the OpenSearch index but its access policy
+                    // doesn't allow us to read it then `entityTitleAndMedia` will be
+                    // `PermissionDenied` instead of `NotFound`.
+                    if (
+                        entityTitleAndMedia === "NotFound" &&
+                        affinityIdObject.type === "Document"
+                    ) {
+                        const documentResult = await getDocumentPreviewIfPossible(
+                            context,
+                            affinityIdObject.documentId,
+                        );
+                        if (documentResult?.ok) {
+                            return {
+                                id: affinityId,
+                                score: points,
+                                title: documentResult.value.getTitle(),
+                                bodyTextSnippet,
+                                media: null,
+                            };
+                        }
+                    }
+
+                    return null;
                 }
 
-                const entityTitleAndMedia = entityTitleAndMediaById.get(affinityId);
-                if (!entityTitleAndMedia) return;
+                const media = entityTitleAndMedia.media
+                    ? await prepareSearchEntityMediaForResult(
+                          context,
+                          spaceId,
+                          affinityId,
+                          entityTitleAndMedia.media,
+                      )
+                    : null;
 
-                return Promise.resolve(
-                    entityTitleAndMedia.media
-                        ? prepareSearchEntityMediaForResult(
-                              context,
-                              spaceId,
-                              affinityId,
-                              entityTitleAndMedia.media,
-                          )
-                        : null,
-                ).then(media => ({
+                return {
                     id: affinityId,
                     score: points,
                     title: entityTitleAndMedia.title,
                     bodyTextSnippet,
                     media,
-                }));
+                };
             },
         ),
     );
 
-    return {results};
+    // Add back the task notepad item. We don't have to load it from
+    // OpenSearch since it doesn't exist in OpenSearch.
+    if (taskNotepadAffinityIndex !== null) {
+        const affinity = affinities[taskNotepadAffinityIndex]!;
+
+        const bodyTextSnippet = [
+            {
+                isHighlighted: false,
+                text: affinity.lastViewedTime
+                    ? `Last opened ${formatPrettyRelativeDateWithoutFullTimeTooltip(
+                          timeZone,
+                          currentTime,
+                          affinity.lastViewedTime,
+                          "Days",
+                      )}`
+                    : "Never opened",
+            },
+        ];
+
+        results.splice(taskNotepadAffinityIndex, 0, {
+            id: "TaskNotepad",
+            score: affinity.points,
+            title: "Task notepad",
+            bodyTextSnippet,
+            media: null,
+        });
+    }
+
+    return {results: results.filter(isNonNullable)};
 }
 
 function getChannelStandaloneSearchResult(channel: ChannelModel): {

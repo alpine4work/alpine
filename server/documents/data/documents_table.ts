@@ -913,24 +913,51 @@ export async function createDocument(
  * means the document does not exist with strong consistency. (Since we retry
  * reading null results with strong consistency.)
  */
+export async function getDocumentPreviewIfPossible(
+    context: ServerActionContext,
+    id: DocumentId,
+    options?: {consistency?: DynamoReadConsistency},
+): Promise<Result<DocumentPreviewModel, ErrorBase> | null> {
+    const item = await getDocumentItemForAuthorizationIfExists(context, id, options);
+    if (!item) return null;
+
+    const result = await authorizeDocumentItemAccessIfPossible(context, item, "View");
+    if (!result.ok) return result;
+
+    return {
+        ok: true,
+        value: new DocumentPreviewModel({
+            id,
+            createdTime: item.createdTime,
+            spaceId: item.spaceId,
+            version: item.version,
+            titleWithoutFallback: item.titleWithoutFallback,
+            accessPolicy: item.accessPolicy,
+        }),
+    };
+}
+
+/**
+ * Get a preview of the document with the provided id.
+ *
+ * Cheaper than `getDocument()` since we don't return the full content.
+ *
+ * The result is cached. If you call this for the same `DocumentId` multiple
+ * times in the same action you'll get the same result without issuing a
+ * network request.
+ *
+ * This function is somewhat strongly consistent. If null is returned that
+ * means the document does not exist with strong consistency. (Since we retry
+ * reading null results with strong consistency.)
+ */
 export async function getDocumentPreviewIfExists(
     context: ServerActionContext,
     id: DocumentId,
     options?: {consistency?: DynamoReadConsistency},
 ): Promise<DocumentPreviewModel | null> {
-    const item = await getDocumentItemForAuthorizationIfExists(context, id, options);
-    if (!item) return null;
-
-    await authorizeDocumentItemAccess(context, item, "View");
-
-    return new DocumentPreviewModel({
-        id,
-        createdTime: item.createdTime,
-        spaceId: item.spaceId,
-        version: item.version,
-        titleWithoutFallback: item.titleWithoutFallback,
-        accessPolicy: item.accessPolicy,
-    });
+    const result = await getDocumentPreviewIfPossible(context, id, options);
+    if (!result) return null;
+    return unwrapResult(result);
 }
 
 /**
