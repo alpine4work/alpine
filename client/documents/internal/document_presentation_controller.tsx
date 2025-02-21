@@ -33,6 +33,7 @@ import {
     colorSchemeVars,
     contentStyles,
     documentPresentationStyles,
+    grey100ToGrey80OpacityVar,
     sprinkles,
 } from "~/client/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
@@ -46,6 +47,7 @@ import {
     convertRemLengthToPx,
     parseRemLength,
     spacing,
+    subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {
@@ -400,6 +402,7 @@ function DocumentPresentationInstructionalConfirmationModal({
                     transformOrigin: "top left",
                     transform: `scale(${instructionalExampleScale})`,
                     width: `${(1 / instructionalExampleScale) * 100}%`,
+                    opacity: grey100ToGrey80OpacityVar,
                 }}
             >
                 <Box
@@ -487,7 +490,7 @@ function DocumentPresentationInstructionalConfirmationModal({
                     id={descriptionId}
                     paddingX="7"
                     paddingTop="2.5"
-                    paddingBottom="6"
+                    paddingBottom="5"
                     fontSize="75"
                     style={{lineHeight: 1.5}}
                 >
@@ -498,13 +501,16 @@ function DocumentPresentationInstructionalConfirmationModal({
                 <Box paddingX="7" paddingBottom="6">
                     <Box position="relative" display="flex" gap="14" paddingRight="6">
                         <ArrowRight
-                            size={spacing["6"]}
+                            size={spacing["5"]}
                             color={colorSchemeVars["grey-50"]}
                             weight="light"
                             className={sprinkles({position: "absolute"})}
                             style={{
-                                top: `calc(50% - ${spacing["0"]})`,
-                                left: `calc(50% - ${spacing["6"]})`,
+                                top: `calc(50% + ${spacing["1"]})`,
+                                left: `calc(50% - ${subtractRemLengths(
+                                    spacing["6"],
+                                    spacing["0.5"],
+                                )})`,
                             }}
                         />
                         <Box flexGrow="1" width="full">
@@ -517,7 +523,7 @@ function DocumentPresentationInstructionalConfirmationModal({
                             <Box
                                 width="full"
                                 position="relative"
-                                top="-1.5"
+                                top="-2.5"
                                 style={{height: "10rem"}}
                             >
                                 <Box

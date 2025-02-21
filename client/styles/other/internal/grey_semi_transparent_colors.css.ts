@@ -36,16 +36,26 @@ const grey5SemiTransparentColor = {
     ).hexa(),
 };
 
+const grey100ToGrey80Opacity = approximateOpacityForShiftingGreyColor(
+    grey5SemiTransparentColorShade,
+    "80",
+    "80",
+    "0",
+);
+
 export const grey5SemiTransparentColorVar = createVar("grey-5-semi-transparent");
+export const grey100ToGrey80OpacityVar = createVar("grey-100-to-grey-80-opacity");
 
 globalStyle(":root", {
     vars: {
         [grey5SemiTransparentColorVar]: grey5SemiTransparentColor.light,
+        [grey100ToGrey80OpacityVar]: `${grey100ToGrey80Opacity.light}`,
     },
 });
 
 globalStyle(darkColorSchemeSelector, {
     vars: {
         [grey5SemiTransparentColorVar]: grey5SemiTransparentColor.dark,
+        [grey100ToGrey80OpacityVar]: `${grey100ToGrey80Opacity.dark}`,
     },
 });
