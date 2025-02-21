@@ -15,7 +15,7 @@ export function useTaskClientStoreSearchAffinityManager(
     affinityId: SearchAffinityId | null,
 ): TaskClientStoreSearchAffinityManager {
     const context = useAppContext();
-    const {space, currentAccount} = useSpaceContext();
+    const {space} = useSpaceContext();
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
 
     useSearchAffinityViewInteraction(affinityId);
@@ -29,32 +29,6 @@ export function useTaskClientStoreSearchAffinityManager(
                 if (!affinityId) return;
 
                 const markedEntityIds = new Set<SearchAffinityId>();
-
-                for (const [taskId, {oldTaskEntry, newTaskEntry}] of update.taskEntryUpdateById) {
-                    const oldDisplayStatus =
-                        oldTaskEntry?.task?.getDisplayStatus() ?? "OpenInactive";
-                    const newDisplayStatus =
-                        newTaskEntry.task?.getDisplayStatus() ?? "OpenInactive";
-
-                    // If the user marks a task they're assigned to as active, count that as a high
-                    // intent interaction:
-                    if (
-                        currentAccount &&
-                        oldDisplayStatus !== newDisplayStatus &&
-                        newDisplayStatus === "OpenActive" &&
-                        newTaskEntry.task?.getAssignee()?.assignee.accountId === currentAccount.id
-                    ) {
-                        // If this errs it will show up in our telemetry but we don't care about
-                        // it here.
-                        void markSearchAffinityInteraction(context, {
-                            spaceId: space.id,
-                            affinityId: `Task:${taskId}`,
-                            interaction: {type: "HighIntentUpdate"},
-                        });
-
-                        markedEntityIds.add(`Task:${taskId}`);
-                    }
-                }
 
                 for (const [
                     collectionId,
@@ -93,6 +67,6 @@ export function useTaskClientStoreSearchAffinityManager(
                 }
             },
         }),
-        [addGlobalLoadingIndicator, affinityId, currentAccount, context, space.id],
+        [addGlobalLoadingIndicator, affinityId, context, space.id],
     );
 }
