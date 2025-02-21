@@ -1,4 +1,4 @@
-import {ArrowRight} from "phosphor-react";
+import {ArrowRight, Check} from "phosphor-react";
 import {
     Memo,
     Ref,
@@ -10,6 +10,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {usePress} from "react-aria";
 import {flushSync} from "react-dom";
 import {ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
@@ -28,11 +29,13 @@ import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {getPlatformRouteLayout, useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {
+    buttonStyles,
     colorSchemeVars,
     contentStyles,
     documentPresentationStyles,
     sprinkles,
 } from "~/client/styles/styles.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {
     ContentWithReferences,
     emptyContentReferences,
@@ -40,11 +43,11 @@ import {
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {
     ParsableRemLength,
-    addRemLengths,
     convertRemLengthToPx,
     parseRemLength,
     spacing,
 } from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {
     DocumentContentReferences,
     DocumentContentWithReferences,
@@ -62,7 +65,8 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 export type DocumentPresentationControllerRef = {
-    present(): void;
+    present(): Promise<void>;
+    presentWithoutConfirmation(): Promise<void>;
 };
 
 type DocumentPresentationControllerPresentationState =
@@ -84,11 +88,13 @@ function DocumentPresentationController(
         editorRef,
         editorContainerRef,
         editorState,
+        accessLevel,
         fileAttachmentTarget,
     }: {
         editorRef: RefObject<ContentEditorRef<DocumentContentWithReferences>>;
         editorContainerRef: RefObject<HTMLDivElement>;
         editorState: ContentEditorState<DocumentContentWithReferences>;
+        accessLevel: AccessLevel;
         fileAttachmentTarget: Memo<FileAttachmentTarget>;
     },
     ref: Ref<DocumentPresentationControllerRef>,
@@ -100,13 +106,18 @@ function DocumentPresentationController(
     const [presentationState, setPresentationState] =
         useState<DocumentPresentationControllerPresentationState | null>(null);
 
-    const {present, actuallyPresent} = useEvents({
-        present: () => {
+    const {present, presentWithoutConfirmation} = useEvents({
+        present: async () => {
             if (presentationState) return;
-            setPresentationState({type: "Confirming"});
+
+            if (hasAccessLevel(accessLevel, "Edit")) {
+                setPresentationState({type: "Confirming"});
+            } else {
+                await presentWithoutConfirmation();
+            }
         },
 
-        actuallyPresent: async () => {
+        presentWithoutConfirmation: async () => {
             if (presentationState?.type === "Presenting") return;
 
             const platform = getPlatformWithoutListening();
@@ -175,7 +186,10 @@ function DocumentPresentationController(
         },
     });
 
-    useImperativeHandle(ref, () => ({present}), [present]);
+    useImperativeHandle(ref, () => ({present, presentWithoutConfirmation}), [
+        present,
+        presentWithoutConfirmation,
+    ]);
 
     useEffect(() => {
         if (presentationState?.type !== "Presenting") return;
@@ -200,8 +214,10 @@ function DocumentPresentationController(
         case "Confirming": {
             return (
                 <DocumentPresentationInstructionalConfirmationModal
+                    editorRef={editorRef}
+                    editorState={editorState}
                     fileAttachmentTarget={fileAttachmentTarget}
-                    onPresent={actuallyPresent}
+                    onPresent={presentWithoutConfirmation}
                     onClose={() =>
                         setPresentationState(presentationState => {
                             if (presentationState?.type !== "Confirming") return presentationState;
@@ -333,10 +349,14 @@ const documentPresentationInstructionalExampleContent = new Lazy(() => {
 });
 
 function DocumentPresentationInstructionalConfirmationModal({
+    editorRef,
+    editorState,
     fileAttachmentTarget,
     onPresent,
     onClose,
 }: {
+    editorRef: RefObject<ContentEditorRef<DocumentContentWithReferences>>;
+    editorState: ContentEditorState<DocumentContentWithReferences>;
     fileAttachmentTarget: Memo<FileAttachmentTarget>;
     onPresent: () => MaybePromise<void>;
     onClose: () => void;
@@ -371,7 +391,7 @@ function DocumentPresentationInstructionalConfirmationModal({
             width="full"
             overflow="hidden"
             backgroundColor="grey-0"
-            boxShadow="elevation-5-with-grey-5-outset-border"
+            boxShadow="elevation-10"
             borderRadius="1.5"
             style={{height: `${parseRemLength(height)}rem`}}
         >
@@ -400,6 +420,15 @@ function DocumentPresentationInstructionalConfirmationModal({
         </Box>
     );
 
+    const hasPresentShortcut: boolean = editorState.getDoc().attrs.hasPresentShortcut;
+
+    const {isPressed: isShortcutTogglePressed, pressProps: shortcutTogglePressProps} = usePress({
+        onPress: () => {
+            const editor = assertExists(editorRef.current);
+            editor.setHasPresentShortcut(!hasPresentShortcut);
+        },
+    });
+
     return (
         <ModalWithButtons
             ref={modalRef}
@@ -409,13 +438,38 @@ function DocumentPresentationInstructionalConfirmationModal({
             primaryButtonLabel="Present"
             primaryButtonPressErrorTitle="Couldn’t present document"
             onPrimaryButtonPress={onPresent}
-            maxWidth="46rem"
+            maxWidth="44rem"
             buttonsPaddingX="7"
             buttonsPaddingBottom="5"
             // Improve focus on the dialog's content by not showing a close button. A modal
             // dialog's two buttons will usually be the main actions you want to take.
             // Dismissing a modal by clicking the background should also feel natural.
             withoutCloseButton={true}
+            additionalButtons={
+                <Box
+                    {...shortcutTogglePressProps}
+                    color="grey-60"
+                    // Enough touch slop space (see `use_touch_slop.ts`)
+                    height="6"
+                    display="flex"
+                    alignItems="center"
+                    gap="1.5"
+                >
+                    <DocumentPresentationCheckbox
+                        isChecked={hasPresentShortcut}
+                        isPressed={isShortcutTogglePressed}
+                    />
+                    <Box
+                        position="relative"
+                        style={{
+                            // Optically align text with checkbox.
+                            top: `${0.5 / remPxBySpacingScale.medium}rem`,
+                        }}
+                    >
+                        Add shortcut
+                    </Box>
+                </Box>
+            }
         >
             <Box userSelect="text">
                 <h2
@@ -441,16 +495,16 @@ function DocumentPresentationInstructionalConfirmationModal({
                     creates a new slide. To add a divider either type “---” in an empty line or
                     right click and choose insert &gt; divider.
                 </Box>
-                <Box paddingX="7" paddingBottom="9">
-                    <Box position="relative" display="flex" gap="16" paddingRight="6">
+                <Box paddingX="7" paddingBottom="6">
+                    <Box position="relative" display="flex" gap="14" paddingRight="6">
                         <ArrowRight
                             size={spacing["6"]}
                             color={colorSchemeVars["grey-50"]}
                             weight="light"
                             className={sprinkles({position: "absolute"})}
                             style={{
-                                top: `calc(50% - ${spacing["3"]})`,
-                                left: `calc(50% - ${addRemLengths(spacing["3"], spacing["4"])})`,
+                                top: `calc(50% - ${spacing["0"]})`,
+                                left: `calc(50% - ${spacing["6"]})`,
                             }}
                         />
                         <Box flexGrow="1" width="full">
@@ -463,7 +517,7 @@ function DocumentPresentationInstructionalConfirmationModal({
                             <Box
                                 width="full"
                                 position="relative"
-                                top="-3"
+                                top="-1.5"
                                 style={{height: "10rem"}}
                             >
                                 <Box
@@ -511,5 +565,46 @@ function DocumentPresentationInstructionalConfirmationModal({
                 </Box>
             </Box>
         </ModalWithButtons>
+    );
+}
+
+// TODO(calebmer): We should probably use a general system-wide checkbox here
+// someday instead of a checkbox specifically for the task system. This was
+// copied from `<TaskCheckbox>`.
+function DocumentPresentationCheckbox({
+    isChecked,
+    isPressed,
+}: {
+    isChecked: boolean;
+    isPressed: boolean;
+}) {
+    return (
+        <Box
+            overflow="hidden"
+            position="relative"
+            width="3"
+            height="3"
+            border={!isChecked ? "grey-20" : undefined}
+            borderRadius="0.5"
+            backgroundColor={!isChecked ? (isPressed ? "grey-10" : "grey-0") : "grey-90"}
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+        >
+            {isChecked && (
+                <Check color={colorSchemeVars["grey-0"]} weight="bold" size={spacing["2.5"]} />
+            )}
+            {isChecked && isPressed && (
+                <span
+                    className={sprinkles({
+                        position: "absolute",
+                        inset: "0",
+                        backgroundColor: "grey-100-const",
+                        pointerEvents: "none",
+                    })}
+                    style={{opacity: buttonStyles.buttonPressedOverlayOpacity}}
+                />
+            )}
+        </Box>
     );
 }

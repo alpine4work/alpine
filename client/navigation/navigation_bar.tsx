@@ -60,6 +60,7 @@ export function useNavigationBar({
     desktopTitleFontSize = "200",
     desktopTitleFontWeight = "semi-bold",
     desktopTitleLeftSlop,
+    desktopAdditionalActions,
     withoutMobileBackButton = false,
     onMobileClose,
     onMobileCancel,
@@ -185,6 +186,7 @@ export function useNavigationBar({
             desktopTitleFontSize={desktopTitleFontSize}
             desktopTitleFontWeight={desktopTitleFontWeight}
             desktopTitleLeftSlop={desktopTitleLeftSlop}
+            desktopAdditionalActions={desktopAdditionalActions}
             withoutMobileBackButton={withoutMobileBackButton}
             onMobileClose={onMobileClose}
             onMobileCancel={onMobileCancel}

@@ -13,11 +13,6 @@ import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
-// TODO(calebmer, #document-presentation):
-//
-// - Presentation instructional modal
-// - Presentation button
-
 export function DocumentPresentationView({
     slides,
     references,

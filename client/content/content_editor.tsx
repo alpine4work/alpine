@@ -343,6 +343,11 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
     insertFiles(files: ReadonlyArray<File>): void;
 
     /**
+     * Set the `hasPresentShortcut` attribute.
+     */
+    setHasPresentShortcut(hasPresentShortcut: boolean): void;
+
+    /**
      * If we're in a mobile environment and `withoutMobileKeyboardToolbar` is false
      * then calling this function opens the comment input for the current
      * selection. If the selection is empty nothing happens.
@@ -725,6 +730,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                 insertQuoteBlock: unimplementedDispatchCommand,
                 insertCodeBlock: unimplementedDispatchCommand,
                 insertFiles: unimplementedDispatchCommand,
+                setHasPresentShortcut: unimplementedDispatchCommand,
                 openMobileKeyboardToolbarCommentInputIfPossible: () => {
                     throw new UnimplementedError(
                         "Opening the content editor's mobile keyboard toolbar comment input on initial render is not implemented",
@@ -991,6 +997,12 @@ function ContentEditor<Content extends ContentWithReferences>(
             insertQuoteBlock: () => insertContentQuoteBlock(assertExists(viewRef.current)),
             insertCodeBlock: () => insertContentCodeBlock(assertExists(viewRef.current)),
             insertFiles: files => insertContentFiles(assertExists(viewRef.current), files),
+            setHasPresentShortcut: hasPresentShortcut => {
+                const view = assertExists(viewRef.current);
+                view.dispatch(
+                    view.state.tr.setDocAttribute("hasPresentShortcut", hasPresentShortcut),
+                );
+            },
             _getInternalView: () => {
                 return assertExists(viewRef.current);
             },

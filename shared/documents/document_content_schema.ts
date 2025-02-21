@@ -319,6 +319,16 @@ const documentContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                     // this date. Also default public makes sense for test documents.
                     default: dangerousLegacyDefaultDocumentAccessPolicy,
                 },
+
+                /**
+                 * If true then on desktop we render a "Present" button in the navigation bar
+                 * next to the share button. Useful for documents written to be presentations
+                 * since it provides an easy way for readers to enter presentation mode.
+                 */
+                hasPresentShortcut: {
+                    schema: Schema.boolean,
+                    default: false,
+                },
             },
         },
 

@@ -78,6 +78,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         desktopTitleFontSize = "200",
         desktopTitleFontWeight = "semi-bold",
         desktopTitleLeftSlop,
+        desktopAdditionalActions,
         withoutMobileBackButton = false,
         onMobileClose,
         onMobileCancel,
@@ -98,6 +99,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         desktopTitleFontSize?: FontSize;
         desktopTitleFontWeight?: "semi-bold" | "bold";
         desktopTitleLeftSlop?: Spacing;
+        desktopAdditionalActions?: ReactNode;
         withoutMobileBackButton?: boolean;
         onMobileClose?: () => void;
         onMobileCancel?: () => void;
@@ -409,6 +411,9 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                             replaceActions
                         ) : (
                             <>
+                                {desktopAdditionalActions && platform === "desktop" && (
+                                    <Box paddingRight="4">{desktopAdditionalActions}</Box>
+                                )}
                                 {shareButton && routeLayout !== "narrow" && (
                                     <Box paddingRight="4">
                                         <ShareButton
