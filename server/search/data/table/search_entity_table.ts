@@ -1,4 +1,5 @@
 import {
+    ServerActionContext,
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
@@ -6,7 +7,7 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
-import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {authorizeOwnAccountAccess, authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -307,6 +308,23 @@ export function getSearchAffinityExpirationDuration(points: number): number {
     return Math.log(points / searchAffinityExpirationPoints) * monthDurationMs;
 }
 
+function getSearchAffinityInteractionPoints(interaction: SearchAffinityInteraction): number {
+    switch (interaction.type) {
+        case "View":
+            return 1;
+        case "VeryLowIntentUpdate":
+            return 0.0625;
+        case "LowIntentUpdate":
+            return 0.2;
+        case "MediumIntentUpdate":
+            return 1;
+        case "HighIntentUpdate":
+            return 3;
+        default:
+            throw exhaustive(interaction);
+    }
+}
+
 /**
  * Add some points to an account's affinity score for an entity. 1 point will
  * decay to 0 after 3 months (more accurately, 90 days).
@@ -340,36 +358,39 @@ export function markSearchAffinityInteraction(
         interaction: SearchAffinityInteraction;
     },
 ) {
-    let points: number;
-    switch (interaction.type) {
-        case "View": {
-            points = 1;
-            break;
-        }
-        case "VeryLowIntentUpdate": {
-            points = 0.0625;
-            break;
-        }
-        case "LowIntentUpdate": {
-            points = 0.2;
-            break;
-        }
-        case "MediumIntentUpdate": {
-            points = 1;
-            break;
-        }
-        case "HighIntentUpdate": {
-            points = 3;
-            break;
-        }
-        default:
-            throw exhaustive(interaction);
-    }
-
     return addSearchAffinityPoints(context, {
         spaceId,
+        accountId: context.actor.getAccountId(),
         affinityId,
-        points,
+        points: getSearchAffinityInteractionPoints(interaction),
+        isViewInteraction: interaction.type === "View",
+    });
+}
+
+/**
+ * `markSearchAffinityInteraction()` but on behalf of another account. Only
+ * system actors can do this. Session actors aren't allowed to update affinity
+ * points for another account.
+ */
+export function markSearchAffinityInteractionForAccount(
+    context: ServerSystemActionContext,
+    {
+        spaceId,
+        accountId,
+        affinityId,
+        interaction,
+    }: {
+        spaceId: SpaceId;
+        accountId: AccountId;
+        affinityId: SearchAffinityId;
+        interaction: SearchAffinityInteraction;
+    },
+) {
+    return addSearchAffinityPoints(context, {
+        spaceId,
+        accountId,
+        affinityId,
+        points: getSearchAffinityInteractionPoints(interaction),
         isViewInteraction: interaction.type === "View",
     });
 }
@@ -391,6 +412,7 @@ export function markSearchAffinityCreateDocumentInteraction(
 ) {
     return addSearchAffinityPoints(context, {
         spaceId,
+        accountId: context.actor.getAccountId(),
         affinityId: `Document:${documentId}`,
         points: searchAffinityDocumentCreatorPoints,
         isViewInteraction: false,
@@ -398,14 +420,16 @@ export function markSearchAffinityCreateDocumentInteraction(
 }
 
 async function addSearchAffinityPoints(
-    context: ServerSessionActionContext,
+    context: ServerActionContext,
     {
         spaceId,
+        accountId,
         affinityId,
         points,
         isViewInteraction,
     }: {
         spaceId: SpaceId;
+        accountId: AccountId;
         affinityId: SearchAffinityId;
         points: number;
         isViewInteraction: boolean;
@@ -414,6 +438,8 @@ async function addSearchAffinityPoints(
     // Optimization: We don't authorize whether the actor has access to the entity.
     // Since this is a personal score it doesn't really matter if the user gives
     // themselves affinity points to an entity they don't have access to.
+
+    await authorizeOwnAccountAccess(context, accountId);
 
     const currentTime = Date.now();
 
@@ -431,7 +457,7 @@ async function addSearchAffinityPoints(
                 partitionType: "Account",
                 sortRangeType: "SearchEntityAffinity",
                 spaceId,
-                accountId: context.actor.getAccountId(),
+                accountId,
                 entityId: affinityId,
             },
             affinityItem => {
@@ -453,7 +479,7 @@ async function addSearchAffinityPoints(
                     partitionType: "Account",
                     sortRangeType: "SearchEntityAffinity",
                     spaceId,
-                    accountId: context.actor.getAccountId(),
+                    accountId,
                     entityId: affinityId,
                     points: newPoints,
                     pointsBucket: newPointsBucket,
@@ -501,7 +527,7 @@ async function addSearchAffinityPoints(
                           partitionType: "SpaceChannels",
                           sortRangeType: "SearchAffinity",
                           spaceId,
-                          accountId: context.actor.getAccountId(),
+                          accountId,
                           channelId,
                           points: newPoints,
                           pointsBucket: newPointsBucket,
@@ -546,7 +572,7 @@ async function addSearchAffinityPoints(
                           partitionType: "SpaceTaskCollections",
                           sortRangeType: "SearchAffinity",
                           spaceId,
-                          accountId: context.actor.getAccountId(),
+                          accountId,
                           collectionId,
                           points: newPoints,
                           pointsBucket: newPointsBucket,

@@ -1039,7 +1039,6 @@ export function commitTaskActionTransaction(
             id: TaskActionTransactionLeaseId;
             actions: ReadonlyArray<TaskUpdateTaskAction>;
         };
-        withoutAddingAffinityPoints?: boolean;
     } = {},
 ): Promise<{
     extraActions: ReadonlyArray<TaskAction>;
@@ -1087,44 +1086,6 @@ export function commitTaskActionTransaction(
         }
 
         const {processPromise} = afterCommitTaskActionTransaction(context, actionTransactionItem);
-
-        // Update relevant affinity scores.
-        //
-        // Unlike `afterCommitTaskActionTransaction()` the updates we make here are not
-        // idempotent. It's also not essential that we make these updates. If the
-        // process crashes it doesn't really matter to users that affinity scores don't
-        // update. Whereas it's critical we eventually index actions in OpenSearch.
-        //
-        // So we don't put this logic in `afterCommitTaskActionTransaction()` and
-        // instead call `context.process.waitUntil()` directly.
-        // `afterCommitTaskActionTransaction()` is reserved for idempotent, critical,
-        // work.
-        if (!options.withoutAddingAffinityPoints) {
-            for (const action of actions) {
-                if (action.type === "UpdateTask" && action.taskAction.type === "AddCollection") {
-                    context.process.waitUntil(
-                        markSearchAffinityInteraction(context, {
-                            spaceId,
-                            affinityId: `TaskCollection:${action.taskAction.collectionId}`,
-                            interaction: {type: "LowIntentUpdate"},
-                        }),
-                    );
-                }
-
-                if (
-                    action.type === "UpdateCollection" &&
-                    action.collectionAction.type === "Create"
-                ) {
-                    context.process.waitUntil(
-                        markSearchAffinityInteraction(context, {
-                            spaceId,
-                            affinityId: `TaskCollection:${action.collectionId}`,
-                            interaction: {type: "HighIntentUpdate"},
-                        }),
-                    );
-                }
-            }
-        }
 
         // Try and wait until the transaction is processed before returning to the
         // client. We only wait up to 100ms then let the transaction processing

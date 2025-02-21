@@ -23,6 +23,7 @@ import {
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
 import {
     addSearchAffinityActiveTaskAssigneePoints,
+    markSearchAffinityInteractionForAccount,
     removeSearchAffinityActiveTaskAssigneePoints,
 } from "~/server/search/data/table/search_entity_table.js";
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
@@ -52,6 +53,7 @@ import {
     TaskIndexDocType,
     TaskIndexSearchEntityJob,
     getTaskIndexDocDisplayStatus,
+    isTaskIndexDocDeleted,
 } from "~/server/tasks/data/task_index_doc.js";
 import {getTaskCollectionSearchResultIfExists} from "~/server/tasks/data/task_table.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -86,7 +88,6 @@ import {
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
@@ -790,10 +791,13 @@ class TaskActionTransactionIndexState {
                         }
                     }
 
-                    const oldDisplayStatus: TaskDisplayStatus = oldTask
-                        ? getTaskIndexDocDisplayStatus(oldTask)
-                        : "OpenInactive";
-                    const newDisplayStatus = getTaskIndexDocDisplayStatus(newTask);
+                    const oldIsActiveForAffinity =
+                        oldTask && !isTaskIndexDocDeleted(oldTask)
+                            ? getTaskIndexDocDisplayStatus(oldTask) === "OpenActive"
+                            : false;
+                    const newIsActiveForAffinity = !isTaskIndexDocDeleted(newTask)
+                        ? getTaskIndexDocDisplayStatus(newTask) === "OpenActive"
+                        : false;
 
                     // If the active status of the task changes then we want to add/remove affinity
                     // points. Setting a task as active will boost the task to the top of the
@@ -802,7 +806,7 @@ class TaskActionTransactionIndexState {
                     if (
                         oldTask?.assignee.value?.assignee.accountId !==
                             newTask.assignee.value?.assignee.accountId ||
-                        oldDisplayStatus !== newDisplayStatus
+                        oldIsActiveForAffinity !== newIsActiveForAffinity
                     ) {
                         if (
                             oldTask?.assignee.value?.assignee.accountId ===
@@ -810,10 +814,7 @@ class TaskActionTransactionIndexState {
                         ) {
                             const assigneeId = oldTask?.assignee.value?.assignee.accountId;
                             if (assigneeId) {
-                                if (
-                                    oldDisplayStatus === "OpenActive" &&
-                                    newDisplayStatus !== "OpenActive"
-                                ) {
+                                if (oldIsActiveForAffinity && !newIsActiveForAffinity) {
                                     afterWriteCallbacks.push(() =>
                                         removeSearchAffinityActiveTaskAssigneePoints(context, {
                                             spaceId,
@@ -823,10 +824,7 @@ class TaskActionTransactionIndexState {
                                     );
                                 }
 
-                                if (
-                                    oldDisplayStatus !== "OpenActive" &&
-                                    newDisplayStatus === "OpenActive"
-                                ) {
+                                if (!oldIsActiveForAffinity && newIsActiveForAffinity) {
                                     afterWriteCallbacks.push(() =>
                                         addSearchAffinityActiveTaskAssigneePoints(context, {
                                             spaceId,
@@ -840,7 +838,7 @@ class TaskActionTransactionIndexState {
                             const oldAssigneeId = oldTask?.assignee.value?.assignee.accountId;
                             const newAssigneeId = newTask?.assignee.value?.assignee.accountId;
 
-                            if (oldAssigneeId && oldDisplayStatus === "OpenActive") {
+                            if (oldAssigneeId && oldIsActiveForAffinity) {
                                 afterWriteCallbacks.push(() =>
                                     removeSearchAffinityActiveTaskAssigneePoints(context, {
                                         spaceId,
@@ -850,12 +848,33 @@ class TaskActionTransactionIndexState {
                                 );
                             }
 
-                            if (newAssigneeId && newDisplayStatus === "OpenActive") {
+                            if (newAssigneeId && newIsActiveForAffinity) {
                                 afterWriteCallbacks.push(() =>
                                     addSearchAffinityActiveTaskAssigneePoints(context, {
                                         spaceId,
                                         assigneeId: newAssigneeId,
                                         taskId: newTask.id,
+                                    }),
+                                );
+                            }
+                        }
+                    }
+
+                    // Record an affinity interaction whenever the task is added to a collection for
+                    // that collection. Whenever the user chooses a collection from the collections
+                    // dropdown we want the collection to rank higher for the next time the user
+                    // opens the collections dropdown.
+                    if (actorId !== null) {
+                        for (const [
+                            collectionId,
+                        ] of newTask.collections.raw.collections.entries()) {
+                            if (!oldTask?.collections.raw.collections.has(collectionId)) {
+                                afterWriteCallbacks.push(() =>
+                                    markSearchAffinityInteractionForAccount(context, {
+                                        spaceId,
+                                        accountId: actorId,
+                                        affinityId: `TaskCollection:${collectionId}`,
+                                        interaction: {type: "LowIntentUpdate"},
                                     }),
                                 );
                             }
@@ -934,6 +953,18 @@ class TaskActionTransactionIndexState {
                                 },
                             },
                         });
+                    }
+
+                    // Record affinity points when a collection is created.
+                    if (actorId !== null && !oldCollection) {
+                        afterWriteCallbacks.push(() =>
+                            markSearchAffinityInteractionForAccount(context, {
+                                spaceId,
+                                accountId: actorId,
+                                affinityId: `TaskCollection:${newCollection.id}`,
+                                interaction: {type: "HighIntentUpdate"},
+                            }),
+                        );
                     }
 
                     return new OpensearchIndexDocIfVersionCommand(

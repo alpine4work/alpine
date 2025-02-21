@@ -20,7 +20,6 @@ import {TaskCollectionView} from "~/client/tasks/task_collection_view.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/spaces_table.js";
 import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
 import {
@@ -155,17 +154,6 @@ export async function loader({request, params, context: unauthenticatedContext}:
             }
 
             await commitTaskActionTransaction(sessionContext, spaceId, actions);
-
-            // NOTE(calebmer): Normally affinity points for committing task actions is
-            // added on the client through the `affinityManager` object. Since we create
-            // the collection on the server here, we need to manually add affinity points.
-            sessionContext.process.waitUntil(
-                markSearchAffinityInteraction(sessionContext, {
-                    spaceId,
-                    affinityId: `TaskCollection:${collectionId}`,
-                    interaction: {type: "HighIntentUpdate"},
-                }),
-            );
         } catch (error) {
             if (!(error instanceof FailedPreconditionError)) {
                 throw error;
