@@ -527,7 +527,7 @@ function DocumentPresentationInstructionalConfirmationModal({
                                     }}
                                 >
                                     {renderSlide({
-                                        height: "10rem",
+                                        height: "10.5rem",
                                         content:
                                             documentPresentationInstructionalExampleContent.get()
                                                 .slideContents[0]!,
@@ -540,7 +540,7 @@ function DocumentPresentationInstructionalConfirmationModal({
                                     }}
                                 >
                                     {renderSlide({
-                                        height: "10rem",
+                                        height: "10.5rem",
                                         content:
                                             documentPresentationInstructionalExampleContent.get()
                                                 .slideContents[1]!,
@@ -553,7 +553,7 @@ function DocumentPresentationInstructionalConfirmationModal({
                                     }}
                                 >
                                     {renderSlide({
-                                        height: "10rem",
+                                        height: "10.5rem",
                                         content:
                                             documentPresentationInstructionalExampleContent.get()
                                                 .slideContents[2]!,
