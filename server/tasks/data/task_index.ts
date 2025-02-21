@@ -21,6 +21,10 @@ import {
     OpensearchIndexTypeType,
 } from "~/server/opensearch/opensearch_index_type.js";
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
+import {
+    addSearchAffinityActiveTaskAssigneePoints,
+    removeSearchAffinityActiveTaskAssigneePoints,
+} from "~/server/search/data/table/search_entity_table.js";
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
@@ -47,6 +51,7 @@ import {
     TaskIndexActualDoc,
     TaskIndexDocType,
     TaskIndexSearchEntityJob,
+    getTaskIndexDocDisplayStatus,
 } from "~/server/tasks/data/task_index_doc.js";
 import {getTaskCollectionSearchResultIfExists} from "~/server/tasks/data/task_table.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -81,6 +86,7 @@ import {
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
@@ -593,6 +599,7 @@ class TaskActionTransactionIndexState {
 
             const currentTime = new Date();
             const jobs: Array<{job: JobDescription; delaySeconds?: number}> = [];
+            const afterWriteCallbacks: Array<() => Promise<void>> = [];
 
             const commandPromises = concatIterables<
                 Promise<OpensearchBulkCommandBase<typeof TaskIndex | typeof TaskCollectionIndex>>
@@ -783,6 +790,78 @@ class TaskActionTransactionIndexState {
                         }
                     }
 
+                    const oldDisplayStatus: TaskDisplayStatus = oldTask
+                        ? getTaskIndexDocDisplayStatus(oldTask)
+                        : "OpenInactive";
+                    const newDisplayStatus = getTaskIndexDocDisplayStatus(newTask);
+
+                    // If the active status of the task changes then we want to add/remove affinity
+                    // points. Setting a task as active will boost the task to the top of the
+                    // account's affinity list. Removing the active status from the task will remove
+                    // that boost and take it out of the top of the affinity list.
+                    if (
+                        oldTask?.assignee.value?.assignee.accountId !==
+                            newTask.assignee.value?.assignee.accountId ||
+                        oldDisplayStatus !== newDisplayStatus
+                    ) {
+                        if (
+                            oldTask?.assignee.value?.assignee.accountId ===
+                            newTask?.assignee.value?.assignee.accountId
+                        ) {
+                            const assigneeId = oldTask?.assignee.value?.assignee.accountId;
+                            if (assigneeId) {
+                                if (
+                                    oldDisplayStatus === "OpenActive" &&
+                                    newDisplayStatus !== "OpenActive"
+                                ) {
+                                    afterWriteCallbacks.push(() =>
+                                        removeSearchAffinityActiveTaskAssigneePoints(context, {
+                                            spaceId,
+                                            assigneeId,
+                                            taskId: newTask.id,
+                                        }),
+                                    );
+                                }
+
+                                if (
+                                    oldDisplayStatus !== "OpenActive" &&
+                                    newDisplayStatus === "OpenActive"
+                                ) {
+                                    afterWriteCallbacks.push(() =>
+                                        addSearchAffinityActiveTaskAssigneePoints(context, {
+                                            spaceId,
+                                            assigneeId,
+                                            taskId: newTask.id,
+                                        }),
+                                    );
+                                }
+                            }
+                        } else {
+                            const oldAssigneeId = oldTask?.assignee.value?.assignee.accountId;
+                            const newAssigneeId = newTask?.assignee.value?.assignee.accountId;
+
+                            if (oldAssigneeId && oldDisplayStatus === "OpenActive") {
+                                afterWriteCallbacks.push(() =>
+                                    removeSearchAffinityActiveTaskAssigneePoints(context, {
+                                        spaceId,
+                                        assigneeId: oldAssigneeId,
+                                        taskId: newTask.id,
+                                    }),
+                                );
+                            }
+
+                            if (newAssigneeId && newDisplayStatus === "OpenActive") {
+                                afterWriteCallbacks.push(() =>
+                                    addSearchAffinityActiveTaskAssigneePoints(context, {
+                                        spaceId,
+                                        assigneeId: newAssigneeId,
+                                        taskId: newTask.id,
+                                    }),
+                                );
+                            }
+                        }
+                    }
+
                     return new OpensearchIndexDocIfVersionCommand(TaskIndex, spaceId, newTask);
                 }),
                 mapIterable(state._updatedCollectionIndexDocById.values(), async newCollection => {
@@ -877,6 +956,12 @@ class TaskActionTransactionIndexState {
                 // semantics.
                 state._context.jobs.send(job, {delaySeconds});
             }
+
+            // Wait for any registered callbacks to complete (e.g. callbacks that update
+            // search affinity for tasks marked as active).
+            await runAllPromises(
+                afterWriteCallbacks.map(afterWriteCallback => afterWriteCallback()),
+            );
 
             // After we've indexed our data, read all our referenced accounts again but
             // with a strong read consistency. If any referenced account name changed while

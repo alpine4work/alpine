@@ -1,5 +1,6 @@
 import {updateOurAccountName} from "~/server/accounts/update_name/update_our_account_name.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {internalGetSearchAffinities} from "~/server/search/data/table/search_entity_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -1793,4 +1794,88 @@ test("updates approximate action counts", async () => {
             [session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}],
         ]),
     );
+});
+
+test("updates search affinity for task when it's marked as active", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const task = await TestTask.create(session1);
+
+    const getTaskSearchAffinityPoints = async (session: TestSpaceSession) => {
+        const affinities = await internalGetSearchAffinities(session.action(), {
+            spaceId: space.id,
+            limit: 10,
+        });
+
+        return (
+            affinities.find(affinity => affinity.affinityId === `Task:${task.id}`)?.points ?? null
+        );
+    };
+
+    expect(await getTaskSearchAffinityPoints(session1)).toEqual(null);
+    expect(await getTaskSearchAffinityPoints(session2)).toEqual(null);
+
+    await task.updateAssigneeStatus(session1, "Active");
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getTaskSearchAffinityPoints(session1)).toEqual(null);
+    expect(await getTaskSearchAffinityPoints(session2)).toEqual(null);
+
+    await task.updateAssignee(session1, session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getTaskSearchAffinityPoints(session1)).toEqual(null);
+    expect(await getTaskSearchAffinityPoints(session2)).toEqual(null);
+
+    await task.updateAssigneeStatus(session1, "Active");
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getTaskSearchAffinityPoints(session1)).toBeCloseTo(150);
+    expect(await getTaskSearchAffinityPoints(session2)).toEqual(null);
+
+    await task.updateAssigneeStatus(session1, "Inactive");
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getTaskSearchAffinityPoints(session1)).toEqual(null);
+    expect(await getTaskSearchAffinityPoints(session2)).toEqual(null);
+
+    await task.updateAssigneeStatus(session1, "Active");
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getTaskSearchAffinityPoints(session1)).toBeCloseTo(150);
+    expect(await getTaskSearchAffinityPoints(session2)).toEqual(null);
+
+    await task.updateAssignee(session1, session2);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getTaskSearchAffinityPoints(session1)).toEqual(null);
+    expect(await getTaskSearchAffinityPoints(session2)).toEqual(null);
+
+    // Intentionally using `session1` as the actor here to test updating affinity
+    // on another account's behalf.
+    await task.updateAssigneeStatus(session1, "Active");
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getTaskSearchAffinityPoints(session1)).toEqual(null);
+    expect(await getTaskSearchAffinityPoints(session2)).toBeCloseTo(150);
+
+    await task.updateAssigneeStatus(session2, "Inactive");
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getTaskSearchAffinityPoints(session1)).toEqual(null);
+    expect(await getTaskSearchAffinityPoints(session2)).toEqual(null);
+
+    await task.updateAssigneeStatus(session2, "Active");
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getTaskSearchAffinityPoints(session1)).toEqual(null);
+    expect(await getTaskSearchAffinityPoints(session2)).toBeCloseTo(150);
+
+    await task.updateAssignee(session1, session1, {assigneeStatus: "Active"});
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getTaskSearchAffinityPoints(session1)).toBeCloseTo(150);
+    expect(await getTaskSearchAffinityPoints(session2)).toEqual(null);
 });

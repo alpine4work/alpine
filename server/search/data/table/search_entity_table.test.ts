@@ -2,16 +2,20 @@ import {addDays} from "date-fns";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
+    addSearchAffinityActiveTaskAssigneePoints,
     getCurrentSearchAffinityPoints,
     getSearchAffinitiesEarlyReturnTestCounter,
-    internalGetSearchAffinities as getSearchAffinitiveIds,
     getSearchAffinityExpirationDuration,
     getSearchAffinityPointsBucket,
     getSearchEntityTableForTest,
+    internalGetSearchAffinities,
+    markSearchAffinityInteraction,
     monthDurationMs,
+    removeSearchAffinityActiveTaskAssigneePoints,
     searchAffinityQueryPageLimit,
 } from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -154,6 +158,97 @@ test("can determine when search entity account affinity points will expire", () 
     expect(Math.ceil(getSearchAffinityExpirationDuration(0.1353352832366127))).toEqual(2580938054);
 });
 
+// This tests the core idea behind `addSearchAffinityActiveTaskAssigneePoints()`
+// and `removeSearchAffinityActiveTaskAssigneePoints()` without calling them
+// directly. We should be able to add some large point boost when the task
+// becomes active then later remove that point boost and it'll be as if we
+// never added the point boost in the first place.
+test("can increment by some point value and decrement by the decayed point value later", () => {
+    const time1 = new Date();
+    const time2 = addDays(time1, 10);
+    const time3 = addDays(time2, 10);
+    const time4 = addDays(time3, 10);
+
+    const points1 = 30;
+
+    const points2a = getCurrentSearchAffinityPoints(time2.getTime(), {
+        points: points1,
+        lastUpdatedTime: time1.getTime(),
+    });
+
+    const points3a = getCurrentSearchAffinityPoints(time3.getTime(), {
+        points: points1,
+        lastUpdatedTime: time1.getTime(),
+    });
+
+    const points4a = getCurrentSearchAffinityPoints(time4.getTime(), {
+        points: points1,
+        lastUpdatedTime: time1.getTime(),
+    });
+
+    expect(points2a).toEqual(11.03638323514327);
+    expect(points3a).toEqual(4.060058497098381);
+    expect(points4a).toEqual(1.4936120510359183);
+
+    const points2bIncrement = 100;
+    const points2b = points2a + points2bIncrement;
+
+    const points3b = getCurrentSearchAffinityPoints(time3.getTime(), {
+        points: points2b,
+        lastUpdatedTime: time2.getTime(),
+    });
+
+    const points4b = getCurrentSearchAffinityPoints(time4.getTime(), {
+        points: points2b,
+        lastUpdatedTime: time2.getTime(),
+    });
+
+    expect(points3b).toEqual(40.84800261424261);
+    expect(points4b).toEqual(15.027140374697188);
+
+    const points3cDecrement = getCurrentSearchAffinityPoints(time3.getTime(), {
+        points: points2bIncrement,
+        lastUpdatedTime: time2.getTime(),
+    });
+
+    const points3c = points3b - points3cDecrement;
+
+    expect(points3cDecrement).toEqual(36.787944117144235);
+    expect(points3c).toBeCloseTo(points3a, 10);
+
+    // Test that we get the same value calling `getCurrentSearchAffinityPoints()`
+    // with already decayed values.
+    {
+        expect(
+            getCurrentSearchAffinityPoints(time3.getTime(), {
+                points: points2a,
+                lastUpdatedTime: time2.getTime(),
+            }),
+        ).toBeCloseTo(points3a, 10);
+
+        expect(
+            getCurrentSearchAffinityPoints(time4.getTime(), {
+                points: points2a,
+                lastUpdatedTime: time2.getTime(),
+            }),
+        ).toBeCloseTo(points4a, 10);
+
+        expect(
+            getCurrentSearchAffinityPoints(time4.getTime(), {
+                points: points3a,
+                lastUpdatedTime: time3.getTime(),
+            }),
+        ).toBeCloseTo(points4a, 10);
+
+        expect(
+            getCurrentSearchAffinityPoints(time4.getTime(), {
+                points: points3b,
+                lastUpdatedTime: time3.getTime(),
+            }),
+        ).toBeCloseTo(points4b, 10);
+    }
+});
+
 test("can't read affinitive items for the wrong space", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -257,18 +352,18 @@ test("can't read affinitive items for the wrong space", async () => {
     );
 
     await expect(
-        getSearchAffinitiveIds(otherSession.action(), {spaceId: space.id, limit: 10}),
+        internalGetSearchAffinities(otherSession.action(), {spaceId: space.id, limit: 10}),
     ).rejects.toThrow(PermissionDeniedError);
 
     expect(
-        (await getSearchAffinitiveIds(session.action(), {spaceId: space.id, limit: 10})).map(
+        (await internalGetSearchAffinities(session.action(), {spaceId: space.id, limit: 10})).map(
             ({affinityId}) => affinityId,
         ),
     ).toEqual(documents.slice(0, 10).map(document => `Document:${document.id}`));
 
     expect(
         (
-            await getSearchAffinitiveIds(otherSession.action(), {
+            await internalGetSearchAffinities(otherSession.action(), {
                 spaceId: otherSpace.id,
                 limit: 10,
             })
@@ -277,7 +372,7 @@ test("can't read affinitive items for the wrong space", async () => {
 
     expect(
         (
-            await getSearchAffinitiveIds(session.action(), {
+            await internalGetSearchAffinities(session.action(), {
                 spaceId: otherSpace.id,
                 limit: 10,
             })
@@ -360,32 +455,32 @@ test(
         expect(getCount()).toEqual(0);
 
         expect(
-            (await getSearchAffinitiveIds(session.action(), {spaceId: space.id, limit: 10})).map(
-                ({affinityId}) => affinityId,
-            ),
+            (
+                await internalGetSearchAffinities(session.action(), {spaceId: space.id, limit: 10})
+            ).map(({affinityId}) => affinityId),
         ).toEqual(documents.slice(0, 10).map(document => `Document:${document.id}`));
 
         expect(getCount()).toEqual(1);
 
         expect(
-            (await getSearchAffinitiveIds(session.action(), {spaceId: space.id, limit: 20})).map(
-                ({affinityId}) => affinityId,
-            ),
+            (
+                await internalGetSearchAffinities(session.action(), {spaceId: space.id, limit: 20})
+            ).map(({affinityId}) => affinityId),
         ).toEqual(documents.slice(0, 20).map(document => `Document:${document.id}`));
 
         expect(getCount()).toEqual(2);
 
         expect(
-            (await getSearchAffinitiveIds(session.action(), {spaceId: space.id, limit: 30})).map(
-                ({affinityId}) => affinityId,
-            ),
+            (
+                await internalGetSearchAffinities(session.action(), {spaceId: space.id, limit: 30})
+            ).map(({affinityId}) => affinityId),
         ).toEqual(documents.slice(0, 30).map(document => `Document:${document.id}`));
 
         expect(getCount()).toEqual(3);
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: searchAffinityQueryPageLimit,
                 })
@@ -400,7 +495,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: searchAffinityQueryPageLimit + 10,
                 })
@@ -415,7 +510,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: searchAffinityQueryPageLimit + 20,
                 })
@@ -430,7 +525,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: searchAffinityQueryPageLimit * 2,
                 })
@@ -445,7 +540,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: searchAffinityQueryPageLimit * 2 + 10,
                 })
@@ -460,7 +555,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: searchAffinityQueryPageLimit * 2 + 20,
                 })
@@ -475,7 +570,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: documents.length,
                 })
@@ -486,7 +581,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: documents.length + 10,
                 })
@@ -569,32 +664,32 @@ test(
         expect(getCount()).toEqual(0);
 
         expect(
-            (await getSearchAffinitiveIds(session.action(), {spaceId: space.id, limit: 10})).map(
-                ({affinityId}) => affinityId,
-            ),
+            (
+                await internalGetSearchAffinities(session.action(), {spaceId: space.id, limit: 10})
+            ).map(({affinityId}) => affinityId),
         ).toEqual(documents.slice(0, 10).map(document => `Document:${document.id}`));
 
         expect(getCount()).toEqual(1);
 
         expect(
-            (await getSearchAffinitiveIds(session.action(), {spaceId: space.id, limit: 20})).map(
-                ({affinityId}) => affinityId,
-            ),
+            (
+                await internalGetSearchAffinities(session.action(), {spaceId: space.id, limit: 20})
+            ).map(({affinityId}) => affinityId),
         ).toEqual(documents.slice(0, 20).map(document => `Document:${document.id}`));
 
         expect(getCount()).toEqual(2);
 
         expect(
-            (await getSearchAffinitiveIds(session.action(), {spaceId: space.id, limit: 30})).map(
-                ({affinityId}) => affinityId,
-            ),
+            (
+                await internalGetSearchAffinities(session.action(), {spaceId: space.id, limit: 30})
+            ).map(({affinityId}) => affinityId),
         ).toEqual(documents.slice(0, 30).map(document => `Document:${document.id}`));
 
         expect(getCount()).toEqual(3);
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: searchAffinityQueryPageLimit,
                 })
@@ -609,7 +704,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: searchAffinityQueryPageLimit + 10,
                 })
@@ -624,7 +719,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: searchAffinityQueryPageLimit + 20,
                 })
@@ -639,7 +734,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: searchAffinityQueryPageLimit * 2,
                 })
@@ -654,7 +749,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: searchAffinityQueryPageLimit * 2 + 10,
                 })
@@ -669,7 +764,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: searchAffinityQueryPageLimit * 2 + 20,
                 })
@@ -684,7 +779,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: documents.length,
                 })
@@ -695,7 +790,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: documents.length + 10,
                 })
@@ -765,32 +860,32 @@ test(
         expect(getCount()).toEqual(0);
 
         expect(
-            (await getSearchAffinitiveIds(session.action(), {spaceId: space.id, limit: 10})).map(
-                ({affinityId}) => affinityId,
-            ),
+            (
+                await internalGetSearchAffinities(session.action(), {spaceId: space.id, limit: 10})
+            ).map(({affinityId}) => affinityId),
         ).toEqual(documents.slice(0, 10).map(document => `Document:${document.id}`));
 
         expect(getCount()).toEqual(1);
 
         expect(
-            (await getSearchAffinitiveIds(session.action(), {spaceId: space.id, limit: 20})).map(
-                ({affinityId}) => affinityId,
-            ),
+            (
+                await internalGetSearchAffinities(session.action(), {spaceId: space.id, limit: 20})
+            ).map(({affinityId}) => affinityId),
         ).toEqual(documents.slice(0, 20).map(document => `Document:${document.id}`));
 
         expect(getCount()).toEqual(2);
 
         expect(
-            (await getSearchAffinitiveIds(session.action(), {spaceId: space.id, limit: 30})).map(
-                ({affinityId}) => affinityId,
-            ),
+            (
+                await internalGetSearchAffinities(session.action(), {spaceId: space.id, limit: 30})
+            ).map(({affinityId}) => affinityId),
         ).toEqual(documents.slice(0, 30).map(document => `Document:${document.id}`));
 
         expect(getCount()).toEqual(3);
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: searchAffinityQueryPageLimit,
                 })
@@ -805,7 +900,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: searchAffinityQueryPageLimit + 10,
                 })
@@ -820,7 +915,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: searchAffinityQueryPageLimit + 20,
                 })
@@ -835,7 +930,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: searchAffinityQueryPageLimit * 2,
                 })
@@ -850,7 +945,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: searchAffinityQueryPageLimit * 2 + 10,
                 })
@@ -865,7 +960,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: searchAffinityQueryPageLimit * 2 + 20,
                 })
@@ -880,7 +975,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: documents.length,
                 })
@@ -891,7 +986,7 @@ test(
 
         expect(
             (
-                await getSearchAffinitiveIds(session.action(), {
+                await internalGetSearchAffinities(session.action(), {
                     spaceId: space.id,
                     limit: documents.length + 10,
                 })
@@ -903,3 +998,259 @@ test(
     // 2min timeout for this test
     1000 * 60 * 2,
 );
+
+test("can add, remove, and add again search affinity task assignee points", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const task = await TestTask.create(session);
+
+    const getTaskSearchAffinityPoints = async () => {
+        const affinities = await internalGetSearchAffinities(session.action(), {
+            spaceId: space.id,
+            limit: 10,
+        });
+
+        return (
+            affinities.find(affinity => affinity.affinityId === `Task:${task.id}`)?.points ?? null
+        );
+    };
+
+    expect(await getTaskSearchAffinityPoints()).toEqual(null);
+
+    await addSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(150);
+
+    await addSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(150);
+
+    await addSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(150);
+
+    await removeSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toEqual(null);
+
+    await removeSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toEqual(null);
+
+    await removeSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toEqual(null);
+
+    await addSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(150);
+
+    await addSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(150);
+
+    await addSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(150);
+});
+
+test("can add, remove, and add again search affinity task assignee points to a task that already has some affinity points", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const task = await TestTask.create(session);
+
+    const getTaskSearchAffinityPoints = async () => {
+        const affinities = await internalGetSearchAffinities(session.action(), {
+            spaceId: space.id,
+            limit: 10,
+        });
+
+        return (
+            affinities.find(affinity => affinity.affinityId === `Task:${task.id}`)?.points ?? null
+        );
+    };
+
+    expect(await getTaskSearchAffinityPoints()).toEqual(null);
+
+    await markSearchAffinityInteraction(session.action(), {
+        spaceId: space.id,
+        affinityId: `Task:${task.id}`,
+        interaction: {type: "MediumIntentUpdate"},
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(1);
+
+    await markSearchAffinityInteraction(session.action(), {
+        spaceId: space.id,
+        affinityId: `Task:${task.id}`,
+        interaction: {type: "MediumIntentUpdate"},
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(2);
+
+    await markSearchAffinityInteraction(session.action(), {
+        spaceId: space.id,
+        affinityId: `Task:${task.id}`,
+        interaction: {type: "MediumIntentUpdate"},
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(3);
+
+    await addSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(153);
+
+    await addSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(153);
+
+    await addSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(153);
+
+    await removeSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(3);
+
+    await removeSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(3);
+
+    await removeSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(3);
+
+    await addSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(153);
+
+    await addSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(153);
+
+    await addSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(153);
+
+    await markSearchAffinityInteraction(session.action(), {
+        spaceId: space.id,
+        affinityId: `Task:${task.id}`,
+        interaction: {type: "MediumIntentUpdate"},
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(154);
+
+    await markSearchAffinityInteraction(session.action(), {
+        spaceId: space.id,
+        affinityId: `Task:${task.id}`,
+        interaction: {type: "MediumIntentUpdate"},
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(155);
+
+    await markSearchAffinityInteraction(session.action(), {
+        spaceId: space.id,
+        affinityId: `Task:${task.id}`,
+        interaction: {type: "MediumIntentUpdate"},
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(156);
+
+    await removeSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(6);
+
+    await removeSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(6);
+
+    await removeSearchAffinityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: session.account.id,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toBeCloseTo(6);
+});
