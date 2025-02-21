@@ -426,6 +426,10 @@ function SearchResultMediaView({media}: {media: SearchResultMedia}) {
             // the standard media space.
             return null;
         }
+        case "TaskDisplayStatus": {
+            // NOCOMMIT
+            return null;
+        }
         default:
             throw exhaustive(media);
     }

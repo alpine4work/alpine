@@ -1579,8 +1579,9 @@ async function prepareSearchEntityMediaForResult(
                 accountCount: accountIds.length,
             };
         }
-        case "TaskCollectionColor": {
-            return {type: "TaskCollectionColor", color: media.color};
+        case "TaskCollectionColor":
+        case "TaskDisplayStatus": {
+            return media;
         }
         default:
             throw exhaustive(media);
