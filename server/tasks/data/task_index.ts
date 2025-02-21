@@ -864,6 +864,12 @@ class TaskActionTransactionIndexState {
                     // that collection. Whenever the user chooses a collection from the collections
                     // dropdown we want the collection to rank higher for the next time the user
                     // opens the collections dropdown.
+                    //
+                    // TODO(calebmer): What happens if we need to reindex OpenSearch from scratch?
+                    // Or there's an OpenSearch durability issue and we need to reindex some
+                    // actions? Since marking search affinity interactions isn't idempotent we may
+                    // end up adding more points than expected. Consider adding a flag to disable
+                    // affinity updates when reindexing OpenSearch from scratch.
                     if (actorId !== null) {
                         for (const [
                             collectionId,
@@ -956,6 +962,12 @@ class TaskActionTransactionIndexState {
                     }
 
                     // Record affinity points when a collection is created.
+                    //
+                    // TODO(calebmer): What happens if we need to reindex OpenSearch from scratch?
+                    // Or there's an OpenSearch durability issue and we need to reindex some
+                    // actions? Since marking search affinity interactions isn't idempotent we may
+                    // end up adding more points than expected. Consider adding a flag to disable
+                    // affinity updates when reindexing OpenSearch from scratch.
                     if (actorId !== null && !oldCollection) {
                         afterWriteCallbacks.push(() =>
                             markSearchAffinityInteractionForAccount(context, {
