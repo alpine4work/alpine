@@ -1557,36 +1557,22 @@ export function DocumentContentEditor({
                           ],
                       ]
                     : emptyArray),
-                ...(platform !== "mobile" &&
-                (process.env.NODE_ENV !== "production" ||
-                    spaceId === alpineCompanyKnownSpaceId ||
-                    spaceId === escapeStudiosKnownSpaceId)
+                ...(platform !== "mobile"
                     ? [
                           [
                               cast<MenuAction>({
                                   label: "Present",
                                   icon: <LecturnIcon />,
                                   iconPlacement: "end",
-                                  pressErrorTitle: "Couldn’t present document",
-                                  onPress: async () => {
-                                      await assertExists(
-                                          presentationControllerRef.current,
-                                      ).present();
+                                  onPress: () => {
+                                      assertExists(presentationControllerRef.current).present();
                                   },
                               }),
                           ],
                       ]
                     : []),
             ],
-            [
-                accessLevel,
-                isAppleDevice,
-                isRedoDisabled,
-                isUndoDisabled,
-                onCopyLink,
-                platform,
-                spaceId,
-            ],
+            [accessLevel, isAppleDevice, isRedoDisabled, isUndoDisabled, onCopyLink, platform],
         ),
         // Don't render the share button if the account doesn't have space access. They
         // won't be allowed to see the names of accounts in the share dialog.

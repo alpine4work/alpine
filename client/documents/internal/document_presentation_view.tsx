@@ -17,7 +17,6 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 //
 // - Presentation instructional modal
 // - Presentation button
-// - Open to slide we've currently scrolled to
 
 export function DocumentPresentationView({
     slides,

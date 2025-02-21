@@ -9,7 +9,7 @@ import {useReporter} from "~/client/design/reporter.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {sprinkles} from "~/client/styles/styles.js";
-import {parseRemLength} from "~/shared/design/core/spacing.js";
+import {RemLength, parseRemLength} from "~/shared/design/core/spacing.js";
 import {ErrorBase, InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -37,6 +37,12 @@ import {lerp} from "~/shared/helpers/number/lerp.js";
 // since we should never server-side render `<ModalDialog>`.
 const ActualModalDialog = NativeMobileBridge ? ModalDialogNativeMobile : ModalDialog;
 export {ActualModalDialog as ModalDialog};
+
+export const modalDialogMaxWidth: RemLength = `${lerp(
+    parseRemLength("96"),
+    parseRemLength("128"),
+    0.5,
+)}rem`;
 
 function ModalDialog({
     title,
@@ -88,7 +94,7 @@ function ModalDialog({
             cancelButtonPressErrorTitle={cancelButtonPressErrorTitle}
             onCancelButtonPress={onCancelButtonPress}
             shouldHideCancelButton={shouldHideCancelButton}
-            maxWidth={`${lerp(parseRemLength("96"), parseRemLength("128"), 0.5)}rem`}
+            maxWidth={modalDialogMaxWidth}
             buttonsPaddingX="7"
             buttonsPaddingBottom="5"
             // Improve focus on the dialog's content by not showing a close button. A modal
