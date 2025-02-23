@@ -1726,6 +1726,7 @@ function VirtualizedScrollView(
                     // which prevents rendering for a bit.
                     if (scrollElement.scrollTop !== scrollOffset) {
                         isScrollToIndexEventRef.current = true;
+                        lastScrollTopRef.current = scrollOffset;
                         scrollElement.scrollTop = scrollOffset;
                     }
                 });
