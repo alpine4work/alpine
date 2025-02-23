@@ -24,7 +24,6 @@ import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {Modal} from "~/client/design/modal.js";
 import {useReporter} from "~/client/design/reporter.js";
-import {Spacer} from "~/client/design/spacer.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
@@ -362,21 +361,17 @@ export function SearchModal({
                                         </Box>
                                     ) : !output.results ? (
                                         <Box width="full">
-                                            <Spacer space="1" />
+                                            <Box
+                                                width="full"
+                                                style={{height: `calc(${spacing["1"]} + 1px)`}}
+                                            />
                                             <SearchResultShimmer titleWidth="64" />
-                                            <SearchResultShimmer
-                                                titleWidth="32"
-                                                bodySnippetRagRight="6"
-                                            />
-                                            <SearchResultShimmer
-                                                titleWidth="48"
-                                                bodySnippetRagRight="4"
-                                            />
+                                            <SearchResultShimmer titleWidth="32" />
+                                            <SearchResultShimmer titleWidth="48" />
                                             <SearchResultShimmer titleWidth="96" />
-                                            <SearchResultShimmer
-                                                titleWidth="64"
-                                                bodySnippetRagRight="5"
-                                            />
+                                            <SearchResultShimmer titleWidth="64" />
+                                            <SearchResultShimmer titleWidth="48" />
+                                            <SearchResultShimmer titleWidth="96" />
                                         </Box>
                                     ) : output.results.length === 0 ? (
                                         <Box

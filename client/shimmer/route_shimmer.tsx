@@ -1415,31 +1415,13 @@ function SearchRouteShimmer() {
                 <Box height={searchMobileInputMarginBottom} />
                 <Box height="1" />
             </Box>
-            <SearchResultShimmer
-                withBorderTop
-                paddingX={screenPaddingX}
-                marginX="0"
-                titleWidth="64"
-            />
-            <SearchResultShimmer
-                paddingX={screenPaddingX}
-                marginX="0"
-                titleWidth="32"
-                bodySnippetRagRight="6"
-            />
-            <SearchResultShimmer
-                paddingX={screenPaddingX}
-                marginX="0"
-                titleWidth="48"
-                bodySnippetRagRight="4"
-            />
+            <SearchResultShimmer paddingX={screenPaddingX} marginX="0" titleWidth="64" />
+            <SearchResultShimmer paddingX={screenPaddingX} marginX="0" titleWidth="32" />
+            <SearchResultShimmer paddingX={screenPaddingX} marginX="0" titleWidth="48" />
             <SearchResultShimmer paddingX={screenPaddingX} marginX="0" titleWidth="96" />
-            <SearchResultShimmer
-                paddingX={screenPaddingX}
-                marginX="0"
-                titleWidth="64"
-                bodySnippetRagRight="5"
-            />
+            <SearchResultShimmer paddingX={screenPaddingX} marginX="0" titleWidth="64" />
+            <SearchResultShimmer paddingX={screenPaddingX} marginX="0" titleWidth="48" />
+            <SearchResultShimmer paddingX={screenPaddingX} marginX="0" titleWidth="96" />
         </Box>
     );
 }

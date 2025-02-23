@@ -1,28 +1,28 @@
 import {Box} from "~/client/design/box.js";
-import {Spacer} from "~/client/design/spacer.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {
-    searchResultViewBodyTextSnippetFontSize,
+    minSearchResultViewHeightPx,
+    searchResultViewMediaSize,
     searchResultViewPaddingY,
     searchResultViewTitleFontSize,
-    searchResultViewTitleMarginBottom,
 } from "~/client/styles/search_shared_styles.js";
-import {Sprinkles, colorSchemeVars, contentStyles, fontSizes} from "~/client/styles/styles.js";
+import {
+    Sprinkles,
+    contentStyles,
+    fontSizes,
+    pulseAnimationClassName,
+} from "~/client/styles/styles.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
 
 export function SearchResultShimmer({
     marginX = "1",
-    paddingX = "4",
-    withBorderTop = false,
+    paddingX = "2.5",
     titleWidth,
-    bodySnippetRagRight,
 }: {
     marginX?: Spacing;
     paddingX?: Sprinkles["paddingX"];
-    withBorderTop?: boolean;
     titleWidth: Spacing | "full";
-    bodySnippetRagRight?: Spacing;
 }) {
     const spacingScale = useSpacingScale();
 
@@ -31,40 +31,33 @@ export function SearchResultShimmer({
             <Box paddingX={paddingX}>
                 <Box
                     paddingY={searchResultViewPaddingY}
-                    style={{
-                        // Draw border with a `box-shadow` instead of `border` so it doesn't contribute
-                        // 1px to layout. Layout needs to be precise since this is rendered in a
-                        // virtualized list.
-                        boxShadow: [
-                            `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
-                            ...(withBorderTop
-                                ? [`inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`]
-                                : []),
-                        ].join(", "),
-                    }}
+                    style={{minHeight: minSearchResultViewHeightPx[spacingScale]}}
                 >
-                    <Box display="flex" gap="2.5">
-                        <TextShimmer
-                            fontSize={{
-                                fontSize: fontSizes[searchResultViewTitleFontSize].fontSize,
-                                lineHeight: `${contentStyles.paragraphLineHeightPx[spacingScale]}px`,
-                            }}
-                            width="3"
-                        />
+                    <Box display="flex" alignItems="center" gap="1.5">
+                        <Box
+                            width={searchResultViewMediaSize}
+                            height={searchResultViewMediaSize}
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="center"
+                        >
+                            <Box
+                                className={pulseAnimationClassName}
+                                width="3"
+                                height="3"
+                                backgroundColor="grey-5"
+                                borderRadius="full"
+                            />
+                        </Box>
                         <TextShimmer
                             fontSize={{
                                 fontSize: fontSizes[searchResultViewTitleFontSize].fontSize,
                                 lineHeight: `${contentStyles.paragraphLineHeightPx[spacingScale]}px`,
                             }}
                             width={titleWidth}
+                            ragRight="random"
                         />
                     </Box>
-                    <Spacer space={searchResultViewTitleMarginBottom} />
-                    <TextShimmer
-                        fontSize={searchResultViewBodyTextSnippetFontSize}
-                        width="32"
-                        ragRight={bodySnippetRagRight}
-                    />
                 </Box>
             </Box>
         </Box>
