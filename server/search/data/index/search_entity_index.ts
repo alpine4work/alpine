@@ -73,7 +73,6 @@ import {
     printContentSingleLineTextSnippetPreservingMarks,
 } from "~/shared/content/print_content_single_line_text_snippet.js";
 import {Context} from "~/shared/context/context.js";
-import {formatPrettyRelativeDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_relative_date_without_full_time_tooltip.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
@@ -1658,11 +1657,9 @@ export async function getSearchEntitiesTitleAndMediaIfExist(
  */
 export async function searchByAffinity(
     context: SearchSessionActionContext,
-    {spaceId, limit, timeZone}: {spaceId: SpaceId; limit: number; timeZone: TimeZone},
+    {spaceId, limit}: {spaceId: SpaceId; limit: number},
 ): Promise<{results: Array<SearchResult>}> {
     await authorizeSpaceAccess(context, spaceId);
-
-    const currentTime = new Date();
 
     const affinities = await internalGetSearchAffinities(context, {spaceId, limit});
 
@@ -1689,82 +1686,63 @@ export async function searchByAffinity(
     });
 
     const results = await runAllPromises(
-        entities.map(
-            async ({affinityId, points, lastViewedTime}, i): Promise<SearchResult | null> => {
-                const bodyTextSnippet = [
-                    {
-                        isHighlighted: false,
-                        text: lastViewedTime
-                            ? `Last opened ${formatPrettyRelativeDateWithoutFullTimeTooltip(
-                                  timeZone,
-                                  currentTime,
-                                  lastViewedTime,
-                                  "Days",
-                              )}`
-                            : "Never opened",
-                    },
-                ];
+        entities.map(async ({affinityId, points}, i): Promise<SearchResult | null> => {
+            const entityTitleAndMedia = entitiesTitleAndMedia[i]!;
+            if (typeof entityTitleAndMedia === "string") {
+                const affinityIdObject = parseSearchEntityId(affinityId);
 
-                const entityTitleAndMedia = entitiesTitleAndMedia[i]!;
-                if (typeof entityTitleAndMedia === "string") {
-                    const affinityIdObject = parseSearchEntityId(affinityId);
-
-                    // If we couldn't find a document search entity that might be because the
-                    // document hasn't been indexed in OpenSearch yet. Document indexing is
-                    // throttled since updates to a document happen many times per minute (even once
-                    // per keystroke). That means right after a document is created it won't show up
-                    // in the OpenSearch index until the throttled indexing job runs (10s throttle +
-                    // indexing time).
-                    //
-                    // Instead of not showing the document to the user in their search affinity list
-                    // (which would be a very bad UX since how else will the user find documents
-                    // they just created but accidentally closed?) we read the document from
-                    // DynamoDB (where the document will definitely exist) if the document is not
-                    // found in the OpenSearch index.
-                    //
-                    // If the document was found in the OpenSearch index but its access policy
-                    // doesn't allow us to read it then `entityTitleAndMedia` will be
-                    // `PermissionDenied` instead of `NotFound`.
-                    if (
-                        entityTitleAndMedia === "NotFound" &&
-                        affinityIdObject.type === "Document"
-                    ) {
-                        const documentResult = await getDocumentPreviewIfPossible(
-                            context,
-                            affinityIdObject.documentId,
-                        );
-                        if (documentResult?.ok) {
-                            return {
-                                id: affinityId,
-                                score: points,
-                                title: documentResult.value.getTitle(),
-                                bodyTextSnippet,
-                                media: null,
-                            };
-                        }
+                // If we couldn't find a document search entity that might be because the
+                // document hasn't been indexed in OpenSearch yet. Document indexing is
+                // throttled since updates to a document happen many times per minute (even once
+                // per keystroke). That means right after a document is created it won't show up
+                // in the OpenSearch index until the throttled indexing job runs (10s throttle +
+                // indexing time).
+                //
+                // Instead of not showing the document to the user in their search affinity list
+                // (which would be a very bad UX since how else will the user find documents
+                // they just created but accidentally closed?) we read the document from
+                // DynamoDB (where the document will definitely exist) if the document is not
+                // found in the OpenSearch index.
+                //
+                // If the document was found in the OpenSearch index but its access policy
+                // doesn't allow us to read it then `entityTitleAndMedia` will be
+                // `PermissionDenied` instead of `NotFound`.
+                if (entityTitleAndMedia === "NotFound" && affinityIdObject.type === "Document") {
+                    const documentResult = await getDocumentPreviewIfPossible(
+                        context,
+                        affinityIdObject.documentId,
+                    );
+                    if (documentResult?.ok) {
+                        return {
+                            id: affinityId,
+                            score: points,
+                            title: documentResult.value.getTitle(),
+                            bodyTextSnippet: [],
+                            media: null,
+                        };
                     }
-
-                    return null;
                 }
 
-                const media = entityTitleAndMedia.media
-                    ? await prepareSearchEntityMediaForResult(
-                          context,
-                          spaceId,
-                          affinityId,
-                          entityTitleAndMedia.media,
-                      )
-                    : null;
+                return null;
+            }
 
-                return {
-                    id: affinityId,
-                    score: points,
-                    title: entityTitleAndMedia.title,
-                    bodyTextSnippet,
-                    media,
-                };
-            },
-        ),
+            const media = entityTitleAndMedia.media
+                ? await prepareSearchEntityMediaForResult(
+                      context,
+                      spaceId,
+                      affinityId,
+                      entityTitleAndMedia.media,
+                  )
+                : null;
+
+            return {
+                id: affinityId,
+                score: points,
+                title: entityTitleAndMedia.title,
+                bodyTextSnippet: [],
+                media,
+            };
+        }),
     );
 
     // Add back the task notepad item. We don't have to load it from
@@ -1772,25 +1750,11 @@ export async function searchByAffinity(
     if (taskNotepadAffinityIndex !== null) {
         const affinity = affinities[taskNotepadAffinityIndex]!;
 
-        const bodyTextSnippet = [
-            {
-                isHighlighted: false,
-                text: affinity.lastViewedTime
-                    ? `Last opened ${formatPrettyRelativeDateWithoutFullTimeTooltip(
-                          timeZone,
-                          currentTime,
-                          affinity.lastViewedTime,
-                          "Days",
-                      )}`
-                    : "Never opened",
-            },
-        ];
-
         results.splice(taskNotepadAffinityIndex, 0, {
             id: "TaskNotepad",
             score: affinity.points,
             title: "Task notepad",
-            bodyTextSnippet,
+            bodyTextSnippet: [],
             media: null,
         });
     }
