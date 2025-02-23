@@ -1,15 +1,13 @@
 import {Box} from "~/client/design/box.js";
 import {Spacer} from "~/client/design/spacer.js";
-import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {
     searchResultViewBodyTextSnippetFontSize,
     searchResultViewPaddingY,
     searchResultViewTitleFontSize,
-    searchResultViewTitleLineHeightPx,
     searchResultViewTitleMarginBottom,
 } from "~/client/styles/search_shared_styles.js";
-import {Sprinkles, colorSchemeVars, fontSizes} from "~/client/styles/styles.js";
+import {Sprinkles, colorSchemeVars} from "~/client/styles/styles.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
 
 export function SearchResultShimmer({
@@ -25,8 +23,6 @@ export function SearchResultShimmer({
     titleWidth: Spacing | "full";
     bodySnippetRagRight?: Spacing;
 }) {
-    const spacingScale = useSpacingScale();
-
     return (
         <Box paddingX={marginX}>
             <Box paddingX={paddingX}>
@@ -45,20 +41,8 @@ export function SearchResultShimmer({
                     }}
                 >
                     <Box display="flex" gap="2.5">
-                        <TextShimmer
-                            fontSize={{
-                                fontSize: fontSizes[searchResultViewTitleFontSize].fontSize,
-                                lineHeight: `${searchResultViewTitleLineHeightPx[spacingScale]}px`,
-                            }}
-                            width="3"
-                        />
-                        <TextShimmer
-                            fontSize={{
-                                fontSize: fontSizes[searchResultViewTitleFontSize].fontSize,
-                                lineHeight: `${searchResultViewTitleLineHeightPx[spacingScale]}px`,
-                            }}
-                            width={titleWidth}
-                        />
+                        <TextShimmer fontSize={searchResultViewTitleFontSize} width="3" />
+                        <TextShimmer fontSize={searchResultViewTitleFontSize} width={titleWidth} />
                     </Box>
                     <Spacer space={searchResultViewTitleMarginBottom} />
                     <TextShimmer

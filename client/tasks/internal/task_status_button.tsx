@@ -2,7 +2,6 @@ import {KeyboardEvent, Ref, forwardRef, useRef} from "react";
 import {mergeProps, useButton} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {TaskDisplayStatusCircle} from "~/client/design/task_display_status_circle.js";
 import {touchSlopBySpacing} from "~/client/design/use_touch_slop.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -15,6 +14,7 @@ import {
     TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/core/task_client_store.js";
+import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";

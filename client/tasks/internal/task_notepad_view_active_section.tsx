@@ -4,7 +4,6 @@ import {memo, useCallback, useEffect, useId, useMemo, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
-import {TaskDisplayStatusCircle} from "~/client/design/task_display_status_circle.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
@@ -32,6 +31,7 @@ import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {TaskClientStoreSearchAffinityManager} from "~/client/tasks/core/task_client_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
+import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {TaskNotepadCardView} from "~/client/tasks/internal/task_notepad_card_view.js";
 import {
     TaskGridViewDraggableData,

@@ -8,7 +8,6 @@ import {TextAreaWithAutoGrowingHeight} from "~/client/design/text_area_with_auto
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
 import {SearchResultView} from "~/client/search/internal/search_result_view.js";
@@ -16,7 +15,7 @@ import {useSearchState} from "~/client/search/use_search_state.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     minSearchMobileInputHeight,
-    minSearchResultViewHeightPx,
+    minSearchResultViewHeight,
     searchMobileInputBorderRadius,
     searchMobileInputFontSize,
     searchMobileInputMarginBottom,
@@ -46,7 +45,6 @@ export function SearchMobileView({
     affinityResults: ReadonlyArray<SearchResult>;
 }) {
     const platform = usePlatform();
-    const spacingScale = useSpacingScale();
     const {space} = useSpaceContext();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -194,7 +192,7 @@ export function SearchMobileView({
 
             return {
                 key: `Loaded:${result.id}`,
-                minHeight: minSearchResultViewHeightPx[spacingScale],
+                minHeight: minSearchResultViewHeight,
                 node: (
                     <Box width="full" maxWidth={maxWidth} marginX="center">
                         <SearchMobileViewResult
@@ -220,7 +218,6 @@ export function SearchMobileView({
             shouldShowLoadingIndicator,
             space.id,
             space.name,
-            spacingScale,
         ],
     );
 
@@ -231,7 +228,7 @@ export function SearchMobileView({
             scrollbarInsetTop={scrollbarInsetTop}
             extraChildren={navigationBar}
             itemCount={1 + results.length}
-            bufferedItemHeight={minSearchResultViewHeightPx[spacingScale]}
+            bufferedItemHeight={minSearchResultViewHeight}
             renderItem={renderItem}
             extraChildrenOutsideContentElement={({contentHeight}) => (
                 // Our items all have a bottom border. This is good when there's less content

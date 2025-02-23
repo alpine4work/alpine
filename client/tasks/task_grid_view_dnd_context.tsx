@@ -20,7 +20,6 @@ import {ReactElement, ReactNode, RefObject, useContext, useMemo, useRef, useStat
 import {createPortal, flushSync} from "react-dom";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {TaskDisplayStatusCircle} from "~/client/design/task_display_status_circle.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {contentStyles} from "~/client/styles/styles.js";
@@ -33,6 +32,7 @@ import {
     TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/core/task_client_store.js";
+import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {TaskGridViewHasDndContext} from "~/client/tasks/internal/task_grid_view_has_dnd_context.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";

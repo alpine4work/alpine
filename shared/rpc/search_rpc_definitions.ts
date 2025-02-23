@@ -44,6 +44,7 @@ export const searchByAffinity = defineRpc({
     input: {
         spaceId: Schema.id<SpaceId>(),
         limit: Schema.integer,
+        timeZone: TimeZoneSchema,
     },
     output: {
         results: Schema.array(SearchResultSchema),

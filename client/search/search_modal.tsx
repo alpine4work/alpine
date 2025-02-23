@@ -39,7 +39,6 @@ import {
     usePeekSwitcherState,
 } from "~/client/peek/use_peek_switcher_state.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
-import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
 import {SearchInstructionalPlaceholder} from "~/client/search/internal/search_instructional_placeholder.js";
@@ -49,15 +48,10 @@ import {SearchResultShimmer} from "~/client/shimmer/search_result_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
-    minSearchResultViewHeightPx,
+    minSearchResultViewHeight,
     searchResultViewPaddingY,
 } from "~/client/styles/search_shared_styles.js";
-import {
-    contentStyles,
-    grey5SemiTransparentColorVar,
-    spinAnimationClassName,
-    sprinkles,
-} from "~/client/styles/styles.js";
+import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
@@ -159,7 +153,7 @@ export function SearchModal({
     return (
         <Modal
             aria-label="Search"
-            maxWidth={addRemLengths("96", peekMobileLayoutWidth)}
+            maxWidth="256"
             height="full"
             maxHeight={searchModalMaxHeight}
             borderRadius="2.5"
@@ -337,6 +331,7 @@ export function SearchModal({
                         overflow="hidden"
                         display="flex"
                         flexDirection="row"
+                        borderTop="grey-5"
                     >
                         {useMemo(
                             () => (
@@ -435,11 +430,7 @@ export function SearchModal({
                                     width={peekMobileLayoutWidth}
                                     height="full"
                                     overflow="hidden"
-                                    style={{
-                                        // Render border 1px down so the two semi transparent borders don't conflict
-                                        // with each other creating a single pixel that's darker where they intersect.
-                                        boxShadow: `-1px 1px 0 0 ${grey5SemiTransparentColorVar}`,
-                                    }}
+                                    borderLeft="grey-5"
                                 >
                                     {activePeek ? (
                                         <SearchModalPeekContent
@@ -508,18 +499,7 @@ const SearchModalInput = forwardRef(function SearchModalInput(
     const iconSizeRem = parseRemLength(iconSize);
 
     return (
-        <Box
-            flexShrink="0"
-            position="relative"
-            zIndex="10"
-            width="full"
-            style={{
-                // Render border with a semi-transparent box shadow so that we get a nice
-                // soft shadow effect when content from the search result list scrolls under
-                // the border instead of a hard cutoff.
-                boxShadow: `0 1px 0 0 ${grey5SemiTransparentColorVar}`,
-            }}
-        >
+        <Box flexShrink="0" position="relative" width="full">
             <MagnifyingGlass
                 size={`${iconSizeRem}rem`}
                 className={sprinkles({
@@ -599,7 +579,6 @@ function SearchModalResultList({
     holdPeekTransition: Memo<(promise: Promise<void>) => void>;
     markResultSelectAffinityInteraction: (resultId: SearchResultId) => void;
 }) {
-    const spacingScale = useSpacingScale();
     const navigate = useNavigate();
     const {space} = useSpaceContext();
 
@@ -665,7 +644,7 @@ function SearchModalResultList({
 
             return {
                 key: `Loaded:${result.id}`,
-                minHeight: minSearchResultViewHeightPx[spacingScale],
+                minHeight: minSearchResultViewHeight,
                 node: (
                     <SearchResultView
                         result={result}
@@ -704,7 +683,6 @@ function SearchModalResultList({
             searchTime,
             selectedPeek?.extra.resultId,
             space.id,
-            spacingScale,
             switchPeek,
         ],
     );
@@ -713,7 +691,7 @@ function SearchModalResultList({
         <VirtualizedScrollView
             ref={viewRef}
             itemCount={results.length}
-            bufferedItemHeight={minSearchResultViewHeightPx[spacingScale]}
+            bufferedItemHeight={minSearchResultViewHeight}
             renderItem={renderItem}
             extraChildrenOutsideContentElement={({contentHeight}) => (
                 // Our items all have a bottom border. This is good when there's less content

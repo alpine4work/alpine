@@ -8,12 +8,7 @@ import {
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-
-// Since we can't import `shared/tasks` from `client/design`, manually inline
-// the `TaskDisplayStatus` type. This component lives in `client/design` so we
-// can use it anywhere in the product without needing to depend on all the
-// `client/tasks` code.
-type TaskDisplayStatus = "OpenInactive" | "OpenActive" | "Closed";
+import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
