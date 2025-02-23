@@ -1002,7 +1002,6 @@ test("newly created documents will be visible in search even before indexing", a
         await searchByAffinity(session1.action(), {
             spaceId: space.id,
             limit: 100,
-            timeZone: defaultTimeZone,
         }),
     ).toEqual({
         results: [
@@ -1020,7 +1019,6 @@ test("newly created documents will be visible in search even before indexing", a
         await searchByAffinity(session2.action(), {
             spaceId: space.id,
             limit: 100,
-            timeZone: defaultTimeZone,
         }),
     ).toEqual({
         results: [
@@ -1047,7 +1045,6 @@ test("newly created documents will be visible in search even before indexing", a
         await searchByAffinity(session1.action(), {
             spaceId: space.id,
             limit: 100,
-            timeZone: defaultTimeZone,
         }),
     ).toEqual({
         results: [
@@ -1065,7 +1062,6 @@ test("newly created documents will be visible in search even before indexing", a
         await searchByAffinity(session2.action(), {
             spaceId: space.id,
             limit: 100,
-            timeZone: defaultTimeZone,
         }),
     ).toEqual({
         results: [
@@ -1085,7 +1081,6 @@ test("newly created documents will be visible in search even before indexing", a
         await searchByAffinity(session1.action(), {
             spaceId: space.id,
             limit: 100,
-            timeZone: defaultTimeZone,
         }),
     ).toEqual({
         results: [
@@ -1103,7 +1098,6 @@ test("newly created documents will be visible in search even before indexing", a
         await searchByAffinity(session2.action(), {
             spaceId: space.id,
             limit: 100,
-            timeZone: defaultTimeZone,
         }),
     ).toEqual({
         results: [],
@@ -1124,7 +1118,6 @@ test("newly created documents will be visible in search even before indexing", a
         await searchByAffinity(session1.action(), {
             spaceId: space.id,
             limit: 100,
-            timeZone: defaultTimeZone,
         }),
     ).toEqual({
         results: [
@@ -1142,7 +1135,6 @@ test("newly created documents will be visible in search even before indexing", a
         await searchByAffinity(session2.action(), {
             spaceId: space.id,
             limit: 100,
-            timeZone: defaultTimeZone,
         }),
     ).toEqual({
         results: [
@@ -1162,7 +1154,6 @@ test("newly created documents will be visible in search even before indexing", a
         await searchByAffinity(session1.action(), {
             spaceId: space.id,
             limit: 100,
-            timeZone: defaultTimeZone,
         }),
     ).toEqual({
         results: [
@@ -1180,7 +1171,6 @@ test("newly created documents will be visible in search even before indexing", a
         await searchByAffinity(session2.action(), {
             spaceId: space.id,
             limit: 100,
-            timeZone: defaultTimeZone,
         }),
     ).toEqual({
         results: [
@@ -1201,7 +1191,6 @@ test("newly created documents will be visible in search even before indexing", a
         await searchByAffinity(session1.action(), {
             spaceId: space.id,
             limit: 100,
-            timeZone: defaultTimeZone,
         }),
     ).toEqual({
         results: [
@@ -1219,7 +1208,6 @@ test("newly created documents will be visible in search even before indexing", a
         await searchByAffinity(session2.action(), {
             spaceId: space.id,
             limit: 100,
-            timeZone: defaultTimeZone,
         }),
     ).toEqual({
         results: [],

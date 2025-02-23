@@ -1,3 +1,4 @@
+import {assignInlineVars} from "@vanilla-extract/dynamic";
 import escapeHtml from "escape-html";
 import {IconContext} from "phosphor-react";
 import {Fragment, ReactNode, useMemo} from "react";
@@ -5,6 +6,7 @@ import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
+import {TaskDisplayStatusCircle} from "~/client/design/task_display_status_circle.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
 import {ChannelBrandIcon} from "~/client/icons/brand/channel_brand_icon.js";
 import {ChatBrandIcon} from "~/client/icons/brand/chat_brand_icon.js";
@@ -16,16 +18,19 @@ import {TaskBrandIcon} from "~/client/icons/brand/task_brand_icon.js";
 import {TaskCollectionBrandIcon} from "~/client/icons/brand/task_collection_brand_icon.js";
 import {TaskCommentBrandIcon} from "~/client/icons/brand/task_comment_brand_icon.js";
 import {TaskQueryBrandIcon} from "~/client/icons/brand/task_query_brand_icon.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
 import {
     minSearchResultViewBodyTextSnippetHeight,
-    minSearchResultViewBodyTextSnippetHeightWithTitle,
-    minSearchResultViewHeight,
-    minSearchResultViewHeightWithoutPaddingY,
-    searchResultMediaViewSize,
+    minSearchResultViewHeightPx,
+    minSearchResultViewHeightWithoutPaddingYPx,
+    searchResultViewAuxiliaryTypeDisplayOffset,
+    searchResultViewAuxiliaryTypeDisplaySize,
     searchResultViewBodyTextSnippetFontSize,
+    searchResultViewMediaSize,
     searchResultViewPaddingY,
     searchResultViewTitleFontSize,
+    searchResultViewTitleLineHeightPx,
     searchResultViewTitleMarginBottom,
 } from "~/client/styles/search_shared_styles.js";
 import {
@@ -37,7 +42,13 @@ import {
     searchStyles,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/core/spacing.js";
+import {
+    Spacing,
+    addRemLengths,
+    convertRemLengthToPx,
+    spacing,
+} from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
@@ -55,7 +66,7 @@ export function SearchResultView({
     onPressStart,
     onDoubleClick,
     marginX = "1",
-    paddingX = "4",
+    paddingX = searchResultViewPaddingY,
     withBorderTop = false,
 }: {
     result: SearchResult;
@@ -69,6 +80,8 @@ export function SearchResultView({
     paddingX?: Sprinkles["paddingX"];
     withBorderTop?: boolean;
 }) {
+    const spacingScale = useSpacingScale();
+
     const typeDisplay = useMemo(() => getSearchResultTypeDisplay(result.id), [result.id]);
 
     const typeDisplayIcon = (
@@ -97,12 +110,14 @@ export function SearchResultView({
         </Box>
     );
 
+    const mediaNode = result.media ? renderSearchResultMedia(result.media) : null;
+
     return (
         <Box
             paddingX={marginX}
             paddingTop={withMarginTop ? "1" : undefined}
             paddingBottom={withMarginBottom ? "1" : undefined}
-            style={{minHeight: minSearchResultViewHeight}}
+            style={{minHeight: minSearchResultViewHeightPx[spacingScale]}}
             onPointerDown={event => {
                 // Presses in a modal outside our element tree shouldn't select the search
                 // result. This happens when clicking to close an overlay opened by
@@ -120,7 +135,20 @@ export function SearchResultView({
                 }
             }}
         >
-            <Box paddingX={paddingX} position="relative" zIndex="0">
+            <Box
+                paddingX={paddingX}
+                position="relative"
+                zIndex="0"
+                style={
+                    isSelected || isPressed
+                        ? assignInlineVars({
+                              [backgroundColorVar]: isPressed
+                                  ? colorSchemeVars["grey-10"]
+                                  : colorSchemeVars["grey-5"],
+                          })
+                        : undefined
+                }
+            >
                 {(isSelected || isPressed) && (
                     <Box
                         position="absolute"
@@ -135,134 +163,210 @@ export function SearchResultView({
                     />
                 )}
                 <Box
+                    position="relative"
                     paddingY={searchResultViewPaddingY}
                     style={{
-                        // Draw border with a `box-shadow` instead of `border` so it doesn't contribute
-                        // 1px to layout. Layout needs to be precise since this is rendered in a
-                        // virtualized list.
-                        boxShadow:
-                            !isSelected && !isPressed
-                                ? [
-                                      `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
-                                      ...(withBorderTop
-                                          ? [`inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`]
-                                          : []),
-                                  ].join(", ")
-                                : undefined,
+                        minHeight: minSearchResultViewHeightPx[spacingScale],
                     }}
                 >
-                    <Box display="flex" gap="3" alignItems="center">
-                        {result.media && <SearchResultMediaView media={result.media} />}
+                    {mediaNode && (
                         <Box
-                            flexGrow="1"
-                            overflow="hidden"
-                            style={{minHeight: minSearchResultViewHeightWithoutPaddingY}}
+                            position="absolute"
+                            zIndex="10"
+                            width={searchResultViewAuxiliaryTypeDisplaySize}
+                            height={searchResultViewAuxiliaryTypeDisplaySize}
+                            borderRadius="full"
+                            style={{
+                                backgroundColor: backgroundColorVar,
+                                boxShadow: `0 0 0 ${
+                                    1 / remPxBySpacingScale.small
+                                }rem ${backgroundColorVar}`,
+                                top:
+                                    convertRemLengthToPx(searchResultViewPaddingY, spacingScale) +
+                                    searchResultViewTitleLineHeightPx[spacingScale] / 2 +
+                                    convertRemLengthToPx(searchResultViewMediaSize, spacingScale) /
+                                        2 -
+                                    convertRemLengthToPx(
+                                        searchResultViewAuxiliaryTypeDisplaySize,
+                                        spacingScale,
+                                    ) +
+                                    convertRemLengthToPx(
+                                        searchResultViewAuxiliaryTypeDisplayOffset,
+                                        spacingScale,
+                                    ),
+                                left:
+                                    searchResultViewTitleLineHeightPx[spacingScale] / 2 -
+                                    convertRemLengthToPx(searchResultViewMediaSize, spacingScale) /
+                                        2 -
+                                    convertRemLengthToPx(
+                                        searchResultViewAuxiliaryTypeDisplayOffset,
+                                        spacingScale,
+                                    ),
+                            }}
                         >
-                            {result.title !== null && (
-                                <Box
-                                    overflow="hidden"
-                                    fontSize={searchResultViewTitleFontSize}
-                                    fontStyle="semi-bold"
-                                    paddingBottom={
-                                        result.bodyTextSnippet.length > 0
-                                            ? searchResultViewTitleMarginBottom
-                                            : undefined
-                                    }
-                                    style={{
-                                        minHeight:
-                                            fontSizes[searchResultViewTitleFontSize].lineHeight,
-                                        // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
-                                        // except IE.
-                                        // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
-                                        display: "-webkit-box",
-                                        WebkitLineClamp: 2,
-                                        lineClamp: 2,
-                                        WebkitBoxOrient: "vertical",
-                                        textOverflow: "ellipsis",
-                                        // Render contextual alternate glyphs. Particularly important that we render
-                                        // the right "@" for mentions.
-                                        fontFeatureSettings: '"calt" on',
+                            <Box
+                                // Brand icons only render in the `grey-80` shade and above. So we can maintain
+                                // proper contrast between the icon line and color splash. However, here we
+                                // want to render a lighter line color (e.g. `grey-60`) to not distract from
+                                // the result title. We calculate the opacity to get us from `grey-80` to a
+                                // lighter line color (e.g. `grey-60`) and apply it. By applying opacity the
+                                // color splash also gets lighter to maintain proper contrast between the lines
+                                // and the color splash.
+                                className={searchStyles.brandIconOpacityClassName}
+                            >
+                                <IconContext.Provider
+                                    value={{
+                                        color: searchStyles.brandIconColor,
+                                        size: spacing[searchResultViewAuxiliaryTypeDisplaySize],
                                     }}
                                 >
-                                    {typeDisplayIcon}
-                                    {result.media?.type === "TaskCollectionColor" &&
-                                    result.media.color !== null ? (
-                                        <Box
-                                            display="inline-flex"
-                                            alignItems="center"
-                                            marginLeft="1"
-                                            marginRight="1.5"
-                                            style={{height: "1lh", verticalAlign: "top"}}
-                                        >
-                                            <Box
-                                                width="2"
-                                                height="2"
-                                                borderRadius="full"
-                                                backgroundColor={getTaskCollectionColor(
-                                                    result.media.color,
-                                                )}
-                                            />
-                                        </Box>
-                                    ) : null}
-                                    {renderTextWithEmojiFontFamily(result.title)}
-                                </Box>
-                            )}
-                            <Box
-                                overflow="hidden"
-                                color="grey-60"
-                                fontSize={searchResultViewBodyTextSnippetFontSize}
-                                style={{
-                                    // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
-                                    // except IE.
-                                    // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
-                                    display: "-webkit-box",
-                                    WebkitLineClamp: 3,
-                                    lineClamp: 3,
-                                    WebkitBoxOrient: "vertical",
-                                    textOverflow: "ellipsis",
-                                    // Render contextual alternate glyphs. Particularly important that we render
-                                    // the right "@" for mentions.
-                                    fontFeatureSettings: '"calt" on',
-                                    minHeight:
-                                        result.title !== null
-                                            ? minSearchResultViewBodyTextSnippetHeightWithTitle
-                                            : minSearchResultViewBodyTextSnippetHeight,
-                                }}
-                            >
-                                {result.title === null && typeDisplayIcon}
-                                {typeDisplay.isAccountMediaAuthor &&
-                                result.media?.type === "Account" ? (
-                                    <>
-                                        <AccountShortName
-                                            account={result.media.account}
-                                            isTooltipDisabled={true}
-                                        />
-                                        {": "}
-                                    </>
-                                ) : null}
-                                {result.bodyTextSnippet.map(({isHighlighted, text}, index) => {
-                                    if (!isHighlighted) {
-                                        return (
-                                            <Fragment key={index}>
-                                                {renderTextWithEmojiFontFamily(text)}
-                                            </Fragment>
-                                        );
-                                    } else {
-                                        return (
-                                            <span
-                                                key={index}
-                                                className={sprinkles({
-                                                    color: "grey-90",
-                                                    fontStyle: "semi-bold",
-                                                })}
-                                            >
-                                                {renderTextWithEmojiFontFamily(text)}
-                                            </span>
-                                        );
-                                    }
-                                })}
+                                    {typeDisplay.icon}
+                                </IconContext.Provider>
                             </Box>
                         </Box>
+                    )}
+                    {result.title !== null && (
+                        <Box
+                            overflow="hidden"
+                            fontSize={searchResultViewTitleFontSize}
+                            paddingBottom={
+                                result.bodyTextSnippet.length > 0
+                                    ? searchResultViewTitleMarginBottom
+                                    : undefined
+                            }
+                            style={{
+                                minHeight: searchResultViewTitleLineHeightPx[spacingScale],
+                                lineHeight: `${searchResultViewTitleLineHeightPx[spacingScale]}px`,
+                                // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
+                                // except IE.
+                                // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
+                                display: "-webkit-box",
+                                WebkitLineClamp: 2,
+                                lineClamp: 2,
+                                WebkitBoxOrient: "vertical",
+                                textOverflow: "ellipsis",
+                                // Render contextual alternate glyphs. Particularly important that we render
+                                // the right "@" for mentions.
+                                fontFeatureSettings: '"calt" on',
+                            }}
+                        >
+                            <Box
+                                position="relative"
+                                display="inline-flex"
+                                justifyContent="center"
+                                alignItems="center"
+                                marginRight="1"
+                                style={{
+                                    width: searchResultViewTitleLineHeightPx[spacingScale],
+                                    height: searchResultViewTitleLineHeightPx[spacingScale],
+                                    verticalAlign: "top",
+                                }}
+                            >
+                                {mediaNode ? (
+                                    <Box
+                                        width={searchResultViewMediaSize}
+                                        height={searchResultViewMediaSize}
+                                        display="flex"
+                                        justifyContent="center"
+                                        alignItems="center"
+                                    >
+                                        {mediaNode}
+                                    </Box>
+                                ) : (
+                                    <Box
+                                        // Brand icons only render in the `grey-80` shade and above. So we can maintain
+                                        // proper contrast between the icon line and color splash. However, here we
+                                        // want to render a lighter line color (e.g. `grey-60`) to not distract from
+                                        // the result title. We calculate the opacity to get us from `grey-80` to a
+                                        // lighter line color (e.g. `grey-60`) and apply it. By applying opacity the
+                                        // color splash also gets lighter to maintain proper contrast between the lines
+                                        // and the color splash.
+                                        className={searchStyles.brandIconOpacityClassName}
+                                    >
+                                        <IconContext.Provider
+                                            value={{
+                                                color: searchStyles.brandIconColor,
+                                                size: spacing[searchResultViewMediaSize],
+                                            }}
+                                        >
+                                            {typeDisplay.icon}
+                                        </IconContext.Provider>
+                                    </Box>
+                                )}
+                            </Box>
+                            {result.media?.type === "TaskCollectionColor" &&
+                            result.media.color !== null ? (
+                                <Box
+                                    display="inline-flex"
+                                    alignItems="center"
+                                    marginLeft="1"
+                                    marginRight="1.5"
+                                    style={{height: "1lh", verticalAlign: "top"}}
+                                >
+                                    <Box
+                                        width="2"
+                                        height="2"
+                                        borderRadius="full"
+                                        backgroundColor={getTaskCollectionColor(result.media.color)}
+                                    />
+                                </Box>
+                            ) : null}
+                            {renderTextWithEmojiFontFamily(result.title)}
+                        </Box>
+                    )}
+                    <Box
+                        overflow="hidden"
+                        color="grey-60"
+                        fontSize={searchResultViewBodyTextSnippetFontSize}
+                        style={{
+                            // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
+                            // except IE.
+                            // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
+                            display: "-webkit-box",
+                            WebkitLineClamp: 3,
+                            lineClamp: 3,
+                            WebkitBoxOrient: "vertical",
+                            textOverflow: "ellipsis",
+                            // Render contextual alternate glyphs. Particularly important that we render
+                            // the right "@" for mentions.
+                            fontFeatureSettings: '"calt" on',
+                            minHeight:
+                                result.title === null
+                                    ? minSearchResultViewBodyTextSnippetHeight
+                                    : undefined,
+                        }}
+                    >
+                        {result.title === null && typeDisplayIcon}
+                        {typeDisplay.isAccountMediaAuthor && result.media?.type === "Account" ? (
+                            <>
+                                <AccountShortName
+                                    account={result.media.account}
+                                    isTooltipDisabled={true}
+                                />
+                                {": "}
+                            </>
+                        ) : null}
+                        {result.bodyTextSnippet.map(({isHighlighted, text}, index) => {
+                            if (!isHighlighted) {
+                                return (
+                                    <Fragment key={index}>
+                                        {renderTextWithEmojiFontFamily(text)}
+                                    </Fragment>
+                                );
+                            } else {
+                                return (
+                                    <span
+                                        key={index}
+                                        className={sprinkles({
+                                            color: "grey-90",
+                                            fontStyle: "semi-bold",
+                                        })}
+                                    >
+                                        {renderTextWithEmojiFontFamily(text)}
+                                    </span>
+                                );
+                            }
+                        })}
                     </Box>
                 </Box>
                 {result.explanation && (
@@ -386,18 +490,16 @@ function getSearchResultTypeDisplayForEntity(
     }
 }
 
-function SearchResultMediaView({media}: {media: SearchResultMedia}) {
-    let node: ReactNode;
-
+function renderSearchResultMedia(media: SearchResultMedia) {
     switch (media.type) {
         case "Account": {
-            node = <AccountAvatar account={media.account} size="9" />;
-            break;
+            return <AccountAvatar account={media.account} size="5" />;
         }
         case "AccountPile": {
+            // NOCOMMIT: Update this
             assert(media.previewAccounts.length >= 1);
 
-            node = (
+            return (
                 <>
                     {media.previewAccounts.length === 1 ? (
                         <AccountAvatar account={media.previewAccounts[0]!} size="9" />
@@ -419,7 +521,6 @@ function SearchResultMediaView({media}: {media: SearchResultMedia}) {
                     )}
                 </>
             );
-            break;
         }
         case "TaskCollectionColor": {
             // We render task collection color media next to the collection name. Not in
@@ -427,26 +528,17 @@ function SearchResultMediaView({media}: {media: SearchResultMedia}) {
             return null;
         }
         case "TaskDisplayStatus": {
-            // NOCOMMIT
-            return null;
+            return (
+                <TaskDisplayStatusCircle
+                    // NOCOMMIT
+                    displayStatus="OpenActive"
+                    size={searchResultViewMediaSize}
+                />
+            );
         }
         default:
             throw exhaustive(media);
     }
-
-    return (
-        <Box
-            flexShrink="0"
-            position="relative"
-            width={searchResultMediaViewSize}
-            height={searchResultMediaViewSize}
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-        >
-            {node}
-        </Box>
-    );
 }
 
 function SearchResultViewExplainDebugWidget({

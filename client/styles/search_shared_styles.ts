@@ -1,5 +1,12 @@
-import {fontSizes} from "~/client/styles/styles.js";
-import {RemLength, addRemLengths, parseRemLength} from "~/shared/design/core/spacing.js";
+import {contentStyles, fontSizes} from "~/client/styles/styles.js";
+import {
+    RemLength,
+    addRemLengths,
+    convertRemLengthToPx,
+    parseRemLength,
+} from "~/shared/design/core/spacing.js";
+import {allSpacingScales, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 
 export const searchMobileInputFontSize = "100";
 export const searchMobileInputPaddingX = "3";
@@ -30,39 +37,36 @@ export const searchMobileInputBorderRadius = `${parseRemLength(minSearchMobileIn
  * virtualization window.
  */
 export const minSearchResultViewBodyTextSnippetLineCount = 1;
-export const minSearchResultViewBodyTextSnippetLineCountWithTitle = 0;
 
-export const searchResultViewPaddingY = "4";
+export const searchResultViewPaddingY = "2";
 export const searchResultViewBodyTextSnippetFontSize = "75";
 export const searchResultViewTitleFontSize = "100";
+export const searchResultViewTitleLineHeightPx = contentStyles.paragraphLineHeightPx;
 export const searchResultViewTitleMarginBottom = "1";
-export const searchResultMediaViewSize = "9";
+
+export const searchResultViewMediaSize = "4";
+export const searchResultViewAuxiliaryTypeDisplaySize = "3";
+export const searchResultViewAuxiliaryTypeDisplayOffset: RemLength = `${
+    9 / remPxBySpacingScale.small
+}rem`;
 
 export const minSearchResultViewBodyTextSnippetHeight: RemLength = `${
     parseRemLength(fontSizes[searchResultViewBodyTextSnippetFontSize].lineHeight) *
     minSearchResultViewBodyTextSnippetLineCount
 }rem`;
 
-export const minSearchResultViewBodyTextSnippetHeightWithTitle: RemLength = `${
-    parseRemLength(fontSizes[searchResultViewBodyTextSnippetFontSize].lineHeight) *
-    minSearchResultViewBodyTextSnippetLineCountWithTitle
-}rem`;
-
-export const minSearchResultViewHeightWithoutPaddingY: RemLength = `${Math.min(
-    Math.max(
-        parseRemLength(searchResultMediaViewSize),
-        parseRemLength(
-            addRemLengths(
-                fontSizes[searchResultViewTitleFontSize].lineHeight,
-                minSearchResultViewBodyTextSnippetHeightWithTitle,
-            ),
+export const minSearchResultViewHeightWithoutPaddingYPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        Math.min(
+            searchResultViewTitleLineHeightPx[spacingScale],
+            convertRemLengthToPx(minSearchResultViewBodyTextSnippetHeight, spacingScale),
         ),
-    ),
-    parseRemLength(minSearchResultViewBodyTextSnippetHeight),
-)}rem`;
+);
 
-export const minSearchResultViewHeight = addRemLengths(
-    searchResultViewPaddingY,
-    minSearchResultViewHeightWithoutPaddingY,
-    searchResultViewPaddingY,
+export const minSearchResultViewHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        minSearchResultViewHeightWithoutPaddingYPx[spacingScale] +
+        convertRemLengthToPx(searchResultViewPaddingY, spacingScale) * 2,
 );
