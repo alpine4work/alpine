@@ -2562,7 +2562,6 @@ test("search by affinity can include the task notepad", async () => {
         await searchByAffinity(session1.action(), {
             spaceId: space.id,
             limit: 100,
-            timeZone: defaultTimeZone,
         }),
     ).toEqual({
         results: [
