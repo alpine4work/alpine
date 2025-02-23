@@ -106,11 +106,7 @@ test.beforeAll(async () => {
         }
 
         void mutexes[taskIndex % mutexes.length]!.withLock(async () => {
-            await commitTaskActionTransaction(TestTask.action(session1), space.id, actions, {
-                // Skip adding affinity points for our test tasks. They create a lot of
-                // contention in DynamoDB.
-                withoutAddingAffinityPoints: true,
-            });
+            await commitTaskActionTransaction(TestTask.action(session1), space.id, actions);
 
             logTaskIndex++;
             // eslint-disable-next-line no-console

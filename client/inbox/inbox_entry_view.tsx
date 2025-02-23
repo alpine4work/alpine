@@ -9,7 +9,7 @@ import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {Spacer} from "~/client/design/spacer.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
@@ -37,6 +37,7 @@ import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
@@ -226,7 +227,7 @@ export function InboxEntryView({
 
     const touchSwipeIconRef = useRef<HTMLDivElement>(null);
 
-    const onArchiveEvent = useEvent(onArchive);
+    const events = useEvents({onArchive, onPress: onPress ?? noop});
 
     useEffect(() => {
         if (filter !== "New") return;
@@ -358,7 +359,7 @@ export function InboxEntryView({
                         );
 
                         void animation.finished.finally(() => {
-                            void onArchiveEvent({withAnimation: true});
+                            void events.onArchive({withAnimation: true});
                         });
                     }
                 };
@@ -445,7 +446,7 @@ export function InboxEntryView({
             entryElement.removeEventListener("touchmove", handleTouchMove);
             entryElement.removeEventListener("touchcancel", handleTouchCancel);
         };
-    }, [canPrimaryInputHover, filter, onArchiveEvent]);
+    }, [canPrimaryInputHover, events, filter]);
 
     const entryDisplay = useMemo(
         () => getInboxEntryDisplay({entry, locale, currentAccount}),
@@ -454,6 +455,64 @@ export function InboxEntryView({
 
     const backgroundColor =
         isPressed && withBackgroundIfPressed ? "grey-10" : isSelected ? "grey-5" : undefined;
+
+    useEffect(() => {
+        if (!isPressed) return;
+
+        const entryElement = assertExists(entryRef.current);
+
+        const handlePointerUp = (event: PointerEvent) => {
+            if (touchSwipeState !== null) {
+                setIsPressed(false);
+                return;
+            }
+
+            // Ignore pointer events from portals (e.g. menu opened by the `<MenuButton>`
+            // shown on hover).
+            if (event.target instanceof Node && !entryElement.contains(event.target)) {
+                setIsPressed(false);
+                return;
+            }
+
+            const wasPressed = isPressed;
+            setIsPressed(false);
+            if (wasPressed) events.onPress();
+        };
+
+        // Safari doesn't implement `pointerleave` correctly. So implement our own hit
+        // testing on `pointermove`. This is the same thing `react-aria`'s `usePress()`
+        // hook does.
+        //
+        // https://github.com/adobe/react-spectrum/blob/7da3d384aa0c6bdc14449c4f138e963a094a7a38/packages/%40react-aria/interactions/src/usePress.ts#L453-L456
+        const handlePointerMove = (event: PointerEvent) => {
+            const rect = entryElement.getBoundingClientRect();
+
+            if (
+                rect.left <= event.clientX &&
+                event.clientX <= rect.right &&
+                rect.top <= event.clientY &&
+                event.clientY <= rect.bottom
+            ) {
+                // Pointer is still in element bounds...
+            } else {
+                setIsPressed(false);
+            }
+        };
+
+        const handlePointerCancel = () => {
+            setIsPressed(false);
+        };
+
+        document.addEventListener("pointerup", handlePointerUp);
+        document.addEventListener("pointermove", handlePointerMove);
+        document.addEventListener("pointercancel", handlePointerCancel);
+
+        return () => {
+            document.removeEventListener("pointerup", handlePointerUp);
+            document.removeEventListener("pointermove", handlePointerMove);
+            document.removeEventListener("pointercancel", handlePointerCancel);
+        };
+    }, [events, isPressed, touchSwipeState]);
 
     return (
         <Box
@@ -482,43 +541,6 @@ export function InboxEntryView({
                 setIsPressed(true);
                 onPressStart?.();
             }}
-            onPointerUp={event => {
-                if (touchSwipeState !== null) {
-                    setIsPressed(false);
-                    return;
-                }
-
-                // Ignore pointer events from portals (e.g. menu opened by the `<MenuButton>`
-                // shown on hover).
-                if (event.target instanceof Node && !event.currentTarget.contains(event.target)) {
-                    setIsPressed(false);
-                    return;
-                }
-
-                const wasPressed = isPressed;
-                setIsPressed(false);
-                if (wasPressed) onPress?.();
-            }}
-            // Safari doesn't implement `pointerleave` correctly. So implement our own hit
-            // testing on `pointermove`. This is the same thing `react-aria`'s `usePress()`
-            // hook does.
-            //
-            // https://github.com/adobe/react-spectrum/blob/7da3d384aa0c6bdc14449c4f138e963a094a7a38/packages/%40react-aria/interactions/src/usePress.ts#L453-L456
-            onPointerMove={event => {
-                const rect = event.currentTarget.getBoundingClientRect();
-
-                if (
-                    rect.left <= event.clientX &&
-                    event.clientX <= rect.right &&
-                    rect.top <= event.clientY &&
-                    event.clientY <= rect.bottom
-                ) {
-                    // Pointer is still in element bounds...
-                } else {
-                    setIsPressed(false);
-                }
-            }}
-            onPointerCancel={() => setIsPressed(false)}
             onDragStart={() => setIsPressed(false)}
         >
             <Box
@@ -564,8 +586,8 @@ export function InboxEntryView({
                         position="absolute"
                         top="0"
                         bottom="0"
-                        left={paddingX}
-                        right={paddingX}
+                        left="2.5"
+                        right="2.5"
                         zIndex="-10"
                         style={{
                             // Draw border with a `box-shadow` instead of `border` so it doesn't contribute
@@ -827,7 +849,6 @@ export function InboxEntryView({
                         paddingX="2"
                         paddingRight="4"
                         zIndex="10"
-                        backgroundColor={backgroundColor ?? "grey-0"}
                         display="flex"
                         alignItems="center"
                         style={{
@@ -835,6 +856,14 @@ export function InboxEntryView({
                             top: 1,
                         }}
                     >
+                        <Box
+                            position="absolute"
+                            top="0"
+                            bottom="0"
+                            left="0"
+                            width="10"
+                            backgroundColor={backgroundColor ?? "grey-0"}
+                        />
                         <Box
                             position="absolute"
                             top="0"

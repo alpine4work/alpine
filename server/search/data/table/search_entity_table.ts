@@ -1,16 +1,27 @@
-import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {
+    ServerActionContext,
+    ServerSessionActionContext,
+    ServerSystemActionContext,
+} from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
-import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {authorizeOwnAccountAccess, authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {Id, assertId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    ChannelId,
+    DocumentId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchAffinityId} from "~/shared/search/search_affinity_id.js";
 import {SearchAffinityInteraction} from "~/shared/search/search_affinity_interaction.js";
@@ -60,10 +71,28 @@ const SearchEntityTable = DynamoTableSchema.new({
                         lastUpdatedTime: Schema.integer,
 
                         /**
-                         * The last time this search entity was viewed. Useful for showing the user a
-                         * "last opened" date.
+                         * The last time this search entity had a "view" search affinity interaction
+                         * viewed. Useful for showing the user a "last opened" date.
                          */
                         lastViewedTime: Schema.date.nullable().default(null),
+
+                        /**
+                         * If this is a task search entity that's been marked as active and the account
+                         * is assigned to the task then we add a bunch of points to rocket the task to
+                         * the top of the search affinity list. Once the task is no longer active, we
+                         * remove any points from that initial boost (after applying decay).
+                         *
+                         * This object will be set if we've applied the active task assignee boost to
+                         * make sure we only apply the boost once.
+                         *
+                         * The object records the number of points we applied to boost the task (in
+                         * case we change the amount of points) and the time at which the boost was
+                         * applied so we can undo the boost later.
+                         */
+                        activeTaskAssignee: Schema.object({
+                            points: Schema.float,
+                            lastUpdatedTime: Schema.integer,
+                        }).optional(),
                     }),
                 },
             ],
@@ -203,16 +232,61 @@ export function getSearchAffinityPointsBucket(points: number): number {
 }
 
 /**
- * 30 days (~1 month) in milliseconds
+ * 30 days (~1 month) in milliseconds.
  */
 export const monthDurationMs = 1000 * 60 * 60 * 24 * 30;
+
+const searchAffinityExpirationPoints = 0.05;
+
+/**
+ * The number of points to add to a task's search affinity score for the task
+ * assignee when the task is marked as active. We want active tasks to be at
+ * the top of the task assignee's affinity list for a week or so. Since setting
+ * a task to "active" is one of the highest signals we have that an entity is
+ * currently important to a user.
+ *
+ * We want the task to be at the very top of a user's affinity list for about
+ * a week and then in the top five in the second week. As of 2025-02-21 the
+ * points of the top five entities in my (@calebmer's) search affinity list
+ * are 71.47, 67.26, 51.62, 42.65, and 36.91. So after seven days this point
+ * value needs to decay to something still over 71.47.
+ *
+ * 150 fits this criteria:
+ *
+ * - After  7 days it's 74.49
+ * - After 14 days it's 36.99
+ * - After 30 days it's  7.50
+ */
+const searchAffinityActiveTaskAssigneePoints = 150;
+
+/**
+ * The number of points to add to a document's search affinity score when the
+ * document is first created. We want documents to be at the top of the
+ * document creator's affinity list for two to three days. So the creator can
+ * easily get back to the documents they just created.
+ *
+ * As of 2025-02-21 the points of the top five entities in my (@calebmer's)
+ * search affinity list are 71.47, 67.26, 51.62, 42.65, and 36.91. So after
+ * three days this point value needs to decay to something between 71.47 and
+ * 42.65.
+ *
+ * 60 fits this criteria:
+ *
+ * - After  1 day  it's 54.29
+ * - After  2 days it's 49.12
+ * - After  3 days it's 44.45
+ * - After  7 days it's 29.80
+ * - After 14 days it's 14.80
+ * - After 30 days it's  3.00
+ */
+const searchAffinityDocumentCreatorPoints = 60;
 
 /**
  * Apply our exponential decay function to figure out how many affinity points
  * we currently have.
  *
  * Our function is `f(t) = e^-3t` where `t` is measured in months. This function
- * will decay 1 point to 0.05 (which we round down to 0) in 1 months.
+ * will decay 1 point to 0.05 (which we round down to 0) in 1 month.
  */
 export function getCurrentSearchAffinityPoints(
     currentTime: number,
@@ -229,9 +303,26 @@ export function getCurrentSearchAffinityPoints(
  */
 export function getSearchAffinityExpirationDuration(points: number): number {
     // Any number less than this is negative.
-    assert(points > 0.05);
+    assert(points > searchAffinityExpirationPoints);
 
-    return Math.log(points / 0.05) * monthDurationMs;
+    return Math.log(points / searchAffinityExpirationPoints) * monthDurationMs;
+}
+
+function getSearchAffinityInteractionPoints(interaction: SearchAffinityInteraction): number {
+    switch (interaction.type) {
+        case "View":
+            return 1;
+        case "VeryLowIntentUpdate":
+            return 0.0625;
+        case "LowIntentUpdate":
+            return 0.2;
+        case "MediumIntentUpdate":
+            return 1;
+        case "HighIntentUpdate":
+            return 3;
+        default:
+            throw exhaustive(interaction);
+    }
 }
 
 /**
@@ -267,49 +358,78 @@ export function markSearchAffinityInteraction(
         interaction: SearchAffinityInteraction;
     },
 ) {
-    let points: number;
-    switch (interaction.type) {
-        case "View": {
-            points = 1;
-            break;
-        }
-        case "VeryLowIntentUpdate": {
-            points = 0.0625;
-            break;
-        }
-        case "LowIntentUpdate": {
-            points = 0.2;
-            break;
-        }
-        case "MediumIntentUpdate": {
-            points = 1;
-            break;
-        }
-        case "HighIntentUpdate": {
-            points = 3;
-            break;
-        }
-        default:
-            throw exhaustive(interaction);
-    }
-
     return addSearchAffinityPoints(context, {
         spaceId,
+        accountId: context.actor.getAccountId(),
         affinityId,
-        points,
+        points: getSearchAffinityInteractionPoints(interaction),
         isViewInteraction: interaction.type === "View",
     });
 }
 
-async function addSearchAffinityPoints(
+/**
+ * `markSearchAffinityInteraction()` but on behalf of another account. Only
+ * system actors can do this. Session actors aren't allowed to update affinity
+ * points for another account.
+ */
+export function markSearchAffinityInteractionForAccount(
+    context: ServerSystemActionContext,
+    {
+        spaceId,
+        accountId,
+        affinityId,
+        interaction,
+    }: {
+        spaceId: SpaceId;
+        accountId: AccountId;
+        affinityId: SearchAffinityId;
+        interaction: SearchAffinityInteraction;
+    },
+) {
+    return addSearchAffinityPoints(context, {
+        spaceId,
+        accountId,
+        affinityId,
+        points: getSearchAffinityInteractionPoints(interaction),
+        isViewInteraction: interaction.type === "View",
+    });
+}
+
+/**
+ * Same as `markSearchAffinityInteraction()` but for a special "create
+ * document" interaction. This interaction may only be performed on the server
+ * as it adds a lot of points we don't want the client to be able to add.
+ */
+export function markSearchAffinityCreateDocumentInteraction(
     context: ServerSessionActionContext,
     {
         spaceId,
+        documentId,
+    }: {
+        spaceId: SpaceId;
+        documentId: DocumentId;
+    },
+) {
+    return addSearchAffinityPoints(context, {
+        spaceId,
+        accountId: context.actor.getAccountId(),
+        affinityId: `Document:${documentId}`,
+        points: searchAffinityDocumentCreatorPoints,
+        isViewInteraction: false,
+    });
+}
+
+async function addSearchAffinityPoints(
+    context: ServerActionContext,
+    {
+        spaceId,
+        accountId,
         affinityId,
         points,
         isViewInteraction,
     }: {
         spaceId: SpaceId;
+        accountId: AccountId;
         affinityId: SearchAffinityId;
         points: number;
         isViewInteraction: boolean;
@@ -318,6 +438,8 @@ async function addSearchAffinityPoints(
     // Optimization: We don't authorize whether the actor has access to the entity.
     // Since this is a personal score it doesn't really matter if the user gives
     // themselves affinity points to an entity they don't have access to.
+
+    await authorizeOwnAccountAccess(context, accountId);
 
     const currentTime = Date.now();
 
@@ -335,7 +457,7 @@ async function addSearchAffinityPoints(
                 partitionType: "Account",
                 sortRangeType: "SearchEntityAffinity",
                 spaceId,
-                accountId: context.actor.getAccountId(),
+                accountId,
                 entityId: affinityId,
             },
             affinityItem => {
@@ -357,7 +479,7 @@ async function addSearchAffinityPoints(
                     partitionType: "Account",
                     sortRangeType: "SearchEntityAffinity",
                     spaceId,
-                    accountId: context.actor.getAccountId(),
+                    accountId,
                     entityId: affinityId,
                     points: newPoints,
                     pointsBucket: newPointsBucket,
@@ -405,7 +527,7 @@ async function addSearchAffinityPoints(
                           partitionType: "SpaceChannels",
                           sortRangeType: "SearchAffinity",
                           spaceId,
-                          accountId: context.actor.getAccountId(),
+                          accountId,
                           channelId,
                           points: newPoints,
                           pointsBucket: newPointsBucket,
@@ -450,7 +572,7 @@ async function addSearchAffinityPoints(
                           partitionType: "SpaceTaskCollections",
                           sortRangeType: "SearchAffinity",
                           spaceId,
-                          accountId: context.actor.getAccountId(),
+                          accountId,
                           collectionId,
                           points: newPoints,
                           pointsBucket: newPointsBucket,
@@ -461,6 +583,216 @@ async function addSearchAffinityPoints(
               )
             : null,
     ]);
+}
+
+/**
+ * Adds a boost of search affinity points when a task is marked as active. This
+ * should boost the task to the top of the account's search affinity list where
+ * the task should stay for a while. This way whenever a user sees their search
+ * affinity list, they're reminded of the tasks they're currently working on.
+ * Without needing to open the task product.
+ *
+ * This function is idempotent. You may call it multiple times and we'll only
+ * apply the boost once.
+ *
+ * You must call this function with a system actor since it may update search
+ * affinity points on behalf of another user.
+ */
+export async function addSearchAffinityActiveTaskAssigneePoints(
+    context: ServerSystemActionContext,
+    {
+        spaceId,
+        assigneeId,
+        taskId,
+    }: {
+        spaceId: SpaceId;
+        assigneeId: AccountId;
+        taskId: TaskId;
+    },
+) {
+    // A system actor is required since we may be updating search affinity on
+    // behalf of a user other than the one making the action. So we need a trusted
+    // actor. For example, your manager may mark a task assigned to you as active
+    // on your behalf.
+    //
+    // If Alice (a malicious user) tries to get Bob's attention by assigning them
+    // to a task and setting it as active then Bob can simply unassign themselves
+    // to remove the task from the top of their affinity list. This makes adding
+    // affinity points to the assignee of an active task no more harmful then
+    // sending a notification after an @ mention (which can be dismissed).
+    context.actor.authorizeSystem();
+
+    const currentTime = Date.now();
+
+    await context.dynamo.retryTransaction(async context => {
+        const item = await SearchEntityTable.getItemIfExists(context, {
+            partitionType: "Account",
+            sortRangeType: "SearchEntityAffinity",
+            spaceId,
+            accountId: assigneeId,
+            entityId: `Task:${taskId}`,
+        });
+
+        const pointsIncrement = searchAffinityActiveTaskAssigneePoints;
+
+        const points =
+            (item ? getCurrentSearchAffinityPoints(currentTime, item) : 0) + pointsIncrement;
+
+        if (!item) {
+            await SearchEntityTable.createItem(
+                context,
+                {
+                    partitionType: "Account",
+                    sortRangeType: "SearchEntityAffinity",
+                    spaceId,
+                    accountId: assigneeId,
+                    entityId: `Task:${taskId}`,
+                    points,
+                    pointsBucket: getSearchAffinityPointsBucket(points),
+                    lastUpdatedTime: currentTime,
+                    lastViewedTime: null,
+                    expirationTime: new Date(
+                        currentTime + Math.ceil(getSearchAffinityExpirationDuration(points)),
+                    ),
+                    activeTaskAssignee: {
+                        points: pointsIncrement,
+                        lastUpdatedTime: currentTime,
+                    },
+                },
+                {isConditionCheckErrorRetriable: true},
+            );
+        } else if (item.activeTaskAssignee) {
+            // If the item already has active task assignee points, make sure with a
+            // [serializable isolation level][1] that the item version number is exactly
+            // what we read. This makes sure our eventually consistent read didn't see an
+            // outdated item.
+            //
+            // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html#transaction-isolation
+            await DynamoTableSchema.executeTransaction(context, [
+                SearchEntityTable.transactionUpdateLockVersionConditionCheck(
+                    {
+                        partitionType: "Account",
+                        sortRangeType: "SearchEntityAffinity",
+                        spaceId,
+                        accountId: assigneeId,
+                        entityId: `Task:${taskId}`,
+                    },
+                    item.updateLockVersion,
+                ),
+            ]);
+        } else {
+            await SearchEntityTable.directlyUpdateItem(context, {
+                ...item,
+                points,
+                pointsBucket: getSearchAffinityPointsBucket(points),
+                lastUpdatedTime: currentTime,
+                expirationTime: new Date(
+                    currentTime + Math.ceil(getSearchAffinityExpirationDuration(points)),
+                ),
+                activeTaskAssignee: {
+                    points: pointsIncrement,
+                    lastUpdatedTime: currentTime,
+                },
+            });
+        }
+    });
+}
+
+/**
+ * Removes points from the boost provided by
+ * `addSearchAffinityActiveTaskAssigneePoints()` when a task is marked as
+ * inactive. This will set the search affinity item to the number of points it
+ * would have if the item were never boosted in the first place.
+ *
+ * This function is idempotent. You may call it multiple times and we'll only
+ * apply the boost once.
+ *
+ * You must call this function with a system actor since it may update search
+ * affinity points on behalf of another user.
+ */
+export async function removeSearchAffinityActiveTaskAssigneePoints(
+    context: ServerSystemActionContext,
+    {
+        spaceId,
+        assigneeId,
+        taskId,
+    }: {
+        spaceId: SpaceId;
+        assigneeId: AccountId;
+        taskId: TaskId;
+    },
+) {
+    // A system actor is required since we may be updating search affinity on
+    // behalf of a user other than the one making the action. So we need a trusted
+    // actor. For example, your manager may mark a task assigned to you as active
+    // on your behalf.
+    //
+    // If Alice (a malicious user) tries to get Bob's attention by assigning them
+    // to a task and setting it as active then Bob can simply unassign themselves
+    // to remove the task from the top of their affinity list. This makes adding
+    // affinity points to the assignee of an active task no more harmful then
+    // sending a notification after an @ mention (which can be dismissed).
+    context.actor.authorizeSystem();
+
+    const currentTime = Date.now();
+
+    await context.dynamo.retryTransaction(async context => {
+        const item = await SearchEntityTable.getItemIfExists(context, {
+            partitionType: "Account",
+            sortRangeType: "SearchEntityAffinity",
+            spaceId,
+            accountId: assigneeId,
+            entityId: `Task:${taskId}`,
+        });
+
+        if (!item?.activeTaskAssignee) {
+            // If the item already has active task assignee points, make sure with a
+            // [serializable isolation level][1] that the item version number is exactly
+            // what we read. This makes sure our eventually consistent read didn't see an
+            // outdated item.
+            //
+            // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html#transaction-isolation
+            await DynamoTableSchema.executeTransaction(context, [
+                item
+                    ? SearchEntityTable.transactionUpdateLockVersionConditionCheck(
+                          {
+                              partitionType: "Account",
+                              sortRangeType: "SearchEntityAffinity",
+                              spaceId,
+                              accountId: assigneeId,
+                              entityId: `Task:${taskId}`,
+                          },
+                          item.updateLockVersion,
+                      )
+                    : SearchEntityTable.transactionDoesNotExistConditionCheck({
+                          partitionType: "Account",
+                          sortRangeType: "SearchEntityAffinity",
+                          spaceId,
+                          accountId: assigneeId,
+                          entityId: `Task:${taskId}`,
+                      }),
+            ]);
+        } else {
+            const points =
+                getCurrentSearchAffinityPoints(currentTime, item) -
+                getCurrentSearchAffinityPoints(currentTime, item.activeTaskAssignee);
+
+            if (points <= searchAffinityExpirationPoints) {
+                await SearchEntityTable.deleteItem(context, item);
+            } else {
+                await SearchEntityTable.directlyUpdateItem(context, {
+                    ...item,
+                    points,
+                    pointsBucket: getSearchAffinityPointsBucket(points),
+                    lastUpdatedTime: currentTime,
+                    expirationTime: new Date(
+                        currentTime + Math.ceil(getSearchAffinityExpirationDuration(points)),
+                    ),
+                    activeTaskAssignee: undefined,
+                });
+            }
+        }
+    });
 }
 
 /**
@@ -692,7 +1024,7 @@ async function internalGetSearchAffinitiesBase<
         ) {
             context.process.waitUntil(async () => {
                 try {
-                    if (currentPoints <= 0.05) {
+                    if (currentPoints <= searchAffinityExpirationPoints) {
                         await deleteItem(item);
                     } else {
                         await directlyUpdateItem(item, {

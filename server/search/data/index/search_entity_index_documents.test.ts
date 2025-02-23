@@ -11,8 +11,10 @@ import {
     getSearchEntityIndexesForTest,
     processIndexSearchEntityJob,
     processSearchEntityJobUpdateDependentEntitiesTestCounter,
+    searchByAffinity,
     searchByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
+import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -123,7 +125,7 @@ test("will index a document after a timeout", async () => {
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(0);
@@ -132,7 +134,7 @@ test("will index a document after a timeout", async () => {
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -165,7 +167,7 @@ test("will only index a document once if update happened within the timeout", as
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(0);
@@ -187,7 +189,7 @@ test("will only index a document once if update happened within the timeout", as
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -212,7 +214,7 @@ test("will only index a document once if update happened within timeout even acr
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -231,7 +233,7 @@ test("will only index a document once if update happened within timeout even acr
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -258,7 +260,7 @@ test("will only index a document once if update happened within timeout even acr
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
@@ -298,7 +300,7 @@ test("will index a document again if update happened after timeout", async () =>
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -322,7 +324,7 @@ test("will index a document again if update happened after timeout", async () =>
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
@@ -362,7 +364,7 @@ test("will index a document again if update happened after timeout with more upd
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -383,7 +385,7 @@ test("will index a document again if update happened after timeout with more upd
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -404,7 +406,7 @@ test("will index a document again if update happened after timeout with more upd
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
@@ -444,7 +446,7 @@ test("will not schedule another indexing job if document title is updated after 
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(0);
@@ -471,7 +473,7 @@ test("will not schedule another indexing job if document title is updated after 
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -511,7 +513,7 @@ test("will schedule another indexing job if document title is updated after cont
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -535,7 +537,7 @@ test("will schedule another indexing job if document title is updated after cont
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -562,7 +564,7 @@ test("will schedule another indexing job if document title is updated after cont
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
@@ -572,7 +574,7 @@ test("will schedule another indexing job if document title is updated after cont
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(3);
@@ -612,7 +614,7 @@ test("will not schedule another indexing job if document title is updated twice 
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -636,7 +638,7 @@ test("will not schedule another indexing job if document title is updated twice 
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -663,7 +665,7 @@ test("will not schedule another indexing job if document title is updated twice 
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
@@ -673,7 +675,7 @@ test("will not schedule another indexing job if document title is updated twice 
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
-    import.meta.jest.advanceTimersByTime(15 * 1000);
+    import.meta.jest.advanceTimersByTime(2.5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     await document.update(session, [
@@ -693,7 +695,7 @@ test("will not schedule another indexing job if document title is updated twice 
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
-    import.meta.jest.advanceTimersByTime(15 * 1000);
+    import.meta.jest.advanceTimersByTime(2.5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(3);
@@ -751,7 +753,7 @@ test("document access policies are enforced in search", async () => {
     await document8.access.grantUrl(session6);
     await document8.access.grantDefault(session6);
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     const getSearchEntityIds = async (session: TestSpaceSession) => {
@@ -824,7 +826,7 @@ test("document access policies are enforced in search", async () => {
 
     await document5.access.revoke(session1, session2);
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(await getSearchEntityIds(session1)).toEqual([
@@ -876,7 +878,7 @@ test("document access policies are enforced in search", async () => {
 
     await document5.access.revokeDefault(session1);
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(await getSearchEntityIds(session1)).toEqual([
@@ -924,7 +926,7 @@ test("document access policies are enforced in search", async () => {
 
     await document3.access.revoke(session1, session4);
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(await getSearchEntityIds(session1)).toEqual([
@@ -968,4 +970,250 @@ test("document access policies are enforced in search", async () => {
         `Document:${document7.id}`,
         `Document:${document8.id}`,
     ]);
+});
+
+test("newly created documents will be visible in search even before indexing", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    expect(indexSearchEntityJobCount).toEqual(0);
+
+    const document = await TestDocument.create(session1, {
+        title: "Hollywoo Stars and Celebrities",
+        body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+    });
+    await document.access.grantDefault(session1);
+
+    await markSearchAffinityInteraction(session2.action(), {
+        spaceId: space.id,
+        affinityId: `Document:${document.id}`,
+        interaction: {type: "MediumIntentUpdate"},
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(indexSearchEntityJobCount).toEqual(0);
+    expect(await getIndexedSearchEntity(document)).toEqual({
+        title: null,
+        body: null,
+    });
+
+    expect(
+        await searchByAffinity(session1.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual({
+        results: [
+            {
+                id: `Document:${document.id}`,
+                score: expect.closeTo(60),
+                title: "Hollywoo Stars and Celebrities",
+                bodyTextSnippet: [],
+                media: null,
+            },
+        ],
+    });
+
+    expect(
+        await searchByAffinity(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual({
+        results: [
+            {
+                id: `Document:${document.id}`,
+                score: expect.closeTo(1),
+                title: "Hollywoo Stars and Celebrities",
+                bodyTextSnippet: [],
+                media: null,
+            },
+        ],
+    });
+
+    import.meta.jest.advanceTimersByTime(5 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(indexSearchEntityJobCount).toEqual(0);
+    expect(await getIndexedSearchEntity(document)).toEqual({
+        title: null,
+        body: null,
+    });
+
+    expect(
+        await searchByAffinity(session1.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual({
+        results: [
+            {
+                id: `Document:${document.id}`,
+                score: expect.closeTo(60),
+                title: "Hollywoo Stars and Celebrities",
+                bodyTextSnippet: [],
+                media: null,
+            },
+        ],
+    });
+
+    expect(
+        await searchByAffinity(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual({
+        results: [
+            {
+                id: `Document:${document.id}`,
+                score: expect.closeTo(1),
+                title: "Hollywoo Stars and Celebrities",
+                bodyTextSnippet: [],
+                media: null,
+            },
+        ],
+    });
+
+    await document.access.revokeDefault(session1);
+
+    expect(
+        await searchByAffinity(session1.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual({
+        results: [
+            {
+                id: `Document:${document.id}`,
+                score: expect.closeTo(60),
+                title: "Hollywoo Stars and Celebrities",
+                bodyTextSnippet: [],
+                media: null,
+            },
+        ],
+    });
+
+    expect(
+        await searchByAffinity(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual({
+        results: [],
+    });
+
+    await document.access.grantDefault(session1);
+
+    import.meta.jest.advanceTimersByTime(5 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(indexSearchEntityJobCount).toEqual(1);
+    expect(await getIndexedSearchEntity(document)).toEqual({
+        title: "Hollywoo Stars and Celebrities",
+        body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+    });
+
+    expect(
+        await searchByAffinity(session1.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual({
+        results: [
+            {
+                id: `Document:${document.id}`,
+                score: expect.closeTo(60),
+                title: "Hollywoo Stars and Celebrities",
+                bodyTextSnippet: [],
+                media: null,
+            },
+        ],
+    });
+
+    expect(
+        await searchByAffinity(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual({
+        results: [
+            {
+                id: `Document:${document.id}`,
+                score: expect.closeTo(1),
+                title: "Hollywoo Stars and Celebrities",
+                bodyTextSnippet: [],
+                media: null,
+            },
+        ],
+    });
+
+    await document.access.revokeDefault(session1);
+
+    expect(
+        await searchByAffinity(session1.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual({
+        results: [
+            {
+                id: `Document:${document.id}`,
+                score: expect.closeTo(60),
+                title: "Hollywoo Stars and Celebrities",
+                bodyTextSnippet: [],
+                media: null,
+            },
+        ],
+    });
+
+    expect(
+        await searchByAffinity(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual({
+        results: [
+            {
+                id: `Document:${document.id}`,
+                score: expect.closeTo(1),
+                title: "Hollywoo Stars and Celebrities",
+                bodyTextSnippet: [],
+                media: null,
+            },
+        ],
+    });
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        await searchByAffinity(session1.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual({
+        results: [
+            {
+                id: `Document:${document.id}`,
+                score: expect.closeTo(60),
+                title: "Hollywoo Stars and Celebrities",
+                bodyTextSnippet: [],
+                media: null,
+            },
+        ],
+    });
+
+    expect(
+        await searchByAffinity(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual({
+        results: [],
+    });
+
+    // Make sure there are no more jobs in the queue.
+    cache.evictAllDocumentsForTest();
+    expect(import.meta.jest.getTimerCount()).toEqual(0);
 });

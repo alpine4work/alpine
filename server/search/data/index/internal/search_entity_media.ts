@@ -19,8 +19,14 @@ export const SearchEntityTaskCollectionColorMediaSchema = Schema.object({
     color: Schema.enum(themeColors).nullable(),
 });
 
+export const SearchEntityTaskDisplayStatusMediaSchema = Schema.object({
+    type: Schema.value("TaskDisplayStatus"),
+    displayStatus: Schema.enum(["OpenInactive", "OpenActive", "Closed"]),
+});
+
 export const SearchEntityMediaSchema = Schema.union({
     Account: SearchEntityAccountMediaSchema,
     AccountPile: SearchEntityAccountPileMediaSchema,
     TaskCollectionColor: SearchEntityTaskCollectionColorMediaSchema,
+    TaskDisplayStatus: SearchEntityTaskDisplayStatusMediaSchema,
 });

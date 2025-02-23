@@ -21,9 +21,11 @@ import {
     getSearchEntityIndexesForTest,
     processIndexSearchEntityJob,
     processSearchEntityJobFinishedTestCheckpoint,
+    searchByAffinity,
     searchByKeywords,
     searchBySemantics,
 } from "~/server/search/data/index/search_entity_index.js";
+import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
@@ -1802,7 +1804,9 @@ test("get search entities only sees entities the account has access to", async (
             ],
         });
 
-        return filterMapArray(entities, entity => entity?.id).sort(defaultCompareStrings);
+        return filterMapArray(entities, entity =>
+            typeof entity !== "string" ? entity.id : undefined,
+        ).sort(defaultCompareStrings);
     };
 
     await expect(getSearchEntityIds(otherSession.action(), space)).rejects.toThrow(
@@ -2526,6 +2530,60 @@ test("highlighting bullet points with bold formatting works well", async () => {
                         text: " ingredients. Sweet Indulgences: Exploring the world of decadent desserts and sweets",
                     },
                 ],
+                media: null,
+            },
+        ],
+    });
+});
+
+test("search by affinity can include the task notepad", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document1 = await TestDocument.create(session1, {title: "Test Document 1"});
+    const document2 = await TestDocument.create(session2, {title: "Test Document 2"});
+    await document2.access.grantDefault(session2);
+
+    await markSearchAffinityInteraction(session1.action(), {
+        spaceId: space.id,
+        affinityId: "TaskNotepad",
+        interaction: {type: "HighIntentUpdate"},
+    });
+
+    await markSearchAffinityInteraction(session1.action(), {
+        spaceId: space.id,
+        affinityId: `Document:${document2.id}`,
+        interaction: {type: "View"},
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        await searchByAffinity(session1.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual({
+        results: [
+            {
+                id: `Document:${document1.id}`,
+                score: expect.closeTo(60),
+                title: "Test Document 1",
+                bodyTextSnippet: [],
+                media: null,
+            },
+            {
+                id: "TaskNotepad",
+                score: expect.closeTo(3),
+                title: "Task notepad",
+                bodyTextSnippet: [],
+                media: null,
+            },
+            {
+                id: `Document:${document2.id}`,
+                score: expect.closeTo(1),
+                title: "Test Document 2",
+                bodyTextSnippet: [],
                 media: null,
             },
         ],

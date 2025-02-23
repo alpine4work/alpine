@@ -104,6 +104,10 @@ export class TaskCollectionSet {
         return this._array;
     }
 
+    public entries() {
+        return this._entries.entries();
+    }
+
     public entriesWithVersion() {
         return this._entries.entriesWithVersion();
     }

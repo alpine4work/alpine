@@ -21,6 +21,11 @@ import {
     OpensearchIndexTypeType,
 } from "~/server/opensearch/opensearch_index_type.js";
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
+import {
+    addSearchAffinityActiveTaskAssigneePoints,
+    markSearchAffinityInteractionForAccount,
+    removeSearchAffinityActiveTaskAssigneePoints,
+} from "~/server/search/data/table/search_entity_table.js";
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
@@ -47,6 +52,8 @@ import {
     TaskIndexActualDoc,
     TaskIndexDocType,
     TaskIndexSearchEntityJob,
+    getTaskIndexDocDisplayStatus,
+    isTaskIndexDocDeleted,
 } from "~/server/tasks/data/task_index_doc.js";
 import {getTaskCollectionSearchResultIfExists} from "~/server/tasks/data/task_table.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -151,7 +158,7 @@ const TaskCollectionIndex = new OpensearchIndex<
 /**
  * The throttle interval for task indexing jobs in seconds. Indexing a
  * task requires reading the entire thing and saving it to OpenSearch which
- * can be expensive. Given how frequently users updating tasks, we throttle
+ * can be expensive. Given how frequently users update tasks, we throttle
  * how frequently a task is indexed.
  *
  * When the user first makes an edit to a task we queue an indexing job
@@ -160,11 +167,19 @@ const TaskCollectionIndex = new OpensearchIndex<
  * finally runs, the update will be picked up. If the user makes an update after
  * the delay has passed then we schedule another indexing job with a new delay.
  *
- * We pick a minute since we're ok with it taking a bit for new task
- * changes to be indexed. Reindexing can be expensive so we want to capture as
- * many updates as possible when we reindex.
+ * We throttle updates to every 10 seconds for the first ~10 minutes of
+ * continuous editing to a task (the first 60 indexes). Then after that we
+ * throttle updates to once every 60 seconds. Reindexing large tasks can be
+ * expensive so we use the number of prior indexes as a proxy for how large a
+ * task is and slow down indexing once it reaches a certain threshold.
  */
-const taskIndexSearchEntityJobDelaySeconds = 60;
+function getTaskIndexSearchEntityJobDelaySeconds(generation: number) {
+    // For the first 10 minutes (60 * 10 / 60) update every 10 seconds.
+    if (generation <= 60) return 10;
+
+    // After that initial period, update every 60 seconds.
+    return 60;
+}
 
 /**
  * Ensure our task indexes exist in our local environment. This function is
@@ -585,6 +600,7 @@ class TaskActionTransactionIndexState {
 
             const currentTime = new Date();
             const jobs: Array<{job: JobDescription; delaySeconds?: number}> = [];
+            const afterWriteCallbacks: Array<() => Promise<void>> = [];
 
             const commandPromises = concatIterables<
                 Promise<OpensearchBulkCommandBase<typeof TaskIndex | typeof TaskCollectionIndex>>
@@ -632,28 +648,27 @@ class TaskActionTransactionIndexState {
                     // right version number if we didn't read the previous task so our bulk update
                     // will fail if the task is being updated instead of created.
                     if (!oldTask || !newTask.lastIndexSearchEntityJob) {
-                        const updatedTraits: TaskIndexSearchEntityJob["updatedTraits"] = {
-                            type: "Some",
-                            traits: [],
+                        const newIndexSearchEntityJob: TaskIndexSearchEntityJob = {
+                            sendTime: currentTime,
+                            generation: 0,
+                            delaySeconds: getTaskIndexSearchEntityJobDelaySeconds(0),
+                            updatedTraits: {type: "Some", traits: []},
                         };
 
                         newTask = {
                             ...newTask,
-                            lastIndexSearchEntityJob: {
-                                sendTime: currentTime,
-                                updatedTraits,
-                            },
+                            lastIndexSearchEntityJob: newIndexSearchEntityJob,
                         };
 
                         jobs.push({
-                            delaySeconds: taskIndexSearchEntityJobDelaySeconds,
+                            delaySeconds: newIndexSearchEntityJob.delaySeconds,
                             job: {
                                 type: "IndexSearchEntity",
                                 spaceId,
                                 update: {
                                     type: "Task",
                                     taskId: newTask.id,
-                                    updatedTraits,
+                                    updatedTraits: newIndexSearchEntityJob.updatedTraits,
                                 },
                             },
                         });
@@ -742,31 +757,133 @@ class TaskActionTransactionIndexState {
                             isDatePossiblyLessThanWithUncertaintyWindow(
                                 new Date(
                                     oldTask.lastIndexSearchEntityJob.sendTime.getTime() +
-                                        taskIndexSearchEntityJobDelaySeconds * 1000,
+                                        oldTask.lastIndexSearchEntityJob.delaySeconds * 1000,
                                 ),
                                 currentTime,
                             )
                         ) {
+                            const newIndexSearchEntityJob: TaskIndexSearchEntityJob = {
+                                sendTime: currentTime,
+                                generation: oldTask.lastIndexSearchEntityJob.generation + 1,
+                                delaySeconds: getTaskIndexSearchEntityJobDelaySeconds(
+                                    oldTask.lastIndexSearchEntityJob.generation + 1,
+                                ),
+                                updatedTraits: {type: "Some", traits: updatedTraits},
+                            };
+
                             newTask = {
                                 ...newTask,
-                                lastIndexSearchEntityJob: {
-                                    sendTime: currentTime,
-                                    updatedTraits: {type: "Some", traits: updatedTraits},
-                                },
+                                lastIndexSearchEntityJob: newIndexSearchEntityJob,
                             };
 
                             jobs.push({
-                                delaySeconds: taskIndexSearchEntityJobDelaySeconds,
+                                delaySeconds: newIndexSearchEntityJob.delaySeconds,
                                 job: {
                                     type: "IndexSearchEntity",
                                     spaceId,
                                     update: {
                                         type: "Task",
                                         taskId: newTask.id,
-                                        updatedTraits: {type: "Some", traits: updatedTraits},
+                                        updatedTraits: newIndexSearchEntityJob.updatedTraits,
                                     },
                                 },
                             });
+                        }
+                    }
+
+                    const oldIsActiveForAffinity =
+                        oldTask && !isTaskIndexDocDeleted(oldTask)
+                            ? getTaskIndexDocDisplayStatus(oldTask) === "OpenActive"
+                            : false;
+                    const newIsActiveForAffinity = !isTaskIndexDocDeleted(newTask)
+                        ? getTaskIndexDocDisplayStatus(newTask) === "OpenActive"
+                        : false;
+
+                    // If the active status of the task changes then we want to add/remove affinity
+                    // points. Setting a task as active will boost the task to the top of the
+                    // account's affinity list. Removing the active status from the task will remove
+                    // that boost and take it out of the top of the affinity list.
+                    if (
+                        oldTask?.assignee.value?.assignee.accountId !==
+                            newTask.assignee.value?.assignee.accountId ||
+                        oldIsActiveForAffinity !== newIsActiveForAffinity
+                    ) {
+                        if (
+                            oldTask?.assignee.value?.assignee.accountId ===
+                            newTask?.assignee.value?.assignee.accountId
+                        ) {
+                            const assigneeId = oldTask?.assignee.value?.assignee.accountId;
+                            if (assigneeId) {
+                                if (oldIsActiveForAffinity && !newIsActiveForAffinity) {
+                                    afterWriteCallbacks.push(() =>
+                                        removeSearchAffinityActiveTaskAssigneePoints(context, {
+                                            spaceId,
+                                            assigneeId,
+                                            taskId: newTask.id,
+                                        }),
+                                    );
+                                }
+
+                                if (!oldIsActiveForAffinity && newIsActiveForAffinity) {
+                                    afterWriteCallbacks.push(() =>
+                                        addSearchAffinityActiveTaskAssigneePoints(context, {
+                                            spaceId,
+                                            assigneeId,
+                                            taskId: newTask.id,
+                                        }),
+                                    );
+                                }
+                            }
+                        } else {
+                            const oldAssigneeId = oldTask?.assignee.value?.assignee.accountId;
+                            const newAssigneeId = newTask?.assignee.value?.assignee.accountId;
+
+                            if (oldAssigneeId && oldIsActiveForAffinity) {
+                                afterWriteCallbacks.push(() =>
+                                    removeSearchAffinityActiveTaskAssigneePoints(context, {
+                                        spaceId,
+                                        assigneeId: oldAssigneeId,
+                                        taskId: newTask.id,
+                                    }),
+                                );
+                            }
+
+                            if (newAssigneeId && newIsActiveForAffinity) {
+                                afterWriteCallbacks.push(() =>
+                                    addSearchAffinityActiveTaskAssigneePoints(context, {
+                                        spaceId,
+                                        assigneeId: newAssigneeId,
+                                        taskId: newTask.id,
+                                    }),
+                                );
+                            }
+                        }
+                    }
+
+                    // Record an affinity interaction whenever the task is added to a collection for
+                    // that collection. Whenever the user chooses a collection from the collections
+                    // dropdown we want the collection to rank higher for the next time the user
+                    // opens the collections dropdown.
+                    //
+                    // TODO(calebmer): What happens if we need to reindex OpenSearch from scratch?
+                    // Or there's an OpenSearch durability issue and we need to reindex some
+                    // actions? Since marking search affinity interactions isn't idempotent we may
+                    // end up adding more points than expected. Consider adding a flag to disable
+                    // affinity updates when reindexing OpenSearch from scratch.
+                    if (actorId !== null) {
+                        for (const [
+                            collectionId,
+                        ] of newTask.collections.raw.collections.entries()) {
+                            if (!oldTask?.collections.raw.collections.has(collectionId)) {
+                                afterWriteCallbacks.push(() =>
+                                    markSearchAffinityInteractionForAccount(context, {
+                                        spaceId,
+                                        accountId: actorId,
+                                        affinityId: `TaskCollection:${collectionId}`,
+                                        interaction: {type: "LowIntentUpdate"},
+                                    }),
+                                );
+                            }
                         }
                     }
 
@@ -844,6 +961,24 @@ class TaskActionTransactionIndexState {
                         });
                     }
 
+                    // Record affinity points when a collection is created.
+                    //
+                    // TODO(calebmer): What happens if we need to reindex OpenSearch from scratch?
+                    // Or there's an OpenSearch durability issue and we need to reindex some
+                    // actions? Since marking search affinity interactions isn't idempotent we may
+                    // end up adding more points than expected. Consider adding a flag to disable
+                    // affinity updates when reindexing OpenSearch from scratch.
+                    if (actorId !== null && !oldCollection) {
+                        afterWriteCallbacks.push(() =>
+                            markSearchAffinityInteractionForAccount(context, {
+                                spaceId,
+                                accountId: actorId,
+                                affinityId: `TaskCollection:${newCollection.id}`,
+                                interaction: {type: "HighIntentUpdate"},
+                            }),
+                        );
+                    }
+
                     return new OpensearchIndexDocIfVersionCommand(
                         TaskCollectionIndex,
                         spaceId,
@@ -864,6 +999,12 @@ class TaskActionTransactionIndexState {
                 // semantics.
                 state._context.jobs.send(job, {delaySeconds});
             }
+
+            // Wait for any registered callbacks to complete (e.g. callbacks that update
+            // search affinity for tasks marked as active).
+            await runAllPromises(
+                afterWriteCallbacks.map(afterWriteCallback => afterWriteCallback()),
+            );
 
             // After we've indexed our data, read all our referenced accounts again but
             // with a strong read consistency. If any referenced account name changed while
@@ -1767,7 +1908,7 @@ export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
             isDatePossiblyLessThanWithUncertaintyWindow(
                 new Date(
                     task.lastIndexSearchEntityJob.sendTime.getTime() +
-                        taskIndexSearchEntityJobDelaySeconds * 1000,
+                        task.lastIndexSearchEntityJob.delaySeconds * 1000,
                 ),
                 currentTime,
             )
@@ -1776,15 +1917,21 @@ export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
             // but should be easy to add.
             const updatedTraits: Array<never> = [];
 
+            const newIndexSearchEntityJob: TaskIndexSearchEntityJob = {
+                sendTime: currentTime,
+                generation: task.lastIndexSearchEntityJob.generation + 1,
+                delaySeconds: getTaskIndexSearchEntityJobDelaySeconds(
+                    task.lastIndexSearchEntityJob.generation + 1,
+                ),
+                updatedTraits: {type: "Some", traits: updatedTraits},
+            };
+
             await context.opensearch.indexDocIfVersion(
                 TaskIndex,
                 spaceId,
                 {
                     ...task,
-                    lastIndexSearchEntityJob: {
-                        sendTime: currentTime,
-                        updatedTraits: {type: "Some", traits: updatedTraits},
-                    },
+                    lastIndexSearchEntityJob: newIndexSearchEntityJob,
                 },
                 {retryVersionConflictError: retry},
             );
@@ -1796,12 +1943,10 @@ export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
                     update: {
                         type: "Task",
                         taskId,
-                        updatedTraits: {type: "Some", traits: updatedTraits},
+                        updatedTraits: newIndexSearchEntityJob.updatedTraits,
                     },
                 },
-                {
-                    delaySeconds: taskIndexSearchEntityJobDelaySeconds,
-                },
+                {delaySeconds: newIndexSearchEntityJob.delaySeconds},
             );
         }
     });

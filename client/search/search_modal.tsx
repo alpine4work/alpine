@@ -24,7 +24,6 @@ import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {Modal} from "~/client/design/modal.js";
 import {useReporter} from "~/client/design/reporter.js";
-import {Spacer} from "~/client/design/spacer.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
@@ -39,6 +38,7 @@ import {
     usePeekSwitcherState,
 } from "~/client/peek/use_peek_switcher_state.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
 import {SearchInstructionalPlaceholder} from "~/client/search/internal/search_instructional_placeholder.js";
@@ -48,10 +48,15 @@ import {SearchResultShimmer} from "~/client/shimmer/search_result_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
-    minSearchResultViewHeight,
+    minSearchResultViewHeightPx,
     searchResultViewPaddingY,
 } from "~/client/styles/search_shared_styles.js";
-import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
+import {
+    contentStyles,
+    grey5SemiTransparentColorVar,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
@@ -125,7 +130,7 @@ export function SearchModal({
         // results to load.
         !!output.results;
 
-    // Whenever the user selects a search result, we accord a high intent affinity
+    // Whenever the user selects a search result, we record a high intent affinity
     // interaction. This is because the user opening a result from search is super
     // high signal that this is an entity they care about. In this way search is a
     // self reinforcing system. The more a user selects an entity, the higher the
@@ -153,7 +158,7 @@ export function SearchModal({
     return (
         <Modal
             aria-label="Search"
-            maxWidth="256"
+            maxWidth={addRemLengths("96", peekMobileLayoutWidth)}
             height="full"
             maxHeight={searchModalMaxHeight}
             borderRadius="2.5"
@@ -331,7 +336,6 @@ export function SearchModal({
                         overflow="hidden"
                         display="flex"
                         flexDirection="row"
-                        borderTop="grey-5"
                     >
                         {useMemo(
                             () => (
@@ -357,21 +361,17 @@ export function SearchModal({
                                         </Box>
                                     ) : !output.results ? (
                                         <Box width="full">
-                                            <Spacer space="1" />
+                                            <Box
+                                                width="full"
+                                                style={{height: `calc(${spacing["1"]} + 1px)`}}
+                                            />
                                             <SearchResultShimmer titleWidth="64" />
-                                            <SearchResultShimmer
-                                                titleWidth="32"
-                                                bodySnippetRagRight="6"
-                                            />
-                                            <SearchResultShimmer
-                                                titleWidth="48"
-                                                bodySnippetRagRight="4"
-                                            />
+                                            <SearchResultShimmer titleWidth="32" />
+                                            <SearchResultShimmer titleWidth="48" />
                                             <SearchResultShimmer titleWidth="96" />
-                                            <SearchResultShimmer
-                                                titleWidth="64"
-                                                bodySnippetRagRight="5"
-                                            />
+                                            <SearchResultShimmer titleWidth="64" />
+                                            <SearchResultShimmer titleWidth="48" />
+                                            <SearchResultShimmer titleWidth="96" />
                                         </Box>
                                     ) : output.results.length === 0 ? (
                                         <Box
@@ -430,7 +430,11 @@ export function SearchModal({
                                     width={peekMobileLayoutWidth}
                                     height="full"
                                     overflow="hidden"
-                                    borderLeft="grey-5"
+                                    style={{
+                                        // Render border 1px down so the two semi transparent borders don't conflict
+                                        // with each other creating a single pixel that's darker where they intersect.
+                                        boxShadow: `-1px 1px 0 0 ${grey5SemiTransparentColorVar}`,
+                                    }}
                                 >
                                     {activePeek ? (
                                         <SearchModalPeekContent
@@ -499,7 +503,18 @@ const SearchModalInput = forwardRef(function SearchModalInput(
     const iconSizeRem = parseRemLength(iconSize);
 
     return (
-        <Box flexShrink="0" position="relative" width="full">
+        <Box
+            flexShrink="0"
+            position="relative"
+            zIndex="10"
+            width="full"
+            style={{
+                // Render border with a semi-transparent box shadow so that we get a nice
+                // soft shadow effect when content from the search result list scrolls under
+                // the border instead of a hard cutoff.
+                boxShadow: `0 1px 0 0 ${grey5SemiTransparentColorVar}`,
+            }}
+        >
             <MagnifyingGlass
                 size={`${iconSizeRem}rem`}
                 className={sprinkles({
@@ -579,6 +594,7 @@ function SearchModalResultList({
     holdPeekTransition: Memo<(promise: Promise<void>) => void>;
     markResultSelectAffinityInteraction: (resultId: SearchResultId) => void;
 }) {
+    const spacingScale = useSpacingScale();
     const navigate = useNavigate();
     const {space} = useSpaceContext();
 
@@ -644,7 +660,7 @@ function SearchModalResultList({
 
             return {
                 key: `Loaded:${result.id}`,
-                minHeight: minSearchResultViewHeight,
+                minHeight: minSearchResultViewHeightPx[spacingScale],
                 node: (
                     <SearchResultView
                         result={result}
@@ -683,6 +699,7 @@ function SearchModalResultList({
             searchTime,
             selectedPeek?.extra.resultId,
             space.id,
+            spacingScale,
             switchPeek,
         ],
     );
@@ -691,7 +708,7 @@ function SearchModalResultList({
         <VirtualizedScrollView
             ref={viewRef}
             itemCount={results.length}
-            bufferedItemHeight={minSearchResultViewHeight}
+            bufferedItemHeight={minSearchResultViewHeightPx[spacingScale]}
             renderItem={renderItem}
             extraChildrenOutsideContentElement={({contentHeight}) => (
                 // Our items all have a bottom border. This is good when there's less content

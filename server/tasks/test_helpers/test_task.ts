@@ -303,6 +303,7 @@ export class TestTask extends TestCommentRoomBase {
     public async updateAssignee(
         session: TestSpaceSession,
         assignee: TestAccount | TestSession | null,
+        {assigneeStatus}: {assigneeStatus?: "Inactive" | "Active"} = {},
     ) {
         const time = testClock.nowLogical();
 
@@ -325,11 +326,39 @@ export class TestTask extends TestCommentRoomBase {
                               assignedTime: TaskFilterableTime.test(time),
                           }
                         : null,
+                    assigneeStatus:
+                        assigneeStatus !== undefined
+                            ? assigneeStatus === "Active"
+                                ? {type: "Active", activatedTime: TaskFilterableTime.test(time)}
+                                : {type: assigneeStatus}
+                            : undefined,
                 },
             },
         ]);
 
         return {time};
+    }
+
+    public async updateAssigneeStatus(
+        session: TestSpaceSession,
+        assigneeStatus: "Inactive" | "Active",
+    ) {
+        const time = testClock.nowLogical();
+
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateTask",
+                time,
+                taskId: this.id,
+                taskAction: {
+                    type: "UpdateAssigneeStatus",
+                    assigneeStatus:
+                        assigneeStatus === "Active"
+                            ? {type: "Active", activatedTime: TaskFilterableTime.test(time)}
+                            : {type: assigneeStatus},
+                },
+            },
+        ]);
     }
 
     public async updatePriority(
