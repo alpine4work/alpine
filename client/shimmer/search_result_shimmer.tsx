@@ -6,10 +6,9 @@ import {
     searchResultViewBodyTextSnippetFontSize,
     searchResultViewPaddingY,
     searchResultViewTitleFontSize,
-    searchResultViewTitleLineHeightPx,
     searchResultViewTitleMarginBottom,
 } from "~/client/styles/search_shared_styles.js";
-import {Sprinkles, colorSchemeVars, fontSizes} from "~/client/styles/styles.js";
+import {Sprinkles, colorSchemeVars, contentStyles, fontSizes} from "~/client/styles/styles.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
 
 export function SearchResultShimmer({
@@ -48,14 +47,14 @@ export function SearchResultShimmer({
                         <TextShimmer
                             fontSize={{
                                 fontSize: fontSizes[searchResultViewTitleFontSize].fontSize,
-                                lineHeight: `${searchResultViewTitleLineHeightPx[spacingScale]}px`,
+                                lineHeight: `${contentStyles.paragraphLineHeightPx[spacingScale]}px`,
                             }}
                             width="3"
                         />
                         <TextShimmer
                             fontSize={{
                                 fontSize: fontSizes[searchResultViewTitleFontSize].fontSize,
-                                lineHeight: `${searchResultViewTitleLineHeightPx[spacingScale]}px`,
+                                lineHeight: `${contentStyles.paragraphLineHeightPx[spacingScale]}px`,
                             }}
                             width={titleWidth}
                         />

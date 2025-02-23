@@ -3,6 +3,7 @@ import escapeHtml from "escape-html";
 import {IconContext} from "phosphor-react";
 import {Fragment, ReactNode, useMemo} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
@@ -23,32 +24,22 @@ import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.
 import {
     minSearchResultViewBodyTextSnippetHeight,
     minSearchResultViewHeightPx,
-    minSearchResultViewHeightWithoutPaddingYPx,
-    searchResultViewAuxiliaryTypeDisplayOffset,
-    searchResultViewAuxiliaryTypeDisplaySize,
     searchResultViewBodyTextSnippetFontSize,
     searchResultViewMediaSize,
     searchResultViewPaddingY,
     searchResultViewTitleFontSize,
-    searchResultViewTitleLineHeightPx,
     searchResultViewTitleMarginBottom,
 } from "~/client/styles/search_shared_styles.js";
 import {
     Sprinkles,
     backgroundColorVar,
     colorSchemeVars,
-    fontSizes,
+    contentStyles,
     greyElevated2ClassName,
     searchStyles,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {
-    Spacing,
-    addRemLengths,
-    convertRemLengthToPx,
-    spacing,
-} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
@@ -66,8 +57,7 @@ export function SearchResultView({
     onPressStart,
     onDoubleClick,
     marginX = "1",
-    paddingX = searchResultViewPaddingY,
-    withBorderTop = false,
+    paddingX = "2.5",
 }: {
     result: SearchResult;
     isSelected?: boolean;
@@ -78,46 +68,56 @@ export function SearchResultView({
     onDoubleClick?: () => void;
     marginX?: Spacing;
     paddingX?: Sprinkles["paddingX"];
-    withBorderTop?: boolean;
 }) {
     const spacingScale = useSpacingScale();
 
     const typeDisplay = useMemo(() => getSearchResultTypeDisplay(result.id), [result.id]);
 
-    const typeDisplayIcon = (
-        <Box
-            // Brand icons only render in the `grey-80` shade and above. So we can maintain
-            // proper contrast between the icon line and color splash. However, here we
-            // want to render a lighter line color (e.g. `grey-60`) to not distract from
-            // the result title. We calculate the opacity to get us from `grey-80` to a
-            // lighter line color (e.g. `grey-60`) and apply it. By applying opacity the
-            // color splash also gets lighter to maintain proper contrast between the lines
-            // and the color splash.
-            className={searchStyles.brandIconOpacityClassName}
-            display="inline-flex"
-            alignItems="center"
-            marginRight="1.5"
-            style={{height: "1lh", verticalAlign: "top"}}
-        >
-            <IconContext.Provider
-                value={{
-                    color: searchStyles.brandIconColor,
-                    size: spacing["4"],
+    const typeDisplayAndMediaFragment = (
+        <>
+            <Box
+                position="relative"
+                display="inline-flex"
+                justifyContent="center"
+                alignItems="center"
+                marginRight="1.5"
+                style={{
+                    height: contentStyles.paragraphLineHeightPx[spacingScale],
+                    verticalAlign: "top",
                 }}
+                // Brand icons only render in the `grey-80` shade and above. So we can maintain
+                // proper contrast between the icon line and color splash. However, here we
+                // want to render a lighter line color (e.g. `grey-60`) to not distract from
+                // the result title. We calculate the opacity to get us from `grey-80` to a
+                // lighter line color (e.g. `grey-60`) and apply it. By applying opacity the
+                // color splash also gets lighter to maintain proper contrast between the lines
+                // and the color splash.
+                className={searchStyles.brandIconOpacityClassName}
             >
-                {typeDisplay.icon}
-            </IconContext.Provider>
-        </Box>
+                <IconContext.Provider
+                    value={{
+                        color: searchStyles.brandIconColor,
+                        size: spacing[searchResultViewMediaSize],
+                    }}
+                >
+                    {typeDisplay.icon}
+                </IconContext.Provider>
+            </Box>
+            {result.media && <SearchResultMediaView media={result.media} />}
+        </>
     );
-
-    const mediaNode = result.media ? renderSearchResultMedia(result.media) : null;
 
     return (
         <Box
             paddingX={marginX}
-            paddingTop={withMarginTop ? "1" : undefined}
-            paddingBottom={withMarginBottom ? "1" : undefined}
-            style={{minHeight: minSearchResultViewHeightPx[spacingScale]}}
+            style={{
+                // Tiny detail: The search modal's input renders its border on top of the first
+                // search result view. So for it to look like the first search result has the
+                // same Y margin as it does X margin we need to add an extra pixel of margin.
+                paddingTop: withMarginTop ? convertRemLengthToPx("1", spacingScale) + 1 : undefined,
+                paddingBottom: withMarginBottom ? spacing["1"] : undefined,
+                minHeight: minSearchResultViewHeightPx[spacingScale],
+            }}
             onPointerDown={event => {
                 // Presses in a modal outside our element tree shouldn't select the search
                 // result. This happens when clicking to close an overlay opened by
@@ -169,62 +169,6 @@ export function SearchResultView({
                         minHeight: minSearchResultViewHeightPx[spacingScale],
                     }}
                 >
-                    {mediaNode && (
-                        <Box
-                            position="absolute"
-                            zIndex="10"
-                            width={searchResultViewAuxiliaryTypeDisplaySize}
-                            height={searchResultViewAuxiliaryTypeDisplaySize}
-                            borderRadius="full"
-                            style={{
-                                backgroundColor: backgroundColorVar,
-                                boxShadow: `0 0 0 ${
-                                    1 / remPxBySpacingScale.small
-                                }rem ${backgroundColorVar}`,
-                                top:
-                                    convertRemLengthToPx(searchResultViewPaddingY, spacingScale) +
-                                    searchResultViewTitleLineHeightPx[spacingScale] / 2 +
-                                    convertRemLengthToPx(searchResultViewMediaSize, spacingScale) /
-                                        2 -
-                                    convertRemLengthToPx(
-                                        searchResultViewAuxiliaryTypeDisplaySize,
-                                        spacingScale,
-                                    ) +
-                                    convertRemLengthToPx(
-                                        searchResultViewAuxiliaryTypeDisplayOffset,
-                                        spacingScale,
-                                    ),
-                                left:
-                                    searchResultViewTitleLineHeightPx[spacingScale] / 2 -
-                                    convertRemLengthToPx(searchResultViewMediaSize, spacingScale) /
-                                        2 -
-                                    convertRemLengthToPx(
-                                        searchResultViewAuxiliaryTypeDisplayOffset,
-                                        spacingScale,
-                                    ),
-                            }}
-                        >
-                            <Box
-                                // Brand icons only render in the `grey-80` shade and above. So we can maintain
-                                // proper contrast between the icon line and color splash. However, here we
-                                // want to render a lighter line color (e.g. `grey-60`) to not distract from
-                                // the result title. We calculate the opacity to get us from `grey-80` to a
-                                // lighter line color (e.g. `grey-60`) and apply it. By applying opacity the
-                                // color splash also gets lighter to maintain proper contrast between the lines
-                                // and the color splash.
-                                className={searchStyles.brandIconOpacityClassName}
-                            >
-                                <IconContext.Provider
-                                    value={{
-                                        color: searchStyles.brandIconColor,
-                                        size: spacing[searchResultViewAuxiliaryTypeDisplaySize],
-                                    }}
-                                >
-                                    {typeDisplay.icon}
-                                </IconContext.Provider>
-                            </Box>
-                        </Box>
-                    )}
                     {result.title !== null && (
                         <Box
                             overflow="hidden"
@@ -235,8 +179,8 @@ export function SearchResultView({
                                     : undefined
                             }
                             style={{
-                                minHeight: searchResultViewTitleLineHeightPx[spacingScale],
-                                lineHeight: `${searchResultViewTitleLineHeightPx[spacingScale]}px`,
+                                minHeight: contentStyles.paragraphLineHeightPx[spacingScale],
+                                lineHeight: `${contentStyles.paragraphLineHeightPx[spacingScale]}px`,
                                 // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
                                 // except IE.
                                 // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
@@ -250,67 +194,7 @@ export function SearchResultView({
                                 fontFeatureSettings: '"calt" on',
                             }}
                         >
-                            <Box
-                                position="relative"
-                                display="inline-flex"
-                                justifyContent="center"
-                                alignItems="center"
-                                marginRight="1"
-                                style={{
-                                    width: searchResultViewTitleLineHeightPx[spacingScale],
-                                    height: searchResultViewTitleLineHeightPx[spacingScale],
-                                    verticalAlign: "top",
-                                }}
-                            >
-                                {mediaNode ? (
-                                    <Box
-                                        width={searchResultViewMediaSize}
-                                        height={searchResultViewMediaSize}
-                                        display="flex"
-                                        justifyContent="center"
-                                        alignItems="center"
-                                    >
-                                        {mediaNode}
-                                    </Box>
-                                ) : (
-                                    <Box
-                                        // Brand icons only render in the `grey-80` shade and above. So we can maintain
-                                        // proper contrast between the icon line and color splash. However, here we
-                                        // want to render a lighter line color (e.g. `grey-60`) to not distract from
-                                        // the result title. We calculate the opacity to get us from `grey-80` to a
-                                        // lighter line color (e.g. `grey-60`) and apply it. By applying opacity the
-                                        // color splash also gets lighter to maintain proper contrast between the lines
-                                        // and the color splash.
-                                        className={searchStyles.brandIconOpacityClassName}
-                                    >
-                                        <IconContext.Provider
-                                            value={{
-                                                color: searchStyles.brandIconColor,
-                                                size: spacing[searchResultViewMediaSize],
-                                            }}
-                                        >
-                                            {typeDisplay.icon}
-                                        </IconContext.Provider>
-                                    </Box>
-                                )}
-                            </Box>
-                            {result.media?.type === "TaskCollectionColor" &&
-                            result.media.color !== null ? (
-                                <Box
-                                    display="inline-flex"
-                                    alignItems="center"
-                                    marginLeft="1"
-                                    marginRight="1.5"
-                                    style={{height: "1lh", verticalAlign: "top"}}
-                                >
-                                    <Box
-                                        width="2"
-                                        height="2"
-                                        borderRadius="full"
-                                        backgroundColor={getTaskCollectionColor(result.media.color)}
-                                    />
-                                </Box>
-                            ) : null}
+                            {typeDisplayAndMediaFragment}
                             {renderTextWithEmojiFontFamily(result.title)}
                         </Box>
                     )}
@@ -318,13 +202,18 @@ export function SearchResultView({
                         overflow="hidden"
                         color="grey-60"
                         fontSize={searchResultViewBodyTextSnippetFontSize}
+                        className={
+                            result.title === null
+                                ? searchStyles.bodyTextSnippetWithoutTitleClassName
+                                : undefined
+                        }
                         style={{
                             // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
                             // except IE.
                             // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
                             display: "-webkit-box",
-                            WebkitLineClamp: 3,
-                            lineClamp: 3,
+                            WebkitLineClamp: result.title !== null ? 3 : 4,
+                            lineClamp: result.title !== null ? 3 : 4,
                             WebkitBoxOrient: "vertical",
                             textOverflow: "ellipsis",
                             // Render contextual alternate glyphs. Particularly important that we render
@@ -336,7 +225,7 @@ export function SearchResultView({
                                     : undefined,
                         }}
                     >
-                        {result.title === null && typeDisplayIcon}
+                        {result.title === null && typeDisplayAndMediaFragment}
                         {typeDisplay.isAccountMediaAuthor && result.media?.type === "Account" ? (
                             <>
                                 <AccountShortName
@@ -490,50 +379,91 @@ function getSearchResultTypeDisplayForEntity(
     }
 }
 
-function renderSearchResultMedia(media: SearchResultMedia) {
+function SearchResultMediaView({media}: {media: SearchResultMedia}) {
+    const spacingScale = useSpacingScale();
+
     switch (media.type) {
         case "Account": {
-            return <AccountAvatar account={media.account} size="5" />;
+            return (
+                <Box
+                    display="inline-flex"
+                    alignItems="center"
+                    marginLeft="0.5"
+                    marginRight="1.5"
+                    style={{
+                        height: contentStyles.paragraphLineHeightPx[spacingScale],
+                        verticalAlign: "top",
+                    }}
+                >
+                    <AccountAvatar account={media.account} size="5" />
+                </Box>
+            );
         }
         case "AccountPile": {
-            // NOCOMMIT: Update this
             assert(media.previewAccounts.length >= 1);
 
             return (
-                <>
+                <Box
+                    display="inline-flex"
+                    alignItems="center"
+                    marginLeft="0.5"
+                    marginRight="1.5"
+                    style={{
+                        height: contentStyles.paragraphLineHeightPx[spacingScale],
+                        verticalAlign: "top",
+                    }}
+                >
                     {media.previewAccounts.length === 1 ? (
-                        <AccountAvatar account={media.previewAccounts[0]!} size="9" />
+                        <AccountAvatar account={media.previewAccounts[0]!} size="5" />
                     ) : (
-                        <Box position="absolute" width="10" height="10" inset="-0.5">
-                            <Box position="absolute" top="0" left="0">
-                                <AccountAvatar account={media.previewAccounts[0]!} size="7" />
-                            </Box>
-                            <Box
-                                position="absolute"
-                                bottom="0"
-                                right="0"
-                                borderRadius="full"
-                                style={{boxShadow: `0 0 0 2px ${backgroundColorVar}`}}
-                            >
-                                <AccountAvatar account={media.previewAccounts[1]!} size="7" />
-                            </Box>
-                        </Box>
+                        <AccountAvatarPile
+                            size="5"
+                            previewAccounts={media.previewAccounts.slice(0, 2)}
+                            accountCount={media.previewAccounts.length}
+                            getAllAccounts={() => media.previewAccounts}
+                        />
                     )}
-                </>
+                </Box>
             );
         }
         case "TaskCollectionColor": {
-            // We render task collection color media next to the collection name. Not in
-            // the standard media space.
-            return null;
+            return (
+                <Box
+                    display="inline-flex"
+                    alignItems="center"
+                    marginLeft="1"
+                    marginRight="1.5"
+                    style={{
+                        height: contentStyles.paragraphLineHeightPx[spacingScale],
+                        verticalAlign: "top",
+                    }}
+                >
+                    <Box
+                        width="2"
+                        height="2"
+                        borderRadius="full"
+                        backgroundColor={getTaskCollectionColor(media.color)}
+                    />
+                </Box>
+            );
         }
         case "TaskDisplayStatus": {
             return (
-                <TaskDisplayStatusCircle
-                    // NOCOMMIT
-                    displayStatus="OpenActive"
-                    size={searchResultViewMediaSize}
-                />
+                <Box
+                    display="inline-flex"
+                    alignItems="center"
+                    marginLeft="1"
+                    marginRight="2"
+                    style={{
+                        height: contentStyles.paragraphLineHeightPx[spacingScale],
+                        verticalAlign: "top",
+                    }}
+                >
+                    <TaskDisplayStatusCircle
+                        displayStatus={media.displayStatus}
+                        size={searchResultViewMediaSize}
+                    />
+                </Box>
             );
         }
         default:

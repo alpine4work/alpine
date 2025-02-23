@@ -308,7 +308,6 @@ function SearchMobileViewResult({
                 result={result}
                 withMarginTop={isFirstItem}
                 withMarginBottom={isLastItem}
-                withBorderTop={isFirstItem}
             />
         </Box>
     );

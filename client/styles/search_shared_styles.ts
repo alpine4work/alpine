@@ -5,7 +5,7 @@ import {
     convertRemLengthToPx,
     parseRemLength,
 } from "~/shared/design/core/spacing.js";
-import {allSpacingScales, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {allSpacingScales} from "~/shared/design/core/spacing_scale.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 
 export const searchMobileInputFontSize = "100";
@@ -41,14 +41,8 @@ export const minSearchResultViewBodyTextSnippetLineCount = 1;
 export const searchResultViewPaddingY = "2";
 export const searchResultViewBodyTextSnippetFontSize = "75";
 export const searchResultViewTitleFontSize = "100";
-export const searchResultViewTitleLineHeightPx = contentStyles.paragraphLineHeightPx;
-export const searchResultViewTitleMarginBottom = "1";
-
+export const searchResultViewTitleMarginBottom = "0.5";
 export const searchResultViewMediaSize = "4";
-export const searchResultViewAuxiliaryTypeDisplaySize = "3";
-export const searchResultViewAuxiliaryTypeDisplayOffset: RemLength = `${
-    9 / remPxBySpacingScale.small
-}rem`;
 
 export const minSearchResultViewBodyTextSnippetHeight: RemLength = `${
     parseRemLength(fontSizes[searchResultViewBodyTextSnippetFontSize].lineHeight) *
@@ -59,7 +53,7 @@ export const minSearchResultViewHeightWithoutPaddingYPx = createObjectFromKeys(
     allSpacingScales,
     spacingScale =>
         Math.min(
-            searchResultViewTitleLineHeightPx[spacingScale],
+            contentStyles.paragraphLineHeightPx[spacingScale],
             convertRemLengthToPx(minSearchResultViewBodyTextSnippetHeight, spacingScale),
         ),
 );

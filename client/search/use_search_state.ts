@@ -35,7 +35,7 @@ import {ValueStore} from "~/shared/store/value_store.js";
  * searches a result matches something from their affinity list we boost that
  * result to the top.
  */
-export const affinitySearchResultLimit = 50;
+export const affinitySearchResultLimit = 30;
 
 const searchWordTypingDebounceMs = {
     /**
