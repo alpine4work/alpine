@@ -1285,7 +1285,7 @@ async function getTaskSearchEntity(
         createdTime: new Date(task.getCreatedTime().absoluteTime[0]),
         title,
         body: notesChunkResult?.getFullText() ?? null,
-        media: null,
+        media: {type: "TaskDisplayStatus", displayStatus: task.getDisplayStatus()},
         embeddingChunks: notesChunkResult?.embeddingChunks ?? [],
         creatorId: task.getCreator().accountId,
         contributorIds,

@@ -148,7 +148,7 @@ function Button(
         /**
          * Control how much horizontal padding on this button. Default is `3`.
          */
-        paddingX?: "1.5" | "2" | "3";
+        paddingX?: "1.5" | "2" | "2.5" | "3";
 
         /**
          * How tall is this button? Default is `7`.

@@ -237,7 +237,7 @@ export class AwsJobQueueService extends Construct {
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     `--jobQueueArn=${sqs.getJobQueueArn()}`,
                     `--schedulerJobQueueRoleArn=${schedulerRole.roleArn}`,
-                    "--edgeServiceUrl=https://cyberworlds.dev",
+                    "--edgeServiceUrl=https://alpine.inc",
                     `--ecsCluster=${ecsCluster.cluster.clusterName}`,
                     `--taskRealtimeServiceEcsTaskDefinitionFamily=${taskRealtimeService.taskDefinition.family}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",

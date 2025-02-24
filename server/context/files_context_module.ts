@@ -50,7 +50,7 @@ export class FilesContextModule extends FilesContextModuleBase {
     ): Promise<URL> {
         return this._tokenAgent.privateSide.dangerouslySignShortLivedUrl(
             "EdgeService",
-            new URL(`https://cyberworlds.dev/files/${spaceId}/${fileId}`),
+            new URL(`https://alpine.inc/files/${spaceId}/${fileId}`),
             // Expire the signed URL after one full day, 24 hours.
             //
             // When a file is about to expire the client needs to execute the RPC
@@ -114,7 +114,7 @@ export class TestFilesContextModule extends FilesContextModuleBase {
         spaceId: SpaceId,
         fileId: FileId,
     ): Promise<URL> {
-        return new URL(`https://cyberworlds.dev/files/${spaceId}/${fileId}`);
+        return new URL(`https://alpine.inc/files/${spaceId}/${fileId}`);
     }
 
     public fork() {

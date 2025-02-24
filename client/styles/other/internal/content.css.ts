@@ -108,11 +108,11 @@ import {omitObject} from "~/shared/helpers/object/omit_object.js";
 // - On mobile, does hitting enter to create a new line capitalize? With
 //   auto-capitalization on and off.
 // - Bold labels in dark mode don't have enough contrast? See
-//   https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/wshttcjr5egq22e11k92tq1z7m
+//   https://alpine.inc/s/111hc413nfdxa6vwspnhm3ejsc/documents/wshttcjr5egq22e11k92tq1z7m
 // - Documents feel like they need a tighter width and more whitespace (more
 //   line height + more space between paragraphs). Thinking about this while
 //   writing:
-//   https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/r0jzswspqf11nmy1g0zh3n6y4r
+//   https://alpine.inc/s/111hc413nfdxa6vwspnhm3ejsc/documents/r0jzswspqf11nmy1g0zh3n6y4r
 
 // We've optimized file preview image resize widths (see
 // `getFilePreviewImageResizeWidth()`) to align with our content max width.

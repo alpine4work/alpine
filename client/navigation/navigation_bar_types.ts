@@ -187,6 +187,11 @@ export type NavigationBarProps = {
     readonly desktopTitleLeftSlop?: Spacing;
 
     /**
+     * Actions to render next to `shareButton` or `actions` on desktop.
+     */
+    readonly desktopAdditionalActions?: ReactNode;
+
+    /**
      * Don't render a back button on mobile. Only set this to true for top level
      * mobile tab routes.
      */

@@ -2540,7 +2540,7 @@ Resources:
                       - Fn::Join:
                             - ""
                             - - /var/www/app/app_production --port=4000
-                                --edgeServiceUrl=https://cyberworlds.dev --opensearchHost=
+                                --edgeServiceUrl=https://alpine.inc --opensearchHost=
                               - Fn::GetAtt:
                                     - OpensearchDomainCED7C974
                                     - DomainEndpoint
@@ -2901,7 +2901,7 @@ Resources:
     AppServiceCertificate7B1FA47C:
         Type: AWS::CertificateManager::Certificate
         Properties:
-            DomainName: cyberworlds.dev
+            DomainName: alpine.inc
             Tags:
                 - Key: Name
                   Value: CyberworldsStack/AppService/Certificate
@@ -3335,7 +3335,7 @@ Resources:
                               - Fn::GetAtt:
                                     - JobQueueServiceSchedulerRoleEB4C6CF6
                                     - Arn
-                              - " --edgeServiceUrl=https://cyberworlds.dev --ecsCluster="
+                              - " --edgeServiceUrl=https://alpine.inc --ecsCluster="
                               - Ref: EcsClusterFB9B21B5
                               - "
                                 --taskRealtimeServiceEcsTaskDefinitionFamily=CyberworldsStackTaskRe\
@@ -4564,7 +4564,7 @@ Resources:
     FileProcessorServiceCertificate599FAD03:
         Type: AWS::CertificateManager::Certificate
         Properties:
-            DomainName: files.cyberworlds.dev
+            DomainName: files.alpine.inc
             Tags:
                 - Key: Name
                   Value: CyberworldsStack/FileProcessorService/Certificate

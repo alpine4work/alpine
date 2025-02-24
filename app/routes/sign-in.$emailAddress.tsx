@@ -35,7 +35,7 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export function meta() {
     return [
-        {title: "Sign in to Cyberworlds"},
+        {title: "Sign in to Alpine"},
         // Ask Google to not index this page.
         {name: "robots", content: "noindex"},
     ];

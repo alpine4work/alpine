@@ -91,7 +91,7 @@ errorDisplayMessage.link = (text: string, url: string): ErrorDisplayMessageLinkS
 
 // TODO(calebmer): Replace this with an actual email address when we have a
 // real domain name.
-const supportEmailAddress = "support@cyberworlds.dev";
+const supportEmailAddress = "support@alpine.inc";
 
 const supportLink = errorDisplayMessage.link(supportEmailAddress, `mailto:${supportEmailAddress}`);
 

@@ -155,6 +155,7 @@ export function NavigationBar({
     desktopTitleFontSize,
     desktopTitleFontWeight,
     desktopTitleLeftSlop,
+    desktopAdditionalActions,
     withoutMobileBackButton,
     onMobileClose,
     onMobileCancel,
@@ -183,6 +184,7 @@ export function NavigationBar({
     desktopTitleMaxWidthCenterOffset: Spacing | RemLength | undefined;
     desktopTitleFontSize: FontSize;
     desktopTitleFontWeight: "semi-bold" | "bold";
+    desktopAdditionalActions: ReactNode;
     desktopTitleLeftSlop: Spacing | undefined;
     withoutMobileBackButton: boolean;
     onMobileClose: (() => void) | undefined;
@@ -1098,6 +1100,7 @@ export function NavigationBar({
                             desktopTitleFontSize={desktopTitleFontSize}
                             desktopTitleFontWeight={desktopTitleFontWeight}
                             desktopTitleLeftSlop={desktopTitleLeftSlop}
+                            desktopAdditionalActions={desktopAdditionalActions}
                             withoutMobileBackButton={withoutMobileBackButton}
                             onMobileClose={onMobileClose}
                             onMobileCancel={onMobileCancel}

@@ -119,7 +119,7 @@ test("will index a task after a timeout", async () => {
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(0);
@@ -128,7 +128,7 @@ test("will index a task after a timeout", async () => {
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -159,7 +159,7 @@ test("will only index a task once if update happened within the timeout", async 
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(0);
@@ -178,7 +178,7 @@ test("will only index a task once if update happened within the timeout", async 
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -211,7 +211,7 @@ test("will index a task again if update happened after timeout", async () => {
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -230,7 +230,7 @@ test("will index a task again if update happened after timeout", async () => {
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
@@ -261,7 +261,7 @@ test("will index a task again if update happened after timeout with more updates
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -280,7 +280,7 @@ test("will index a task again if update happened after timeout with more updates
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -299,7 +299,7 @@ test("will index a task again if update happened after timeout with more updates
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
@@ -337,7 +337,7 @@ test("will schedule another indexing job if task assignee is updated after creat
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(0);
@@ -358,7 +358,7 @@ test("will schedule another indexing job if task assignee is updated after creat
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -368,7 +368,7 @@ test("will schedule another indexing job if task assignee is updated after creat
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
@@ -407,7 +407,7 @@ test("will schedule another indexing job if task authorization is updated after 
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -428,7 +428,7 @@ test("will schedule another indexing job if task authorization is updated after 
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -449,7 +449,7 @@ test("will schedule another indexing job if task authorization is updated after 
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
@@ -459,7 +459,7 @@ test("will schedule another indexing job if task authorization is updated after 
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(3);
@@ -499,7 +499,7 @@ test("will not schedule another indexing job if task authorization is updated tw
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -520,7 +520,7 @@ test("will not schedule another indexing job if task authorization is updated tw
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -541,7 +541,7 @@ test("will not schedule another indexing job if task authorization is updated tw
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
@@ -551,7 +551,7 @@ test("will not schedule another indexing job if task authorization is updated tw
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(15 * 1000);
+    import.meta.jest.advanceTimersByTime(2.5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     await task.updateAssignee(session1, session3);
@@ -565,7 +565,7 @@ test("will not schedule another indexing job if task authorization is updated tw
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(15 * 1000);
+    import.meta.jest.advanceTimersByTime(2.5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(3);
@@ -617,7 +617,7 @@ test(
             parentTask1.updateParentTask(session1, parentTask2a),
         ]);
 
-        import.meta.jest.advanceTimersByTime(60 * 1000);
+        import.meta.jest.advanceTimersByTime(10 * 1000);
         await ProcessContextModule.waitForTestTasks();
 
         const taskSearchEntityIdOrder: Array<SearchEntityId> = [
@@ -677,7 +677,7 @@ test(
 
         await parentTask1.updateParentTask(session1, parentTask2b);
 
-        import.meta.jest.advanceTimersByTime(60 * 1000);
+        import.meta.jest.advanceTimersByTime(10 * 1000);
         await ProcessContextModule.waitForTestTasks();
 
         expect(await getSearchEntityIds(session1)).toEqual([
@@ -709,7 +709,7 @@ test(
 
         await parentTask1.updateParentTask(session1, parentTask2c);
 
-        import.meta.jest.advanceTimersByTime(60 * 1000);
+        import.meta.jest.advanceTimersByTime(10 * 1000);
         await ProcessContextModule.waitForTestTasks();
 
         expect(await getSearchEntityIds(session1)).toEqual([
@@ -739,7 +739,7 @@ test(
 
         await sharedCollection.access.grantDefault(session1);
 
-        import.meta.jest.advanceTimersByTime(60 * 1000);
+        import.meta.jest.advanceTimersByTime(10 * 1000);
         await ProcessContextModule.waitForTestTasks();
 
         expect(await getSearchEntityIds(session1)).toEqual([
@@ -773,7 +773,7 @@ test(
 
         await parentTask2c.removeCollection(session1, sharedCollection);
 
-        import.meta.jest.advanceTimersByTime(60 * 1000);
+        import.meta.jest.advanceTimersByTime(10 * 1000);
         await ProcessContextModule.waitForTestTasks();
 
         expect(await getSearchEntityIds(session1)).toEqual([
@@ -801,7 +801,7 @@ test(
 
         await sharedCollection.access.revokeDefault(session1);
 
-        import.meta.jest.advanceTimersByTime(60 * 1000);
+        import.meta.jest.advanceTimersByTime(10 * 1000);
         await ProcessContextModule.waitForTestTasks();
 
         expect(await getSearchEntityIds(session1)).toEqual([
@@ -828,7 +828,7 @@ test(
 
         await parentTask1.addCollection(session1, publicCollection);
 
-        import.meta.jest.advanceTimersByTime(60 * 1000);
+        import.meta.jest.advanceTimersByTime(10 * 1000);
         await ProcessContextModule.waitForTestTasks();
 
         expect(await getSearchEntityIds(session1)).toEqual([
@@ -875,7 +875,7 @@ test(
 
         await parentTask1.delete(session1);
 
-        import.meta.jest.advanceTimersByTime(60 * 1000);
+        import.meta.jest.advanceTimersByTime(10 * 1000);
         await ProcessContextModule.waitForTestTasks();
 
         expect(
@@ -915,7 +915,7 @@ test(
 
         await parentTask1.undelete(session1);
 
-        import.meta.jest.advanceTimersByTime(60 * 1000);
+        import.meta.jest.advanceTimersByTime(10 * 1000);
         await ProcessContextModule.waitForTestTasks();
 
         expect(
@@ -978,7 +978,7 @@ test(
 
         await publicCollection.delete(session1);
 
-        import.meta.jest.advanceTimersByTime(60 * 1000);
+        import.meta.jest.advanceTimersByTime(10 * 1000);
         await ProcessContextModule.waitForTestTasks();
 
         expect(
@@ -1013,7 +1013,7 @@ test(
 
         await parentTask1.updateAssignee(session1, session3);
 
-        import.meta.jest.advanceTimersByTime(60 * 1000);
+        import.meta.jest.advanceTimersByTime(10 * 1000);
         await ProcessContextModule.waitForTestTasks();
 
         expect(await getSearchEntityIds(session1)).toEqual([
@@ -1050,7 +1050,7 @@ test(
 
         await publicCollection.undelete(session1);
 
-        import.meta.jest.advanceTimersByTime(60 * 1000);
+        import.meta.jest.advanceTimersByTime(10 * 1000);
         await ProcessContextModule.waitForTestTasks();
 
         expect(
@@ -1135,7 +1135,7 @@ test("will not allow users to view task comments they do not have access to", as
         publicTask.createComment(creatorSession, "task comment2"),
     ]);
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     await privateTask.updateAssignee(creatorSession, assigneeSession);
@@ -1182,7 +1182,7 @@ test("will not allow users to view task comments they do not have access to", as
             );
     };
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(await getSearchEntityIds(creatorSession)).toEqual([
@@ -1268,7 +1268,7 @@ test("will not allow users to view task comments they do not have access to afte
         publicTask.createComment(creatorSession, "task comment2"),
     ]);
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     const taskSearchEntityIdOrder: Array<SearchEntityId> = [
@@ -1310,7 +1310,7 @@ test("will not allow users to view task comments they do not have access to afte
             );
     };
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(await getSearchEntityIds(commenterSession)).toEqual([
@@ -1340,7 +1340,7 @@ test("will not allow users to view task comments they do not have access to afte
         urlGrant: null,
     });
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(await getSearchEntityIds(viewerSession)).toEqual([
@@ -1384,7 +1384,7 @@ test("will not allow users to view task comments they do not have access to when
         publicTask.createComment(creatorSession, "task comment2"),
     ]);
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     const taskSearchEntityIdOrder: Array<SearchEntityId> = [
@@ -1424,7 +1424,7 @@ test("will not allow users to view task comments they do not have access to when
             );
     };
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(await getSearchEntityIds(viewerSession)).toEqual([
@@ -1443,7 +1443,7 @@ test("will not allow users to view task comments they do not have access to when
         urlGrant: null,
     });
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(await getSearchEntityIds(viewerSession)).toEqual([
@@ -1474,7 +1474,7 @@ test("will not index a task twice if notes update happened within the timeout", 
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(0);
@@ -1512,7 +1512,7 @@ test("will not index a task twice if notes update happened within the timeout", 
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -1543,7 +1543,7 @@ test("will index a task twice if a notes update happens after last indexing", as
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(0);
@@ -1591,7 +1591,7 @@ test("will index a task twice if a notes update happens after last indexing", as
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -1629,7 +1629,7 @@ test("will index a task twice if a notes update happens after last indexing", as
         body: "This is the title of a game show from BoJack",
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -1638,7 +1638,7 @@ test("will index a task twice if a notes update happens after last indexing", as
         body: "This is the title of a game show from BoJack",
     });
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
+    import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
@@ -1669,7 +1669,7 @@ test("will not index a task twice if multiple notes updates and task updates hap
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(30 * 1000);
+    import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(0);
@@ -1717,7 +1717,7 @@ test("will not index a task twice if multiple notes updates and task updates hap
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(15 * 1000);
+    import.meta.jest.advanceTimersByTime(2.5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(0);
@@ -1755,7 +1755,7 @@ test("will not index a task twice if multiple notes updates and task updates hap
         body: null,
     });
 
-    import.meta.jest.advanceTimersByTime(15 * 1000);
+    import.meta.jest.advanceTimersByTime(2.5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
@@ -1960,7 +1960,7 @@ describe("getSearchEntity", () => {
                 title: "Test Task 1",
                 body: null,
                 embeddingChunks: [],
-                media: null,
+                media: {type: "TaskDisplayStatus", displayStatus: "OpenInactive"},
                 creatorId: session2.account.id,
                 contributorIds: new Map([[session2.account.id, "Major"]]),
             },
@@ -1987,7 +1987,7 @@ describe("getSearchEntity", () => {
                         tokenCountWithoutPreamble: 143,
                     },
                 ],
-                media: null,
+                media: {type: "TaskDisplayStatus", displayStatus: "OpenInactive"},
                 creatorId: session3.account.id,
                 contributorIds: new Map([
                     [session3.account.id, "Major"],

@@ -23,7 +23,7 @@ async function main(): Promise<{exitCode: number}> {
     }
 
     // eslint-disable-next-line no-global-fetch
-    const response = await fetch("https://cyberworlds.dev/api/internal/deploy");
+    const response = await fetch("https://alpine.inc/api/internal/deploy");
 
     const deploy:
         | {

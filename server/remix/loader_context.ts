@@ -161,7 +161,7 @@ export class LoaderContextModule extends ContextModuleBase {
                                 // accessing from a proxied domain or an IP address on a mobile device.
                                 domain:
                                     process.env.NODE_ENV === "production"
-                                        ? "cyberworlds.dev"
+                                        ? "alpine.inc"
                                         : undefined,
                                 httpOnly: true,
                                 path: "/",

@@ -1187,6 +1187,42 @@ export async function authorizeSpaceAccessIfPossible(
     }
 }
 
+/**
+ * Authorizes that the provided `AccountId` is the same account as the actor.
+ * If the actor is a session actor then the `AccountId` must be exactly equal
+ * to authenticated session. If the actor is a system actor then the
+ * `AccountId` must be a member of the system actor's space.
+ */
+export async function authorizeOwnAccountAccess(
+    context: ServerActionContext,
+    accountId: AccountId,
+) {
+    switch (context.actor.type) {
+        case "System": {
+            // System actors can see devices for any account in their space.
+            if (!(await isAccountMemberOfSpace(context, context.actor.getSpaceId(), accountId))) {
+                throw new PermissionDeniedError(
+                    "Can't access account that's not in the system actor's space",
+                );
+            }
+            break;
+        }
+        case "Session": {
+            if (context.actor.getAccountId() !== accountId) {
+                throw new PermissionDeniedError(
+                    "Can't access account that's not the session actor's",
+                );
+            }
+            break;
+        }
+        case "Anonymous": {
+            throw unauthenticatedSessionError();
+        }
+        default:
+            throw exhaustive(context.actor);
+    }
+}
+
 const SpaceAccountItemContextCache = new ContextCache<
     `${SpaceId}:${AccountId | ContentMentionAccountId}`,
     SpaceAccountItem | null
@@ -1649,30 +1685,6 @@ export async function getRegisteredAccountDevices(
     context: ServerActionContext,
     accountId: AccountId,
 ): Promise<ReadonlyArray<AccountDevice>> {
-    switch (context.actor.type) {
-        case "System": {
-            // System actors can see devices for any account in their space.
-            if (!(await isAccountMemberOfSpace(context, context.actor.getSpaceId(), accountId))) {
-                throw new PermissionDeniedError(
-                    "Can't see devices for an account that's not a member of our space",
-                );
-            }
-            break;
-        }
-        case "Session": {
-            if (context.actor.getAccountId() !== accountId) {
-                throw new PermissionDeniedError(
-                    "Can't see devices for an account that's not your own",
-                );
-            }
-            break;
-        }
-        case "Anonymous": {
-            throw unauthenticatedSessionError();
-        }
-        default:
-            throw exhaustive(context.actor);
-    }
-
+    await authorizeOwnAccountAccess(context, accountId);
     return internalGetRegisteredAccountDevicesWithoutAuthorization(context, accountId);
 }

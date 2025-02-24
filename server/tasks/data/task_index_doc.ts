@@ -456,6 +456,12 @@ export type TaskIndexSearchEntityJob = SchemaType<typeof TaskIndexSearchEntityJo
 
 const TaskIndexSearchEntityJobSchema = Schema.object({
     sendTime: Schema.date,
+    // NOTE(calebmer, 2025-01-31): Prior to this date we didn't have a generation
+    // number for this object.
+    generation: Schema.integer.min(0).default(0),
+    // NOTE(calebmer, 2025-01-31): We used to always use 60 as the job's
+    // `delaySeconds` prior to this date.
+    delaySeconds: Schema.integer.default(60),
     updatedTraits: Schema.union({
         Any: Schema.object({type: Schema.value("Any")}),
         None: Schema.object({type: Schema.value("None")}),
@@ -663,6 +669,8 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
             // property. This default should cause us to always schedule new indexing jobs
             // when updating those tasks.
             sendTime: new Date("2023-12-07T16:35:04.622Z"),
+            generation: 0,
+            delaySeconds: 60,
             updatedTraits: {type: "Any"},
         }),
 

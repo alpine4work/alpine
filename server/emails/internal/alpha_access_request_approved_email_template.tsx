@@ -7,9 +7,7 @@ export function AlphaAccessRequestApprovedEmailTemplate() {
     return (
         <Mjml>
             <MjmlHead>
-                <MjmlTitle>
-                    Welcome friend! Your access request to Cyberworlds was approved
-                </MjmlTitle>
+                <MjmlTitle>Welcome friend! Your access request to Alpine was approved</MjmlTitle>
                 <MjmlFont
                     name="Inter"
                     href="https://fonts.googleapis.com/css?family=Inter:400,600"
@@ -22,17 +20,17 @@ export function AlphaAccessRequestApprovedEmailTemplate() {
                             Thanks for requesting access to{" "}
                             <a
                                 // TODO(calebmer): Should use localhost in development?
-                                href="https://cyberworlds.dev"
+                                href="https://alpine.inc"
                                 target="_blank"
                                 rel="noreferrer"
                                 style={{color: colors[`${defaultThemeColor}-60`]}}
                             >
-                                Cyberworlds
+                                Alpine
                             </a>
                             . You can now{" "}
                             <a
                                 // TODO(calebmer): Should use localhost in development?
-                                href="https://cyberworlds.dev/sign-in"
+                                href="https://alpine.inc/sign-in"
                                 target="_blank"
                                 rel="noreferrer"
                                 style={{color: colors[`${defaultThemeColor}-60`]}}
@@ -48,12 +46,12 @@ export function AlphaAccessRequestApprovedEmailTemplate() {
                             work on mobile). We'll continuously deploy updates to{" "}
                             <a
                                 // TODO(calebmer): Should use localhost in development?
-                                href="https://cyberworlds.dev"
+                                href="https://alpine.inc"
                                 target="_blank"
                                 rel="noreferrer"
                                 style={{color: colors[`${defaultThemeColor}-60`]}}
                             >
-                                https://cyberworlds.dev
+                                https://alpine.inc
                             </a>{" "}
                             over the next year.
                         </EmailText>
@@ -61,7 +59,7 @@ export function AlphaAccessRequestApprovedEmailTemplate() {
                             We've prepared for you a couple documents written with our product so
                             you can learn more about our plan. Including a{" "}
                             <a
-                                href="https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/nfwdfnzt86ktkw25mk5knpx6fw"
+                                href="https://alpine.inc/s/111hc413nfdxa6vwspnhm3ejsc/documents/nfwdfnzt86ktkw25mk5knpx6fw"
                                 target="_blank"
                                 rel="noreferrer"
                                 style={{color: colors[`${defaultThemeColor}-60`]}}
@@ -70,7 +68,7 @@ export function AlphaAccessRequestApprovedEmailTemplate() {
                             </a>{" "}
                             doc, a{" "}
                             <a
-                                href="https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/w1675bxd15e10cf0mhrmdcgq24"
+                                href="https://alpine.inc/s/111hc413nfdxa6vwspnhm3ejsc/documents/w1675bxd15e10cf0mhrmdcgq24"
                                 target="_blank"
                                 rel="noreferrer"
                                 style={{color: colors[`${defaultThemeColor}-60`]}}
@@ -79,7 +77,7 @@ export function AlphaAccessRequestApprovedEmailTemplate() {
                             </a>{" "}
                             doc, and a doc with information on how to invest in our{" "}
                             <a
-                                href="https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/w1675bxd15e10cf0mhrmdcgq24"
+                                href="https://alpine.inc/s/111hc413nfdxa6vwspnhm3ejsc/documents/w1675bxd15e10cf0mhrmdcgq24"
                                 target="_blank"
                                 rel="noreferrer"
                                 style={{color: colors[`${defaultThemeColor}-60`]}}

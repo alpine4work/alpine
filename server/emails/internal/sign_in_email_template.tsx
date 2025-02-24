@@ -73,7 +73,7 @@ export function SignInEmailTemplate({
                             Return to where you were signing in and type the code above. Or sign in{" "}
                             <a
                                 // TODO(calebmer): Should use localhost in development?
-                                href={`https://cyberworlds.dev/sign-in/${encodeURIComponent(
+                                href={`https://alpine.inc/sign-in/${encodeURIComponent(
                                     emailAddress,
                                 )}`}
                                 target="_blank"
@@ -92,12 +92,12 @@ export function SignInEmailTemplate({
                             If you aren't trying to sign in to{" "}
                             <a
                                 // TODO(calebmer): Should use localhost in development?
-                                href="https://cyberworlds.dev"
+                                href="https://alpine.inc"
                                 target="_blank"
                                 rel="noreferrer"
                                 style={{color: colors[`${defaultThemeColor}-60`]}}
                             >
-                                Cyberworlds
+                                Alpine
                             </a>
                             , you can ignore this email.
                         </EmailText>

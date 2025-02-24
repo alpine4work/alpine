@@ -320,7 +320,7 @@ export class AwsFileProcessorService extends Construct {
             port: 443,
             certificates: [
                 new Certificate(this, "Certificate", {
-                    domainName: "files.cyberworlds.dev",
+                    domainName: "files.alpine.inc",
                     validation: CertificateValidation.fromDns(),
                 }),
             ],

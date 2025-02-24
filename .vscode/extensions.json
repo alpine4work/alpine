@@ -2,7 +2,6 @@
     "recommendations": [
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
-        "sswg.swift-lang",
         "vknabel.vscode-apple-swift-format"
     ],
     "unwantedRecommendations": ["ms-azuretools.vscode-docker", "ms-vscode.cpptools-extension-pack"]

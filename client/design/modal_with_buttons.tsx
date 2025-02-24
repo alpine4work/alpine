@@ -41,6 +41,7 @@ function ModalWithButtons(
         withoutCloseInteractions,
         buttonsPaddingX = "5",
         buttonsPaddingBottom = "4",
+        additionalButtons,
     }: {
         "aria-labelledby": string;
         children?:
@@ -63,6 +64,7 @@ function ModalWithButtons(
         withoutCloseInteractions?: boolean;
         buttonsPaddingX?: Spacing;
         buttonsPaddingBottom?: Spacing;
+        additionalButtons?: ReactNode;
     },
     ref: Ref<ModalWithButtonsRef>,
 ) {
@@ -145,9 +147,16 @@ function ModalWithButtons(
                             paddingX={buttonsPaddingX}
                             paddingBottom={buttonsPaddingBottom}
                             display="flex"
+                            alignItems="center"
                             justifyContent="flex-end"
                             gap="2"
                         >
+                            {additionalButtons && (
+                                <>
+                                    {additionalButtons}
+                                    <Box flexGrow="1" />
+                                </>
+                            )}
                             {!shouldHideCancelButton && (
                                 <Button
                                     variant="quieter"

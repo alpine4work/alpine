@@ -44,7 +44,14 @@ export function handleContentLinkClick(
     // For URLs in the same space, open the link in the current tab instead of a
     // new tab. Unless this click was a cmd-click on MacOS or other shortcut for
     // opening links in a new tab.
-    if (!isOpenLinkInSeparateTabEvent && newUrl && oldUrl.host === newUrl.host) {
+    if (
+        !isOpenLinkInSeparateTabEvent &&
+        newUrl &&
+        (oldUrl.host === newUrl.host ||
+            // NOTE(calebmer, 2025-02-20): Support links from before we migrated from
+            // https://cyberworlds.dev to https://alpine.inc.
+            (oldUrl.host === "alpine.inc" && newUrl.host === "cyberworlds.dev"))
+    ) {
         const spaceIdRegExp = /^\/s\/([^/]+)(?:\/|$)/;
         const oldUrlSpaceIdMatch = oldUrl.pathname.match(spaceIdRegExp);
         const newUrlSpaceIdMatch = newUrl.pathname.match(spaceIdRegExp);

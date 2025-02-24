@@ -7,6 +7,7 @@ import {
     CaretLeft,
     CaretRight,
     CaretUp,
+    Play,
     Plus,
     SpinnerGap,
     X,
@@ -28,6 +29,7 @@ import {createContentCommentThreadMetaKey} from "~/client/content/content_editor
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {
@@ -148,10 +150,6 @@ import {DocumentCommentThreadId, DocumentId, FileId} from "~/shared/id/types/id_
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
-import {
-    alpineCompanyKnownSpaceId,
-    escapeStudiosKnownSpaceId,
-} from "~/shared/spaces/known_space_ids.js";
 
 const documentContentEditorMobileSidebarInsetTop = "48";
 
@@ -1558,10 +1556,7 @@ export function DocumentContentEditor({
                           ],
                       ]
                     : emptyArray),
-                ...(platform !== "mobile" &&
-                (process.env.NODE_ENV !== "production" ||
-                    spaceId === alpineCompanyKnownSpaceId ||
-                    spaceId === escapeStudiosKnownSpaceId)
+                ...(platform !== "mobile"
                     ? [
                           [
                               cast<MenuAction>({
@@ -1579,15 +1574,7 @@ export function DocumentContentEditor({
                       ]
                     : []),
             ],
-            [
-                accessLevel,
-                isAppleDevice,
-                isRedoDisabled,
-                isUndoDisabled,
-                onCopyLink,
-                platform,
-                spaceId,
-            ],
+            [accessLevel, isAppleDevice, isRedoDisabled, isUndoDisabled, onCopyLink, platform],
         ),
         // Don't render the share button if the account doesn't have space access. They
         // won't be allowed to see the names of accounts in the share dialog.
@@ -1601,6 +1588,32 @@ export function DocumentContentEditor({
                   onCopyLink,
               }
             : undefined,
+        desktopAdditionalActions: content.doc.attrs.hasPresentShortcut ? (
+            <Button
+                variant="neutral"
+                icon={<Play size={spacing["2.5"]} weight="fill" />}
+                iconGap="1"
+                iconPlacement="end"
+                height="6"
+                paddingX="2"
+                pressErrorTitle="Couldn’t present document"
+                onPress={async () => {
+                    await assertExists(
+                        presentationControllerRef.current,
+                    ).presentWithoutConfirmation();
+                }}
+            >
+                <span
+                    style={{
+                        // NOTE(calebmer): I'm finding `font-weight: 500` looks a little too bold here.
+                        // So tone down the font weight a bit.
+                        fontWeight: 425,
+                    }}
+                >
+                    Present
+                </span>
+            </Button>
+        ) : undefined,
         desktopTitleMaxWidth: contentStyles.contentMaxWidth,
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
@@ -2106,7 +2119,10 @@ export function DocumentContentEditor({
             {platform !== "mobile" && (
                 <DocumentPresentationController
                     ref={presentationControllerRef}
+                    editorRef={editorRef}
+                    editorContainerRef={editorContainerRef}
                     editorState={editorState}
+                    accessLevel={accessLevel}
                     fileAttachmentTarget={fileAttachmentTarget}
                 />
             )}

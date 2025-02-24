@@ -1961,6 +1961,24 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "optional": false
                                                                                 }
                                                                             }
+                                                                        },
+                                                                        "hasPresentShortcut": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "hasPresentShortcut"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "value": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Boolean"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
                                                                         }
                                                                     }
                                                                 },
@@ -2268,6 +2286,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                             "valueSchema": {
                                                                                                                                 "type": "Reference",
                                                                                                                                 "reuseReferenceId": "7689b5ac"
+                                                                                                                            },
+                                                                                                                            "optional": true
+                                                                                                                        },
+                                                                                                                        "hasPresentShortcut": {
+                                                                                                                            "valueSchema": {
+                                                                                                                                "type": "Boolean"
                                                                                                                             },
                                                                                                                             "optional": true
                                                                                                                         }

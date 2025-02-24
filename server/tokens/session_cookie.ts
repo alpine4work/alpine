@@ -105,7 +105,7 @@ async function getSessionCookieSetCookieHeader(
     return serialize("session", cookieString, {
         // The session cookie domain is not set in development because we may be
         // accessing from a proxied domain or an IP address on a mobile device.
-        domain: process.env.NODE_ENV === "production" ? "cyberworlds.dev" : undefined,
+        domain: process.env.NODE_ENV === "production" ? "alpine.inc" : undefined,
         path: "/",
         httpOnly: true,
         sameSite: "lax",

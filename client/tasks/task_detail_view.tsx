@@ -753,7 +753,7 @@ export function TaskDetailView({
                                     // - Subtasks header
                                     //
                                     // Often the height is larger but never smaller.
-                                    minHeight: "21.75rem",
+                                    minHeight: "19.9375rem",
                                     node: (
                                         <TaskDetailViewMainMemo
                                             ref={mainRef}

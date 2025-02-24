@@ -10,8 +10,8 @@ compatibility_flags = ["streams_enable_constructors"]
 workers_dev = false
 
 [route]
-pattern = "cyberworlds.dev/*"
-zone_name = "cyberworlds.dev"
+pattern = "alpine.inc/*"
+zone_name = "alpine.inc"
 
 [[r2_buckets]]
 binding = "AppStaticBucket"

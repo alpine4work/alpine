@@ -25,7 +25,6 @@ export async function loader({context, params}: LoaderArgs) {
         {
             spaceId,
             limit: affinitySearchResultLimit,
-            timeZone: context.loader.getClientInfo().timeZone,
         },
     );
 

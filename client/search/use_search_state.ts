@@ -3,7 +3,6 @@ import {useSearchParams} from "react-router-dom";
 import {split as splitUnicodeDefaultWordBoundary} from "unicode-default-word-boundary";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {
@@ -220,12 +219,10 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
  */
 export function usePreloadSearchByAffinity() {
     const {space} = useSpaceContext();
-    const {timeZone} = useClientInfo();
 
     useIdlyPreloadRpc(searchByAffinity, {
         spaceId: space.id,
         limit: affinitySearchResultLimit,
-        timeZone,
     });
 }
 
@@ -252,7 +249,6 @@ export function useSearchState({
     const context = useAppContext();
     const {space} = useSpaceContext();
     const platform = usePlatform();
-    const {timeZone} = useClientInfo();
 
     const [searchParams, setSearchParams] = useSearchParams();
     const searchParamsRef = useRef(searchParams);
@@ -270,7 +266,6 @@ export function useSearchState({
             ? {
                   spaceId: space.id,
                   limit: affinitySearchResultLimit,
-                  timeZone,
               }
             : null,
     );

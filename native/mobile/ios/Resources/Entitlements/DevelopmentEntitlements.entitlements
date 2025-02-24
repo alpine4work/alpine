@@ -12,7 +12,7 @@
     <string>development</string>
     <key>com.apple.developer.associated-domains</key>
     <array>
-        <string>applinks:cyberworlds.dev</string>
+        <string>applinks:alpine.inc</string>
     </array>
 </dict>
 </plist>
