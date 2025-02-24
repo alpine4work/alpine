@@ -217,13 +217,19 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
  * Preload affinitive search entities when we have some idle time so that they
  * are immediately available when the search modal opens.
  */
-export function usePreloadSearchByAffinity() {
+export function usePreloadSearchByAffinity(options?: {
+    initialOutput?: {results: ReadonlyArray<SearchResult>};
+}) {
     const {space} = useSpaceContext();
 
-    useIdlyPreloadRpc(searchByAffinity, {
-        spaceId: space.id,
-        limit: affinitySearchResultLimit,
-    });
+    useIdlyPreloadRpc(
+        searchByAffinity,
+        {
+            spaceId: space.id,
+            limit: affinitySearchResultLimit,
+        },
+        options,
+    );
 }
 
 /**

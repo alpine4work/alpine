@@ -6,7 +6,6 @@ import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_out
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
@@ -80,14 +79,14 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentDa
         {
             title:
                 otherChatAccounts.length === 0
-                    ? `Chat with yourself${metaTitlePostfix}`
+                    ? "Chat with yourself"
                     : `Chat with ${joinPrettyConjunctionList(
                           otherChatAccounts.map(account =>
                               // Account name in title won't update when account changes without reload
                               // because we're using `initialData`.
                               getAccountShortNameWithoutFullNameTooltip(account.initialData),
                           ),
-                      )}${metaTitlePostfix}`,
+                      )}`,
         },
     ];
 });

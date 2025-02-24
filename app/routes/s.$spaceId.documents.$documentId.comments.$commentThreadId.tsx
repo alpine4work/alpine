@@ -93,7 +93,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {commentThread}}) => {
     if (!commentThread.firstCommentAuthor) {
-        return [{title: `Document comment thread${metaTitlePostfix}`}];
+        return [{title: "Document comment thread"}];
     }
 
     return [
@@ -102,7 +102,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {commentThread}}) =
             // because we're using `initialData`.
             title: `Document comment thread by ${getAccountShortNameWithoutFullNameTooltip(
                 commentThread.firstCommentAuthor.initialData,
-            )}${metaTitlePostfix}`,
+            )}`,
         },
     ];
 });

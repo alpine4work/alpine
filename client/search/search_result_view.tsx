@@ -52,8 +52,8 @@ export function SearchResultView({
     result,
     isSelected = false,
     isPressed = false,
-    withMarginTop,
-    withMarginBottom,
+    withMarginTop = false,
+    withMarginBottom = false,
     onPressStart,
     onDoubleClick,
     marginX = "1",
@@ -62,8 +62,8 @@ export function SearchResultView({
     result: SearchResult;
     isSelected?: boolean;
     isPressed?: boolean;
-    withMarginTop: boolean;
-    withMarginBottom: boolean;
+    withMarginTop?: boolean;
+    withMarginBottom?: boolean;
     onPressStart?: () => void;
     onDoubleClick?: () => void;
     marginX?: Spacing;

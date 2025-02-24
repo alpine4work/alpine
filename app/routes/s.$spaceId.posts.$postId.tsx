@@ -79,7 +79,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {post}}) => [
         // because we're using `initialData`.
         title: `Post by ${getAccountShortNameWithoutFullNameTooltip(
             post.model.author.initialData,
-        )} in ${post.model.channel.name}${metaTitlePostfix}`,
+        )} in ${post.model.channel.name}`,
     },
 ]);
 

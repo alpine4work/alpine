@@ -11,7 +11,7 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
-import {SearchResultView} from "~/client/search/internal/search_result_view.js";
+import {SearchResultView} from "~/client/search/search_result_view.js";
 import {useSearchState} from "~/client/search/use_search_state.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
