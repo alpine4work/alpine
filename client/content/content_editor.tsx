@@ -22,7 +22,7 @@ import {
     TextSelection,
     Transaction,
 } from "prosemirror-state";
-import {dropPoint} from "prosemirror-transform";
+import {Transform, dropPoint} from "prosemirror-transform";
 import {Decoration, DecorationSet, DirectEditorProps, EditorView} from "prosemirror-view";
 import {
     FocusEvent,
@@ -75,6 +75,7 @@ import {
     insertContentQuoteBlock,
     insertContentTable,
     insertContentUnorderedListItem,
+    isNodeTableBlock,
 } from "~/client/content/internal/content_editor_insert.js";
 import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_keymap_plugin.js";
 import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
@@ -160,6 +161,7 @@ import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
+import {createEmptyDocumentContent} from "~/shared/documents/document_content_schema.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -1975,52 +1977,19 @@ function ContentEditor<Content extends ContentWithReferences>(
                 slice,
                 dataTransfer: event.clipboardData,
                 action: ([selection], slice, createTransaction) => {
-                    if (
-                        handlePasteAfterResolvingReferences(
-                            view.state.doc,
-                            selection,
-                            () => {
-                                const transaction = createTransaction();
-
-                                if (isSync && selection !== view.state.selection) {
-                                    transaction.setSelection(selection);
-                                }
-
-                                return transaction;
-                            },
-                            transaction => view.dispatch(transaction),
-                            event,
-                            slice,
-                        )
-                    ) {
-                        return;
-                    }
-
-                    // Implement the same logic as ProseMirror's `doPaste` function:
-                    // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L592-L601
-
-                    const transaction = createTransaction();
-
-                    if (isSync && selection !== view.state.selection) {
-                        transaction.setSelection(selection);
-                    }
-
-                    const singleNode =
-                        slice.openStart == 0 && slice.openEnd == 0 && slice.content.childCount == 1
-                            ? slice.content.firstChild
-                            : null;
-
-                    if (singleNode) {
-                        selection.replaceWith(transaction, singleNode);
-                    } else {
-                        selection.replace(transaction, slice);
-                    }
-
-                    view.dispatch(
-                        transaction
-                            .scrollIntoView()
-                            .setMeta("paste", true)
-                            .setMeta("uiEvent", "paste"),
+                    handlePasteAfterResolvingReferences(
+                        view.state.doc,
+                        selection,
+                        () => {
+                            const transaction = createTransaction();
+                            if (isSync && selection !== view.state.selection) {
+                                transaction.setSelection(selection);
+                            }
+                            return transaction;
+                        },
+                        transaction => view.dispatch(transaction),
+                        event,
+                        slice,
                     );
                 },
             });
@@ -4506,38 +4475,41 @@ function handlePasteAfterResolvingReferences(
     dispatch: (transaction: Transaction) => void,
     event: ClipboardEvent,
     slice: Slice,
-): boolean {
+): void {
+    let hasNonTableContent = false; // flag to see if any one of the node is not
+    // tableBlock, If found, then only do that transformation
+    let remainingSlice: Slice;
+    console.log("Couldn't paste");
+
     if (isSelectionInContentTable(selection)) {
-        // NOCOMMIT:
-        //
-        // table -> put in `remainingSlice`
-        // heading -> converted to bold
-        // divider -> removed
-        // fileRow -> converted to `fileTable` (eventually)
-        // fileFloat -> converted to `fileTable` (eventually)
-        let remainingSlice: Slice;
-        [slice, remainingSlice] = transformPastedForContentTable(slice);
+        slice.content.forEach(node => {
+            if (!isNodeTableBlock(node)) {
+                hasNonTableContent = true;
+            }
+        });
 
-        if (remainingSlice.size > 0) {
-            const originalCreateTransaction = createTransaction;
-            createTransaction = () => {
-                const transaction = originalCreateTransaction();
+        if (hasNonTableContent) {
+            [slice, remainingSlice] = transformPastedForContentTable(slice);
 
-                // NOCOMMIT: Insert `remainingSlice` with new position
-                // transaction.insert()
-
-                return transaction;
-            };
+            // Validate remainingSlice exists and has content before proceeding
+            if (remainingSlice && remainingSlice.content && remainingSlice.content.size > 0) {
+                const originalCreateTransaction = createTransaction;
+                createTransaction = () => {
+                    const transaction = originalCreateTransaction();
+                    // Insert remainingSlice after the table
+                    const insertPos = selection.$anchor.after(1);
+                    transaction.insert(insertPos, remainingSlice.content);
+                    return transaction;
+                };
+            }
         }
     }
 
     // First check if we're in a table - if so, delegate to table paste handler
-    if (handleContentTablePaste(doc, selection, createTransaction, dispatch, slice)) return true;
+    if (handleContentTablePaste(doc, selection, createTransaction, dispatch, slice)) return;
 
-    if (handleLinkPasteWithSelection(doc, selection, createTransaction, dispatch, event))
-        return true;
-    if (handleLinkPasteWithoutSelection(doc, selection, createTransaction, dispatch, event))
-        return true;
+    if (handleLinkPasteWithSelection(doc, selection, createTransaction, dispatch, event)) return;
+    if (handleLinkPasteWithoutSelection(doc, selection, createTransaction, dispatch, event)) return;
 
     // If we're pasting into an empty paragraph at the top level, then paste the
     // entire slice content with `openStart` 0 to avoid losing our first node's
@@ -4561,7 +4533,7 @@ function handlePasteAfterResolvingReferences(
                 new Slice(slice.content, 0, slice.openEnd),
             ),
         );
-        return true;
+        return;
     }
 
     // If we're pasting a code block into a code block then we want to update
@@ -4601,15 +4573,100 @@ function handlePasteAfterResolvingReferences(
         }
 
         dispatch(transaction.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"));
-        return true;
+        return;
     }
 
-    return false;
+    // Implement the same logic as ProseMirror's `doPaste` function:
+    // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L592-L601
+    const transaction = createTransaction();
+
+    const singleNode =
+        slice.openStart == 0 && slice.openEnd == 0 && slice.content.childCount == 1
+            ? slice.content.firstChild
+            : null;
+
+    if (singleNode) {
+        selection.replaceWith(transaction, singleNode);
+    } else {
+        selection.replace(transaction, slice);
+    }
+
+    dispatch(transaction.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"));
 }
 
 function transformPastedForContentTable(slice: Slice): [slice: Slice, remainingSlice: Slice] {
-    // NOCOMMIT
-    return [slice, Slice.empty];
+    const remainingContent: Array<Node> = []; // paste outside of table in next position
+    const primaryContent: Array<Node> = []; // paste inside of table / table cell with modifications
+    const schema = slice.content.firstChild?.type.schema;
+    if (!schema) return [slice, Slice.empty];
+
+    slice.content.content.forEach(node => {
+        switch (node.type.name) {
+            case "table": {
+                // Tables go into remainingContent to be inserted after the current table
+                remainingContent.push(node);
+                break;
+            }
+
+            case "heading": {
+                const boldMark = schema.marks.bold?.create();
+                const paragraphType = schema.nodes.paragraph;
+                if (!boldMark || !paragraphType) {
+                    break;
+                }
+                // Create new text node with:
+                // - Original text (or empty string if null)
+                // - Combine existing marks with new bold mark
+                // Create a single text node for the entire heading content
+                const newContent = schema.text(node.textContent || "", [
+                    ...(node.marks || []),
+                    boldMark,
+                ]);
+                console.log("new content", newContent);
+
+                const paragraphNode = paragraphType.create(node.attrs, Fragment.from(newContent));
+                primaryContent.push(paragraphNode);
+                break;
+            }
+
+            case "fileRow":
+            case "fileFloat": {
+                // File related nodes go into remainingContent to be inserted after table
+                remainingContent.push(node);
+                break;
+            }
+
+            case "divider": {
+                console.log("divider", node);
+                // Divider nodes are dropped completely
+                break;
+            }
+
+            default: {
+                // Check if node is allowed in table cell
+                if (isNodeTableBlock(node)) {
+                    primaryContent.push(node);
+                }
+                break;
+            }
+        }
+    });
+
+    console.log("Transformed primary content:", primaryContent);
+    console.log("Remaining content:", remainingContent);
+
+    return [
+        primaryContent.length > 0
+            ? new Slice(
+                  Fragment.fromArray(primaryContent),
+                  0, // Set openStart to 0 since we're creating new paragraphs
+                  0, // Set openEnd to 0 for the same reason
+              )
+            : Slice.empty,
+        remainingContent.length > 0
+            ? new Slice(Fragment.fromArray(remainingContent), 0, 0)
+            : Slice.empty,
+    ];
 }
 
 /**
