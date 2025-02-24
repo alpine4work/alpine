@@ -42,7 +42,7 @@ import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
 import {SearchInstructionalPlaceholder} from "~/client/search/internal/search_instructional_placeholder.js";
-import {SearchResultView} from "~/client/search/search_result_view.js";
+import {SearchResultView, searchResultSideBarWidth} from "~/client/search/search_result_view.js";
 import {useSearchState} from "~/client/search/use_search_state.js";
 import {SearchResultShimmer} from "~/client/shimmer/search_result_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -158,7 +158,7 @@ export function SearchModal({
     return (
         <Modal
             aria-label="Search"
-            maxWidth={addRemLengths("96", peekMobileLayoutWidth)}
+            maxWidth={addRemLengths(searchResultSideBarWidth, peekMobileLayoutWidth)}
             height="full"
             maxHeight={searchModalMaxHeight}
             borderRadius="2.5"

@@ -43,6 +43,8 @@ export const searchResultViewBodyTextSnippetFontSize = "75";
 export const searchResultViewTitleFontSize = "100";
 export const searchResultViewTitleMarginBottom = "0.5";
 export const searchResultViewMediaSize = "4";
+export const searchResultViewDefaultMarginX = "1";
+export const searchResultViewDefaultPaddingX = "2.5";
 
 export const minSearchResultViewBodyTextSnippetHeight: RemLength = `${
     parseRemLength(fontSizes[searchResultViewBodyTextSnippetFontSize].lineHeight) *

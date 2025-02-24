@@ -25,6 +25,8 @@ import {
     minSearchResultViewBodyTextSnippetHeight,
     minSearchResultViewHeightPx,
     searchResultViewBodyTextSnippetFontSize,
+    searchResultViewDefaultMarginX,
+    searchResultViewDefaultPaddingX,
     searchResultViewMediaSize,
     searchResultViewPaddingY,
     searchResultViewTitleFontSize,
@@ -48,6 +50,8 @@ import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_sea
 import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchResult, SearchResultId, SearchResultMedia} from "~/shared/search/search_result.js";
 
+export const searchResultSideBarWidth = "96";
+
 export function SearchResultView({
     result,
     isSelected = false,
@@ -56,8 +60,8 @@ export function SearchResultView({
     withMarginBottom = false,
     onPressStart,
     onDoubleClick,
-    marginX = "1",
-    paddingX = "2.5",
+    marginX = searchResultViewDefaultMarginX,
+    paddingX = searchResultViewDefaultPaddingX,
 }: {
     result: SearchResult;
     isSelected?: boolean;

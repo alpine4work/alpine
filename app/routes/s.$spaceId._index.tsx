@@ -5,8 +5,12 @@ import {
 import {Box} from "~/client/design/box.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {SearchResultView} from "~/client/search/search_result_view.js";
+import {SearchResultView, searchResultSideBarWidth} from "~/client/search/search_result_view.js";
 import {affinitySearchResultLimit} from "~/client/search/use_search_state.js";
+import {
+    searchResultViewDefaultMarginX,
+    searchResultViewDefaultPaddingX,
+} from "~/client/styles/search_shared_styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {searchByAffinity} from "~/server/search/data/index/search_entity_index.js";
@@ -40,9 +44,20 @@ export default function HomeRoute() {
 
     return (
         <Box>
-            {loaderData.affinityResults.map(result => (
-                <SearchResultView key={result.id} result={result} />
-            ))}
+            <Box width={searchResultSideBarWidth}>
+                <Box paddingX={searchResultViewDefaultMarginX}>
+                    <Box
+                        fontSize="100"
+                        fontStyle="semi-bold"
+                        paddingX={searchResultViewDefaultPaddingX}
+                    >
+                        Suggested
+                    </Box>
+                </Box>
+                {loaderData.affinityResults.map(result => (
+                    <SearchResultView key={result.id} result={result} />
+                ))}
+            </Box>
         </Box>
     );
 }
