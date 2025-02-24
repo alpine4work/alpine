@@ -4507,30 +4507,6 @@ function handlePasteAfterResolvingReferences(
     event: ClipboardEvent,
     slice: Slice,
 ): boolean {
-    if (isSelectionInContentTable(selection)) {
-        // NOCOMMIT:
-        //
-        // table -> put in `remainingSlice`
-        // heading -> converted to bold
-        // divider -> removed
-        // fileRow -> converted to `fileTable` (eventually)
-        // fileFloat -> converted to `fileTable` (eventually)
-        let remainingSlice: Slice;
-        [slice, remainingSlice] = transformPastedForContentTable(slice);
-
-        if (remainingSlice.size > 0) {
-            const originalCreateTransaction = createTransaction;
-            createTransaction = () => {
-                const transaction = originalCreateTransaction();
-
-                // NOCOMMIT: Insert `remainingSlice` with new position
-                // transaction.insert()
-
-                return transaction;
-            };
-        }
-    }
-
     // First check if we're in a table - if so, delegate to table paste handler
     if (handleContentTablePaste(doc, selection, createTransaction, dispatch, slice)) return true;
 
@@ -4605,11 +4581,6 @@ function handlePasteAfterResolvingReferences(
     }
 
     return false;
-}
-
-function transformPastedForContentTable(slice: Slice): [slice: Slice, remainingSlice: Slice] {
-    // NOCOMMIT
-    return [slice, Slice.empty];
 }
 
 /**
