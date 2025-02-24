@@ -446,6 +446,32 @@ const testCases: {
             // we test so there's more space for there to be mismatches.
             looksSameTolerance: 70,
         },
+        {
+            path: "deel_for_employees.pdf",
+            imagePreviewSize: {width: 2560, height: 6095, scale: 2, hasAlpha: true},
+            imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
+                true,
+                5,
+                "//////////////////////////////////////////////////////////////////////////////////vz///78///+/P///vz///78/8UFBT/Dw8P///78///+/P///vz///78///+/P//vnw/+zn4P/59Oz///vz///78///+/P///vz///78///+/P///vz///78///+/P///vz//z37v/18On/9fDp//bx6v/89+7///vz///78///+/P///vz///78///+/P///vz///78///+/P///vz///78///+/P///vz///78///+/P/",
+            ]),
+            imagePreviewContent: {
+                contentType: "image/avif",
+                similarPath: "deel_for_employees.avif",
+            },
+        },
+        {
+            path: "deel_for_employees_rotated.pdf",
+            imagePreviewSize: {width: 8141, height: 2560, scale: 2, hasAlpha: true},
+            imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
+                true,
+                16,
+                "qNn//5vK8f8TExP///vz///78///+/P/9/Lq//736v//9N7///nu//Dr4///9eT///Xi///78//17+r/2sv//6jZ//+bx+7/qNn////78///+/P///vz//v27v//9ub///DT///47P/z7uf///Pb///x1///+/P/8+3r/8Wv//+o2f//ptf//6jZ////+/P///vz//r09P/m2fv/9ezw//jv3f/t8fL/2ez6//726f/479//3u75/+Xv+P/k1/n/qNn//6jZ//+o2f////vz///78//07PX/xa///+nd+f/18On/0Oj8/6jZ///++vP/9/Lq/7Dc///F5P7//vnw/6jZ//+o2f//qNn////78///+/P/+PL0/9rL///x6ff///vz/+Lu+P/K5v7//vrz///78//O6Pz/2+36///78/8=",
+            ]),
+            imagePreviewContent: {
+                contentType: "image/avif",
+                similarPath: "deel_for_employees_rotated.avif",
+            },
+        },
     ],
     "text/plain": [
         {

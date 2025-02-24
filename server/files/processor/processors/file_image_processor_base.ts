@@ -84,9 +84,7 @@ export async function processFileImagePreviewPlaceholder(
                     .resize(
                         fileImagePreviewPlaceholderBaseSize,
                         fileImagePreviewPlaceholderBaseSize,
-                        {
-                            fit: "outside",
-                        },
+                        {fit: "outside"},
                     )
                     .toFormat("png")
                     .modulate({brightness: 1, saturation: 1.2})
