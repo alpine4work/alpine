@@ -1750,7 +1750,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             promise.catch(error => {
                 reporter.displayError(
-                    hasUploadFileError ? "Couldn't upload file" : "Couldn't paste",
+                    hasUploadFileError ? "Couldn’t upload file" : "Couldn’t paste",
                     error,
                 );
             });
