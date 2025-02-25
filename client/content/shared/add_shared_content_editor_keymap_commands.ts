@@ -196,6 +196,8 @@ export function addSharedContentEditorKeymapCommands(keys: Map<string, Command>)
         const {$from, $to} = state.selection;
         if ($from.pos !== $to.pos) return false;
 
+        if (!(0 <= $from.pos - 1 && $from.pos + 1 <= state.doc.nodeSize - 2)) return false;
+
         const $bracketStart = state.doc.resolve($from.pos - 1);
         const $bracketEnd = state.doc.resolve($from.pos + 1);
         if ($bracketStart.node() !== $bracketEnd.node()) return false;
