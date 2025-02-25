@@ -71,6 +71,11 @@ export function writeTracerEventToFileInDev(event: TracerEvent) {
     // returned early above.
     if (process.env.NODE_ENV === "test" || process.env.PLAYWRIGHT_TEST_PATH) return;
 
+    // TODO(calebmer): Tracer log data can really add up! We should automatically
+    // clean up tracer log files after 30 days. For me, my ~900 GB disk almost
+    // completely filled up with log files after ~620 days of development. Once
+    // your disk is 97% full all OpenSearch operations start to fail with the error
+    // message "flood stage disk watermark exceeded".
     runPromiseWithoutAwaiting(async () => {
         const {joinPath, fs, tracerLogDirectoryPath} = await nodeSetupPromise.get();
 
