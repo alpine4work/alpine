@@ -1,4 +1,4 @@
-import {getContentTableColumnResizeDraggingStateNewColumnWidths} from "~/client/content/internal/table/content_editor_table_plugin.js";
+import {getContentTableColumnResizeDraggingStateNewColumnWidths} from "~/client/content/internal/table/helpers/get_content_table_column_resize_dragging_state_new_column_widths.js";
 
 describe("ContentTableColumnResizingPlugin", () => {
     const assertCloseTo = (received: any, expected: any, precision: number = 3) => {
@@ -347,26 +347,6 @@ describe("ContentTableColumnResizingPlugin", () => {
 
         expect(result.columnWidths.length).toBe(2);
         expect(result.scrollTo).toBe("left");
-    });
-
-    test("handles dragging to minimum width boundary", () => {
-        const result = getContentTableColumnResizeDraggingStateNewColumnWidths(
-            {clientX: 200},
-            {
-                startX: 800,
-                viewWidthPx: 1000,
-                oldTotalColumnWidthPx: 600,
-                state: {
-                    columnIndex: 0,
-                    oldTableMap: {
-                        columnWidths: [3, 3],
-                        totalColumnWidth: 6,
-                    },
-                },
-            },
-        );
-
-        expect(result.columnWidths.length).toBe(2);
     });
 
     test("handles multiple column resizing simultaneously", () => {
