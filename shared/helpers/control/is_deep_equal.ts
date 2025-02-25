@@ -104,6 +104,8 @@ function areMapsDeeplyEqual(
     map1: ReadonlyMap<unknown, unknown>,
     map2: ReadonlyMap<unknown, unknown>,
 ): boolean {
+    if (map1.size !== map2.size) return false;
+
     const map1Keys = new Set(map1.keys());
 
     for (const [key, value2] of map2) {
@@ -117,6 +119,8 @@ function areMapsDeeplyEqual(
 }
 
 function areSetsDeeplyEqual(set1: ReadonlySet<unknown>, set2: ReadonlySet<unknown>): boolean {
+    if (set1.size !== set2.size) return false;
+
     const clonedSet1 = new Set(set1);
 
     for (const item of set2) {
