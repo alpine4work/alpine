@@ -75,7 +75,6 @@ import {
     pointsAtContentTableCell,
 } from "~/shared/content/table/content_table_shared_util.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
@@ -85,7 +84,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
 
 const contentEditorTablePluginKey = new PluginKey<ContentEditorTablePluginState>(
     "contentEditorTable",

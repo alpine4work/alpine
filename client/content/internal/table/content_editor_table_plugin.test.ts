@@ -21,7 +21,6 @@ describe("ContentTableColumnResizingPlugin", () => {
                 },
             },
         );
-        console.log({result});
 
         expect(result.columnWidths.length).toBe(4);
         assertCloseTo(result.columnWidths[0], 223.66666666666666); // First column remains unchanged
