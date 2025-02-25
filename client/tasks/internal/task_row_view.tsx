@@ -779,8 +779,12 @@ function TaskRowView(
                 }
                 case "Title": {
                     return (
-                        !!document.activeElement &&
-                        isElementOwnedBy(assertExists(titleCellRef.current), document.activeElement)
+                        (!!document.activeElement &&
+                            isElementOwnedBy(
+                                assertExists(titleCellRef.current),
+                                document.activeElement,
+                            )) ||
+                        assertExists(titleInputRef.current).isFocused()
                     );
                 }
                 case "Assignee": {
