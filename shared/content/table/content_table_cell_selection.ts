@@ -57,6 +57,7 @@ export type ContentTableCellSelectionJson = {
 };
 
 export class ContentTableCellSelection extends Selection {
+    public override readonly visible = false;
     // A resolved position pointing _in front of_ the anchor cell (the one
     // that doesn't move when extending the selection).
     public readonly $anchorCell: ResolvedPos;
@@ -264,8 +265,6 @@ export class ContentTableCellSelection extends Selection {
         return new ContentTableCellSelectionBookmark(this.$anchorCell.pos, this.$headCell.pos);
     }
 }
-
-ContentTableCellSelection.prototype.visible = false;
 
 class ContentTableCellSelectionBookmark implements SelectionBookmark {
     constructor(public anchor: number, public head: number) {}
