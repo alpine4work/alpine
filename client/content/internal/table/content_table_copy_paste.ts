@@ -268,52 +268,35 @@ export function insertContentTableCells(
     }
 
     // Then replace cells
-    try {
-        for (let row = top; row < bottom; row++) {
-            if (row - top >= cells.rows.length) break;
+    for (let row = top; row < bottom; row++) {
+        if (row - top >= cells.rows.length) break;
 
-            const from = map.positionAt(row, left, table);
-            const to = map.positionAt(row, Math.min(right, map.width), table);
+        const from = map.positionAt(row, left, table);
+        const to = map.positionAt(row, Math.min(right, map.width), table);
 
-            if (from === null || to === null) continue;
+        // Ensure from and to positions are valid
+        assert(from !== null, "Invalid 'from' position");
+        assert(to !== null, "Invalid 'to' position");
 
-            transaction.replace(
-                transaction.mapping.slice(mapFrom).map(from + tableStart),
-                transaction.mapping.slice(mapFrom).map(to + tableStart),
-                new Slice(cells.rows[row - top]!, 0, 0),
-            );
-        }
-
-        // Recompute after cell replacement
-        recomp();
-
-        // Try to set selection
-        try {
-            // First try: select the entire pasted area
-            const $anchorCell = transaction.doc.resolve(
-                tableStart + map.positionAt(top, left, table),
-            );
-            const lastRow = Math.min(bottom - 1, map.height - 1);
-            const lastCol = Math.min(right - 1, map.width - 1);
-            const $headCell = transaction.doc.resolve(
-                tableStart + map.positionAt(lastRow, lastCol, table),
-            );
-            transaction.setSelection(new ContentTableCellSelection($anchorCell, $headCell));
-        } catch (e) {
-            // Second try: select just the first cell of the paste
-            try {
-                const $cell = transaction.doc.resolve(
-                    tableStart + map.positionAt(top, left, table),
-                );
-                transaction.setSelection(new ContentTableCellSelection($cell));
-            } catch (e) {
-                // If all selection attempts fail, just log a warning
-                console.warn("Could not set table selection after paste");
-            }
-        }
-
-        dispatch(transaction);
-    } catch (e) {
-        console.warn("Error during table paste operation:", e);
+        transaction.replace(
+            transaction.mapping.slice(mapFrom).map(from + tableStart),
+            transaction.mapping.slice(mapFrom).map(to + tableStart),
+            new Slice(cells.rows[row - top]!, 0, 0),
+        );
     }
+    // Recompute after cell replacement
+    recomp();
+
+    const $anchorCell = transaction.doc.resolve(tableStart + map.positionAt(top, left, table));
+    const lastRow = Math.min(bottom - 1, map.height - 1);
+    const lastCol = Math.min(right - 1, map.width - 1);
+    const $headCell = transaction.doc.resolve(tableStart + map.positionAt(lastRow, lastCol, table));
+
+    // Ensure selection positions are valid
+    assert($anchorCell !== null, "Invalid anchor cell position");
+    assert($headCell !== null, "Invalid head cell position");
+
+    transaction.setSelection(new ContentTableCellSelection($anchorCell, $headCell));
+
+    dispatch(transaction);
 }
