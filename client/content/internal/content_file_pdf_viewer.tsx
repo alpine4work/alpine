@@ -57,16 +57,7 @@ export function ContentFilePdfViewer({
                         boxShadow: "elevation-20-above-content-file-viewer-modal",
                     })}
                     title={getFileContentTypeName(file.contentType)}
-                    // Customize the PDF view based on arguments supported by various rendering
-                    // engines:
-                    // https://tinytip.co/tips/html-pdf-params
-                    src={
-                        clientInfo.renderingEngine === "Blink"
-                            ? `${src}#view=Fit`
-                            : clientInfo.renderingEngine === "Gecko"
-                            ? `${src}#zoom=${Math.round(Math.min(1, fileScale) * 100)}`
-                            : src
-                    }
+                    src={src}
                     // In WebKit the PDF `<iframe>` has no toolbar or sidebar and the PDF is
                     // rendered to fill the available space. So render using our document's actual
                     // size. In other rendering engines give the PDF `<iframe>` the full width.
