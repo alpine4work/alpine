@@ -40,7 +40,7 @@
 // pasted cells when they are smaller than the selection.
 
 import {Fragment, Node, NodeType, Schema, Slice} from "prosemirror-model";
-import {EditorState, Transaction} from "prosemirror-state";
+import {Transaction} from "prosemirror-state";
 import {Transform} from "prosemirror-transform";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap, ContentTableMapRect} from "~/shared/content/table/content_table_map.js";
@@ -291,10 +291,6 @@ export function insertContentTableCells(
     const lastRow = Math.min(bottom - 1, map.height - 1);
     const lastCol = Math.min(right - 1, map.width - 1);
     const $headCell = transaction.doc.resolve(tableStart + map.positionAt(lastRow, lastCol, table));
-
-    // Ensure selection positions are valid
-    assert($anchorCell !== null, "Invalid anchor cell position");
-    assert($headCell !== null, "Invalid head cell position");
 
     transaction.setSelection(new ContentTableCellSelection($anchorCell, $headCell));
 
