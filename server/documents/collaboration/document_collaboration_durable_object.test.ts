@@ -25,6 +25,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {WebSocketServerTestConnection} from "~/server/web_socket/web_socket_server.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
@@ -44,7 +45,6 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {generateId} from "~/shared/id/id.js";
 import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
-import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
@@ -5738,7 +5738,7 @@ test("can get presence updates across viewer/editor connections", async () => {
     await connection1.procedures.updateOurPresenceState({
         state: {
             version: 5,
-            selection: ProsemirrorSelectionWrapper.new(
+            selection: ContentSelectionWrapper.new(
                 TextSelection.near((await document.get()).content.doc.resolve(5)),
             ),
         },
@@ -5752,7 +5752,7 @@ test("can get presence updates across viewer/editor connections", async () => {
             connectionId: connection1.id,
             state: {
                 version: 5,
-                selection: ProsemirrorSelectionWrapper.fromJSON({type: "text", anchor: 5, head: 5}),
+                selection: ContentSelectionWrapper.fromJSON({type: "text", anchor: 5, head: 5}),
             },
         },
     ]);
@@ -5760,7 +5760,7 @@ test("can get presence updates across viewer/editor connections", async () => {
     await connection2.procedures.updateOurPresenceState({
         state: {
             version: 5,
-            selection: ProsemirrorSelectionWrapper.new(
+            selection: ContentSelectionWrapper.new(
                 TextSelection.near((await document.get()).content.doc.resolve(7)),
             ),
         },
@@ -5772,7 +5772,7 @@ test("can get presence updates across viewer/editor connections", async () => {
             connectionId: connection2.id,
             state: {
                 version: 5,
-                selection: ProsemirrorSelectionWrapper.fromJSON({type: "text", anchor: 7, head: 7}),
+                selection: ContentSelectionWrapper.fromJSON({type: "text", anchor: 7, head: 7}),
             },
         },
     ]);
@@ -5793,7 +5793,7 @@ test("can get presence updates across viewer/editor connections", async () => {
                 connectionId: connection2.id,
                 state: {
                     version: 5,
-                    selection: ProsemirrorSelectionWrapper.new(
+                    selection: ContentSelectionWrapper.new(
                         TextSelection.near((await document.get()).content.doc.resolve(7)),
                     ),
                 },
@@ -5816,7 +5816,7 @@ test("can get presence updates across viewer/editor connections", async () => {
                 connectionId: connection1.id,
                 state: {
                     version: 5,
-                    selection: ProsemirrorSelectionWrapper.new(
+                    selection: ContentSelectionWrapper.new(
                         TextSelection.near((await document.get()).content.doc.resolve(5)),
                     ),
                 },
