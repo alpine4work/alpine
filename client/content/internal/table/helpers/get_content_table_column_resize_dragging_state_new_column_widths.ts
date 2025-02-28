@@ -4,6 +4,7 @@ import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_cont
 import {contentStyles} from "~/client/styles/styles.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+
 /**
  * Calculates the new width of the column being dragged.
  *
