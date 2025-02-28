@@ -292,10 +292,6 @@ export function insertContentTableCells(
     const lastCol = Math.min(right - 1, map.width - 1);
     const $headCell = transaction.doc.resolve(tableStart + map.positionAt(lastRow, lastCol, table));
 
-    // Ensure selection positions are valid
-    assert($anchorCell !== null, "Invalid anchor cell position");
-    assert($headCell !== null, "Invalid head cell position");
-
     transaction.setSelection(new ContentTableCellSelection($anchorCell, $headCell));
 
     dispatch(transaction);
