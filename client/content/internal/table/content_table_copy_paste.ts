@@ -40,7 +40,7 @@
 // pasted cells when they are smaller than the selection.
 
 import {Fragment, Node, NodeType, Schema, Slice} from "prosemirror-model";
-import {EditorState, Transaction} from "prosemirror-state";
+import {Transaction} from "prosemirror-state";
 import {Transform} from "prosemirror-transform";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap, ContentTableMapRect} from "~/shared/content/table/content_table_map.js";
