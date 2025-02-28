@@ -37,6 +37,7 @@ import {
     EditorState,
     NodeSelection,
     Selection,
+    SelectionBookmark,
     SelectionRange,
     TextSelection,
     Transaction,
@@ -56,6 +57,7 @@ export type ContentTableCellSelectionJson = {
 };
 
 export class ContentTableCellSelection extends Selection {
+    public override readonly visible = false;
     // A resolved position pointing _in front of_ the anchor cell (the one
     // that doesn't move when extending the selection).
     public readonly $anchorCell: ResolvedPos;
@@ -259,18 +261,19 @@ export class ContentTableCellSelection extends Selection {
         return new ContentTableCellSelection(doc.resolve(anchorCell), doc.resolve(headCell));
     }
 
-    public override getBookmark(): ContentTableCellBookmark {
-        return new ContentTableCellBookmark(this.$anchorCell.pos, this.$headCell.pos);
+    public override getBookmark(): ContentTableCellSelectionBookmark {
+        return new ContentTableCellSelectionBookmark(this.$anchorCell.pos, this.$headCell.pos);
     }
 }
 
-ContentTableCellSelection.prototype.visible = false;
-
-class ContentTableCellBookmark {
+class ContentTableCellSelectionBookmark implements SelectionBookmark {
     constructor(public anchor: number, public head: number) {}
 
-    map(mapping: Mappable): ContentTableCellBookmark {
-        return new ContentTableCellBookmark(mapping.map(this.anchor), mapping.map(this.head));
+    map(mapping: Mappable): ContentTableCellSelectionBookmark {
+        return new ContentTableCellSelectionBookmark(
+            mapping.map(this.anchor),
+            mapping.map(this.head),
+        );
     }
 
     resolve(doc: Node): ContentTableCellSelection | Selection {

@@ -29,7 +29,6 @@
 
 import {Node, ResolvedPos, Slice} from "prosemirror-model";
 import {Command, EditorState, TextSelection, Transaction} from "prosemirror-state";
-import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/content_editor_table_plugin.js";
 import {
     ContentTableMapRectWithTable,
     isInContentTable,
@@ -38,6 +37,7 @@ import {
     selectionContentTableCell,
 } from "~/client/content/internal/table/content_table_client_util.js";
 import type {ContentTableInputDirection} from "~/client/content/internal/table/content_table_input.js";
+import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";

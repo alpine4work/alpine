@@ -10,6 +10,8 @@ Some links to sources we used (not all sources are listed):
 
 -   `blender_*`: Files derived from [Blender's Peach open movie project](https://peach.blender.org/)
     which have a creative commons license. Most notably, the Big Buck Bunny movie.
+-   `deel_*`: modified PDFs from the sales team at [Deel](https://www.deel.com/) that we tried
+    uploading to Alpine but failed.
 -   `file_examples_*`: Files from [File Examples](https://file-examples.com/) a service for
     developers and testers that provides sample documents. e.g. This
     [Microsoft Word sample](https://file-examples.com/index.php/sample-documents-download/sample-doc-download/).

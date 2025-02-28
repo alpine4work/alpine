@@ -1577,6 +1577,18 @@ export const dynamoGeneratedSchemaDescription: {
                                                     },
                                                     "optional": false
                                                 },
+                                                "generation": {
+                                                    "valueSchema": {
+                                                        "type": "Integer"
+                                                    },
+                                                    "optional": true
+                                                },
+                                                "delaySeconds": {
+                                                    "valueSchema": {
+                                                        "type": "Integer"
+                                                    },
+                                                    "optional": true
+                                                },
                                                 "updatedTraits": {
                                                     "valueSchema": {
                                                         "type": "Union",
@@ -7636,6 +7648,26 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Nullable",
                                             "schema": {
                                                 "type": "Date"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "activeTaskAssignee": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "points": {
+                                                    "valueSchema": {
+                                                        "type": "Float"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "lastUpdatedTime": {
+                                                    "valueSchema": {
+                                                        "type": "Integer"
+                                                    },
+                                                    "optional": false
+                                                }
                                             }
                                         },
                                         "optional": true

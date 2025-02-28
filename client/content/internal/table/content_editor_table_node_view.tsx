@@ -30,7 +30,6 @@
 import {Trash} from "phosphor-react";
 import {Node} from "prosemirror-model";
 import {NodeViewConstructor} from "prosemirror-view";
-import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/content_editor_table_plugin.js";
 import {
     isInContentTable,
     selectedContentTableRect,
@@ -44,6 +43,7 @@ import {
     deleteContentTableColumn,
     deleteContentTableRow,
 } from "~/client/content/internal/table/content_table_commands.js";
+import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {ColumnsPlusLeftIcon} from "~/client/icons/columns_plus_left_icon.js";
 import {ColumnsPlusRightIcon} from "~/client/icons/columns_plus_right_icon.js";
