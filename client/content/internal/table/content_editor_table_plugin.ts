@@ -57,7 +57,6 @@ import {getContentTableColumnResizeDraggingStateNewColumnWidths} from "~/client/
 import {dotsSixIconSvg} from "~/client/icons/dots_six_icon_svg.js";
 import {dotsSixVerticalIconSvg} from "~/client/icons/dots_six_vertical_icon_svg.js";
 import {plusIconSvg} from "~/client/icons/plus_icon_svg.js";
-import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {colorSchemeVars, contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {
