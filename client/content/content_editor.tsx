@@ -4479,7 +4479,6 @@ function handlePasteAfterResolvingReferences(
     let hasNonTableContent = false; // flag to see if any one of the node is not
     // tableBlock, If found, then only do that transformation
     let remainingSlice: Slice;
-    console.log("Couldn't paste");
 
     if (isSelectionInContentTable(selection)) {
         slice.content.forEach(node => {
@@ -4622,7 +4621,6 @@ function transformPastedForContentTable(slice: Slice): [slice: Slice, remainingS
                     ...(node.marks || []),
                     boldMark,
                 ]);
-                console.log("new content", newContent);
 
                 const paragraphNode = paragraphType.create(node.attrs, Fragment.from(newContent));
                 primaryContent.push(paragraphNode);
@@ -4637,7 +4635,6 @@ function transformPastedForContentTable(slice: Slice): [slice: Slice, remainingS
             }
 
             case "divider": {
-                console.log("divider", node);
                 // Divider nodes are dropped completely
                 break;
             }
@@ -4651,9 +4648,6 @@ function transformPastedForContentTable(slice: Slice): [slice: Slice, remainingS
             }
         }
     });
-
-    console.log("Transformed primary content:", primaryContent);
-    console.log("Remaining content:", remainingContent);
 
     return [
         primaryContent.length > 0
