@@ -1,0 +1,125 @@
+diff --git a/dist/src/index.d.ts b/dist/src/index.d.ts
+index f0a78eef82e14dcc196b1d58e415cebeb552081e..6a0ab9a4727a4ec461040bd2e8211e54f0f4978e 100644
+--- a/dist/src/index.d.ts
++++ b/dist/src/index.d.ts
+@@ -1,2 +1,8 @@
+-export { Doc, Transaction, YArray as Array, YMap as Map, YText as Text, YXmlText as XmlText, YXmlHook as XmlHook, YXmlElement as XmlElement, YXmlFragment as XmlFragment, YXmlEvent, YMapEvent, YArrayEvent, YTextEvent, YEvent, Item, AbstractStruct, GC, ContentBinary, ContentDeleted, ContentEmbed, ContentFormat, ContentJSON, ContentAny, ContentString, ContentType, AbstractType, getTypeChildren, createRelativePositionFromTypeIndex, createRelativePositionFromJSON, createAbsolutePositionFromRelativePosition, compareRelativePositions, AbsolutePosition, RelativePosition, ID, createID, compareIDs, getState, Snapshot, createSnapshot, createDeleteSet, createDeleteSetFromStructStore, cleanupYTextFormatting, snapshot, emptySnapshot, findRootTypeKey, findIndexSS, getItem, typeListToArraySnapshot, typeMapGetSnapshot, createDocFromSnapshot, iterateDeletedStructs, applyUpdate, applyUpdateV2, readUpdate, readUpdateV2, encodeStateAsUpdate, encodeStateAsUpdateV2, encodeStateVector, UndoManager, decodeSnapshot, encodeSnapshot, decodeSnapshotV2, encodeSnapshotV2, decodeStateVector, logUpdate, logUpdateV2, decodeUpdate, decodeUpdateV2, relativePositionToJSON, isDeleted, isParentOf, equalSnapshots, PermanentUserData, tryGc, transact, AbstractConnector, logType, mergeUpdates, mergeUpdatesV2, parseUpdateMeta, parseUpdateMetaV2, encodeStateVectorFromUpdate, encodeStateVectorFromUpdateV2, encodeRelativePosition, decodeRelativePosition, diffUpdate, diffUpdateV2, convertUpdateFormatV1ToV2, convertUpdateFormatV2ToV1, obfuscateUpdate, obfuscateUpdateV2, UpdateEncoderV1, equalDeleteSets, snapshotContainsUpdate } from "./internals.js";
++export { Doc, Transaction, YArray as Array, YMap as Map, YText as Text, YXmlText as XmlText, YXmlHook as XmlHook, YXmlElement as XmlElement, YXmlFragment as XmlFragment, YXmlEvent, YMapEvent, YArrayEvent, YTextEvent, YEvent, Item, AbstractStruct, GC, ContentBinary, ContentDeleted, ContentEmbed, ContentFormat, ContentJSON, ContentAny, ContentString, ContentType, AbstractType, getTypeChildren, createRelativePositionFromTypeIndex, createRelativePositionFromJSON, createAbsolutePositionFromRelativePosition, compareRelativePositions, AbsolutePosition, RelativePosition, ID, createID, compareIDs, getState, Snapshot, createSnapshot, createDeleteSet, createDeleteSetFromStructStore, cleanupYTextFormatting, snapshot, emptySnapshot, findRootTypeKey, findIndexSS, getItem, typeListToArraySnapshot, typeMapGetSnapshot, createDocFromSnapshot, iterateDeletedStructs, applyUpdate, applyUpdateV2, readUpdate, readUpdateV2, encodeStateAsUpdate, encodeStateAsUpdateV2, encodeStateVector, UndoManager, decodeSnapshot, encodeSnapshot, decodeSnapshotV2, encodeSnapshotV2, decodeStateVector, logUpdate, logUpdateV2, decodeUpdate, decodeUpdateV2, relativePositionToJSON, isDeleted, isParentOf, equalSnapshots, PermanentUserData, tryGc, transact, AbstractConnector, logType, mergeUpdates, mergeUpdatesV2, parseUpdateMeta, parseUpdateMetaV2, encodeStateVectorFromUpdate, encodeStateVectorFromUpdateV2, encodeRelativePosition, decodeRelativePosition, diffUpdate, diffUpdateV2, convertUpdateFormatV1ToV2, convertUpdateFormatV2ToV1, obfuscateUpdate, obfuscateUpdateV2, UpdateEncoderV1, equalDeleteSets, snapshotContainsUpdate,
++  // NOTE(calebmer): Additional exports we use from Yjs.
++  StackItem,
++  DeleteSet,
++  DeleteItem,
++  addToDeleteSet
++} from "./internals.js";
+ //# sourceMappingURL=index.d.ts.map
+\ No newline at end of file
+diff --git a/dist/yjs.cjs b/dist/yjs.cjs
+index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..09b90b906e23fb613bb7071d8dd5149f3e4b8ac7 100644
+--- a/dist/yjs.cjs
++++ b/dist/yjs.cjs
+@@ -3302,10 +3302,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
+           tryToMergeWithLeft(structs, replacedStructPos);
+         }
+       }
+-      if (!transaction.local && transaction.afterState.get(doc.clientID) !== transaction.beforeState.get(doc.clientID)) {
+-        logging__namespace.print(logging__namespace.ORANGE, logging__namespace.BOLD, '[yjs] ', logging__namespace.UNBOLD, logging__namespace.RED, 'Changed the client-id because another client seems to be using it.');
+-        doc.clientID = generateNewClientId();
+-      }
++      // NOTE(calebmer): Removing this protection from Yjs. We use Yjs in a "immutable" mode
++      // we've strung together by exporting Yjs internals. In our immutable mode a given
++      // JavaScript realm always uses the same `clientID`. When decoding a Yjs doc we need to
++      // create a client with the realm's `clientID` then apply the existing task title (which
++      // may have previous updates from the realm) to catch the doc up. This protection breaks
++      // our immutable update mode since it's expected to see us replay actions from the same
++      // `clientID` on a new doc.
++
+       // @todo Merge all the transactions into one and provide send the data as a single update message
+       doc.emit('afterTransactionCleanup', [transaction, doc]);
+       if (doc._observers.has('update')) {
+@@ -10224,4 +10228,9 @@ exports.transact = transact;
+ exports.tryGc = tryGc;
+ exports.typeListToArraySnapshot = typeListToArraySnapshot;
+ exports.typeMapGetSnapshot = typeMapGetSnapshot;
++// NOTE(calebmer): Additional exports we use from Yjs.
++exports.StackItem = StackItem;
++exports.DeleteSet = DeleteSet;
++exports.DeleteItem = DeleteItem;
++exports.addToDeleteSet = addToDeleteSet;
+ //# sourceMappingURL=yjs.cjs.map
+diff --git a/dist/yjs.mjs b/dist/yjs.mjs
+index abf5ea55c9c42e7a3548591b82b43ec2f0171236..4787c690e1ea7a98217e6f08c724335d30107a47 100644
+--- a/dist/yjs.mjs
++++ b/dist/yjs.mjs
+@@ -3266,10 +3266,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
+           tryToMergeWithLeft(structs, replacedStructPos);
+         }
+       }
+-      if (!transaction.local && transaction.afterState.get(doc.clientID) !== transaction.beforeState.get(doc.clientID)) {
+-        logging.print(logging.ORANGE, logging.BOLD, '[yjs] ', logging.UNBOLD, logging.RED, 'Changed the client-id because another client seems to be using it.');
+-        doc.clientID = generateNewClientId();
+-      }
++      // NOTE(calebmer): Removing this protection from Yjs. We use Yjs in a "immutable" mode
++      // we've strung together by exporting Yjs internals. In our immutable mode a given
++      // JavaScript realm always uses the same `clientID`. When decoding a Yjs doc we need to
++      // create a client with the realm's `clientID` then apply the existing task title (which
++      // may have previous updates from the realm) to catch the doc up. This protection breaks
++      // our immutable update mode since it's expected to see us replay actions from the same
++      // `clientID` on a new doc.
++
+       // @todo Merge all the transactions into one and provide send the data as a single update message
+       doc.emit('afterTransactionCleanup', [transaction, doc]);
+       if (doc._observers.has('update')) {
+@@ -10094,5 +10098,11 @@ if (glo[importIdentifier] === true) {
+ }
+ glo[importIdentifier] = true;
+ 
+-export { AbsolutePosition, AbstractConnector, AbstractStruct, AbstractType, YArray as Array, ContentAny, ContentBinary, ContentDeleted, ContentEmbed, ContentFormat, ContentJSON, ContentString, ContentType, Doc, GC, ID, Item, YMap as Map, PermanentUserData, RelativePosition, Snapshot, YText as Text, Transaction, UndoManager, UpdateEncoderV1, YXmlElement as XmlElement, YXmlFragment as XmlFragment, YXmlHook as XmlHook, YXmlText as XmlText, YArrayEvent, YEvent, YMapEvent, YTextEvent, YXmlEvent, applyUpdate, applyUpdateV2, cleanupYTextFormatting, compareIDs, compareRelativePositions, convertUpdateFormatV1ToV2, convertUpdateFormatV2ToV1, createAbsolutePositionFromRelativePosition, createDeleteSet, createDeleteSetFromStructStore, createDocFromSnapshot, createID, createRelativePositionFromJSON, createRelativePositionFromTypeIndex, createSnapshot, decodeRelativePosition, decodeSnapshot, decodeSnapshotV2, decodeStateVector, decodeUpdate, decodeUpdateV2, diffUpdate, diffUpdateV2, emptySnapshot, encodeRelativePosition, encodeSnapshot, encodeSnapshotV2, encodeStateAsUpdate, encodeStateAsUpdateV2, encodeStateVector, encodeStateVectorFromUpdate, encodeStateVectorFromUpdateV2, equalDeleteSets, equalSnapshots, findIndexSS, findRootTypeKey, getItem, getState, getTypeChildren, isDeleted, isParentOf, iterateDeletedStructs, logType, logUpdate, logUpdateV2, mergeUpdates, mergeUpdatesV2, obfuscateUpdate, obfuscateUpdateV2, parseUpdateMeta, parseUpdateMetaV2, readUpdate, readUpdateV2, relativePositionToJSON, snapshot, snapshotContainsUpdate, transact, tryGc, typeListToArraySnapshot, typeMapGetSnapshot };
++export { AbsolutePosition, AbstractConnector, AbstractStruct, AbstractType, YArray as Array, ContentAny, ContentBinary, ContentDeleted, ContentEmbed, ContentFormat, ContentJSON, ContentString, ContentType, Doc, GC, ID, Item, YMap as Map, PermanentUserData, RelativePosition, Snapshot, YText as Text, Transaction, UndoManager, UpdateEncoderV1, YXmlElement as XmlElement, YXmlFragment as XmlFragment, YXmlHook as XmlHook, YXmlText as XmlText, YArrayEvent, YEvent, YMapEvent, YTextEvent, YXmlEvent, applyUpdate, applyUpdateV2, cleanupYTextFormatting, compareIDs, compareRelativePositions, convertUpdateFormatV1ToV2, convertUpdateFormatV2ToV1, createAbsolutePositionFromRelativePosition, createDeleteSet, createDeleteSetFromStructStore, createDocFromSnapshot, createID, createRelativePositionFromJSON, createRelativePositionFromTypeIndex, createSnapshot, decodeRelativePosition, decodeSnapshot, decodeSnapshotV2, decodeStateVector, decodeUpdate, decodeUpdateV2, diffUpdate, diffUpdateV2, emptySnapshot, encodeRelativePosition, encodeSnapshot, encodeSnapshotV2, encodeStateAsUpdate, encodeStateAsUpdateV2, encodeStateVector, encodeStateVectorFromUpdate, encodeStateVectorFromUpdateV2, equalDeleteSets, equalSnapshots, findIndexSS, findRootTypeKey, getItem, getState, getTypeChildren, isDeleted, isParentOf, iterateDeletedStructs, logType, logUpdate, logUpdateV2, mergeUpdates, mergeUpdatesV2, obfuscateUpdate, obfuscateUpdateV2, parseUpdateMeta, parseUpdateMetaV2, readUpdate, readUpdateV2, relativePositionToJSON, snapshot, snapshotContainsUpdate, transact, tryGc, typeListToArraySnapshot, typeMapGetSnapshot,
++  // NOTE(calebmer): Additional exports we use from Yjs.
++  StackItem,
++  DeleteSet,
++  DeleteItem,
++  addToDeleteSet
++};
+ //# sourceMappingURL=yjs.mjs.map
+diff --git a/src/index.js b/src/index.js
+index 781e8eb480d3b7e7d68fa0119fd44a7050f4bd7f..ec19b280bb27ecd1f1f2572549cd0fdc4d8b7bf6 100644
+--- a/src/index.js
++++ b/src/index.js
+@@ -94,7 +94,12 @@ export {
+   obfuscateUpdateV2,
+   UpdateEncoderV1,
+   equalDeleteSets,
+-  snapshotContainsUpdate
++  snapshotContainsUpdate,
++  // NOTE(calebmer): Additional exports we use from Yjs.
++  StackItem,
++  DeleteSet,
++  DeleteItem,
++  addToDeleteSet
+ } from './internals.js'
+ 
+ const glo = /** @type {any} */ (typeof globalThis !== 'undefined'
+diff --git a/src/utils/Transaction.js b/src/utils/Transaction.js
+index 3594059551f62ea765252b3b00a8889d8f2e9c2c..6cb2025c0a982a0b9da311fe73097552bd2b91f3 100644
+--- a/src/utils/Transaction.js
++++ b/src/utils/Transaction.js
+@@ -337,10 +337,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
+           tryToMergeWithLeft(structs, replacedStructPos)
+         }
+       }
+-      if (!transaction.local && transaction.afterState.get(doc.clientID) !== transaction.beforeState.get(doc.clientID)) {
+-        logging.print(logging.ORANGE, logging.BOLD, '[yjs] ', logging.UNBOLD, logging.RED, 'Changed the client-id because another client seems to be using it.')
+-        doc.clientID = generateNewClientId()
+-      }
++      // NOTE(calebmer): Removing this protection from Yjs. We use Yjs in a "immutable" mode
++      // we've strung together by exporting Yjs internals. In our immutable mode a given
++      // JavaScript realm always uses the same `clientID`. When decoding a Yjs doc we need to
++      // create a client with the realm's `clientID` then apply the existing task title (which
++      // may have previous updates from the realm) to catch the doc up. This protection breaks
++      // our immutable update mode since it's expected to see us replay actions from the same
++      // `clientID` on a new doc.
++
+       // @todo Merge all the transactions into one and provide send the data as a single update message
+       doc.emit('afterTransactionCleanup', [transaction, doc])
+       if (doc._observers.has('update')) {
