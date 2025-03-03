@@ -90,6 +90,7 @@ import {createContentEditorOrderedListItemNodeView} from "~/client/content/inter
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {handleCopyContentFile} from "~/client/content/internal/content_file_preview.js";
+import {createContentEditorFileTableNodeViewConstructor} from "~/client/content/internal/file/content_editor_file_table_node_view.js";
 import {
     ContentEditorFileDropTarget,
     getContentEditorFileDropTargets,
@@ -103,6 +104,10 @@ import {
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {createContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
+import {
+    isInContentTable,
+    isSelectionInContentTable,
+} from "~/client/content/internal/table/content_table_client_util.js";
 import {handleContentTablePaste} from "~/client/content/internal/table/content_table_input.js";
 import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
@@ -1226,6 +1231,14 @@ function ContentEditor<Content extends ContentWithReferences>(
                 draggingFileRef,
             }),
             table: createContentEditorTableNodeView(),
+            fileTable: createContentEditorFileTableNodeViewConstructor({
+                getSpaceId: () => assertExists(spaceContextRef.current).space.id,
+                getLayoutScreenWidth: getFileLayoutScreenWidth,
+                subscribeToReferencesUpdate: listener => {
+                    referencesUpdateEmitterRef.current ??= new EventEmitter();
+                    return referencesUpdateEmitterRef.current.subscribe(listener);
+                },
+            }),
         };
 
         // IMPORTANT: If you have a custom view in `markViews` here you should also
@@ -2303,6 +2316,9 @@ function ContentEditor<Content extends ContentWithReferences>(
         const insertFiles = (posOrSelection: number | Selection, files: ReadonlyArray<File>) => {
             if (files.length === 0) return;
 
+            const state = view.state;
+            const isInTable = isInContentTable(state);
+
             const fileIds: Array<FileId> = [];
 
             for (const file of files) {
@@ -2338,7 +2354,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 Fragment.from(
                     fileIdsByRow.map(fileIds =>
                         schema.node(
-                            "fileRow",
+                            isInTable ? "fileTable" : "fileRow",
                             {},
                             fileIds.map(fileId => schema.node("file", {fileId})),
                         ),

@@ -13,13 +13,20 @@ export function isNodeTableBlock(node: Node | NodeType): boolean {
     return node.groups.includes("tableBlock");
 }
 
+function isFileNode(node: Node | NodeType): boolean {
+    if (node instanceof Node) {
+        return node.type.name === "file";
+    }
+    return node.name === "file";
+}
+
 function getInsertPosOrSelection(view: EditorView, node: Node | NodeType): number | Selection {
     const selection = view.state.selection;
     const doc = selection.$anchor.doc;
 
     // if the selection is in a table and the node is not a table block, we want to insert
     // at the next node after the table.
-    if (isInContentTable(view.state) && !isNodeTableBlock(node)) {
+    if (isInContentTable(view.state) && !isNodeTableBlock(node) && !isFileNode(node)) {
         // selection.$anchor.after(1) is the position after the last table cell in the table.
         // `1` is the depth of the table cell.
         // depth of table/ related nodes is 4.

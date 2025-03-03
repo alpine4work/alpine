@@ -925,6 +925,7 @@ const fileRowGapWidthSpacing = "2";
 export {fileRowGapWidthSpacing as fileRowGapWidth};
 const fileRowGapWidth = spacing[fileRowGapWidthSpacing];
 export const fileRowGapWidthRem = parseRemLength(fileRowGapWidth);
+export const fileTablePaddingRem = 0.5;
 
 globalStyle(fileRowClassName, {
     ...blockStyles,

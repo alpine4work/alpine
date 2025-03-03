@@ -3,8 +3,10 @@ import {
     ContentFileLayout,
     computeContentFileFloatLayout,
     computeContentFileRowLayout,
+    computeContentFileTableLayout,
 } from "~/client/content/internal/content_file_layout_computations.js";
 import {createCachedFunction} from "~/client/content/internal/helpers/create_cached_function.js";
+import {isInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -20,6 +22,7 @@ const actuallyLayoutContentFileParent = createCachedFunction(
         platform: Platform,
         spacingScale: SpacingScale,
         withoutBlockMaxWidth: boolean,
+        getFile: (fileId: FileId) => FileModelData | null,
         ...files: Array<FileModelData | null>
     ) => {
         switch (node.type.name) {
@@ -37,6 +40,25 @@ const actuallyLayoutContentFileParent = createCachedFunction(
                 return [
                     computeContentFileFloatLayout(node.attrs.direction, files[0], {
                         screenWidth,
+                        platform,
+                        spacingScale,
+                        withoutBlockMaxWidth,
+                    }),
+                ];
+            }
+            case "fileTable": {
+                // in the `insertFiles` in `content_editor.tsx` we already insured that
+                // the selection is a table cell selection so we don't need to check
+                // for that here
+                assert(node.content.childCount === 1, "fileTable must contain exactly one file");
+                const fileNode = node.content.firstChild!;
+                assert(fileNode.type.name === "file", "fileTable child must be a file node");
+
+                const fileId: FileId | null = fileNode.attrs.fileId;
+                const file = fileId ? getFile(fileId) : null;
+
+                return [
+                    computeContentFileTableLayout(file, {
                         platform,
                         spacingScale,
                         withoutBlockMaxWidth,
@@ -93,6 +115,7 @@ export function layoutContentFileParent(
         platform,
         spacingScale,
         withoutBlockMaxWidth,
+        getFile,
         ...files,
     );
 }

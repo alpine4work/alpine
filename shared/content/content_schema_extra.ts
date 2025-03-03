@@ -7,6 +7,7 @@ import {
     fileFloatLeftClassName,
     fileFloatRightClassName,
     fileRowClassName,
+    fileTableClassName,
     headingLevel1ClassName,
     headingLevel2ClassName,
     headingLevel3ClassName,
@@ -262,6 +263,51 @@ export const createContentFileFloatProsemirrorNodeSpecs = ({
 
                         if (node.style.float !== "left" && node.style.float !== "right")
                             return false;
+
+                        for (const childNode of node.childNodes) {
+                            if (
+                                childNode instanceof HTMLElement &&
+                                childNode.tagName === "DIV" &&
+                                childNode.hasAttribute("data-cy-tmp-file")
+                            ) {
+                                return {direction: node.style.float};
+                            }
+                        }
+
+                        return false;
+                    },
+                },
+            ],
+        },
+    });
+
+export const createContentFileTableProsemirrorNodeSpecs = ({
+    fileMarks,
+}: {fileMarks?: string} = {}) =>
+    createProsemirrorNodesSpec({
+        fileTable: {
+            group: "block tableBlock",
+            content: "file",
+            defining: true,
+            isolating: true,
+            selectable: false,
+            marks: fileMarks,
+            attrs: {},
+            toDOM: node => [
+                "div",
+                {
+                    // NOCOMMIT: replace this with fileTableClassName when we're ready to
+                    // use the new file table node
+                    class: fileRowClassName,
+                },
+                0,
+            ],
+            parseDOM: [
+                {
+                    tag: "div[style*=file-table]",
+                    priority: paragraphParseRulePriority + 100,
+                    getAttrs: node => {
+                        if (!(node instanceof HTMLElement)) return false;
 
                         for (const childNode of node.childNodes) {
                             if (

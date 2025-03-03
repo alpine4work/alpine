@@ -14,6 +14,7 @@ import {
     contentStructuralProsemirrorNodeSpecs,
     createContentFileFloatProsemirrorNodeSpecs,
     createContentFileProsemirrorNodeSpecs,
+    createContentFileTableProsemirrorNodeSpecs,
 } from "~/shared/content/content_schema_extra.js";
 import {
     checkListItemCheckedClassName,
@@ -41,6 +42,7 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
         // Allow comments on files.
         ...createContentFileProsemirrorNodeSpecs({fileMarks: "comment"}),
         ...createContentFileFloatProsemirrorNodeSpecs({fileMarks: "comment"}),
+        ...createContentFileTableProsemirrorNodeSpecs({fileMarks: "comment"}),
 
         /**
          * List some things in either a complete or incomplete state. Modern

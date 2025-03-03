@@ -632,3 +632,153 @@ export function getFilePreviewSize(file: FileModelData | null): {width: number; 
             throw exhaustive(file.preview);
     }
 }
+
+/**
+ * Layout the file in a table cell. Uses the Cassowary algorithm to determine
+ * the best aesthetic layout while respecting table cell constraints.
+ *
+ * Layout satisfies the following constraints:
+ * - Must fit within table cell bounds
+ * - Must be larger than minimum size and smaller than maximum size
+ * - Should maintain the aspect ratio of the underlying file when possible
+ * - Should optimize for table cell space utilization
+ */
+export function computeContentFileTableLayout(
+    file: FileModelData | null,
+    {
+        platform,
+        spacingScale,
+        withoutBlockMaxWidth = false,
+        cellHeight,
+    }: {
+        platform: Platform;
+        spacingScale: SpacingScale;
+        withoutBlockMaxWidth?: boolean;
+        cellHeight?: number; // Optional - some tables might have fixed height cells
+    },
+): ContentFileLayout {
+    const cellWidth = contentStyles.tableColumnMaxWidthRem * remPxBySpacingScale[spacingScale];
+    const remPx = remPxBySpacingScale[spacingScale];
+    const {width, height} = getFilePreviewSize(file);
+
+    const solver = new kiwi.Solver();
+    const widthVariable = new kiwi.Variable();
+    const heightVariable = new kiwi.Variable();
+
+    // Calculate available space in the cell
+    const availableWidth = Math.min(
+        cellWidth - (contentStyles.fileTablePaddingRem ?? 1) * remPx * 2,
+        !withoutBlockMaxWidth ? contentStyles.blockMaxWidthRem[platform] * remPx : Infinity,
+    );
+
+    // Width constraints
+    {
+        const minWidth = contentStyles.fileMinSizeRem * remPx;
+        const maxWidth = Math.min(availableWidth, width);
+
+        if (minWidth === maxWidth) {
+            solver.addConstraint(
+                new kiwi.Constraint(
+                    widthVariable,
+                    kiwi.Operator.Eq,
+                    minWidth,
+                    kiwi.Strength.required,
+                ),
+            );
+        } else {
+            // Must be at least minimum width
+            solver.addConstraint(
+                new kiwi.Constraint(
+                    widthVariable,
+                    kiwi.Operator.Ge,
+                    minWidth,
+                    kiwi.Strength.required,
+                ),
+            );
+
+            // Must not exceed maximum width
+            solver.addConstraint(
+                new kiwi.Constraint(
+                    widthVariable,
+                    kiwi.Operator.Le,
+                    maxWidth,
+                    kiwi.Strength.required,
+                ),
+            );
+
+            // Try to match original width if possible
+            solver.addConstraint(
+                new kiwi.Constraint(widthVariable, kiwi.Operator.Eq, width, kiwi.Strength.weak),
+            );
+        }
+    }
+
+    // Height constraints
+    {
+        const minHeight = contentStyles.fileMinSizeRem * remPx;
+        const maxHeight = cellHeight
+            ? Math.min(cellHeight - (contentStyles.fileTablePaddingRem ?? 1) * remPx * 2, height)
+            : Math.min(
+                  height,
+                  convertRemLengthToPx(spacing[contentStyles.fileRowMaxHeight], spacingScale),
+              );
+
+        if (minHeight === maxHeight) {
+            solver.addConstraint(
+                new kiwi.Constraint(
+                    heightVariable,
+                    kiwi.Operator.Eq,
+                    minHeight,
+                    kiwi.Strength.required,
+                ),
+            );
+        } else {
+            // Must be at least minimum height
+            solver.addConstraint(
+                new kiwi.Constraint(
+                    heightVariable,
+                    kiwi.Operator.Ge,
+                    minHeight,
+                    kiwi.Strength.required,
+                ),
+            );
+
+            // Must not exceed maximum height
+            solver.addConstraint(
+                new kiwi.Constraint(
+                    heightVariable,
+                    kiwi.Operator.Le,
+                    maxHeight,
+                    kiwi.Strength.required,
+                ),
+            );
+
+            // Try to match original height if possible
+            solver.addConstraint(
+                new kiwi.Constraint(heightVariable, kiwi.Operator.Eq, height, kiwi.Strength.weak),
+            );
+        }
+    }
+
+    // Maintain aspect ratio when possible
+    solver.addConstraint(
+        new kiwi.Constraint(
+            widthVariable.minus(
+                heightVariable.multiply(
+                    clamp(minFilePreviewAspectRatio, width / height, maxFilePreviewAspectRatio),
+                ),
+            ),
+            kiwi.Operator.Eq,
+            0,
+            kiwi.Strength.strong,
+        ),
+    );
+
+    solver.updateVariables();
+
+    return {
+        width: round3(widthVariable.value()),
+        widthFr: 1, // Since it's in a table cell, we use the full width
+        height: round3(heightVariable.value()),
+    };
+}
