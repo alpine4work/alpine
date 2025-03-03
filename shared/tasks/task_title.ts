@@ -1,4 +1,4 @@
-import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
+import {Node, Schema as ProsemirrorSchema, Slice} from "prosemirror-model";
 import {prosemirrorToYXmlFragment, yXmlFragmentToProsemirror} from "y-prosemirror";
 import * as Y from "yjs";
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
@@ -392,7 +392,7 @@ export function mergeTaskTitleUpdates(
     return Y.mergeUpdatesV2([titleUpdate1, titleUpdate2]) as TaskTitleUpdate;
 }
 
-export const emptyTaskTitleModel = new Lazy(() => TaskTitleModel.from(emptyTaskTitle.get()));
+export const emptyTaskTitleModel = new Lazy(() => new TaskTitleModel(emptyTaskTitle.get()));
 
 export const taskFallbackTitle = "Untitled";
 
@@ -460,60 +460,84 @@ export function addFallbackToTaskTitle(title: string): string {
  * title.
  */
 export class TaskTitleModel {
-    private readonly _doc: Y.Doc;
-    private _raw: TaskTitle | null = null;
-    private _node: Node | null = null;
+    public static schema = Schema.bytes.transform<TaskTitleModel>({
+        serialize: title => title.getRaw(),
+        deserialize: title => new TaskTitleModel(title as TaskTitle),
+    });
+
+    private _doc: Y.Doc | null;
+    private _raw: TaskTitle | null;
+    private _prosemirrorNode: Node | null = null;
     private _text: string | null = null;
 
-    constructor(doc: Y.Doc) {
-        // In development and test environments, make sure `doc` isn't mutated by
-        // deeply freezing the value. Since deep freezing is a potentially expensive
-        // operation we don't do it in production.
-        //
-        // We only freeze `doc.store` since sometimes Yjs creates transactions in code
-        // read paths.
-        if (process.env.NODE_ENV !== "production") {
-            deepFreeze(doc.store);
-        }
+    constructor(doc: Y.Doc | TaskTitle) {
+        if (doc instanceof Y.Doc) {
+            // In development and test environments, make sure `doc` isn't mutated by
+            // deeply freezing the value. Since deep freezing is a potentially expensive
+            // operation we don't do it in production.
+            //
+            // We only freeze `doc.store` since sometimes Yjs creates transactions in code
+            // read paths.
+            if (process.env.NODE_ENV !== "production") {
+                deepFreeze(doc.store);
+            }
 
-        this._doc = doc;
+            this._doc = doc;
+            this._raw = null;
+        } else {
+            this._doc = null;
+            this._raw = doc;
+        }
     }
 
     /**
-     * Create a `TaskTitleModel` from a binary `TaskTitle`.
+     * Get the Yjs doc for this title model.
      */
-    public static from(title: TaskTitle): TaskTitleModel {
-        const doc = createDoc();
-        Y.applyUpdateV2(doc, title);
-        const model = new TaskTitleModel(doc);
-        model._raw = title;
-        return model;
+    private _getDoc() {
+        if (this._doc === null) {
+            const doc = createDoc();
+            Y.applyUpdateV2(doc, assertExists(this._raw));
+
+            // In development and test environments, make sure `doc` isn't mutated by
+            // deeply freezing the value. Since deep freezing is a potentially expensive
+            // operation we don't do it in production.
+            //
+            // We only freeze `doc.store` since sometimes Yjs creates transactions in code
+            // read paths.
+            if (process.env.NODE_ENV !== "production") {
+                deepFreeze(doc.store);
+            }
+
+            this._doc = doc;
+        }
+
+        return this._doc;
     }
 
     /**
      * Get the binary `TaskTitle` representation of this `TaskTitleModel`.
      */
     public getRaw(): TaskTitle {
-        this._raw ??= Y.encodeStateAsUpdateV2(this._doc) as TaskTitle;
+        this._raw ??= Y.encodeStateAsUpdateV2(assertExists(this._doc)) as TaskTitle;
         return this._raw;
     }
 
     /**
      * Get the ProseMirror node for this title.
      */
-    public getNode(): Node {
-        this._node ??= yXmlFragmentToProsemirror(
+    public getProsemirrorNode(): Node {
+        this._prosemirrorNode ??= yXmlFragmentToProsemirror(
             TaskTitleProsemirrorSchema,
-            this._doc.getXmlFragment("doc"),
+            this._getDoc().getXmlFragment("doc"),
         );
-        return this._node;
+        return this._prosemirrorNode;
     }
 
     /**
      * Get the plain text string without formatting for this title.
      */
     public getText(): string {
-        this._text ??= getTaskTitleProsemirrorNodeText(this.getNode());
+        this._text ??= getTaskTitleProsemirrorNodeText(this.getProsemirrorNode());
         return this._text;
     }
 
@@ -530,7 +554,7 @@ export class TaskTitleModel {
      * That's why it's prefixed with an underscore.
      */
     public _cloneDoc(): Y.Doc {
-        return cloneDoc(this._doc);
+        return cloneDoc(this._getDoc());
     }
 
     /**
@@ -542,12 +566,13 @@ export class TaskTitleModel {
      * comment on `TaskTitleModel` for more information.
      */
     public replace(from: number, to: number, text: string): TaskTitleUpdateModel | null {
-        assert(Number.isSafeInteger(from), "`from` must be an integer");
-        assert(Number.isSafeInteger(to), "`to` must be an integer");
-        assert(to >= from, "`to` must be greater than or equal to `from`");
-        assert(from >= 0, "`from` must be greater than or equal to 0");
+        return this.replaceMany([{from, to, text}]);
+    }
 
-        const doc = cloneDoc(this._doc);
+    public replaceMany(
+        steps: Iterable<{from: number; to: number} & ({text: string} | {slice: Slice})>,
+    ): TaskTitleUpdateModel | null {
+        const doc = cloneDoc(this._getDoc());
         const xmlFragment = doc.getXmlFragment("doc");
 
         let update: TaskTitleUpdate | null = null;
@@ -561,25 +586,49 @@ export class TaskTitleModel {
         });
 
         const transaction = doc.transact(transaction => {
-            // Our task title is a simple string, for now. There shouldn't be nested
-            // `Y.XmlElement`s.
-            assert(xmlFragment.firstChild === null || xmlFragment.firstChild instanceof Y.XmlText);
+            for (const step of steps) {
+                const {from, to} = step;
 
-            if (xmlFragment.firstChild === null) {
-                assert(to <= 0, "`to` is out of bounds");
+                let text: string;
+                if ("text" in step) {
+                    text = step.text;
+                } else {
+                    text = "";
 
-                if (text.length > 0) {
-                    xmlFragment.insert(0, [new Y.XmlText(text)]);
+                    step.slice.content.descendants(childNode => {
+                        if (childNode.isText) {
+                            text += childNode.textContent;
+                        }
+                    });
                 }
-            } else {
-                assert(to <= xmlFragment.firstChild.length, "`to` is out of bounds");
 
-                if (from !== to) {
-                    xmlFragment.firstChild.delete(from, to - from);
-                }
+                assert(Number.isSafeInteger(from), "`from` must be an integer");
+                assert(Number.isSafeInteger(to), "`to` must be an integer");
+                assert(to >= from, "`to` must be greater than or equal to `from`");
+                assert(from >= 0, "`from` must be greater than or equal to 0");
 
-                if (text.length > 0) {
-                    xmlFragment.firstChild.insert(from, text);
+                // Our task title is a simple string, for now. There shouldn't be nested
+                // `Y.XmlElement`s.
+                assert(
+                    xmlFragment.firstChild === null || xmlFragment.firstChild instanceof Y.XmlText,
+                );
+
+                if (xmlFragment.firstChild === null) {
+                    assert(to <= 0, "`to` is out of bounds");
+
+                    if (text.length > 0) {
+                        xmlFragment.insert(0, [new Y.XmlText(text)]);
+                    }
+                } else {
+                    assert(to <= xmlFragment.firstChild.length, "`to` is out of bounds");
+
+                    if (from !== to) {
+                        xmlFragment.firstChild.delete(from, to - from);
+                    }
+
+                    if (text.length > 0) {
+                        xmlFragment.firstChild.insert(from, text);
+                    }
                 }
             }
 

@@ -26,7 +26,7 @@ test("decoded empty task title is empty", () => {
 
 test("noop task title updates", () => {
     expect(emptyTaskTitleModel.get().replace(0, 0, "")).toEqual(null);
-    expect(TaskTitleModel.from(wordTaskTitleTestScenario.title4).replace(2, 2, "")).toEqual(null);
+    expect(new TaskTitleModel(wordTaskTitleTestScenario.title4).replace(2, 2, "")).toEqual(null);
 });
 
 test("can create task title updates", () => {
@@ -383,7 +383,7 @@ test("will GC deleted content", () => {
 
     expect(
         Y.decodeUpdateV2(
-            assertExists(TaskTitleModel.from(title5.getRaw()).replace(3, 3, "e")).newTitle.getRaw(),
+            assertExists(new TaskTitleModel(title5.getRaw()).replace(3, 3, "e")).newTitle.getRaw(),
         ),
     ).toEqual({
         structs: [
@@ -615,7 +615,7 @@ test("will GC deleted content", () => {
     expect(
         Y.decodeUpdateV2(
             assertExists(
-                TaskTitleModel.from(undoUpdate2OnTitle3.newTitle.getRaw()).replace(1, 1, "d"),
+                new TaskTitleModel(undoUpdate2OnTitle3.newTitle.getRaw()).replace(1, 1, "d"),
             ).newTitle.getRaw(),
         ),
     ).toEqual({
