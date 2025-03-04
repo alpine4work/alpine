@@ -14,10 +14,109 @@ index f0a78eef82e14dcc196b1d58e415cebeb552081e..6a0ab9a4727a4ec461040bd2e8211e54
  //# sourceMappingURL=index.d.ts.map
 \ No newline at end of file
 diff --git a/dist/yjs.cjs b/dist/yjs.cjs
-index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..09b90b906e23fb613bb7071d8dd5149f3e4b8ac7 100644
+index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..496d8a5a165f2433cfe285cc326b9f8cce8bb735 100644
 --- a/dist/yjs.cjs
 +++ b/dist/yjs.cjs
-@@ -3302,10 +3302,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
+@@ -1582,6 +1582,57 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+         // hid a dead wall, add all items from stack to restSS
+         addStackToRestSS();
+       } else {
++        // NOTE(calebmer): If we're integrating an item from our doc's client that
++        // already exists in the doc's store then instead of skipping the item run a
++        // validation to verify the assumption that it matches what's already in the
++        // store.
++        // 
++        // We add this validation since in our custom "immutable mode" for Yjs, it's
++        // easier to accidentally create conflicting updates then in Yjs's default
++        // mutable mode. This validation is a defense against a corrupted doc created
++        // from conflicting updates being commit to the database.
++        if (offset > 0 && transaction.doc.clientID === stackHead.id.client) {
++          const compareOffset = Math.min(offset, stackHead.content.getLength());
++          
++          const itemA = getItem(store, stackHead.id);
++          const itemB = stackHead;
++
++          const isEqualExceptContent =
++            compareIDs(itemA.origin, itemB.origin) &&
++            compareIDs(itemA.rightOrigin, itemB.rightOrigin) &&
++            compareIDs(
++              itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
++              itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
++            ) &&
++            itemA.parentSub === itemB.parentSub &&
++            itemA.info === itemB.info;
++
++          let isEqual;
++          if (!isEqualExceptContent) {
++            isEqual = false;
++          } else {
++            const itemAContent = itemA.content.copy();
++            const itemBContent = itemB.content.copy();
++            const itemAContentLength = itemAContent.getLength();
++            const itemBContentLength = itemBContent.getLength();
++
++            if (compareOffset < itemAContentLength) itemAContent.splice(compareOffset);
++            if (compareOffset < itemBContentLength) itemBContent.splice(compareOffset);
++
++            const encoderA = new UpdateEncoderV2();
++            const encoderB = new UpdateEncoderV2();
++
++            itemAContent.write(encoderA, 0);
++            itemBContent.write(encoderB, 0);
++
++            isEqual = areUint8ArraysEqual(encoderA.toUint8Array(), encoderB.toUint8Array());
++          }
++
++          if (!isEqual) {
++            throw new Error(`Conflicting item, the item we're trying to integrate has an ID matching an existing item but the item we're trying to integrate's content doesn't match the existing item (ID client: ${stackHead.id.client}, ID clock: ${stackHead.id.clock})`);
++          }
++        }
++
+         const missing = stackHead.getMissing(transaction, store);
+         if (missing !== null) {
+           stack.push(stackHead);
+@@ -1631,6 +1682,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+   return null
+ };
+ 
++// NOTE(calebmer): Copied from `shared/helpers/binary/are_uint8_arrays_equal.ts`.
++function areUint8ArraysEqual(array1, array2) {
++  if (array1 === array2) return true;
++  if (array1.byteLength != array2.byteLength) return false;
++
++  let a = array1;
++  let b = array2;
++
++  if (aligned32(a) && aligned32(b)) {
++      a = new Uint32Array(a.buffer, a.byteOffset, a.byteLength / 4);
++      b = new Uint32Array(b.buffer, b.byteOffset, b.byteLength / 4);
++  } else if (aligned16(a) && aligned16(b)) {
++      a = new Uint16Array(a.buffer, a.byteOffset, a.byteLength / 2);
++      b = new Uint16Array(b.buffer, b.byteOffset, b.byteLength / 2);
++  }
++
++  // Iterate back to front so we start with the most significant bits.
++  for (let i = a.length; -1 < i; i -= 1) {
++      if (a[i] !== b[i]) {
++          return false;
++      }
++  }
++
++  return true;
++}
++
++function aligned16(array) {
++  return array.byteOffset % 2 === 0 && array.byteLength % 2 === 0;
++}
++
++function aligned32(array) {
++  return array.byteOffset % 4 === 0 && array.byteLength % 4 === 0;
++}
++
+ /**
+  * @param {UpdateEncoderV1 | UpdateEncoderV2} encoder
+  * @param {Transaction} transaction
+@@ -3302,10 +3387,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
            tryToMergeWithLeft(structs, replacedStructPos);
          }
        }
@@ -36,21 +135,121 @@ index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..09b90b906e23fb613bb7071d8dd5149f
        // @todo Merge all the transactions into one and provide send the data as a single update message
        doc.emit('afterTransactionCleanup', [transaction, doc]);
        if (doc._observers.has('update')) {
-@@ -10224,4 +10228,9 @@ exports.transact = transact;
+@@ -10224,4 +10313,9 @@ exports.transact = transact;
  exports.tryGc = tryGc;
  exports.typeListToArraySnapshot = typeListToArraySnapshot;
  exports.typeMapGetSnapshot = typeMapGetSnapshot;
+-//# sourceMappingURL=yjs.cjs.map
 +// NOTE(calebmer): Additional exports we use from Yjs.
 +exports.StackItem = StackItem;
 +exports.DeleteSet = DeleteSet;
 +exports.DeleteItem = DeleteItem;
 +exports.addToDeleteSet = addToDeleteSet;
- //# sourceMappingURL=yjs.cjs.map
++// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/dist/yjs.mjs b/dist/yjs.mjs
-index abf5ea55c9c42e7a3548591b82b43ec2f0171236..4787c690e1ea7a98217e6f08c724335d30107a47 100644
+index abf5ea55c9c42e7a3548591b82b43ec2f0171236..af78f9ea9bfe36ca63287a1bff770911cef7ea60 100644
 --- a/dist/yjs.mjs
 +++ b/dist/yjs.mjs
-@@ -3266,10 +3266,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
+@@ -1546,6 +1546,57 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+         // hid a dead wall, add all items from stack to restSS
+         addStackToRestSS();
+       } else {
++        // NOTE(calebmer): If we're integrating an item from our doc's client that
++        // already exists in the doc's store then instead of skipping the item run a
++        // validation to verify the assumption that it matches what's already in the
++        // store.
++        // 
++        // We add this validation since in our custom "immutable mode" for Yjs, it's
++        // easier to accidentally create conflicting updates then in Yjs's default
++        // mutable mode. This validation is a defense against a corrupted doc created
++        // from conflicting updates being commit to the database.
++        if (offset > 0 && transaction.doc.clientID === stackHead.id.client) {
++          const compareOffset = Math.min(offset, stackHead.content.getLength());
++          
++          const itemA = getItem(store, stackHead.id);
++          const itemB = stackHead;
++
++          const isEqualExceptContent =
++            compareIDs(itemA.origin, itemB.origin) &&
++            compareIDs(itemA.rightOrigin, itemB.rightOrigin) &&
++            compareIDs(
++              itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
++              itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
++            ) &&
++            itemA.parentSub === itemB.parentSub &&
++            itemA.info === itemB.info;
++
++          let isEqual;
++          if (!isEqualExceptContent) {
++            isEqual = false;
++          } else {
++            const itemAContent = itemA.content.copy();
++            const itemBContent = itemB.content.copy();
++            const itemAContentLength = itemAContent.getLength();
++            const itemBContentLength = itemBContent.getLength();
++
++            if (compareOffset < itemAContentLength) itemAContent.splice(compareOffset);
++            if (compareOffset < itemBContentLength) itemBContent.splice(compareOffset);
++
++            const encoderA = new UpdateEncoderV2();
++            const encoderB = new UpdateEncoderV2();
++
++            itemAContent.write(encoderA, 0);
++            itemBContent.write(encoderB, 0);
++
++            isEqual = areUint8ArraysEqual(encoderA.toUint8Array(), encoderB.toUint8Array());
++          }
++
++          if (!isEqual) {
++            throw new Error(`Conflicting item, the item we're trying to integrate has an ID matching an existing item but the item we're trying to integrate's content doesn't match the existing item (ID client: ${stackHead.id.client}, ID clock: ${stackHead.id.clock})`);
++          }
++        }
++
+         const missing = stackHead.getMissing(transaction, store);
+         if (missing !== null) {
+           stack.push(stackHead);
+@@ -1595,6 +1646,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+   return null
+ };
+ 
++// NOTE(calebmer): Copied from `shared/helpers/binary/are_uint8_arrays_equal.ts`.
++function areUint8ArraysEqual(array1, array2) {
++  if (array1 === array2) return true;
++  if (array1.byteLength != array2.byteLength) return false;
++
++  let a = array1;
++  let b = array2;
++
++  if (aligned32(a) && aligned32(b)) {
++      a = new Uint32Array(a.buffer, a.byteOffset, a.byteLength / 4);
++      b = new Uint32Array(b.buffer, b.byteOffset, b.byteLength / 4);
++  } else if (aligned16(a) && aligned16(b)) {
++      a = new Uint16Array(a.buffer, a.byteOffset, a.byteLength / 2);
++      b = new Uint16Array(b.buffer, b.byteOffset, b.byteLength / 2);
++  }
++
++  // Iterate back to front so we start with the most significant bits.
++  for (let i = a.length; -1 < i; i -= 1) {
++      if (a[i] !== b[i]) {
++          return false;
++      }
++  }
++
++  return true;
++}
++
++function aligned16(array) {
++  return array.byteOffset % 2 === 0 && array.byteLength % 2 === 0;
++}
++
++function aligned32(array) {
++  return array.byteOffset % 4 === 0 && array.byteLength % 4 === 0;
++}
++
+ /**
+  * @param {UpdateEncoderV1 | UpdateEncoderV2} encoder
+  * @param {Transaction} transaction
+@@ -3266,10 +3351,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
            tryToMergeWithLeft(structs, replacedStructPos);
          }
        }
@@ -69,11 +268,12 @@ index abf5ea55c9c42e7a3548591b82b43ec2f0171236..4787c690e1ea7a98217e6f08c724335d
        // @todo Merge all the transactions into one and provide send the data as a single update message
        doc.emit('afterTransactionCleanup', [transaction, doc]);
        if (doc._observers.has('update')) {
-@@ -10094,5 +10098,11 @@ if (glo[importIdentifier] === true) {
+@@ -10094,5 +10183,11 @@ if (glo[importIdentifier] === true) {
  }
  glo[importIdentifier] = true;
  
 -export { AbsolutePosition, AbstractConnector, AbstractStruct, AbstractType, YArray as Array, ContentAny, ContentBinary, ContentDeleted, ContentEmbed, ContentFormat, ContentJSON, ContentString, ContentType, Doc, GC, ID, Item, YMap as Map, PermanentUserData, RelativePosition, Snapshot, YText as Text, Transaction, UndoManager, UpdateEncoderV1, YXmlElement as XmlElement, YXmlFragment as XmlFragment, YXmlHook as XmlHook, YXmlText as XmlText, YArrayEvent, YEvent, YMapEvent, YTextEvent, YXmlEvent, applyUpdate, applyUpdateV2, cleanupYTextFormatting, compareIDs, compareRelativePositions, convertUpdateFormatV1ToV2, convertUpdateFormatV2ToV1, createAbsolutePositionFromRelativePosition, createDeleteSet, createDeleteSetFromStructStore, createDocFromSnapshot, createID, createRelativePositionFromJSON, createRelativePositionFromTypeIndex, createSnapshot, decodeRelativePosition, decodeSnapshot, decodeSnapshotV2, decodeStateVector, decodeUpdate, decodeUpdateV2, diffUpdate, diffUpdateV2, emptySnapshot, encodeRelativePosition, encodeSnapshot, encodeSnapshotV2, encodeStateAsUpdate, encodeStateAsUpdateV2, encodeStateVector, encodeStateVectorFromUpdate, encodeStateVectorFromUpdateV2, equalDeleteSets, equalSnapshots, findIndexSS, findRootTypeKey, getItem, getState, getTypeChildren, isDeleted, isParentOf, iterateDeletedStructs, logType, logUpdate, logUpdateV2, mergeUpdates, mergeUpdatesV2, obfuscateUpdate, obfuscateUpdateV2, parseUpdateMeta, parseUpdateMetaV2, readUpdate, readUpdateV2, relativePositionToJSON, snapshot, snapshotContainsUpdate, transact, tryGc, typeListToArraySnapshot, typeMapGetSnapshot };
+-//# sourceMappingURL=yjs.mjs.map
 +export { AbsolutePosition, AbstractConnector, AbstractStruct, AbstractType, YArray as Array, ContentAny, ContentBinary, ContentDeleted, ContentEmbed, ContentFormat, ContentJSON, ContentString, ContentType, Doc, GC, ID, Item, YMap as Map, PermanentUserData, RelativePosition, Snapshot, YText as Text, Transaction, UndoManager, UpdateEncoderV1, YXmlElement as XmlElement, YXmlFragment as XmlFragment, YXmlHook as XmlHook, YXmlText as XmlText, YArrayEvent, YEvent, YMapEvent, YTextEvent, YXmlEvent, applyUpdate, applyUpdateV2, cleanupYTextFormatting, compareIDs, compareRelativePositions, convertUpdateFormatV1ToV2, convertUpdateFormatV2ToV1, createAbsolutePositionFromRelativePosition, createDeleteSet, createDeleteSetFromStructStore, createDocFromSnapshot, createID, createRelativePositionFromJSON, createRelativePositionFromTypeIndex, createSnapshot, decodeRelativePosition, decodeSnapshot, decodeSnapshotV2, decodeStateVector, decodeUpdate, decodeUpdateV2, diffUpdate, diffUpdateV2, emptySnapshot, encodeRelativePosition, encodeSnapshot, encodeSnapshotV2, encodeStateAsUpdate, encodeStateAsUpdateV2, encodeStateVector, encodeStateVectorFromUpdate, encodeStateVectorFromUpdateV2, equalDeleteSets, equalSnapshots, findIndexSS, findRootTypeKey, getItem, getState, getTypeChildren, isDeleted, isParentOf, iterateDeletedStructs, logType, logUpdate, logUpdateV2, mergeUpdates, mergeUpdatesV2, obfuscateUpdate, obfuscateUpdateV2, parseUpdateMeta, parseUpdateMetaV2, readUpdate, readUpdateV2, relativePositionToJSON, snapshot, snapshotContainsUpdate, transact, tryGc, typeListToArraySnapshot, typeMapGetSnapshot,
 +  // NOTE(calebmer): Additional exports we use from Yjs.
 +  StackItem,
@@ -81,7 +281,7 @@ index abf5ea55c9c42e7a3548591b82b43ec2f0171236..4787c690e1ea7a98217e6f08c724335d
 +  DeleteItem,
 +  addToDeleteSet
 +};
- //# sourceMappingURL=yjs.mjs.map
++// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/src/index.js b/src/index.js
 index 781e8eb480d3b7e7d68fa0119fd44a7050f4bd7f..ec19b280bb27ecd1f1f2572549cd0fdc4d8b7bf6 100644
 --- a/src/index.js
@@ -123,3 +323,116 @@ index 3594059551f62ea765252b3b00a8889d8f2e9c2c..6cb2025c0a982a0b9da311fe73097552
        // @todo Merge all the transactions into one and provide send the data as a single update message
        doc.emit('afterTransactionCleanup', [transaction, doc])
        if (doc._observers.has('update')) {
+diff --git a/src/utils/encoding.js b/src/utils/encoding.js
+index 83e1b91fa11440464487fb64aadc64afb5c25b60..9ab9e86120f7edf160bc4fb614d5d7bfce069a20 100644
+--- a/src/utils/encoding.js
++++ b/src/utils/encoding.js
+@@ -37,7 +37,8 @@ import {
+   Skip,
+   diffUpdateV2,
+   convertUpdateFormatV2ToV1,
+-  DSDecoderV2, Doc, Transaction, GC, Item, StructStore // eslint-disable-line
++  DSDecoderV2, Doc, Transaction, GC, Item, StructStore, // eslint-disable-line
++  getItem
+ } from '../internals.js'
+ 
+ import * as encoding from 'lib0/encoding'
+@@ -310,6 +311,57 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+         // hid a dead wall, add all items from stack to restSS
+         addStackToRestSS()
+       } else {
++        // NOTE(calebmer): If we're integrating an item from our doc's client that
++        // already exists in the doc's store then instead of skipping the item run a
++        // validation to verify the assumption that it matches what's already in the
++        // store.
++        // 
++        // We add this validation since in our custom "immutable mode" for Yjs, it's
++        // easier to accidentally create conflicting updates then in Yjs's default
++        // mutable mode. This validation is a defense against a corrupted doc created
++        // from conflicting updates being commit to the database.
++        if (offset > 0 && transaction.doc.clientID === stackHead.id.client) {
++          const compareOffset = Math.min(offset, stackHead.content.getLength());
++          
++          const itemA = getItem(store, stackHead.id);
++          const itemB = stackHead;
++
++          const isEqualExceptContent =
++            compareIDs(itemA.origin, itemB.origin) &&
++            compareIDs(itemA.rightOrigin, itemB.rightOrigin) &&
++            compareIDs(
++              itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
++              itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
++            ) &&
++            itemA.parentSub === itemB.parentSub &&
++            itemA.info === itemB.info;
++
++          let isEqual;
++          if (!isEqualExceptContent) {
++            isEqual = false;
++          } else {
++            const itemAContent = itemA.content.copy();
++            const itemBContent = itemB.content.copy();
++            const itemAContentLength = itemAContent.getLength();
++            const itemBContentLength = itemBContent.getLength();
++
++            if (compareOffset < itemAContentLength) itemAContent.splice(compareOffset);
++            if (compareOffset < itemBContentLength) itemBContent.splice(compareOffset);
++
++            const encoderA = new UpdateEncoderV2();
++            const encoderB = new UpdateEncoderV2();
++
++            itemAContent.write(encoderA, 0);
++            itemBContent.write(encoderB, 0);
++
++            isEqual = areUint8ArraysEqual(encoderA.toUint8Array(), encoderB.toUint8Array());
++          }
++
++          if (!isEqual) {
++            throw new Error(`Conflicting item, the item we're trying to integrate has an ID matching an existing item but the item we're trying to integrate's content doesn't match the existing item (ID client: ${stackHead.id.client}, ID clock: ${stackHead.id.clock})`);
++          }
++        }
++
+         const missing = stackHead.getMissing(transaction, store)
+         if (missing !== null) {
+           stack.push(stackHead)
+@@ -359,6 +411,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+   return null
+ }
+ 
++// NOTE(calebmer): Copied from `shared/helpers/binary/are_uint8_arrays_equal.ts`.
++function areUint8ArraysEqual(array1, array2) {
++  if (array1 === array2) return true;
++  if (array1.byteLength != array2.byteLength) return false;
++
++  let a = array1;
++  let b = array2;
++
++  if (aligned32(a) && aligned32(b)) {
++      a = new Uint32Array(a.buffer, a.byteOffset, a.byteLength / 4);
++      b = new Uint32Array(b.buffer, b.byteOffset, b.byteLength / 4);
++  } else if (aligned16(a) && aligned16(b)) {
++      a = new Uint16Array(a.buffer, a.byteOffset, a.byteLength / 2);
++      b = new Uint16Array(b.buffer, b.byteOffset, b.byteLength / 2);
++  }
++
++  // Iterate back to front so we start with the most significant bits.
++  for (let i = a.length; -1 < i; i -= 1) {
++      if (a[i] !== b[i]) {
++          return false;
++      }
++  }
++
++  return true;
++}
++
++function aligned16(array) {
++  return array.byteOffset % 2 === 0 && array.byteLength % 2 === 0;
++}
++
++function aligned32(array) {
++  return array.byteOffset % 4 === 0 && array.byteLength % 4 === 0;
++}
++
+ /**
+  * @param {UpdateEncoderV1 | UpdateEncoderV2} encoder
+  * @param {Transaction} transaction

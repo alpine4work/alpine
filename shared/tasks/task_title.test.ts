@@ -2,7 +2,6 @@ import * as Y from "yjs";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     TaskTitleModel,
-    applyTaskTitleUpdate,
     createTaskTitleFromText,
     emptyTaskTitle,
     emptyTaskTitleModel,
@@ -840,92 +839,86 @@ test("can use inverted task title updates to undo/redo changes", () => {
     });
 });
 
-test("what happens when there's task title corruption?", () => {
+test("catches task title corruption and throws an error", () => {
     {
         const title1 = emptyTaskTitleModel.get();
         const updateA = assertExists(title1.replace(0, 0, "a"));
         const updateB = assertExists(title1.replace(0, 0, "b"));
-        const title2 = applyTaskTitleUpdate(title1.getRaw(), updateA.raw);
-        const title3 = applyTaskTitleUpdate(title2, updateB.raw);
+        const title2 = title1.apply(updateA);
 
-        expect(getTaskTitleText(title3)).toEqual("a");
-
-        expect(Y.decodeUpdateV2(title3)).toEqual({
-            structs: [
-                {
-                    id: new Y.ID(realmTaskTitleClientId.get(), 0),
-                    length: 1,
-                    origin: null,
-                    left: null,
-                    right: null,
-                    rightOrigin: null,
-                    parent: "doc",
-                    parentSub: null,
-                    redone: null,
-                    content: new Y.ContentType(expect.any(Y.AbstractType)),
-                    info: 2,
-                },
-                {
-                    id: new Y.ID(realmTaskTitleClientId.get(), 1),
-                    length: 1,
-                    origin: null,
-                    left: null,
-                    right: null,
-                    rightOrigin: null,
-                    parent: new Y.ID(realmTaskTitleClientId.get(), 0),
-                    parentSub: null,
-                    redone: null,
-                    content: new Y.ContentString("a"),
-                    info: 2,
-                },
-            ],
-            ds: {
-                clients: new Map(),
-            },
-        });
+        expect(() => title2.apply(updateB)).toThrow(
+            `Conflicting item, the item we're trying to integrate has an ID matching an existing item but the item we're trying to integrate's content doesn't match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 1)`,
+        );
     }
 
     {
         const title1 = emptyTaskTitleModel.get();
         const updateA = assertExists(title1.replace(0, 0, "b"));
         const updateB = assertExists(title1.replace(0, 0, "a"));
-        const title2 = applyTaskTitleUpdate(title1.getRaw(), updateA.raw);
-        const title3 = applyTaskTitleUpdate(title2, updateB.raw);
+        const title2 = title1.apply(updateA);
 
-        expect(getTaskTitleText(title3)).toEqual("b");
+        expect(() => title2.apply(updateB)).toThrow(
+            `Conflicting item, the item we're trying to integrate has an ID matching an existing item but the item we're trying to integrate's content doesn't match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 1)`,
+        );
+    }
 
-        expect(Y.decodeUpdateV2(title3)).toEqual({
-            structs: [
-                {
-                    id: new Y.ID(realmTaskTitleClientId.get(), 0),
-                    length: 1,
-                    origin: null,
-                    left: null,
-                    right: null,
-                    rightOrigin: null,
-                    parent: "doc",
-                    parentSub: null,
-                    redone: null,
-                    content: new Y.ContentType(expect.any(Y.AbstractType)),
-                    info: 2,
-                },
-                {
-                    id: new Y.ID(realmTaskTitleClientId.get(), 1),
-                    length: 1,
-                    origin: null,
-                    left: null,
-                    right: null,
-                    rightOrigin: null,
-                    parent: new Y.ID(realmTaskTitleClientId.get(), 0),
-                    parentSub: null,
-                    redone: null,
-                    content: new Y.ContentString("b"),
-                    info: 2,
-                },
-            ],
-            ds: {
-                clients: new Map(),
-            },
-        });
+    {
+        const title1 = emptyTaskTitleModel.get();
+        const updateA = assertExists(title1.replace(0, 0, "a"));
+        const updateB = assertExists(title1.replace(0, 0, "bc"));
+        const title2 = title1.apply(updateA);
+
+        expect(() => title2.apply(updateB)).toThrow(
+            `Conflicting item, the item we're trying to integrate has an ID matching an existing item but the item we're trying to integrate's content doesn't match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 1)`,
+        );
+    }
+
+    {
+        const title1 = emptyTaskTitleModel.get();
+        const updateA = assertExists(title1.replace(0, 0, "ab"));
+        const updateB = assertExists(title1.replace(0, 0, "c"));
+        const title2 = title1.apply(updateA);
+
+        expect(() => title2.apply(updateB)).toThrow(
+            `Conflicting item, the item we're trying to integrate has an ID matching an existing item but the item we're trying to integrate's content doesn't match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 1)`,
+        );
+    }
+
+    {
+        const title1 = emptyTaskTitleModel.get();
+        const updateA = assertExists(title1.replace(0, 0, "a"));
+        const updateB = assertExists(title1.replace(0, 0, "ab"));
+        const title2 = title1.apply(updateA);
+
+        expect(title2.apply(updateB).getText()).toEqual("ab");
+    }
+
+    {
+        const title1 = emptyTaskTitleModel.get();
+        const updateA = assertExists(title1.replace(0, 0, "ab"));
+        const updateB = assertExists(title1.replace(0, 0, "a"));
+        const title2 = title1.apply(updateA);
+
+        expect(title2.apply(updateB).getText()).toEqual("ab");
+    }
+
+    {
+        const title1 = assertExists(emptyTaskTitleModel.get().replace(0, 0, "a")).newTitle;
+        const updateA = assertExists(title1.replace(0, 0, "b"));
+        const updateB = assertExists(title1.replace(0, 0, "c"));
+        const title2 = title1.apply(updateA);
+
+        expect(() => title2.apply(updateB)).toThrow(
+            `Conflicting item, the item we're trying to integrate has an ID matching an existing item but the item we're trying to integrate's content doesn't match the existing item (ID client: ${realmTaskTitleClientId.get()}, ID clock: 2)`,
+        );
+    }
+
+    {
+        const title1 = emptyTaskTitleModel.get();
+        const updateA = assertExists(title1.replace(0, 0, "a"));
+        const updateB = assertExists(title1.apply(updateA).replace(0, 0, "b"));
+        const title2 = title1.apply(updateA).apply(updateB);
+
+        expect(title2.getText()).toEqual("ba");
     }
 });

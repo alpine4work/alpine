@@ -415,22 +415,23 @@ export function addFallbackToTaskTitle(title: string): string {
  * essential for undo since it points to the new item that recreated the
  * deleted old item.
  *
- * ### Avoiding corruption
+ * ### Avoid conflicting updates
  *
- * You must be a little careful to avoid data corruption. All updates created
- * in this JavaScript realm have the same Yjs `clientID`. If you generate two
- * conflicting updates within the JavaScript realm it will cause data
- * corruption. Here's an example of how you might cause data corruption:
+ * You must be a little careful to avoid conflicting updates. All updates
+ * created in this JavaScript realm have the same Yjs `clientID`. If you
+ * generate two conflicting updates within the JavaScript realm an error will
+ * be thrown when you try to apply the update. Here's an example of how you
+ * might cause conflicting updates:
  *
  * ```ts
  * const title1 = emptyTaskTitleModel.get();
  * const updateA = assertExists(title1.replace(0, 0, "a"));
  * const updateB = assertExists(title1.replace(0, 0, "b"));
- * const title2 = applyTaskTitleUpdate(title1.getRaw(), updateA.raw);
- * const title3 = applyTaskTitleUpdate(title2, updateB.raw);
+ * const title2 = title1.apply(updateA);
+ * const title3 = title2.apply(updateB);
  * ```
  *
- * Corruption here occurs because `updateA` and `updateB` under the hood
+ * This will throw an error because under the hood `updateA` and `updateB`
  * generate a conflicting ID for `"a"` and `"b"`. IDs are a tuple of
  * `(clientId, clock)`. `clientId` is the first 32 bits of our JavaScript
  * `RealmId`. `clock` is +1 from the highest `clock` value for the same
@@ -451,13 +452,6 @@ export function addFallbackToTaskTitle(title: string): string {
  * This is fine since the ID for `"a"` will be `(realmId, 0)` and the ID for
  * `"b"` will be `(realmId, 1)` since we generate the `"b"` update on top of
  * the `"a"` update.
- *
- * You'll notice in our data corruption example we're using `titleUpdate.raw`
- * and `applyTaskTitleUpdate()`, A good rule of thumb for avoiding corruption
- * is if you're using `titleUpdate.raw` or `title.getRaw()` to apply your
- * update you're at risk of corrupting your title. By default the model types
- * will make sure you only make updates in a way that won't corrupt your
- * title.
  */
 export class TaskTitleModel {
     public static schema = Schema.bytes.transform<TaskTitleModel>({
@@ -654,6 +648,28 @@ export class TaskTitleModel {
             this,
             new TaskTitleModel(doc),
         );
+    }
+
+    /**
+     * Apply an update to the task title.
+     *
+     * Prefer passing in `TaskTitleUpdateModel` since we may be able to use an
+     * optimized path where we can return `update.newTitle` instead of applying the
+     * update from scratch.
+     */
+    public apply(update: TaskTitleUpdateModel | TaskTitleUpdate): TaskTitleModel {
+        if (update instanceof TaskTitleUpdateModel) {
+            if (update.oldTitle === this) {
+                return update.newTitle;
+            }
+
+            update = update.raw;
+        }
+
+        const doc = cloneDoc(this._getDoc());
+        Y.applyUpdateV2(doc, update);
+
+        return new TaskTitleModel(doc);
     }
 }
 
