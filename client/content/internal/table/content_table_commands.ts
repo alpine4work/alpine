@@ -679,11 +679,11 @@ export function moveContentTableColumn(
         const oldTableMap = ContentTableMap.get(oldTable);
 
         if (newColumnIndex < 0) return false;
-        if (newColumnIndex > oldTableMap.height) return false;
+        if (newColumnIndex > oldTableMap.width) return false;
 
         if (endColumnIndex <= startColumnIndex) return false;
         if (startColumnIndex < 0) return false;
-        if (endColumnIndex > oldTableMap.height) return false;
+        if (endColumnIndex > oldTableMap.width) return false;
 
         // Columns are moved back to the location they started.
         if (startColumnIndex <= newColumnIndex && newColumnIndex <= endColumnIndex) return false;
@@ -713,7 +713,36 @@ export function moveContentTableColumn(
         for (let rowIndex = 0; rowIndex < oldTableMap.height; rowIndex++) {
             const oldTableRow = oldTable.content.content[rowIndex]!;
 
-            let deletedNodeSize = 0;
+            let insertPos: number;
+            if (newColumnIndex === oldTableMap.width) {
+                insertPos = tablePos + tableRowNodeSize + oldTableRow.nodeSize - 1;
+            } else {
+                const cells = oldTableMap.cellsInRect({
+                    left: newColumnIndex,
+                    right: newColumnIndex + 1,
+                    top: rowIndex,
+                    bottom: rowIndex + 1,
+                });
+                assert(cells.length === 1);
+
+                insertPos = tablePos + cells[0]!;
+            }
+
+            let insertedNodeSize = 0;
+
+            // Insert the nodes we're moving in their new position. We insert in reverse
+            // order so we can use the same `insertPos` each time.
+            for (
+                let insertColumnIndex = endColumnIndex - 1;
+                insertColumnIndex >= startColumnIndex;
+                insertColumnIndex--
+            ) {
+                const tableCell = oldTableRow.content.content[insertColumnIndex]!;
+
+                insertedNodeSize += tableCell.nodeSize;
+
+                transaction.insert(insertPos, tableCell);
+            }
 
             // Delete the cells we're moving. We delete in reverse order so we can use old
             // table positions.
@@ -736,38 +765,13 @@ export function moveContentTableColumn(
                 assert($cell.parent === oldTableRow);
                 assert($cell.nodeAfter === tableCell);
 
-                deletedNodeSize += $cell.nodeAfter.nodeSize;
-                transaction.delete($cell.pos, $cell.pos + $cell.nodeAfter.nodeSize);
-            }
-
-            let insertPos: number;
-            if (newColumnIndex === oldTableMap.width) {
-                insertPos = tablePos + tableRowNodeSize + oldTableRow.nodeSize - 1;
-            } else {
-                const cells = oldTableMap.cellsInRect({
-                    left: newColumnIndex,
-                    right: newColumnIndex + 1,
-                    top: rowIndex,
-                    bottom: rowIndex + 1,
-                });
-                assert(cells.length === 1);
-
-                insertPos = tablePos + cells[0]!;
-            }
-
-            // Insert the nodes we're moving in their new position. We insert in reverse
-            // order so we can use the same `insertPos` each time.
-            for (
-                let insertColumnIndex = endColumnIndex - 1;
-                insertColumnIndex >= startColumnIndex;
-                insertColumnIndex--
-            ) {
-                const tableCell = oldTableRow.content.content[insertColumnIndex]!;
-
                 if (newColumnIndex < startColumnIndex) {
-                    transaction.insert(insertPos, tableCell);
+                    transaction.delete(
+                        $cell.pos + insertedNodeSize,
+                        $cell.pos + $cell.nodeAfter.nodeSize + insertedNodeSize,
+                    );
                 } else {
-                    transaction.insert(insertPos - deletedNodeSize, tableCell);
+                    transaction.delete($cell.pos, $cell.pos + $cell.nodeAfter.nodeSize);
                 }
             }
 
