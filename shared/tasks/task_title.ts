@@ -1,6 +1,12 @@
 import {Node, Schema as ProsemirrorSchema, Slice} from "prosemirror-model";
-import {prosemirrorToYXmlFragment, yXmlFragmentToProsemirror} from "y-prosemirror";
+import {
+    absolutePositionToRelativePosition,
+    prosemirrorToYXmlFragment,
+    relativePositionToAbsolutePosition,
+    yXmlFragmentToProsemirror,
+} from "y-prosemirror";
 import * as Y from "yjs";
+import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -105,8 +111,13 @@ export const realmTaskTitleClientId = new Lazy((): number => {
  * for performance. (For instance, while profiling task grid view scrolling we
  * found Yjs's implementation of `guid` generation to be slow.)
  */
-function createDoc(): Y.Doc {
+function createDoc({clientIdForTest}: {clientIdForTest?: number} = {}): Y.Doc {
     const doc = Object.create(Y.Doc.prototype);
+
+    // Can only change the client ID in tests.
+    if (!import.meta.jest) {
+        assert(clientIdForTest === undefined);
+    }
 
     // Always use a client ID based on our realm ID. There should never be any
     // concurrent updates within a single JavaScript realm.
@@ -120,7 +131,7 @@ function createDoc(): Y.Doc {
         configurable: true,
         enumerable: true,
         writable: false,
-        value: realmTaskTitleClientId.get(),
+        value: clientIdForTest ?? realmTaskTitleClientId.get(),
     });
 
     // Make sure the Yjs GC is enabled.
@@ -157,8 +168,8 @@ function createDoc(): Y.Doc {
  * an implementation of Yjs with efficient immutable data structures from
  * scratch.
  */
-function cloneDoc(doc: Y.Doc): Y.Doc {
-    const clonedDoc = createDoc();
+function cloneDoc(doc: Y.Doc, options?: {clientIdForTest?: number}): Y.Doc {
+    const clonedDoc = createDoc(options);
     const clonedItemByClockByClientId = new Map<number, Map<number, Y.Item>>();
 
     // 1. Clone all structs
@@ -364,12 +375,15 @@ export function getTaskTitleText(title: TaskTitle): string {
 /**
  * Creates a Yjs encoded task title from a string.
  */
-export function createTaskTitleFromText(titleText: string): TaskTitle {
+export function createTaskTitleFromText(
+    titleText: string,
+    options?: {clientIdForTest?: number},
+): TaskTitle {
     const prosemirrorNode = TaskTitleProsemirrorSchema.node("doc", {}, [
         TaskTitleProsemirrorSchema.text(titleText),
     ]);
 
-    const doc = createDoc();
+    const doc = createDoc(options);
     prosemirrorToYXmlFragment(prosemirrorNode, doc.getXmlFragment("doc"));
     return Y.encodeStateAsUpdateV2(doc) as TaskTitle;
 }
@@ -425,8 +439,8 @@ export function addFallbackToTaskTitle(title: string): string {
  *
  * ```ts
  * const title1 = emptyTaskTitleModel.get();
- * const updateA = assertExists(title1.replace(0, 0, "a"));
- * const updateB = assertExists(title1.replace(0, 0, "b"));
+ * const updateA = title1.replace(0, 0, "a");
+ * const updateB = title1.replace(0, 0, "b");
  * const title2 = title1.apply(updateA);
  * const title3 = title2.apply(updateB);
  * ```
@@ -443,9 +457,9 @@ export function addFallbackToTaskTitle(title: string): string {
  *
  * ```ts
  * const title1 = emptyTaskTitleModel.get();
- * const updateA = assertExists(title1.replace(0, 0, "a"));
+ * const updateA = title1.replace(0, 0, "a");
  * const title2 = updateA.newTitle;
- * const updateB = assertExists(title2.replace(0, 0, "b"));
+ * const updateB = title2.replace(0, 0, "b");
  * const title3 = updateB.newTitle;
  * ```
  *
@@ -473,7 +487,17 @@ export class TaskTitleModel {
             // We only freeze `doc.store` since sometimes Yjs creates transactions in code
             // read paths.
             if (process.env.NODE_ENV !== "production") {
-                deepFreeze(doc.store);
+                // Make sure we initialize the type so it's available later.
+                doc.getXmlFragment("doc");
+
+                deepFreeze(
+                    doc.store,
+                    // Don't freeze `Uint8Array`. It'll throw with an error message of: "Cannot
+                    // freeze array buffer views with elements". We accept this limitation.
+                    // Hopefully freezing the rest of the object is sufficient for making sure there
+                    // are no more mutations on the doc.
+                    value => !(value instanceof Uint8Array),
+                );
             }
 
             this._doc = doc;
@@ -482,6 +506,17 @@ export class TaskTitleModel {
             this._doc = null;
             this._raw = doc;
         }
+    }
+
+    public static fromText(text: string, options?: {clientIdForTest?: number}) {
+        const prosemirrorNode = TaskTitleProsemirrorSchema.node("doc", {}, [
+            TaskTitleProsemirrorSchema.text(text),
+        ]);
+
+        const doc = createDoc(options);
+        prosemirrorToYXmlFragment(prosemirrorNode, doc.getXmlFragment("doc"));
+
+        return new TaskTitleModel(doc);
     }
 
     /**
@@ -499,13 +534,28 @@ export class TaskTitleModel {
             // We only freeze `doc.store` since sometimes Yjs creates transactions in code
             // read paths.
             if (process.env.NODE_ENV !== "production") {
-                deepFreeze(doc.store);
+                // Make sure we initialize the type so it's available later.
+                doc.getXmlFragment("doc");
+
+                deepFreeze(
+                    doc.store,
+                    // Don't freeze `Uint8Array`. It'll throw with an error message of: "Cannot
+                    // freeze array buffer views with elements". We accept this limitation.
+                    // Hopefully freezing the rest of the object is sufficient for making sure there
+                    // are no more mutations on the doc.
+                    value => !(value instanceof Uint8Array),
+                );
             }
 
             this._doc = doc;
         }
 
         return this._doc;
+    }
+
+    public getDocForTest() {
+        assert(import.meta.jest);
+        return this._getDoc();
     }
 
     /**
@@ -544,11 +594,42 @@ export class TaskTitleModel {
     }
 
     /**
+     * Convert a ProseMirror absolute position into a Yjs relative position.
+     */
+    public intoRelativePosition(pos: number): Y.RelativePosition {
+        return absolutePositionToRelativePosition(
+            pos,
+            this._getDoc().getXmlFragment("doc"),
+            // @ts-expect-error: A read-only map should be fine. This function shouldn't
+            // perform any mutations on the map. An empty map should be fine. We only need
+            // mappings for `Y.XmlElement`s.
+            emptyMap,
+        );
+    }
+
+    /**
+     * Convert a Yjs relative position back into a ProseMirror absolute position.
+     */
+    public fromRelativePosition(relativePosition: Y.RelativePosition): number | null {
+        const doc = this._getDoc();
+
+        return relativePositionToAbsolutePosition(
+            doc,
+            doc.getXmlFragment("doc"),
+            relativePosition,
+            // @ts-expect-error: A read-only map should be fine. This function shouldn't
+            // perform any mutations on the map. An empty map should be fine. We only need
+            // mappings for `Y.XmlElement`s.
+            emptyMap,
+        );
+    }
+
+    /**
      * Clones the underlying Yjs doc. You should only call this in `task_title.ts`.
      * That's why it's prefixed with an underscore.
      */
-    public _cloneDoc(): Y.Doc {
-        return cloneDoc(this._getDoc());
+    public _cloneDoc(options?: {clientIdForTest?: number}): Y.Doc {
+        return cloneDoc(this._getDoc(), options);
     }
 
     /**
@@ -559,15 +640,21 @@ export class TaskTitleModel {
      * You have to be a little careful to avoid corrupting your task title. See the
      * comment on `TaskTitleModel` for more information.
      */
-    public replace(from: number, to: number, text: string): TaskTitleUpdateModel | null {
-        return this.replaceMany([{from, to, text}]);
+    public replace(
+        from: number,
+        to: number,
+        text: string,
+        options?: {clientIdForTest?: number},
+    ): TaskTitleUpdateModel {
+        return this.replaceMany([{from, to, text}], options);
     }
 
     public replaceMany(
         steps: Iterable<{from: number; to: number} & ({text: string} | {slice: Slice})>,
-    ): TaskTitleUpdateModel | null {
-        const doc = cloneDoc(this._getDoc());
-        const xmlFragment = doc.getXmlFragment("doc");
+        options?: {clientIdForTest?: number},
+    ): TaskTitleUpdateModel {
+        const doc = cloneDoc(this._getDoc(), options);
+        const fragment = doc.getXmlFragment("doc");
 
         let update: TaskTitleUpdate | null = null;
 
@@ -580,7 +667,11 @@ export class TaskTitleModel {
         });
 
         const transaction = doc.transact(transaction => {
+            let hasSteps = false;
+
             for (const step of steps) {
+                hasSteps = true;
+
                 const {from, to} = step;
 
                 let text: string;
@@ -596,35 +687,82 @@ export class TaskTitleModel {
                     });
                 }
 
-                assert(Number.isSafeInteger(from), "`from` must be an integer");
-                assert(Number.isSafeInteger(to), "`to` must be an integer");
-                assert(to >= from, "`to` must be greater than or equal to `from`");
-                assert(from >= 0, "`from` must be greater than or equal to 0");
+                assert(Number.isSafeInteger(from), "Step `from` must be an integer");
+                assert(Number.isSafeInteger(to), "Step `to` must be an integer");
+                assert(to >= from, "Step `to` must be greater than or equal to `from`");
+                assert(from >= 0, "Step `from` must be greater than or equal to 0");
+
+                assert(from !== to || text.length > 0, "Step must either delete or insert text");
 
                 // Our task title is a simple string, for now. There shouldn't be nested
                 // `Y.XmlElement`s.
-                assert(
-                    xmlFragment.firstChild === null || xmlFragment.firstChild instanceof Y.XmlText,
-                );
+                assert(fragment.firstChild === null || fragment.firstChild instanceof Y.XmlText);
 
-                if (xmlFragment.firstChild === null) {
+                if (fragment.firstChild === null) {
                     assert(to <= 0, "`to` is out of bounds");
 
                     if (text.length > 0) {
-                        xmlFragment.insert(0, [new Y.XmlText(text)]);
+                        fragment.insert(0, [new Y.XmlText(text)]);
                     }
                 } else {
-                    assert(to <= xmlFragment.firstChild.length, "`to` is out of bounds");
+                    let untilFromChildLength = 0;
+                    let untilToChildLength = 0;
+                    let fromChild: Y.XmlText | null = null;
+                    let toChild: Y.XmlElement | Y.XmlText | null = fragment.firstChild;
+                    while (toChild !== null) {
+                        assert(toChild instanceof Y.XmlText);
+
+                        untilToChildLength += toChild.length;
+
+                        if (fromChild === null && from <= untilToChildLength) {
+                            untilFromChildLength = untilToChildLength;
+                            fromChild = toChild;
+                        }
+
+                        if (to <= untilToChildLength) break;
+
+                        toChild = toChild.nextSibling;
+                    }
+
+                    assert(toChild !== null, "Step `to` is out of bounds");
+                    assert(fromChild !== null);
+
+                    const fromChildLengthBeforeDelete = fromChild.length;
 
                     if (from !== to) {
-                        xmlFragment.firstChild.delete(from, to - from);
+                        let remainingDeleteLength = to - from;
+                        let deleteChild: Y.XmlElement | Y.XmlText | null = fromChild;
+
+                        while (remainingDeleteLength > 0) {
+                            assert(deleteChild instanceof Y.XmlText);
+
+                            const deleteFrom =
+                                deleteChild === fromChild
+                                    ? from - (untilFromChildLength - fromChild.length)
+                                    : 0;
+
+                            const deleteLength = Math.min(
+                                remainingDeleteLength,
+                                deleteChild.length - deleteFrom,
+                            );
+
+                            deleteChild.delete(deleteFrom, deleteLength);
+
+                            remainingDeleteLength -= deleteLength;
+                            deleteChild = deleteChild.nextSibling;
+                        }
                     }
 
                     if (text.length > 0) {
-                        xmlFragment.firstChild.insert(from, text);
+                        fromChild.insert(
+                            from - (untilFromChildLength - fromChildLengthBeforeDelete),
+                            text,
+                        );
                     }
                 }
             }
+
+            assert(hasSteps, "Must have at least one step");
 
             // make sure that deleted structs are not gc'd
             Y.iterateDeletedStructs(transaction, transaction.deleteSet, struct => {
@@ -640,10 +778,10 @@ export class TaskTitleModel {
             return transaction;
         });
 
-        if (update === null) return null;
-
         return new TaskTitleUpdateModel(
-            update,
+            // @ts-expect-error: TypeScript thinks `update` is null even though we assign
+            // to it in the `"updateV2"` event handler.
+            assertExists(update),
             getUndoStackItem(transaction),
             this,
             new TaskTitleModel(doc),
@@ -657,13 +795,15 @@ export class TaskTitleModel {
      * optimized path where we can return `update.newTitle` instead of applying the
      * update from scratch.
      */
-    public apply(update: TaskTitleUpdateModel | TaskTitleUpdate): TaskTitleModel {
+    public apply(update: TaskTitleModel | TaskTitleUpdateModel | TaskTitleUpdate): TaskTitleModel {
         if (update instanceof TaskTitleUpdateModel) {
             if (update.oldTitle === this) {
                 return update.newTitle;
             }
 
             update = update.raw;
+        } else if (update instanceof TaskTitleModel) {
+            update = update.getRaw();
         }
 
         const doc = cloneDoc(this._getDoc());
@@ -723,8 +863,11 @@ export class TaskTitleUpdateModel {
      * title since Yjs needs to reference the latest IDs in the Yjs doc to produce
      * an update that will correctly override previous data.
      */
-    public invert(currentTitle: TaskTitleModel): TaskTitleUpdateModel | null {
-        const doc = currentTitle._cloneDoc();
+    public invert(
+        currentTitle: TaskTitleModel,
+        options?: {clientIdForTest?: number},
+    ): TaskTitleUpdateModel | null {
+        const doc = currentTitle._cloneDoc(options);
         const xmlFragment = doc.getXmlFragment("doc");
 
         const undoManager = new Y.UndoManager(xmlFragment);
