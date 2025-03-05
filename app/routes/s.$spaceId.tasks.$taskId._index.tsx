@@ -32,12 +32,12 @@ import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
-import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskNotesContentWithReferencesSchema} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskRealtimeUpdateEventBackfillTask} from "~/shared/tasks/task_realtime_protocol.js";
+import {addFallbackToTaskTitle} from "~/shared/tasks/task_title.js";
 
 const LoaderSchema = Schema.object({
     initialMetaTitleText: Schema.string,

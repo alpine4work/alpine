@@ -1,23 +1,24 @@
 diff --git a/dist/src/index.d.ts b/dist/src/index.d.ts
-index f0a78eef82e14dcc196b1d58e415cebeb552081e..6a0ab9a4727a4ec461040bd2e8211e54f0f4978e 100644
+index f0a78eef82e14dcc196b1d58e415cebeb552081e..367149a0ab30979eae3701242090f146a5156429 100644
 --- a/dist/src/index.d.ts
 +++ b/dist/src/index.d.ts
-@@ -1,2 +1,8 @@
+@@ -1,2 +1,9 @@
 -export { Doc, Transaction, YArray as Array, YMap as Map, YText as Text, YXmlText as XmlText, YXmlHook as XmlHook, YXmlElement as XmlElement, YXmlFragment as XmlFragment, YXmlEvent, YMapEvent, YArrayEvent, YTextEvent, YEvent, Item, AbstractStruct, GC, ContentBinary, ContentDeleted, ContentEmbed, ContentFormat, ContentJSON, ContentAny, ContentString, ContentType, AbstractType, getTypeChildren, createRelativePositionFromTypeIndex, createRelativePositionFromJSON, createAbsolutePositionFromRelativePosition, compareRelativePositions, AbsolutePosition, RelativePosition, ID, createID, compareIDs, getState, Snapshot, createSnapshot, createDeleteSet, createDeleteSetFromStructStore, cleanupYTextFormatting, snapshot, emptySnapshot, findRootTypeKey, findIndexSS, getItem, typeListToArraySnapshot, typeMapGetSnapshot, createDocFromSnapshot, iterateDeletedStructs, applyUpdate, applyUpdateV2, readUpdate, readUpdateV2, encodeStateAsUpdate, encodeStateAsUpdateV2, encodeStateVector, UndoManager, decodeSnapshot, encodeSnapshot, decodeSnapshotV2, encodeSnapshotV2, decodeStateVector, logUpdate, logUpdateV2, decodeUpdate, decodeUpdateV2, relativePositionToJSON, isDeleted, isParentOf, equalSnapshots, PermanentUserData, tryGc, transact, AbstractConnector, logType, mergeUpdates, mergeUpdatesV2, parseUpdateMeta, parseUpdateMetaV2, encodeStateVectorFromUpdate, encodeStateVectorFromUpdateV2, encodeRelativePosition, decodeRelativePosition, diffUpdate, diffUpdateV2, convertUpdateFormatV1ToV2, convertUpdateFormatV2ToV1, obfuscateUpdate, obfuscateUpdateV2, UpdateEncoderV1, equalDeleteSets, snapshotContainsUpdate } from "./internals.js";
 +export { Doc, Transaction, YArray as Array, YMap as Map, YText as Text, YXmlText as XmlText, YXmlHook as XmlHook, YXmlElement as XmlElement, YXmlFragment as XmlFragment, YXmlEvent, YMapEvent, YArrayEvent, YTextEvent, YEvent, Item, AbstractStruct, GC, ContentBinary, ContentDeleted, ContentEmbed, ContentFormat, ContentJSON, ContentAny, ContentString, ContentType, AbstractType, getTypeChildren, createRelativePositionFromTypeIndex, createRelativePositionFromJSON, createAbsolutePositionFromRelativePosition, compareRelativePositions, AbsolutePosition, RelativePosition, ID, createID, compareIDs, getState, Snapshot, createSnapshot, createDeleteSet, createDeleteSetFromStructStore, cleanupYTextFormatting, snapshot, emptySnapshot, findRootTypeKey, findIndexSS, getItem, typeListToArraySnapshot, typeMapGetSnapshot, createDocFromSnapshot, iterateDeletedStructs, applyUpdate, applyUpdateV2, readUpdate, readUpdateV2, encodeStateAsUpdate, encodeStateAsUpdateV2, encodeStateVector, UndoManager, decodeSnapshot, encodeSnapshot, decodeSnapshotV2, encodeSnapshotV2, decodeStateVector, logUpdate, logUpdateV2, decodeUpdate, decodeUpdateV2, relativePositionToJSON, isDeleted, isParentOf, equalSnapshots, PermanentUserData, tryGc, transact, AbstractConnector, logType, mergeUpdates, mergeUpdatesV2, parseUpdateMeta, parseUpdateMetaV2, encodeStateVectorFromUpdate, encodeStateVectorFromUpdateV2, encodeRelativePosition, decodeRelativePosition, diffUpdate, diffUpdateV2, convertUpdateFormatV1ToV2, convertUpdateFormatV2ToV1, obfuscateUpdate, obfuscateUpdateV2, UpdateEncoderV1, equalDeleteSets, snapshotContainsUpdate,
 +  // NOTE(calebmer): Additional exports we use from Yjs.
 +  StackItem,
 +  DeleteSet,
 +  DeleteItem,
-+  addToDeleteSet
++  addToDeleteSet,
++  mergeDeleteSets
 +} from "./internals.js";
  //# sourceMappingURL=index.d.ts.map
 \ No newline at end of file
 diff --git a/dist/yjs.cjs b/dist/yjs.cjs
-index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..496d8a5a165f2433cfe285cc326b9f8cce8bb735 100644
+index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..85d623c6fc6109a157aea76daa2169324167023f 100644
 --- a/dist/yjs.cjs
 +++ b/dist/yjs.cjs
-@@ -1582,6 +1582,57 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+@@ -1582,6 +1582,62 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
          // hid a dead wall, add all items from stack to restSS
          addStackToRestSS();
        } else {
@@ -40,11 +41,16 @@ index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..496d8a5a165f2433cfe285cc326b9f8c
 +            compareIDs(itemA.origin, itemB.origin) &&
 +            compareIDs(itemA.rightOrigin, itemB.rightOrigin) &&
 +            compareIDs(
-+              itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
-+              itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
++              // Item is only considered to have a parent if `origin` and `rightOrigin` are
++              // null. We take this behavior [from `Item.write()`][1]. An integrated item may
++              // have `parent` set even if `origin` or `rightOrigin` are non-null for
++              // convenience so we need to ignore `parent` in this case.
++              //
++              // [1]: https://github.com/yjs/yjs/blob/8586806932e65b2c9957f5e4ecd74547baf301ad/src/structs/Item.js#L669-L695
++              itemA.origin !== null || itemA.rightOrigin !== null ? null : itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
++              itemB.origin !== null || itemB.rightOrigin !== null ? null : itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
 +            ) &&
-+            itemA.parentSub === itemB.parentSub &&
-+            itemA.info === itemB.info;
++            itemA.parentSub === itemB.parentSub;
 +
 +          let isEqual;
 +          if (!isEqualExceptContent) {
@@ -75,7 +81,7 @@ index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..496d8a5a165f2433cfe285cc326b9f8c
          const missing = stackHead.getMissing(transaction, store);
          if (missing !== null) {
            stack.push(stackHead);
-@@ -1631,6 +1682,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+@@ -1631,6 +1687,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
    return null
  };
  
@@ -116,7 +122,7 @@ index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..496d8a5a165f2433cfe285cc326b9f8c
  /**
   * @param {UpdateEncoderV1 | UpdateEncoderV2} encoder
   * @param {Transaction} transaction
-@@ -3302,10 +3387,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
+@@ -3302,10 +3392,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
            tryToMergeWithLeft(structs, replacedStructPos);
          }
        }
@@ -135,7 +141,7 @@ index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..496d8a5a165f2433cfe285cc326b9f8c
        // @todo Merge all the transactions into one and provide send the data as a single update message
        doc.emit('afterTransactionCleanup', [transaction, doc]);
        if (doc._observers.has('update')) {
-@@ -10224,4 +10313,9 @@ exports.transact = transact;
+@@ -10224,4 +10318,10 @@ exports.transact = transact;
  exports.tryGc = tryGc;
  exports.typeListToArraySnapshot = typeListToArraySnapshot;
  exports.typeMapGetSnapshot = typeMapGetSnapshot;
@@ -145,12 +151,13 @@ index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..496d8a5a165f2433cfe285cc326b9f8c
 +exports.DeleteSet = DeleteSet;
 +exports.DeleteItem = DeleteItem;
 +exports.addToDeleteSet = addToDeleteSet;
++exports.mergeDeleteSets = mergeDeleteSets;
 +// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/dist/yjs.mjs b/dist/yjs.mjs
-index abf5ea55c9c42e7a3548591b82b43ec2f0171236..af78f9ea9bfe36ca63287a1bff770911cef7ea60 100644
+index abf5ea55c9c42e7a3548591b82b43ec2f0171236..3d69f845cd9cd7f0c40f11553a5252a6eeccf512 100644
 --- a/dist/yjs.mjs
 +++ b/dist/yjs.mjs
-@@ -1546,6 +1546,57 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+@@ -1546,6 +1546,62 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
          // hid a dead wall, add all items from stack to restSS
          addStackToRestSS();
        } else {
@@ -173,11 +180,16 @@ index abf5ea55c9c42e7a3548591b82b43ec2f0171236..af78f9ea9bfe36ca63287a1bff770911
 +            compareIDs(itemA.origin, itemB.origin) &&
 +            compareIDs(itemA.rightOrigin, itemB.rightOrigin) &&
 +            compareIDs(
-+              itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
-+              itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
++              // Item is only considered to have a parent if `origin` and `rightOrigin` are
++              // null. We take this behavior [from `Item.write()`][1]. An integrated item may
++              // have `parent` set even if `origin` or `rightOrigin` are non-null for
++              // convenience so we need to ignore `parent` in this case.
++              //
++              // [1]: https://github.com/yjs/yjs/blob/8586806932e65b2c9957f5e4ecd74547baf301ad/src/structs/Item.js#L669-L695
++              itemA.origin !== null || itemA.rightOrigin !== null ? null : itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
++              itemB.origin !== null || itemB.rightOrigin !== null ? null : itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
 +            ) &&
-+            itemA.parentSub === itemB.parentSub &&
-+            itemA.info === itemB.info;
++            itemA.parentSub === itemB.parentSub;
 +
 +          let isEqual;
 +          if (!isEqualExceptContent) {
@@ -208,7 +220,7 @@ index abf5ea55c9c42e7a3548591b82b43ec2f0171236..af78f9ea9bfe36ca63287a1bff770911
          const missing = stackHead.getMissing(transaction, store);
          if (missing !== null) {
            stack.push(stackHead);
-@@ -1595,6 +1646,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+@@ -1595,6 +1651,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
    return null
  };
  
@@ -249,7 +261,7 @@ index abf5ea55c9c42e7a3548591b82b43ec2f0171236..af78f9ea9bfe36ca63287a1bff770911
  /**
   * @param {UpdateEncoderV1 | UpdateEncoderV2} encoder
   * @param {Transaction} transaction
-@@ -3266,10 +3351,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
+@@ -3266,10 +3356,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
            tryToMergeWithLeft(structs, replacedStructPos);
          }
        }
@@ -268,7 +280,7 @@ index abf5ea55c9c42e7a3548591b82b43ec2f0171236..af78f9ea9bfe36ca63287a1bff770911
        // @todo Merge all the transactions into one and provide send the data as a single update message
        doc.emit('afterTransactionCleanup', [transaction, doc]);
        if (doc._observers.has('update')) {
-@@ -10094,5 +10183,11 @@ if (glo[importIdentifier] === true) {
+@@ -10094,5 +10188,12 @@ if (glo[importIdentifier] === true) {
  }
  glo[importIdentifier] = true;
  
@@ -279,14 +291,15 @@ index abf5ea55c9c42e7a3548591b82b43ec2f0171236..af78f9ea9bfe36ca63287a1bff770911
 +  StackItem,
 +  DeleteSet,
 +  DeleteItem,
-+  addToDeleteSet
++  addToDeleteSet,
++  mergeDeleteSets
 +};
 +// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/src/index.js b/src/index.js
-index 781e8eb480d3b7e7d68fa0119fd44a7050f4bd7f..ec19b280bb27ecd1f1f2572549cd0fdc4d8b7bf6 100644
+index 781e8eb480d3b7e7d68fa0119fd44a7050f4bd7f..d37a401319b4a2408c481c7c48787d8bc268c1ff 100644
 --- a/src/index.js
 +++ b/src/index.js
-@@ -94,7 +94,12 @@ export {
+@@ -94,7 +94,13 @@ export {
    obfuscateUpdateV2,
    UpdateEncoderV1,
    equalDeleteSets,
@@ -296,7 +309,8 @@ index 781e8eb480d3b7e7d68fa0119fd44a7050f4bd7f..ec19b280bb27ecd1f1f2572549cd0fdc
 +  StackItem,
 +  DeleteSet,
 +  DeleteItem,
-+  addToDeleteSet
++  addToDeleteSet,
++  mergeDeleteSets
  } from './internals.js'
  
  const glo = /** @type {any} */ (typeof globalThis !== 'undefined'
@@ -324,7 +338,7 @@ index 3594059551f62ea765252b3b00a8889d8f2e9c2c..6cb2025c0a982a0b9da311fe73097552
        doc.emit('afterTransactionCleanup', [transaction, doc])
        if (doc._observers.has('update')) {
 diff --git a/src/utils/encoding.js b/src/utils/encoding.js
-index 83e1b91fa11440464487fb64aadc64afb5c25b60..9ab9e86120f7edf160bc4fb614d5d7bfce069a20 100644
+index 83e1b91fa11440464487fb64aadc64afb5c25b60..72fd67d3e7799ed9cde8176276e94aae91566af4 100644
 --- a/src/utils/encoding.js
 +++ b/src/utils/encoding.js
 @@ -37,7 +37,8 @@ import {
@@ -337,7 +351,7 @@ index 83e1b91fa11440464487fb64aadc64afb5c25b60..9ab9e86120f7edf160bc4fb614d5d7bf
  } from '../internals.js'
  
  import * as encoding from 'lib0/encoding'
-@@ -310,6 +311,57 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+@@ -310,6 +311,62 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
          // hid a dead wall, add all items from stack to restSS
          addStackToRestSS()
        } else {
@@ -360,11 +374,16 @@ index 83e1b91fa11440464487fb64aadc64afb5c25b60..9ab9e86120f7edf160bc4fb614d5d7bf
 +            compareIDs(itemA.origin, itemB.origin) &&
 +            compareIDs(itemA.rightOrigin, itemB.rightOrigin) &&
 +            compareIDs(
-+              itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
-+              itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
++              // Item is only considered to have a parent if `origin` and `rightOrigin` are
++              // null. We take this behavior [from `Item.write()`][1]. An integrated item may
++              // have `parent` set even if `origin` or `rightOrigin` are non-null for
++              // convenience so we need to ignore `parent` in this case.
++              //
++              // [1]: https://github.com/yjs/yjs/blob/8586806932e65b2c9957f5e4ecd74547baf301ad/src/structs/Item.js#L669-L695
++              itemA.origin !== null || itemA.rightOrigin !== null ? null : itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
++              itemB.origin !== null || itemB.rightOrigin !== null ? null : itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
 +            ) &&
-+            itemA.parentSub === itemB.parentSub &&
-+            itemA.info === itemB.info;
++            itemA.parentSub === itemB.parentSub;
 +
 +          let isEqual;
 +          if (!isEqualExceptContent) {
@@ -395,7 +414,7 @@ index 83e1b91fa11440464487fb64aadc64afb5c25b60..9ab9e86120f7edf160bc4fb614d5d7bf
          const missing = stackHead.getMissing(transaction, store)
          if (missing !== null) {
            stack.push(stackHead)
-@@ -359,6 +411,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+@@ -359,6 +416,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
    return null
  }
  

@@ -5,7 +5,7 @@ import {isTaskQueryManuallySorted} from "~/client/tasks/internal/task_grid_view_
 import {TaskRowViewDroppable} from "~/client/tasks/internal/task_row_view_droppable.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {
     TaskQuerySortCursor,
@@ -45,7 +45,7 @@ export function renderTaskRowViewDroppableIndentations({
     getMoveTaskToRootQueryActions: (
         taskId: TaskId,
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
-    ) => Array<TaskAction>;
+    ) => Array<TaskActionModel>;
     setRowZIndex: Memo<(zIndex: number) => () => void>;
 }) {
     // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
@@ -72,7 +72,7 @@ export function renderTaskRowViewDroppableIndentations({
                 previousAdjacentIndentation={null}
                 isVerticallyFlipped={true}
                 setRowZIndex={setRowZIndex}
-                getDropActions={(taskId): Array<TaskAction> => {
+                getDropActions={(taskId): Array<TaskActionModel> => {
                     const time1 = query.store.clock.now();
                     const time2 = query.store.clock.now();
 
@@ -91,7 +91,7 @@ export function renderTaskRowViewDroppableIndentations({
                             },
                         },
                         ...(childrenQuery
-                            ? cast<Array<TaskAction>>([
+                            ? cast<Array<TaskActionModel>>([
                                   {
                                       type: "UpdateTask",
                                       time: time2,

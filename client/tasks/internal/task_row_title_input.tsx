@@ -2,7 +2,16 @@ import {setInteractionModality} from "@react-aria/interactions";
 import {useGlobalListeners} from "@react-aria/utils";
 import classNames from "classnames";
 import {CaretLeft, Lock} from "phosphor-react";
-import {AllSelection, EditorState, Selection, TextSelection} from "prosemirror-state";
+import {Fragment, Slice} from "prosemirror-model";
+import {
+    AllSelection,
+    EditorState,
+    Plugin,
+    PluginKey,
+    Selection,
+    TextSelection,
+} from "prosemirror-state";
+import {ReplaceStep} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {
     CSSProperties,
@@ -19,15 +28,12 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
-import {ySyncPlugin, ySyncPluginKey, yUndoPlugin, yXmlFragmentToProsemirror} from "y-prosemirror";
-import * as Y from "yjs";
 import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/shared/build_shared_content_editor_input_rules_plugin.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCanPrimaryInputHover} from "~/client/remix/platform_context.js";
@@ -58,21 +64,32 @@ import {
 } from "~/client/tasks/internal/task_row_title_child_tasks_button.js";
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
-import {RemLength, Spacing, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
-import {allSpacingScales, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {
+    RemLength,
+    Spacing,
+    convertRemLengthToPx,
+    parseRemLength,
+    spacing,
+} from "~/shared/design/core/spacing.js";
+import {
+    SpacingScale,
+    allSpacingScales,
+    remPxBySpacingScale,
+} from "~/shared/design/core/spacing_scale.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {emptyTaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {
+    TaskTitleModel,
     TaskTitleProsemirrorSchema,
-    TaskTitleUpdate,
+    TaskTitleUpdateModel,
+    emptyTaskTitleModel,
     emptyTaskTitleProsemirrorNode,
 } from "~/shared/tasks/task_title.js";
 
@@ -96,6 +113,8 @@ const taskRowTitleInputAriaLabel = "Title";
 const taskRowTitleInputSingleLineClassName = `ProseMirror ${sprinkles({
     // Use an `inline-block` display so the `<div>` width is equal to our content width.
     display: "inline-block",
+    paddingLeft: tasksStyles.rowTitleInputOverflowGradientMarginX,
+    paddingRight: tasksStyles.rowTitleInputOverflowGradientMarginX,
     maxWidth: "full",
     height: taskRowTitleInputSingleLineHeight,
     overflowY: "hidden",
@@ -154,7 +173,6 @@ const taskRowTitleInputMultilineStyle = createObjectFromKeys(
 
 const rootClassName = sprinkles({
     display: "flex",
-    overflow: "hidden",
     position: "relative",
     zIndex: "0",
 });
@@ -162,7 +180,6 @@ const rootClassName = sprinkles({
 const containerClassName = sprinkles({
     position: "relative",
     zIndex: "0",
-    overflow: "hidden",
     minHeight: taskRowTitleInputSingleLineHeight,
     color: "grey-100",
 });
@@ -209,7 +226,6 @@ const parentTaskTitleClassName = sprinkles({
     alignItems: "center",
     gap: "0.5",
     maxWidth: "full",
-    overflow: "hidden",
 });
 
 const parentTaskTitleIconClassName = sprinkles({
@@ -238,44 +254,14 @@ export {TaskRowTitleInputForwardRef as TaskRowTitleInput};
 let scheduledDestroyTaskRowTitleInputEditorViewCallbacks: Array<() => void> | null = null;
 
 function TaskRowTitleInput(
-    {
-        capabilities,
-        hasEditAccessLevel,
-        maxGridExpandableTaskDepth,
-        stateKey,
-        query,
-        task,
-        onTitleChange,
-        placeholder,
-        indentation,
-        paddingRight,
-        parentTaskEntryStore,
-        areChildTasksExpanded,
-        onAreChildTasksExpandedToggle,
-        createTaskAbove,
-        createTaskBelowAndFocus,
-        nestWithPreviousTaskRowIfExistsAndExpand,
-        unnestTaskIfNestedRow,
-        deleteTaskAndAllChildrenAndFocusPreviousRow,
-        focusNextTaskTitleCoord,
-        focusPreviousTaskTitleCoord,
-        preserveLastTaskTitleArrowNavigationCoord,
-        focusFirstVisibleTaskTitleStart,
-        focusLastVisibleTaskTitleEnd,
-        focusCell,
-        focusNextCell,
-        focusPreviousCell,
-        pushUndoStackYDocEntry,
-        pushUndoStackYDocEntryFromRedo,
-        pushRedoStackYDocEntry,
-    }: {
+    props: {
         capabilities: TaskGridViewCapabilities;
         hasEditAccessLevel: boolean;
         maxGridExpandableTaskDepth: number;
         stateKey: Key | undefined;
         query: TaskClientQuery;
         task: TaskModel | null;
-        onTitleChange: (titleUpdate: TaskTitleUpdate) => void;
+        onTitleChange: (titleUpdate: TaskTitleUpdateModel) => void;
         placeholder?: string;
         indentation: number;
         paddingRight: RemLength | undefined;
@@ -295,15 +281,37 @@ function TaskRowTitleInput(
         focusCell: Memo<(column: TaskGridViewColumn) => void>;
         focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
-        pushUndoStackYDocEntry: (entry: {yUndoManager: Y.UndoManager; release: () => void}) => void;
-        pushUndoStackYDocEntryFromRedo: (entry: {
-            yUndoManager: Y.UndoManager;
-            release: () => void;
-        }) => void;
-        pushRedoStackYDocEntry: (entry: {yUndoManager: Y.UndoManager; release: () => void}) => void;
     },
     ref: Ref<TaskRowTitleInputRef>,
 ) {
+    const {
+        capabilities,
+        hasEditAccessLevel,
+        maxGridExpandableTaskDepth,
+        stateKey,
+        query,
+        task,
+        placeholder,
+        indentation,
+        paddingRight,
+        parentTaskEntryStore,
+        areChildTasksExpanded,
+        onAreChildTasksExpandedToggle,
+        createTaskAbove,
+        createTaskBelowAndFocus,
+        nestWithPreviousTaskRowIfExistsAndExpand,
+        unnestTaskIfNestedRow,
+        deleteTaskAndAllChildrenAndFocusPreviousRow,
+        focusNextTaskTitleCoord,
+        focusPreviousTaskTitleCoord,
+        preserveLastTaskTitleArrowNavigationCoord,
+        focusFirstVisibleTaskTitleStart,
+        focusLastVisibleTaskTitleEnd,
+        focusCell,
+        focusNextCell,
+        focusPreviousCell,
+    } = props;
+
     // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
     // this component. It is critical for scroll performance that this component
     // renders fast. Use the `sprinkles()` function in the module body instead.
@@ -344,14 +352,6 @@ function TaskRowTitleInput(
     const childTasksButtonRef = useRef<TaskRowTitleChildTasksButtonRef>(null);
 
     const title = task?.getTitle() ?? emptyTaskTitleModel.get();
-
-    const titleYDoc = useTaskTitleModelYDoc({
-        title,
-        onTitleChange,
-        pushUndoStackYDocEntry,
-        pushUndoStackYDocEntryFromRedo,
-        pushRedoStackYDocEntry,
-    });
 
     const handleKeyDown = (view: EditorView, event: KeyboardEvent) => {
         switch (event.key) {
@@ -510,12 +510,14 @@ function TaskRowTitleInput(
         }
     };
 
+    const propsRef = useRef(props);
     const titleRef = useRef(title);
     const handleKeyDownRef = useRef(handleKeyDown);
     const hasEditAccessLevelRef = useRef(hasEditAccessLevel);
     const spacingScaleRef = useRef(spacingScale);
     const isDualModalityRef = useRef(isDualModality);
     useInsertionEffect(() => {
+        propsRef.current = props;
         titleRef.current = title;
         handleKeyDownRef.current = handleKeyDown;
         hasEditAccessLevelRef.current = hasEditAccessLevel;
@@ -533,14 +535,13 @@ function TaskRowTitleInput(
         }
     });
 
+    const updateTitleStateRef = useRef<{
+        titleUpdate: TaskTitleUpdateModel;
+        titleState: EditorState;
+    } | null>(null);
+
     // eslint-disable-next-line @typescript-eslint/unbound-method
     const {addGlobalListener, removeAllGlobalListeners} = useGlobalListeners();
-
-    // We initially consider ourselves to be fully scrolled to the left and to the
-    // right. This means on server-render we won't see gradients. They will flash
-    // in when we can measure element widths.
-    const [isFullyScrolledLeft, setIsFullyScrolledLeft] = useState(true);
-    const [isFullyScrolledRight, setIsFullyScrolledRight] = useState(true);
 
     const shouldShowChildTasksButton = (task?.getChildTaskCount() ?? 0) > 0;
 
@@ -659,12 +660,6 @@ function TaskRowTitleInput(
             const containerElement = assertExists(rootElement.firstElementChild);
             assert(containerElement.childElementCount === 0);
 
-            const yXmlFragment = titleYDoc.getXmlFragment("doc");
-
-            // Make sure our undo manager sees transactions originating from our
-            // `EditorView`.
-            titleYDoc.getUndoManager().addTrackedOrigin(ySyncPluginKey);
-
             const viewElement = document.createElement("div");
             containerElement.appendChild(viewElement);
 
@@ -695,21 +690,33 @@ function TaskRowTitleInput(
             const initialHasEditAccessLevel = hasEditAccessLevelRef.current;
             const initialIsEditable = !initialIsDualModality && initialHasEditAccessLevel;
 
+            let lastSpacingScale: SpacingScale | null = null;
+            let lastScrollMargin: number | null = null;
+
+            function getScrollMargin() {
+                const spacingScale = getSpacingScaleWithoutListening();
+
+                if (lastScrollMargin !== null && lastSpacingScale === spacingScale)
+                    return lastScrollMargin;
+
+                lastSpacingScale = spacingScale;
+
+                lastScrollMargin = convertRemLengthToPx(
+                    tasksStyles.rowTitleInputOverflowGradientMarginX,
+                    spacingScale,
+                );
+
+                return lastScrollMargin;
+            }
+
             const view = new EditorView(
                 {mount: viewElement},
                 {
                     state: EditorState.create({
                         schema: TaskTitleProsemirrorSchema,
-                        // Make sure we start with the correct initial document. After this the
-                        // `ySyncPlugin` manages document state.
-                        doc: yXmlFragmentToProsemirror(TaskTitleProsemirrorSchema, yXmlFragment),
+                        doc: titleRef.current.getProsemirrorNode(),
                         plugins: [
-                            ySyncPlugin(yXmlFragment),
-
-                            // We install the Y.js undo plugin but we don't install the `undo`/`redo`
-                            // commands from `y-prosemirror` in a keymap. Instead `useTaskTitleModelYDoc()`
-                            // registers us with our global undo stack.
-                            yUndoPlugin({undoManager: titleYDoc.getUndoManager()}),
+                            taskTitlePlugin(titleRef.current),
 
                             buildSharedContentEditorInputRulesPlugin(),
                             buildTaskTitleInputKeymapPlugin(),
@@ -718,6 +725,13 @@ function TaskRowTitleInput(
                             sharedContentEditorTrackSelectionWithinPlugin(),
                         ],
                     }),
+
+                    get scrollThreshold() {
+                        return getScrollMargin();
+                    },
+                    get scrollMargin() {
+                        return getScrollMargin();
+                    },
 
                     // We add this prop to `prosemirror-view` with a patch. With this prop when the
                     // editor is focused we place focus where the browser places focus. So if the
@@ -778,18 +792,45 @@ function TaskRowTitleInput(
 
                     dispatchTransaction: transaction => {
                         const oldTitleState = view.state;
-                        const newTitleState = oldTitleState.apply(transaction);
 
-                        updateEditorEmptyClass(newTitleState);
-
-                        view.updateState(newTitleState);
-
-                        if (hasMultilineTitleAndShouldShowMarginRightContent) {
-                            // Make sure React state updates render in the same paint as transaction.
-                            runWithImmediatePriority(() => {
-                                updateMultilineState(false);
-                            });
+                        if (!transaction.docChanged) {
+                            const newTitleState = oldTitleState.apply(transaction);
+                            view.updateState(newTitleState);
+                            return;
                         }
+
+                        const titleUpdate = titleRef.current.replaceMany(
+                            mapIterable(transaction.steps, step => {
+                                assert(step instanceof ReplaceStep);
+                                return step;
+                            }),
+                        );
+
+                        const newTitleState = oldTitleState.apply(
+                            transaction.setMeta(taskTitlePluginKey, titleUpdate.newTitle),
+                        );
+
+                        updateTitleStateRef.current = {
+                            titleUpdate,
+                            titleState: newTitleState,
+                        };
+
+                        // We must flush synchronously. Since ProseMirror preserves local DOM
+                        // state when we call `updateState()` synchronously but won't otherwise.
+                        //
+                        // See the "Efficient updating" section in the [editor view guide][1].
+                        // If we don't synchronously apply the transaction it is considered
+                        // cancelled. A quote from the guide:
+                        //
+                        // > When such a transaction is canceled or modified somehow, the view
+                        // > will undo the DOM change...
+                        //
+                        // [1]: https://prosemirror.net/docs/guide/#view
+                        flushSync(() => {
+                            propsRef.current.onTitleChange(titleUpdate);
+                        });
+
+                        updateTitleStateRef.current = null;
                     },
                 },
             );
@@ -797,65 +838,6 @@ function TaskRowTitleInput(
             if (!initialIsEditable) {
                 view.dom.classList.add(tasksStyles.rowTitleInputIsNotEditableClassName);
             }
-
-            const updateFullyScrolledState = (isInitialUpdate: boolean) => {
-                const isFullyScrolledLeft = view.dom.scrollLeft === 0;
-                const isFullyScrolledRight =
-                    Math.ceil(view.dom.scrollLeft + view.dom.clientWidth) + 1 >=
-                    view.dom.scrollWidth;
-
-                // NOTE(calebmer): For performance, it's important we call
-                // `setMultilineState()` instead of directly updating styles. This way React
-                // batches DOM writes. So we batch DOM reads in `useLayoutEffect()` then batch
-                // DOM writes with state updates. Otherwise we risk [layout thrashing][1].
-                //
-                // NOTE(calebmer): Unexpectedly, I've found calling `setState(state)` on the
-                // first render if `state` is the same as the hook's initial state triggers a
-                // React re-render. I would have expected React to noop calls that don't change
-                // state. Maybe it behaves differently on the first render? Anyway, avoid
-                // calling `setState(state)` on initial update if we can.
-                //
-                // [1]: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
-
-                if (!isInitialUpdate || !isFullyScrolledLeft) {
-                    setIsFullyScrolledLeft(isFullyScrolledLeft);
-                }
-
-                if (!isInitialUpdate || !isFullyScrolledRight) {
-                    setIsFullyScrolledRight(isFullyScrolledRight);
-                }
-            };
-
-            // This reads from the DOM (`scrollLeft`). We can't run this during React's
-            // insertion phase. It has to run in a layout effect.
-            onNextLayoutEffectCallbacksRef.current.push(() => {
-                if (view.isDestroyed) return;
-                updateFullyScrolledState(true);
-            });
-
-            view.dom.addEventListener("scroll", () => updateFullyScrolledState(false));
-
-            const updateEditorEmptyClass = (state: EditorState) => {
-                const addEmptyClassName = state.doc.childCount === 0;
-                if (
-                    addEmptyClassName &&
-                    !rootElement.classList.contains(
-                        tasksStyles.rowTitleInputEmptyContainerClassName,
-                    )
-                ) {
-                    rootElement.classList.add(tasksStyles.rowTitleInputEmptyContainerClassName);
-                }
-                if (
-                    !addEmptyClassName &&
-                    rootElement.classList.contains(tasksStyles.rowTitleInputEmptyContainerClassName)
-                ) {
-                    rootElement.classList.remove(tasksStyles.rowTitleInputEmptyContainerClassName);
-                }
-            };
-
-            // This mutates the DOM but does not read from the DOM in a way that triggers
-            // layout. It's ok to run during React's insertion phase.
-            updateEditorEmptyClass(view.state);
 
             const updateMultilineState = (isInitialUpdate: boolean) => {
                 assert(hasMultilineTitleAndShouldShowMarginRightContent);
@@ -920,6 +902,8 @@ function TaskRowTitleInput(
                 }
             };
 
+            let handleWindowResize: (() => void) | undefined;
+
             if (hasMultilineTitleAndShouldShowMarginRightContent) {
                 // This reads from the DOM (`getBoundingClientRect`). We can't run this during
                 // React's insertion phase. It has to run in a layout effect.
@@ -927,19 +911,31 @@ function TaskRowTitleInput(
                     if (view.isDestroyed) return;
                     updateMultilineState(true);
                 });
-            }
 
-            // When the window resizes, re-evaluate state that depends on task
-            // container size.
-            const handleWindowResize = () => {
-                updateFullyScrolledState(false);
+                // Modify `view.updateState()` to update multiline state whenever our editor
+                // state changes.
+                {
+                    // eslint-disable-next-line @typescript-eslint/unbound-method
+                    const originalUpdateState = view.updateState;
 
-                if (hasMultilineTitleAndShouldShowMarginRightContent) {
-                    updateMultilineState(false);
+                    view.updateState = function (state: EditorState) {
+                        originalUpdateState.call(this, state);
+
+                        // Make sure React state updates render in the same paint as transaction.
+                        flushSync(() => {
+                            updateMultilineState(false);
+                        });
+                    };
                 }
-            };
 
-            window.addEventListener("resize", handleWindowResize);
+                // When the window resizes, re-evaluate state that depends on task
+                // container size.
+                handleWindowResize = () => {
+                    updateMultilineState(false);
+                };
+
+                window.addEventListener("resize", handleWindowResize);
+            }
 
             // NOTE(calebmer): The logic here is taken almost exactly from
             // `<ContentEditor>` since that component supports dual modality on mobile
@@ -1074,7 +1070,7 @@ function TaskRowTitleInput(
             }
 
             return () => {
-                window.removeEventListener("resize", handleWindowResize);
+                if (handleWindowResize) window.removeEventListener("resize", handleWindowResize);
                 document.removeEventListener("selectionchange", handleDocumentSelectionChange);
 
                 viewRef.current = {isReady: false, callbacks: new Set()};
@@ -1111,11 +1107,87 @@ function TaskRowTitleInput(
         [
             capabilities.hasMultilineTitle,
             isInitialAppRender,
-            titleYDoc,
             hasMultilineTitleAndShouldShowMarginRightContent,
             spacingScale,
         ],
     );
+
+    // Reconcile our imperative `EditorView` state with state from React. If this
+    // is run by `dispatchTransaction()` (which updates state in `flushSync()`)
+    // then this should be flushed synchronously given this is a layout effect.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isInitialAppRender) return;
+
+        assert(viewRef.current.isReady);
+        const {view} = viewRef.current;
+        const {state} = view;
+
+        // Optimization: If the user is currently typing (in other words
+        // `dispatchTransaction` is called) then `updateTitleStateRef.current` will be
+        // populated with the new `EditorState` which'll have the correct selection.
+        if (updateTitleStateRef.current?.titleUpdate.newTitle === title) {
+            view.updateState(updateTitleStateRef.current.titleState);
+            return;
+        }
+
+        if (title.getProsemirrorNode() === state.doc) return;
+
+        const transaction = state.tr;
+
+        // If something externally changes the title (e.g. another user in realtime or
+        // an undo) then we completely replace the ProseMirror content with the new
+        // content. Then manually move the selection to its new position.
+        //
+        // This is the same approach [`y-prosemirror` uses][1]. This approach has
+        // [meaningful drawbacks][2]. Namely any decorations being maintained via
+        // `decorationSet.map()` will be wiped away by the full replace. We don't have
+        // any decorations on this editor currently so it's not an issue for us right
+        // now.
+        //
+        // It should be possible to compute a precise text diff between `oldTitle` and
+        // the new `title` using the Yjs CRDT structure. Then call
+        // `transaction.replace()` just for the changed text ranges. This would
+        // preserve anything that needs to be `map()`ed along by ProseMirror (like
+        // decorations for some plugins). However, such an algorithm would be
+        // challenging to write so we copy the dumb `y-prosemirror` strategy for now.
+        //
+        // [1]: https://github.com/yjs/y-prosemirror/blob/15a3862640d4a0d02eae8cbf895f4c9927413a9e/src/plugins/sync-plugin.js#L567-L571
+        // [2]: https://discuss.prosemirror.net/t/offline-peer-to-peer-collaborative-editing-using-yjs/2488
+        transaction.replace(
+            0,
+            state.doc.content.size,
+            new Slice(Fragment.from(title.getProsemirrorNode()), 0, 0),
+        );
+
+        // Move the selection to a new position using Yjs relative positions.
+        // The Yjs CRDT contains enough information to map positions on its own without
+        // needing the intermediate updates.
+        //
+        // TODO(calebmer): If this title update is from an undo ideally we'd reset the
+        // selection to whatever it was before the undo. This is the standard
+        // convention for text editors. Not implementing for now because wiring all the
+        // pieces up through the task undo system is annoying.
+        {
+            const oldTitle = assertExists(taskTitlePluginKey.getState(view.state));
+
+            const anchor = title.fromRelativePosition(
+                oldTitle.intoRelativePosition(state.selection.anchor),
+            );
+            const head = title.fromRelativePosition(
+                oldTitle.intoRelativePosition(state.selection.head),
+            );
+
+            if (state.selection instanceof AllSelection) {
+                transaction.setSelection(new AllSelection(transaction.doc));
+            } else if (anchor !== null && head !== null) {
+                transaction.setSelection(TextSelection.create(transaction.doc, anchor, head));
+            }
+        }
+
+        transaction.setMeta(taskTitlePluginKey, title);
+
+        view.updateState(state.apply(transaction));
+    }, [isInitialAppRender, title]);
 
     const [isFocused, setIsFocused] = useState(false);
 
@@ -1392,20 +1464,15 @@ function TaskRowTitleInput(
         <div
             className={classNames(
                 rootClassName,
-                titleNodeForInitialAppRender &&
-                    titleNodeForInitialAppRender.childCount === 0 &&
-                    // We use a different class than `rowTitleInputEmptyContainerClassName` because
-                    // we don't want React removing the class managed by `updateEditorEmptyClass()`.
-                    tasksStyles.rowTitleInputInitialAppRenderEmptyContainerClassName,
+                title.getProsemirrorNode().childCount === 0 &&
+                    tasksStyles.rowTitleInputEmptyContainerClassName,
             )}
         >
             <div
                 className={classNames(
                     containerClassName,
-                    !isFullyScrolledLeft &&
-                        tasksStyles.rowTitleInputOverflowGradientLeftContainerClassName,
-                    !isFullyScrolledRight &&
-                        tasksStyles.rowTitleInputOverflowGradientRightContainerClassName,
+                    !capabilities.hasMultilineTitle &&
+                        tasksStyles.rowTitleInputOverflowGradientContainerClassName,
                 )}
                 style={{
                     // Make sure margin right can never completely hide the input text.
@@ -1639,6 +1706,26 @@ function TaskRowTitleInput(
             </div>
         </div>
     );
+}
+
+const taskTitlePluginKey = new PluginKey<TaskTitleModel>("taskTitle");
+
+function taskTitlePlugin(initialTaskTitle: TaskTitleModel) {
+    return new Plugin<TaskTitleModel>({
+        key: taskTitlePluginKey,
+        state: {
+            init: () => initialTaskTitle,
+            apply: (transaction, oldTitle) => {
+                const newTitle: TaskTitleModel | undefined =
+                    transaction.getMeta(taskTitlePluginKey);
+                if (newTitle) {
+                    return newTitle;
+                }
+
+                return oldTitle;
+            },
+        },
+    });
 }
 
 function TaskRowTitleParentTaskTitle({

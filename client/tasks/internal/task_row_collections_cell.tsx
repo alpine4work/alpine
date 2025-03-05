@@ -44,7 +44,7 @@ import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
@@ -133,10 +133,7 @@ function TaskRowCollectionsCell(
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
         commitActionTransactionEvenIfGhost: Memo<
-            (
-                getActions: (taskId: TaskId) => Array<TaskAction>,
-                options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
-            ) => void
+            (getActions: (taskId: TaskId) => Array<TaskActionModel>) => void
         >;
     },
     ref: Ref<TaskRowCollectionsCellRef>,
@@ -308,7 +305,7 @@ function TaskRowCollectionsCell(
                                     const time = query.store.clock.now();
 
                                     return displayCollections.map(
-                                        (collection): TaskAction => ({
+                                        (collection): TaskActionModel => ({
                                             type: "UpdateTask",
                                             time,
                                             taskId,

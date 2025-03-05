@@ -102,6 +102,9 @@ export const realmTaskTitleClientId = new Lazy((): number => {
     return realmIdDataView.getUint32(0);
 });
 
+// Put this in a constant so Jest `expect().toEqual()` checks will pass.
+const gcFilter = () => true;
+
 /**
  * Create a Yjs doc where the `clientID` is based on the `RealmId`
  * (specifically the first 32 bytes). We expect the code within a JavaScript
@@ -136,7 +139,7 @@ function createDoc({clientIdForTest}: {clientIdForTest?: number} = {}): Y.Doc {
 
     // Make sure the Yjs GC is enabled.
     doc.gc = true;
-    doc.gcFilter = () => true;
+    doc.gcFilter = gcFilter;
 
     // Core data storage for the doc.
     doc.share = new Map();
@@ -320,6 +323,9 @@ function cloneDoc(doc: Y.Doc, options?: {clientIdForTest?: number}): Y.Doc {
 
 /**
  * An empty `TaskTitle`.
+ *
+ * An empty `TaskTitle` contains no client IDs which means it can be freely
+ * merged with any title without fear of conflicting updates.
  */
 export const emptyTaskTitle = new Lazy(() => {
     const doc = createDoc();
@@ -407,6 +413,16 @@ export function mergeTaskTitleUpdates(
 }
 
 export const emptyTaskTitleModel = new Lazy(() => new TaskTitleModel(emptyTaskTitle.get()));
+
+export const emptyTaskTitleUpdateModel = new Lazy(
+    () =>
+        new TaskTitleUpdateModel(
+            emptyTaskTitle.get(),
+            new Y.StackItem(new Y.DeleteSet(), new Y.DeleteSet()),
+            emptyTaskTitleModel.get(),
+            emptyTaskTitleModel.get(),
+        ),
+);
 
 export const taskFallbackTitle = "Untitled";
 
@@ -826,6 +842,19 @@ function getUndoStackItem(transaction: Y.Transaction): Y.StackItem {
     return new Y.StackItem(transaction.deleteSet, insertions);
 }
 
+function cloneDeleteSet(deleteSet: Y.DeleteSet): Y.DeleteSet {
+    const newDeleteSet = new Y.DeleteSet();
+
+    for (const [clientId, items] of deleteSet.clients) {
+        newDeleteSet.clients.set(
+            clientId,
+            items.map(item => new Y.DeleteItem(item.clock, item.len)),
+        );
+    }
+
+    return newDeleteSet;
+}
+
 /**
  * Model representing a task title update. Wraps a binary `TaskTitleUpdate` and
  * provides some extra helpers and information for client applications.
@@ -856,6 +885,27 @@ export class TaskTitleUpdateModel {
         this.undoStackItem = undoStackItem;
         this.oldTitle = oldTitle;
         this.newTitle = newTitle;
+    }
+
+    /**
+     * Merge two updates together.
+     */
+    public merge(other: TaskTitleUpdateModel): TaskTitleUpdateModel {
+        return new TaskTitleUpdateModel(
+            mergeTaskTitleUpdates(this.raw, other.raw),
+            new Y.StackItem(
+                Y.mergeDeleteSets([
+                    cloneDeleteSet(this.undoStackItem.deletions),
+                    cloneDeleteSet(other.undoStackItem.deletions),
+                ]),
+                Y.mergeDeleteSets([
+                    cloneDeleteSet(this.undoStackItem.insertions),
+                    cloneDeleteSet(other.undoStackItem.insertions),
+                ]),
+            ),
+            this.oldTitle,
+            this.newTitle.apply(other),
+        );
     }
 
     /**

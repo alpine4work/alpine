@@ -1,9 +1,9 @@
 import {MutableRefObject, RefObject, useEffect} from "react";
-import * as Y from "yjs";
 import {ContentEditorRef} from "~/client/content/content_editor.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {TaskUndoActions} from "~/client/tasks/core/create_task_undo_actions_if_possible.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
+import {mergeUndoTextUpdatesDelayMs} from "~/shared/design/core/timing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
@@ -31,13 +31,6 @@ export type TaskUndoStackEntry =
           readonly release: () => void;
       }
     | {
-          readonly type: "YDoc";
-          readonly rootParentTaskId: TaskId;
-          readonly taskId: TaskId;
-          readonly yUndoManager: Y.UndoManager;
-          readonly release: () => void;
-      }
-    | {
           readonly type: "Notes";
           readonly rootParentTaskId: TaskId;
           readonly taskId: TaskId;
@@ -57,7 +50,14 @@ export function useTaskUndoStackState({stateKey}: {stateKey: Id | undefined}) {
     const [undoState] = useStateWithDependencies(
         () => ({
             undoStackRef: cast<
-                MutableRefObject<Array<TaskUndoStackEntry & {readonly fromRedo: boolean}>>
+                MutableRefObject<
+                    Array<
+                        TaskUndoStackEntry & {
+                            readonly time: number;
+                            readonly fromRedo: boolean;
+                        }
+                    >
+                >
             >({current: []}),
             redoStackRef: cast<MutableRefObject<Array<TaskUndoStackEntry>>>({current: []}),
         }),
@@ -82,8 +82,79 @@ export function useTaskUndoStackState({stateKey}: {stateKey: Id | undefined}) {
         for (const oldEntry of undoState.redoStackRef.current) oldEntry.release();
         undoState.redoStackRef.current = [];
 
-        undoState.undoStackRef.current.push({
+        const currentTime = Date.now();
+        const undoStack = undoState.undoStackRef.current;
+
+        // Decide whether to merge this entry with the previous entry. We want to merge
+        // title text updates otherwise when the user hits undo we'll be removing every
+        // individual keystroke which is a bad experience.
+        //
+        // We'll merge this entry with the previous entry if:
+        //
+        // 1. This entry only updates the title of one task (see
+        //    `exclusiveUpdateTitleTaskId`); AND
+        //
+        // 2. The previous entry has some title update on the same task; AND
+        //
+        // 3. This entry happened <500ms after the previous entry
+        //    (`mergeUndoTextUpdatesDelayMs` is currently 500ms); AND
+        //
+        // 4. This entry doesn't remove tasks from any queries (we check
+        //    `entry.removedFromQueries` and `entry.leaseId` for this); AND
+        //
+        // 5. This entry is in the same position in the view as the last one
+        //    (we check `entry.rootParentTaskId` hasn't changed)
+        if (
+            entry.type === "Actions" &&
+            entry.removedFromQueries.size === 0 &&
+            entry.leaseId === null
+        ) {
+            const lastEntry = undoStack[undoStack.length - 1];
+
+            if (
+                lastEntry?.type === "Actions" &&
+                !lastEntry.fromRedo &&
+                lastEntry.rootParentTaskId === entry.rootParentTaskId &&
+                currentTime - lastEntry.time < mergeUndoTextUpdatesDelayMs
+            ) {
+                let exclusiveUpdateTitleTaskId: TaskId | null = null;
+                for (const action of entry.undoActions.getWithoutReconciliation()) {
+                    if (action.taskAction.type !== "UpdateTitle") {
+                        exclusiveUpdateTitleTaskId = null;
+                        break;
+                    } else {
+                        if (exclusiveUpdateTitleTaskId === null) {
+                            exclusiveUpdateTitleTaskId = action.taskId;
+                        } else if (exclusiveUpdateTitleTaskId !== action.taskId) {
+                            exclusiveUpdateTitleTaskId = null;
+                            break;
+                        }
+                    }
+                }
+
+                if (
+                    exclusiveUpdateTitleTaskId !== null &&
+                    lastEntry.undoActions
+                        .getWithoutReconciliation()
+                        .some(
+                            action =>
+                                action.taskAction.type === "UpdateTitle" &&
+                                action.taskId === exclusiveUpdateTitleTaskId,
+                        )
+                ) {
+                    undoStack[undoStack.length - 1] = {
+                        ...lastEntry,
+                        time: currentTime,
+                        undoActions: lastEntry.undoActions.concat(entry.undoActions),
+                    };
+                    return;
+                }
+            }
+        }
+
+        undoStack.push({
             ...entry,
+            time: currentTime,
             fromRedo: false,
         });
     };
@@ -91,6 +162,7 @@ export function useTaskUndoStackState({stateKey}: {stateKey: Id | undefined}) {
     const pushUndoStackEntryFromRedo = (entry: TaskUndoStackEntry) => {
         undoState.undoStackRef.current.push({
             ...entry,
+            time: Date.now(),
             fromRedo: true,
         });
     };

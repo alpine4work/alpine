@@ -6,7 +6,7 @@ import {
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
+import {TaskTaskActionMaybeModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModelData} from "~/shared/tasks/model/task_model.js";
 import {TaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
@@ -37,7 +37,7 @@ import {TaskStatusWithSortableAccount} from "~/shared/tasks/task_status.js";
 export function applyTaskActionToTaskModelData(
     task: TaskModelData,
     actionTime: HybridLogicalTime,
-    action: TaskTaskAction,
+    action: TaskTaskActionMaybeModel,
     getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount,
 ): TaskModelData {
     switch (action.type) {
@@ -354,7 +354,7 @@ export function applyTaskActionToTaskModelData(
         case "UpdateTitle": {
             const newTitle = task.title.apply(action.titleUpdate);
 
-            if (newTitle.isEqual(task.title)) return task;
+            if (task.title === newTitle) return task;
 
             return {
                 ...task,

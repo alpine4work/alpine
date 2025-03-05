@@ -13,12 +13,12 @@ import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_al
 import {decodeBase64} from "~/shared/helpers/binary/base64.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskQueryFilter, TaskQueryFilterDateOperation} from "~/shared/tasks/task_query_filter.js";
@@ -27,7 +27,7 @@ import {
     defaultTaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,
 } from "~/shared/tasks/task_query_normalized_filters.js";
-import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
+import {TaskTitleModel, TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 import {
     sentenceTaskTitleTestScenario,
     wordTaskTitleTestScenario,
@@ -211,7 +211,17 @@ async function testQueryWithNormalizedFilters(
 
     // Make sure our JavaScript filter implementation for `TaskModel` matches
     // the OpenSearch filter implementation.
-    expect(queryTasks2).toEqual(expectedQueryTasks2);
+    expect(
+        queryTasks2.map(task => ({
+            ...omitObject(task.rawData, ["title"]),
+            title: task.rawData.title.getRaw(),
+        })),
+    ).toEqual(
+        expectedQueryTasks2.map(task => ({
+            ...omitObject(task.rawData, ["title"]),
+            title: task.rawData.title.getRaw(),
+        })),
+    );
 
     return queryTasks1.map(({id}) => id);
 }
@@ -239,7 +249,7 @@ function convertTaskIndexDocToModel(task: TaskIndexDoc): TaskModel {
         assignee: task.assignee,
         assigneeStatus: task.rawAssigneeStatus,
         assigneeActivePosition: task.rawAssigneeActivePosition,
-        title: TaskTitleModel.new(task.title.raw),
+        title: new TaskTitleModel(task.title.raw),
         dueDate: task.dueDate,
         priority: task.priority,
     });

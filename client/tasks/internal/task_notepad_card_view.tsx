@@ -44,9 +44,9 @@ import {spacing} from "~/shared/design/core/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskPosition, compareTaskPosition} from "~/shared/tasks/task_position.js";
+import {emptyTaskTitleModel} from "~/shared/tasks/task_title.js";
 
 const TaskNotepadCardViewMemo = memo(TaskNotepadCardView);
 export {TaskNotepadCardViewMemo as TaskNotepadCardView};
@@ -79,7 +79,7 @@ function TaskNotepadCardView({
     const {store} = query;
     const {task} = useStore(query.getLoadedTaskEntryStore(taskId));
     const displayStatus = task?.getDisplayStatus() ?? "OpenInactive";
-    const title = task?.getTitle() ?? TaskTitleModel.empty.get();
+    const title = task?.getTitle() ?? emptyTaskTitleModel.get();
     const assigneeAccountData = useStore(task ? store.getTaskAssigneeAccountStore(task) : null);
     const collections = task?.getCollections() ?? TaskCollectionSet.empty;
     const dueDate = task?.getDueDate() ?? null;

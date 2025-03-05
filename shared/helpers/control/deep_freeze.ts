@@ -18,30 +18,34 @@ let deepFrozen: WeakSet<object> | null = null;
  *   `Set.prototype.set.call(supposedlyFrozenSet, value)` from freezing the map
  *   or map.
  */
-export function deepFreeze(value: unknown) {
+export function deepFreeze(value: unknown, filter?: (value: unknown) => boolean): void {
     if (typeof value !== "object" || value === null) return;
 
     if (deepFrozen?.has(value)) return;
     deepFrozen ??= new WeakSet();
     deepFrozen.add(value);
 
+    // Allow stopping certain values from being frozen. For example, you may want
+    // to prevent `Uint8Array` from being frozen since it'll throw an error.
+    if (filter !== undefined && filter(value) === false) return;
+
     if (value instanceof Map) {
         freezeMap(value);
 
         for (const childValue of value.values()) {
-            deepFreeze(childValue);
+            deepFreeze(childValue, filter);
         }
     } else if (value instanceof Set) {
         freezeSet(value);
 
         for (const childValue of value) {
-            deepFreeze(childValue);
+            deepFreeze(childValue, filter);
         }
     } else if (Array.isArray(value)) {
         Object.freeze(value);
 
         for (const childValue of value) {
-            deepFreeze(childValue);
+            deepFreeze(childValue, filter);
         }
     } else {
         Object.freeze(value);
@@ -50,6 +54,6 @@ export function deepFreeze(value: unknown) {
     // Deep freeze the own values of the object as well. Even if this is not a
     // plain object.
     for (const childValue of Object.values(value)) {
-        deepFreeze(childValue);
+        deepFreeze(childValue, filter);
     }
 }

@@ -103,15 +103,15 @@ import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {
-    addFallbackToTaskTitle,
-    emptyTaskTitleModel,
-    taskFallbackTitle,
-} from "~/shared/tasks/model/task_title_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
-import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
+import {
+    TaskTitleUpdateModel,
+    addFallbackToTaskTitle,
+    emptyTaskTitleModel,
+    taskFallbackTitle,
+} from "~/shared/tasks/task_title.js";
 
 export function TaskDetailView({
     taskSubscription,
@@ -298,19 +298,11 @@ export function TaskDetailView({
 
             switch (entry.type) {
                 case "Actions": {
-                    store.commitTaskActionTransaction(context, entry.undoActions.get(store.clock), {
+                    store.commitTaskActionTransaction(context, entry.undoActions.get(store), {
                         undoManager,
                         affinityManager,
                         leaseId: entry.leaseId,
                     });
-                    break;
-                }
-                case "YDoc": {
-                    if (type === "Undo") {
-                        entry.yUndoManager.undo();
-                    } else {
-                        entry.yUndoManager.redo();
-                    }
                     break;
                 }
                 case "Notes": {
@@ -940,14 +932,14 @@ function TaskDetailViewMain(
 
     const titleCommitStateRef = useRef<{
         pendingActionTransactionBuilder: {
-            add: (titleUpdate: TaskTitleUpdate) => void;
+            add: (titleUpdate: TaskTitleUpdateModel) => void;
             commit: (context: Context<{rpc: RpcContextModuleBase}>) => {
                 finally: (callback: () => void) => void;
             };
         } | null;
     } | null>(null);
 
-    const onTitleChange = (titleUpdate: TaskTitleUpdate) => {
+    const onTitleChange = (titleUpdate: TaskTitleUpdateModel) => {
         if (!task) return;
 
         // When our commit promise finishes, commit the pending update title action if
@@ -981,6 +973,7 @@ function TaskDetailViewMain(
             } else {
                 titleCommitStateRef.current.pendingActionTransactionBuilder =
                     store.getTaskUpdateTitleActionTransactionBuilder(taskId, titleUpdate, {
+                        undoManager,
                         affinityManager,
                     });
             }
@@ -1102,33 +1095,6 @@ function TaskDetailViewMain(
                             title={task?.getTitle() ?? emptyTaskTitleModel.get()}
                             onTitleChange={onTitleChange}
                             placeholder={taskFallbackTitle}
-                            pushUndoStackYDocEntry={entry => {
-                                pushUndoStackEntry({
-                                    type: "YDoc",
-                                    rootParentTaskId: taskId,
-                                    taskId,
-                                    yUndoManager: entry.yUndoManager,
-                                    release: entry.release,
-                                });
-                            }}
-                            pushUndoStackYDocEntryFromRedo={entry => {
-                                pushUndoStackEntryFromRedo({
-                                    type: "YDoc",
-                                    rootParentTaskId: taskId,
-                                    taskId,
-                                    yUndoManager: entry.yUndoManager,
-                                    release: entry.release,
-                                });
-                            }}
-                            pushRedoStackYDocEntry={entry => {
-                                pushRedoStackEntry({
-                                    type: "YDoc",
-                                    rootParentTaskId: taskId,
-                                    taskId,
-                                    yUndoManager: entry.yUndoManager,
-                                    release: entry.release,
-                                });
-                            }}
                         />
                     </Box>
                 </ContextMenuActions>

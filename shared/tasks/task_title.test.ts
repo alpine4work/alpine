@@ -22,7 +22,7 @@ test("can get task title text", () => {
     expect(getTaskTitleText(createTaskTitleFromText("abc123"))).toEqual("abc123");
 });
 
-test("decoded empty task title is empty", () => {
+test("decoded empty task title is empty and has no client IDs", () => {
     expect(Y.decodeUpdateV2(emptyTaskTitle.get())).toEqual({
         structs: [],
         ds: {clients: new Map()},

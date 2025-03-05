@@ -35,6 +35,7 @@ import {
     mergeContentReferencesFileSignedUrlSearches,
 } from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
+import {mergeUndoTextUpdatesDelayMs} from "~/shared/design/core/timing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -76,6 +77,7 @@ function buildPlugins<Content extends ContentWithReferences>({
 }) {
     const plugins = [
         history({
+            newGroupDelay: mergeUndoTextUpdatesDelayMs,
             // If we're disabling undo/redo keyboard shortcuts it means our rendering
             // component is managing undo/redo stacks. In that case our history plugin
             // should never clear out old events which would make our history plugin

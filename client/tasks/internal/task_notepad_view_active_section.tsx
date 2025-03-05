@@ -52,7 +52,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {Store} from "~/shared/store/store.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
@@ -465,7 +465,7 @@ function TaskNotepadViewActiveSectionDroppable({
                 // permission level of `urlGrant` is `View`.
                 assert(currentAccount);
 
-                const actions: Array<TaskAction> = [];
+                const actions: Array<TaskActionModel> = [];
 
                 const updateTime = new TaskFilterableTime({
                     absoluteTime: query.store.clock.now(),

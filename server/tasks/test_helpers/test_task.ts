@@ -1,7 +1,5 @@
 import {Fragment, Node, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
-import {prosemirrorToYXmlFragment} from "y-prosemirror";
-import * as Y from "yjs";
 import {
     TestContext,
     TestSessionActionContext,
@@ -34,7 +32,6 @@ import {NotFoundError} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
@@ -48,11 +45,11 @@ import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskStatus} from "~/shared/tasks/task_status.js";
 import {
     TaskTitle,
-    TaskTitleProsemirrorSchema,
+    TaskTitleModel,
     TaskTitleUpdate,
     applyTaskTitleUpdate,
+    createTaskTitleFromText,
     emptyTaskTitle,
-    getYDocGuid,
 } from "~/shared/tasks/task_title.js";
 
 const schema = TaskNotesContentProsemirrorSchema;
@@ -116,14 +113,7 @@ export class TestTask extends TestCommentRoomBase {
         if (titleText.length === 0) {
             titleState = new MutexValue(emptyTaskTitle.get());
         } else {
-            const titleProsemirrorNode = TaskTitleProsemirrorSchema.nodes.doc.create(null, [
-                TaskTitleProsemirrorSchema.text(titleText),
-            ]);
-
-            const yDoc = new Y.Doc({guid: getYDocGuid()});
-            prosemirrorToYXmlFragment(titleProsemirrorNode, yDoc.getXmlFragment("doc"));
-            const title = Y.encodeStateAsUpdateV2(yDoc) as TaskTitle;
-            yDoc.destroy();
+            const title = createTaskTitleFromText(titleText);
 
             actions.push({
                 type: "UpdateTask",
@@ -475,26 +465,12 @@ export class TestTask extends TestCommentRoomBase {
     }
 
     public async typeTitle(session: TestSpaceSession, titleUpdateText: string) {
-        const yDoc = new Y.Doc({guid: getYDocGuid()});
-        Y.applyUpdateV2(yDoc, this._titleState.getWithoutLock());
+        const title = new TaskTitleModel(this._titleState.getWithoutLock());
 
-        const updates: Array<TaskTitleUpdate> = [];
+        const pos = title.getText().length;
+        const titleUpdate = title.replace(pos, pos, titleUpdateText);
 
-        yDoc.on("updateV2", update => {
-            updates.push(update);
-        });
-
-        const yXmlFragment = yDoc.getXmlFragment("doc");
-        const yText = yXmlFragment.get(yXmlFragment.length - 1);
-        assert(yText instanceof Y.XmlText);
-
-        yText.insert(yText.length, titleUpdateText);
-
-        assert(updates.length === 1);
-        const titleUpdate = updates[0]!;
-        yDoc.destroy();
-
-        await this.updateTitle(session, titleUpdate);
+        await this.updateTitle(session, titleUpdate.raw);
     }
 
     /**

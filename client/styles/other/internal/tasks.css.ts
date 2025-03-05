@@ -36,21 +36,14 @@ globalStyle(`${textCursorNotInherited2ClassName} > * > *`, {
 });
 
 export const rowTitleInputEmptyContainerClassName = style({});
-export const rowTitleInputInitialAppRenderEmptyContainerClassName = style({});
 
 export const rowTitleInputPlaceholderClassName = style({
     display: "none",
 });
 
-globalStyle(
-    [
-        `${rowTitleInputEmptyContainerClassName} ${rowTitleInputPlaceholderClassName}`,
-        `${rowTitleInputInitialAppRenderEmptyContainerClassName} ${rowTitleInputPlaceholderClassName}`,
-    ].join(", "),
-    {
-        display: "block",
-    },
-);
+globalStyle(`${rowTitleInputEmptyContainerClassName} ${rowTitleInputPlaceholderClassName}`, {
+    display: "block",
+});
 
 export const rowTitleInputIsNotEditableClassName = style({});
 
@@ -90,31 +83,30 @@ globalStyle(
     },
 );
 
-export const rowTitleInputOverflowGradientLeftContainerClassName = style({
+export const rowTitleInputOverflowGradientMarginX = "1.5";
+
+export const rowTitleInputOverflowGradientContainerClassName = style({
+    marginLeft: `-${spacing[rowTitleInputOverflowGradientMarginX]}`,
+    marginRight: `-${spacing[rowTitleInputOverflowGradientMarginX]}`,
     selectors: {
-        "&::before": {
+        [`:not(${rowTitleInputEmptyContainerClassName}) > &::before`]: {
             content: '""',
             position: "absolute",
-            zIndex: 20,
+            zIndex: "20",
             top: 1, // Top 1px to avoid overlapping border.
             bottom: 0,
             left: 0,
-            width: spacing["3"],
+            width: spacing[rowTitleInputOverflowGradientMarginX],
             background: `linear-gradient(to right, ${colorSchemeVars["grey-0"]}, transparent)`,
         },
-    },
-});
-
-export const rowTitleInputOverflowGradientRightContainerClassName = style({
-    selectors: {
-        "&::after": {
+        [`:not(${rowTitleInputEmptyContainerClassName}) > &::after`]: {
             content: '""',
             position: "absolute",
-            zIndex: 20,
+            zIndex: "20",
             top: 1, // Top 1px to avoid overlapping border.
             bottom: 0,
             right: 0,
-            width: spacing["3"],
+            width: spacing[rowTitleInputOverflowGradientMarginX],
             background: `linear-gradient(to left, ${colorSchemeVars["grey-0"]}, transparent)`,
         },
     },

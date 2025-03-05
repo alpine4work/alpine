@@ -41,12 +41,12 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskPosition, compareTaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
+import {TaskTitleModel} from "~/shared/tasks/task_title.js";
 
 export type TaskGridViewDraggableData =
     | {
@@ -62,7 +62,7 @@ export type TaskGridViewDraggableData =
           readonly displayStatus: TaskDisplayStatus;
           readonly title: TaskTitleModel;
           readonly assigneeAccountId: AccountId | null;
-          readonly getDropOnRowActions: (taskId: TaskId) => Array<TaskAction>;
+          readonly getDropOnRowActions: (taskId: TaskId) => Array<TaskActionModel>;
           readonly overlayPlacement: "ActivatorNode" | "ActivatorTouch";
       }
     | {
@@ -79,7 +79,7 @@ export type TaskGridViewDraggableData =
 export type TaskGridViewDroppableData =
     | {
           readonly type: "Row";
-          readonly getDropActions: (taskId: TaskId) => Array<TaskAction>;
+          readonly getDropActions: (taskId: TaskId) => Array<TaskActionModel>;
       }
     | {
           readonly type: "ActiveCard";
@@ -99,7 +99,7 @@ export type TaskGridViewDroppableData =
                   | {type: "End"}
                   | {type: "Above"; taskId: TaskId}
                   | {type: "Below"; taskId: TaskId},
-          ) => Array<TaskAction>;
+          ) => Array<TaskActionModel>;
       };
 
 class MouseSensorWithFlushSyncEnd extends MouseSensor {
