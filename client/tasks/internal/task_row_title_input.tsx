@@ -67,6 +67,7 @@ import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_b
 import {
     RemLength,
     Spacing,
+    addRemLengths,
     convertRemLengthToPx,
     parseRemLength,
     spacing,
@@ -113,8 +114,8 @@ const taskRowTitleInputAriaLabel = "Title";
 const taskRowTitleInputSingleLineClassName = `ProseMirror ${sprinkles({
     // Use an `inline-block` display so the `<div>` width is equal to our content width.
     display: "inline-block",
-    paddingLeft: tasksStyles.rowTitleInputOverflowGradientMarginX,
-    paddingRight: tasksStyles.rowTitleInputOverflowGradientMarginX,
+    paddingLeft: tasksStyles.rowTitleInputSingleLineOverflowGradientMarginX,
+    paddingRight: tasksStyles.rowTitleInputSingleLineOverflowGradientMarginX,
     maxWidth: "full",
     height: taskRowTitleInputSingleLineHeight,
     overflowY: "hidden",
@@ -123,6 +124,11 @@ const taskRowTitleInputSingleLineClassName = `ProseMirror ${sprinkles({
     userSelect: "text",
 })}`;
 
+const taskRowTitleInputSingleLineMinWidth = `calc(1ch + ${addRemLengths(
+    tasksStyles.rowTitleInputSingleLineOverflowGradientMarginX,
+    tasksStyles.rowTitleInputSingleLineOverflowGradientMarginX,
+)})`;
+
 const taskRowTitleInputSingleLineStyle = createObjectFromKeys(
     allSpacingScales,
     (spacingScale): CSSProperties => ({
@@ -130,7 +136,7 @@ const taskRowTitleInputSingleLineStyle = createObjectFromKeys(
         paddingTop: `${taskRowTitleInputPaddingYPx[spacingScale]}px`,
         paddingBottom: `${taskRowTitleInputPaddingYPx[spacingScale]}px`,
         // Make sure we have room to render the cursor.
-        minWidth: "1ch",
+        minWidth: taskRowTitleInputSingleLineMinWidth,
         // Turn off text wrapping. This component emulates a single-line input.
         // https://developer.mozilla.org/en-US/docs/Web/CSS/white-space
         whiteSpace: "pre",
@@ -183,6 +189,11 @@ const containerClassName = sprinkles({
     minHeight: taskRowTitleInputSingleLineHeight,
     color: "grey-100",
 });
+
+const containerStyles: CSSProperties = {
+    // Make sure margin right can never completely hide the input text.
+    minWidth: "1ch",
+};
 
 const placeholderClassName = sprinkles({
     position: "absolute",
@@ -702,7 +713,7 @@ function TaskRowTitleInput(
                 lastSpacingScale = spacingScale;
 
                 lastScrollMargin = convertRemLengthToPx(
-                    tasksStyles.rowTitleInputOverflowGradientMarginX,
+                    tasksStyles.rowTitleInputSingleLineOverflowGradientMarginX,
                     spacingScale,
                 );
 
@@ -1472,12 +1483,9 @@ function TaskRowTitleInput(
                 className={classNames(
                     containerClassName,
                     !capabilities.hasMultilineTitle &&
-                        tasksStyles.rowTitleInputOverflowGradientContainerClassName,
+                        tasksStyles.rowTitleInputSingleLineOverflowGradientContainerClassName,
                 )}
-                style={{
-                    // Make sure margin right can never completely hide the input text.
-                    minWidth: "1ch",
-                }}
+                style={containerStyles}
                 onBlur={() => {
                     runWhenViewIsReady(view => {
                         // Reset scroll position when focus leaves the input.

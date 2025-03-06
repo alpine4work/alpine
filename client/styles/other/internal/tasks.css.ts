@@ -83,30 +83,32 @@ globalStyle(
     },
 );
 
-export const rowTitleInputOverflowGradientMarginX = "1.5";
+export const rowTitleInputSingleLineOverflowGradientMarginX = "1.5";
 
-export const rowTitleInputOverflowGradientContainerClassName = style({
-    marginLeft: `-${spacing[rowTitleInputOverflowGradientMarginX]}`,
-    marginRight: `-${spacing[rowTitleInputOverflowGradientMarginX]}`,
+export const rowTitleInputSingleLineOverflowGradientContainerClassName = style({
+    marginLeft: `-${spacing[rowTitleInputSingleLineOverflowGradientMarginX]}`,
+    marginRight: `-${spacing[rowTitleInputSingleLineOverflowGradientMarginX]}`,
     selectors: {
         [`:not(${rowTitleInputEmptyContainerClassName}) > &::before`]: {
+            pointerEvents: "none",
             content: '""',
             position: "absolute",
             zIndex: "20",
             top: 1, // Top 1px to avoid overlapping border.
             bottom: 0,
             left: 0,
-            width: spacing[rowTitleInputOverflowGradientMarginX],
+            width: spacing[rowTitleInputSingleLineOverflowGradientMarginX],
             background: `linear-gradient(to right, ${colorSchemeVars["grey-0"]}, transparent)`,
         },
         [`:not(${rowTitleInputEmptyContainerClassName}) > &::after`]: {
+            pointerEvents: "none",
             content: '""',
             position: "absolute",
             zIndex: "20",
             top: 1, // Top 1px to avoid overlapping border.
             bottom: 0,
             right: 0,
-            width: spacing[rowTitleInputOverflowGradientMarginX],
+            width: spacing[rowTitleInputSingleLineOverflowGradientMarginX],
             background: `linear-gradient(to left, ${colorSchemeVars["grey-0"]}, transparent)`,
         },
     },
