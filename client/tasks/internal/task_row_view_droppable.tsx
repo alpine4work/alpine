@@ -12,7 +12,7 @@ import {parseRemLength, screenPaddingXRem, spacing} from "~/shared/design/core/s
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -91,7 +91,7 @@ export function TaskRowViewDroppable({
     previousAdjacentIndentation: number | null;
     isPositionedAbove?: boolean;
     isVerticallyFlipped?: boolean;
-    getDropActions: (taskId: TaskId) => Array<TaskAction>;
+    getDropActions: (taskId: TaskId) => Array<TaskActionModel>;
     setRowZIndex: Memo<(zIndex: number) => () => void>;
 }) {
     // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in

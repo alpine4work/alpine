@@ -8,10 +8,8 @@ import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {
-    TaskUpdateAccountNameAction,
-    TaskUpdateTaskAction,
-} from "~/shared/tasks/actions/task_action.js";
+import {TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskUpdateTaskActionMaybeModel} from "~/shared/tasks/actions/task_action_model.js";
 import {
     TaskCreateAction,
     TaskDueDateRegister,
@@ -20,7 +18,6 @@ import {
 import {applyTaskActionToTaskModelData} from "~/shared/tasks/model/apply_task_action_to_task_model_data.js";
 import {applyTaskUpdateAccountNameToTaskModelData} from "~/shared/tasks/model/apply_task_update_account_name_to_task_model_data.js";
 import {mergeTaskModelData} from "~/shared/tasks/model/merge_task_model_data.js";
-import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
 import {
@@ -39,7 +36,7 @@ import {
     TaskSortableAccountSchema,
 } from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
-import {emptyTaskTitle} from "~/shared/tasks/task_title.js";
+import {TaskTitleModel, emptyTaskTitleModel} from "~/shared/tasks/task_title.js";
 
 export type TaskModelData = SchemaType<typeof TaskModelDataSchema>;
 
@@ -158,7 +155,7 @@ export class TaskModel {
             assignee: new TaskAssigneeWithSortableAccountRegister(null, actionTime),
             assigneeStatus: new TaskAssigneeStatusRegister({type: "Inactive"}, actionTime),
             assigneeActivePosition: new TaskAssigneeActivePositionRegister(null, actionTime),
-            title: TaskTitleModel.new(emptyTaskTitle.get()),
+            title: emptyTaskTitleModel.get(),
             dueDate: new TaskDueDateRegister(null, actionTime),
             priority: new TaskPriorityRegister(null, actionTime),
         });
@@ -173,7 +170,7 @@ export class TaskModel {
      * [1]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
      */
     public applyAction(
-        action: TaskUpdateTaskAction,
+        action: TaskUpdateTaskActionMaybeModel,
         getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount,
     ): TaskModel {
         if (this.id !== action.taskId) {

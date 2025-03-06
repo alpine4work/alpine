@@ -78,7 +78,7 @@ import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/tasks/task_error_messages.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
@@ -581,7 +581,7 @@ export function TaskCollectionView({
         query: queryState.activeQuery.query,
         affinityManager,
         initiallyWithTopGhostTaskRow: shouldInitiallyShowTopGhostTask,
-        getMoveTaskToQueryActions: (taskId, position): Array<TaskAction> => {
+        getMoveTaskToQueryActions: (taskId, position): Array<TaskActionModel> => {
             assert(collectionSubscription && queryState.activeQuery.isAvailable);
 
             const query = queryState.activeQuery.query.query;
@@ -909,7 +909,7 @@ export function TaskCollectionView({
                                     [
                                         ...(hasNameChanged
                                             ? [
-                                                  cast<TaskAction>({
+                                                  cast<TaskActionModel>({
                                                       type: "UpdateCollection",
                                                       time: store.clock.now(),
                                                       collectionId,
@@ -922,7 +922,7 @@ export function TaskCollectionView({
                                             : []),
                                         ...(hasColorChanged
                                             ? [
-                                                  cast<TaskAction>({
+                                                  cast<TaskActionModel>({
                                                       type: "UpdateCollection",
                                                       time: store.clock.now(),
                                                       collectionId,

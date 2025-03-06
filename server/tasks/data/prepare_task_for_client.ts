@@ -10,7 +10,6 @@ import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
@@ -18,6 +17,7 @@ import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_po
 import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
+import {TaskTitleModel} from "~/shared/tasks/task_title.js";
 
 const unknownTaskSortableAccount = new Lazy((): TaskSortableAccount => {
     const unknownAccount = AccountModel.getUnknown();
@@ -188,7 +188,7 @@ export async function prepareTaskForClient(
                   )
                 : task.rawAssigneeActivePosition,
 
-        title: TaskTitleModel.new(task.title.raw),
+        title: new TaskTitleModel(task.title.raw),
         dueDate: task.dueDate,
         priority: task.priority,
     });

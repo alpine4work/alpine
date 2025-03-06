@@ -173,7 +173,7 @@ testTaskActionPermutations({
             assignee: task.getAssignee(),
             assigneeStatus: task.getAssigneeStatus(),
             assigneeActivePosition: task.getAssigneeActivePosition(),
-            title: task.getTitle().raw,
+            title: task.getTitle().getRaw(),
             dueDate: task.getDueDate(),
             priority: task.getPriority(),
         };

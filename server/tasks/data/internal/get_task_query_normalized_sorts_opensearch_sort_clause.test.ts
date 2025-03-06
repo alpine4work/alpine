@@ -24,7 +24,6 @@ import {generateId} from "~/shared/id/id.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {
@@ -33,6 +32,7 @@ import {
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {compareTaskQuerySortCursors} from "~/shared/tasks/task_query_sort_cursor.js";
+import {TaskTitleModel} from "~/shared/tasks/task_title.js";
 
 const JsonBigInt = createJsonBigInt({useNativeBigInt: true});
 
@@ -234,7 +234,7 @@ function convertTaskIndexDocToModel(task: TaskIndexDoc): TaskModel {
         assignee: task.assignee,
         assigneeStatus: task.rawAssigneeStatus,
         assigneeActivePosition: task.rawAssigneeActivePosition,
-        title: TaskTitleModel.new(task.title.raw),
+        title: new TaskTitleModel(task.title.raw),
         dueDate: task.dueDate,
         priority: task.priority,
     });

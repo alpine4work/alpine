@@ -22,8 +22,7 @@ import {TaskCollectionsInput} from "~/client/tasks/internal/task_collections_inp
 import {addRemLengths, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 
 const TaskRowCollectionsCellOverlayForwardRef = forwardRef(TaskRowCollectionsCellOverlay);
@@ -51,10 +50,7 @@ function TaskRowCollectionsCellOverlay(
         focusPreviousCell: () => void;
         cellRef: RefObject<HTMLDivElement>;
         commitActionTransactionEvenIfGhost: Memo<
-            (
-                getActions: (taskId: TaskId) => Array<TaskAction>,
-                options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
-            ) => void
+            (getActions: (taskId: TaskId) => Array<TaskActionModel>) => void
         >;
         onClose: () => void;
     },

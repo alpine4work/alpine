@@ -19,7 +19,6 @@ import {
     useState,
 } from "react";
 import {mergeProps} from "react-aria";
-import * as Y from "yjs";
 import {useAppContext} from "~/client/context/app_context.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -117,14 +116,13 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {
     TaskQuerySortCursor,
     getTaskQuerySortCursorTaskId,
 } from "~/shared/tasks/task_query_sort_cursor.js";
-import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
+import {TaskTitleUpdateModel} from "~/shared/tasks/task_title.js";
 
 export type TaskGridViewColumn =
     | "ExpandButton"
@@ -266,8 +264,14 @@ const placeholderStatusButtonClassName = {
 const titleCellContainerClassName = sprinkles({
     position: "relative",
     flexGrow: "1",
-    overflow: "hidden",
 });
+
+const titleCellContainerStyle = {
+    // Don't allow item to grow beyond flexbox bounds. By default flexbox items
+    // have `min-width: auto` which extends with content.
+    // https://stackoverflow.com/a/66689926/1568890
+    minWidth: 0,
+};
 
 const titleCellClassName = sprinkles({
     position: "absolute",
@@ -323,9 +327,6 @@ function TaskRowView(
         focusFirstVisibleTaskCell,
         focusLastVisibleTaskTitleEnd,
         focusLastVisibleTaskCell,
-        pushUndoStackYDocEntry,
-        pushUndoStackYDocEntryFromRedo,
-        pushRedoStackYDocEntry,
         setRowZIndex,
         mobileKeyboardToolbarPortalRef,
         scrollToAnchorPosition,
@@ -359,7 +360,7 @@ function TaskRowView(
                 | {type: "End"}
                 | {type: "Above"; taskId: TaskId}
                 | {type: "Below"; taskId: TaskId},
-        ) => Array<TaskAction>;
+        ) => Array<TaskActionModel>;
         getMoveTaskToRootQueryActions: (
             taskId: TaskId,
             position:
@@ -367,8 +368,8 @@ function TaskRowView(
                 | {type: "End"}
                 | {type: "Above"; taskId: TaskId}
                 | {type: "Below"; taskId: TaskId},
-        ) => Array<TaskAction>;
-        getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
+        ) => Array<TaskActionModel>;
+        getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
         createTaskAbove: () => void;
         createTaskBelowAndFocus: () => void;
         nestWithPreviousTaskRowIfExistsAndExpand: (titleSelection: Selection) => void;
@@ -384,12 +385,6 @@ function TaskRowView(
         focusFirstVisibleTaskCell: (column: TaskGridViewColumn) => void;
         focusLastVisibleTaskTitleEnd: () => void;
         focusLastVisibleTaskCell: (column: TaskGridViewColumn) => void;
-        pushUndoStackYDocEntry: (entry: {yUndoManager: Y.UndoManager; release: () => void}) => void;
-        pushUndoStackYDocEntryFromRedo: (entry: {
-            yUndoManager: Y.UndoManager;
-            release: () => void;
-        }) => void;
-        pushRedoStackYDocEntry: (entry: {yUndoManager: Y.UndoManager; release: () => void}) => void;
         setRowZIndex: Memo<(zIndex: number) => () => void>;
         mobileKeyboardToolbarPortalRef: RefObject<HTMLDivElement>;
         scrollToAnchorPosition: () => void;
@@ -486,7 +481,7 @@ function TaskRowView(
         pendingActionTransactionBuilder: TaskClientStoreUpdateTitleActionTransactionBuilder | null;
     } | null>(null);
 
-    const onTitleChange = (titleUpdate: TaskTitleUpdate) => {
+    const onTitleChange = (titleUpdate: TaskTitleUpdateModel) => {
         // When our commit promise finishes, commit the pending update title action if
         // there is one.
         const handleCommitPromise = (commitPromise: {finally: (callback: () => void) => void}) => {
@@ -520,7 +515,7 @@ function TaskRowView(
                     query.store.getTaskUpdateTitleActionTransactionBuilder(
                         effectiveTaskId,
                         titleUpdate,
-                        {affinityManager},
+                        {undoManager, affinityManager},
                     );
             }
             return;
@@ -1112,14 +1107,12 @@ function TaskRowView(
         // Commit an action transaction against our task. If this is a ghost task then
         // we'll create a new task before applying the update.
         commitActionTransactionEvenIfGhost: (
-            getActions: (taskId: TaskId) => Array<TaskAction>,
-            options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
+            getActions: (taskId: TaskId) => Array<TaskActionModel>,
         ): {
             finally: (callback: () => void) => void;
         } => {
             if (taskId) {
                 return query.store.commitTaskActionTransaction(context, getActions(taskId), {
-                    ...options,
                     undoManager,
                     affinityManager,
                 });
@@ -1162,7 +1155,7 @@ function TaskRowView(
                         }),
                         ...getActions(ghostTaskId),
                     ],
-                    {...options, undoManager, affinityManager},
+                    {undoManager, affinityManager},
                 );
 
                 // When we create a new task that occupies our ghost `TaskId` then we need to
@@ -1645,6 +1638,7 @@ function TaskRowView(
             <div
                 data-testid={process.env.NODE_ENV !== "production" ? "TaskRowTitleCell" : undefined}
                 className={titleCellContainerClassName}
+                style={titleCellContainerStyle}
                 onKeyDown={event => handleCellKeyDown("Title", event)}
                 onKeyDownCapture={event => handleCellKeyDownCapture("Title", event)}
             >
@@ -1730,9 +1724,6 @@ function TaskRowView(
                     focusCell={focusCell}
                     focusNextCell={focusNextCell}
                     focusPreviousCell={focusPreviousCell}
-                    pushUndoStackYDocEntry={pushUndoStackYDocEntry}
-                    pushUndoStackYDocEntryFromRedo={pushUndoStackYDocEntryFromRedo}
-                    pushRedoStackYDocEntry={pushRedoStackYDocEntry}
                 />
             </div>
             {capabilities.hasColumns && (
@@ -1921,7 +1912,7 @@ function TaskRowViewDragHandle({
     parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
     cursor: TaskQuerySortCursor;
     task: TaskModel;
-    getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
+    getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
     isHovered: boolean;
 }) {
     const [isDragHandlePressed, setIsDragHandlePressed] = useState(false);
@@ -2000,7 +1991,7 @@ function TaskRowViewDragAfterLongTouchController({
     parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
     cursor: TaskQuerySortCursor;
     task: TaskModel;
-    getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
+    getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
     onManuallyActivateTouchSensorRef: RefObject<((event: any) => void) | null>;
 }) {
     // When drag state updates, only re-render

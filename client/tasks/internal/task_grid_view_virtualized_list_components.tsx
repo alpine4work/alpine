@@ -15,7 +15,6 @@ import {
     useMemo,
     useRef,
 } from "react";
-import * as Y from "yjs";
 import {AppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
@@ -69,7 +68,7 @@ import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {undefinedStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {
     TaskQuerySortCursor,
@@ -619,7 +618,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             | {type: "End"}
             | {type: "Above"; taskId: TaskId}
             | {type: "Below"; taskId: TaskId},
-    ) => Array<TaskAction> =
+    ) => Array<TaskActionModel> =
         query === rootQuery
             ? events.getMoveTaskToRootQueryActions
             : (newTaskId, position) => {
@@ -654,7 +653,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                   ];
               };
 
-    const getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction> =
+    const getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel> =
         query === rootQuery
             ? events.getMaybeRemoveTaskFromRootQueryActions
             : taskId => [
@@ -1043,7 +1042,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
             disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
 
-            const removeAction: TaskAction = {
+            const removeAction: TaskActionModel = {
                 type: "UpdateTask",
                 time: rootQuery.store.clock.now(),
                 taskId,
@@ -1236,48 +1235,6 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
         }
     };
 
-    const pushUndoStackYDocEntry = (entry: {yUndoManager: Y.UndoManager; release: () => void}) => {
-        // We don't handle ghost tasks with this code path.
-        if (!rootParentTaskId || !taskId) return;
-
-        events.pushUndoStackEntry({
-            type: "YDoc",
-            rootParentTaskId,
-            taskId,
-            yUndoManager: entry.yUndoManager,
-            release: entry.release,
-        });
-    };
-
-    const pushUndoStackYDocEntryFromRedo = (entry: {
-        yUndoManager: Y.UndoManager;
-        release: () => void;
-    }) => {
-        // We don't handle ghost tasks with this code path.
-        if (!rootParentTaskId || !taskId) return;
-
-        events.pushUndoStackEntryFromRedo({
-            type: "YDoc",
-            rootParentTaskId,
-            taskId,
-            yUndoManager: entry.yUndoManager,
-            release: entry.release,
-        });
-    };
-
-    const pushRedoStackYDocEntry = (entry: {yUndoManager: Y.UndoManager; release: () => void}) => {
-        // We don't handle ghost tasks with this code path.
-        if (!rootParentTaskId || !taskId) return;
-
-        events.pushRedoStackEntry({
-            type: "YDoc",
-            rootParentTaskId,
-            taskId,
-            yUndoManager: entry.yUndoManager,
-            release: entry.release,
-        });
-    };
-
     return (
         <TaskRowView
             ref={useCallback(
@@ -1343,9 +1300,6 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             focusFirstVisibleTaskCell={events.focusFirstVisibleTaskCell}
             focusLastVisibleTaskTitleEnd={events.focusLastVisibleTaskTitleEnd}
             focusLastVisibleTaskCell={events.focusLastVisibleTaskCell}
-            pushUndoStackYDocEntry={pushUndoStackYDocEntry}
-            pushUndoStackYDocEntryFromRedo={pushUndoStackYDocEntryFromRedo}
-            pushRedoStackYDocEntry={pushRedoStackYDocEntry}
             setRowZIndex={useCallback(
                 zIndex => events.setTaskRowZIndex(gridKey, zIndex),
                 [events, gridKey],

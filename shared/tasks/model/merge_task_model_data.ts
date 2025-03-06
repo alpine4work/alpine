@@ -67,7 +67,7 @@ export function mergeTaskModelData(task1: TaskModelData, task2: TaskModelData): 
         assigneeStatus: task1.assigneeStatus.merge(task2.assigneeStatus),
         assigneeActivePosition: task1.assigneeActivePosition.merge(task2.assigneeActivePosition),
 
-        title: task1.title.isEqual(task2.title) ? task1.title : task1.title.apply(task2.title.raw),
+        title: task1.title.isEqual(task2.title) ? task1.title : task1.title.apply(task2.title),
         dueDate: task1.dueDate.merge(task2.dueDate),
         priority: task1.priority.merge(task2.priority),
     };

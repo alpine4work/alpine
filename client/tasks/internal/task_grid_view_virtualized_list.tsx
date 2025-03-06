@@ -112,7 +112,8 @@ import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {Id, generateId, unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
-import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {
@@ -182,8 +183,8 @@ export function useTaskGridViewVirtualizedList({
             | {type: "End"}
             | {type: "Above"; taskId: TaskId}
             | {type: "Below"; taskId: TaskId},
-    ) => Array<TaskAction>;
-    getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
+    ) => Array<TaskActionModel>;
+    getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
     columnHeaderControls?: Memo<{minHeight: RemLength | number; node: ReactNode}>;
     rowMaxWidth?: Spacing | null;
     withoutDecorativeGhostRowsIfEmpty?: boolean;
@@ -711,7 +712,7 @@ export function useTaskGridViewVirtualizedList({
                 entry.type === "Actions"
                     ? getTaskUndoActionsGridViewTargetIfExists(
                           store,
-                          entry.undoActions.getWithOldTimes(),
+                          entry.undoActions.getWithoutReconciliation(),
                       )
                     : {taskId: entry.taskId, column: "Title"};
             if (!target) return false;
@@ -765,21 +766,13 @@ export function useTaskGridViewVirtualizedList({
                 case "Actions": {
                     rootQuery.store.commitTaskActionTransaction(
                         context,
-                        entry.undoActions.get(store.clock),
+                        entry.undoActions.get(store),
                         {
                             undoManager,
                             affinityManager,
                             leaseId: entry.leaseId,
                         },
                     );
-                    break;
-                }
-                case "YDoc": {
-                    if (type === "Undo") {
-                        entry.yUndoManager.undo();
-                    } else {
-                        entry.yUndoManager.redo();
-                    }
                     break;
                 }
                 // Note undo/redo is only applicable to `<TaskDetailView>`.
@@ -2471,7 +2464,10 @@ function convertMovementsToKeyframes(movements: LinkedList<Movement>) {
 
 function getTaskUndoActionsGridViewTargetIfExists(
     store: TaskClientStore,
-    actions: ReadonlyArray<TaskUpdateTaskAction>,
+    actions: ReadonlyArray<{
+        readonly taskId: TaskId;
+        readonly taskAction: {readonly type: TaskUpdateTaskAction["taskAction"]["type"]};
+    }>,
 ): {
     taskId: TaskId;
     column: TaskGridViewColumn;
@@ -2528,7 +2524,7 @@ function getTaskUndoActionsGridViewTargetIfExists(
                 break;
             }
             default:
-                throw exhaustive(action.taskAction);
+                throw exhaustive(action.taskAction.type);
         }
 
         let depth = 0;

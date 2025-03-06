@@ -55,7 +55,7 @@ export abstract class Store<Value> {
      * force the user to account for only getting the current value and not future
      * values. This name also aligns with the `useSyncExternalStore()` API.
      *
-     * ## Error handling
+     * ### Error handling
      *
      * This function may throw an error. If you're using a combinator like
      * `store.map(mapper)` and your `mapper` function throws an error then that
