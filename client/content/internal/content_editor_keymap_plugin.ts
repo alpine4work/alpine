@@ -233,7 +233,11 @@ export function buildContentEditorKeymapPlugin(
             // 1. If we've selected a file.
             if (!(state.selection instanceof NodeSelection)) return false;
             if (state.selection.node.type.name !== "file") return false;
-            if (state.selection.$anchor.parent.type.name !== "fileRow") return false;
+            if (
+                state.selection.$anchor.parent.type.name !== "fileRow" &&
+                state.selection.$anchor.parent.type.name !== "fileTable"
+            )
+                return false;
 
             if (dispatch) {
                 const transaction = state.tr.insert(
@@ -2113,10 +2117,13 @@ export function buildContentEditorKeymapPlugin(
                 if (
                     state.selection instanceof NodeSelection &&
                     state.selection.node.type.name === "file" &&
-                    state.selection.$anchor.parent.type.name === "fileRow"
+                    (state.selection.$anchor.parent.type.name === "fileRow" ||
+                        state.selection.$anchor.parent.type.name === "fileTable")
                 ) {
+                    const insertPosition = state.selection.$anchor.after();
+
                     const transaction = state.tr.insert(
-                        state.selection.$anchor.after(),
+                        insertPosition,
                         schema.node("paragraph", {}, [schema.text(text)]),
                     );
 
@@ -2124,9 +2131,7 @@ export function buildContentEditorKeymapPlugin(
                         transaction
                             .setSelection(
                                 TextSelection.near(
-                                    transaction.doc.resolve(
-                                        state.selection.$anchor.after() + 1 + text.length,
-                                    ),
+                                    transaction.doc.resolve(insertPosition + 1 + text.length),
                                 ),
                             )
                             .scrollIntoView(),
