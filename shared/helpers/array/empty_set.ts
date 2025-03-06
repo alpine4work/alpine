@@ -1,4 +1,4 @@
-import {InternalError} from "~/shared/error/error.js";
+import {freezeSet} from "~/shared/helpers/control/freeze_set.js";
 
 /**
  * Empty read-only set constant.
@@ -7,20 +7,6 @@ import {InternalError} from "~/shared/error/error.js";
  * around places that depend on referential equality (like React).
  */
 export const emptySet: ReadonlySet<never> & {
-    // Make sure you can call `has()`.
+    // Make sure you can call `has()` with any value.
     has(value: any): boolean;
-} = new Set<never>();
-
-// Precaution to make sure someone doesn't accidentally add something to a set
-// we need to guarantee is an empty constant.
-Object.assign(emptySet, {
-    add: () => {
-        throw new InternalError("Can't update empty set");
-    },
-    delete: () => {
-        throw new InternalError("Can't update empty set");
-    },
-    clear: () => {
-        throw new InternalError("Can't update empty set");
-    },
-});
+} = freezeSet(new Set<never>());

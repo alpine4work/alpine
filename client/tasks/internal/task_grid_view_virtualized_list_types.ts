@@ -8,7 +8,7 @@ import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_st
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 
 export type TaskGridViewVirtualizedListViewRef = {
     getHeight: () => number;
@@ -42,8 +42,8 @@ export type TaskGridViewVirtualizedListEvents = MemoObject<{
             | {type: "End"}
             | {type: "Above"; taskId: TaskId}
             | {type: "Below"; taskId: TaskId},
-    ) => Array<TaskAction>;
-    readonly getMaybeRemoveTaskFromRootQueryActions: (taskId: TaskId) => Array<TaskAction>;
+    ) => Array<TaskActionModel>;
+    readonly getMaybeRemoveTaskFromRootQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
     readonly getItemCount: () => number;
     readonly getState: () => TaskGridViewVirtualizedListState;
     readonly getItemCountBeforeState: () => number;

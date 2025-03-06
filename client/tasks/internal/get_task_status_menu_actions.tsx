@@ -12,7 +12,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
@@ -95,7 +95,7 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                         const time2 = store.clock.now();
                         const currentAssignee = getAssigneeSnapshot();
 
-                        const actions: Array<TaskAction> = [];
+                        const actions: Array<TaskActionModel> = [];
 
                         if (!currentAssignee) {
                             actions.push({
@@ -326,7 +326,7 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                         const time2 = store.clock.now();
                         const currentAssignee = getAssigneeSnapshot();
 
-                        const actions: Array<TaskAction> = [];
+                        const actions: Array<TaskActionModel> = [];
 
                         actions.push({
                             type: "UpdateTask",

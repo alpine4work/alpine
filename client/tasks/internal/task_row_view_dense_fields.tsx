@@ -16,7 +16,7 @@ import {RemLength, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 
@@ -48,7 +48,7 @@ function TaskRowViewDenseFields(
         focusTitleStart: () => void;
         focusTitleAll: () => void;
         commitActionTransactionEvenIfGhost: (
-            getActions: (taskId: TaskId) => Array<TaskAction>,
+            getActions: (taskId: TaskId) => Array<TaskActionModel>,
         ) => void;
     },
     ref: Ref<TaskRowViewDenseFieldsRef>,

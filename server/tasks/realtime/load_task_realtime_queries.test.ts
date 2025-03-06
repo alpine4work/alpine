@@ -23,7 +23,6 @@ import {
     TaskParentTaskIdRegister,
 } from "~/shared/tasks/actions/task_task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
 import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
@@ -49,7 +48,7 @@ import {
     TaskRealtimeUpdateEvent,
 } from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
-import {emptyTaskTitle} from "~/shared/tasks/task_title.js";
+import {TaskTitleModel, emptyTaskTitle} from "~/shared/tasks/task_title.js";
 
 const context = createTestContext({shouldStartOpensearch: true});
 
@@ -3145,7 +3144,7 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             null,
                             updateAssigneeTime1,
                         ),
-                        title: TaskTitleModel.new(emptyTaskTitle.get()),
+                        title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
                     }),
@@ -3272,7 +3271,7 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             null,
                             updateAssigneeTime1,
                         ),
-                        title: TaskTitleModel.new(emptyTaskTitle.get()),
+                        title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
                     }),
@@ -3394,7 +3393,7 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             null,
                             updateAssigneeTime1,
                         ),
-                        title: TaskTitleModel.new(emptyTaskTitle.get()),
+                        title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
                     }),
@@ -3521,7 +3520,7 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             null,
                             updateAssigneeTime2,
                         ),
-                        title: TaskTitleModel.new(emptyTaskTitle.get()),
+                        title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
                     }),
@@ -3648,7 +3647,7 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             null,
                             updateAssigneeTime2,
                         ),
-                        title: TaskTitleModel.new(emptyTaskTitle.get()),
+                        title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
                     }),
@@ -3770,7 +3769,7 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             null,
                             updateAssigneeTime2,
                         ),
-                        title: TaskTitleModel.new(emptyTaskTitle.get()),
+                        title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
                     }),
@@ -3879,7 +3878,7 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             null,
                             updateAssigneeTime3,
                         ),
-                        title: TaskTitleModel.new(emptyTaskTitle.get()),
+                        title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
                     }),
@@ -3986,7 +3985,7 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             null,
                             updateAssigneeTime3,
                         ),
-                        title: TaskTitleModel.new(emptyTaskTitle.get()),
+                        title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
                     }),
@@ -4093,7 +4092,7 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             null,
                             updateAssigneeTime3,
                         ),
-                        title: TaskTitleModel.new(emptyTaskTitle.get()),
+                        title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
                     }),

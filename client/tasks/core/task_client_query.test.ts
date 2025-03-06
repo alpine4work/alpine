@@ -25,6 +25,7 @@ import {
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -2290,7 +2291,7 @@ test("references from optimistic task can be removed", async () => {
         taskAction: action1.taskAction,
     });
 
-    const action2: TaskAction = {
+    const action2: TaskActionModel = {
         type: "UpdateTask",
         time: store.clock.now(),
         taskId: task4.id,
@@ -2300,7 +2301,7 @@ test("references from optimistic task can be removed", async () => {
         },
     };
 
-    const action3: TaskAction = {
+    const action3: TaskActionModel = {
         type: "UpdateTask",
         time: store.clock.now(),
         taskId: task4.id,
@@ -2311,7 +2312,7 @@ test("references from optimistic task can be removed", async () => {
         },
     };
 
-    const action4: TaskAction = {
+    const action4: TaskActionModel = {
         type: "UpdateTask",
         time: store.clock.now(),
         taskId: task4.id,

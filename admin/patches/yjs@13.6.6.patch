@@ -1,0 +1,493 @@
+diff --git a/dist/src/index.d.ts b/dist/src/index.d.ts
+index f0a78eef82e14dcc196b1d58e415cebeb552081e..367149a0ab30979eae3701242090f146a5156429 100644
+--- a/dist/src/index.d.ts
++++ b/dist/src/index.d.ts
+@@ -1,2 +1,9 @@
+-export { Doc, Transaction, YArray as Array, YMap as Map, YText as Text, YXmlText as XmlText, YXmlHook as XmlHook, YXmlElement as XmlElement, YXmlFragment as XmlFragment, YXmlEvent, YMapEvent, YArrayEvent, YTextEvent, YEvent, Item, AbstractStruct, GC, ContentBinary, ContentDeleted, ContentEmbed, ContentFormat, ContentJSON, ContentAny, ContentString, ContentType, AbstractType, getTypeChildren, createRelativePositionFromTypeIndex, createRelativePositionFromJSON, createAbsolutePositionFromRelativePosition, compareRelativePositions, AbsolutePosition, RelativePosition, ID, createID, compareIDs, getState, Snapshot, createSnapshot, createDeleteSet, createDeleteSetFromStructStore, cleanupYTextFormatting, snapshot, emptySnapshot, findRootTypeKey, findIndexSS, getItem, typeListToArraySnapshot, typeMapGetSnapshot, createDocFromSnapshot, iterateDeletedStructs, applyUpdate, applyUpdateV2, readUpdate, readUpdateV2, encodeStateAsUpdate, encodeStateAsUpdateV2, encodeStateVector, UndoManager, decodeSnapshot, encodeSnapshot, decodeSnapshotV2, encodeSnapshotV2, decodeStateVector, logUpdate, logUpdateV2, decodeUpdate, decodeUpdateV2, relativePositionToJSON, isDeleted, isParentOf, equalSnapshots, PermanentUserData, tryGc, transact, AbstractConnector, logType, mergeUpdates, mergeUpdatesV2, parseUpdateMeta, parseUpdateMetaV2, encodeStateVectorFromUpdate, encodeStateVectorFromUpdateV2, encodeRelativePosition, decodeRelativePosition, diffUpdate, diffUpdateV2, convertUpdateFormatV1ToV2, convertUpdateFormatV2ToV1, obfuscateUpdate, obfuscateUpdateV2, UpdateEncoderV1, equalDeleteSets, snapshotContainsUpdate } from "./internals.js";
++export { Doc, Transaction, YArray as Array, YMap as Map, YText as Text, YXmlText as XmlText, YXmlHook as XmlHook, YXmlElement as XmlElement, YXmlFragment as XmlFragment, YXmlEvent, YMapEvent, YArrayEvent, YTextEvent, YEvent, Item, AbstractStruct, GC, ContentBinary, ContentDeleted, ContentEmbed, ContentFormat, ContentJSON, ContentAny, ContentString, ContentType, AbstractType, getTypeChildren, createRelativePositionFromTypeIndex, createRelativePositionFromJSON, createAbsolutePositionFromRelativePosition, compareRelativePositions, AbsolutePosition, RelativePosition, ID, createID, compareIDs, getState, Snapshot, createSnapshot, createDeleteSet, createDeleteSetFromStructStore, cleanupYTextFormatting, snapshot, emptySnapshot, findRootTypeKey, findIndexSS, getItem, typeListToArraySnapshot, typeMapGetSnapshot, createDocFromSnapshot, iterateDeletedStructs, applyUpdate, applyUpdateV2, readUpdate, readUpdateV2, encodeStateAsUpdate, encodeStateAsUpdateV2, encodeStateVector, UndoManager, decodeSnapshot, encodeSnapshot, decodeSnapshotV2, encodeSnapshotV2, decodeStateVector, logUpdate, logUpdateV2, decodeUpdate, decodeUpdateV2, relativePositionToJSON, isDeleted, isParentOf, equalSnapshots, PermanentUserData, tryGc, transact, AbstractConnector, logType, mergeUpdates, mergeUpdatesV2, parseUpdateMeta, parseUpdateMetaV2, encodeStateVectorFromUpdate, encodeStateVectorFromUpdateV2, encodeRelativePosition, decodeRelativePosition, diffUpdate, diffUpdateV2, convertUpdateFormatV1ToV2, convertUpdateFormatV2ToV1, obfuscateUpdate, obfuscateUpdateV2, UpdateEncoderV1, equalDeleteSets, snapshotContainsUpdate,
++  // NOTE(calebmer): Additional exports we use from Yjs.
++  StackItem,
++  DeleteSet,
++  DeleteItem,
++  addToDeleteSet,
++  mergeDeleteSets
++} from "./internals.js";
+ //# sourceMappingURL=index.d.ts.map
+\ No newline at end of file
+diff --git a/dist/yjs.cjs b/dist/yjs.cjs
+index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..6c48e941da9044345d1387265db5e599e6894bd5 100644
+--- a/dist/yjs.cjs
++++ b/dist/yjs.cjs
+@@ -1582,6 +1582,74 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+         // hid a dead wall, add all items from stack to restSS
+         addStackToRestSS();
+       } else {
++        // NOTE(calebmer): If we're integrating an item from our doc's client that
++        // already exists in the doc's store then instead of skipping the item run a
++        // validation to verify the assumption that it matches what's already in the
++        // store.
++        // 
++        // We add this validation since in our custom "immutable mode" for Yjs, it's
++        // easier to accidentally create conflicting updates then in Yjs's default
++        // mutable mode. This validation is a defense against a corrupted doc created
++        // from conflicting updates being commit to the database.
++        if (offset > 0 && transaction.doc.clientID === stackHead.id.client) {
++          const itemA = getItem(store, stackHead.id);
++          const itemB = stackHead;
++          
++          const offsetA = itemB.id.clock - itemA.id.clock;
++          const offsetB = Math.min(offset, itemB.content.getLength());
++
++          const itemAOrigin = offsetA === 0 ? itemA.origin : createID(itemA.id.client, itemA.id.clock + offsetA - 1);
++          const itemARightOrigin = itemA.rightOrigin;
++          
++          const itemBOrigin = itemB.origin;
++          const itemBRightOrigin = itemB.rightOrigin;
++
++          const itemAWithParent = itemAOrigin === null && itemARightOrigin === null;
++          const itemBWithParent = itemBOrigin === null && itemBRightOrigin === null;
++
++          const isEqualExceptContent =
++            compareIDs(itemAOrigin, itemBOrigin) &&
++            compareIDs(itemARightOrigin, itemBRightOrigin) &&
++            compareIDs(
++              // Item is only considered to have a parent if `origin` and `rightOrigin` are
++              // null. We take this behavior [from `Item.write()`][1]. An integrated item may
++              // have `parent` set even if `origin` or `rightOrigin` are non-null for
++              // convenience so we need to ignore `parent` in this case.
++              //
++              // [1]: https://github.com/yjs/yjs/blob/8586806932e65b2c9957f5e4ecd74547baf301ad/src/structs/Item.js#L669-L695
++              !itemAWithParent ? null : itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
++              !itemBWithParent ? null : itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
++            ) &&
++            (itemAWithParent ? itemA.parentSub : null) === (itemBWithParent ? itemB.parentSub : null);
++
++          let isEqual;
++          if (!isEqualExceptContent) {
++            isEqual = false;
++          } else {
++            let itemAContent = itemA.content.copy();
++            const itemBContent = itemB.content.copy();
++            const itemAContentLength = itemAContent.getLength();
++            const itemBContentLength = itemBContent.getLength();
++
++            if (offsetA > 0) itemAContent = itemAContent.splice(offsetA);
++
++            if (offsetB < itemAContentLength) itemAContent.splice(offsetB);
++            if (offsetB < itemBContentLength) itemBContent.splice(offsetB);
++
++            const encoderA = new UpdateEncoderV2();
++            const encoderB = new UpdateEncoderV2();
++
++            itemAContent.write(encoderA, 0);
++            itemBContent.write(encoderB, 0);
++
++            isEqual = areUint8ArraysEqual(encoderA.toUint8Array(), encoderB.toUint8Array());
++          }
++
++          if (!isEqual) {
++            throw new Error(`Conflicting item, the item we're trying to integrate has an ID matching an existing item but the item we're trying to integrate's content doesn't match the existing item (ID client: ${stackHead.id.client}, ID clock: ${stackHead.id.clock})`);
++          }
++        }
++
+         const missing = stackHead.getMissing(transaction, store);
+         if (missing !== null) {
+           stack.push(stackHead);
+@@ -1631,6 +1699,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+   return null
+ };
+ 
++// NOTE(calebmer): Copied from `shared/helpers/binary/are_uint8_arrays_equal.ts`.
++function areUint8ArraysEqual(array1, array2) {
++  if (array1 === array2) return true;
++  if (array1.byteLength != array2.byteLength) return false;
++
++  let a = array1;
++  let b = array2;
++
++  if (aligned32(a) && aligned32(b)) {
++      a = new Uint32Array(a.buffer, a.byteOffset, a.byteLength / 4);
++      b = new Uint32Array(b.buffer, b.byteOffset, b.byteLength / 4);
++  } else if (aligned16(a) && aligned16(b)) {
++      a = new Uint16Array(a.buffer, a.byteOffset, a.byteLength / 2);
++      b = new Uint16Array(b.buffer, b.byteOffset, b.byteLength / 2);
++  }
++
++  // Iterate back to front so we start with the most significant bits.
++  for (let i = a.length; -1 < i; i -= 1) {
++      if (a[i] !== b[i]) {
++          return false;
++      }
++  }
++
++  return true;
++}
++
++function aligned16(array) {
++  return array.byteOffset % 2 === 0 && array.byteLength % 2 === 0;
++}
++
++function aligned32(array) {
++  return array.byteOffset % 4 === 0 && array.byteLength % 4 === 0;
++}
++
+ /**
+  * @param {UpdateEncoderV1 | UpdateEncoderV2} encoder
+  * @param {Transaction} transaction
+@@ -3302,10 +3404,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
+           tryToMergeWithLeft(structs, replacedStructPos);
+         }
+       }
+-      if (!transaction.local && transaction.afterState.get(doc.clientID) !== transaction.beforeState.get(doc.clientID)) {
+-        logging__namespace.print(logging__namespace.ORANGE, logging__namespace.BOLD, '[yjs] ', logging__namespace.UNBOLD, logging__namespace.RED, 'Changed the client-id because another client seems to be using it.');
+-        doc.clientID = generateNewClientId();
+-      }
++      // NOTE(calebmer): Removing this protection from Yjs. We use Yjs in a "immutable" mode
++      // we've strung together by exporting Yjs internals. In our immutable mode a given
++      // JavaScript realm always uses the same `clientID`. When decoding a Yjs doc we need to
++      // create a client with the realm's `clientID` then apply the existing task title (which
++      // may have previous updates from the realm) to catch the doc up. This protection breaks
++      // our immutable update mode since it's expected to see us replay actions from the same
++      // `clientID` on a new doc.
++
+       // @todo Merge all the transactions into one and provide send the data as a single update message
+       doc.emit('afterTransactionCleanup', [transaction, doc]);
+       if (doc._observers.has('update')) {
+@@ -10224,4 +10330,10 @@ exports.transact = transact;
+ exports.tryGc = tryGc;
+ exports.typeListToArraySnapshot = typeListToArraySnapshot;
+ exports.typeMapGetSnapshot = typeMapGetSnapshot;
+-//# sourceMappingURL=yjs.cjs.map
++// NOTE(calebmer): Additional exports we use from Yjs.
++exports.StackItem = StackItem;
++exports.DeleteSet = DeleteSet;
++exports.DeleteItem = DeleteItem;
++exports.addToDeleteSet = addToDeleteSet;
++exports.mergeDeleteSets = mergeDeleteSets;
++// NOTE(calebmer): Don't use source map since our patches break the source map.
+diff --git a/dist/yjs.mjs b/dist/yjs.mjs
+index abf5ea55c9c42e7a3548591b82b43ec2f0171236..7bd719052369bc860ee982c3d0fdbfbae105467f 100644
+--- a/dist/yjs.mjs
++++ b/dist/yjs.mjs
+@@ -1546,6 +1546,74 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+         // hid a dead wall, add all items from stack to restSS
+         addStackToRestSS();
+       } else {
++        // NOTE(calebmer): If we're integrating an item from our doc's client that
++        // already exists in the doc's store then instead of skipping the item run a
++        // validation to verify the assumption that it matches what's already in the
++        // store.
++        // 
++        // We add this validation since in our custom "immutable mode" for Yjs, it's
++        // easier to accidentally create conflicting updates then in Yjs's default
++        // mutable mode. This validation is a defense against a corrupted doc created
++        // from conflicting updates being commit to the database.
++        if (offset > 0 && transaction.doc.clientID === stackHead.id.client) {
++          const itemA = getItem(store, stackHead.id);
++          const itemB = stackHead;
++          
++          const offsetA = itemB.id.clock - itemA.id.clock;
++          const offsetB = Math.min(offset, itemB.content.getLength());
++
++          const itemAOrigin = offsetA === 0 ? itemA.origin : createID(itemA.id.client, itemA.id.clock + offsetA - 1);
++          const itemARightOrigin = itemA.rightOrigin;
++          
++          const itemBOrigin = itemB.origin;
++          const itemBRightOrigin = itemB.rightOrigin;
++
++          const itemAWithParent = itemAOrigin === null && itemARightOrigin === null;
++          const itemBWithParent = itemBOrigin === null && itemBRightOrigin === null;
++
++          const isEqualExceptContent =
++            compareIDs(itemAOrigin, itemBOrigin) &&
++            compareIDs(itemARightOrigin, itemBRightOrigin) &&
++            compareIDs(
++              // Item is only considered to have a parent if `origin` and `rightOrigin` are
++              // null. We take this behavior [from `Item.write()`][1]. An integrated item may
++              // have `parent` set even if `origin` or `rightOrigin` are non-null for
++              // convenience so we need to ignore `parent` in this case.
++              //
++              // [1]: https://github.com/yjs/yjs/blob/8586806932e65b2c9957f5e4ecd74547baf301ad/src/structs/Item.js#L669-L695
++              !itemAWithParent ? null : itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
++              !itemBWithParent ? null : itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
++            ) &&
++            (itemAWithParent ? itemA.parentSub : null) === (itemBWithParent ? itemB.parentSub : null);
++
++          let isEqual;
++          if (!isEqualExceptContent) {
++            isEqual = false;
++          } else {
++            let itemAContent = itemA.content.copy();
++            const itemBContent = itemB.content.copy();
++            const itemAContentLength = itemAContent.getLength();
++            const itemBContentLength = itemBContent.getLength();
++
++            if (offsetA > 0) itemAContent = itemAContent.splice(offsetA);
++
++            if (offsetB < itemAContentLength) itemAContent.splice(offsetB);
++            if (offsetB < itemBContentLength) itemBContent.splice(offsetB);
++
++            const encoderA = new UpdateEncoderV2();
++            const encoderB = new UpdateEncoderV2();
++
++            itemAContent.write(encoderA, 0);
++            itemBContent.write(encoderB, 0);
++
++            isEqual = areUint8ArraysEqual(encoderA.toUint8Array(), encoderB.toUint8Array());
++          }
++
++          if (!isEqual) {
++            throw new Error(`Conflicting item, the item we're trying to integrate has an ID matching an existing item but the item we're trying to integrate's content doesn't match the existing item (ID client: ${stackHead.id.client}, ID clock: ${stackHead.id.clock})`);
++          }
++        }
++
+         const missing = stackHead.getMissing(transaction, store);
+         if (missing !== null) {
+           stack.push(stackHead);
+@@ -1595,6 +1663,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+   return null
+ };
+ 
++// NOTE(calebmer): Copied from `shared/helpers/binary/are_uint8_arrays_equal.ts`.
++function areUint8ArraysEqual(array1, array2) {
++  if (array1 === array2) return true;
++  if (array1.byteLength != array2.byteLength) return false;
++
++  let a = array1;
++  let b = array2;
++
++  if (aligned32(a) && aligned32(b)) {
++      a = new Uint32Array(a.buffer, a.byteOffset, a.byteLength / 4);
++      b = new Uint32Array(b.buffer, b.byteOffset, b.byteLength / 4);
++  } else if (aligned16(a) && aligned16(b)) {
++      a = new Uint16Array(a.buffer, a.byteOffset, a.byteLength / 2);
++      b = new Uint16Array(b.buffer, b.byteOffset, b.byteLength / 2);
++  }
++
++  // Iterate back to front so we start with the most significant bits.
++  for (let i = a.length; -1 < i; i -= 1) {
++      if (a[i] !== b[i]) {
++          return false;
++      }
++  }
++
++  return true;
++}
++
++function aligned16(array) {
++  return array.byteOffset % 2 === 0 && array.byteLength % 2 === 0;
++}
++
++function aligned32(array) {
++  return array.byteOffset % 4 === 0 && array.byteLength % 4 === 0;
++}
++
+ /**
+  * @param {UpdateEncoderV1 | UpdateEncoderV2} encoder
+  * @param {Transaction} transaction
+@@ -3266,10 +3368,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
+           tryToMergeWithLeft(structs, replacedStructPos);
+         }
+       }
+-      if (!transaction.local && transaction.afterState.get(doc.clientID) !== transaction.beforeState.get(doc.clientID)) {
+-        logging.print(logging.ORANGE, logging.BOLD, '[yjs] ', logging.UNBOLD, logging.RED, 'Changed the client-id because another client seems to be using it.');
+-        doc.clientID = generateNewClientId();
+-      }
++      // NOTE(calebmer): Removing this protection from Yjs. We use Yjs in a "immutable" mode
++      // we've strung together by exporting Yjs internals. In our immutable mode a given
++      // JavaScript realm always uses the same `clientID`. When decoding a Yjs doc we need to
++      // create a client with the realm's `clientID` then apply the existing task title (which
++      // may have previous updates from the realm) to catch the doc up. This protection breaks
++      // our immutable update mode since it's expected to see us replay actions from the same
++      // `clientID` on a new doc.
++
+       // @todo Merge all the transactions into one and provide send the data as a single update message
+       doc.emit('afterTransactionCleanup', [transaction, doc]);
+       if (doc._observers.has('update')) {
+@@ -10094,5 +10200,12 @@ if (glo[importIdentifier] === true) {
+ }
+ glo[importIdentifier] = true;
+ 
+-export { AbsolutePosition, AbstractConnector, AbstractStruct, AbstractType, YArray as Array, ContentAny, ContentBinary, ContentDeleted, ContentEmbed, ContentFormat, ContentJSON, ContentString, ContentType, Doc, GC, ID, Item, YMap as Map, PermanentUserData, RelativePosition, Snapshot, YText as Text, Transaction, UndoManager, UpdateEncoderV1, YXmlElement as XmlElement, YXmlFragment as XmlFragment, YXmlHook as XmlHook, YXmlText as XmlText, YArrayEvent, YEvent, YMapEvent, YTextEvent, YXmlEvent, applyUpdate, applyUpdateV2, cleanupYTextFormatting, compareIDs, compareRelativePositions, convertUpdateFormatV1ToV2, convertUpdateFormatV2ToV1, createAbsolutePositionFromRelativePosition, createDeleteSet, createDeleteSetFromStructStore, createDocFromSnapshot, createID, createRelativePositionFromJSON, createRelativePositionFromTypeIndex, createSnapshot, decodeRelativePosition, decodeSnapshot, decodeSnapshotV2, decodeStateVector, decodeUpdate, decodeUpdateV2, diffUpdate, diffUpdateV2, emptySnapshot, encodeRelativePosition, encodeSnapshot, encodeSnapshotV2, encodeStateAsUpdate, encodeStateAsUpdateV2, encodeStateVector, encodeStateVectorFromUpdate, encodeStateVectorFromUpdateV2, equalDeleteSets, equalSnapshots, findIndexSS, findRootTypeKey, getItem, getState, getTypeChildren, isDeleted, isParentOf, iterateDeletedStructs, logType, logUpdate, logUpdateV2, mergeUpdates, mergeUpdatesV2, obfuscateUpdate, obfuscateUpdateV2, parseUpdateMeta, parseUpdateMetaV2, readUpdate, readUpdateV2, relativePositionToJSON, snapshot, snapshotContainsUpdate, transact, tryGc, typeListToArraySnapshot, typeMapGetSnapshot };
+-//# sourceMappingURL=yjs.mjs.map
++export { AbsolutePosition, AbstractConnector, AbstractStruct, AbstractType, YArray as Array, ContentAny, ContentBinary, ContentDeleted, ContentEmbed, ContentFormat, ContentJSON, ContentString, ContentType, Doc, GC, ID, Item, YMap as Map, PermanentUserData, RelativePosition, Snapshot, YText as Text, Transaction, UndoManager, UpdateEncoderV1, YXmlElement as XmlElement, YXmlFragment as XmlFragment, YXmlHook as XmlHook, YXmlText as XmlText, YArrayEvent, YEvent, YMapEvent, YTextEvent, YXmlEvent, applyUpdate, applyUpdateV2, cleanupYTextFormatting, compareIDs, compareRelativePositions, convertUpdateFormatV1ToV2, convertUpdateFormatV2ToV1, createAbsolutePositionFromRelativePosition, createDeleteSet, createDeleteSetFromStructStore, createDocFromSnapshot, createID, createRelativePositionFromJSON, createRelativePositionFromTypeIndex, createSnapshot, decodeRelativePosition, decodeSnapshot, decodeSnapshotV2, decodeStateVector, decodeUpdate, decodeUpdateV2, diffUpdate, diffUpdateV2, emptySnapshot, encodeRelativePosition, encodeSnapshot, encodeSnapshotV2, encodeStateAsUpdate, encodeStateAsUpdateV2, encodeStateVector, encodeStateVectorFromUpdate, encodeStateVectorFromUpdateV2, equalDeleteSets, equalSnapshots, findIndexSS, findRootTypeKey, getItem, getState, getTypeChildren, isDeleted, isParentOf, iterateDeletedStructs, logType, logUpdate, logUpdateV2, mergeUpdates, mergeUpdatesV2, obfuscateUpdate, obfuscateUpdateV2, parseUpdateMeta, parseUpdateMetaV2, readUpdate, readUpdateV2, relativePositionToJSON, snapshot, snapshotContainsUpdate, transact, tryGc, typeListToArraySnapshot, typeMapGetSnapshot,
++  // NOTE(calebmer): Additional exports we use from Yjs.
++  StackItem,
++  DeleteSet,
++  DeleteItem,
++  addToDeleteSet,
++  mergeDeleteSets
++};
++// NOTE(calebmer): Don't use source map since our patches break the source map.
+diff --git a/src/index.js b/src/index.js
+index 781e8eb480d3b7e7d68fa0119fd44a7050f4bd7f..d37a401319b4a2408c481c7c48787d8bc268c1ff 100644
+--- a/src/index.js
++++ b/src/index.js
+@@ -94,7 +94,13 @@ export {
+   obfuscateUpdateV2,
+   UpdateEncoderV1,
+   equalDeleteSets,
+-  snapshotContainsUpdate
++  snapshotContainsUpdate,
++  // NOTE(calebmer): Additional exports we use from Yjs.
++  StackItem,
++  DeleteSet,
++  DeleteItem,
++  addToDeleteSet,
++  mergeDeleteSets
+ } from './internals.js'
+ 
+ const glo = /** @type {any} */ (typeof globalThis !== 'undefined'
+diff --git a/src/utils/Transaction.js b/src/utils/Transaction.js
+index 3594059551f62ea765252b3b00a8889d8f2e9c2c..6cb2025c0a982a0b9da311fe73097552bd2b91f3 100644
+--- a/src/utils/Transaction.js
++++ b/src/utils/Transaction.js
+@@ -337,10 +337,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
+           tryToMergeWithLeft(structs, replacedStructPos)
+         }
+       }
+-      if (!transaction.local && transaction.afterState.get(doc.clientID) !== transaction.beforeState.get(doc.clientID)) {
+-        logging.print(logging.ORANGE, logging.BOLD, '[yjs] ', logging.UNBOLD, logging.RED, 'Changed the client-id because another client seems to be using it.')
+-        doc.clientID = generateNewClientId()
+-      }
++      // NOTE(calebmer): Removing this protection from Yjs. We use Yjs in a "immutable" mode
++      // we've strung together by exporting Yjs internals. In our immutable mode a given
++      // JavaScript realm always uses the same `clientID`. When decoding a Yjs doc we need to
++      // create a client with the realm's `clientID` then apply the existing task title (which
++      // may have previous updates from the realm) to catch the doc up. This protection breaks
++      // our immutable update mode since it's expected to see us replay actions from the same
++      // `clientID` on a new doc.
++
+       // @todo Merge all the transactions into one and provide send the data as a single update message
+       doc.emit('afterTransactionCleanup', [transaction, doc])
+       if (doc._observers.has('update')) {
+diff --git a/src/utils/encoding.js b/src/utils/encoding.js
+index 83e1b91fa11440464487fb64aadc64afb5c25b60..525912848d3aacaa50cc7adc7f34c60defce443b 100644
+--- a/src/utils/encoding.js
++++ b/src/utils/encoding.js
+@@ -37,7 +37,8 @@ import {
+   Skip,
+   diffUpdateV2,
+   convertUpdateFormatV2ToV1,
+-  DSDecoderV2, Doc, Transaction, GC, Item, StructStore // eslint-disable-line
++  DSDecoderV2, Doc, Transaction, GC, Item, StructStore, // eslint-disable-line
++  getItem
+ } from '../internals.js'
+ 
+ import * as encoding from 'lib0/encoding'
+@@ -310,6 +311,74 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+         // hid a dead wall, add all items from stack to restSS
+         addStackToRestSS()
+       } else {
++        // NOTE(calebmer): If we're integrating an item from our doc's client that
++        // already exists in the doc's store then instead of skipping the item run a
++        // validation to verify the assumption that it matches what's already in the
++        // store.
++        // 
++        // We add this validation since in our custom "immutable mode" for Yjs, it's
++        // easier to accidentally create conflicting updates then in Yjs's default
++        // mutable mode. This validation is a defense against a corrupted doc created
++        // from conflicting updates being commit to the database.
++        if (offset > 0 && transaction.doc.clientID === stackHead.id.client) {
++          const itemA = getItem(store, stackHead.id);
++          const itemB = stackHead;
++          
++          const offsetA = itemB.id.clock - itemA.id.clock;
++          const offsetB = Math.min(offset, itemB.content.getLength());
++
++          const itemAOrigin = offsetA === 0 ? itemA.origin : createID(itemA.id.client, itemA.id.clock + offsetA - 1);
++          const itemARightOrigin = itemA.rightOrigin;
++          
++          const itemBOrigin = itemB.origin;
++          const itemBRightOrigin = itemB.rightOrigin;
++
++          const itemAWithParent = itemAOrigin === null && itemARightOrigin === null;
++          const itemBWithParent = itemBOrigin === null && itemBRightOrigin === null;
++
++          const isEqualExceptContent =
++            compareIDs(itemAOrigin, itemBOrigin) &&
++            compareIDs(itemARightOrigin, itemBRightOrigin) &&
++            compareIDs(
++              // Item is only considered to have a parent if `origin` and `rightOrigin` are
++              // null. We take this behavior [from `Item.write()`][1]. An integrated item may
++              // have `parent` set even if `origin` or `rightOrigin` are non-null for
++              // convenience so we need to ignore `parent` in this case.
++              //
++              // [1]: https://github.com/yjs/yjs/blob/8586806932e65b2c9957f5e4ecd74547baf301ad/src/structs/Item.js#L669-L695
++              !itemAWithParent ? null : itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
++              !itemBWithParent ? null : itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
++            ) &&
++            (itemAWithParent ? itemA.parentSub : null) === (itemBWithParent ? itemB.parentSub : null);
++
++          let isEqual;
++          if (!isEqualExceptContent) {
++            isEqual = false;
++          } else {
++            let itemAContent = itemA.content.copy();
++            const itemBContent = itemB.content.copy();
++            const itemAContentLength = itemAContent.getLength();
++            const itemBContentLength = itemBContent.getLength();
++
++            if (offsetA > 0) itemAContent = itemAContent.splice(offsetA);
++
++            if (offsetB < itemAContentLength) itemAContent.splice(offsetB);
++            if (offsetB < itemBContentLength) itemBContent.splice(offsetB);
++
++            const encoderA = new UpdateEncoderV2();
++            const encoderB = new UpdateEncoderV2();
++
++            itemAContent.write(encoderA, 0);
++            itemBContent.write(encoderB, 0);
++
++            isEqual = areUint8ArraysEqual(encoderA.toUint8Array(), encoderB.toUint8Array());
++          }
++
++          if (!isEqual) {
++            throw new Error(`Conflicting item, the item we're trying to integrate has an ID matching an existing item but the item we're trying to integrate's content doesn't match the existing item (ID client: ${stackHead.id.client}, ID clock: ${stackHead.id.clock})`);
++          }
++        }
++
+         const missing = stackHead.getMissing(transaction, store)
+         if (missing !== null) {
+           stack.push(stackHead)
+@@ -359,6 +428,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+   return null
+ }
+ 
++// NOTE(calebmer): Copied from `shared/helpers/binary/are_uint8_arrays_equal.ts`.
++function areUint8ArraysEqual(array1, array2) {
++  if (array1 === array2) return true;
++  if (array1.byteLength != array2.byteLength) return false;
++
++  let a = array1;
++  let b = array2;
++
++  if (aligned32(a) && aligned32(b)) {
++      a = new Uint32Array(a.buffer, a.byteOffset, a.byteLength / 4);
++      b = new Uint32Array(b.buffer, b.byteOffset, b.byteLength / 4);
++  } else if (aligned16(a) && aligned16(b)) {
++      a = new Uint16Array(a.buffer, a.byteOffset, a.byteLength / 2);
++      b = new Uint16Array(b.buffer, b.byteOffset, b.byteLength / 2);
++  }
++
++  // Iterate back to front so we start with the most significant bits.
++  for (let i = a.length; -1 < i; i -= 1) {
++      if (a[i] !== b[i]) {
++          return false;
++      }
++  }
++
++  return true;
++}
++
++function aligned16(array) {
++  return array.byteOffset % 2 === 0 && array.byteLength % 2 === 0;
++}
++
++function aligned32(array) {
++  return array.byteOffset % 4 === 0 && array.byteLength % 4 === 0;
++}
++
+ /**
+  * @param {UpdateEncoderV1 | UpdateEncoderV2} encoder
+  * @param {Transaction} transaction

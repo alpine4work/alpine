@@ -7,7 +7,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionMaybeModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 
 /**
@@ -31,7 +31,7 @@ import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
  */
 export function createGetTaskActionReferencedSortableAccount(
     store: AccountClientStore,
-    actions: TaskAction | ReadonlyArray<TaskAction>,
+    actions: TaskActionMaybeModel | ReadonlyArray<TaskActionMaybeModel>,
 ): (accountId: AccountId) => TaskSortableAccount {
     const actionReferencedAccountIds = new Set<AccountId>();
 

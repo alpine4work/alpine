@@ -81,8 +81,7 @@ import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 
@@ -138,8 +137,7 @@ function TaskCollectionsInput(
         onArrowLeftLeaveKeyDown?: () => void;
         onReturnFocus?: () => void;
         commitActionTransactionEvenIfGhost?: (
-            getActions: (taskId: TaskId) => Array<TaskAction>,
-            options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
+            getActions: (taskId: TaskId) => Array<TaskActionModel>,
         ) => void;
         shouldAlignWithDetailViewInputsIfEmpty?: boolean;
     },
@@ -176,13 +174,9 @@ function TaskCollectionsInput(
 
     const commitActionTransactionEvenIfGhost =
         _commitActionTransactionEvenIfGhost ??
-        ((
-            getActions: (taskId: TaskId) => Array<TaskAction>,
-            options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
-        ) => {
+        ((getActions: (taskId: TaskId) => Array<TaskActionModel>) => {
             if (!task) return;
             store.commitTaskActionTransaction(context, getActions(task.id), {
-                ...options,
                 undoManager,
                 affinityManager,
             });
@@ -334,28 +328,24 @@ function TaskCollectionsInput(
                         assertExists(inputRef.current).blur();
                     }
 
-                    commitActionTransactionEvenIfGhost(
-                        taskId => [
-                            {
-                                type: "UpdateTask",
-                                time: store.clock.now(),
-                                taskId,
-                                taskAction: {
-                                    type: "AddCollection",
-                                    collectionId,
-                                    orderKey: generateOrderKeyBetween(
-                                        collections.getLastOrderKey(),
-                                        null,
-                                    ),
-                                },
-                            },
-                        ],
+                    commitActionTransactionEvenIfGhost(taskId => [
                         {
-                            // Provide the collection model to the store. It might be out of date. The
-                            // server will backfill the new collection once our action has been committed.
-                            referencedCollections: [item.collectionResult.collection],
+                            type: "UpdateTask",
+                            time: store.clock.now(),
+                            taskId,
+                            taskAction: {
+                                type: "AddCollection",
+                                collectionId,
+                                orderKey: generateOrderKeyBetween(
+                                    collections.getLastOrderKey(),
+                                    null,
+                                ),
+                                // Provide the collection model to the store. It might be out of date. The
+                                // server will backfill the new collection once our action has been committed.
+                                referencedCollection: item.collectionResult.collection,
+                            },
                         },
-                    );
+                    ]);
                 });
             }
 

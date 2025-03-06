@@ -27,6 +27,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {generateId} from "~/shared/id/id.js";
 import {
@@ -53,6 +54,14 @@ import {
     TaskUpdateCollectionAction,
     TaskUpdateTaskAction,
 } from "~/shared/tasks/actions/task_action.js";
+import {
+    TaskActionMaybeModel,
+    TaskActionModel,
+    TaskUpdateTaskActionMaybeModel,
+    TaskUpdateTaskActionModel,
+    fromTaskActionModel,
+    fromTaskUpdateTaskActionModel,
+} from "~/shared/tasks/actions/task_action_model.js";
 import {collectReferencedAccountIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_account_ids_from_task_model_data.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -64,7 +73,7 @@ import {
     TaskRealtimeUpdateEvent,
 } from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
-import {TaskTitleUpdate, mergeTaskTitleUpdates} from "~/shared/tasks/task_title.js";
+import {TaskTitleUpdateModel, mergeTaskTitleUpdates} from "~/shared/tasks/task_title.js";
 
 export type TaskClientStoreTaskEntry =
     // Task initialized and known authorization state:
@@ -176,12 +185,12 @@ export type TaskClientStoreCollectionEntryOptimisticState = {
 };
 
 type TaskClientStorePendingAction = {
-    readonly action: TaskAction;
+    readonly action: TaskActionMaybeModel;
     readonly getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount;
 };
 
 type TaskClientStorePendingUpdateTaskAction = {
-    readonly action: TaskUpdateTaskAction | TaskUpdateAccountNameAction;
+    readonly action: TaskUpdateTaskActionMaybeModel | TaskUpdateAccountNameAction;
     readonly getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount;
 };
 
@@ -230,7 +239,7 @@ export interface TaskClientStoreUndoManager {
 }
 
 export type TaskClientStoreUpdateTitleActionTransactionBuilder = {
-    add(titleUpdate: TaskTitleUpdate): void;
+    add(titleUpdate: TaskTitleUpdateModel): void;
     commit(
         context: Context<{
             rpc: RpcContextModuleBase;
@@ -359,11 +368,10 @@ export class TaskClientStore {
 
     public commitTaskActionTransaction(
         context: Context<{rpc: RpcContextModuleBase}>,
-        actions: ReadonlyArray<TaskAction>,
+        actions: ReadonlyArray<TaskActionModel>,
         options: {
             undoManager: TaskClientStoreUndoManager | null;
             affinityManager: TaskClientStoreSearchAffinityManager;
-            referencedCollections?: ReadonlyArray<TaskCollectionModel>;
             leaseId?: TaskActionTransactionLeaseId | null;
         },
     ): {finally: (callback: () => void) => void} {
@@ -372,14 +380,12 @@ export class TaskClientStore {
 
     public getTaskUpdateTitleActionTransactionBuilder(
         taskId: TaskId,
-        initialTitleUpdate: TaskTitleUpdate,
-        options: {affinityManager: TaskClientStoreSearchAffinityManager},
-    ): {
-        add: (titleUpdate: TaskTitleUpdate) => void;
-        commit: (context: Context<{rpc: RpcContextModuleBase}>) => {
-            finally: (callback: () => void) => void;
-        };
-    } {
+        initialTitleUpdate: TaskTitleUpdateModel,
+        options: {
+            undoManager: TaskClientStoreUndoManager | null;
+            affinityManager: TaskClientStoreSearchAffinityManager;
+        },
+    ): TaskClientStoreUpdateTitleActionTransactionBuilder {
         return this._internal.getTaskUpdateTitleActionTransactionBuilder(
             taskId,
             initialTitleUpdate,
@@ -1567,15 +1573,15 @@ export class TaskClientStoreInternal {
      *
      * If you are referencing some collections in your transaction that don't
      * already exist in the store then you need to provide the collections with
-     * `referencedCollections` so we can add their data to the store.
+     * `referencedCollection` in the `AddCollection` action so we can add their
+     * data to the store.
      */
     public commitTaskActionTransaction(
         context: Context<{rpc: RpcContextModuleBase}>,
-        actions: ReadonlyArray<TaskAction>,
+        actions: ReadonlyArray<TaskActionModel>,
         {
             undoManager,
             affinityManager,
-            referencedCollections = [],
             leaseId = null,
         }: {
             // This property is required to force callers to make a decision on whether or
@@ -1585,7 +1591,6 @@ export class TaskClientStoreInternal {
             // This property is required to force callers to pass down a `affinityManager`
             // object from the route component.
             affinityManager: TaskClientStoreSearchAffinityManager;
-            referencedCollections?: ReadonlyArray<TaskCollectionModel>;
             leaseId?: TaskActionTransactionLeaseId | null;
         },
     ): {finally: (callback: () => void) => void} {
@@ -1604,6 +1609,18 @@ export class TaskClientStoreInternal {
         try {
             ({pendingActions: allPendingActions, release: actuallyRelease} = batchStoreUpdates(
                 () => {
+                    const referencedCollections: Array<TaskCollectionModel> = [];
+
+                    for (const action of actions) {
+                        if (
+                            action.type === "UpdateTask" &&
+                            action.taskAction.type === "AddCollection" &&
+                            action.taskAction.referencedCollection
+                        ) {
+                            referencedCollections.push(action.taskAction.referencedCollection);
+                        }
+                    }
+
                     if (referencedCollections.length === 0) {
                         const optimisticExtraActions = this._getOptimisticExtraActions(actions);
 
@@ -1694,13 +1711,15 @@ export class TaskClientStoreInternal {
         const run = () =>
             commitTaskActionTransaction(context, {
                 spaceId: this.spaceId,
-                actions,
+                actions: actions.map(fromTaskActionModel),
                 clientId: this._clientId,
                 leaseId: leaseId ?? undefined,
                 createLeaseIfLostAccess: createLeaseIfLostAccessId
                     ? {
                           id: createLeaseIfLostAccessId,
-                          actions: assertExists(undoActions).get(this.clock),
+                          actions: assertExists(undoActions)
+                              .get(this)
+                              .map(fromTaskUpdateTaskActionModel),
                       }
                     : undefined,
             });
@@ -1929,20 +1948,25 @@ export class TaskClientStoreInternal {
      * Under the hood this has the same logic as `commitTaskActionTransaction()`
      * but allows you to merge individual actions into a single action for the
      * server.
-     *
-     * Note that this method doesn't take an `undoManager`. That's because title
-     * undo/redo is handled by a Y.js `Y.UndoManager` class in
-     * `useTaskTitleModelYDoc()`.
      */
     public getTaskUpdateTitleActionTransactionBuilder(
         taskId: TaskId,
-        initialTitleUpdate: TaskTitleUpdate,
-        {affinityManager}: {affinityManager: TaskClientStoreSearchAffinityManager},
+        initialTitleUpdate: TaskTitleUpdateModel,
+        {
+            undoManager,
+            affinityManager,
+        }: {
+            // This property is required to force callers to make a decision on whether or
+            // not to pass in `undoManager`. Most of the time you want to pass in
+            // `undoManager`. If you pass in null the change can't be undone.
+            undoManager: TaskClientStoreUndoManager | null;
+            affinityManager: TaskClientStoreSearchAffinityManager;
+        },
     ): TaskClientStoreUpdateTitleActionTransactionBuilder {
         let isFinished = false;
-        let mergedTitleUpdate = initialTitleUpdate;
+        let mergedTitleUpdate = initialTitleUpdate.raw;
 
-        const individualActions: Array<TaskAction> = [];
+        const individualActions: Array<TaskActionModel> = [];
 
         // We hold onto collections and tasks that become unreferenced after applying
         // optimistic actions until both:
@@ -1961,8 +1985,8 @@ export class TaskClientStoreInternal {
             }
         };
 
-        const addTitleUpdate = (titleUpdate: TaskTitleUpdate) => {
-            const action: TaskAction = {
+        const addTitleUpdate = (titleUpdate: TaskTitleUpdateModel) => {
+            const action: TaskActionModel = {
                 type: "UpdateTask",
                 time: this.clock.now(),
                 taskId,
@@ -1974,22 +1998,58 @@ export class TaskClientStoreInternal {
 
             individualActions.push(action);
 
-            const {release: actuallyRelease} = this._applyOptimisticTaskActions(
-                [action],
-                update => {
-                    affinityManager.markLowIntentUpdateInteraction(update);
-                },
-            );
-            actualReleases.push(actuallyRelease);
+            // We need to create undo actions before applying our actions to the store so
+            // we can read old task data from the store.
+            const undoActions = undoManager
+                ? createTaskUndoActionsIfPossible(this, [action])
+                : null;
+
+            assert(this.onQueryLoadedTaskRemove === null);
+            const removedFromQueries = new Set<TaskClientQuery>();
+            this.onQueryLoadedTaskRemove = (query: TaskClientQueryInternal) => {
+                removedFromQueries.add(query.external);
+            };
+
+            try {
+                const {release: actuallyRelease} = this._applyOptimisticTaskActions(
+                    [action],
+                    update => {
+                        affinityManager.markLowIntentUpdateInteraction(update);
+                    },
+                );
+                actualReleases.push(actuallyRelease);
+            } finally {
+                this.onQueryLoadedTaskRemove = null;
+            }
+
+            if (undoManager && undoActions) {
+                referenceCount++;
+
+                let isUndoEntryReleased = false;
+
+                undoManager.pushUndoStackEntry({
+                    undoActions,
+                    removedFromQueries,
+                    // Changing the title can never remove the account's access to the task. Since
+                    // task access is determined by the creator, assignee, parent task, and
+                    // collections. So we'll never need to generate a lease.
+                    leaseId: null,
+                    release: () => {
+                        assert(!isUndoEntryReleased);
+                        isUndoEntryReleased = true;
+                        release();
+                    },
+                });
+            }
         };
 
         addTitleUpdate(initialTitleUpdate);
 
         return {
-            add: (titleUpdate: TaskTitleUpdate) => {
+            add: (titleUpdate: TaskTitleUpdateModel) => {
                 assert(!isFinished);
 
-                mergedTitleUpdate = mergeTaskTitleUpdates(mergedTitleUpdate, titleUpdate);
+                mergedTitleUpdate = mergeTaskTitleUpdates(mergedTitleUpdate, titleUpdate.raw);
                 addTitleUpdate(titleUpdate);
             },
             commit: context => {
@@ -2131,7 +2191,20 @@ export class TaskClientStoreInternal {
                 // We need to create undo actions before applying our actions to the store so
                 // we can read old task data from the store.
                 const undoActions = undoManager
-                    ? createTaskUndoActionsIfPossible(this, actions)
+                    ? createTaskUndoActionsIfPossible(
+                          this,
+                          mapIterable(actions, action => {
+                              if (
+                                  action.type === "UpdateTask" &&
+                                  action.taskAction.type === "UpdateTitle"
+                              ) {
+                                  throw new InternalError(
+                                      "Unexpected task title update when deleting task and all children",
+                                  );
+                              }
+                              return action as TaskActionModel;
+                          }),
+                      )
                     : null;
 
                 this.applyUpdateEvent({
@@ -2231,7 +2304,7 @@ export class TaskClientStoreInternal {
     }
 
     private _applyOptimisticTaskActions<Value>(
-        actions: ReadonlyArray<TaskAction>,
+        actions: ReadonlyArray<TaskActionModel>,
         action: (batchUpdate: TaskClientStoreBatchUpdate) => Value,
     ): {
         actionValue: Value;
@@ -3873,8 +3946,8 @@ export class TaskClientStoreInternal {
      * against our store since it needs to read old task values.
      */
     private _getOptimisticExtraActions(
-        actions: ReadonlyArray<TaskAction>,
-    ): Array<TaskUpdateTaskAction> {
+        actions: ReadonlyArray<TaskActionModel>,
+    ): Array<TaskUpdateTaskActionModel> {
         if (actions.length === 0) return [];
 
         let maxActionTime = actions[0]!.time;
@@ -4116,7 +4189,7 @@ export class TaskClientStoreInternal {
             }
         }
 
-        const extraActions: Array<TaskUpdateTaskAction> = [];
+        const extraActions: Array<TaskUpdateTaskActionModel> = [];
 
         for (const [parentTaskId, childTaskCounts] of childTaskCountsByParentTaskId) {
             extraActions.push({

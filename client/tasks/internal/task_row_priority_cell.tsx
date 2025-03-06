@@ -30,7 +30,7 @@ import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
@@ -100,7 +100,7 @@ function TaskRowPriorityCell(
         focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
         commitActionTransactionEvenIfGhost: Memo<
-            (getActions: (taskId: TaskId) => Array<TaskAction>) => void
+            (getActions: (taskId: TaskId) => Array<TaskActionModel>) => void
         >;
     },
     ref: Ref<TaskRowPriorityCellRef>,

@@ -86,3 +86,12 @@ export const delayScreenTransitionLoadingIndicatorLimitMs = 1000;
 // [2]: https://en.wikipedia.org/wiki/Double-click
 // [3]: https://developer.chrome.com/blog/300ms-tap-delay-gone-away/
 export const doubleClickDelayMs = 500;
+
+/**
+ * If the time between two text updates is less than this number then we merge
+ * the updates into one item on the undo stack. 500ms is [copied from
+ * `prosemirror-history`][1].
+ *
+ * [1]: https://github.com/ProseMirror/prosemirror-history/blob/4e1e8982b57b9fc5d1b27213b9b3a76416e3903e/src/history.ts#L378-L381
+ */
+export const mergeUndoTextUpdatesDelayMs = 500;

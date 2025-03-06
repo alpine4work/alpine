@@ -2,7 +2,7 @@ import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionMaybeModel} from "~/shared/tasks/actions/task_action_model.js";
 
 /**
  * Get all the `AccountId`s referenced by a task action.
@@ -23,7 +23,7 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
  */
 export function collectReferencedAccountIdsFromTaskAction(
     accountIds: Set<AccountId>,
-    action: TaskAction,
+    action: TaskActionMaybeModel,
 ) {
     switch (action.type) {
         case "UpdateTask": {
