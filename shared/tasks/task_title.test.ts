@@ -8,6 +8,7 @@ import {
     TaskTitleUpdate,
     TaskTitleUpdateModel,
     addFallbackToTaskTitle,
+    applyTaskTitleUpdate,
     createTaskTitleFromText,
     emptyTaskTitle,
     emptyTaskTitleModel,
@@ -15,6 +16,7 @@ import {
     getTaskTitleProsemirrorNodeText,
     getTaskTitleText,
     isTaskTitle,
+    mergeTaskTitleUpdates,
     realmTaskTitleClientId,
 } from "~/shared/tasks/task_title.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
@@ -950,7 +952,7 @@ test("can merge task title with itself", () => {
     expect(title3.apply(title2).getText()).toEqual("cxba");
 });
 
-test("reproduce bugged merge error from task detail view expansion 1", () => {
+test("reproduce bugged merge error when update is not in optimized form", () => {
     const rawTitle = decodeBase64(
         "AAAG5pX11Q4AAQAAAwcABA4LZG9jbmV3IHRhc2sDCAMBAAABBgABAgAA",
     ) as TaskTitle;
@@ -958,10 +960,640 @@ test("reproduce bugged merge error from task detail view expansion 1", () => {
         "AAAG5pX11Q4HAwADBQAFBwAEAIQPC2RvY25ldyB0YXNrA0EGAwEAAAEGAAEJAAA=",
     ) as TaskTitleUpdate;
 
+    expect(Y.decodeUpdateV2(rawTitle)).toEqual({
+        structs: [
+            {
+                id: new Y.ID(1969136998, 0),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: "doc",
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentType(expect.any(Y.XmlText)),
+                info: 2,
+            },
+            {
+                id: new Y.ID(1969136998, 1),
+                length: 8,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: new Y.ID(1969136998, 0),
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("new task"),
+                info: 2,
+            },
+        ],
+        ds: {clients: new Map()},
+    });
+
+    // This test is specifically exercising the case where `update` isn't in an
+    // optimized, merged, format.
+    expect(Y.decodeUpdateV2(update)).toEqual({
+        structs: [
+            {
+                id: new Y.ID(1969136998, 0),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: "doc",
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentType(expect.any(Y.XmlText)),
+                info: 2,
+            },
+            {
+                id: new Y.ID(1969136998, 1),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: new Y.ID(1969136998, 0),
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("n"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(1969136998, 2),
+                length: 1,
+                origin: new Y.ID(1969136998, 1),
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("e"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(1969136998, 3),
+                length: 1,
+                origin: new Y.ID(1969136998, 2),
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("w"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(1969136998, 4),
+                length: 1,
+                origin: new Y.ID(1969136998, 3),
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString(" "),
+                info: 2,
+            },
+            {
+                id: new Y.ID(1969136998, 5),
+                length: 1,
+                origin: new Y.ID(1969136998, 4),
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("t"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(1969136998, 6),
+                length: 1,
+                origin: new Y.ID(1969136998, 5),
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("a"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(1969136998, 7),
+                length: 1,
+                origin: new Y.ID(1969136998, 6),
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("s"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(1969136998, 8),
+                length: 1,
+                origin: new Y.ID(1969136998, 7),
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("k"),
+                info: 2,
+            },
+        ],
+        ds: {clients: new Map()},
+    });
+
     const title = new TaskTitleModel(rawTitle);
 
     expect(title.getText()).toEqual("new task");
     expect(title.apply(update, {clientIdForTest: 1969136998}).getText()).toEqual("new task");
+});
+
+test("reproduce bugged merge error when update is not in optimized form and there's some right origin", () => {
+    const rawTitle = decodeBase64(
+        "AAAGwqWY3RoBAQABAgUHAAQARBIOZG9jd29ybGRoZWxsbyADBQYDAQAAAQYAAQMAAA==",
+    ) as TaskTitle;
+    const update = decodeBase64(
+        "AAAGwqWY3RoPBgADAgQDAgMCAQMJBwAEAIQDRADEEg5kb2N3b3JsZGhlbGxvIANBCQMBAAABBgABDAAA",
+    ) as TaskTitleUpdate;
+
+    expect(Y.decodeUpdateV2(rawTitle)).toEqual({
+        structs: [
+            {
+                id: new Y.ID(3587377474, 0),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: "doc",
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentType(expect.any(Y.XmlText)),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3587377474, 1),
+                length: 5,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: new Y.ID(3587377474, 0),
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("world"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3587377474, 6),
+                length: 6,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: new Y.ID(3587377474, 1),
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("hello "),
+                info: 2,
+            },
+        ],
+        ds: {clients: new Map()},
+    });
+
+    // This test is specifically exercising the case where `update` isn't in an
+    // optimized, merged, format.
+    expect(Y.decodeUpdateV2(update)).toEqual({
+        structs: [
+            {
+                id: new Y.ID(3587377474, 0),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: "doc",
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentType(expect.any(Y.XmlText)),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3587377474, 1),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: new Y.ID(3587377474, 0),
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("w"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3587377474, 2),
+                length: 1,
+                origin: new Y.ID(3587377474, 1),
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("o"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3587377474, 3),
+                length: 1,
+                origin: new Y.ID(3587377474, 2),
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("r"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3587377474, 4),
+                length: 1,
+                origin: new Y.ID(3587377474, 3),
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("l"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3587377474, 5),
+                length: 1,
+                origin: new Y.ID(3587377474, 4),
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("d"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3587377474, 6),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: new Y.ID(3587377474, 1),
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("h"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3587377474, 7),
+                length: 1,
+                origin: new Y.ID(3587377474, 6),
+                left: null,
+                right: null,
+                rightOrigin: new Y.ID(3587377474, 1),
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("e"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3587377474, 8),
+                length: 1,
+                origin: new Y.ID(3587377474, 7),
+                left: null,
+                right: null,
+                rightOrigin: new Y.ID(3587377474, 1),
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("l"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3587377474, 9),
+                length: 1,
+                origin: new Y.ID(3587377474, 8),
+                left: null,
+                right: null,
+                rightOrigin: new Y.ID(3587377474, 1),
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("l"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3587377474, 10),
+                length: 1,
+                origin: new Y.ID(3587377474, 9),
+                left: null,
+                right: null,
+                rightOrigin: new Y.ID(3587377474, 1),
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("o"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3587377474, 11),
+                length: 1,
+                origin: new Y.ID(3587377474, 10),
+                left: null,
+                right: null,
+                rightOrigin: new Y.ID(3587377474, 1),
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString(" "),
+                info: 2,
+            },
+        ],
+        ds: {clients: new Map()},
+    });
+
+    const title = new TaskTitleModel(rawTitle);
+
+    expect(title.getText()).toEqual("hello world");
+    expect(title.apply(update, {clientIdForTest: 3587377474}).getText()).toEqual("hello world");
+});
+
+test("applying task title update to task title produces optimized form", () => {
+    const title0 = emptyTaskTitleModel.get();
+    const update1 = title0.replace(0, 0, "a");
+    const title1 = update1.newTitle;
+    const update2 = title1.replace(1, 1, "b");
+    const title2 = update2.newTitle;
+    const update3 = title2.replace(2, 2, "c");
+    const title3 = update3.newTitle;
+
+    expect(Y.decodeUpdateV2(title3.getRaw())).toEqual({
+        structs: [
+            {
+                id: new Y.ID(realmTaskTitleClientId.get(), 0),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: "doc",
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentType(expect.any(Y.XmlText)),
+                info: 2,
+            },
+            {
+                id: new Y.ID(realmTaskTitleClientId.get(), 1),
+                length: 3,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: new Y.ID(realmTaskTitleClientId.get(), 0),
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("abc"),
+                info: 2,
+            },
+        ],
+        ds: {clients: new Map()},
+    });
+
+    // Yjs's `mergeUpdatesV2()` function does not produce an update in
+    // optimized form.
+    expect(
+        Y.decodeUpdateV2(
+            Y.mergeUpdatesV2([title0.getRaw(), update1.raw, update2.raw, update3.raw]),
+        ),
+    ).toEqual({
+        structs: [
+            {
+                id: new Y.ID(realmTaskTitleClientId.get(), 0),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: "doc",
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentType(expect.any(Y.XmlText)),
+                info: 2,
+            },
+            {
+                id: new Y.ID(realmTaskTitleClientId.get(), 1),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: new Y.ID(realmTaskTitleClientId.get(), 0),
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("a"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(realmTaskTitleClientId.get(), 2),
+                length: 1,
+                origin: new Y.ID(realmTaskTitleClientId.get(), 1),
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("b"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(realmTaskTitleClientId.get(), 3),
+                length: 1,
+                origin: new Y.ID(realmTaskTitleClientId.get(), 2),
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("c"),
+                info: 2,
+            },
+        ],
+        ds: {clients: new Map()},
+    });
+
+    // Yjs's `mergeUpdatesV2()` function does not produce an update in
+    // optimized form.
+    expect(Y.decodeUpdateV2(Y.mergeUpdatesV2([update2.raw, update3.raw]))).toEqual({
+        structs: [
+            {
+                id: new Y.ID(realmTaskTitleClientId.get(), 2),
+                length: 1,
+                origin: new Y.ID(realmTaskTitleClientId.get(), 1),
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("b"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(realmTaskTitleClientId.get(), 3),
+                length: 1,
+                origin: new Y.ID(realmTaskTitleClientId.get(), 2),
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("c"),
+                info: 2,
+            },
+        ],
+        ds: {clients: new Map()},
+    });
+
+    expect(
+        Y.decodeUpdateV2(
+            applyTaskTitleUpdate(
+                applyTaskTitleUpdate(
+                    applyTaskTitleUpdate(title0.getRaw(), update1.raw),
+                    update2.raw,
+                ),
+                update3.raw,
+            ),
+        ),
+    ).toEqual({
+        structs: [
+            {
+                id: new Y.ID(realmTaskTitleClientId.get(), 0),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: "doc",
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentType(expect.any(Y.XmlText)),
+                info: 2,
+            },
+            {
+                id: new Y.ID(realmTaskTitleClientId.get(), 1),
+                length: 3,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: new Y.ID(realmTaskTitleClientId.get(), 0),
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("abc"),
+                info: 2,
+            },
+        ],
+        ds: {clients: new Map()},
+    });
+
+    expect(Y.decodeUpdateV2(mergeTaskTitleUpdates(update2.raw, update3.raw))).toEqual({
+        structs: [
+            {
+                id: new Y.ID(realmTaskTitleClientId.get(), 2),
+                length: 1,
+                origin: new Y.ID(realmTaskTitleClientId.get(), 1),
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("b"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(realmTaskTitleClientId.get(), 3),
+                length: 1,
+                origin: new Y.ID(realmTaskTitleClientId.get(), 2),
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("c"),
+                info: 2,
+            },
+        ],
+        ds: {clients: new Map()},
+    });
+
+    expect(
+        Y.decodeUpdateV2(
+            mergeTaskTitleUpdates(update1.raw, mergeTaskTitleUpdates(update2.raw, update3.raw)),
+        ),
+    ).toEqual({
+        structs: [
+            {
+                id: new Y.ID(realmTaskTitleClientId.get(), 0),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: "doc",
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentType(expect.any(Y.XmlText)),
+                info: 2,
+            },
+            {
+                id: new Y.ID(realmTaskTitleClientId.get(), 1),
+                length: 3,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: new Y.ID(realmTaskTitleClientId.get(), 0),
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("abc"),
+                info: 2,
+            },
+        ],
+        ds: {clients: new Map()},
+    });
 });
 
 // NOTE(calebmer, 2025-03-05): The following tests are written by AI with

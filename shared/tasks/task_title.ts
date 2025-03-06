@@ -8,7 +8,6 @@ import {
 import * as Y from "yjs";
 import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {deepFreeze} from "~/shared/helpers/control/deep_freeze.js";
@@ -154,11 +153,6 @@ function createDoc({clientIdForTest}: {clientIdForTest?: number} = {}): Y.Doc {
     doc._observers = new Map();
 
     return doc;
-}
-
-export function createDocForTest(options?: {clientIdForTest?: number}) {
-    assert(import.meta.jest);
-    return createDoc(options);
 }
 
 /**
@@ -408,14 +402,28 @@ export type TaskTitleUpdate = Uint8Array & {readonly _TaskTitleUpdate: never};
 export const TaskTitleUpdateSchema = Schema.bytes as any as Schema<TaskTitleUpdate>;
 
 export function applyTaskTitleUpdate(title: TaskTitle, titleUpdate: TaskTitleUpdate): TaskTitle {
-    return Y.mergeUpdatesV2([title, titleUpdate]) as TaskTitle;
+    // We don't use `Y.mergeUpdatesV2()` because the result won't be in an
+    // optimized form. Specifically, adjacent items won't be merged. See the test
+    // "applying task title update to task title produces optimized form" for an
+    // example.
+    const doc = createDoc();
+    Y.applyUpdateV2(doc, assertExists(title));
+    Y.applyUpdateV2(doc, assertExists(titleUpdate));
+    return Y.encodeStateAsUpdateV2(doc) as TaskTitle;
 }
 
 export function mergeTaskTitleUpdates(
     titleUpdate1: TaskTitleUpdate,
     titleUpdate2: TaskTitleUpdate,
 ): TaskTitleUpdate {
-    return Y.mergeUpdatesV2([titleUpdate1, titleUpdate2]) as TaskTitleUpdate;
+    // We don't use `Y.mergeUpdatesV2()` because the result won't be in an
+    // optimized form. Specifically, adjacent items won't be merged. See the test
+    // "applying task title update to task title produces optimized form" for an
+    // example.
+    const doc = createDoc();
+    Y.applyUpdateV2(doc, assertExists(titleUpdate1));
+    Y.applyUpdateV2(doc, assertExists(titleUpdate2));
+    return Y.encodeStateAsUpdateV2(doc) as TaskTitleUpdate;
 }
 
 export const emptyTaskTitleModel = new Lazy(() => new TaskTitleModel(emptyTaskTitle.get()));
@@ -832,13 +840,7 @@ export class TaskTitleModel {
         }
 
         const doc = cloneDoc(this._getDoc(), options);
-
-        try {
-            Y.applyUpdateV2(doc, update);
-        } catch (error) {
-            console.log({a: encodeBase64(Y.encodeStateAsUpdateV2(doc)), b: encodeBase64(update)});
-            throw error;
-        }
+        Y.applyUpdateV2(doc, update);
 
         return new TaskTitleModel(doc);
     }
