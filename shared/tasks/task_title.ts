@@ -8,6 +8,7 @@ import {
 import * as Y from "yjs";
 import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {deepFreeze} from "~/shared/helpers/control/deep_freeze.js";
@@ -153,6 +154,11 @@ function createDoc({clientIdForTest}: {clientIdForTest?: number} = {}): Y.Doc {
     doc._observers = new Map();
 
     return doc;
+}
+
+export function createDocForTest(options?: {clientIdForTest?: number}) {
+    assert(import.meta.jest);
+    return createDoc(options);
 }
 
 /**
@@ -811,7 +817,10 @@ export class TaskTitleModel {
      * optimized path where we can return `update.newTitle` instead of applying the
      * update from scratch.
      */
-    public apply(update: TaskTitleModel | TaskTitleUpdateModel | TaskTitleUpdate): TaskTitleModel {
+    public apply(
+        update: TaskTitleModel | TaskTitleUpdateModel | TaskTitleUpdate,
+        options?: {clientIdForTest?: number},
+    ): TaskTitleModel {
         if (update instanceof TaskTitleUpdateModel) {
             if (update.oldTitle === this) {
                 return update.newTitle;
@@ -822,8 +831,14 @@ export class TaskTitleModel {
             update = update.getRaw();
         }
 
-        const doc = cloneDoc(this._getDoc());
-        Y.applyUpdateV2(doc, update);
+        const doc = cloneDoc(this._getDoc(), options);
+
+        try {
+            Y.applyUpdateV2(doc, update);
+        } catch (error) {
+            console.log({a: encodeBase64(Y.encodeStateAsUpdateV2(doc)), b: encodeBase64(update)});
+            throw error;
+        }
 
         return new TaskTitleModel(doc);
     }

@@ -15,10 +15,10 @@ index f0a78eef82e14dcc196b1d58e415cebeb552081e..367149a0ab30979eae3701242090f146
  //# sourceMappingURL=index.d.ts.map
 \ No newline at end of file
 diff --git a/dist/yjs.cjs b/dist/yjs.cjs
-index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..85d623c6fc6109a157aea76daa2169324167023f 100644
+index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..6c48e941da9044345d1387265db5e599e6894bd5 100644
 --- a/dist/yjs.cjs
 +++ b/dist/yjs.cjs
-@@ -1582,6 +1582,62 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+@@ -1582,6 +1582,74 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
          // hid a dead wall, add all items from stack to restSS
          addStackToRestSS();
        } else {
@@ -32,14 +32,24 @@ index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..85d623c6fc6109a157aea76daa216932
 +        // mutable mode. This validation is a defense against a corrupted doc created
 +        // from conflicting updates being commit to the database.
 +        if (offset > 0 && transaction.doc.clientID === stackHead.id.client) {
-+          const compareOffset = Math.min(offset, stackHead.content.getLength());
-+          
 +          const itemA = getItem(store, stackHead.id);
 +          const itemB = stackHead;
++          
++          const offsetA = itemB.id.clock - itemA.id.clock;
++          const offsetB = Math.min(offset, itemB.content.getLength());
++
++          const itemAOrigin = offsetA === 0 ? itemA.origin : createID(itemA.id.client, itemA.id.clock + offsetA - 1);
++          const itemARightOrigin = itemA.rightOrigin;
++          
++          const itemBOrigin = itemB.origin;
++          const itemBRightOrigin = itemB.rightOrigin;
++
++          const itemAWithParent = itemAOrigin === null && itemARightOrigin === null;
++          const itemBWithParent = itemBOrigin === null && itemBRightOrigin === null;
 +
 +          const isEqualExceptContent =
-+            compareIDs(itemA.origin, itemB.origin) &&
-+            compareIDs(itemA.rightOrigin, itemB.rightOrigin) &&
++            compareIDs(itemAOrigin, itemBOrigin) &&
++            compareIDs(itemARightOrigin, itemBRightOrigin) &&
 +            compareIDs(
 +              // Item is only considered to have a parent if `origin` and `rightOrigin` are
 +              // null. We take this behavior [from `Item.write()`][1]. An integrated item may
@@ -47,22 +57,24 @@ index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..85d623c6fc6109a157aea76daa216932
 +              // convenience so we need to ignore `parent` in this case.
 +              //
 +              // [1]: https://github.com/yjs/yjs/blob/8586806932e65b2c9957f5e4ecd74547baf301ad/src/structs/Item.js#L669-L695
-+              itemA.origin !== null || itemA.rightOrigin !== null ? null : itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
-+              itemB.origin !== null || itemB.rightOrigin !== null ? null : itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
++              !itemAWithParent ? null : itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
++              !itemBWithParent ? null : itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
 +            ) &&
-+            itemA.parentSub === itemB.parentSub;
++            (itemAWithParent ? itemA.parentSub : null) === (itemBWithParent ? itemB.parentSub : null);
 +
 +          let isEqual;
 +          if (!isEqualExceptContent) {
 +            isEqual = false;
 +          } else {
-+            const itemAContent = itemA.content.copy();
++            let itemAContent = itemA.content.copy();
 +            const itemBContent = itemB.content.copy();
 +            const itemAContentLength = itemAContent.getLength();
 +            const itemBContentLength = itemBContent.getLength();
 +
-+            if (compareOffset < itemAContentLength) itemAContent.splice(compareOffset);
-+            if (compareOffset < itemBContentLength) itemBContent.splice(compareOffset);
++            if (offsetA > 0) itemAContent = itemAContent.splice(offsetA);
++
++            if (offsetB < itemAContentLength) itemAContent.splice(offsetB);
++            if (offsetB < itemBContentLength) itemBContent.splice(offsetB);
 +
 +            const encoderA = new UpdateEncoderV2();
 +            const encoderB = new UpdateEncoderV2();
@@ -81,7 +93,7 @@ index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..85d623c6fc6109a157aea76daa216932
          const missing = stackHead.getMissing(transaction, store);
          if (missing !== null) {
            stack.push(stackHead);
-@@ -1631,6 +1687,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+@@ -1631,6 +1699,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
    return null
  };
  
@@ -122,7 +134,7 @@ index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..85d623c6fc6109a157aea76daa216932
  /**
   * @param {UpdateEncoderV1 | UpdateEncoderV2} encoder
   * @param {Transaction} transaction
-@@ -3302,10 +3392,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
+@@ -3302,10 +3404,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
            tryToMergeWithLeft(structs, replacedStructPos);
          }
        }
@@ -141,7 +153,7 @@ index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..85d623c6fc6109a157aea76daa216932
        // @todo Merge all the transactions into one and provide send the data as a single update message
        doc.emit('afterTransactionCleanup', [transaction, doc]);
        if (doc._observers.has('update')) {
-@@ -10224,4 +10318,10 @@ exports.transact = transact;
+@@ -10224,4 +10330,10 @@ exports.transact = transact;
  exports.tryGc = tryGc;
  exports.typeListToArraySnapshot = typeListToArraySnapshot;
  exports.typeMapGetSnapshot = typeMapGetSnapshot;
@@ -154,10 +166,10 @@ index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..85d623c6fc6109a157aea76daa216932
 +exports.mergeDeleteSets = mergeDeleteSets;
 +// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/dist/yjs.mjs b/dist/yjs.mjs
-index abf5ea55c9c42e7a3548591b82b43ec2f0171236..3d69f845cd9cd7f0c40f11553a5252a6eeccf512 100644
+index abf5ea55c9c42e7a3548591b82b43ec2f0171236..7bd719052369bc860ee982c3d0fdbfbae105467f 100644
 --- a/dist/yjs.mjs
 +++ b/dist/yjs.mjs
-@@ -1546,6 +1546,62 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+@@ -1546,6 +1546,74 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
          // hid a dead wall, add all items from stack to restSS
          addStackToRestSS();
        } else {
@@ -171,14 +183,24 @@ index abf5ea55c9c42e7a3548591b82b43ec2f0171236..3d69f845cd9cd7f0c40f11553a5252a6
 +        // mutable mode. This validation is a defense against a corrupted doc created
 +        // from conflicting updates being commit to the database.
 +        if (offset > 0 && transaction.doc.clientID === stackHead.id.client) {
-+          const compareOffset = Math.min(offset, stackHead.content.getLength());
-+          
 +          const itemA = getItem(store, stackHead.id);
 +          const itemB = stackHead;
++          
++          const offsetA = itemB.id.clock - itemA.id.clock;
++          const offsetB = Math.min(offset, itemB.content.getLength());
++
++          const itemAOrigin = offsetA === 0 ? itemA.origin : createID(itemA.id.client, itemA.id.clock + offsetA - 1);
++          const itemARightOrigin = itemA.rightOrigin;
++          
++          const itemBOrigin = itemB.origin;
++          const itemBRightOrigin = itemB.rightOrigin;
++
++          const itemAWithParent = itemAOrigin === null && itemARightOrigin === null;
++          const itemBWithParent = itemBOrigin === null && itemBRightOrigin === null;
 +
 +          const isEqualExceptContent =
-+            compareIDs(itemA.origin, itemB.origin) &&
-+            compareIDs(itemA.rightOrigin, itemB.rightOrigin) &&
++            compareIDs(itemAOrigin, itemBOrigin) &&
++            compareIDs(itemARightOrigin, itemBRightOrigin) &&
 +            compareIDs(
 +              // Item is only considered to have a parent if `origin` and `rightOrigin` are
 +              // null. We take this behavior [from `Item.write()`][1]. An integrated item may
@@ -186,22 +208,24 @@ index abf5ea55c9c42e7a3548591b82b43ec2f0171236..3d69f845cd9cd7f0c40f11553a5252a6
 +              // convenience so we need to ignore `parent` in this case.
 +              //
 +              // [1]: https://github.com/yjs/yjs/blob/8586806932e65b2c9957f5e4ecd74547baf301ad/src/structs/Item.js#L669-L695
-+              itemA.origin !== null || itemA.rightOrigin !== null ? null : itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
-+              itemB.origin !== null || itemB.rightOrigin !== null ? null : itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
++              !itemAWithParent ? null : itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
++              !itemBWithParent ? null : itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
 +            ) &&
-+            itemA.parentSub === itemB.parentSub;
++            (itemAWithParent ? itemA.parentSub : null) === (itemBWithParent ? itemB.parentSub : null);
 +
 +          let isEqual;
 +          if (!isEqualExceptContent) {
 +            isEqual = false;
 +          } else {
-+            const itemAContent = itemA.content.copy();
++            let itemAContent = itemA.content.copy();
 +            const itemBContent = itemB.content.copy();
 +            const itemAContentLength = itemAContent.getLength();
 +            const itemBContentLength = itemBContent.getLength();
 +
-+            if (compareOffset < itemAContentLength) itemAContent.splice(compareOffset);
-+            if (compareOffset < itemBContentLength) itemBContent.splice(compareOffset);
++            if (offsetA > 0) itemAContent = itemAContent.splice(offsetA);
++
++            if (offsetB < itemAContentLength) itemAContent.splice(offsetB);
++            if (offsetB < itemBContentLength) itemBContent.splice(offsetB);
 +
 +            const encoderA = new UpdateEncoderV2();
 +            const encoderB = new UpdateEncoderV2();
@@ -220,7 +244,7 @@ index abf5ea55c9c42e7a3548591b82b43ec2f0171236..3d69f845cd9cd7f0c40f11553a5252a6
          const missing = stackHead.getMissing(transaction, store);
          if (missing !== null) {
            stack.push(stackHead);
-@@ -1595,6 +1651,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+@@ -1595,6 +1663,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
    return null
  };
  
@@ -261,7 +285,7 @@ index abf5ea55c9c42e7a3548591b82b43ec2f0171236..3d69f845cd9cd7f0c40f11553a5252a6
  /**
   * @param {UpdateEncoderV1 | UpdateEncoderV2} encoder
   * @param {Transaction} transaction
-@@ -3266,10 +3356,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
+@@ -3266,10 +3368,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
            tryToMergeWithLeft(structs, replacedStructPos);
          }
        }
@@ -280,7 +304,7 @@ index abf5ea55c9c42e7a3548591b82b43ec2f0171236..3d69f845cd9cd7f0c40f11553a5252a6
        // @todo Merge all the transactions into one and provide send the data as a single update message
        doc.emit('afterTransactionCleanup', [transaction, doc]);
        if (doc._observers.has('update')) {
-@@ -10094,5 +10188,12 @@ if (glo[importIdentifier] === true) {
+@@ -10094,5 +10200,12 @@ if (glo[importIdentifier] === true) {
  }
  glo[importIdentifier] = true;
  
@@ -338,7 +362,7 @@ index 3594059551f62ea765252b3b00a8889d8f2e9c2c..6cb2025c0a982a0b9da311fe73097552
        doc.emit('afterTransactionCleanup', [transaction, doc])
        if (doc._observers.has('update')) {
 diff --git a/src/utils/encoding.js b/src/utils/encoding.js
-index 83e1b91fa11440464487fb64aadc64afb5c25b60..72fd67d3e7799ed9cde8176276e94aae91566af4 100644
+index 83e1b91fa11440464487fb64aadc64afb5c25b60..525912848d3aacaa50cc7adc7f34c60defce443b 100644
 --- a/src/utils/encoding.js
 +++ b/src/utils/encoding.js
 @@ -37,7 +37,8 @@ import {
@@ -351,7 +375,7 @@ index 83e1b91fa11440464487fb64aadc64afb5c25b60..72fd67d3e7799ed9cde8176276e94aae
  } from '../internals.js'
  
  import * as encoding from 'lib0/encoding'
-@@ -310,6 +311,62 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+@@ -310,6 +311,74 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
          // hid a dead wall, add all items from stack to restSS
          addStackToRestSS()
        } else {
@@ -365,14 +389,24 @@ index 83e1b91fa11440464487fb64aadc64afb5c25b60..72fd67d3e7799ed9cde8176276e94aae
 +        // mutable mode. This validation is a defense against a corrupted doc created
 +        // from conflicting updates being commit to the database.
 +        if (offset > 0 && transaction.doc.clientID === stackHead.id.client) {
-+          const compareOffset = Math.min(offset, stackHead.content.getLength());
-+          
 +          const itemA = getItem(store, stackHead.id);
 +          const itemB = stackHead;
++          
++          const offsetA = itemB.id.clock - itemA.id.clock;
++          const offsetB = Math.min(offset, itemB.content.getLength());
++
++          const itemAOrigin = offsetA === 0 ? itemA.origin : createID(itemA.id.client, itemA.id.clock + offsetA - 1);
++          const itemARightOrigin = itemA.rightOrigin;
++          
++          const itemBOrigin = itemB.origin;
++          const itemBRightOrigin = itemB.rightOrigin;
++
++          const itemAWithParent = itemAOrigin === null && itemARightOrigin === null;
++          const itemBWithParent = itemBOrigin === null && itemBRightOrigin === null;
 +
 +          const isEqualExceptContent =
-+            compareIDs(itemA.origin, itemB.origin) &&
-+            compareIDs(itemA.rightOrigin, itemB.rightOrigin) &&
++            compareIDs(itemAOrigin, itemBOrigin) &&
++            compareIDs(itemARightOrigin, itemBRightOrigin) &&
 +            compareIDs(
 +              // Item is only considered to have a parent if `origin` and `rightOrigin` are
 +              // null. We take this behavior [from `Item.write()`][1]. An integrated item may
@@ -380,22 +414,24 @@ index 83e1b91fa11440464487fb64aadc64afb5c25b60..72fd67d3e7799ed9cde8176276e94aae
 +              // convenience so we need to ignore `parent` in this case.
 +              //
 +              // [1]: https://github.com/yjs/yjs/blob/8586806932e65b2c9957f5e4ecd74547baf301ad/src/structs/Item.js#L669-L695
-+              itemA.origin !== null || itemA.rightOrigin !== null ? null : itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
-+              itemB.origin !== null || itemB.rightOrigin !== null ? null : itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
++              !itemAWithParent ? null : itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
++              !itemBWithParent ? null : itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
 +            ) &&
-+            itemA.parentSub === itemB.parentSub;
++            (itemAWithParent ? itemA.parentSub : null) === (itemBWithParent ? itemB.parentSub : null);
 +
 +          let isEqual;
 +          if (!isEqualExceptContent) {
 +            isEqual = false;
 +          } else {
-+            const itemAContent = itemA.content.copy();
++            let itemAContent = itemA.content.copy();
 +            const itemBContent = itemB.content.copy();
 +            const itemAContentLength = itemAContent.getLength();
 +            const itemBContentLength = itemBContent.getLength();
 +
-+            if (compareOffset < itemAContentLength) itemAContent.splice(compareOffset);
-+            if (compareOffset < itemBContentLength) itemBContent.splice(compareOffset);
++            if (offsetA > 0) itemAContent = itemAContent.splice(offsetA);
++
++            if (offsetB < itemAContentLength) itemAContent.splice(offsetB);
++            if (offsetB < itemBContentLength) itemBContent.splice(offsetB);
 +
 +            const encoderA = new UpdateEncoderV2();
 +            const encoderB = new UpdateEncoderV2();
@@ -414,7 +450,7 @@ index 83e1b91fa11440464487fb64aadc64afb5c25b60..72fd67d3e7799ed9cde8176276e94aae
          const missing = stackHead.getMissing(transaction, store)
          if (missing !== null) {
            stack.push(stackHead)
-@@ -359,6 +416,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+@@ -359,6 +428,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
    return null
  }
  

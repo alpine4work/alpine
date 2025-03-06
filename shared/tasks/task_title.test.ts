@@ -1,8 +1,11 @@
 import * as Y from "yjs";
+import {decodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
+    TaskTitle,
     TaskTitleModel,
     TaskTitleProsemirrorSchema,
+    TaskTitleUpdate,
     TaskTitleUpdateModel,
     addFallbackToTaskTitle,
     createTaskTitleFromText,
@@ -945,6 +948,20 @@ test("can merge task title with itself", () => {
     expect(title2.apply(title2).getText()).toEqual("cba");
     expect(title2.apply(title3).getText()).toEqual("cxba");
     expect(title3.apply(title2).getText()).toEqual("cxba");
+});
+
+test("reproduce bugged merge error from task detail view expansion 1", () => {
+    const rawTitle = decodeBase64(
+        "AAAG5pX11Q4AAQAAAwcABA4LZG9jbmV3IHRhc2sDCAMBAAABBgABAgAA",
+    ) as TaskTitle;
+    const update = decodeBase64(
+        "AAAG5pX11Q4HAwADBQAFBwAEAIQPC2RvY25ldyB0YXNrA0EGAwEAAAEGAAEJAAA=",
+    ) as TaskTitleUpdate;
+
+    const title = new TaskTitleModel(rawTitle);
+
+    expect(title.getText()).toEqual("new task");
+    expect(title.apply(update, {clientIdForTest: 1969136998}).getText()).toEqual("new task");
 });
 
 // NOTE(calebmer, 2025-03-05): The following tests are written by AI with
