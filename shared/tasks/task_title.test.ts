@@ -1596,6 +1596,235 @@ test("applying task title update to task title produces optimized form", () => {
     });
 });
 
+test("reproduce bugged merge error when merging item with GCed content with item with deleted content that hasn't been GCed", () => {
+    const rawTitle = decodeBase64(
+        "AAAG5uy+8xkGAwAPAQMADwAPBwAEAEcABABHAAQARwAEHxtkb2N0YXNrIDJ0YXNrIDJ0YXNrIDJ0YXNrIDIDRgIDAQAAAkYCAAEIAAGmtt/5DAEAFA==",
+    ) as TaskTitle;
+    const update = decodeBase64(
+        "AAAG5uy+8xkDASoDAA8ADwEAAABBAAAAQQAAAEcABAwJZG9jdGFzayAyAwYDAQAAAQYGAQYBBgEGAQgAAaa23/kMAQAU",
+    ) as TaskTitleUpdate;
+
+    expect(Y.decodeUpdateV2(rawTitle)).toEqual({
+        structs: [
+            {
+                id: new Y.ID(3476544294, 0),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: "doc",
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentType(expect.any(Y.XmlText)),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3476544294, 1),
+                length: 6,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: new Y.ID(3476544294, 0),
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("task 2"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3476544294, 7),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: new Y.ID(3476544294, 0),
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentType(expect.any(Y.XmlText)),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3476544294, 8),
+                length: 6,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: new Y.ID(3476544294, 7),
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("task 2"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3476544294, 14),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: new Y.ID(3476544294, 7),
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentType(expect.any(Y.XmlText)),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3476544294, 15),
+                length: 6,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: new Y.ID(3476544294, 14),
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("task 2"),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3476544294, 21),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: new Y.ID(3476544294, 14),
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentType(expect.any(Y.XmlText)),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3476544294, 22),
+                length: 6,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: new Y.ID(3476544294, 21),
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("task 2"),
+                info: 2,
+            },
+        ],
+        ds: {clients: new Map([[3476544294, [{clock: 0, len: 21}]]])},
+    });
+
+    expect(Y.decodeUpdateV2(update)).toEqual({
+        structs: [
+            {
+                id: new Y.ID(3476544294, 0),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: "doc",
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentDeleted(1),
+                info: 0,
+            },
+            {
+                id: new Y.ID(3476544294, 1),
+                length: 6,
+            },
+            {
+                id: new Y.ID(3476544294, 7),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: new Y.ID(3476544294, 0),
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentDeleted(1),
+                info: 0,
+            },
+            {
+                id: new Y.ID(3476544294, 8),
+                length: 6,
+            },
+            {
+                id: new Y.ID(3476544294, 14),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: new Y.ID(3476544294, 7),
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentDeleted(1),
+                info: 0,
+            },
+            {
+                id: new Y.ID(3476544294, 15),
+                length: 6,
+            },
+            {
+                id: new Y.ID(3476544294, 21),
+                length: 1,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: new Y.ID(3476544294, 14),
+                parent: null,
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentType(expect.any(Y.XmlText)),
+                info: 2,
+            },
+            {
+                id: new Y.ID(3476544294, 22),
+                length: 6,
+                origin: null,
+                left: null,
+                right: null,
+                rightOrigin: null,
+                parent: new Y.ID(3476544294, 21),
+                parentSub: null,
+                redone: null,
+                content: new Y.ContentString("task 2"),
+                info: 2,
+            },
+        ],
+        ds: {clients: new Map([[3476544294, [{clock: 0, len: 21}]]])},
+    });
+
+    const title = new TaskTitleModel(new TaskTitleModel(rawTitle).getDocForTest());
+
+    // `title` will be garbage collected since `item.keep = true` was not set on
+    // any items while constructing the `TaskTitleModel`.
+    expect(Y.decodeUpdateV2(title.getRaw())).toEqual(Y.decodeUpdateV2(update));
+
+    expect(title.getText()).toEqual("task 2");
+    expect(title.apply(update, {clientIdForTest: 3476544294}).getText()).toEqual("task 2");
+
+    const titleFromEmpty = emptyTaskTitleModel
+        .get()
+        .replace(0, 0, "task 2", {clientIdForTest: 3476544294})
+        .newTitle.clear({clientIdForTest: 3476544294})
+        .newTitle.replace(0, 0, "task 2", {clientIdForTest: 3476544294})
+        .newTitle.clear({clientIdForTest: 3476544294})
+        .newTitle.replace(0, 0, "task 2", {clientIdForTest: 3476544294})
+        .newTitle.clear({clientIdForTest: 3476544294})
+        .newTitle.replace(0, 0, "task 2", {clientIdForTest: 3476544294}).newTitle;
+
+    // `title` should not be garbage collected since `item.keep = true` is set on
+    // all updates made with `replace()`.
+    expect(Y.decodeUpdateV2(titleFromEmpty.getRaw())).toEqual(Y.decodeUpdateV2(rawTitle));
+
+    expect(titleFromEmpty.getText()).toEqual("task 2");
+    expect(titleFromEmpty.apply(update, {clientIdForTest: 3476544294}).getText()).toEqual("task 2");
+    expect(title.apply(titleFromEmpty, {clientIdForTest: 3476544294}).getText()).toEqual("task 2");
+});
+
 // NOTE(calebmer, 2025-03-05): The following tests are written by AI with
 // modifications by me to make sure they pass. Hence all the comments. The
 // region comment allows you to collapse these tests in VS Code.

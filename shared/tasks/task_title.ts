@@ -819,6 +819,54 @@ export class TaskTitleModel {
     }
 
     /**
+     * Create a task title update that clears everything from the title. This is a
+     * little different from `replace(0, length, "")` since it also clears some XML
+     * structural metadata from the Yjs doc.
+     */
+    public clear(options?: {clientIdForTest?: number}) {
+        const doc = cloneDoc(this._getDoc(), options);
+        const fragment = doc.getXmlFragment("doc");
+
+        let update: TaskTitleUpdate | null = null;
+
+        doc.on("updateV2", newUpdate => {
+            if (update === null) {
+                update = newUpdate;
+            } else {
+                update = mergeTaskTitleUpdates(update, newUpdate);
+            }
+        });
+
+        const transaction = doc.transact(transaction => {
+            while (fragment.firstChild !== null) {
+                fragment.delete(0);
+            }
+
+            // make sure that deleted structs are not gc'd
+            Y.iterateDeletedStructs(transaction, transaction.deleteSet, struct => {
+                if (!(struct instanceof Y.Item)) return;
+
+                let item: Y.Item | null = struct;
+                while (item !== null && item.keep !== true) {
+                    item.keep = true;
+                    item = (item.parent as Y.AbstractType<any>)._item;
+                }
+            });
+
+            return transaction;
+        });
+
+        return new TaskTitleUpdateModel(
+            // @ts-expect-error: TypeScript thinks `update` is null even though we assign
+            // to it in the `"updateV2"` event handler.
+            assertExists(update, "Can't clear if already empty"),
+            getUndoStackItem(transaction),
+            this,
+            new TaskTitleModel(doc),
+        );
+    }
+
+    /**
      * Apply an update to the task title.
      *
      * Prefer passing in `TaskTitleUpdateModel` since we may be able to use an
