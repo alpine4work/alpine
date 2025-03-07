@@ -723,9 +723,7 @@ function TaskRowTitleInput(
             // perform a browser layout which is expensive.
             viewElement.ariaLabel = taskRowTitleInputAriaLabel;
             viewElement.className = capabilities.hasMultilineTitle
-                ? hasMultilineTitleAndShouldShowMarginRightContent
-                    ? `${taskRowTitleInputMultilineClassName} ${tasksStyles.rowTitleInputMultilineAfterClassName}`
-                    : taskRowTitleInputMultilineClassName
+                ? taskRowTitleInputMultilineClassName
                 : taskRowTitleInputSingleLineClassName;
             Object.assign(
                 viewElement.style,
@@ -916,102 +914,6 @@ function TaskRowTitleInput(
                 view.dom.classList.add(tasksStyles.rowTitleInputIsNotEditableClassName);
             }
 
-            const updateMultilineState = (isInitialUpdate: boolean) => {
-                assert(hasMultilineTitleAndShouldShowMarginRightContent);
-                const {state} = view;
-
-                const rootRect = rootElement.getBoundingClientRect();
-                let newMultilineState: TaskRowTitleInputMultilineState | null = null;
-
-                const spacingScale = getSpacingScaleWithoutListening();
-                const remPx = remPxBySpacingScale[spacingScale];
-
-                if (
-                    state.doc.nodeSize > 2 &&
-                    // Make sure the input has more than one line...
-                    rootRect.height > taskRowTitleInputSingleLineHeightRem * remPx
-                ) {
-                    const endCoords = view.coordsAtPos(state.doc.nodeSize - 2, 1);
-                    const remainingWidth = rootRect.left + rootRect.width - endCoords.left;
-
-                    // If there's less width than our "after width" that means our after class will
-                    // have broken out a new line. So our margin right content should render at the
-                    // start of that new line.
-                    if (remainingWidth < taskRowTitleInputMultilineAfterWidthRem * remPx) {
-                        newMultilineState = {
-                            remainingWidth: rootRect.width,
-                            withoutMarginLeft: true,
-                        };
-                    } else {
-                        newMultilineState = {
-                            remainingWidth,
-                            withoutMarginLeft: false,
-                        };
-                    }
-                }
-
-                // NOTE(calebmer): For performance, it's important we call
-                // `setMultilineState()` instead of directly updating styles. This way React
-                // batches DOM writes. So we batch DOM reads in `useLayoutEffect()` then batch
-                // DOM writes with state updates. Otherwise we risk [layout thrashing][1].
-                //
-                // NOTE(calebmer): Unexpectedly, I've found calling `setState(state)` on the
-                // first render if `state` is the same as the hook's initial state triggers a
-                // React re-render. I would have expected React to noop calls that don't change
-                // state. Maybe it behaves differently on the first render? Anyway, avoid
-                // calling `setState(state)` on initial update if we can.
-                //
-                // [1]: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
-                if (!isInitialUpdate || newMultilineState !== null) {
-                    setMultilineState(multilineState => {
-                        if (newMultilineState === null) return newMultilineState;
-                        if (multilineState === null) return newMultilineState;
-
-                        if (
-                            multilineState.remainingWidth === newMultilineState.remainingWidth &&
-                            multilineState.withoutMarginLeft === newMultilineState.withoutMarginLeft
-                        ) {
-                            return multilineState;
-                        }
-
-                        return newMultilineState;
-                    });
-                }
-            };
-
-            let handleWindowResize: (() => void) | undefined;
-
-            if (hasMultilineTitleAndShouldShowMarginRightContent) {
-                // This reads from the DOM (`getBoundingClientRect`). We can't run this during
-                // React's insertion phase. It has to run in a layout effect.
-                onNextLayoutEffectCallbacksRef.current.push(() => {
-                    if (view.isDestroyed) return;
-                    updateMultilineState(true);
-                });
-
-                // Modify `view.updateState()` to update multiline state whenever our editor
-                // state changes.
-                {
-                    // eslint-disable-next-line @typescript-eslint/unbound-method
-                    const originalUpdateState = view.updateState;
-
-                    view.updateState = function (state: EditorState) {
-                        originalUpdateState.call(this, state);
-
-                        // Make sure React state updates render in the same paint as transaction.
-                        updateMultilineState(false);
-                    };
-                }
-
-                // When the window resizes, re-evaluate state that depends on task
-                // container size.
-                handleWindowResize = () => {
-                    updateMultilineState(false);
-                };
-
-                window.addEventListener("resize", handleWindowResize);
-            }
-
             // NOTE(calebmer): The logic here is taken almost exactly from
             // `<ContentEditor>` since that component supports dual modality on mobile
             // too. If you make a change here you probably also want to make a change
@@ -1145,7 +1047,6 @@ function TaskRowTitleInput(
             }
 
             return () => {
-                if (handleWindowResize) window.removeEventListener("resize", handleWindowResize);
                 document.removeEventListener("selectionchange", handleDocumentSelectionChange);
 
                 viewRef.current = {isReady: false, callbacks: new Set()};
@@ -1179,12 +1080,127 @@ function TaskRowTitleInput(
             // careful about what you put in here. Ideally we never destroy the
             // `EditorView` while this component is mounted.
         },
-        [
-            capabilities.hasMultilineTitle,
-            isInitialAppRender,
-            hasMultilineTitleAndShouldShowMarginRightContent,
-            spacingScale,
-        ],
+        [capabilities.hasMultilineTitle, isInitialAppRender, spacingScale],
+    );
+
+    // NOTE(calebmer): This used to be in the above `useInsertionEffect()` but we
+    // saw bugs since we were destroying the `EditorView` whenever
+    // `hasMultilineTitleAndShouldShowMarginRightContent` changes. See the
+    // integration test added by this commit for an example bug that moving this
+    // logic to its own effect fixes.
+    useInsertionEffect(
+        (rootElement?: HTMLDivElement) => {
+            if (isInitialAppRender) return;
+            if (!hasMultilineTitleAndShouldShowMarginRightContent) return;
+
+            let isDestroyed = false;
+
+            assert(rootElement);
+
+            assert(viewRef.current.isReady);
+            const {view} = viewRef.current;
+
+            view.dom.classList.add(tasksStyles.rowTitleInputMultilineAfterClassName);
+
+            const updateMultilineState = (isInitialUpdate: boolean) => {
+                assert(!isDestroyed);
+
+                const {state} = view;
+
+                const rootRect = rootElement.getBoundingClientRect();
+                let newMultilineState: TaskRowTitleInputMultilineState | null = null;
+
+                const spacingScale = getSpacingScaleWithoutListening();
+                const remPx = remPxBySpacingScale[spacingScale];
+
+                if (
+                    state.doc.nodeSize > 2 &&
+                    // Make sure the input has more than one line...
+                    rootRect.height > taskRowTitleInputSingleLineHeightRem * remPx
+                ) {
+                    const endCoords = view.coordsAtPos(state.doc.nodeSize - 2, 1);
+                    const remainingWidth = rootRect.left + rootRect.width - endCoords.left;
+
+                    // If there's less width than our "after width" that means our after class will
+                    // have broken out a new line. So our margin right content should render at the
+                    // start of that new line.
+                    if (remainingWidth < taskRowTitleInputMultilineAfterWidthRem * remPx) {
+                        newMultilineState = {
+                            remainingWidth: rootRect.width,
+                            withoutMarginLeft: true,
+                        };
+                    } else {
+                        newMultilineState = {
+                            remainingWidth,
+                            withoutMarginLeft: false,
+                        };
+                    }
+                }
+
+                // NOTE(calebmer): For performance, it's important we call
+                // `setMultilineState()` instead of directly updating styles. This way React
+                // batches DOM writes. So we batch DOM reads in `useLayoutEffect()` then batch
+                // DOM writes with state updates. Otherwise we risk [layout thrashing][1].
+                //
+                // NOTE(calebmer): Unexpectedly, I've found calling `setState(state)` on the
+                // first render if `state` is the same as the hook's initial state triggers a
+                // React re-render. I would have expected React to noop calls that don't change
+                // state. Maybe it behaves differently on the first render? Anyway, avoid
+                // calling `setState(state)` on initial update if we can.
+                //
+                // [1]: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
+                if (!isInitialUpdate || newMultilineState !== null) {
+                    setMultilineState(multilineState => {
+                        if (newMultilineState === null) return newMultilineState;
+                        if (multilineState === null) return newMultilineState;
+
+                        if (
+                            multilineState.remainingWidth === newMultilineState.remainingWidth &&
+                            multilineState.withoutMarginLeft === newMultilineState.withoutMarginLeft
+                        ) {
+                            return multilineState;
+                        }
+
+                        return newMultilineState;
+                    });
+                }
+            };
+
+            // This reads from the DOM (`getBoundingClientRect`). We can't run this during
+            // React's insertion phase. It has to run in a layout effect.
+            onNextLayoutEffectCallbacksRef.current.push(() => {
+                if (view.isDestroyed) return;
+                updateMultilineState(true);
+            });
+
+            // eslint-disable-next-line @typescript-eslint/unbound-method
+            const originalUpdateState = view.updateState;
+
+            // Modify `view.updateState()` to update multiline state whenever our editor
+            // state changes.
+            view.updateState = function (state: EditorState) {
+                originalUpdateState.call(this, state);
+
+                // Make sure React state updates render in the same paint as transaction.
+                updateMultilineState(false);
+            };
+
+            // When the window resizes, re-evaluate state that depends on task
+            // container size.
+            const handleWindowResize = () => {
+                updateMultilineState(false);
+            };
+
+            window.addEventListener("resize", handleWindowResize);
+
+            return () => {
+                isDestroyed = true;
+                view.dom.classList.remove(tasksStyles.rowTitleInputMultilineAfterClassName);
+                view.updateState = originalUpdateState;
+                window.removeEventListener("resize", handleWindowResize);
+            };
+        },
+        [hasMultilineTitleAndShouldShowMarginRightContent, isInitialAppRender],
     );
 
     // Reconcile our imperative `EditorView` state with state from React. If this

@@ -1,5 +1,6 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {expectTaskGridView} from "~/app/integration_tests/tasks/helpers/expect_task_grid_view.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
@@ -900,4 +901,43 @@ test("can update collections", async ({page, context: browserContext}) => {
     await page.keyboard.press(`${modifier}+z`);
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("test1Add");
+});
+
+test("pressing backspace to delete a child task moves focus back to the parent task", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const parentTask = await TestTask.create(session);
+
+    const childTask = await TestTask.create(session, {title: "Task 1"});
+    await childTask.updateParentTask(session, parentTask);
+
+    await ProcessContextModule.waitForTestTasks();
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/tasks/${parentTask.id}`);
+
+    await expectTaskGridView(page, [[true, "Task 1"]], {withoutColumns: true});
+
+    await page
+        .getByTestId(`TaskRowView:${childTask.id}`)
+        .getByRole("textbox", {name: "Title"})
+        .click();
+
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Tab");
+
+    await expectTaskGridView(page, [[[true, "Task 1"], [[true, ""]]]], {withoutColumns: true});
+
+    await page.keyboard.press("Backspace");
+
+    await expectTaskGridView(page, [[true, "Task 1"]], {withoutColumns: true});
+
+    await page.keyboard.press("Backspace");
+    await page.keyboard.press("2");
+
+    await expectTaskGridView(page, [[true, "Task 2"]], {withoutColumns: true});
 });
