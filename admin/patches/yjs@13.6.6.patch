@@ -15,10 +15,10 @@ index f0a78eef82e14dcc196b1d58e415cebeb552081e..367149a0ab30979eae3701242090f146
  //# sourceMappingURL=index.d.ts.map
 \ No newline at end of file
 diff --git a/dist/yjs.cjs b/dist/yjs.cjs
-index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..6c48e941da9044345d1387265db5e599e6894bd5 100644
+index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..a228d42e5e1e5ccbb08f49aeca134c7e78e9d387 100644
 --- a/dist/yjs.cjs
 +++ b/dist/yjs.cjs
-@@ -1582,6 +1582,74 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+@@ -1582,6 +1582,87 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
          // hid a dead wall, add all items from stack to restSS
          addStackToRestSS();
        } else {
@@ -34,55 +34,68 @@ index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..6c48e941da9044345d1387265db5e599
 +        if (offset > 0 && transaction.doc.clientID === stackHead.id.client) {
 +          const itemA = getItem(store, stackHead.id);
 +          const itemB = stackHead;
-+          
-+          const offsetA = itemB.id.clock - itemA.id.clock;
-+          const offsetB = Math.min(offset, itemB.content.getLength());
 +
-+          const itemAOrigin = offsetA === 0 ? itemA.origin : createID(itemA.id.client, itemA.id.clock + offsetA - 1);
-+          const itemARightOrigin = itemA.rightOrigin;
-+          
-+          const itemBOrigin = itemB.origin;
-+          const itemBRightOrigin = itemB.rightOrigin;
-+
-+          const itemAWithParent = itemAOrigin === null && itemARightOrigin === null;
-+          const itemBWithParent = itemBOrigin === null && itemBRightOrigin === null;
-+
-+          const isEqualExceptContent =
-+            compareIDs(itemAOrigin, itemBOrigin) &&
-+            compareIDs(itemARightOrigin, itemBRightOrigin) &&
-+            compareIDs(
-+              // Item is only considered to have a parent if `origin` and `rightOrigin` are
-+              // null. We take this behavior [from `Item.write()`][1]. An integrated item may
-+              // have `parent` set even if `origin` or `rightOrigin` are non-null for
-+              // convenience so we need to ignore `parent` in this case.
-+              //
-+              // [1]: https://github.com/yjs/yjs/blob/8586806932e65b2c9957f5e4ecd74547baf301ad/src/structs/Item.js#L669-L695
-+              !itemAWithParent ? null : itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
-+              !itemBWithParent ? null : itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
-+            ) &&
-+            (itemAWithParent ? itemA.parentSub : null) === (itemBWithParent ? itemB.parentSub : null);
-+
++          // Whether or not the item is deleted is the only place an item can differ. Delete is
++          // the only way to update a Yjs CRDT item.
 +          let isEqual;
-+          if (!isEqualExceptContent) {
-+            isEqual = false;
++          if (
++            itemA.deleted ||
++            itemA instanceof GC ||
++            itemA.content instanceof ContentDeleted ||
++            itemB.deleted ||
++            itemB instanceof GC ||
++            itemB.content instanceof ContentDeleted
++          ) {
++            isEqual = true;
 +          } else {
-+            let itemAContent = itemA.content.copy();
-+            const itemBContent = itemB.content.copy();
-+            const itemAContentLength = itemAContent.getLength();
-+            const itemBContentLength = itemBContent.getLength();
++            const offsetA = itemB.id.clock - itemA.id.clock;
++            const offsetB = Math.min(offset, itemB.length);
++  
++            const itemAOrigin = offsetA === 0 ? itemA.origin : createID(itemA.id.client, itemA.id.clock + offsetA - 1);
++            const itemARightOrigin = itemA.rightOrigin;
++  
++            const itemBOrigin = itemB.origin;
++            const itemBRightOrigin = itemB.rightOrigin;
++  
++            const itemAWithParent = itemAOrigin === null && itemARightOrigin === null;
++            const itemBWithParent = itemBOrigin === null && itemBRightOrigin === null;
++  
++            const isEqualExceptContent =
++              compareIDs(itemAOrigin, itemBOrigin) &&
++              compareIDs(itemARightOrigin, itemBRightOrigin) &&
++              compareIDs(
++                // Item is only considered to have a parent if `origin` and `rightOrigin` are
++                // null. We take this behavior [from `Item.write()`][1]. An integrated item may
++                // have `parent` set even if `origin` or `rightOrigin` are non-null for
++                // convenience so we need to ignore `parent` in this case.
++                //
++                // [1]: https://github.com/yjs/yjs/blob/8586806932e65b2c9957f5e4ecd74547baf301ad/src/structs/Item.js#L669-L695
++                !itemAWithParent ? null : itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
++                !itemBWithParent ? null : itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
++              ) &&
++              (itemAWithParent ? itemA.parentSub : null) === (itemBWithParent ? itemB.parentSub : null);
++  
++            if (!isEqualExceptContent) {
++              isEqual = false;
++            } else {
++              let itemAContent = itemA.content.copy();
++              const itemBContent = itemB.content.copy();
++              const itemAContentLength = itemAContent.getLength();
++              const itemBContentLength = itemBContent.getLength();
 +
-+            if (offsetA > 0) itemAContent = itemAContent.splice(offsetA);
++              if (offsetA > 0) itemAContent = itemAContent.splice(offsetA);
 +
-+            if (offsetB < itemAContentLength) itemAContent.splice(offsetB);
-+            if (offsetB < itemBContentLength) itemBContent.splice(offsetB);
++              if (offsetB < itemAContentLength) itemAContent.splice(offsetB);
++              if (offsetB < itemBContentLength) itemBContent.splice(offsetB);
 +
-+            const encoderA = new UpdateEncoderV2();
-+            const encoderB = new UpdateEncoderV2();
++              const encoderA = new UpdateEncoderV2();
++              const encoderB = new UpdateEncoderV2();
 +
-+            itemAContent.write(encoderA, 0);
-+            itemBContent.write(encoderB, 0);
++              itemAContent.write(encoderA, 0);
++              itemBContent.write(encoderB, 0);
 +
-+            isEqual = areUint8ArraysEqual(encoderA.toUint8Array(), encoderB.toUint8Array());
++              isEqual = areUint8ArraysEqual(encoderA.toUint8Array(), encoderB.toUint8Array());
++            }
 +          }
 +
 +          if (!isEqual) {
@@ -93,7 +106,7 @@ index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..6c48e941da9044345d1387265db5e599
          const missing = stackHead.getMissing(transaction, store);
          if (missing !== null) {
            stack.push(stackHead);
-@@ -1631,6 +1699,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+@@ -1631,6 +1712,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
    return null
  };
  
@@ -134,7 +147,7 @@ index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..6c48e941da9044345d1387265db5e599
  /**
   * @param {UpdateEncoderV1 | UpdateEncoderV2} encoder
   * @param {Transaction} transaction
-@@ -3302,10 +3404,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
+@@ -3302,10 +3417,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
            tryToMergeWithLeft(structs, replacedStructPos);
          }
        }
@@ -153,7 +166,7 @@ index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..6c48e941da9044345d1387265db5e599
        // @todo Merge all the transactions into one and provide send the data as a single update message
        doc.emit('afterTransactionCleanup', [transaction, doc]);
        if (doc._observers.has('update')) {
-@@ -10224,4 +10330,10 @@ exports.transact = transact;
+@@ -10224,4 +10343,10 @@ exports.transact = transact;
  exports.tryGc = tryGc;
  exports.typeListToArraySnapshot = typeListToArraySnapshot;
  exports.typeMapGetSnapshot = typeMapGetSnapshot;
@@ -166,10 +179,10 @@ index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..6c48e941da9044345d1387265db5e599
 +exports.mergeDeleteSets = mergeDeleteSets;
 +// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/dist/yjs.mjs b/dist/yjs.mjs
-index abf5ea55c9c42e7a3548591b82b43ec2f0171236..7bd719052369bc860ee982c3d0fdbfbae105467f 100644
+index abf5ea55c9c42e7a3548591b82b43ec2f0171236..795ad6b27c701d0721b512e8592d5746a77e8210 100644
 --- a/dist/yjs.mjs
 +++ b/dist/yjs.mjs
-@@ -1546,6 +1546,74 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+@@ -1546,6 +1546,87 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
          // hid a dead wall, add all items from stack to restSS
          addStackToRestSS();
        } else {
@@ -185,55 +198,68 @@ index abf5ea55c9c42e7a3548591b82b43ec2f0171236..7bd719052369bc860ee982c3d0fdbfba
 +        if (offset > 0 && transaction.doc.clientID === stackHead.id.client) {
 +          const itemA = getItem(store, stackHead.id);
 +          const itemB = stackHead;
-+          
-+          const offsetA = itemB.id.clock - itemA.id.clock;
-+          const offsetB = Math.min(offset, itemB.content.getLength());
 +
-+          const itemAOrigin = offsetA === 0 ? itemA.origin : createID(itemA.id.client, itemA.id.clock + offsetA - 1);
-+          const itemARightOrigin = itemA.rightOrigin;
-+          
-+          const itemBOrigin = itemB.origin;
-+          const itemBRightOrigin = itemB.rightOrigin;
-+
-+          const itemAWithParent = itemAOrigin === null && itemARightOrigin === null;
-+          const itemBWithParent = itemBOrigin === null && itemBRightOrigin === null;
-+
-+          const isEqualExceptContent =
-+            compareIDs(itemAOrigin, itemBOrigin) &&
-+            compareIDs(itemARightOrigin, itemBRightOrigin) &&
-+            compareIDs(
-+              // Item is only considered to have a parent if `origin` and `rightOrigin` are
-+              // null. We take this behavior [from `Item.write()`][1]. An integrated item may
-+              // have `parent` set even if `origin` or `rightOrigin` are non-null for
-+              // convenience so we need to ignore `parent` in this case.
-+              //
-+              // [1]: https://github.com/yjs/yjs/blob/8586806932e65b2c9957f5e4ecd74547baf301ad/src/structs/Item.js#L669-L695
-+              !itemAWithParent ? null : itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
-+              !itemBWithParent ? null : itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
-+            ) &&
-+            (itemAWithParent ? itemA.parentSub : null) === (itemBWithParent ? itemB.parentSub : null);
-+
++          // Whether or not the item is deleted is the only place an item can differ. Delete is
++          // the only way to update a Yjs CRDT item.
 +          let isEqual;
-+          if (!isEqualExceptContent) {
-+            isEqual = false;
++          if (
++            itemA.deleted ||
++            itemA instanceof GC ||
++            itemA.content instanceof ContentDeleted ||
++            itemB.deleted ||
++            itemB instanceof GC ||
++            itemB.content instanceof ContentDeleted
++          ) {
++            isEqual = true;
 +          } else {
-+            let itemAContent = itemA.content.copy();
-+            const itemBContent = itemB.content.copy();
-+            const itemAContentLength = itemAContent.getLength();
-+            const itemBContentLength = itemBContent.getLength();
++            const offsetA = itemB.id.clock - itemA.id.clock;
++            const offsetB = Math.min(offset, itemB.length);
++  
++            const itemAOrigin = offsetA === 0 ? itemA.origin : createID(itemA.id.client, itemA.id.clock + offsetA - 1);
++            const itemARightOrigin = itemA.rightOrigin;
++  
++            const itemBOrigin = itemB.origin;
++            const itemBRightOrigin = itemB.rightOrigin;
++  
++            const itemAWithParent = itemAOrigin === null && itemARightOrigin === null;
++            const itemBWithParent = itemBOrigin === null && itemBRightOrigin === null;
++  
++            const isEqualExceptContent =
++              compareIDs(itemAOrigin, itemBOrigin) &&
++              compareIDs(itemARightOrigin, itemBRightOrigin) &&
++              compareIDs(
++                // Item is only considered to have a parent if `origin` and `rightOrigin` are
++                // null. We take this behavior [from `Item.write()`][1]. An integrated item may
++                // have `parent` set even if `origin` or `rightOrigin` are non-null for
++                // convenience so we need to ignore `parent` in this case.
++                //
++                // [1]: https://github.com/yjs/yjs/blob/8586806932e65b2c9957f5e4ecd74547baf301ad/src/structs/Item.js#L669-L695
++                !itemAWithParent ? null : itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
++                !itemBWithParent ? null : itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
++              ) &&
++              (itemAWithParent ? itemA.parentSub : null) === (itemBWithParent ? itemB.parentSub : null);
++  
++            if (!isEqualExceptContent) {
++              isEqual = false;
++            } else {
++              let itemAContent = itemA.content.copy();
++              const itemBContent = itemB.content.copy();
++              const itemAContentLength = itemAContent.getLength();
++              const itemBContentLength = itemBContent.getLength();
 +
-+            if (offsetA > 0) itemAContent = itemAContent.splice(offsetA);
++              if (offsetA > 0) itemAContent = itemAContent.splice(offsetA);
 +
-+            if (offsetB < itemAContentLength) itemAContent.splice(offsetB);
-+            if (offsetB < itemBContentLength) itemBContent.splice(offsetB);
++              if (offsetB < itemAContentLength) itemAContent.splice(offsetB);
++              if (offsetB < itemBContentLength) itemBContent.splice(offsetB);
 +
-+            const encoderA = new UpdateEncoderV2();
-+            const encoderB = new UpdateEncoderV2();
++              const encoderA = new UpdateEncoderV2();
++              const encoderB = new UpdateEncoderV2();
 +
-+            itemAContent.write(encoderA, 0);
-+            itemBContent.write(encoderB, 0);
++              itemAContent.write(encoderA, 0);
++              itemBContent.write(encoderB, 0);
 +
-+            isEqual = areUint8ArraysEqual(encoderA.toUint8Array(), encoderB.toUint8Array());
++              isEqual = areUint8ArraysEqual(encoderA.toUint8Array(), encoderB.toUint8Array());
++            }
 +          }
 +
 +          if (!isEqual) {
@@ -244,7 +270,7 @@ index abf5ea55c9c42e7a3548591b82b43ec2f0171236..7bd719052369bc860ee982c3d0fdbfba
          const missing = stackHead.getMissing(transaction, store);
          if (missing !== null) {
            stack.push(stackHead);
-@@ -1595,6 +1663,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+@@ -1595,6 +1676,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
    return null
  };
  
@@ -285,7 +311,7 @@ index abf5ea55c9c42e7a3548591b82b43ec2f0171236..7bd719052369bc860ee982c3d0fdbfba
  /**
   * @param {UpdateEncoderV1 | UpdateEncoderV2} encoder
   * @param {Transaction} transaction
-@@ -3266,10 +3368,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
+@@ -3266,10 +3381,14 @@ const cleanupTransactions = (transactionCleanups, i) => {
            tryToMergeWithLeft(structs, replacedStructPos);
          }
        }
@@ -304,7 +330,7 @@ index abf5ea55c9c42e7a3548591b82b43ec2f0171236..7bd719052369bc860ee982c3d0fdbfba
        // @todo Merge all the transactions into one and provide send the data as a single update message
        doc.emit('afterTransactionCleanup', [transaction, doc]);
        if (doc._observers.has('update')) {
-@@ -10094,5 +10200,12 @@ if (glo[importIdentifier] === true) {
+@@ -10094,5 +10213,12 @@ if (glo[importIdentifier] === true) {
  }
  glo[importIdentifier] = true;
  
@@ -362,20 +388,21 @@ index 3594059551f62ea765252b3b00a8889d8f2e9c2c..6cb2025c0a982a0b9da311fe73097552
        doc.emit('afterTransactionCleanup', [transaction, doc])
        if (doc._observers.has('update')) {
 diff --git a/src/utils/encoding.js b/src/utils/encoding.js
-index 83e1b91fa11440464487fb64aadc64afb5c25b60..525912848d3aacaa50cc7adc7f34c60defce443b 100644
+index 83e1b91fa11440464487fb64aadc64afb5c25b60..26ed8e95a135c54872db625fa2c7cdbefcf3fc2c 100644
 --- a/src/utils/encoding.js
 +++ b/src/utils/encoding.js
-@@ -37,7 +37,8 @@ import {
+@@ -37,7 +37,9 @@ import {
    Skip,
    diffUpdateV2,
    convertUpdateFormatV2ToV1,
 -  DSDecoderV2, Doc, Transaction, GC, Item, StructStore // eslint-disable-line
 +  DSDecoderV2, Doc, Transaction, GC, Item, StructStore, // eslint-disable-line
-+  getItem
++  getItem,
++  ContentDeleted
  } from '../internals.js'
  
  import * as encoding from 'lib0/encoding'
-@@ -310,6 +311,74 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+@@ -310,6 +312,87 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
          // hid a dead wall, add all items from stack to restSS
          addStackToRestSS()
        } else {
@@ -391,55 +418,68 @@ index 83e1b91fa11440464487fb64aadc64afb5c25b60..525912848d3aacaa50cc7adc7f34c60d
 +        if (offset > 0 && transaction.doc.clientID === stackHead.id.client) {
 +          const itemA = getItem(store, stackHead.id);
 +          const itemB = stackHead;
-+          
-+          const offsetA = itemB.id.clock - itemA.id.clock;
-+          const offsetB = Math.min(offset, itemB.content.getLength());
 +
-+          const itemAOrigin = offsetA === 0 ? itemA.origin : createID(itemA.id.client, itemA.id.clock + offsetA - 1);
-+          const itemARightOrigin = itemA.rightOrigin;
-+          
-+          const itemBOrigin = itemB.origin;
-+          const itemBRightOrigin = itemB.rightOrigin;
-+
-+          const itemAWithParent = itemAOrigin === null && itemARightOrigin === null;
-+          const itemBWithParent = itemBOrigin === null && itemBRightOrigin === null;
-+
-+          const isEqualExceptContent =
-+            compareIDs(itemAOrigin, itemBOrigin) &&
-+            compareIDs(itemARightOrigin, itemBRightOrigin) &&
-+            compareIDs(
-+              // Item is only considered to have a parent if `origin` and `rightOrigin` are
-+              // null. We take this behavior [from `Item.write()`][1]. An integrated item may
-+              // have `parent` set even if `origin` or `rightOrigin` are non-null for
-+              // convenience so we need to ignore `parent` in this case.
-+              //
-+              // [1]: https://github.com/yjs/yjs/blob/8586806932e65b2c9957f5e4ecd74547baf301ad/src/structs/Item.js#L669-L695
-+              !itemAWithParent ? null : itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
-+              !itemBWithParent ? null : itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
-+            ) &&
-+            (itemAWithParent ? itemA.parentSub : null) === (itemBWithParent ? itemB.parentSub : null);
-+
++          // Whether or not the item is deleted is the only place an item can differ. Delete is
++          // the only way to update a Yjs CRDT item.
 +          let isEqual;
-+          if (!isEqualExceptContent) {
-+            isEqual = false;
++          if (
++            itemA.deleted ||
++            itemA instanceof GC ||
++            itemA.content instanceof ContentDeleted ||
++            itemB.deleted ||
++            itemB instanceof GC ||
++            itemB.content instanceof ContentDeleted
++          ) {
++            isEqual = true;
 +          } else {
-+            let itemAContent = itemA.content.copy();
-+            const itemBContent = itemB.content.copy();
-+            const itemAContentLength = itemAContent.getLength();
-+            const itemBContentLength = itemBContent.getLength();
++            const offsetA = itemB.id.clock - itemA.id.clock;
++            const offsetB = Math.min(offset, itemB.length);
++  
++            const itemAOrigin = offsetA === 0 ? itemA.origin : createID(itemA.id.client, itemA.id.clock + offsetA - 1);
++            const itemARightOrigin = itemA.rightOrigin;
++  
++            const itemBOrigin = itemB.origin;
++            const itemBRightOrigin = itemB.rightOrigin;
++  
++            const itemAWithParent = itemAOrigin === null && itemARightOrigin === null;
++            const itemBWithParent = itemBOrigin === null && itemBRightOrigin === null;
++  
++            const isEqualExceptContent =
++              compareIDs(itemAOrigin, itemBOrigin) &&
++              compareIDs(itemARightOrigin, itemBRightOrigin) &&
++              compareIDs(
++                // Item is only considered to have a parent if `origin` and `rightOrigin` are
++                // null. We take this behavior [from `Item.write()`][1]. An integrated item may
++                // have `parent` set even if `origin` or `rightOrigin` are non-null for
++                // convenience so we need to ignore `parent` in this case.
++                //
++                // [1]: https://github.com/yjs/yjs/blob/8586806932e65b2c9957f5e4ecd74547baf301ad/src/structs/Item.js#L669-L695
++                !itemAWithParent ? null : itemA.parent instanceof AbstractType ? itemA.parent._item?.id ?? null : itemA.parent,
++                !itemBWithParent ? null : itemB.parent instanceof AbstractType ? itemB.parent._item?.id ?? null : itemB.parent
++              ) &&
++              (itemAWithParent ? itemA.parentSub : null) === (itemBWithParent ? itemB.parentSub : null);
++  
++            if (!isEqualExceptContent) {
++              isEqual = false;
++            } else {
++              let itemAContent = itemA.content.copy();
++              const itemBContent = itemB.content.copy();
++              const itemAContentLength = itemAContent.getLength();
++              const itemBContentLength = itemBContent.getLength();
 +
-+            if (offsetA > 0) itemAContent = itemAContent.splice(offsetA);
++              if (offsetA > 0) itemAContent = itemAContent.splice(offsetA);
 +
-+            if (offsetB < itemAContentLength) itemAContent.splice(offsetB);
-+            if (offsetB < itemBContentLength) itemBContent.splice(offsetB);
++              if (offsetB < itemAContentLength) itemAContent.splice(offsetB);
++              if (offsetB < itemBContentLength) itemBContent.splice(offsetB);
 +
-+            const encoderA = new UpdateEncoderV2();
-+            const encoderB = new UpdateEncoderV2();
++              const encoderA = new UpdateEncoderV2();
++              const encoderB = new UpdateEncoderV2();
 +
-+            itemAContent.write(encoderA, 0);
-+            itemBContent.write(encoderB, 0);
++              itemAContent.write(encoderA, 0);
++              itemBContent.write(encoderB, 0);
 +
-+            isEqual = areUint8ArraysEqual(encoderA.toUint8Array(), encoderB.toUint8Array());
++              isEqual = areUint8ArraysEqual(encoderA.toUint8Array(), encoderB.toUint8Array());
++            }
 +          }
 +
 +          if (!isEqual) {
@@ -450,7 +490,7 @@ index 83e1b91fa11440464487fb64aadc64afb5c25b60..525912848d3aacaa50cc7adc7f34c60d
          const missing = stackHead.getMissing(transaction, store)
          if (missing !== null) {
            stack.push(stackHead)
-@@ -359,6 +428,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
+@@ -359,6 +442,40 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
    return null
  }
  
