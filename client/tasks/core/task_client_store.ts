@@ -1742,7 +1742,10 @@ export class TaskClientStoreInternal {
                 });
             }
         } catch (error) {
-            mutexUnlockPromiseResolver.reject(error);
+            // Don't reject. We don't want unlocking the mutex to log some unhandled promise
+            // rejection warnings. We handle errors on `commitPromise` below.
+            mutexUnlockPromiseResolver.resolve();
+
             throw error;
         }
 
@@ -1766,7 +1769,10 @@ export class TaskClientStoreInternal {
                     return output;
                 },
                 error => {
-                    mutexUnlockPromiseResolver.reject(error);
+                    // Don't reject. We don't want unlocking the mutex to log some unhandled promise
+                    // rejection warnings. We handle errors on `commitPromise` below.
+                    mutexUnlockPromiseResolver.resolve();
+
                     throw error;
                 },
             );

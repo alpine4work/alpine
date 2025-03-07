@@ -109,3 +109,10 @@ if (!Document.prototype.elementFromPoint) {
 } else {
     throw new Error("Yay! jsdom supports this now, we can remove our polyfill");
 }
+
+// Polyfill: https://developer.mozilla.org/en-US/docs/Web/API/Element/getAnimations
+if (!Element.prototype.getAnimations) {
+    Element.prototype.getAnimations = () => [];
+} else {
+    throw new Error("Yay! jsdom supports this now, we can remove our polyfill");
+}
