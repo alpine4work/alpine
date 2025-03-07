@@ -41,8 +41,8 @@ const LoaderSchema = Schema.object({
 
 export const meta = createMetaFunction(LoaderSchema, () => [{title: "Notepad"}]);
 
-export async function loader({request, params, context: _context}: LoaderArgs) {
-    const context = (await _context.actor.authenticate()).actor.authorizeSession();
+export async function loader({request, params, context: unauthenticatedContext}: LoaderArgs) {
+    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
     const url = new URL(request.url);
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);

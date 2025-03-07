@@ -147,27 +147,7 @@ export function isTaskQueryManuallySorted(sorts: ReadonlyArray<TaskQueryNormaliz
 const virtualizedScrollViewStateKeyByActiveQuery = new WeakMap<TaskClientQuery, Id>();
 const zIndexesByTaskRowItemElement = new WeakMap<HTMLElement, Array<number>>();
 
-/**
- * Encapsulates the ability to render a virtualized list of tasks. You are
- * responsible for using ALL of the returned props in a
- * `<VirtualizedScrollView>` component. If you don't use one of the props in
- * the documented way your grid view may be broken.
- */
-export function useTaskGridViewVirtualizedList({
-    capabilities,
-    store,
-    query: rootQueryWithInitialState,
-    affinityManager,
-    viewRef,
-    getMoveTaskToQueryActions: getMoveTaskToRootQueryActions,
-    getMaybeRemoveTaskFromQueryActions: getMaybeRemoveTaskFromRootQueryActions,
-    columnHeaderControls,
-    rowMaxWidth = null,
-    withoutDecorativeGhostRowsIfEmpty = false,
-    initiallyWithTopGhostTaskRow = false,
-    onApplyUndoStackEntry,
-    getAnchorPosition: getAnchorPositionFromProps,
-}: {
+export type TaskGridViewVirtualizedListProps = {
     capabilities: Memo<TaskGridViewCapabilities>;
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef>;
     store: TaskClientStore;
@@ -185,6 +165,12 @@ export function useTaskGridViewVirtualizedList({
             | {type: "Below"; taskId: TaskId},
     ) => Array<TaskActionModel>;
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
+    // We add this item key prefix to all "structural" items. For example the
+    // column header item and decorative task items. This is used by the personal
+    // task view which needs to render multiple virtualized lists at once. Tasks do
+    // not get this item key prefix since we want to easily be able to find a task
+    // by its `TaskId` regardless of the virtualized list it's in.
+    structuralItemKeyPrefix?: string;
     columnHeaderControls?: Memo<{minHeight: RemLength | number; node: ReactNode}>;
     rowMaxWidth?: Spacing | null;
     withoutDecorativeGhostRowsIfEmpty?: boolean;
@@ -198,7 +184,9 @@ export function useTaskGridViewVirtualizedList({
     getAnchorPosition?: Memo<
         (oldVisibleRect: {top: number; bottom: number}) => {top: number; height: number} | null
     >;
-}): {
+};
+
+export type TaskGridViewVirtualizedListResult = {
     /**
      * Key that resets our virtualized scroll view's internal state. Should be
      * passed to `<VirtualizedScrollView>`.
@@ -278,17 +266,17 @@ export function useTaskGridViewVirtualizedList({
     /**
      * (Optional) Add an entry to the grid view's undo stack.
      */
-    pushUndoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
+    pushUndoStackEntry: (entry: TaskUndoStackEntry) => void;
 
     /**
      * (Optional) Add an entry to the grid view's undo stack.
      */
-    pushUndoStackEntryFromRedo: Memo<(entry: TaskUndoStackEntry) => void>;
+    pushUndoStackEntryFromRedo: (entry: TaskUndoStackEntry) => void;
 
     /**
      * (Optional) Add an entry to the grid view's redo stack.
      */
-    pushRedoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
+    pushRedoStackEntry: (entry: TaskUndoStackEntry) => void;
 
     /**
      * (Optional) Apply the last undo stack entry.
@@ -304,18 +292,21 @@ export function useTaskGridViewVirtualizedList({
      * (Optional) Returns the current `SpacingScale` value for convenience.
      */
     spacingScale: SpacingScale;
-} {
-    const initialAppRenderId = useInitialAppRenderId();
-    const isInitialAppRender = initialAppRenderId !== null;
-    const platform = usePlatform();
-    const spacingScale = useSpacingScale();
-    const {isAppleDevice} = useClientInfo();
-    const context = useAppContext();
-    const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
-    const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
-    const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
+};
 
-    const mobileKeyboardToolbarPortalRef = useRef<HTMLDivElement>(null);
+/**
+ * Encapsulates the ability to render a virtualized list of tasks. You are
+ * responsible for using ALL of the returned props in a
+ * `<VirtualizedScrollView>` component. If you don't use one of the props in
+ * the documented way your grid view may be broken.
+ */
+export function useTaskGridViewVirtualizedList(
+    props: TaskGridViewVirtualizedListProps,
+): TaskGridViewVirtualizedListResult {
+    const {viewRef, getAnchorPosition: getAnchorPositionFromProps} = props;
+
+    const platform = usePlatform();
+    const {isAppleDevice} = useClientInfo();
 
     assert(
         useContext(TaskGridViewHasDndContext),
@@ -337,6 +328,331 @@ export function useTaskGridViewVirtualizedList({
         },
         [isDragging],
     );
+
+    const rootQuery = props.query?.query ?? null;
+
+    const stateKey = rootQuery
+        ? getOrSetDefaultMapValue(virtualizedScrollViewStateKeyByActiveQuery, rootQuery, generateId)
+        : undefined;
+
+    /* ========================================================================== *\
+     *                                 Undo/Redo                                  *
+    \* ========================================================================== */
+
+    const {
+        pushUndoStackEntry,
+        pushUndoStackEntryFromRedo,
+        pushRedoStackEntry,
+        popUndoStackEntry,
+        popRedoStackEntry,
+    } = useTaskUndoStackState({
+        // Whenever the query changes we reset our undo stack. If the query changes
+        // it's unlikely we'll find the tasks the user was previously operating on so
+        // we can't scroll to them.
+        stateKey,
+    });
+
+    const undo = () => {
+        // Keep trying to undo until we find an entry we can apply.
+        while (true) {
+            const undoStackEntry = popUndoStackEntry();
+            if (!undoStackEntry) break;
+
+            if (
+                result.applyUndoStackEntry("Undo", undoStackEntry, {
+                    pushUndoStackEntry: entry => {
+                        pushRedoStackEntry({
+                            type: "Actions",
+                            rootParentTaskId: undoStackEntry.rootParentTaskId,
+                            undoActions: entry.undoActions,
+                            removedFromQueries: entry.removedFromQueries,
+                            leaseId: entry.leaseId,
+                            release: entry.release,
+                        });
+                    },
+                })
+            ) {
+                break;
+            }
+        }
+    };
+
+    const redo = () => {
+        // Keep trying to redo until we find an entry we can apply.
+        while (true) {
+            const undoStackEntry = popRedoStackEntry();
+            if (!undoStackEntry) break;
+
+            if (
+                result.applyUndoStackEntry("Redo", undoStackEntry, {
+                    pushUndoStackEntry: entry => {
+                        pushUndoStackEntryFromRedo({
+                            type: "Actions",
+                            rootParentTaskId: undoStackEntry.rootParentTaskId,
+                            undoActions: entry.undoActions,
+                            removedFromQueries: entry.removedFromQueries,
+                            leaseId: entry.leaseId,
+                            release: entry.release,
+                        });
+                    },
+                })
+            ) {
+                break;
+            }
+        }
+    };
+
+    const onGlobalKeyDown = (event: KeyboardEvent) => {
+        switch (event.key) {
+            case "z": {
+                if (isAppleDevice ? event.metaKey : event.ctrlKey) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (event.shiftKey) {
+                        redo();
+                    } else if ((isAppleDevice ? !event.ctrlKey : !event.metaKey) && !event.altKey) {
+                        undo();
+                    }
+                    break;
+                }
+                break;
+            }
+            // https://en.wikipedia.org/wiki/Control-Y
+            case "y": {
+                if (isAppleDevice ? event.metaKey : event.ctrlKey) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (
+                        (isAppleDevice ? !event.ctrlKey : !event.metaKey) &&
+                        !event.altKey &&
+                        !event.shiftKey
+                    ) {
+                        redo();
+                    }
+                    break;
+                }
+                break;
+            }
+        }
+    };
+
+    /* ========================================================================== *\
+     *                              Mobile Scrolling                              *
+    \* ========================================================================== */
+
+    const getAnchorPosition = useCallback(
+        (oldVisibleRect: {top: number; bottom: number}): {top: number; height: number} | null => {
+            const anchorPositionFromProps = getAnchorPositionFromProps?.(oldVisibleRect);
+            if (anchorPositionFromProps) return anchorPositionFromProps;
+
+            const {activeElement} = document;
+            const viewContentElement = assertExists(viewRef.current).getContentElement();
+
+            if (
+                !(activeElement instanceof Element) ||
+                !isElementOwnedBy(viewContentElement, activeElement)
+            ) {
+                return null;
+            }
+
+            // `<TaskDateInput>` and `<TaskCollectionsInput>` handle their own scrolling
+            // when focused since they need to make sure their overlays are visible on
+            // screen even when the keyboard is already open. So don't adjust to avoid the
+            // keyboard if we're focusing one of those components. See those components for
+            // their custom scroll to avoid keyboard implementation.
+            if (
+                activeElement.classList.contains(tasksStyles.dateInputTextSegmentClassName) ||
+                activeElement.classList.contains(tasksStyles.collectionsInputAddInputClassName)
+            ) {
+                return null;
+            }
+
+            const activeRect = activeElement.getBoundingClientRect();
+
+            // If we focused on a listbox, scroll to make sure the element the listbox
+            // controls is visible. For example, the collections combobox opened by the
+            // collection filter (`<TaskQueryCollectionsFilterOperationEditor>`).
+            const ariaControlsAttribute = activeElement.getAttribute("aria-controls");
+            if (ariaControlsAttribute) {
+                const ariaControls = ariaControlsAttribute.split(" ")[0]!;
+                let controlsElement = document.getElementById(ariaControls);
+
+                // Support the case where our `listbox` is a `<ul>` wrapped in a `<div>` with
+                // `overflow-y: auto`. We should use the size of the wrapping `<div>` not the
+                // `<ul>`. Generally, perhaps we should call some kind of `getScrollParent()`
+                // function.
+                if (
+                    controlsElement?.parentElement &&
+                    getComputedStyle(controlsElement).overflowY === "visible" &&
+                    getComputedStyle(controlsElement.parentElement).overflowY !== "visible"
+                ) {
+                    controlsElement = controlsElement.parentElement;
+                }
+
+                if (controlsElement) {
+                    const controlsRect = controlsElement.getBoundingClientRect();
+
+                    // For our anchor position, if there's an open control treat the control as
+                    // having a minimum height equal to `<TaskDateInputCalendar>`. This way in dense
+                    // fields on mobile if we open a priority or assignee input then a calendar
+                    // input, we'll have scrolled to preserve enough onscreen space for the calendar
+                    // should it open next.
+                    const calendarHeightPx = convertRemLengthToPx(
+                        platform === "mobile"
+                            ? taskDateInputCalendarMobileHeight
+                            : taskDateInputCalendarDesktopHeight,
+                        getSpacingScaleWithoutListening(),
+                    );
+
+                    const top =
+                        controlsRect.top < activeRect.top
+                            ? Math.min(controlsRect.top, controlsRect.bottom - calendarHeightPx)
+                            : activeRect.top;
+
+                    const bottom =
+                        controlsRect.bottom > activeRect.bottom
+                            ? Math.max(controlsRect.bottom, controlsRect.top + calendarHeightPx)
+                            : activeRect.bottom;
+
+                    return {
+                        top,
+                        height: bottom - top,
+                    };
+                }
+            }
+
+            // If this is a multiline `<TaskRowTitleInput>` and the user taps on some text
+            // near the end of the title input then we want to scroll to the user's
+            // selection. Not the full element's container.
+            if (activeElement instanceof HTMLElement && activeElement.contentEditable === "true") {
+                const selectionRect = window.getSelection()?.getRangeAt(0).getBoundingClientRect();
+
+                // If the selection has a zero rect, return the active element's rect.
+                if (selectionRect && (selectionRect.width !== 0 || selectionRect.height !== 0)) {
+                    return selectionRect;
+                }
+            }
+
+            return activeRect;
+        },
+        [getAnchorPositionFromProps, platform, viewRef],
+    );
+
+    // When the keyboard opens, make sure we scroll so that whatever's focused
+    // stays in view. (e.g. The text title input.)
+    const {getVisibleRect} = useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
+        getAnchorPosition,
+    });
+
+    const scrollToAnchorPosition = () => {
+        const scrollableElement = assertExists(viewRef.current).getElement();
+        const visibleRect = getVisibleRect();
+
+        const anchorPosition = getAnchorPosition(visibleRect);
+        if (!anchorPosition) return;
+
+        const anchorBottom = anchorPosition.top + anchorPosition.height;
+
+        const clearanceBottom =
+            visibleRect.bottom - convertRemLengthToPx("1", getSpacingScaleWithoutListening());
+
+        if (anchorBottom <= clearanceBottom) return;
+
+        const scrollDelta = anchorBottom - clearanceBottom;
+
+        scrollableElement.scrollTo({
+            top: scrollableElement.scrollTop + scrollDelta,
+            behavior: "smooth",
+        });
+    };
+
+    /* ========================================================================== *\
+     *                                 Base hook                                  *
+    \* ========================================================================== */
+
+    const result = useTaskGridViewVirtualizedListBase(
+        Object.assign(props, {
+            stateKey,
+            isDragging,
+            draggingData,
+            pushUndoStackEntry,
+            scrollToAnchorPosition,
+        }),
+    );
+
+    return Object.assign(result, {
+        onGlobalKeyDown,
+        undo,
+        redo,
+        pushUndoStackEntry,
+        pushUndoStackEntryFromRedo,
+        pushRedoStackEntry,
+    });
+}
+
+/**
+ * Encapsulates the ability to render a virtualized list of tasks. You are
+ * responsible for using ALL of the returned props in a
+ * `<VirtualizedScrollView>` component. If you don't use one of the props in
+ * the documented way your grid view may be broken.
+ *
+ * Same as `useTaskGridViewVirtualizedList()` but missing some features that
+ * makes it possible to have multiple grid views in the same
+ * `<VirtualizedScrollView>`. For example, this function doesn't maintain undo
+ * state itself so you can have one undo stack across multiple grid views.
+ */
+export function useTaskGridViewVirtualizedListBase({
+    capabilities,
+    viewRef,
+    store,
+    query: rootQueryWithInitialState,
+    affinityManager,
+    getMoveTaskToQueryActions: getMoveTaskToRootQueryActions,
+    getMaybeRemoveTaskFromQueryActions: getMaybeRemoveTaskFromRootQueryActions,
+    structuralItemKeyPrefix = "",
+    columnHeaderControls,
+    rowMaxWidth = null,
+    withoutDecorativeGhostRowsIfEmpty = false,
+    initiallyWithTopGhostTaskRow = false,
+    onApplyUndoStackEntry,
+    stateKey: stateKeyFromProps,
+    isDragging,
+    draggingData,
+    pushUndoStackEntry: pushUndoStackEntryFromProps,
+    scrollToAnchorPosition: scrollToAnchorPositionFromProps,
+}: Omit<TaskGridViewVirtualizedListProps, "getAnchorPosition"> & {
+    stateKey?: string;
+    isDragging: boolean;
+    draggingData: (TaskGridViewDraggableData & {readonly type: "Row"}) | null;
+    pushUndoStackEntry: (entry: TaskUndoStackEntry) => void;
+    scrollToAnchorPosition: () => void;
+}): Omit<
+    TaskGridViewVirtualizedListResult,
+    | "onGlobalKeyDown"
+    | "undo"
+    | "redo"
+    | "pushUndoStackEntry"
+    | "pushUndoStackEntryFromRedo"
+    | "pushRedoStackEntry"
+> & {
+    applyUndoStackEntry: (
+        type: "Undo" | "Redo",
+        entry: DistributiveOmit<TaskUndoStackEntry, "release">,
+        options: {pushUndoStackEntry: TaskClientStoreUndoManager["pushUndoStackEntry"]},
+    ) => boolean;
+} {
+    const initialAppRenderId = useInitialAppRenderId();
+    const isInitialAppRender = initialAppRenderId !== null;
+    const platform = usePlatform();
+    const spacingScale = useSpacingScale();
+    const context = useAppContext();
+    const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
+    const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
+    const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
+
+    const mobileKeyboardToolbarPortalRef = useRef<HTMLDivElement>(null);
 
     const reactId = useId();
 
@@ -381,9 +697,15 @@ export function useTaskGridViewVirtualizedList({
     //   because we're rendering the "load more" item)
     //
     // This must be passed into `<VirtualizedScrollView>`'s `stateKey` prop.
-    const stateKey = rootQuery
-        ? getOrSetDefaultMapValue(virtualizedScrollViewStateKeyByActiveQuery, rootQuery, generateId)
-        : undefined;
+    const stateKey =
+        stateKeyFromProps ??
+        (rootQuery
+            ? getOrSetDefaultMapValue(
+                  virtualizedScrollViewStateKeyByActiveQuery,
+                  rootQuery,
+                  generateId,
+              )
+            : undefined);
 
     const isRootQueryNull = rootQuery === null;
     const isRootQueryManuallySorted = isTaskQueryManuallySorted(rootQuery?.sorts ?? emptyArray);
@@ -476,6 +798,174 @@ export function useTaskGridViewVirtualizedList({
     }, [draggingData, itemCountBeforeState, state]);
 
     /* ========================================================================== *\
+     *                                 Undo/Redo                                  *
+    \* ========================================================================== */
+
+    const applyUndoStackEntry = (
+        type: "Undo" | "Redo",
+        entry: DistributiveOmit<TaskUndoStackEntry, "release">,
+        {
+            pushUndoStackEntry,
+        }: {
+            pushUndoStackEntry: TaskClientStoreUndoManager["pushUndoStackEntry"];
+        },
+    ) => {
+        return withApplyTaskGridViewUndoStackEntry(() => {
+            const view = assertExists(viewRef.current);
+
+            if (!rootQuery) return false;
+
+            const target: {taskId: TaskId; column: TaskGridViewColumn} | null =
+                entry.type === "Actions"
+                    ? getTaskUndoActionsGridViewTargetIfExists(
+                          store,
+                          entry.undoActions.getWithoutReconciliation(),
+                      )
+                    : {taskId: entry.taskId, column: "Title"};
+            if (!target) return false;
+
+            const undoManager: TaskClientStoreUndoManager = {pushUndoStackEntry};
+
+            // If this function returns true then the undo stack entry was handled.
+            if (onApplyUndoStackEntry?.({type, entry, target, undoManager})) {
+                return true;
+            }
+
+            const startIndex = findTaskIndexInGridViewVirtualizedListIfExists({
+                state,
+                iterateRootExpandedTaskIds,
+                rootParentTaskId: entry.rootParentTaskId,
+                taskId: target.taskId,
+            });
+
+            // If we can't find the task in the grid view anymore then we won't undo these
+            // actions because the user won't see the result. Unless the actions we're
+            // undoing removed the task from our query. If that happened we know for sure
+            // we won't find the task in our grid view. Undoing should bring the task back
+            // to our grid view.
+            //
+            // Reasons why the task might no longer be in the grid view:
+            //
+            // - Some other user changed a field such that it was filtered out of the
+            //   grid view.
+            // - Some other user changed a field (or dragged to move the task) such that
+            //   the task left our client's loaded range.
+            // - The user collapsed the expanded task this task was a child of.
+            //
+            // However we should still be able to find the task if:
+            //
+            // - The user scrolled the virtualized list and the task was unmounted. The
+            //   task should still exist in our state so we can scroll back to the right
+            //   index.
+            // - The user loaded some new tasks. This introduces new tasks and does not
+            //   remove old ones.
+            //
+            // We feel this is a reasonable set of tradeoffs for picking which undo actions
+            // we handle.
+            if (
+                !(entry.type === "Actions" && entry.removedFromQueries.has(rootQuery)) &&
+                startIndex === null
+            ) {
+                return false;
+            }
+
+            switch (entry.type) {
+                case "Actions": {
+                    rootQuery.store.commitTaskActionTransaction(
+                        context,
+                        entry.undoActions.get(store),
+                        {
+                            undoManager,
+                            affinityManager,
+                            leaseId: entry.leaseId,
+                        },
+                    );
+                    break;
+                }
+                // Note undo/redo is only applicable to `<TaskDetailView>`.
+                case "Notes": {
+                    return false;
+                }
+                default:
+                    throw exhaustive(entry);
+            }
+
+            const endIndex = findTaskIndexInGridViewVirtualizedListIfExists({
+                // `stateStore` will have updated after the commit above but `state` will still
+                // be the old value.
+                state: stateStore.getSnapshot(),
+                iterateRootExpandedTaskIds,
+                rootParentTaskId: entry.rootParentTaskId,
+                taskId: target.taskId,
+            });
+
+            const focusCell = (index: number) => {
+                const startTime = Date.now();
+
+                // If the row is currently onscreen, great! We can focus immediately. However,
+                // we may be scrolling to the row. We've found the most consistent way to focus
+                // the row is to wait in a `requestAnimationFrame()` loop for the row to
+                // appear. Checking after `onRenderedRangeLayoutChange` doesn't always work
+                // since we've observed intermediate rendered range changes? This does depend
+                // on the scroll render taking less than 1s. If it takes more than 1s we have
+                // bigger problems. (Grid view rendering performance is unacceptably bad.)
+                const attempt = () => {
+                    if (Date.now() - startTime > 1000) return;
+
+                    const taskRow = events.getTaskRowByIndexIfExists(index);
+                    if (taskRow) {
+                        // If focus is already within the cell then don't focus again.
+                        if (!taskRow.isFocusWithinCell(target.column)) {
+                            setInteractionModality("keyboard");
+                            taskRow.focusCell(target.column);
+                        }
+                    } else {
+                        requestAnimationFrame(attempt);
+                    }
+                };
+
+                attempt();
+            };
+
+            if (startIndex === null) {
+                if (endIndex === null) {
+                    // TODO(calebmer): We should probably show a toast or something here to let the
+                    // user know something happened even if nothing on screen changed. A simple
+                    // modal along the lines of "undo successful" is good.
+                } else {
+                    onLayoutEffectCallbacksRef.current.push(() => {
+                        const index = endIndex + itemCountBeforeState;
+                        view.scrollToIndex(index, {withAnchor: false});
+                        focusCell(index);
+                    });
+                }
+            }
+            // If the task didn't move, scroll to it immediately. Otherwise wait for React
+            // to re-render, then scroll. Since we want to the virtualized list won't know
+            // our target task is at `endIndex` until after the React re-render.
+            //
+            // If we can't find the task after the update we scroll to the task's original
+            // position in the hope that's helpful to the user. We don't expect `endIndex`
+            // to be null outside of extreme edge cases! In order for the action's we're
+            // undoing to be applied in the first place the task had to have been in the
+            // query's loaded range. A query's loaded range never shrinks, it only grows.
+            else if (endIndex === null || startIndex === endIndex) {
+                const index = startIndex + itemCountBeforeState;
+                view.scrollToIndex(index, {withAnchor: false});
+                focusCell(index);
+            } else {
+                onLayoutEffectCallbacksRef.current.push(() => {
+                    const index = endIndex + itemCountBeforeState;
+                    view.scrollToIndex(index, {withAnchor: false});
+                    focusCell(index);
+                });
+            }
+
+            return true;
+        });
+    };
+
+    /* ========================================================================== *\
      *                         Delete Confirmation State                          *
     \* ========================================================================== */
 
@@ -506,6 +996,8 @@ export function useTaskGridViewVirtualizedList({
 
     // Clear the last arrow navigation X position whenever the user's caret moves
     // somewhere else.
+    //
+    // NOCOMMIT: I think this needs to be moved out of base?
     useEffect(() => {
         const clearLastArrowNavigationCoord = () => {
             if (
@@ -678,394 +1170,18 @@ export function useTaskGridViewVirtualizedList({
     }, [state, tryLoadingMoreData, viewRef]);
 
     /* ========================================================================== *\
-     *                                 Undo/Redo                                  *
-    \* ========================================================================== */
-
-    const {
-        pushUndoStackEntry,
-        pushUndoStackEntryFromRedo,
-        pushRedoStackEntry,
-        popUndoStackEntry,
-        popRedoStackEntry,
-    } = useTaskUndoStackState({
-        // Whenever the query changes we reset our undo stack. If the query changes
-        // it's unlikely we'll find the tasks the user was previously operating on so
-        // we can't scroll to them.
-        stateKey,
-    });
-
-    const applyUndoStackEntry = (
-        type: "Undo" | "Redo",
-        entry: DistributiveOmit<TaskUndoStackEntry, "release">,
-        {
-            pushUndoStackEntry,
-        }: {
-            pushUndoStackEntry: TaskClientStoreUndoManager["pushUndoStackEntry"];
-        },
-    ) => {
-        return withApplyTaskGridViewUndoStackEntry(() => {
-            const view = assertExists(viewRef.current);
-
-            if (!rootQuery) return false;
-
-            const target: {taskId: TaskId; column: TaskGridViewColumn} | null =
-                entry.type === "Actions"
-                    ? getTaskUndoActionsGridViewTargetIfExists(
-                          store,
-                          entry.undoActions.getWithoutReconciliation(),
-                      )
-                    : {taskId: entry.taskId, column: "Title"};
-            if (!target) return false;
-
-            const undoManager: TaskClientStoreUndoManager = {pushUndoStackEntry};
-
-            // If this function returns true then the undo stack entry was handled.
-            if (onApplyUndoStackEntry?.({type, entry, target, undoManager})) {
-                return true;
-            }
-
-            const startIndex = findTaskIndexInGridViewVirtualizedListIfExists({
-                state,
-                iterateRootExpandedTaskIds,
-                rootParentTaskId: entry.rootParentTaskId,
-                taskId: target.taskId,
-            });
-
-            // If we can't find the task in the grid view anymore then we won't undo these
-            // actions because the user won't see the result. Unless the actions we're
-            // undoing removed the task from our query. If that happened we know for sure
-            // we won't find the task in our grid view. Undoing should bring the task back
-            // to our grid view.
-            //
-            // Reasons why the task might no longer be in the grid view:
-            //
-            // - Some other user changed a field such that it was filtered out of the
-            //   grid view.
-            // - Some other user changed a field (or dragged to move the task) such that
-            //   the task left our client's loaded range.
-            // - The user collapsed the expanded task this task was a child of.
-            //
-            // However we should still be able to find the task if:
-            //
-            // - The user scrolled the virtualized list and the task was unmounted. The
-            //   task should still exist in our state so we can scroll back to the right
-            //   index.
-            // - The user loaded some new tasks. This introduces new tasks and does not
-            //   remove old ones.
-            //
-            // We feel this is a reasonable set of tradeoffs for picking which undo actions
-            // we handle.
-            if (
-                !(entry.type === "Actions" && entry.removedFromQueries.has(rootQuery)) &&
-                startIndex === null
-            ) {
-                return false;
-            }
-
-            switch (entry.type) {
-                case "Actions": {
-                    rootQuery.store.commitTaskActionTransaction(
-                        context,
-                        entry.undoActions.get(store),
-                        {
-                            undoManager,
-                            affinityManager,
-                            leaseId: entry.leaseId,
-                        },
-                    );
-                    break;
-                }
-                // Note undo/redo is only applicable to `<TaskDetailView>`.
-                case "Notes": {
-                    return false;
-                }
-                default:
-                    throw exhaustive(entry);
-            }
-
-            const endIndex = findTaskIndexInGridViewVirtualizedListIfExists({
-                // `stateStore` will have updated after the commit above but `state` will still
-                // be the old value.
-                state: stateStore.getSnapshot(),
-                iterateRootExpandedTaskIds,
-                rootParentTaskId: entry.rootParentTaskId,
-                taskId: target.taskId,
-            });
-
-            const focusCell = (index: number) => {
-                const startTime = Date.now();
-
-                // If the row is currently onscreen, great! We can focus immediately. However,
-                // we may be scrolling to the row. We've found the most consistent way to focus
-                // the row is to wait in a `requestAnimationFrame()` loop for the row to
-                // appear. Checking after `onRenderedRangeLayoutChange` doesn't always work
-                // since we've observed intermediate rendered range changes? This does depend
-                // on the scroll render taking less than 1s. If it takes more than 1s we have
-                // bigger problems. (Grid view rendering performance is unacceptably bad.)
-                const attempt = () => {
-                    if (Date.now() - startTime > 1000) return;
-
-                    const taskRow = events.getTaskRowByIndexIfExists(index);
-                    if (taskRow) {
-                        // If focus is already within the cell then don't focus again.
-                        if (!taskRow.isFocusWithinCell(target.column)) {
-                            setInteractionModality("keyboard");
-                            taskRow.focusCell(target.column);
-                        }
-                    } else {
-                        requestAnimationFrame(attempt);
-                    }
-                };
-
-                attempt();
-            };
-
-            if (startIndex === null) {
-                if (endIndex === null) {
-                    // TODO(calebmer): We should probably show a toast or something here to let the
-                    // user know something happened even if nothing on screen changed. A simple
-                    // modal along the lines of "undo successful" is good.
-                } else {
-                    onLayoutEffectCallbacksRef.current.push(() => {
-                        const index = endIndex + itemCountBeforeState;
-                        view.scrollToIndex(index, {withAnchor: false});
-                        focusCell(index);
-                    });
-                }
-            }
-            // If the task didn't move, scroll to it immediately. Otherwise wait for React
-            // to re-render, then scroll. Since we want to the virtualized list won't know
-            // our target task is at `endIndex` until after the React re-render.
-            //
-            // If we can't find the task after the update we scroll to the task's original
-            // position in the hope that's helpful to the user. We don't expect `endIndex`
-            // to be null outside of extreme edge cases! In order for the action's we're
-            // undoing to be applied in the first place the task had to have been in the
-            // query's loaded range. A query's loaded range never shrinks, it only grows.
-            else if (endIndex === null || startIndex === endIndex) {
-                const index = startIndex + itemCountBeforeState;
-                view.scrollToIndex(index, {withAnchor: false});
-                focusCell(index);
-            } else {
-                onLayoutEffectCallbacksRef.current.push(() => {
-                    const index = endIndex + itemCountBeforeState;
-                    view.scrollToIndex(index, {withAnchor: false});
-                    focusCell(index);
-                });
-            }
-
-            return true;
-        });
-    };
-
-    const undo = () => {
-        // Keep trying to undo until we find an entry we can apply.
-        while (true) {
-            const undoStackEntry = popUndoStackEntry();
-            if (!undoStackEntry) break;
-
-            if (
-                applyUndoStackEntry("Undo", undoStackEntry, {
-                    pushUndoStackEntry: entry => {
-                        pushRedoStackEntry({
-                            type: "Actions",
-                            rootParentTaskId: undoStackEntry.rootParentTaskId,
-                            undoActions: entry.undoActions,
-                            removedFromQueries: entry.removedFromQueries,
-                            leaseId: entry.leaseId,
-                            release: entry.release,
-                        });
-                    },
-                })
-            ) {
-                break;
-            }
-        }
-    };
-
-    const redo = () => {
-        // Keep trying to redo until we find an entry we can apply.
-        while (true) {
-            const undoStackEntry = popRedoStackEntry();
-            if (!undoStackEntry) break;
-
-            if (
-                applyUndoStackEntry("Redo", undoStackEntry, {
-                    pushUndoStackEntry: entry => {
-                        pushUndoStackEntryFromRedo({
-                            type: "Actions",
-                            rootParentTaskId: undoStackEntry.rootParentTaskId,
-                            undoActions: entry.undoActions,
-                            removedFromQueries: entry.removedFromQueries,
-                            leaseId: entry.leaseId,
-                            release: entry.release,
-                        });
-                    },
-                })
-            ) {
-                break;
-            }
-        }
-    };
-
-    const onGlobalKeyDown = (event: KeyboardEvent) => {
-        switch (event.key) {
-            case "z": {
-                if (isAppleDevice ? event.metaKey : event.ctrlKey) {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    if (event.shiftKey) {
-                        redo();
-                    } else if ((isAppleDevice ? !event.ctrlKey : !event.metaKey) && !event.altKey) {
-                        undo();
-                    }
-                    break;
-                }
-                break;
-            }
-            // https://en.wikipedia.org/wiki/Control-Y
-            case "y": {
-                if (isAppleDevice ? event.metaKey : event.ctrlKey) {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    if (
-                        (isAppleDevice ? !event.ctrlKey : !event.metaKey) &&
-                        !event.altKey &&
-                        !event.shiftKey
-                    ) {
-                        redo();
-                    }
-                    break;
-                }
-                break;
-            }
-        }
-    };
-
-    /* ========================================================================== *\
-     *                              Mobile Scrolling                              *
-    \* ========================================================================== */
-
-    const getAnchorPosition = useCallback(
-        (oldVisibleRect: {top: number; bottom: number}): {top: number; height: number} | null => {
-            const anchorPositionFromProps = getAnchorPositionFromProps?.(oldVisibleRect);
-            if (anchorPositionFromProps) return anchorPositionFromProps;
-
-            const {activeElement} = document;
-            const viewContentElement = assertExists(viewRef.current).getContentElement();
-
-            if (
-                !(activeElement instanceof Element) ||
-                !isElementOwnedBy(viewContentElement, activeElement)
-            ) {
-                return null;
-            }
-
-            // `<TaskDateInput>` and `<TaskCollectionsInput>` handle their own scrolling
-            // when focused since they need to make sure their overlays are visible on
-            // screen even when the keyboard is already open. So don't adjust to avoid the
-            // keyboard if we're focusing one of those components. See those components for
-            // their custom scroll to avoid keyboard implementation.
-            if (
-                activeElement.classList.contains(tasksStyles.dateInputTextSegmentClassName) ||
-                activeElement.classList.contains(tasksStyles.collectionsInputAddInputClassName)
-            ) {
-                return null;
-            }
-
-            const activeRect = activeElement.getBoundingClientRect();
-
-            // If we focused on a listbox, scroll to make sure the element the listbox
-            // controls is visible. For example, the collections combobox opened by the
-            // collection filter (`<TaskQueryCollectionsFilterOperationEditor>`).
-            const ariaControlsAttribute = activeElement.getAttribute("aria-controls");
-            if (ariaControlsAttribute) {
-                const ariaControls = ariaControlsAttribute.split(" ")[0]!;
-                let controlsElement = document.getElementById(ariaControls);
-
-                // Support the case where our `listbox` is a `<ul>` wrapped in a `<div>` with
-                // `overflow-y: auto`. We should use the size of the wrapping `<div>` not the
-                // `<ul>`. Generally, perhaps we should call some kind of `getScrollParent()`
-                // function.
-                if (
-                    controlsElement?.parentElement &&
-                    getComputedStyle(controlsElement).overflowY === "visible" &&
-                    getComputedStyle(controlsElement.parentElement).overflowY !== "visible"
-                ) {
-                    controlsElement = controlsElement.parentElement;
-                }
-
-                if (controlsElement) {
-                    const controlsRect = controlsElement.getBoundingClientRect();
-
-                    // For our anchor position, if there's an open control treat the control as
-                    // having a minimum height equal to `<TaskDateInputCalendar>`. This way in dense
-                    // fields on mobile if we open a priority or assignee input then a calendar
-                    // input, we'll have scrolled to preserve enough onscreen space for the calendar
-                    // should it open next.
-                    const calendarHeightPx = convertRemLengthToPx(
-                        platform === "mobile"
-                            ? taskDateInputCalendarMobileHeight
-                            : taskDateInputCalendarDesktopHeight,
-                        getSpacingScaleWithoutListening(),
-                    );
-
-                    const top =
-                        controlsRect.top < activeRect.top
-                            ? Math.min(controlsRect.top, controlsRect.bottom - calendarHeightPx)
-                            : activeRect.top;
-
-                    const bottom =
-                        controlsRect.bottom > activeRect.bottom
-                            ? Math.max(controlsRect.bottom, controlsRect.top + calendarHeightPx)
-                            : activeRect.bottom;
-
-                    return {
-                        top,
-                        height: bottom - top,
-                    };
-                }
-            }
-
-            // If this is a multiline `<TaskRowTitleInput>` and the user taps on some text
-            // near the end of the title input then we want to scroll to the user's
-            // selection. Not the full element's container.
-            if (activeElement instanceof HTMLElement && activeElement.contentEditable === "true") {
-                const selectionRect = window.getSelection()?.getRangeAt(0).getBoundingClientRect();
-
-                // If the selection has a zero rect, return the active element's rect.
-                if (selectionRect && (selectionRect.width !== 0 || selectionRect.height !== 0)) {
-                    return selectionRect;
-                }
-            }
-
-            return activeRect;
-        },
-        [getAnchorPositionFromProps, platform, viewRef],
-    );
-
-    // When the keyboard opens, make sure we scroll so that whatever's focused
-    // stays in view. (e.g. The text title input.)
-    const {getVisibleRect} = useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
-        getAnchorPosition,
-    });
-
-    /* ========================================================================== *\
      *                                   Events                                   *
     \* ========================================================================== */
 
     const events: TaskGridViewVirtualizedListEvents = useEvents({
         getMoveTaskToRootQueryActions,
         getMaybeRemoveTaskFromRootQueryActions,
+        pushUndoStackEntry: pushUndoStackEntryFromProps,
+        scrollToAnchorPosition: scrollToAnchorPositionFromProps,
 
         getItemCount: () => itemCount,
         getState: () => state,
         getItemCountBeforeState: () => itemCountBeforeState,
-        pushUndoStackEntry,
-        pushUndoStackEntryFromRedo,
-        pushRedoStackEntry,
 
         onTopGhostTaskCreated: () => {
             setTopGhostTaskId(null);
@@ -1299,7 +1415,9 @@ export function useTaskGridViewVirtualizedList({
 
             // If we have a column header then it sticks to the top of the view. We want to
             // find a visible task row that's not occluded by our sticky column header.
-            const columnHeaderPosition = view.getPositionByKeyIfExists("ColumnHeader");
+            const columnHeaderPosition = view.getPositionByKeyIfExists(
+                `${structuralItemKeyPrefix}ColumnHeader`,
+            );
 
             const effectiveHeight = view.getHeight() - (columnHeaderPosition?.height ?? 0);
             const effectiveScrollOffset =
@@ -1336,7 +1454,9 @@ export function useTaskGridViewVirtualizedList({
 
             // If we have a column header then it sticks to the top of the view. We want to
             // find a visible task row that's not occluded by our sticky column header.
-            const columnHeaderPosition = view.getPositionByKeyIfExists("ColumnHeader");
+            const columnHeaderPosition = view.getPositionByKeyIfExists(
+                `${structuralItemKeyPrefix}ColumnHeader`,
+            );
 
             const height = view.getHeight();
             const scrollOffset = view.getScrollOffset();
@@ -1422,7 +1542,9 @@ export function useTaskGridViewVirtualizedList({
 
             // If we have a column header then it sticks to the top of the view. We want to
             // find a visible task row that's not occluded by our sticky column header.
-            const columnHeaderPosition = view.getPositionByKeyIfExists("ColumnHeader");
+            const columnHeaderPosition = view.getPositionByKeyIfExists(
+                `${structuralItemKeyPrefix}ColumnHeader`,
+            );
 
             const effectiveHeight = view.getHeight() - (columnHeaderPosition?.height ?? 0);
             const effectiveScrollOffset =
@@ -1459,7 +1581,9 @@ export function useTaskGridViewVirtualizedList({
 
             // If we have a column header then it sticks to the top of the view. We want to
             // find a visible task row that's not occluded by our sticky column header.
-            const columnHeaderPosition = view.getPositionByKeyIfExists("ColumnHeader");
+            const columnHeaderPosition = view.getPositionByKeyIfExists(
+                `${structuralItemKeyPrefix}ColumnHeader`,
+            );
 
             const height = view.getHeight();
             const scrollOffset = view.getScrollOffset();
@@ -1539,34 +1663,13 @@ export function useTaskGridViewVirtualizedList({
                 setZIndex();
             };
         },
-
-        scrollToAnchorPosition: () => {
-            const scrollableElement = assertExists(viewRef.current).getElement();
-            const visibleRect = getVisibleRect();
-
-            const anchorPosition = getAnchorPosition(visibleRect);
-            if (!anchorPosition) return;
-
-            const anchorBottom = anchorPosition.top + anchorPosition.height;
-
-            const clearanceBottom =
-                visibleRect.bottom - convertRemLengthToPx("1", getSpacingScaleWithoutListening());
-
-            if (anchorBottom <= clearanceBottom) return;
-
-            const scrollDelta = anchorBottom - clearanceBottom;
-
-            scrollableElement.scrollTo({
-                top: scrollableElement.scrollTop + scrollDelta,
-                behavior: "smooth",
-            });
-        },
     });
 
     /* ========================================================================== *\
      *                              Animation State                               *
     \* ========================================================================== */
 
+    // NOCOMMIT: Animation state needs to be shared across grid views
     const [animationState, setAnimationState] = useState<{
         readonly state: TaskGridViewVirtualizedListState;
         readonly animations: ReadonlyArray<TaskGridViewVirtualizedListAnimation>;
@@ -1945,7 +2048,7 @@ export function useTaskGridViewVirtualizedList({
                         );
 
                         return {
-                            key: "ColumnHeader",
+                            key: `${structuralItemKeyPrefix}ColumnHeader`,
                             minHeight,
                             withManualLayout: true,
                             render: ({ref, offset, shouldRenderWithRelativePositioning}) => (
@@ -2044,7 +2147,7 @@ export function useTaskGridViewVirtualizedList({
 
                 if (loadedState !== "FullyLoaded") {
                     return {
-                        key: "MoreUnloadedTasks",
+                        key: `${structuralItemKeyPrefix}MoreUnloadedTasks`,
                         minHeight: taskGridViewMoreUnloadedTasksSpinnerHeight,
                         node: (
                             <TaskGridViewMoreUnloadedTasksMemo
@@ -2131,7 +2234,7 @@ export function useTaskGridViewVirtualizedList({
                 }
 
                 return {
-                    key: `DecorativeGhostTask:${relativeItemIndex}`,
+                    key: `${structuralItemKeyPrefix}DecorativeGhostTask:${relativeItemIndex}`,
                     minHeight: spacing[taskRowViewMinHeight],
                     node: (
                         <TaskGridViewDecorativeGhostTaskMemo
@@ -2261,6 +2364,7 @@ export function useTaskGridViewVirtualizedList({
         state,
         stateItemCount,
         stateKey,
+        structuralItemKeyPrefix,
         taskGhostRowPlaceholder,
         toggleAreChildTasksExpanded,
         topGhostTaskId,
@@ -2324,16 +2428,11 @@ export function useTaskGridViewVirtualizedList({
                 )}
             </>
         ),
-        onGlobalKeyDown,
         focusStart: events.focusStart,
         focusEnd: events.focusEnd,
         showTopGhostTaskAndFocus: events.showTopGhostTaskAndFocus,
-        pushUndoStackEntry: events.pushUndoStackEntry,
-        pushUndoStackEntryFromRedo: events.pushUndoStackEntryFromRedo,
-        pushRedoStackEntry: events.pushRedoStackEntry,
-        undo,
-        redo,
         spacingScale,
+        applyUndoStackEntry,
     };
 }
 

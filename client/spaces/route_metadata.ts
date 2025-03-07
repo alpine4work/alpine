@@ -75,6 +75,10 @@ const metadataByRouteId: {
         errorTitle: "Couldn’t open tasks",
         isFullWidth: true,
     },
+    "routes/s.$spaceId.tasks.index2": {
+        errorTitle: "Couldn’t open tasks",
+        isFullWidth: true,
+    },
     "routes/s.$spaceId.tasks.view": {
         errorTitle: "Couldn’t open tasks",
         isFullWidth: true,

@@ -3,6 +3,7 @@ import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {analyzeTaskTitleText} from "~/shared/tasks/analyze_task_title_text.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -224,7 +225,10 @@ export function evaluateTaskQueryAccountNormalizedFilter(
 }
 
 export function evaluateTaskQueryDateNormalizedFilter(
-    filter: TaskQueryDateNormalizedFilter | {type: "IsEmpty"},
+    filter:
+        | TaskQueryDateNormalizedFilter
+        | {readonly type: "IsEmpty"}
+        | Replace<TaskQueryDateNormalizedFilter, {readonly type: "RangeOrIsEmpty"}>,
     date: CalendarDate | null,
 ): boolean {
     switch (filter.type) {
@@ -243,6 +247,20 @@ export function evaluateTaskQueryDateNormalizedFilter(
                     : true)
             );
         }
+        case "RangeOrIsEmpty": {
+            if (date === null) return true;
+
+            return (
+                (filter.exclusiveLowerBoundDate
+                    ? filter.exclusiveLowerBoundDate.compare(date) < 0
+                    : true) &&
+                (filter.exclusiveUpperBoundDate
+                    ? filter.exclusiveUpperBoundDate.compare(date) > 0
+                    : true)
+            );
+        }
+        default:
+            throw exhaustive(filter);
     }
 }
 

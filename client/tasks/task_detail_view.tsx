@@ -231,12 +231,12 @@ export function TaskDetailView({
         scrollbarInsetTopItemIndex: scrollbarInsetTopChildrenGridViewItemIndex,
         onGlobalKeyDown: onChildrenGridViewGlobalKeyDown,
         focusStart: focusChildrenGridViewStart,
+        undo: undoWithoutMemo,
+        redo: redoWithoutMemo,
         // We use the grid view's undo stack as our full task detail view undo stack.
-        pushUndoStackEntry,
-        pushUndoStackEntryFromRedo,
-        pushRedoStackEntry,
-        undo,
-        redo,
+        pushUndoStackEntry: pushUndoStackEntryWithoutMemo,
+        pushUndoStackEntryFromRedo: pushUndoStackEntryFromRedoWithoutMemo,
+        pushRedoStackEntry: pushRedoStackEntryWithoutMemo,
     } = useTaskGridViewVirtualizedList({
         capabilities: useMemo(
             () => ({
@@ -481,9 +481,20 @@ export function TaskDetailView({
         }
     }, [dueDateInputState]);
 
-    const {undoEvent, redoEvent, focusPriorityInput, focusDueDateInput} = useEvents({
-        undoEvent: undo,
-        redoEvent: redo,
+    const {
+        undo,
+        redo,
+        pushUndoStackEntry,
+        pushUndoStackEntryFromRedo,
+        pushRedoStackEntry,
+        focusPriorityInput,
+        focusDueDateInput,
+    } = useEvents({
+        undo: undoWithoutMemo,
+        redo: redoWithoutMemo,
+        pushUndoStackEntry: pushUndoStackEntryWithoutMemo,
+        pushUndoStackEntryFromRedo: pushUndoStackEntryFromRedoWithoutMemo,
+        pushRedoStackEntry: pushRedoStackEntryWithoutMemo,
 
         focusPriorityInput: ({preventScroll}: {preventScroll: boolean}) => {
             if (priorityInputState.isVisible) {
@@ -597,12 +608,12 @@ export function TaskDetailView({
                 {
                     label: "Undo",
                     keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
-                    onPress: undoEvent,
+                    onPress: undo,
                 },
                 {
                     label: "Redo",
                     keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
-                    onPress: redoEvent,
+                    onPress: redo,
                 },
             ]);
 
@@ -660,7 +671,7 @@ export function TaskDetailView({
         navigate,
         onShowCommentsChange,
         priorityInputState.isVisible,
-        redoEvent,
+        redo,
         routeLayout,
         showComments,
         spaceId,
@@ -668,7 +679,7 @@ export function TaskDetailView({
         taskEntryStore,
         taskId,
         timeZone,
-        undoEvent,
+        undo,
         undoManager,
     ]);
 
