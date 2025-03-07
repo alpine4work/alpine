@@ -32,7 +32,10 @@ export type TaskUpdateTaskActionModel = Replace<
  */
 export type TaskTaskActionModel =
     | Exclude<TaskTaskAction, {readonly type: "UpdateTitle"} | {readonly type: "AddCollection"}>
-    | Replace<TaskUpdateTitleAction, {readonly titleUpdate: TaskTitleUpdateModel}>
+    | Replace<
+          TaskUpdateTitleAction,
+          {readonly titleUpdate: TaskTitleUpdateModel; readonly withoutUndoMerge?: boolean}
+      >
     | (TaskAddCollectionAction & {readonly referencedCollection?: TaskCollectionModel});
 
 /**

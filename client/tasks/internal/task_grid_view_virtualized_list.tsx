@@ -2474,19 +2474,42 @@ function getTaskUndoActionsGridViewTargetIfExists(
 } | null {
     if (actions.length === 0) return null;
 
+    const groupByTaskId = new Map<TaskId, number>();
+
+    const setGroupForTaskId = (taskId: TaskId, group: number) => {
+        assert(group > 0);
+        const oldGroup = groupByTaskId.get(taskId) ?? 0;
+        groupByTaskId.set(taskId, Math.max(oldGroup, group));
+    };
+
     const targets = actions.map(action => {
         let column: TaskGridViewColumn;
         let preference: number;
         switch (action.taskAction.type) {
-            case "Create":
-            case "Delete":
-            case "Undelete":
             case "UpdateParentTaskId":
             case "UpdateParentPosition":
             case "UpdateChildrenCounts":
             case "UpdateCollectionPosition":
             case "UpdateNotepadPagePosition":
             case "UpdateAssigneeActivePosition": {
+                column = "Title";
+                preference = 6;
+                break;
+            }
+            case "Create": {
+                setGroupForTaskId(action.taskId, 1);
+                column = "Title";
+                preference = 6;
+                break;
+            }
+            case "Delete": {
+                setGroupForTaskId(action.taskId, 2);
+                column = "Title";
+                preference = 6;
+                break;
+            }
+            case "Undelete": {
+                setGroupForTaskId(action.taskId, 3);
                 column = "Title";
                 preference = 6;
                 break;
@@ -2541,11 +2564,14 @@ function getTaskUndoActionsGridViewTargetIfExists(
         return {taskId: action.taskId, column, depth, preference};
     });
 
-    // Pick the action with the lowest depth (parent task) then highest
-    // preference score.
+    // Sort actions by group (lowest first, undefined group is 0), then lowest
+    // depth (lower depth means potentially a parent task), then highest preference
+    // score.
     targets.sort(
         (target1, target2) =>
-            target1.depth - target2.depth || target2.preference - target1.preference,
+            (groupByTaskId.get(target1.taskId) ?? 0) - (groupByTaskId.get(target2.taskId) ?? 0) ||
+            target1.depth - target2.depth ||
+            target2.preference - target1.preference,
     );
 
     return targets[0]!;

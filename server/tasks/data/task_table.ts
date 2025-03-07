@@ -2081,8 +2081,9 @@ async function actuallyCommitTaskActionTransaction(
                     case "Undelete": {
                         const taskItem = await state.getTaskItemIfExists(taskId);
                         if (!taskItem) throw new NotFoundError("Task not found");
-                        if (!taskItem.deletedTime)
+                        if (!taskItem.deletedTime) {
                             throw new FailedPreconditionError("Expected task to be deleted");
+                        }
 
                         await state.authorizeTaskItemAccessAllowingDeletedTasks(taskItem, "Edit");
 
@@ -2840,8 +2841,11 @@ async function actuallyCommitTaskActionTransaction(
                     case "Undelete": {
                         const collectionItem = await state.getCollectionItemIfExists(collectionId);
                         if (!collectionItem) throw new NotFoundError("Task collection not found");
-                        if (!isTaskCollectionItemDeleted(collectionItem))
-                            throw new FailedPreconditionError("Expected task to be deleted");
+                        if (!isTaskCollectionItemDeleted(collectionItem)) {
+                            throw new FailedPreconditionError(
+                                "Expected task collection to be deleted",
+                            );
+                        }
 
                         // If `isTaskCollectionItemDeleted()` returns true then we have
                         // `rawDeletedTime`.

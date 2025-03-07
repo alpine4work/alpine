@@ -94,4 +94,4 @@ export const doubleClickDelayMs = 500;
  *
  * [1]: https://github.com/ProseMirror/prosemirror-history/blob/4e1e8982b57b9fc5d1b27213b9b3a76416e3903e/src/history.ts#L378-L381
  */
-export const mergeUndoTextUpdatesDelayMs = 500;
+export const undoMergeTextUpdatesDelayMs = 500;

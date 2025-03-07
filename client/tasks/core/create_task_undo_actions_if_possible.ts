@@ -47,6 +47,7 @@ type TaskUndoAction =
           readonly taskId: TaskId;
           readonly taskAction: {
               readonly type: "UpdateTitle";
+              readonly withoutUndoMerge: boolean;
               readonly getTitleUpdate: (
                   getTask: (taskId: TaskId) => TaskModel | null,
               ) => TaskTitleUpdateModel;
@@ -237,7 +238,10 @@ export class TaskUndoActions {
 
     public getWithoutReconciliation(): ReadonlyArray<{
         readonly taskId: TaskId;
-        readonly taskAction: {readonly type: TaskUpdateTaskAction["taskAction"]["type"]};
+        readonly taskAction: {
+            readonly type: TaskUpdateTaskAction["taskAction"]["type"];
+            readonly withoutUndoMerge?: boolean;
+        };
     }> {
         return this._actions;
     }
@@ -591,6 +595,7 @@ export function createTaskUndoActionsIfPossible(
                             taskId: action.taskId,
                             taskAction: {
                                 type: "UpdateTitle",
+                                withoutUndoMerge: action.taskAction.withoutUndoMerge ?? false,
                                 getTitleUpdate: getTask => {
                                     // The task must still exist in our store to be able to undo title changes!
                                     // Since we need the latest title to figure out the right IDs.

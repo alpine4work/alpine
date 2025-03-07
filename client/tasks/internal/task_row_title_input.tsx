@@ -2,7 +2,7 @@ import {setInteractionModality} from "@react-aria/interactions";
 import {useGlobalListeners} from "@react-aria/utils";
 import classNames from "classnames";
 import {CaretLeft, Lock} from "phosphor-react";
-import {Fragment, Slice} from "prosemirror-model";
+import {Fragment, Node, Schema as ProsemirrorSchema, Slice} from "prosemirror-model";
 import {
     AllSelection,
     EditorState,
@@ -17,6 +17,7 @@ import {
     CSSProperties,
     Key,
     Memo,
+    MutableRefObject,
     Ref,
     forwardRef,
     useCallback,
@@ -28,6 +29,7 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
+import {parseContentFromClipboard} from "~/client/content/parse_content_from_clipboard.js";
 import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/shared/build_shared_content_editor_input_rules_plugin.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
@@ -53,17 +55,22 @@ import {
     taskRowTitleInputPaddingYPx,
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
+import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
-import {TaskClientStoreTaskEntry} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientStore, TaskClientStoreTaskEntry} from "~/client/tasks/core/task_client_store.js";
 import {buildTaskTitleInputKeymapPlugin} from "~/client/tasks/internal/build_task_title_input_keymap_plugin.js";
 import {createTaskEntryAccessStore} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
+import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {
     TaskRowTitleChildTasksButton,
     TaskRowTitleChildTasksButtonRef,
 } from "~/client/tasks/internal/task_row_title_child_tasks_button.js";
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {contentBaseProsemirrorSchemaSpec} from "~/shared/content/content_schema.js";
+import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {
     RemLength,
     Spacing,
@@ -77,15 +84,21 @@ import {
     allSpacingScales,
     remPxBySpacingScale,
 } from "~/shared/design/core/spacing_scale.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Store} from "~/shared/store/store.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 import {
     TaskTitleModel,
     TaskTitleProsemirrorSchema,
@@ -271,12 +284,16 @@ function TaskRowTitleInput(
         maxGridExpandableTaskDepth: number;
         stateKey: Key | undefined;
         query: TaskClientQuery;
+        isQueryManuallySorted: boolean;
         task: TaskModel | null;
         onTitleChange: (titleUpdate: TaskTitleUpdateModel) => void;
         placeholder?: string;
         indentation: number;
         paddingRight: RemLength | undefined;
+        parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
         parentTaskEntryStore: Store<TaskClientStoreTaskEntry> | null;
+        isGhostTask: boolean;
+        isFirstRow: boolean;
         areChildTasksExpanded: boolean;
         onAreChildTasksExpandedToggle: () => void;
         createTaskAbove: () => void;
@@ -289,9 +306,27 @@ function TaskRowTitleInput(
         preserveLastTaskTitleArrowNavigationCoord: () => void;
         focusFirstVisibleTaskTitleStart: () => void;
         focusLastVisibleTaskTitleEnd: () => void;
+        focusTaskTitleSelection: (gridKey: TaskGridViewTaskKey, selection: Selection) => void;
         focusCell: Memo<(column: TaskGridViewColumn) => void>;
         focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
+        getMoveTaskToQueryActions: (
+            taskId: TaskId,
+            position:
+                | {type: "Start"}
+                | {type: "End"}
+                | {type: "Above"; taskId: TaskId}
+                | {type: "Below"; taskId: TaskId},
+        ) => Array<TaskActionModel>;
+        getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
+        commitActionTransactionEvenIfGhost: (
+            getActions:
+                | ((taskId: TaskId) => Iterable<TaskActionModel>)
+                | {
+                      getBeforeMoveTaskActions: (taskId: TaskId) => Iterable<TaskActionModel>;
+                      getAfterMoveTaskActions: (taskId: TaskId) => Iterable<TaskActionModel>;
+                  },
+        ) => void;
     },
     ref: Ref<TaskRowTitleInputRef>,
 ) {
@@ -340,9 +375,10 @@ function TaskRowTitleInput(
     const sprinkles = null;
 
     const canPrimaryInputHover = useCanPrimaryInputHover();
-    const {isAppleDevice} = useClientInfo();
+    const {isAppleDevice, timeZone} = useClientInfo();
     const spacingScale = useSpacingScale();
     const isInitialAppRender = useIsInitialAppRender();
+    const {space, currentAccount} = useSpaceContext();
 
     // Title input is in dual modality mode if:
     //
@@ -524,16 +560,20 @@ function TaskRowTitleInput(
     const propsRef = useRef(props);
     const titleRef = useRef(title);
     const handleKeyDownRef = useRef(handleKeyDown);
-    const hasEditAccessLevelRef = useRef(hasEditAccessLevel);
+    const timeZoneRef = useRef(timeZone);
     const spacingScaleRef = useRef(spacingScale);
     const isDualModalityRef = useRef(isDualModality);
+    const spaceIdRef = useRef(space.id);
+    const currentAccountIdRef = useRef(currentAccount?.id);
     useInsertionEffect(() => {
         propsRef.current = props;
         titleRef.current = title;
         handleKeyDownRef.current = handleKeyDown;
-        hasEditAccessLevelRef.current = hasEditAccessLevel;
+        timeZoneRef.current = timeZone;
         spacingScaleRef.current = spacingScale;
         isDualModalityRef.current = isDualModality;
+        spaceIdRef.current = space.id;
+        currentAccountIdRef.current = currentAccount?.id;
     });
 
     const onNextLayoutEffectCallbacksRef = useRef<Array<() => void>>([]);
@@ -698,7 +738,7 @@ function TaskRowTitleInput(
             viewElement.dataset.scrollbar = "false";
 
             const initialIsDualModality = isDualModalityRef.current;
-            const initialHasEditAccessLevel = hasEditAccessLevelRef.current;
+            const initialHasEditAccessLevel = propsRef.current.hasEditAccessLevel;
             const initialIsEditable = !initialIsDualModality && initialHasEditAccessLevel;
 
             let lastSpacingScale: SpacingScale | null = null;
@@ -799,6 +839,32 @@ function TaskRowTitleInput(
                         }
 
                         return event.defaultPrevented;
+                    },
+
+                    handleDOMEvents: {
+                        paste: (view, event) => {
+                            handleTaskRowTitleInputPaste(event, {
+                                store: propsRef.current.query.store,
+                                spaceId: spaceIdRef.current,
+                                currentAccountId: assertExists(currentAccountIdRef.current),
+                                timeZone: timeZoneRef.current,
+                                isQueryManuallySorted: propsRef.current.isQueryManuallySorted,
+                                parents: propsRef.current.parents,
+                                isGhostTask: propsRef.current.isGhostTask,
+                                isFirstRow: propsRef.current.isFirstRow,
+                                titleState: view.state,
+                                updateTitleStateRef,
+                                focusTaskTitleSelection: propsRef.current.focusTaskTitleSelection,
+                                getMoveTaskToQueryActions:
+                                    propsRef.current.getMoveTaskToQueryActions,
+                                getMaybeRemoveTaskFromQueryActions:
+                                    propsRef.current.getMaybeRemoveTaskFromQueryActions,
+                                commitActionTransactionEvenIfGhost:
+                                    propsRef.current.commitActionTransactionEvenIfGhost,
+                            });
+
+                            return true;
+                        },
                     },
 
                     dispatchTransaction: transaction => {
@@ -933,9 +999,7 @@ function TaskRowTitleInput(
                         originalUpdateState.call(this, state);
 
                         // Make sure React state updates render in the same paint as transaction.
-                        flushSync(() => {
-                            updateMultilineState(false);
-                        });
+                        updateMultilineState(false);
                     };
                 }
 
@@ -1244,6 +1308,12 @@ function TaskRowTitleInput(
         };
 
         const handleBlur = () => {
+            // If `<TaskRowTitleInput>` is focused when `view.destroy()` is called then
+            // `handleBlur` will be called in a `useInsertionEffect()` cleanup which will
+            // cause React to log a warning. So don't change state if the view is
+            // destroyed.
+            if (!viewRef.current.isReady || viewRef.current.view !== view) return;
+
             setIsFocused(false);
         };
 
@@ -1308,7 +1378,7 @@ function TaskRowTitleInput(
                 return viewRef.current.view.dom === document.activeElement;
             },
             focusStart: () => {
-                if (!hasEditAccessLevelRef.current) {
+                if (!propsRef.current.hasEditAccessLevel) {
                     focusCell("Title");
                     return;
                 }
@@ -1327,7 +1397,7 @@ function TaskRowTitleInput(
                 });
             },
             focusEnd: () => {
-                if (!hasEditAccessLevelRef.current) {
+                if (!propsRef.current.hasEditAccessLevel) {
                     focusCell("Title");
                     return;
                 }
@@ -1346,7 +1416,7 @@ function TaskRowTitleInput(
                 });
             },
             focusAll: () => {
-                if (!hasEditAccessLevelRef.current) {
+                if (!propsRef.current.hasEditAccessLevel) {
                     focusCell("Title");
                     return;
                 }
@@ -1365,7 +1435,7 @@ function TaskRowTitleInput(
                 });
             },
             focusCoord: (coord: number, side: "top" | "bottom") => {
-                if (!hasEditAccessLevelRef.current) {
+                if (!propsRef.current.hasEditAccessLevel) {
                     focusCell("Title");
                     return;
                 }
@@ -1402,7 +1472,7 @@ function TaskRowTitleInput(
                 });
             },
             focusSelection: (selection: Selection) => {
-                if (!hasEditAccessLevelRef.current) {
+                if (!propsRef.current.hasEditAccessLevel) {
                     focusCell("Title");
                     return;
                 }
@@ -1799,4 +1869,385 @@ function TaskRowTitleParentTaskTitle({
             </div>
         );
     }, [access.type, parentTaskTitle]);
+}
+
+// Copied from ProseMirror:
+// https://github.com/ProseMirror/prosemirror-view/blob/7e97ca8b735cd5a38c126fb9b7cfa95201c05e31/src/input.ts#L635-L640
+function getClipboardDataText(clipboardData: DataTransfer) {
+    const text = clipboardData.getData("text/plain") || clipboardData.getData("Text");
+    if (text) return text;
+    const uris = clipboardData.getData("text/uri-list");
+    return uris ? uris.replace(/\r?\n/g, " ") : "";
+}
+
+function handleTaskRowTitleInputPaste(
+    event: ClipboardEvent,
+    {
+        store,
+        spaceId,
+        currentAccountId,
+        timeZone,
+        isQueryManuallySorted,
+        parents,
+        isGhostTask,
+        isFirstRow,
+        titleState,
+        updateTitleStateRef,
+        focusTaskTitleSelection,
+        getMoveTaskToQueryActions,
+        getMaybeRemoveTaskFromQueryActions,
+        commitActionTransactionEvenIfGhost,
+    }: {
+        store: TaskClientStore;
+        spaceId: SpaceId;
+        currentAccountId: AccountId;
+        timeZone: TimeZone;
+        isQueryManuallySorted: boolean;
+        parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
+        isGhostTask: boolean;
+        isFirstRow: boolean;
+        titleState: EditorState;
+        updateTitleStateRef: MutableRefObject<{
+            titleUpdate: TaskTitleUpdateModel;
+            titleState: EditorState;
+        } | null>;
+        focusTaskTitleSelection: (gridKey: TaskGridViewTaskKey, selection: Selection) => void;
+        getMoveTaskToQueryActions: (
+            taskId: TaskId,
+            position:
+                | {type: "Start"}
+                | {type: "End"}
+                | {type: "Above"; taskId: TaskId}
+                | {type: "Below"; taskId: TaskId},
+        ) => Array<TaskActionModel>;
+        getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
+        commitActionTransactionEvenIfGhost: (
+            getActions:
+                | ((taskId: TaskId) => Iterable<TaskActionModel>)
+                | {
+                      getBeforeMoveTaskActions: (taskId: TaskId) => Iterable<TaskActionModel>;
+                      getAfterMoveTaskActions: (taskId: TaskId) => Iterable<TaskActionModel>;
+                  },
+        ) => void;
+    },
+) {
+    event.preventDefault();
+
+    const schema = new ProsemirrorSchema({
+        nodes: {
+            doc: contentBaseProsemirrorSchemaSpec.nodes.doc,
+            text: contentBaseProsemirrorSchemaSpec.nodes.text,
+            paragraph: contentBaseProsemirrorSchemaSpec.nodes.paragraph,
+            unorderedListItem: contentBaseProsemirrorSchemaSpec.nodes.unorderedListItem,
+            orderedListItem: contentBaseProsemirrorSchemaSpec.nodes.orderedListItem,
+        },
+    });
+
+    // Parse the pasted data using a custom ProseMirror content schema that can
+    // only parse paragraphs and list items. If we see indented list items we want
+    // to convert them into subtasks.
+    const slice =
+        parseContentFromClipboard(
+            spaceId,
+            schema,
+            null,
+            event.clipboardData ? getClipboardDataText(event.clipboardData) : "",
+            event.clipboardData?.getData("text/html") ?? null,
+            false,
+        ) ?? Slice.empty;
+
+    type PastedTask = {
+        title: string;
+        childTasks: Array<PastedTask>;
+    };
+
+    const pastedTasks: Array<PastedTask> = [];
+
+    const doesNodeHaveText = (node: Node): boolean => {
+        for (const childNode of node.content.content) {
+            if (childNode.isText) {
+                return childNode.nodeSize > 0;
+            } else if (doesNodeHaveText(childNode)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    for (const node of slice?.content.content ?? []) {
+        // Ignore empty nodes or non-text nodes (e.g. files and dividers).
+        if (!doesNodeHaveText(node)) continue;
+
+        const pastedTask: PastedTask = {
+            title: printContentSingleLineTextSnippet({
+                doc: schema.node("doc", {}, [node]),
+                references: emptyContentReferences,
+            }),
+            childTasks: [],
+        };
+
+        const indentation: number = node.type.groups.includes("listItem")
+            ? node.attrs.indent ?? 0
+            : 0;
+        let pastedParentChildTasks = pastedTasks;
+
+        for (let i = 0; i < indentation; i++) {
+            if (pastedParentChildTasks.length === 0) {
+                break;
+            } else {
+                pastedParentChildTasks =
+                    pastedParentChildTasks[pastedParentChildTasks.length - 1]!.childTasks;
+            }
+        }
+
+        pastedParentChildTasks.push(pastedTask);
+    }
+
+    if (pastedTasks.length === 0) return;
+
+    // Pasting a bullet list of tasks to create each task individually only makes
+    // sense in a manually sorted query. We don't have control of task order in an
+    // auto-sorted query.
+    //
+    // As a fallback, merge all pasted task titles together and paste them into the
+    // current task title.
+    //
+    // TODO(calebmer): Eventually we want to support pasting multiple tasks in an
+    // auto-sorted query too. We just need some "temporary floating task" state to
+    // make this work.
+    if (!isQueryManuallySorted) {
+        let combinedTitle = "";
+
+        const loop = (pastedTasks: Array<PastedTask>) => {
+            for (const pastedTask of pastedTasks) {
+                combinedTitle += pastedTask.title;
+                loop(pastedTask.childTasks);
+            }
+        };
+
+        loop(pastedTasks);
+
+        const titleUpdate = assertExists(taskTitlePluginKey.getState(titleState)).replace(
+            titleState.selection.from,
+            titleState.selection.to,
+            combinedTitle,
+        );
+
+        const transaction = titleState.tr.replace(
+            titleState.selection.from,
+            titleState.selection.to,
+            new Slice(Fragment.from(TaskTitleProsemirrorSchema.text(combinedTitle)), 0, 0),
+        );
+
+        // Set the selection to the end of the pasted content.
+        transaction.setSelection(
+            TextSelection.near(
+                transaction.doc.resolve(titleState.selection.from + combinedTitle.length),
+            ),
+        );
+
+        const newTitleState = titleState.apply(transaction);
+
+        updateTitleStateRef.current = {
+            titleUpdate,
+            titleState: newTitleState,
+        };
+
+        flushSync(() => {
+            commitActionTransactionEvenIfGhost(taskId => [
+                {
+                    type: "UpdateTask",
+                    time: store.clock.now(),
+                    taskId,
+                    taskAction: {
+                        type: "UpdateTitle",
+                        titleUpdate,
+                        // Don't allow merging title text updates that happen after the paste. So users
+                        // don't accidentally undo an entire paste when they wanted to only undo some
+                        // text they typed.
+                        withoutUndoMerge: true,
+                    },
+                },
+            ]);
+        });
+
+        updateTitleStateRef.current = null;
+        return;
+    }
+
+    indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint();
+
+    updateTitleStateRef.current = null;
+
+    let focusTaskTitleSelectionAfterCommit: {
+        gridKey: TaskGridViewTaskKey;
+        selection: Selection;
+    } | null = null;
+
+    const getActions = (lastPastedTaskId: TaskId) => {
+        const actions: Array<TaskActionModel> = [];
+
+        const loop = (
+            pastedParentTaskIds: ReadonlyArray<TaskId>,
+            pastedParentTaskId: TaskId | null,
+            isParentLastPastedTask: boolean,
+            pastedTasks: Array<PastedTask>,
+        ) => {
+            for (let i = 0; i < pastedTasks.length; i++) {
+                const pastedTask = pastedTasks[i]!;
+                const isLastPastedTask =
+                    isParentLastPastedTask &&
+                    i === pastedTasks.length - 1 &&
+                    pastedTask.childTasks.length === 0;
+
+                const pastedTaskId: TaskId = isLastPastedTask ? lastPastedTaskId : generateId();
+
+                if (!isLastPastedTask) {
+                    actions.push({
+                        type: "UpdateTask",
+                        time: store.clock.now(),
+                        taskId: pastedTaskId,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: currentAccountId,
+                            creatorTimeZone: timeZone,
+                        },
+                    });
+
+                    // If this task doesn't have a parent then we need to add it to the query so
+                    // it'll show up right where the user pasted.
+                    if (pastedParentTaskId === null) {
+                        for (const action of getMoveTaskToQueryActions(
+                            pastedTaskId,
+                            isGhostTask
+                                ? {type: isFirstRow ? "Start" : "End"}
+                                : {type: "Above", taskId: lastPastedTaskId},
+                        )) {
+                            actions.push(action);
+                        }
+                    }
+                }
+
+                if (pastedParentTaskId !== null) {
+                    // If this is the last pasted task and it's being made the child of another
+                    // pasted task then let's remove it from the query so it doesn't show up as both
+                    // a child and a task in the query.
+                    if (isLastPastedTask) {
+                        for (const action of getMaybeRemoveTaskFromQueryActions(pastedTaskId)) {
+                            actions.push(action);
+                        }
+                    }
+
+                    actions.push({
+                        type: "UpdateTask",
+                        time: store.clock.now(),
+                        taskId: pastedTaskId,
+                        taskAction: {
+                            type: "UpdateParentTaskId",
+                            parentTaskId: pastedParentTaskId,
+                        },
+                    });
+                }
+
+                // Don't allow merging title text updates that happen after the paste. So users
+                // don't accidentally undo an entire paste when they wanted to only undo some
+                // text they typed.
+                const withoutUndoMerge = true;
+
+                if (!isLastPastedTask) {
+                    actions.push({
+                        type: "UpdateTask",
+                        time: store.clock.now(),
+                        taskId: pastedTaskId,
+                        taskAction: {
+                            type: "UpdateTitle",
+                            titleUpdate: emptyTaskTitleModel.get().replace(0, 0, pastedTask.title),
+                            withoutUndoMerge,
+                        },
+                    });
+                }
+                // If this is the last pasted task then generate a `titleUpdate` that replaces
+                // text in the last task at the current selection.
+                else {
+                    const titleUpdate = assertExists(
+                        taskTitlePluginKey.getState(titleState),
+                    ).replace(titleState.selection.from, titleState.selection.to, pastedTask.title);
+
+                    const transaction = titleState.tr.replace(
+                        titleState.selection.from,
+                        titleState.selection.to,
+                        new Slice(
+                            Fragment.from(TaskTitleProsemirrorSchema.text(pastedTask.title)),
+                            0,
+                            0,
+                        ),
+                    );
+
+                    // Set the selection to the end of the pasted content.
+                    transaction.setSelection(
+                        TextSelection.near(
+                            transaction.doc.resolve(
+                                titleState.selection.from + pastedTask.title.length,
+                            ),
+                        ),
+                    );
+
+                    const newTitleState = titleState.apply(transaction);
+
+                    updateTitleStateRef.current = {
+                        titleUpdate,
+                        titleState: newTitleState,
+                    };
+
+                    actions.push({
+                        type: "UpdateTask",
+                        time: store.clock.now(),
+                        taskId: pastedTaskId,
+                        taskAction: {
+                            type: "UpdateTitle",
+                            titleUpdate,
+                            withoutUndoMerge,
+                        },
+                    });
+
+                    // If the task used to have no parents but after the paste will be indented then
+                    // we need to manually move focus into the new `<TaskRowView>` component since
+                    // child tasks have a key prefixed by their root parent task.
+                    if (parents.length === 0 && pastedParentTaskIds.length > 0) {
+                        focusTaskTitleSelectionAfterCommit = {
+                            gridKey: `${pastedParentTaskIds[0]!}-${pastedTaskId}`,
+                            selection: transaction.selection,
+                        };
+                    }
+                }
+
+                loop(
+                    [...pastedParentTaskIds, pastedTaskId],
+                    pastedTaskId,
+                    isParentLastPastedTask && i === pastedTasks.length - 1,
+                    pastedTask.childTasks,
+                );
+            }
+        };
+
+        loop(emptyArray, null, true, pastedTasks);
+
+        return actions;
+    };
+
+    // Synchronous flush to make sure `updateTitleStateRef` is used before it's
+    // reset to null at the end of this function.
+    flushSync(() => {
+        commitActionTransactionEvenIfGhost({
+            getBeforeMoveTaskActions: getActions,
+            getAfterMoveTaskActions: () => emptyArray,
+        });
+    });
+
+    updateTitleStateRef.current = null;
+
+    if (focusTaskTitleSelectionAfterCommit !== null) {
+        const {gridKey, selection} = focusTaskTitleSelectionAfterCommit;
+        focusTaskTitleSelection(gridKey, selection);
+    }
 }
