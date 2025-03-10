@@ -1376,6 +1376,31 @@ export function buildContentEditorKeymapPlugin(
                         return false;
                     }
 
+                    /**
+                     *  const insertPosition = $from.before();
+                        // check if insertPosition has a paragraph node both empty or filled,
+                        // if any paragraph node is present then move the cursor to that position
+                        // otherwise insert a new empty paragraph node
+                        const transaction = state.tr;
+
+                        // Check if there's already a paragraph node before the current position
+                        const nodeBefore = state.doc.resolve(insertPosition).nodeBefore;
+                        if (nodeBefore && nodeBefore.type === paragraphNode) {
+                            // Paragraph already exists, just move cursor to it
+                            transaction.setSelection(
+                                TextSelection.create(transaction.doc, insertPosition - 1),
+                            );
+                        } else {
+                            // No paragraph exists, insert a new one
+                            transaction.insert(insertPosition, paragraphNode.create());
+                            transaction.setSelection(
+                                TextSelection.create(transaction.doc, insertPosition - 1),
+                            );
+                        }
+
+                        dispatch(transaction);
+                     */
+
                     if (dispatch) {
                         // NOTE(rohit): instead of after() i was using
                         // `$from.pos + currentNode.nodeSize`
@@ -1388,10 +1413,20 @@ export function buildContentEditorKeymapPlugin(
                         // complex node like a table.
                         const insertPosition = $from.after();
                         const transaction = state.tr;
-                        transaction.insert(insertPosition, paragraphNode.create());
-                        transaction.setSelection(
-                            TextSelection.create(transaction.doc, insertPosition + 1),
-                        );
+
+                        const nodeAfter = state.doc.resolve(insertPosition).nodeAfter;
+                        if (nodeAfter && nodeAfter.type === paragraphNode) {
+                            // Paragraph already exists, just move cursor to it
+                            transaction.setSelection(
+                                TextSelection.create(transaction.doc, insertPosition + 1),
+                            );
+                        } else {
+                            transaction.insert(insertPosition, paragraphNode.create());
+                            transaction.setSelection(
+                                TextSelection.create(transaction.doc, insertPosition + 1),
+                            );
+                        }
+
                         dispatch(transaction);
                     }
 
@@ -1464,11 +1499,26 @@ export function buildContentEditorKeymapPlugin(
 
                     if (dispatch) {
                         const insertPosition = $from.before();
+                        // check if insertPosition has a paragraph node both empty or filled,
+                        // if any paragraph node is present then move the cursor to that position
+                        // otherwise insert a new empty paragraph node
                         const transaction = state.tr;
-                        transaction.insert(insertPosition, paragraphNode.create());
-                        transaction.setSelection(
-                            TextSelection.create(transaction.doc, insertPosition - 1),
-                        );
+
+                        // Check if there's already a paragraph node before the current position
+                        const nodeBefore = state.doc.resolve(insertPosition).nodeBefore;
+                        if (nodeBefore && nodeBefore.type === paragraphNode) {
+                            // Paragraph already exists, just move cursor to it
+                            transaction.setSelection(
+                                TextSelection.create(transaction.doc, insertPosition - 1),
+                            );
+                        } else {
+                            // No paragraph exists, insert a new one
+                            transaction.insert(insertPosition, paragraphNode.create());
+                            transaction.setSelection(
+                                TextSelection.create(transaction.doc, insertPosition - 1),
+                            );
+                        }
+
                         dispatch(transaction);
                     }
 
