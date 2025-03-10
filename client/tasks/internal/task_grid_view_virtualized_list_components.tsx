@@ -33,15 +33,6 @@ import {
 } from "~/client/styles/styles.js";
 import {
     taskGridViewColumnHeaderExtraPaddingBottomPx,
-    taskGridViewColumnHeaderHeight,
-    taskRowViewCollectionsColumnWidth,
-    taskRowViewColumnPaddingX,
-    taskRowViewColumnWidth,
-    taskRowViewDragHandleWidthRem,
-    taskRowViewExpandButtonWidthRem,
-    taskRowViewFirstColumnPaddingLeft,
-    taskRowViewFirstColumnWidth,
-    taskRowViewLastColumnPaddingRight,
     taskRowViewMinHeight,
     taskRowViewPaddingBottom,
 } from "~/client/styles/tasks_shared_styles.js";
@@ -53,6 +44,7 @@ import {
 } from "~/client/tasks/core/task_client_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
+import {TaskGridViewColumnHeader as TaskGridViewActualColumnHeader} from "~/client/tasks/internal/task_grid_view_column_header.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {
     TaskGridViewVirtualizedListEvents,
@@ -152,71 +144,9 @@ function TaskGridViewColumnHeader(
                         </Box>
                     )}
                     {hasColumns && (
-                        <Box height={taskGridViewColumnHeaderHeight} display="flex">
-                            <Box
-                                flexShrink="0"
-                                width="32"
-                                paddingBottom="1"
-                                color="grey-40"
-                                fontSize="50"
-                                style={{
-                                    paddingLeft: `${
-                                        taskRowViewDragHandleWidthRem +
-                                        taskRowViewExpandButtonWidthRem
-                                    }rem`,
-                                }}
-                            >
-                                Name
-                            </Box>
-                            <Box flexGrow="1" />
-                            {!withoutAssigneeColumn && (
-                                <Box
-                                    flexShrink="0"
-                                    paddingX={taskRowViewColumnPaddingX}
-                                    paddingBottom="1"
-                                    color="grey-40"
-                                    fontSize="50"
-                                    style={{
-                                        width: taskRowViewFirstColumnWidth,
-                                        paddingLeft: taskRowViewFirstColumnPaddingLeft,
-                                    }}
-                                >
-                                    Assignee
-                                </Box>
-                            )}
-                            <Box
-                                flexShrink="0"
-                                paddingX={taskRowViewColumnPaddingX}
-                                paddingBottom="1"
-                                color="grey-40"
-                                fontSize="50"
-                                style={{width: taskRowViewColumnWidth}}
-                            >
-                                Priority
-                            </Box>
-                            <Box
-                                flexShrink="0"
-                                paddingX={taskRowViewColumnPaddingX}
-                                paddingBottom="1"
-                                color="grey-40"
-                                fontSize="50"
-                                style={{width: taskRowViewColumnWidth}}
-                            >
-                                Due date
-                            </Box>
-                            <Box
-                                flexShrink="0"
-                                paddingLeft={taskRowViewColumnPaddingX}
-                                paddingRight={taskRowViewLastColumnPaddingRight}
-                                paddingBottom="1"
-                                color="grey-40"
-                                fontSize="50"
-                                style={{width: taskRowViewCollectionsColumnWidth}}
-                            >
-                                Collections
-                            </Box>
-                            <Box flexShrink="0" width="5" />
-                        </Box>
+                        <TaskGridViewActualColumnHeader
+                            withoutAssigneeColumn={withoutAssigneeColumn}
+                        />
                     )}
                 </OverlayScopeContextProvider>
             </Box>
@@ -289,9 +219,9 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
         rowMaxWidth,
         isRootQueryNull,
         structuralItemKeyPrefix,
-        hasColumnHeader,
         relativeItemIndex,
         isFirstRow,
+        withoutFirstRowBorderTop,
         withPaddingBottom,
         focusPreviousTaskTitleEnd,
         focusPreviousTaskTitleAll,
@@ -303,6 +233,7 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
         hasColumnHeader: boolean;
         relativeItemIndex: number;
         isFirstRow: boolean;
+        withoutFirstRowBorderTop: boolean;
         withPaddingBottom: boolean;
         focusPreviousTaskTitleEnd: Memo<(key: string) => void>;
         focusPreviousTaskTitleAll: Memo<(key: string) => void>;
@@ -347,7 +278,7 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
                             // The columns in a grid view render a semi-translucent grey border. To avoid
                             // drawing a border darker than `grey-5` at the top of the screen if this is the
                             // first row in a grid with columns then only render a bottom border.
-                            capabilities.hasColumns && hasColumnHeader && isFirstRow
+                            isFirstRow && withoutFirstRowBorderTop
                                 ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}`
                                 : `0 1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
                     }}
@@ -525,7 +456,6 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     rootQuery,
     isRootQueryManuallySorted,
     affinityManager,
-    hasColumnHeader,
     query,
     gridKey,
     cursor,
@@ -535,6 +465,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     rowMaxWidth,
     disableExpensiveFeaturesDuringScroll,
     isFirstRow,
+    withoutFirstRowBorderTop,
     isFirstTaskInQuery,
     nextIndentation,
     titlePlaceholder,
@@ -557,7 +488,6 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     rootQuery: TaskClientQuery;
     isRootQueryManuallySorted: boolean;
     affinityManager: TaskClientStoreSearchAffinityManager;
-    hasColumnHeader: boolean;
     query: TaskClientQuery;
     gridKey: TaskGridViewTaskKey;
     cursor: TaskQuerySortCursor | null;
@@ -567,6 +497,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     rowMaxWidth: Spacing | null;
     disableExpensiveFeaturesDuringScroll: boolean;
     isFirstRow: boolean;
+    withoutFirstRowBorderTop: boolean;
     isFirstTaskInQuery: boolean;
     nextIndentation: number;
     titlePlaceholder?: string;
@@ -1275,7 +1206,6 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             isQueryManuallySorted={isQueryManuallySorted}
             undoManager={undoManager}
             affinityManager={affinityManager}
-            hasColumnHeader={hasColumnHeader}
             cursor={cursor}
             ghostTaskId={ghostTaskId}
             onGhostTaskCreated={
@@ -1286,6 +1216,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
             titlePlaceholder={titlePlaceholder}
             isFirstRow={isFirstRow}
+            withoutFirstRowBorderTop={withoutFirstRowBorderTop}
             isFirstTaskInQuery={isFirstTaskInQuery}
             nextIndentation={nextIndentation}
             areChildTasksExpandedStore={areChildTasksExpandedStore}

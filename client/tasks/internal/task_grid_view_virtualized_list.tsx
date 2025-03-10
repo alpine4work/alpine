@@ -173,6 +173,7 @@ export type TaskGridViewVirtualizedListProps = {
     // by its `TaskId` regardless of the virtualized list it's in.
     structuralItemKeyPrefix?: string;
     withoutColumnHeader?: boolean;
+    withoutFirstRowBorderTop?: boolean;
     columnHeaderControls?: Memo<{minHeight: RemLength | number; node: ReactNode}>;
     rowMaxWidth?: Spacing | null;
     withoutDecorativeGhostRowsIfEmpty?: boolean;
@@ -627,6 +628,7 @@ export function useTaskGridViewVirtualizedListBase({
     getMaybeRemoveTaskFromQueryActions: getMaybeRemoveTaskFromRootQueryActions,
     structuralItemKeyPrefix = "",
     withoutColumnHeader = false,
+    withoutFirstRowBorderTop: withoutFirstRowBorderTopProp = false,
     columnHeaderControls,
     rowMaxWidth = null,
     withoutDecorativeGhostRowsIfEmpty = false,
@@ -786,6 +788,8 @@ export function useTaskGridViewVirtualizedListBase({
 
     const hasColumnHeader: boolean =
         (capabilities.hasColumns && !withoutColumnHeader) || !!columnHeaderControls;
+    const withoutFirstRowBorderTop: boolean =
+        (capabilities.hasColumns && hasColumnHeader) || withoutFirstRowBorderTopProp;
     const itemCountBeforeState = (hasColumnHeader ? 1 : 0) + (hasTopGhostTask ? 1 : 0);
 
     const itemCount =
@@ -2104,7 +2108,6 @@ export function useTaskGridViewVirtualizedListBase({
                                         rootQuery={rootQuery}
                                         isRootQueryManuallySorted={isRootQueryManuallySorted}
                                         affinityManager={affinityManager}
-                                        hasColumnHeader={hasColumnHeader}
                                         query={rootQuery}
                                         gridKey={topGhostTaskId}
                                         cursor={null}
@@ -2119,6 +2122,7 @@ export function useTaskGridViewVirtualizedListBase({
                                             !isDragging && disableExpensiveFeaturesDuringScroll
                                         }
                                         isFirstRow={true}
+                                        withoutFirstRowBorderTop={withoutFirstRowBorderTop}
                                         // The ghost row is not a task in the query so always report as false.
                                         isFirstTaskInQuery={false}
                                         nextIndentation={0}
@@ -2198,7 +2202,6 @@ export function useTaskGridViewVirtualizedListBase({
                                         rootQuery={rootQuery}
                                         isRootQueryManuallySorted={isRootQueryManuallySorted}
                                         affinityManager={affinityManager}
-                                        hasColumnHeader={hasColumnHeader}
                                         query={rootQuery}
                                         gridKey={bottomGhostTaskId}
                                         cursor={null}
@@ -2212,6 +2215,7 @@ export function useTaskGridViewVirtualizedListBase({
                                             !isDragging && disableExpensiveFeaturesDuringScroll
                                         }
                                         isFirstRow={!hasTopGhostTask && stateItemCount === 0}
+                                        withoutFirstRowBorderTop={withoutFirstRowBorderTop}
                                         // The ghost row is not a task in the query so always report as false.
                                         isFirstTaskInQuery={false}
                                         nextIndentation={0}
@@ -2264,6 +2268,7 @@ export function useTaskGridViewVirtualizedListBase({
                             hasColumnHeader={hasColumnHeader}
                             relativeItemIndex={relativeItemIndex}
                             isFirstRow={!hasTopGhostTask && itemIndex - itemCountBeforeState === 0}
+                            withoutFirstRowBorderTop={withoutFirstRowBorderTop}
                             withPaddingBottom={itemIndex === itemCount - 1}
                             focusPreviousTaskTitleEnd={events.focusPreviousTaskTitleEnd}
                             focusPreviousTaskTitleAll={events.focusPreviousTaskTitleAll}
@@ -2292,7 +2297,6 @@ export function useTaskGridViewVirtualizedListBase({
                                 rootQuery={rootQuery!}
                                 isRootQueryManuallySorted={isRootQueryManuallySorted}
                                 affinityManager={affinityManager}
-                                hasColumnHeader={hasColumnHeader}
                                 query={item.query}
                                 gridKey={gridKey}
                                 cursor={item.cursor}
@@ -2307,6 +2311,7 @@ export function useTaskGridViewVirtualizedListBase({
                                 isFirstRow={
                                     !hasTopGhostTask && itemIndex - itemCountBeforeState === 0
                                 }
+                                withoutFirstRowBorderTop={withoutFirstRowBorderTop}
                                 isFirstTaskInQuery={item.isFirstTaskInQuery}
                                 nextIndentation={
                                     itemIndex + 1 < itemCountBeforeState + stateItemCount
@@ -2392,6 +2397,7 @@ export function useTaskGridViewVirtualizedListBase({
         toggleAreChildTasksExpanded,
         topGhostTaskId,
         viewRef,
+        withoutFirstRowBorderTop,
     ]);
 
     const onLayoutEffectCallbacksRef = useRef<Array<() => void>>([]);

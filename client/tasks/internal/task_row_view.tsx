@@ -294,7 +294,6 @@ function TaskRowView(
         isQueryManuallySorted,
         undoManager,
         affinityManager,
-        hasColumnHeader,
         cursor,
         ghostTaskId = null,
         onGhostTaskCreated,
@@ -302,6 +301,7 @@ function TaskRowView(
         rowMaxWidth,
         disableExpensiveFeaturesDuringScroll,
         isFirstRow,
+        withoutFirstRowBorderTop,
         isFirstTaskInQuery,
         nextIndentation,
         titlePlaceholder,
@@ -339,7 +339,6 @@ function TaskRowView(
         isQueryManuallySorted: boolean;
         undoManager: TaskClientStoreUndoManager;
         affinityManager: TaskClientStoreSearchAffinityManager;
-        hasColumnHeader: boolean;
         cursor: TaskQuerySortCursor | null;
         ghostTaskId?: TaskId | null;
         onGhostTaskCreated?: () => void;
@@ -347,6 +346,7 @@ function TaskRowView(
         rowMaxWidth: Spacing | null;
         disableExpensiveFeaturesDuringScroll: boolean;
         isFirstRow: boolean;
+        withoutFirstRowBorderTop: boolean;
         isFirstTaskInQuery: boolean;
         nextIndentation: number;
         titlePlaceholder?: string;
@@ -1455,7 +1455,7 @@ function TaskRowView(
                     // The columns in a grid view render a semi-translucent grey border. To avoid
                     // drawing a border darker than `grey-5` at the top of the screen if this is the
                     // first row in a grid with columns then only render a bottom border.
-                    capabilities.hasColumns && hasColumnHeader && isFirstRow
+                    isFirstRow && withoutFirstRowBorderTop
                         ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}`
                         : `0 1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
             }}
