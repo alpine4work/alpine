@@ -109,7 +109,7 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
         ],
     };
 
-    const assigneeDueTodayQuery: {
+    const dueTodayQuery: {
         limit: number;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
@@ -212,14 +212,14 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
     };
 
     const {queries, extraQueries, updateEvent} = await context.tasks.loadQueries(spaceId, {
-        queries: [activeQuery, overdueQuery, assigneeDueTodayQuery, dueSoonQuery, remainingQuery],
+        queries: [activeQuery, overdueQuery, dueTodayQuery, dueSoonQuery, remainingQuery],
         taskIds: [],
         collectionIds: [],
     });
 
     const activeQueryOutput = assertExists(queries[0]);
     const overdueQueryOutput = assertExists(queries[1]);
-    const assigneeDueTodayQueryOutput = assertExists(queries[2]);
+    const dueTodayQueryOutput = assertExists(queries[2]);
     const dueSoonQueryOutput = assertExists(queries[3]);
     const remainingQueryOutput = assertExists(queries[4]);
 
@@ -229,7 +229,7 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
             initialGridViewExpansionStates: [
                 activeQueryOutput.gridViewExpansionState,
                 overdueQueryOutput.gridViewExpansionState,
-                assigneeDueTodayQueryOutput.gridViewExpansionState,
+                dueTodayQueryOutput.gridViewExpansionState,
                 dueSoonQueryOutput.gridViewExpansionState,
                 remainingQueryOutput.gridViewExpansionState,
             ],
@@ -250,10 +250,10 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
                         loadedState: overdueQueryOutput.loadedState,
                     },
                     {
-                        limit: assigneeDueTodayQuery.limit,
-                        filters: assigneeDueTodayQuery.filters,
-                        sorts: assigneeDueTodayQuery.sorts,
-                        loadedState: assigneeDueTodayQueryOutput.loadedState,
+                        limit: dueTodayQuery.limit,
+                        filters: dueTodayQuery.filters,
+                        sorts: dueTodayQuery.sorts,
+                        loadedState: dueTodayQueryOutput.loadedState,
                     },
                     {
                         limit: dueSoonQuery.limit,
@@ -284,9 +284,9 @@ export default function TasksRoute() {
     // expected to retain them.
     const {
         store,
-        queries: [activeQuery, overdueQuery, assigneeDueTodayQuery, dueSoonQuery, remainingQuery],
+        queries: [activeQuery, overdueQuery, dueTodayQuery, dueSoonQuery, remainingQuery],
     } = useTaskStoreLoaderDataWithoutRetaining();
-    assert(activeQuery && overdueQuery && assigneeDueTodayQuery && dueSoonQuery && remainingQuery);
+    assert(activeQuery && overdueQuery && dueTodayQuery && dueSoonQuery && remainingQuery);
 
     const [
         initialActiveGridViewExpansionState,
@@ -311,8 +311,8 @@ export default function TasksRoute() {
                     query: overdueQuery,
                     initialGridViewExpansionState: initialOverdueGridViewExpansionState,
                 }}
-                assigneeDueTodayQuery={{
-                    query: assigneeDueTodayQuery,
+                dueTodayQuery={{
+                    query: dueTodayQuery,
                     initialGridViewExpansionState: initialDueTodayGridViewExpansionState,
                 }}
                 dueSoonQuery={{

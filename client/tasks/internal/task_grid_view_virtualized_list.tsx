@@ -294,6 +294,18 @@ export type TaskGridViewVirtualizedListResult = {
      * (Optional) Returns the current `SpacingScale` value for convenience.
      */
     spacingScale: SpacingScale;
+
+    /**
+     * (Optional) the number of `<TaskRowView>` items. Excludes ghost rows, load
+     * more indicators, and column headers.
+     */
+    taskItemCount: number;
+
+    /**
+     * (Optional) The loaded state of the underlying task query. Same as
+     * `useStore(query.loadedStateStore)`.
+     */
+    loadedState: "Unloaded" | "PartiallyLoaded" | "FullyLoaded";
 };
 
 /**
@@ -2399,6 +2411,8 @@ export function useTaskGridViewVirtualizedListBase({
         stateKey,
         bufferedItemHeight: spacing[taskRowViewMinHeight],
         itemCount,
+        taskItemCount: stateItemCount,
+        loadedState,
         renderItem,
         onRenderedRangeChange: tryLoadingMoreData,
         onRenderedRangeLayoutChange: (
