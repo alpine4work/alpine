@@ -327,6 +327,7 @@ function TaskRowView(
         focusFirstVisibleTaskCell,
         focusLastVisibleTaskTitleEnd,
         focusLastVisibleTaskCell,
+        focusTaskTitleSelection,
         setRowZIndex,
         mobileKeyboardToolbarPortalRef,
         scrollToAnchorPosition,
@@ -341,7 +342,6 @@ function TaskRowView(
         cursor: TaskQuerySortCursor | null;
         ghostTaskId?: TaskId | null;
         onGhostTaskCreated?: () => void;
-        gridKey: TaskGridViewTaskKey;
         parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
         rowMaxWidth: Spacing | null;
         disableExpensiveFeaturesDuringScroll: boolean;
@@ -385,6 +385,7 @@ function TaskRowView(
         focusFirstVisibleTaskCell: (column: TaskGridViewColumn) => void;
         focusLastVisibleTaskTitleEnd: () => void;
         focusLastVisibleTaskCell: (column: TaskGridViewColumn) => void;
+        focusTaskTitleSelection: (gridKey: TaskGridViewTaskKey, selection: Selection) => void;
         setRowZIndex: Memo<(zIndex: number) => () => void>;
         mobileKeyboardToolbarPortalRef: RefObject<HTMLDivElement>;
         scrollToAnchorPosition: () => void;
@@ -419,6 +420,7 @@ function TaskRowView(
     const {timeZone, isAppleDevice} = useClientInfo();
     const {currentAccount} = useSpaceContext();
 
+    const isGhostTask = cursor === null;
     const taskId = cursor !== null ? getTaskQuerySortCursorTaskId(cursor) : null;
     const taskEntryStore = taskId !== null ? query.getLoadedTaskEntryStore(taskId) : null;
     const taskEntry = useStore(taskEntryStore);
@@ -1107,12 +1109,25 @@ function TaskRowView(
         // Commit an action transaction against our task. If this is a ghost task then
         // we'll create a new task before applying the update.
         commitActionTransactionEvenIfGhost: (
-            getActions: (taskId: TaskId) => Array<TaskActionModel>,
+            getActions:
+                | ((taskId: TaskId) => Iterable<TaskActionModel>)
+                | {
+                      getBeforeMoveTaskActions: (taskId: TaskId) => Iterable<TaskActionModel>;
+                      getAfterMoveTaskActions: (taskId: TaskId) => Iterable<TaskActionModel>;
+                  },
         ): {
             finally: (callback: () => void) => void;
         } => {
             if (taskId) {
-                return query.store.commitTaskActionTransaction(context, getActions(taskId), {
+                const actions =
+                    typeof getActions === "function"
+                        ? Array.from(getActions(taskId))
+                        : [
+                              ...getActions.getBeforeMoveTaskActions(taskId),
+                              ...getActions.getAfterMoveTaskActions(taskId),
+                          ];
+
+                return query.store.commitTaskActionTransaction(context, actions, {
                     undoManager,
                     affinityManager,
                 });
@@ -1137,26 +1152,45 @@ function TaskRowView(
             return runWithImmediatePriority(() => {
                 disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(ghostTaskId);
 
-                const commitPromise = query.store.commitTaskActionTransaction(
-                    context,
-                    [
-                        {
-                            type: "UpdateTask",
-                            time: query.store.clock.now(),
-                            taskId: ghostTaskId,
-                            taskAction: {
-                                type: "Create",
-                                creatorId: currentAccount.id,
-                                creatorTimeZone: timeZone,
-                            },
+                const actions: Array<TaskActionModel> = [
+                    {
+                        type: "UpdateTask",
+                        time: query.store.clock.now(),
+                        taskId: ghostTaskId,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: currentAccount.id,
+                            creatorTimeZone: timeZone,
                         },
-                        ...getMoveTaskToQueryActions(ghostTaskId, {
-                            type: isFirstRow ? "Start" : "End",
-                        }),
-                        ...getActions(ghostTaskId),
-                    ],
-                    {undoManager, affinityManager},
-                );
+                    },
+                ];
+
+                if (typeof getActions !== "function") {
+                    for (const action of getActions.getBeforeMoveTaskActions(ghostTaskId)) {
+                        actions.push(action);
+                    }
+                }
+
+                for (const action of getMoveTaskToQueryActions(ghostTaskId, {
+                    type: isFirstRow ? "Start" : "End",
+                })) {
+                    actions.push(action);
+                }
+
+                if (typeof getActions !== "function") {
+                    for (const action of getActions.getAfterMoveTaskActions(ghostTaskId)) {
+                        actions.push(action);
+                    }
+                } else {
+                    for (const action of getActions(ghostTaskId)) {
+                        actions.push(action);
+                    }
+                }
+
+                const commitPromise = query.store.commitTaskActionTransaction(context, actions, {
+                    undoManager,
+                    affinityManager,
+                });
 
                 // When we create a new task that occupies our ghost `TaskId` then we need to
                 // regenerate a new ghost `TaskId` so there are no conflicts.
@@ -1695,6 +1729,7 @@ function TaskRowView(
                     maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
                     stateKey={stateKey}
                     query={query}
+                    isQueryManuallySorted={isQueryManuallySorted}
                     task={task}
                     onTitleChange={onTitleChange}
                     placeholder={titlePlaceholder}
@@ -1702,7 +1737,10 @@ function TaskRowView(
                     paddingRight={
                         capabilities.hasColumns ? taskRowViewFirstColumnExtraPaddingLeft : undefined
                     }
+                    parents={parents}
                     parentTaskEntryStore={parentTaskEntryStore}
+                    isGhostTask={isGhostTask}
+                    isFirstRow={isFirstRow}
                     areChildTasksExpanded={areChildTasksExpanded}
                     onAreChildTasksExpandedToggle={onAreChildTasksExpandedToggle}
                     createTaskAbove={createTaskAbove}
@@ -1721,9 +1759,13 @@ function TaskRowView(
                     }
                     focusFirstVisibleTaskTitleStart={focusFirstVisibleTaskTitleStart}
                     focusLastVisibleTaskTitleEnd={focusLastVisibleTaskTitleEnd}
+                    focusTaskTitleSelection={focusTaskTitleSelection}
                     focusCell={focusCell}
                     focusNextCell={focusNextCell}
                     focusPreviousCell={focusPreviousCell}
+                    getMoveTaskToQueryActions={getMoveTaskToQueryActions}
+                    getMaybeRemoveTaskFromQueryActions={getMaybeRemoveTaskFromQueryActions}
+                    commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
                 />
             </div>
             {capabilities.hasColumns && (

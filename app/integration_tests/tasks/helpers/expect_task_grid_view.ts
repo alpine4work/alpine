@@ -4,6 +4,7 @@ import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
 type ExpectTaskGridViewTaskDefinitionAttributes = [
+    // `true` is `OpenInactive` and `false` is `Closed`.
     status: TaskDisplayStatus | boolean,
     title: string,
     assignee?: string,
@@ -40,7 +41,13 @@ function getExpectTaskGridViewTaskDefinitionChildren(
 export async function expectTaskGridView(
     page: Page,
     taskDefinitions: Array<ExpectTaskGridViewTaskDefinition>,
-    {hasGhostTaskRow = true}: {hasGhostTaskRow?: boolean} = {},
+    {
+        hasGhostTaskRow = true,
+        withoutColumns = false,
+    }: {
+        hasGhostTaskRow?: boolean;
+        withoutColumns?: boolean;
+    } = {},
 ) {
     let taskCount = 0;
 
@@ -97,24 +104,26 @@ export async function expectTaskGridView(
 
         await expect(locator.getByRole("textbox", {name: "Title"})).toHaveText(title);
 
-        if (await locator.getByLabel("Assignee").isVisible()) {
-            await expect(locator.getByLabel("Assignee")).toHaveValue(assignee);
-        } else {
-            await expect(locator.getByTestId("TaskRowAssigneeCell")).toHaveText(
-                // Use regex since text may start with the avatar's initials.
-                new RegExp(`[A-Z0-9]{0,2}${escapeRegExp(assignee)}`),
-            );
-        }
+        if (!withoutColumns) {
+            if (await locator.getByLabel("Assignee").isVisible()) {
+                await expect(locator.getByLabel("Assignee")).toHaveValue(assignee);
+            } else {
+                await expect(locator.getByTestId("TaskRowAssigneeCell")).toHaveText(
+                    // Use regex since text may start with the avatar's initials.
+                    new RegExp(`[A-Z0-9]{0,2}${escapeRegExp(assignee)}`),
+                );
+            }
 
-        await expectTaskRowViewPriority(locator, priority);
+            await expectTaskRowViewPriority(locator, priority);
 
-        if (
-            (await locator.getByLabel("Due date", {exact: true}).isVisible()) ||
-            dueDate.length > 0
-        ) {
-            await expect(locator.getByLabel("Due date", {exact: true})).toHaveText(
-                dueDate.length === 0 ? "mm/dd/yyyy" : dueDate,
-            );
+            if (
+                (await locator.getByLabel("Due date", {exact: true}).isVisible()) ||
+                dueDate.length > 0
+            ) {
+                await expect(locator.getByLabel("Due date", {exact: true})).toHaveText(
+                    dueDate.length === 0 ? "mm/dd/yyyy" : dueDate,
+                );
+            }
         }
 
         await expect(locator).toHaveAttribute("data-indentation", String(indentation));

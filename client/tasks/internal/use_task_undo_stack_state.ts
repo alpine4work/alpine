@@ -3,7 +3,7 @@ import {ContentEditorRef} from "~/client/content/content_editor.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {TaskUndoActions} from "~/client/tasks/core/create_task_undo_actions_if_possible.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
-import {mergeUndoTextUpdatesDelayMs} from "~/shared/design/core/timing.js";
+import {undoMergeTextUpdatesDelayMs} from "~/shared/design/core/timing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
@@ -115,11 +115,14 @@ export function useTaskUndoStackState({stateKey}: {stateKey: Id | undefined}) {
                 lastEntry?.type === "Actions" &&
                 !lastEntry.fromRedo &&
                 lastEntry.rootParentTaskId === entry.rootParentTaskId &&
-                currentTime - lastEntry.time < mergeUndoTextUpdatesDelayMs
+                currentTime - lastEntry.time < undoMergeTextUpdatesDelayMs
             ) {
                 let exclusiveUpdateTitleTaskId: TaskId | null = null;
                 for (const action of entry.undoActions.getWithoutReconciliation()) {
-                    if (action.taskAction.type !== "UpdateTitle") {
+                    if (
+                        action.taskAction.type !== "UpdateTitle" ||
+                        action.taskAction.withoutUndoMerge
+                    ) {
                         exclusiveUpdateTitleTaskId = null;
                         break;
                     } else {
@@ -139,7 +142,8 @@ export function useTaskUndoStackState({stateKey}: {stateKey: Id | undefined}) {
                         .some(
                             action =>
                                 action.taskAction.type === "UpdateTitle" &&
-                                action.taskId === exclusiveUpdateTitleTaskId,
+                                action.taskId === exclusiveUpdateTitleTaskId &&
+                                !action.taskAction.withoutUndoMerge,
                         )
                 ) {
                     undoStack[undoStack.length - 1] = {

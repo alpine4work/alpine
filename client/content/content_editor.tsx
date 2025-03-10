@@ -3526,6 +3526,12 @@ function ContentEditor<Content extends ContentWithReferences>(
         let withoutFlushSync = true;
 
         const handleFocusChange = (event?: globalThis.FocusEvent) => {
+            // If `<ContentEditor>` is focused when `view.destroy()` is called then
+            // `handleBlur` will be called in a `useInsertionEffect()` cleanup which will
+            // cause React to log a warning. So don't change state if the view is
+            // destroyed.
+            if (viewRef.current !== view) return;
+
             const focusedElement =
                 event?.type === "focusout" ? event.relatedTarget : document.activeElement;
 

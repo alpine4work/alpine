@@ -1261,7 +1261,6 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             onGhostTaskCreated={
                 isTopGhostTask ? events.onTopGhostTaskCreated : events.onBottomGhostTaskCreated
             }
-            gridKey={gridKey}
             parents={parents}
             rowMaxWidth={rowMaxWidth}
             disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
@@ -1300,6 +1299,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             focusFirstVisibleTaskCell={events.focusFirstVisibleTaskCell}
             focusLastVisibleTaskTitleEnd={events.focusLastVisibleTaskTitleEnd}
             focusLastVisibleTaskCell={events.focusLastVisibleTaskCell}
+            focusTaskTitleSelection={events.focusTaskTitleSelection}
             setRowZIndex={useCallback(
                 zIndex => events.setTaskRowZIndex(gridKey, zIndex),
                 [events, gridKey],

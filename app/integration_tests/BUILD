@@ -56,6 +56,7 @@ ts_playwright_tests(
         "documents/document_peek.spec.ts": ["webkit_mobile"],
         # These were written before tasks had mobile support.
         "tasks/task_detail_view_updates.spec.ts": ["webkit_mobile"],
+        "tasks/task_grid_view_paste.spec.ts": ["webkit_mobile"],
         "tasks/task_grid_view_updates.spec.ts": ["webkit_mobile"],
         "tasks/task_notepad.spec.ts": ["webkit_mobile"],
         "tasks/task_undo_grid_view_moves.spec.ts": ["webkit_mobile"],

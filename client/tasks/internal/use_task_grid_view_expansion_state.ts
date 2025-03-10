@@ -22,6 +22,7 @@ import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {BrowserId, TaskId} from "~/shared/id/types/id_types.js";
 import {updateTaskGridViewExpansionState} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
@@ -39,6 +40,8 @@ import {
 } from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+
+type TaskGridViewExpansionStateManager = ReturnType<typeof createTaskGridViewExpansionStateManager>;
 
 function createTaskGridViewExpansionStateManager({
     getContext,
@@ -371,7 +374,10 @@ export function useTaskGridViewExpansionState({
     const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
 
     // When `query` changes we need to reset our state.
-    const [stateManager] = useStateWithDependencies(
+    const [stateManager] = useStateWithDependencies<
+        TaskGridViewExpansionStateManager | null,
+        [TaskClientQuery | null]
+    >(
         ([query]) =>
             query
                 ? createTaskGridViewExpansionStateManager({
@@ -538,130 +544,240 @@ export function useTaskGridViewExpansionState({
         const queryParentTaskId = getParentTaskIdIfChildrenQuery(stateManager);
 
         return stateManager.store.subscribeToBatchUpdate(({taskEntryUpdateById}) => {
-            for (const {oldTaskEntry, newTaskEntry} of taskEntryUpdateById.values()) {
-                if (!oldTaskEntry?.task || !newTaskEntry.task) continue;
+            const releaseCallbacks: Array<() => void> = [];
+            const childTaskIdsByNewlyCreatedParentTaskId = new Map<TaskId, Array<TaskId>>();
 
-                const oldParentTaskId = oldTaskEntry.task.getParent()?.taskId ?? null;
-                const newParentTaskId = newTaskEntry.task.getParent()?.taskId ?? null;
+            try {
+                // This for loop does the following:
+                //
+                // 1. Detects updates that are indenting a task (aka
+                //    `nestWithPreviousTaskRowIfExistsAndExpand()`) and makes the previous
+                //    task's children are expanded. To do this we need to compute `oldTaskPath`
+                //    and `newTaskPath` then check that `oldTaskPath` is a prefix of
+                //    `newTaskPath`.
+                //
+                //    This is done here so users observing an indent in realtime also see the
+                //    parent task's children expand.
+                //
+                // 2. Populate `childTaskIdsByNewlyCreatedParentTaskId` which contains all
+                //    updated tasks that have a parent that was newly introduced (aka null
+                //    `oldTaskEntry`) in this update. We use this map below.
+                for (const {oldTaskEntry, newTaskEntry} of taskEntryUpdateById.values()) {
+                    if (!newTaskEntry.task) continue;
 
-                if (oldParentTaskId === newParentTaskId) continue;
+                    const newParentTaskId = newTaskEntry.task.getParent()?.taskId ?? null;
 
-                const oldTaskPath: Array<TaskId> = [];
-                {
-                    const seenTaskIds = new Set<TaskId>([oldTaskEntry.task.id]);
-                    let oldGrandParentTaskId = oldParentTaskId;
-                    while (
-                        oldGrandParentTaskId !== null &&
-                        oldGrandParentTaskId !== queryParentTaskId
-                    ) {
-                        // Don't loop forever if our client encounters a cycle. Cycles are possible if
-                        // events are applied out-of-order.
-                        if (seenTaskIds.has(oldGrandParentTaskId)) break;
-                        seenTaskIds.add(oldGrandParentTaskId);
-
-                        oldTaskPath.push(oldGrandParentTaskId);
-
-                        oldGrandParentTaskId =
-                            stateManager.store
-                                .getTaskEntryStoreIfExists(oldGrandParentTaskId)
-                                ?.getSnapshot()
-                                .task?.getParent()?.taskId ?? null;
+                    if (newParentTaskId) {
+                        const taskEntryUpdate = taskEntryUpdateById.get(newParentTaskId);
+                        if (
+                            taskEntryUpdate &&
+                            !taskEntryUpdate.oldTaskEntry &&
+                            taskEntryUpdate.newTaskEntry
+                        ) {
+                            getOrSetDefaultMapValue(
+                                childTaskIdsByNewlyCreatedParentTaskId,
+                                newParentTaskId,
+                                () => [],
+                            ).push(newTaskEntry.task.id);
+                        }
                     }
 
-                    // We push parent tasks onto the end but task paths have parent tasks in
-                    // the front.
-                    oldTaskPath.reverse();
-                }
+                    if (!oldTaskEntry?.task) continue;
 
-                const newTaskPath: Array<TaskId> = [];
-                {
-                    const seenTaskIds = new Set<TaskId>([newTaskEntry.task.id]);
-                    let newGrandParentTaskId = newParentTaskId;
-                    while (
-                        newGrandParentTaskId !== null &&
-                        newGrandParentTaskId !== queryParentTaskId
-                    ) {
-                        // Don't loop forever if our client encounters a cycle. Cycles are possible if
-                        // events are applied out-of-order.
-                        if (seenTaskIds.has(newGrandParentTaskId)) break;
-                        seenTaskIds.add(newGrandParentTaskId);
+                    const oldParentTaskId = oldTaskEntry.task.getParent()?.taskId ?? null;
 
-                        newTaskPath.push(newGrandParentTaskId);
+                    // Handle parent task changing. We detect if this is a nesting operation and
+                    // automatically expand the parent task if so.
+                    if (oldParentTaskId !== newParentTaskId) {
+                        const oldTaskPath: Array<TaskId> = [];
+                        {
+                            const seenTaskIds = new Set<TaskId>([oldTaskEntry.task.id]);
+                            let oldGrandParentTaskId = oldParentTaskId;
+                            while (
+                                oldGrandParentTaskId !== null &&
+                                oldGrandParentTaskId !== queryParentTaskId
+                            ) {
+                                // Don't loop forever if our client encounters a cycle. Cycles are possible if
+                                // events are applied out-of-order.
+                                if (seenTaskIds.has(oldGrandParentTaskId)) break;
+                                seenTaskIds.add(oldGrandParentTaskId);
 
-                        newGrandParentTaskId =
+                                oldTaskPath.push(oldGrandParentTaskId);
+
+                                oldGrandParentTaskId =
+                                    stateManager.store
+                                        .getTaskEntryStoreIfExists(oldGrandParentTaskId)
+                                        ?.getSnapshot()
+                                        .task?.getParent()?.taskId ?? null;
+                            }
+
+                            // We push parent tasks onto the end but task paths have parent tasks in
+                            // the front.
+                            oldTaskPath.reverse();
+                        }
+
+                        const newTaskPath: Array<TaskId> = [];
+                        {
+                            const seenTaskIds = new Set<TaskId>([newTaskEntry.task.id]);
+                            let newGrandParentTaskId = newParentTaskId;
+                            while (
+                                newGrandParentTaskId !== null &&
+                                newGrandParentTaskId !== queryParentTaskId
+                            ) {
+                                // Don't loop forever if our client encounters a cycle. Cycles are possible if
+                                // events are applied out-of-order.
+                                if (seenTaskIds.has(newGrandParentTaskId)) break;
+                                seenTaskIds.add(newGrandParentTaskId);
+
+                                newTaskPath.push(newGrandParentTaskId);
+
+                                newGrandParentTaskId =
+                                    stateManager.store
+                                        .getTaskEntryStoreIfExists(newGrandParentTaskId)
+                                        ?.getSnapshot()
+                                        .task?.getParent()?.taskId ?? null;
+                            }
+
+                            // We push parent tasks onto the end but task paths have parent tasks in
+                            // the front.
+                            newTaskPath.reverse();
+                        }
+
+                        // If this update was the result of an indent (task nested under previous task)
+                        // and this is the first child task of the new parent then we want to
+                        // immediately expand the new parent's child tasks.
+                        //
+                        // If the task has only one child then we know it's our new task. Create a
+                        // query and update it to a fully loaded state with our task. Finally update
+                        // the task's expansion state.
+                        //
+                        // It's important we put this logic here instead of in a function like
+                        // `nestWithPreviousTaskRowIfExistsAndExpand()`. Because this will run for both
+                        // our current user and a user viewing the grid view in realtime.
+                        if (
+                            newTaskPath.length === oldTaskPath.length + 1 &&
+                            oldTaskPath.every((taskId, i) => newTaskPath[i] === taskId) &&
+                            stateManager.areChildTasksExpanded(oldTaskPath) &&
                             stateManager.store
-                                .getTaskEntryStoreIfExists(newGrandParentTaskId)
+                                .getTaskEntryStoreIfExists(newTaskPath[newTaskPath.length - 1]!)
                                 ?.getSnapshot()
-                                .task?.getParent()?.taskId ?? null;
-                    }
+                                .task?.getChildTaskCount() === 1
+                        ) {
+                            const query = stateManager.store.ensureAndRetainTaskChildrenQuery(
+                                newTaskPath[newTaskPath.length - 1]!,
+                                {limit: 1},
+                            );
 
-                    // We push parent tasks onto the end but task paths have parent tasks in
-                    // the front.
-                    newTaskPath.reverse();
-                }
-
-                const releaseCallbacks: Array<() => void> = [];
-                try {
-                    // If this update was the result of an indent (task nested under previous task)
-                    // and this is the first child task of the new parent then we want to
-                    // immediately expand the new parent's child tasks.
-                    //
-                    // If the task has only one child then we know it's our new task. Create a
-                    // query and update it to a fully loaded state with our task. Finally update
-                    // the task's expansion state.
-                    //
-                    // It's important we put this logic here instead of in a function like
-                    // `nestWithPreviousTaskRowIfExistsAndExpand()`. Because this will run for both
-                    // our current user and a user viewing the grid view in realtime.
-                    if (
-                        newTaskPath.length === oldTaskPath.length + 1 &&
-                        oldTaskPath.every((taskId, i) => newTaskPath[i] === taskId) &&
-                        stateManager.areChildTasksExpanded(oldTaskPath) &&
-                        stateManager.store
-                            .getTaskEntryStoreIfExists(newTaskPath[newTaskPath.length - 1]!)
-                            ?.getSnapshot()
-                            .task?.getChildTaskCount() === 1
-                    ) {
-                        const query = stateManager.store.ensureAndRetainTaskChildrenQuery(
-                            newTaskPath[newTaskPath.length - 1]!,
-                            {limit: 1},
-                        );
-
-                        // Release our query at the end of this code block. `stateManager` will grab
-                        // its own reference to the query if we need it.
-                        releaseCallbacks.push(() => {
-                            query.release();
-                        });
-
-                        if (query.loadedStateStore.getSnapshot() !== "FullyLoaded") {
-                            stateManager.store.loadTasksIntoQuery(query, {
-                                limit: 1,
-                                loadedState: {type: "Full"},
-                                previouslyBackfilledTaskIds: [newTaskEntry.task.id],
+                            // Release our query at the end of this code block. `stateManager` will grab
+                            // its own reference to the query if we need it.
+                            releaseCallbacks.push(() => {
+                                query.release();
                             });
+
+                            if (query.loadedStateStore.getSnapshot() !== "FullyLoaded") {
+                                stateManager.store.loadTasksIntoQuery(query, {
+                                    limit: 1,
+                                    loadedState: {type: "Full"},
+                                    previouslyBackfilledTaskIds: [newTaskEntry.task.id],
+                                });
+                            }
+
+                            stateManager.update(state =>
+                                expandChildTaskInGridView(state, newTaskPath),
+                            );
                         }
 
-                        stateManager.update(state => expandChildTaskInGridView(state, newTaskPath));
+                        stateManager.update(state =>
+                            moveTaskGridViewExpansionTaskState(
+                                state,
+                                oldTaskPath,
+                                newTaskPath,
+                                oldTaskEntry.task.id,
+                            ),
+                        );
+                    }
+                }
+
+                // If our update created some task and add some children to the task in the
+                // same update then we want to expand the created task. For example, if you
+                // copy a bullet list that looks like this:
+                //
+                // ```
+                // - Task 1
+                //   - Task 1a
+                //   - Task 1b
+                //   - Task 1c
+                // - Task 2
+                // ```
+                //
+                // Then you paste we create these five tasks in one update and we want "Task 1"
+                // to be expanded. Given we know "Task 1" was just created in this update then
+                // we know all the child tasks on the client (they're in this update).
+                //
+                // We do this here instead of the paste handling code in `<TaskRowTitleInput>`
+                // because we want to expand pasted tasks on all clients observing the task
+                // query in realtime. Not just the client performing the paste.
+                for (const [
+                    newlyCreatedParentTaskId,
+                    childTaskIds,
+                ] of childTaskIdsByNewlyCreatedParentTaskId) {
+                    const query = stateManager.store.ensureAndRetainTaskChildrenQuery(
+                        newlyCreatedParentTaskId,
+                        {limit: childTaskIds.length},
+                    );
+
+                    // Release our query at the end of this code block. `stateManager` will grab
+                    // its own reference to the query if we need it.
+                    releaseCallbacks.push(() => {
+                        query.release();
+                    });
+
+                    if (query.loadedStateStore.getSnapshot() !== "FullyLoaded") {
+                        stateManager.store.loadTasksIntoQuery(query, {
+                            limit: childTaskIds.length,
+                            loadedState: {type: "Full"},
+                            previouslyBackfilledTaskIds: childTaskIds,
+                        });
                     }
 
-                    stateManager.update(state =>
-                        moveTaskGridViewExpansionTaskState(
-                            state,
-                            oldTaskPath,
-                            newTaskPath,
-                            oldTaskEntry.task.id,
-                        ),
-                    );
-                } finally {
-                    // Run our release callbacks after a microtask so that `batchStoreUpdates()`
-                    // listeners can be called. They might retain our query so we don't want to
-                    // release before then.
-                    scheduleMicrotask(() => {
-                        for (const callback of releaseCallbacks) {
-                            callback();
+                    const taskPath: Array<TaskId> = [];
+                    {
+                        const seenTaskIds = new Set<TaskId>([]);
+                        let oldGrandParentTaskId: TaskId | null = newlyCreatedParentTaskId;
+                        while (
+                            oldGrandParentTaskId !== null &&
+                            oldGrandParentTaskId !== queryParentTaskId
+                        ) {
+                            // Don't loop forever if our client encounters a cycle. Cycles are possible if
+                            // events are applied out-of-order.
+                            if (seenTaskIds.has(oldGrandParentTaskId)) break;
+                            seenTaskIds.add(oldGrandParentTaskId);
+
+                            taskPath.push(oldGrandParentTaskId);
+
+                            oldGrandParentTaskId =
+                                stateManager.store
+                                    .getTaskEntryStoreIfExists(oldGrandParentTaskId)
+                                    ?.getSnapshot()
+                                    .task?.getParent()?.taskId ?? null;
                         }
-                    });
+
+                        // We push parent tasks onto the end but task paths have parent tasks in
+                        // the front.
+                        taskPath.reverse();
+                    }
+
+                    stateManager.update(state => expandChildTaskInGridView(state, taskPath));
                 }
+            } finally {
+                // Run our release callbacks after a microtask so that `batchStoreUpdates()`
+                // listeners can be called. They might retain our query so we don't want to
+                // release before then.
+                scheduleMicrotask(() => {
+                    for (const callback of releaseCallbacks) {
+                        callback();
+                    }
+                });
             }
         });
     }, [stateManager]);

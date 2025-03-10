@@ -13,6 +13,7 @@ import {Context} from "~/shared/context/context.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {Clock} from "~/shared/helpers/clock/clock.js";
 import {
     HybridLogicalClock,
@@ -1594,66 +1595,66 @@ export class TaskClientStoreInternal {
             leaseId?: TaskActionTransactionLeaseId | null;
         },
     ): {finally: (callback: () => void) => void} {
-        // We need to create undo actions before applying our actions to the store so
-        // we can read old task data from the store.
-        const undoActions = undoManager ? createTaskUndoActionsIfPossible(this, actions) : null;
+        const mutexLockedPromiseResolver = createPromiseResolver();
+        const mutexUnlockPromiseResolver = createPromiseResolver();
 
-        assert(this.onQueryLoadedTaskRemove === null);
-        const removedFromQueries = new Set<TaskClientQuery>();
-        this.onQueryLoadedTaskRemove = (query: TaskClientQueryInternal) => {
-            removedFromQueries.add(query.external);
-        };
+        // Make sure we're immediately holding the action transaction mutex. In case
+        // any synchronous code between now and when we actually call
+        // `commitTaskActionTransaction()` runs some callback that needs to wait on the
+        // mutex.
+        //
+        // We've observed pasting a bulleted list with indentation like:
+        //
+        // ```
+        // - task 1
+        //     - task 2
+        // - task 3
+        // ```
+        //
+        // Needs this. Since `_applyUpdateEvent()` will run some code in
+        // `useTaskGridViewExpansionState()` that expands "task 1"'s children and
+        // creates a query subscription for "task 1"'s children. However, that query
+        // will fail if run before `commitTaskActionTransaction()` asynchronously
+        // finishes creating the task in DynamoDB.
+        if (!shouldDisableCommitTaskActionTransactionMutexForTest) {
+            void this._commitTaskActionTransactionMutex.withLock(() => {
+                mutexLockedPromiseResolver.resolve();
+                return mutexUnlockPromiseResolver.promise;
+            });
+        }
 
+        let undoActions: TaskUndoActions | null;
         let allPendingActions: Array<TaskClientStorePendingAction>;
-        let actuallyRelease: () => void;
+        let createLeaseIfLostAccessId: TaskActionTransactionLeaseId | null;
+        let release: () => void;
         try {
-            ({pendingActions: allPendingActions, release: actuallyRelease} = batchStoreUpdates(
-                () => {
-                    const referencedCollections: Array<TaskCollectionModel> = [];
+            // We need to create undo actions before applying our actions to the store so
+            // we can read old task data from the store.
+            undoActions = undoManager ? createTaskUndoActionsIfPossible(this, actions) : null;
 
-                    for (const action of actions) {
-                        if (
-                            action.type === "UpdateTask" &&
-                            action.taskAction.type === "AddCollection" &&
-                            action.taskAction.referencedCollection
-                        ) {
-                            referencedCollections.push(action.taskAction.referencedCollection);
+            assert(this.onQueryLoadedTaskRemove === null);
+            const removedFromQueries = new Set<TaskClientQuery>();
+            this.onQueryLoadedTaskRemove = (query: TaskClientQueryInternal) => {
+                removedFromQueries.add(query.external);
+            };
+
+            let actuallyRelease: () => void;
+            try {
+                ({pendingActions: allPendingActions, release: actuallyRelease} = batchStoreUpdates(
+                    () => {
+                        const referencedCollections: Array<TaskCollectionModel> = [];
+
+                        for (const action of actions) {
+                            if (
+                                action.type === "UpdateTask" &&
+                                action.taskAction.type === "AddCollection" &&
+                                action.taskAction.referencedCollection
+                            ) {
+                                referencedCollections.push(action.taskAction.referencedCollection);
+                            }
                         }
-                    }
 
-                    if (referencedCollections.length === 0) {
-                        const optimisticExtraActions = this._getOptimisticExtraActions(actions);
-
-                        return this._applyOptimisticTaskActions(
-                            optimisticExtraActions.length > 0
-                                ? [...actions, ...optimisticExtraActions]
-                                : actions,
-                            update => {
-                                affinityManager.markLowIntentUpdateInteraction(update);
-                            },
-                        );
-                    }
-
-                    // If we have some `referencedCollections` then we want to backfill it in the
-                    // store THEN apply our optimistic actions. We need to apply our optimistic
-                    // actions in the `onBatchUpdate` callback or else the backfilled collections
-                    // will be immediately released.
-                    return this._applyUpdateEvent(
-                        {
-                            type: "Update",
-                            actions: [],
-                            backfillTasks: [],
-                            backfillCollections: referencedCollections.map(collection => ({
-                                type: "Authorized",
-                                collection,
-                            })),
-                            // Any authorization state change from the server should override us.
-                            defaultAuthorizationStateVersion: zeroHybridLogicalTime,
-                            referencedAccounts: [],
-                            // Don't pass `this._clientId` in since we don't want to ignore this event.
-                            originClientId: null,
-                        },
-                        () => {
+                        if (referencedCollections.length === 0) {
                             const optimisticExtraActions = this._getOptimisticExtraActions(actions);
 
                             return this._applyOptimisticTaskActions(
@@ -1664,48 +1665,88 @@ export class TaskClientStoreInternal {
                                     affinityManager.markLowIntentUpdateInteraction(update);
                                 },
                             );
-                        },
-                    );
-                },
-            ));
-        } finally {
-            this.onQueryLoadedTaskRemove = null;
-        }
+                        }
 
-        // We hold onto collections and tasks that become unreferenced after applying
-        // optimistic actions until both:
-        //
-        // 1. The action is commit (if it's reverted we need the collections/tasks back)
-        // 2. The undo stack corresponding to this action is applied or released
-        let referenceCount = 1;
+                        // If we have some `referencedCollections` then we want to backfill it in the
+                        // store THEN apply our optimistic actions. We need to apply our optimistic
+                        // actions in the `onBatchUpdate` callback or else the backfilled collections
+                        // will be immediately released.
+                        return this._applyUpdateEvent(
+                            {
+                                type: "Update",
+                                actions: [],
+                                backfillTasks: [],
+                                backfillCollections: referencedCollections.map(collection => ({
+                                    type: "Authorized",
+                                    collection,
+                                })),
+                                // Any authorization state change from the server should override us.
+                                defaultAuthorizationStateVersion: zeroHybridLogicalTime,
+                                referencedAccounts: [],
+                                // Don't pass `this._clientId` in since we don't want to ignore this event.
+                                originClientId: null,
+                            },
+                            () => {
+                                const optimisticExtraActions =
+                                    this._getOptimisticExtraActions(actions);
 
-        const release = () => {
-            referenceCount--;
-            if (referenceCount === 0) actuallyRelease?.();
-        };
+                                return this._applyOptimisticTaskActions(
+                                    optimisticExtraActions.length > 0
+                                        ? [...actions, ...optimisticExtraActions]
+                                        : actions,
+                                    update => {
+                                        affinityManager.markLowIntentUpdateInteraction(update);
+                                    },
+                                );
+                            },
+                        );
+                    },
+                ));
+            } finally {
+                this.onQueryLoadedTaskRemove = null;
+            }
 
-        // Leases allow us to temporarily add a task back to our query with undo
-        // actions even if we've lost access.
-        const createLeaseIfLostAccessId =
-            removedFromQueries.size > 0 && undoManager && undoActions
-                ? generateId<TaskActionTransactionLeaseId>()
-                : null;
+            // We hold onto collections and tasks that become unreferenced after applying
+            // optimistic actions until both:
+            //
+            // 1. The action is commit (if it's reverted we need the collections/tasks back)
+            // 2. The undo stack corresponding to this action is applied or released
+            let referenceCount = 1;
 
-        if (undoManager && undoActions) {
-            referenceCount++;
+            release = () => {
+                referenceCount--;
+                if (referenceCount === 0) actuallyRelease?.();
+            };
 
-            let isUndoEntryReleased = false;
+            // Leases allow us to temporarily add a task back to our query with undo
+            // actions even if we've lost access.
+            createLeaseIfLostAccessId =
+                removedFromQueries.size > 0 && undoManager && undoActions
+                    ? generateId<TaskActionTransactionLeaseId>()
+                    : null;
 
-            undoManager.pushUndoStackEntry({
-                undoActions,
-                removedFromQueries,
-                leaseId: createLeaseIfLostAccessId,
-                release: () => {
-                    assert(!isUndoEntryReleased);
-                    isUndoEntryReleased = true;
-                    release();
-                },
-            });
+            if (undoManager && undoActions) {
+                referenceCount++;
+
+                let isUndoEntryReleased = false;
+
+                undoManager.pushUndoStackEntry({
+                    undoActions,
+                    removedFromQueries,
+                    leaseId: createLeaseIfLostAccessId,
+                    release: () => {
+                        assert(!isUndoEntryReleased);
+                        isUndoEntryReleased = true;
+                        release();
+                    },
+                });
+            }
+        } catch (error) {
+            // Don't reject. We don't want unlocking the mutex to log some unhandled promise
+            // rejection warnings. We handle errors on `commitPromise` below.
+            mutexUnlockPromiseResolver.resolve();
+
+            throw error;
         }
 
         const run = () =>
@@ -1722,11 +1763,23 @@ export class TaskClientStoreInternal {
                               .map(fromTaskUpdateTaskActionModel),
                       }
                     : undefined,
-            });
+            }).then(
+                output => {
+                    mutexUnlockPromiseResolver.resolve();
+                    return output;
+                },
+                error => {
+                    // Don't reject. We don't want unlocking the mutex to log some unhandled promise
+                    // rejection warnings. We handle errors on `commitPromise` below.
+                    mutexUnlockPromiseResolver.resolve();
+
+                    throw error;
+                },
+            );
 
         const commitPromise = shouldDisableCommitTaskActionTransactionMutexForTest
             ? run()
-            : this._commitTaskActionTransactionMutex.withLock(run);
+            : mutexLockedPromiseResolver.promise.then(run);
 
         // Will show a "Saving" indicator while we wait for the action transaction to
         // commit. Will also add a `beforeunload` listener that warns the user that we
