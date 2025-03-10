@@ -8528,6 +8528,31 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 }
                                                                             }
                                                                         },
+                                                                        "UpdateAssigneePosition": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdateAssigneePosition"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "accountId": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Id"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "position": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Reference",
+                                                                                        "reuseReferenceId": "239e62dc"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
                                                                         "UpdateAssigneeActivePosition": {
                                                                             "type": "Object",
                                                                             "propertySchemaByKey": {
