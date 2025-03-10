@@ -12,6 +12,7 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
+import {TaskAssigneePositionRegister} from "~/shared/tasks/task_assignee_position.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
 import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
@@ -169,6 +170,17 @@ export async function prepareTaskForClient(
                   task.assignee.version,
               ),
         assigneeStatus: task.rawAssigneeStatus,
+        // You are not allowed to see the active task position for other accounts. So
+        // replace with a register you'd get on position reset from status, assignee,
+        // or assignee status change. This effectively un-applies any actions you
+        // aren't allowed to see.
+        assigneePosition:
+            task.rawAssigneePosition.value &&
+            (actor.type === "System" ||
+                (actor.type === "Session" &&
+                    task.rawAssigneePosition.value.accountId !== actor.getAccountId()))
+                ? new TaskAssigneePositionRegister(null, task.assignee.version)
+                : task.rawAssigneePosition,
         // You are not allowed to see the active task position for other accounts. So
         // replace with a register you'd get on position reset from status, assignee,
         // or assignee status change. This effectively un-applies any actions you

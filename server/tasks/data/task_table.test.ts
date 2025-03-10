@@ -15061,6 +15061,123 @@ test("can only sort by your notepad page positions", async () => {
     ).rejects.toThrow(new PermissionDeniedError("Can't sort by notepad page that's not yours"));
 });
 
+test("must filter by assignee to sort by assignee position", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const adminSession = await space.createSession({hasInternalAccess: true});
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
+            sorts: [
+                {
+                    type: "AssigneePosition",
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Must filter assignee to session account to sort by assignee position",
+        ),
+    );
+
+    await testAuthorizeTaskQueryAccess(session.action(), {
+        spaceId: space.id,
+        filters: [
+            {
+                type: "Assignee",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ],
+        sorts: [
+            {
+                type: "AssigneePosition",
+                direction: "Ascending",
+                missing: "Last",
+            },
+        ],
+    });
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+            ],
+            sorts: [
+                {
+                    type: "AssigneePosition",
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+            ],
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Must filter assignee to session account to sort by assignee position",
+        ),
+    );
+
+    await testAuthorizeTaskQueryAccess(session.action(), {
+        spaceId: space.id,
+        filters: [
+            {
+                type: "Creator",
+                operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+            },
+            {
+                type: "Assignee",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
+                },
+            },
+        ],
+        sorts: [
+            {
+                type: "AssigneePosition",
+                direction: "Ascending",
+                missing: "Last",
+            },
+        ],
+    });
+
+    await removeSpaceAccountAsAdmin(adminSession.action(), {
+        spaceId: space.id,
+        accountId: session.account.id,
+    });
+
+    await expect(
+        testAuthorizeTaskQueryAccess(session.action(), {
+            spaceId: space.id,
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
+                    },
+                },
+            ],
+            sorts: [
+                {
+                    type: "AssigneePosition",
+                    direction: "Ascending",
+                    missing: "Last",
+                },
+            ],
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+});
+
 test("must filter by assignee to sort by active position", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();

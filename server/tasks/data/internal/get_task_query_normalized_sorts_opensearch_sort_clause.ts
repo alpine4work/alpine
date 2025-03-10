@@ -89,6 +89,12 @@ export function getTaskQueryNormalizedSortsOpensearchSortClause(
                         },
                     ];
                 }
+                case "AssigneePosition": {
+                    return [
+                        {"assigneePosition.orderTime": item},
+                        {"assigneePosition.orderKey": item},
+                    ];
+                }
                 case "NotepadPagePosition": {
                     const missingValue =
                         sort.direction === "Ascending"
@@ -329,6 +335,7 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
                 }
                 break;
             }
+            case "AssigneePosition":
             case "AssigneeActivePosition": {
                 if (sortValue === null) {
                     // OpenSearch returns the max/min value for a numeric type in the cursor when

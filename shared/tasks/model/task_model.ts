@@ -20,6 +20,7 @@ import {applyTaskUpdateAccountNameToTaskModelData} from "~/shared/tasks/model/ap
 import {mergeTaskModelData} from "~/shared/tasks/model/merge_task_model_data.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
+import {TaskAssigneePositionRegister} from "~/shared/tasks/task_assignee_position.js";
 import {
     TaskAssigneeStatus,
     TaskAssigneeStatusRegister,
@@ -72,6 +73,7 @@ const TaskModelDataSchema = Schema.object({
     status: TaskStatusWithSortableAccountRegister.schema,
     assignee: TaskAssigneeWithSortableAccountRegister.schema,
     assigneeStatus: TaskAssigneeStatusRegister.schema,
+    assigneePosition: TaskAssigneePositionRegister.schema,
     assigneeActivePosition: TaskAssigneeActivePositionRegister.schema,
 
     title: TaskTitleModel.schema,
@@ -154,6 +156,7 @@ export class TaskModel {
             status: new TaskStatusWithSortableAccountRegister({type: "Open"}, actionTime),
             assignee: new TaskAssigneeWithSortableAccountRegister(null, actionTime),
             assigneeStatus: new TaskAssigneeStatusRegister({type: "Inactive"}, actionTime),
+            assigneePosition: new TaskAssigneePositionRegister(null, actionTime),
             assigneeActivePosition: new TaskAssigneeActivePositionRegister(null, actionTime),
             title: emptyTaskTitleModel.get(),
             dueDate: new TaskDueDateRegister(null, actionTime),

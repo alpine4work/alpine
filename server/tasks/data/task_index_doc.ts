@@ -23,6 +23,7 @@ import {CrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
+    zeroHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -44,6 +45,7 @@ import {
 } from "~/shared/tasks/actions/task_task_action.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
+import {TaskAssigneePositionRegister} from "~/shared/tasks/task_assignee_position.js";
 import {
     TaskAssigneeStatus,
     TaskAssigneeStatusRegister,
@@ -627,6 +629,29 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
             deserialize: register =>
                 new TaskAssigneeStatusRegister(register.value, register.version),
         }),
+        // The actual value of this register on the task is null if the `AccountId` in
+        // this register is different from the assignee then the value is also null.
+        //
+        // However, if the actual value of this register is null and the task is
+        // assigned then we default the position to be based on the assignee register's
+        // `version`.
+        rawAssigneePosition: new OpensearchIndexIgnoredObjectType(
+            Schema.object({
+                value: Schema.object({
+                    accountId: Schema.id<AccountId>(),
+                    position: TaskPositionSchema,
+                }).nullable(),
+                version: HybridLogicalTimeSchema,
+            }),
+        )
+            .transform<TaskAssigneePositionRegister>({
+                serialize: register => register,
+                deserialize: register =>
+                    new TaskAssigneePositionRegister(register.value, register.version),
+            })
+            // NOTE(calebmer, 2025-03-10): This property didn't exist on tasks until this
+            // date. Provide a default that can be overridden by any action.
+            .default(new TaskAssigneePositionRegister(null, zeroHybridLogicalTime)),
         // The actual value of this register on the task is null if the task is closed,
         // inactive, or there is no assignee. Additionally if the `AccountId` in this
         // register is different from the assignee then the value is also null.
@@ -726,6 +751,7 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
             isDeleted: new OpensearchIndexBooleanType({isFilterable: true, isSortable: true}),
             displayStatus: TaskIndexDisplayStatusType,
             assigneeStatus: TaskIndexAssigneeStatusType.nullable(),
+            assigneePosition: TaskIndexPositionType.nullable(),
             assigneeActivePosition: TaskIndexPositionType.nullable(),
         },
         compute: task => {
@@ -736,6 +762,7 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
                     task.status.value.type === "Open" && task.assignee.value
                         ? task.rawAssigneeStatus
                         : null,
+                assigneePosition: getTaskIndexDocAssigneePosition(task),
                 assigneeActivePosition: getTaskIndexDocAssigneeActivePosition(task),
             };
         },
@@ -773,6 +800,17 @@ export function getTaskIndexDocAssigneeStatus(task: {
     return task.status.value.type === "Open" && task.assignee.value
         ? task.rawAssigneeStatus.value
         : {type: "Inactive"};
+}
+
+export function getTaskIndexDocAssigneePosition(task: {
+    assignee: TaskAssigneeWithSortableAccountRegister;
+    rawAssigneePosition: TaskAssigneePositionRegister;
+}): TaskPosition | null {
+    return task.assignee.value
+        ? task.rawAssigneePosition.value?.accountId === task.assignee.value.assignee.accountId
+            ? task.rawAssigneePosition.value.position
+            : {orderTime: task.assignee.version, orderKey: initialOrderKey}
+        : null;
 }
 
 export function getTaskIndexDocAssigneeActivePosition(task: {

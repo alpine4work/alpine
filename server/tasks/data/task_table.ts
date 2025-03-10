@@ -16,6 +16,7 @@ import {
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
+import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -50,6 +51,7 @@ import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
 import {
     ensureLocalTaskIndexesIfEnabled,
+    runIndexTaskInitialAssigneePositionMigrationForTask,
     withSendTaskIndexSearchEntityJobIfNeeded,
 } from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc, isTaskIndexDocDeleted} from "~/server/tasks/data/task_index_doc.js";
@@ -75,7 +77,9 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
@@ -608,6 +612,7 @@ const TaskTable = DynamoTableSchema.new({
                             .default(null),
                     }),
                 },
+
                 /**
                  * Information regarding the task's comments. Including comment count and the
                  * next comment index.
@@ -677,6 +682,7 @@ const TaskTable = DynamoTableSchema.new({
                         ).default(new Map()),
                     }),
                 },
+
                 /**
                  * All queryable task data is updated through `TaskAction`s and indexed in
                  * OpenSearch. Task notes are a freeform, collaborative, text area that's not
@@ -754,6 +760,7 @@ const TaskTable = DynamoTableSchema.new({
                         ),
                     }),
                 },
+
                 /**
                  * Comments on a task. Has all the attributes needed for a message in
                  * `MessageInterface`.
@@ -769,6 +776,7 @@ const TaskTable = DynamoTableSchema.new({
                         payload: MessagePayloadSchema,
                     }),
                 },
+
                 /**
                  * We keep a log of changes to comments so that when backfilling for realtime
                  * we can send any missed updates between the last time data was loaded and
@@ -931,6 +939,35 @@ export async function* expensiveScanEveryTaskAndTaskCollectionForMigration(
             yield {type: "TaskCollection", spaceId: item.spaceId, collectionId: item.collectionId};
         }
     }
+}
+
+/**
+ * We added `assigneePosition` on 2025-03-10. This migration makes sure
+ * `rawAssigneePosition` and `assigneePosition` exist on every task in
+ * OpenSearch.
+ */
+export async function runIndexTaskInitialAssigneePositionMigration(
+    context: Context<ServerProcessContextModules & {opensearch: OpensearchContextModule}>,
+    {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
+) {
+    assert(context.tracer.getRoot().serviceName === "MigrationService");
+
+    let i = 0;
+    const mutexes = createArrayWithLength(5, () => new Mutex());
+
+    for await (const item of TaskTable.expensiveScan(context, {
+        segmentIndex,
+        totalSegmentCount,
+        filter: [{partitionType: "Task", sortRangeType: "EssentialAttributes"}],
+    })) {
+        assert(item.partitionType === "Task" && item.sortRangeType === "EssentialAttributes");
+
+        void mutexes[i++ % mutexes.length]!.withLock(() =>
+            runIndexTaskInitialAssigneePositionMigrationForTask(context, item.spaceId, item.taskId),
+        );
+    }
+
+    await runAllPromises(mutexes.map(mutex => mutex.waitForUnlock()));
 }
 
 /**
@@ -2747,6 +2784,26 @@ async function actuallyCommitTaskActionTransaction(
                                 ) {
                                     throw new InvalidArgumentError(
                                         "Action `activatedTime` is too far in the future",
+                                    );
+                                }
+                                break;
+                            }
+                            case "UpdateAssigneePosition": {
+                                if (!state.isTimeReasonable(taskAction.position.orderTime[0])) {
+                                    throw new InvalidArgumentError(
+                                        "Action `orderTime` is too far in the future",
+                                    );
+                                }
+
+                                if (taskItem.assigneeId.value !== state.getActorAccountId()) {
+                                    throw new PermissionDeniedError(
+                                        "Can only update the task's assignee position if you are the task's assignee",
+                                    );
+                                }
+
+                                if (taskAction.accountId !== state.getActorAccountId()) {
+                                    throw new PermissionDeniedError(
+                                        "Must use the actor `AccountId` when updating the task's assignee position",
                                     );
                                 }
                                 break;
@@ -5599,6 +5656,26 @@ export async function authorizeTaskQueryAccess(
                                 );
                             }
                             break;
+                        }
+                        case "AssigneePosition": {
+                            // A task's assignee position is private to the account whom the task is
+                            // assigned. Only allow sorting by assignee position when also filtering for
+                            // tasks assigned to you.
+                            if (
+                                context.actor.type === "Session" &&
+                                filters.assigneeFilter?.accountIds.size === 1 &&
+                                filters.assigneeFilter.accountIds.has(context.actor.getAccountId())
+                            ) {
+                                // If the actor doesn't have space access then throw an "actor doesn't have
+                                // space access" error.
+                                await authorizeSpaceAccess(context, spaceId);
+
+                                break;
+                            }
+
+                            throw new PermissionDeniedError(
+                                "Must filter assignee to session account to sort by assignee position",
+                            );
                         }
                         case "NotepadPagePosition": {
                             if (

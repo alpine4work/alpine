@@ -2,6 +2,7 @@ import {TaskIndexDoc, getTaskIndexDocDisplayStatus} from "~/server/tasks/data/ta
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {TaskDisplayStatusIntegerMapping} from "~/shared/tasks/task_display_status.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskPriorityIntegerMapping} from "~/shared/tasks/task_priority.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {
@@ -82,6 +83,30 @@ function getTaskQueryNormalizedSortCursorValueForIndexDoc(
                 return [position.orderTime[0], position.orderTime[1], position.orderKey];
             } else {
                 return [version[0], version[1], initialOrderKey];
+            }
+        }
+        case "AssigneePosition": {
+            if (!task.assignee.value) {
+                return null;
+            } else {
+                let assigneeActivePosition: TaskPosition;
+                if (
+                    task.rawAssigneePosition.value?.accountId ===
+                    task.assignee.value.assignee.accountId
+                ) {
+                    assigneeActivePosition = task.rawAssigneePosition.value.position;
+                } else {
+                    assigneeActivePosition = {
+                        orderTime: task.rawAssigneeStatus.version,
+                        orderKey: initialOrderKey,
+                    };
+                }
+
+                return [
+                    assigneeActivePosition.orderTime[0],
+                    assigneeActivePosition.orderTime[1],
+                    assigneeActivePosition.orderKey,
+                ];
             }
         }
         case "NotepadPagePosition": {

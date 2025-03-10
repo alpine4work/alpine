@@ -139,6 +139,7 @@ export function isTaskQueryManuallySorted(sorts: ReadonlyArray<TaskQueryNormaliz
     return (
         firstSort.type === "ParentPosition" ||
         firstSort.type === "CollectionPosition" ||
+        firstSort.type === "AssigneePosition" ||
         firstSort.type === "NotepadPagePosition" ||
         firstSort.type === "AssigneeActivePosition"
     );
@@ -2600,6 +2601,7 @@ function getTaskUndoActionsGridViewTargetIfExists(
             case "UpdateChildrenCounts":
             case "UpdateCollectionPosition":
             case "UpdateNotepadPagePosition":
+            case "UpdateAssigneePosition":
             case "UpdateAssigneeActivePosition": {
                 column = "Title";
                 preference = 6;

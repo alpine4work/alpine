@@ -32,10 +32,9 @@ const LoaderSchema = Schema.object({
 
 export const meta = createMetaFunction(LoaderSchema, () => [{title: "My tasks"}]);
 
-export async function loader({request, params, context: unauthenticatedContext}: LoaderArgs) {
+export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
-    const url = new URL(request.url);
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
 
     const currentTime = new Date();
@@ -64,7 +63,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
         },
         sorts: [
             {
-                type: "AssigneeActivePosition",
+                type: "AssigneePosition",
                 direction: "Descending",
                 missing: "Last",
             },
@@ -96,8 +95,12 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 exclusiveUpperBoundDate: currentDate,
             },
         },
-        // NOCOMMIT:
         sorts: [
+            {
+                type: "AssigneePosition",
+                direction: "Descending",
+                missing: "Last",
+            },
             {
                 type: "CreatedTime",
                 direction: "Ascending",
@@ -126,8 +129,12 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 exclusiveUpperBoundDate: currentDate.add({days: 1}),
             },
         },
-        // NOCOMMIT:
         sorts: [
+            {
+                type: "AssigneePosition",
+                direction: "Descending",
+                missing: "Last",
+            },
             {
                 type: "CreatedTime",
                 direction: "Ascending",
@@ -156,8 +163,12 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 exclusiveUpperBoundDate: currentDate.add({days: 8}),
             },
         },
-        // NOCOMMIT:
         sorts: [
+            {
+                type: "AssigneePosition",
+                direction: "Descending",
+                missing: "Last",
+            },
             {
                 type: "CreatedTime",
                 direction: "Ascending",
@@ -186,8 +197,12 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 exclusiveUpperBoundDate: null,
             },
         },
-        // NOCOMMIT:
         sorts: [
+            {
+                type: "AssigneePosition",
+                direction: "Descending",
+                missing: "Last",
+            },
             {
                 type: "CreatedTime",
                 direction: "Ascending",

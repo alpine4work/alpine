@@ -533,6 +533,17 @@ export function createTaskUndoActionsIfPossible(
                                           //   access. Maybe we should extend the lease system to handle this case? So
                                           //   a lease is created when you update the assignee allowing you to put the
                                           //   old assigner back with an undo.
+                                          //
+                                          // TODO(calebmer): Related, currently if you undo an assignee update it resets
+                                          // the `AssigneePosition` instead of putting the task back into its old
+                                          // assignee position. Ideally we'd put the task back into its old assignee
+                                          // position. We can do this by either:
+                                          //
+                                          // - Extending the lease system (as described above) to allow resetting the
+                                          //   assignee position to its previous value.
+                                          //
+                                          // - Keep a map of assignee position by `AccountId` so if the task moves back
+                                          //   to an old assignee at any point then we'll maintain the task's position.
                                           assignerId: store.currentAccountId,
                                       }
                                     : null,
@@ -552,6 +563,36 @@ export function createTaskUndoActionsIfPossible(
                             taskAction: {
                                 type: "UpdateAssigneeStatus",
                                 assigneeStatus: task.rawData.assigneeStatus.value,
+                            },
+                        });
+                        break;
+                    }
+                    case "UpdateAssigneePosition": {
+                        const task = getTask(action.taskId);
+                        if (!task) return null;
+
+                        const accountId =
+                            task.rawData.assigneePosition.value?.accountId ??
+                            task.rawData.assignee.value?.assignee.accountId;
+
+                        // If the task has neither `assigneePosition` or `assignee` then updating the
+                        // assignee position will fail since you may only update the assignee position
+                        // if your current user is assigned to a task.
+                        if (!accountId) {
+                            return null;
+                        }
+
+                        undoActions.push({
+                            type: "UpdateTask",
+                            time: action.time,
+                            taskId: action.taskId,
+                            taskAction: {
+                                type: "UpdateAssigneePosition",
+                                accountId,
+                                position: task.rawData.assigneePosition.value?.position ?? {
+                                    orderTime: task.rawData.assignee.version,
+                                    orderKey: initialOrderKey,
+                                },
                             },
                         });
                         break;

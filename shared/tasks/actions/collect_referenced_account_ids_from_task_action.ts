@@ -64,6 +64,7 @@ export function collectReferencedAccountIdsFromTaskAction(
                 case "RemoveCollection":
                 case "UpdateCollectionPosition":
                 case "UpdateAssigneeStatus":
+                case "UpdateAssigneePosition":
                 case "UpdateAssigneeActivePosition":
                 case "UpdateTitle":
                 case "UpdateDueDate":

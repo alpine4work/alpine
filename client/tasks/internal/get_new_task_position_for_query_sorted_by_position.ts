@@ -37,6 +37,7 @@ export function getNewTaskPositionForQuerySortedByPosition(
     assert(
         firstQuerySort.type === "ParentPosition" ||
             firstQuerySort.type === "CollectionPosition" ||
+            firstQuerySort.type === "AssigneePosition" ||
             firstQuerySort.type === "NotepadPagePosition" ||
             firstQuerySort.type === "AssigneeActivePosition",
         "Query is not sorted by `TaskPosition`",

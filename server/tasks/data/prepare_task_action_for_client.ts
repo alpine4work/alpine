@@ -101,6 +101,15 @@ export async function prepareTaskActionForClient(
                     }
                     return action;
                 }
+                case "UpdateAssigneePosition": {
+                    if (
+                        actor.type !== "Session" ||
+                        action.taskAction.accountId !== actor.getAccountId()
+                    ) {
+                        return null;
+                    }
+                    return action;
+                }
                 case "UpdateAssigneeActivePosition": {
                     if (
                         actor.type !== "Session" ||

@@ -289,6 +289,11 @@ export function applyTaskActionToTaskModelData(
                 version: actionTime,
             });
 
+            const newAssigneePosition = task.assigneePosition.apply({
+                value: null,
+                version: actionTime,
+            });
+
             const newAssigneeActivePosition = task.assigneeActivePosition.apply({
                 value: null,
                 version: actionTime,
@@ -297,6 +302,7 @@ export function applyTaskActionToTaskModelData(
             if (
                 newAssignee === task.assignee &&
                 newAssigneeStatus === task.assigneeStatus &&
+                newAssigneePosition === task.assigneePosition &&
                 newAssigneeActivePosition === task.assigneeActivePosition
             ) {
                 return task;
@@ -306,6 +312,7 @@ export function applyTaskActionToTaskModelData(
                 ...task,
                 assignee: newAssignee,
                 assigneeStatus: newAssigneeStatus,
+                assigneePosition: newAssigneePosition,
                 assigneeActivePosition: newAssigneeActivePosition,
             };
         }
@@ -331,6 +338,24 @@ export function applyTaskActionToTaskModelData(
                 ...task,
                 assigneeStatus: newAssigneeStatus,
                 assigneeActivePosition: newAssigneeActivePosition,
+            };
+        }
+        case "UpdateAssigneePosition": {
+            const newAssigneePosition = task.assigneePosition.apply({
+                value: {
+                    accountId: action.accountId,
+                    position: action.position,
+                },
+                version: actionTime,
+            });
+
+            if (newAssigneePosition === task.assigneePosition) {
+                return task;
+            }
+
+            return {
+                ...task,
+                assigneePosition: newAssigneePosition,
             };
         }
         case "UpdateAssigneeActivePosition": {

@@ -324,10 +324,11 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
                         sort.type === "Assignee" ||
                         sort.type === "Assigner" ||
                         sort.type === "AssignedTime" ||
-                        // Updating status may reset assignee status so may change sorting related to
+                        // Updating assignee may reset assignee status so may change sorting related to
                         // assignee status...
                         sort.type === "DisplayStatus" ||
                         sort.type === "ActivatedTime" ||
+                        sort.type === "AssigneePosition" ||
                         sort.type === "AssigneeActivePosition",
                 )
             ) {
@@ -410,6 +411,9 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
                 default:
                     throw exhaustive(action.assigneeStatus);
             }
+        }
+        case "UpdateAssigneePosition": {
+            return sorts.some(sort => sort.type === "AssigneePosition");
         }
         case "UpdateAssigneeActivePosition": {
             return sorts.some(sort => sort.type === "AssigneeActivePosition");

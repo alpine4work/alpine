@@ -2812,6 +2812,561 @@ test("sorts by notepad page position", async () => {
     ).toEqual([task5Id, task4Id, task1Id, task2Id, task3Id, task6Id, task7Id, task8Id]);
 });
 
+test("sorts by assignee position", async () => {
+    const space = await TestSpace.create(context);
+
+    const sessions = await runAllPromises([space.createSession(), space.createSession()]);
+
+    let session1;
+    let session2;
+    if (sessions[0].account.id < sessions[1].account.id) {
+        session1 = sessions[0];
+        session2 = sessions[1];
+    } else {
+        session1 = sessions[1];
+        session2 = sessions[0];
+    }
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+    const task4Id = generateId<TaskId>();
+    const task5Id = generateId<TaskId>();
+    const task6Id = generateId<TaskId>();
+    const task7Id = generateId<TaskId>();
+    const task8Id = generateId<TaskId>();
+
+    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "Create",
+                creatorId: session1.account.id,
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "Create",
+                creatorId: session1.account.id,
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creatorId: session1.account.id,
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "Create",
+                creatorId: session1.account.id,
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "Create",
+                creatorId: session1.account.id,
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task6Id,
+            taskAction: {
+                type: "Create",
+                creatorId: session1.account.id,
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task8Id,
+            taskAction: {
+                type: "Create",
+                creatorId: session1.account.id,
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assigneeId: session1.account.id,
+                    assignerId: session1.account.id,
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assigneeId: session1.account.id,
+                    assignerId: session1.account.id,
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assigneeId: session1.account.id,
+                    assignerId: session1.account.id,
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assigneeId: session1.account.id,
+                    assignerId: session1.account.id,
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assigneeId: session1.account.id,
+                    assignerId: session1.account.id,
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task8Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assigneeId: session1.account.id,
+                    assignerId: session1.account.id,
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    await commitTaskActionTransaction(context.taskAction(session2), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task7Id,
+            taskAction: {
+                type: "Create",
+                creatorId: session2.account.id,
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task7Id,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assigneeId: session2.account.id,
+                    assignerId: session2.account.id,
+                    assignedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+    ]);
+
+    const time1 = clock.now();
+    const time2 = clock.now();
+    const time3 = clock.now();
+    const time4 = clock.now();
+    const time5 = clock.now();
+    const time6 = clock.now();
+    const time7 = clock.now();
+    const time8 = clock.now();
+    const time9 = clock.now();
+
+    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: time1,
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssigneeStatus",
+                assigneeStatus: {
+                    type: "Active",
+                    activatedTime: TaskFilterableTime.test(time1),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time1,
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssigneePosition",
+                accountId: session1.account.id,
+                position: {orderTime: time1, orderKey: initialOrderKey},
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateAssigneeStatus",
+                assigneeStatus: {
+                    type: "Active",
+                    activatedTime: TaskFilterableTime.test(time2),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time2,
+            taskId: task2Id,
+            taskAction: {
+                type: "UpdateAssigneePosition",
+                accountId: session1.account.id,
+                position: {orderTime: time2, orderKey: initialOrderKey},
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time3,
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssigneeStatus",
+                assigneeStatus: {
+                    type: "Active",
+                    activatedTime: TaskFilterableTime.test(time3),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time3,
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssigneePosition",
+                accountId: session1.account.id,
+                position: {orderTime: time3, orderKey: initialOrderKey},
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time4,
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdateAssigneeStatus",
+                assigneeStatus: {
+                    type: "Active",
+                    activatedTime: TaskFilterableTime.test(time4),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time4,
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdateAssigneePosition",
+                accountId: session1.account.id,
+                position: {orderTime: time4, orderKey: initialOrderKey},
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time5,
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdateAssigneeStatus",
+                assigneeStatus: {
+                    type: "Active",
+                    activatedTime: TaskFilterableTime.test(time5),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time5,
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdateAssigneePosition",
+                accountId: session1.account.id,
+                position: {orderTime: time5, orderKey: initialOrderKey},
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time6,
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssigneeStatus",
+                assigneeStatus: {
+                    type: "Active",
+                    activatedTime: TaskFilterableTime.test(time6),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time6,
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateAssigneePosition",
+                accountId: session1.account.id,
+                position: {orderTime: time2, orderKey: assertOrderKey("Zz")},
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time7,
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssigneeStatus",
+                assigneeStatus: {
+                    type: "Active",
+                    activatedTime: TaskFilterableTime.test(time7),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time7,
+            taskId: task1Id,
+            taskAction: {
+                type: "UpdateAssigneePosition",
+                accountId: session1.account.id,
+                position: {orderTime: time7, orderKey: initialOrderKey},
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time8,
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdateAssigneeStatus",
+                assigneeStatus: {
+                    type: "Active",
+                    activatedTime: TaskFilterableTime.test(time8),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time8,
+            taskId: task4Id,
+            taskAction: {
+                type: "UpdateAssigneePosition",
+                accountId: session1.account.id,
+                position: {orderTime: time8, orderKey: assertOrderKey("a1")},
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time9,
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdateAssigneeStatus",
+                assigneeStatus: {
+                    type: "Active",
+                    activatedTime: TaskFilterableTime.test(time9),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: time9,
+            taskId: task5Id,
+            taskAction: {
+                type: "UpdateAssigneePosition",
+                accountId: session1.account.id,
+                position: {orderTime: time8, orderKey: assertOrderKey("a2")},
+            },
+        },
+    ]);
+
+    await commitTaskActionTransaction(context.taskAction(session2), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task7Id,
+            taskAction: {
+                type: "UpdateAssigneeStatus",
+                assigneeStatus: {
+                    type: "Active",
+                    activatedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task7Id,
+            taskAction: {
+                type: "UpdateAssigneePosition",
+                accountId: session2.account.id,
+                position: {orderTime: clock.now(), orderKey: initialOrderKey},
+            },
+        },
+    ]);
+
+    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task6Id,
+            taskAction: {
+                type: "UpdateAssigneeStatus",
+                assigneeStatus: {
+                    type: "Active",
+                    activatedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task8Id,
+            taskAction: {
+                type: "UpdateAssigneeStatus",
+                assigneeStatus: {
+                    type: "Active",
+                    activatedTime: TaskFilterableTime.test(clock.now()),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task8Id,
+            taskAction: {
+                type: "UpdateAssigneePosition",
+                accountId: session1.account.id,
+                position: {orderTime: clock.now(), orderKey: assertOrderKey("a2")},
+            },
+        },
+    ]);
+
+    expect(
+        await testQueryWithNormalizedSorts(space, [
+            {
+                type: "AssigneePosition",
+                direction: "Ascending",
+                missing: "Last",
+            },
+            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+        ]),
+    ).toEqual([task3Id, task2Id, task1Id, task4Id, task5Id, task7Id, task8Id, task6Id]);
+
+    expect(
+        await testQueryWithNormalizedSorts(space, [
+            {
+                type: "AssigneePosition",
+                direction: "Descending",
+                missing: "Last",
+            },
+            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+        ]),
+    ).toEqual([task8Id, task7Id, task5Id, task4Id, task1Id, task2Id, task3Id, task6Id]);
+
+    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: clock.now(),
+            taskId: task8Id,
+            taskAction: {
+                type: "UpdateAssigneeStatus",
+                assigneeStatus: {
+                    type: "Inactive",
+                },
+            },
+        },
+    ]);
+
+    expect(
+        await testQueryWithNormalizedSorts(space, [
+            {
+                type: "AssigneePosition",
+                direction: "Ascending",
+                missing: "Last",
+            },
+            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+        ]),
+    ).toEqual([task3Id, task2Id, task1Id, task4Id, task5Id, task7Id, task6Id, task8Id]);
+
+    expect(
+        await testQueryWithNormalizedSorts(space, [
+            {
+                type: "AssigneePosition",
+                direction: "Descending",
+                missing: "Last",
+            },
+            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+        ]),
+    ).toEqual([task7Id, task5Id, task4Id, task1Id, task2Id, task3Id, task6Id, task8Id]);
+
+    expect(
+        await testQueryWithNormalizedSorts(space, [
+            {
+                type: "AssigneePosition",
+                direction: "Ascending",
+                missing: "First",
+            },
+            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+        ]),
+    ).toEqual([task6Id, task8Id, task3Id, task2Id, task1Id, task4Id, task5Id, task7Id]);
+
+    expect(
+        await testQueryWithNormalizedSorts(space, [
+            {
+                type: "AssigneePosition",
+                direction: "Descending",
+                missing: "First",
+            },
+            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+        ]),
+    ).toEqual([task6Id, task8Id, task7Id, task5Id, task4Id, task1Id, task2Id, task3Id]);
+});
+
 test("sorts by assignee active position", async () => {
     const space = await TestSpace.create(context);
 

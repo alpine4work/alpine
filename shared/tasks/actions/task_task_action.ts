@@ -369,6 +369,22 @@ const TaskUpdateAssigneeStatusActionSchema = Schema.object({
 });
 
 /**
+ * Updates the position of a task in the assignee's task list.
+ *
+ * The assignee position of a task is in a separate register from the assignee
+ * register so we have better control over permissions for the position.
+ * Notably, all clients are allowed to know the task's assignee but only the
+ * task assignee's client should know the assignee position.
+ */
+export type TaskUpdateAssigneePosition = SchemaType<typeof TaskUpdateAssigneePositionSchema>;
+
+const TaskUpdateAssigneePositionSchema = Schema.object({
+    type: Schema.value("UpdateAssigneePosition"),
+    accountId: Schema.id<AccountId>(),
+    position: TaskPositionSchema,
+});
+
+/**
  * Updates the position of a task in the assignee's active task list.
  *
  * The active position of a task is in a separate register from
@@ -436,6 +452,7 @@ export const TaskTaskActionSchema = Schema.union({
     UpdateStatus: TaskUpdateStatusActionSchema,
     UpdateAssignee: TaskUpdateAssigneeActionSchema,
     UpdateAssigneeStatus: TaskUpdateAssigneeStatusActionSchema,
+    UpdateAssigneePosition: TaskUpdateAssigneePositionSchema,
     UpdateAssigneeActivePosition: TaskUpdateAssigneeActivePositionSchema,
     UpdateTitle: TaskUpdateTitleActionSchema,
     UpdateDueDate: TaskUpdateDueDateActionSchema,

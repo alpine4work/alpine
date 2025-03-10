@@ -1,5 +1,6 @@
 import {dangerouslyGetAccountIfExistsWithoutCaching} from "~/server/accounts/accounts_table.js";
 import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
+import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
@@ -88,6 +89,7 @@ import {
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskAssigneePositionRegister} from "~/shared/tasks/task_assignee_position.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
@@ -212,6 +214,39 @@ export async function deployTaskIndexes(tracer: TracerBase, client: OpensearchCl
         client.deployIndex(tracer, TaskIndex),
         client.deployIndex(tracer, TaskCollectionIndex),
     ]);
+}
+
+/**
+ * We added `assigneePosition` on 2025-03-10. This migration makes sure
+ * `rawAssigneePosition` and `assigneePosition` exist on every task in
+ * OpenSearch.
+ */
+export async function runIndexTaskInitialAssigneePositionMigrationForTask(
+    context: Context<ServerProcessContextModules & {opensearch: OpensearchContextModule}>,
+    spaceId: SpaceId,
+    taskId: TaskId,
+) {
+    assert(context.tracer.getRoot().serviceName === "MigrationService");
+
+    await retryWithExponentialBackoff(async retry => {
+        const task = await context.opensearch.getDocIfExists(TaskIndex, spaceId, taskId);
+        if (!task) throw retry(new NotFoundError("Task not found"));
+
+        const newRawAssigneePosition = task.rawAssigneePosition.merge(
+            new TaskAssigneePositionRegister(null, task.createdTime.absoluteTime),
+        );
+
+        if (task.rawAssigneePosition === newRawAssigneePosition) return;
+
+        const newTask = {
+            ...task,
+            rawAssigneePosition: newRawAssigneePosition,
+        };
+
+        await context.opensearch.indexDocIfVersion(TaskIndex, spaceId, newTask, {
+            retryVersionConflictError: retry,
+        });
+    });
 }
 
 /**
@@ -1403,9 +1438,10 @@ function getTaskActionApproximateActionCountType(
         case "UpdateChildrenCounts":
             return null;
 
-        // We don't increment action count for `UpdateAssigneeActivePosition` since it
+        // We don't increment action count for `UpdateAssigneePosition` since it
         // updates private information not observable by anyone but the assigned
         // account.
+        case "UpdateAssigneePosition":
         case "UpdateAssigneeActivePosition":
             return null;
 

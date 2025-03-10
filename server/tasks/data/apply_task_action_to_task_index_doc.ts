@@ -309,6 +309,11 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
                 version: actionTime,
             });
 
+            const newRawAssigneePosition = task.rawAssigneePosition.apply({
+                value: null,
+                version: actionTime,
+            });
+
             const newRawAssigneeActivePosition = task.rawAssigneeActivePosition.apply({
                 value: null,
                 version: actionTime,
@@ -317,6 +322,7 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
             if (
                 newAssignee === task.assignee &&
                 newRawAssigneeStatus === task.rawAssigneeStatus &&
+                newRawAssigneePosition === task.rawAssigneePosition &&
                 newRawAssigneeActivePosition === task.rawAssigneeActivePosition
             ) {
                 return task;
@@ -326,6 +332,7 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
                 ...task,
                 assignee: newAssignee,
                 rawAssigneeStatus: newRawAssigneeStatus,
+                rawAssigneePosition: newRawAssigneePosition,
                 rawAssigneeActivePosition: newRawAssigneeActivePosition,
             };
         }
@@ -351,6 +358,24 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
                 ...task,
                 rawAssigneeStatus: newRawAssigneeStatus,
                 rawAssigneeActivePosition: newRawAssigneeActivePosition,
+            };
+        }
+        case "UpdateAssigneePosition": {
+            const newRawAssigneePosition = task.rawAssigneePosition.apply({
+                value: {
+                    accountId: action.accountId,
+                    position: action.position,
+                },
+                version: actionTime,
+            });
+
+            if (newRawAssigneePosition === task.rawAssigneePosition) {
+                return task;
+            }
+
+            return {
+                ...task,
+                rawAssigneePosition: newRawAssigneePosition,
             };
         }
         case "UpdateAssigneeActivePosition": {
