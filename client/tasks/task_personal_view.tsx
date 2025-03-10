@@ -19,6 +19,7 @@ import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_wit
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {navigationBarStyles, tasksStyles} from "~/client/styles/styles.js";
 import {
     taskGridViewColumnHeaderHeight,
@@ -29,6 +30,7 @@ import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/core/task_client_store.js";
+import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewHasDndContext} from "~/client/tasks/internal/task_grid_view_has_dnd_context.js";
 import {useTaskGridViewVirtualizedListBase} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
@@ -53,6 +55,8 @@ import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
+import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 
 type TaskPersonalViewVisibleSection = "Active" | "Overdue" | "DueToday" | "DueSoon" | "Remaining";
@@ -91,7 +95,8 @@ export function TaskPersonalView({
 }) {
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
-    const {isAppleDevice} = useClientInfo();
+    const {isAppleDevice, timeZone} = useClientInfo();
+    const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
 
     // Retain our queries.
     useEffect(() => {
@@ -266,7 +271,18 @@ export function TaskPersonalView({
     ) => {
         const scrollOffset = view.getScrollOffset();
 
-        let newVisibleSection: TaskPersonalViewVisibleSection = "Active";
+        let newVisibleSection: TaskPersonalViewVisibleSection;
+        if (!isActiveGridViewEmpty) {
+            newVisibleSection = "Active";
+        } else if (!isOverdueGridViewEmpty) {
+            newVisibleSection = "Overdue";
+        } else if (!isDueTodayGridViewEmpty) {
+            newVisibleSection = "DueToday";
+        } else if (!isDueSoonGridViewEmpty) {
+            newVisibleSection = "DueSoon";
+        } else {
+            newVisibleSection = "Remaining";
+        }
 
         if (
             visibleSectionPositionState.remainingHeaderPosition !== null &&
@@ -498,12 +514,70 @@ export function TaskPersonalView({
             runningItemCount,
             events.getActiveItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position) => {
-            throw new UnimplementedError("NOCOMMIT");
+        getMoveTaskToQueryActions: (taskId, position): Array<TaskActionModel> => {
+            const time1 = store.clock.now();
+            const time2 = store.clock.now();
+            const time3 = store.clock.now();
+
+            return [
+                {
+                    type: "UpdateTask",
+                    time: time1,
+                    taskId,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: {
+                            assigneeId: currentAccount.id,
+                            assignerId: currentAccount.id,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: time1,
+                                setterTimeZone: timeZone,
+                            }),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: time2,
+                    taskId,
+                    taskAction: {
+                        type: "UpdateAssigneeStatus",
+                        assigneeStatus: {
+                            type: "Active",
+                            activatedTime: new TaskFilterableTime({
+                                absoluteTime: time2,
+                                setterTimeZone: timeZone,
+                            }),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: time3,
+                    taskId,
+                    taskAction: {
+                        type: "UpdateAssigneePosition",
+                        accountId: currentAccount.id,
+                        position: getNewTaskPositionForQuerySortedByPosition(
+                            time3,
+                            remainingQuery.query,
+                            position,
+                        ),
+                    },
+                },
+            ];
         },
-        getMaybeRemoveTaskFromQueryActions: taskId => {
-            throw new UnimplementedError("NOCOMMIT");
-        },
+        getMaybeRemoveTaskFromQueryActions: taskId => [
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: null,
+                },
+            },
+        ],
         columnHeaderControls,
         isDragging,
         draggingData,
@@ -536,12 +610,75 @@ export function TaskPersonalView({
             runningItemCount,
             events.getOverdueItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position) => {
-            throw new UnimplementedError("NOCOMMIT");
+        getMoveTaskToQueryActions: (taskId, position): Array<TaskActionModel> => {
+            assert(
+                overdueQuery.query.filters.dueDateFilter?.type === "Range" &&
+                    overdueQuery.query.filters.dueDateFilter.exclusiveUpperBoundDate,
+            );
+
+            // By default, set due date to yesterday.
+            const currentDate =
+                overdueQuery.query.filters.dueDateFilter.exclusiveUpperBoundDate.subtract({
+                    days: 1,
+                });
+
+            const time1 = store.clock.now();
+            const time2 = store.clock.now();
+            const time3 = store.clock.now();
+
+            return [
+                {
+                    type: "UpdateTask",
+                    time: time1,
+                    taskId,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: {
+                            assigneeId: currentAccount.id,
+                            assignerId: currentAccount.id,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: time1,
+                                setterTimeZone: timeZone,
+                            }),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: time2,
+                    taskId,
+                    taskAction: {
+                        type: "UpdateDueDate",
+                        dueDate: currentDate,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: time3,
+                    taskId,
+                    taskAction: {
+                        type: "UpdateAssigneePosition",
+                        accountId: currentAccount.id,
+                        position: getNewTaskPositionForQuerySortedByPosition(
+                            time3,
+                            remainingQuery.query,
+                            position,
+                        ),
+                    },
+                },
+            ];
         },
-        getMaybeRemoveTaskFromQueryActions: taskId => {
-            throw new UnimplementedError("NOCOMMIT");
-        },
+        getMaybeRemoveTaskFromQueryActions: taskId => [
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: null,
+                },
+            },
+        ],
         withoutColumnHeader: !isActiveGridViewEmpty,
         columnHeaderControls: isActiveGridViewEmpty ? columnHeaderControls : undefined,
         isDragging,
@@ -557,8 +694,10 @@ export function TaskPersonalView({
         overdueGridViewResult.loadedState === "FullyLoaded";
 
     if (!isOverdueGridViewEmpty) {
-        // `OverdueHeader`
-        runningItemCount += 1;
+        if (!isActiveGridViewEmpty) {
+            // `OverdueHeader`
+            runningItemCount += 1;
+        }
 
         for (const index of overdueGridViewResult.alwaysRenderAdditionalItemIndexes) {
             alwaysRenderAdditionalItemIndexes.push(index + runningItemCount);
@@ -578,12 +717,71 @@ export function TaskPersonalView({
             runningItemCount,
             events.getDueTodayItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position) => {
-            throw new UnimplementedError("NOCOMMIT");
+        getMoveTaskToQueryActions: (taskId, position): Array<TaskActionModel> => {
+            assert(
+                dueTodayQuery.query.filters.dueDateFilter?.type === "Range" &&
+                    dueTodayQuery.query.filters.dueDateFilter.exclusiveLowerBoundDate,
+            );
+            const currentDate =
+                dueTodayQuery.query.filters.dueDateFilter.exclusiveLowerBoundDate.add({days: 1});
+
+            const time1 = store.clock.now();
+            const time2 = store.clock.now();
+            const time3 = store.clock.now();
+
+            return [
+                {
+                    type: "UpdateTask",
+                    time: time1,
+                    taskId,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: {
+                            assigneeId: currentAccount.id,
+                            assignerId: currentAccount.id,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: time1,
+                                setterTimeZone: timeZone,
+                            }),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: time2,
+                    taskId,
+                    taskAction: {
+                        type: "UpdateDueDate",
+                        dueDate: currentDate,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: time3,
+                    taskId,
+                    taskAction: {
+                        type: "UpdateAssigneePosition",
+                        accountId: currentAccount.id,
+                        position: getNewTaskPositionForQuerySortedByPosition(
+                            time3,
+                            remainingQuery.query,
+                            position,
+                        ),
+                    },
+                },
+            ];
         },
-        getMaybeRemoveTaskFromQueryActions: taskId => {
-            throw new UnimplementedError("NOCOMMIT");
-        },
+        getMaybeRemoveTaskFromQueryActions: taskId => [
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: null,
+                },
+            },
+        ],
         withoutColumnHeader: !isActiveGridViewEmpty || !isOverdueGridViewEmpty,
         columnHeaderControls:
             isActiveGridViewEmpty && isOverdueGridViewEmpty ? columnHeaderControls : undefined,
@@ -600,8 +798,10 @@ export function TaskPersonalView({
         dueTodayGridViewResult.loadedState === "FullyLoaded";
 
     if (!isDueTodayGridViewEmpty) {
-        // `DueTodayHeader`
-        runningItemCount += 1;
+        if (!isActiveGridViewEmpty || !isOverdueGridViewEmpty) {
+            // `DueTodayHeader`
+            runningItemCount += 1;
+        }
 
         for (const index of dueTodayGridViewResult.alwaysRenderAdditionalItemIndexes) {
             alwaysRenderAdditionalItemIndexes.push(index + runningItemCount);
@@ -621,12 +821,76 @@ export function TaskPersonalView({
             runningItemCount,
             events.getDueSoonItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position) => {
-            throw new UnimplementedError("NOCOMMIT");
+        getMoveTaskToQueryActions: (taskId, position): Array<TaskActionModel> => {
+            assert(
+                dueSoonQuery.query.filters.dueDateFilter?.type === "Range" &&
+                    dueSoonQuery.query.filters.dueDateFilter.exclusiveUpperBoundDate,
+            );
+
+            // By default, set due date to one week from today (7 days from now). This
+            // should be the same as the upper bound of the due soon date range.
+            const currentDate =
+                dueSoonQuery.query.filters.dueDateFilter.exclusiveUpperBoundDate.subtract({
+                    days: 1,
+                });
+
+            const time1 = store.clock.now();
+            const time2 = store.clock.now();
+            const time3 = store.clock.now();
+
+            return [
+                {
+                    type: "UpdateTask",
+                    time: time1,
+                    taskId,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: {
+                            assigneeId: currentAccount.id,
+                            assignerId: currentAccount.id,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: time1,
+                                setterTimeZone: timeZone,
+                            }),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: time2,
+                    taskId,
+                    taskAction: {
+                        type: "UpdateDueDate",
+                        dueDate: currentDate,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: time3,
+                    taskId,
+                    taskAction: {
+                        type: "UpdateAssigneePosition",
+                        accountId: currentAccount.id,
+                        position: getNewTaskPositionForQuerySortedByPosition(
+                            time3,
+                            remainingQuery.query,
+                            position,
+                        ),
+                    },
+                },
+            ];
         },
-        getMaybeRemoveTaskFromQueryActions: taskId => {
-            throw new UnimplementedError("NOCOMMIT");
-        },
+        getMaybeRemoveTaskFromQueryActions: taskId => [
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: null,
+                },
+            },
+        ],
         withoutColumnHeader:
             !isActiveGridViewEmpty || !isOverdueGridViewEmpty || !isDueTodayGridViewEmpty,
         columnHeaderControls:
@@ -646,8 +910,10 @@ export function TaskPersonalView({
         dueSoonGridViewResult.loadedState === "FullyLoaded";
 
     if (!isDueSoonGridViewEmpty) {
-        // `DueSoonHeader`
-        runningItemCount += 1;
+        if (!isActiveGridViewEmpty || !isOverdueGridViewEmpty || !isDueTodayGridViewEmpty) {
+            // `DueSoonHeader`
+            runningItemCount += 1;
+        }
 
         for (const index of dueSoonGridViewResult.alwaysRenderAdditionalItemIndexes) {
             alwaysRenderAdditionalItemIndexes.push(index + runningItemCount);
@@ -667,12 +933,54 @@ export function TaskPersonalView({
             runningItemCount,
             events.getRemainingItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position) => {
-            throw new UnimplementedError("NOCOMMIT");
+        getMoveTaskToQueryActions: (taskId, position): Array<TaskActionModel> => {
+            const time1 = store.clock.now();
+            const time2 = store.clock.now();
+
+            return [
+                {
+                    type: "UpdateTask",
+                    time: time1,
+                    taskId,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: {
+                            assigneeId: currentAccount.id,
+                            assignerId: currentAccount.id,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: time1,
+                                setterTimeZone: timeZone,
+                            }),
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: time2,
+                    taskId,
+                    taskAction: {
+                        type: "UpdateAssigneePosition",
+                        accountId: currentAccount.id,
+                        position: getNewTaskPositionForQuerySortedByPosition(
+                            time2,
+                            remainingQuery.query,
+                            position,
+                        ),
+                    },
+                },
+            ];
         },
-        getMaybeRemoveTaskFromQueryActions: taskId => {
-            throw new UnimplementedError("NOCOMMIT");
-        },
+        getMaybeRemoveTaskFromQueryActions: taskId => [
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: null,
+                },
+            },
+        ],
         withoutColumnHeader:
             !isActiveGridViewEmpty ||
             !isOverdueGridViewEmpty ||
@@ -784,29 +1092,31 @@ export function TaskPersonalView({
             }
 
             if (!isOverdueGridViewEmpty) {
-                if (index === 0) {
-                    const height = "14";
+                if (!isActiveGridViewEmpty) {
+                    if (index === 0) {
+                        const height = "14";
 
-                    return {
-                        key: "OverdueHeader",
-                        minHeight: spacing[height],
-                        node: (
-                            <Box
-                                display="flex"
-                                alignItems="center"
-                                height={height}
-                                paddingTop="2"
-                                paddingLeft="10"
-                            >
-                                <Box fontSize="200" fontStyle="bold">
-                                    Overdue
+                        return {
+                            key: "OverdueHeader",
+                            minHeight: spacing[height],
+                            node: (
+                                <Box
+                                    display="flex"
+                                    alignItems="center"
+                                    height={height}
+                                    paddingTop="2"
+                                    paddingLeft="10"
+                                >
+                                    <Box fontSize="200" fontStyle="bold">
+                                        Overdue
+                                    </Box>
                                 </Box>
-                            </Box>
-                        ),
-                    };
-                }
+                            ),
+                        };
+                    }
 
-                index -= 1;
+                    index -= 1;
+                }
 
                 if (index < overdueGridViewResult.itemCount) {
                     return renderOverdueGridViewItem(index);
@@ -816,29 +1126,31 @@ export function TaskPersonalView({
             }
 
             if (!isDueTodayGridViewEmpty) {
-                if (index === 0) {
-                    const height = "14";
+                if (!isActiveGridViewEmpty || !isOverdueGridViewEmpty) {
+                    if (index === 0) {
+                        const height = "14";
 
-                    return {
-                        key: "DueTodayHeader",
-                        minHeight: spacing[height],
-                        node: (
-                            <Box
-                                display="flex"
-                                alignItems="center"
-                                height={height}
-                                paddingTop="2"
-                                paddingLeft="10"
-                            >
-                                <Box fontSize="200" fontStyle="bold">
-                                    Due today
+                        return {
+                            key: "DueTodayHeader",
+                            minHeight: spacing[height],
+                            node: (
+                                <Box
+                                    display="flex"
+                                    alignItems="center"
+                                    height={height}
+                                    paddingTop="2"
+                                    paddingLeft="10"
+                                >
+                                    <Box fontSize="200" fontStyle="bold">
+                                        Due today
+                                    </Box>
                                 </Box>
-                            </Box>
-                        ),
-                    };
-                }
+                            ),
+                        };
+                    }
 
-                index -= 1;
+                    index -= 1;
+                }
 
                 if (index < dueTodayGridViewResult.itemCount) {
                     return renderDueTodayGridViewItem(index);
@@ -848,29 +1160,31 @@ export function TaskPersonalView({
             }
 
             if (!isDueSoonGridViewEmpty) {
-                if (index === 0) {
-                    const height = "14";
+                if (!isActiveGridViewEmpty || !isOverdueGridViewEmpty || !isDueTodayGridViewEmpty) {
+                    if (index === 0) {
+                        const height = "14";
 
-                    return {
-                        key: "DueSoonHeader",
-                        minHeight: spacing[height],
-                        node: (
-                            <Box
-                                display="flex"
-                                alignItems="center"
-                                height={height}
-                                paddingTop="2"
-                                paddingLeft="10"
-                            >
-                                <Box fontSize="200" fontStyle="bold">
-                                    Due soon
+                        return {
+                            key: "DueSoonHeader",
+                            minHeight: spacing[height],
+                            node: (
+                                <Box
+                                    display="flex"
+                                    alignItems="center"
+                                    height={height}
+                                    paddingTop="2"
+                                    paddingLeft="10"
+                                >
+                                    <Box fontSize="200" fontStyle="bold">
+                                        Due soon
+                                    </Box>
                                 </Box>
-                            </Box>
-                        ),
-                    };
-                }
+                            ),
+                        };
+                    }
 
-                index -= 1;
+                    index -= 1;
+                }
 
                 if (index < dueSoonGridViewResult.itemCount) {
                     return renderDueSoonGridViewItem(index);
@@ -965,16 +1279,24 @@ export function TaskPersonalView({
                     itemCount={
                         (!isActiveGridViewEmpty ? activeGridViewResult.itemCount : 0) +
                         (!isOverdueGridViewEmpty
-                            ? // `OverdueHeader`
-                              1 + overdueGridViewResult.itemCount
+                            ? (!isActiveGridViewEmpty
+                                  ? // `OverdueHeader`
+                                    1
+                                  : 0) + overdueGridViewResult.itemCount
                             : 0) +
                         (!isDueTodayGridViewEmpty
-                            ? // `DueTodayHeader`
-                              1 + dueTodayGridViewResult.itemCount
+                            ? (!isActiveGridViewEmpty || !isOverdueGridViewEmpty
+                                  ? // `DueTodayHeader`
+                                    1
+                                  : 0) + dueTodayGridViewResult.itemCount
                             : 0) +
                         (!isDueSoonGridViewEmpty
-                            ? // `DueSoonHeader`
-                              1 + dueSoonGridViewResult.itemCount
+                            ? (!isActiveGridViewEmpty ||
+                              !isOverdueGridViewEmpty ||
+                              !isDueTodayGridViewEmpty
+                                  ? // `DueSoonHeader`
+                                    1
+                                  : 0) + dueSoonGridViewResult.itemCount
                             : 0) +
                         (!isActiveGridViewEmpty ||
                         !isOverdueGridViewEmpty ||
@@ -1004,8 +1326,10 @@ export function TaskPersonalView({
                         }
 
                         if (!isOverdueGridViewEmpty) {
-                            // `OverdueHeader`
-                            runningItemCount += 1;
+                            if (!isActiveGridViewEmpty) {
+                                // `OverdueHeader`
+                                runningItemCount += 1;
+                            }
 
                             overdueGridViewResult.onRenderedRangeChange(
                                 shiftRenderedRange(
@@ -1019,8 +1343,10 @@ export function TaskPersonalView({
                         }
 
                         if (!isDueTodayGridViewEmpty) {
-                            // `DueTodayHeader`
-                            runningItemCount += 1;
+                            if (!isActiveGridViewEmpty || !isOverdueGridViewEmpty) {
+                                // `DueTodayHeader`
+                                runningItemCount += 1;
+                            }
 
                             dueTodayGridViewResult.onRenderedRangeChange(
                                 shiftRenderedRange(
@@ -1034,8 +1360,14 @@ export function TaskPersonalView({
                         }
 
                         if (!isDueSoonGridViewEmpty) {
-                            // `DueSoonHeader`
-                            runningItemCount += 1;
+                            if (
+                                !isActiveGridViewEmpty ||
+                                !isOverdueGridViewEmpty ||
+                                !isDueTodayGridViewEmpty
+                            ) {
+                                // `DueSoonHeader`
+                                runningItemCount += 1;
+                            }
 
                             dueSoonGridViewResult.onRenderedRangeChange(
                                 shiftRenderedRange(
@@ -1082,8 +1414,10 @@ export function TaskPersonalView({
                         }
 
                         if (!isOverdueGridViewEmpty) {
-                            // `OverdueHeader`
-                            runningItemCount += 1;
+                            if (!isActiveGridViewEmpty) {
+                                // `OverdueHeader`
+                                runningItemCount += 1;
+                            }
 
                             overdueGridViewResult.onRenderedRangeLayoutChange(
                                 shiftRenderedRange(
@@ -1097,8 +1431,10 @@ export function TaskPersonalView({
                         }
 
                         if (!isDueTodayGridViewEmpty) {
-                            // `DueTodayHeader`
-                            runningItemCount += 1;
+                            if (!isActiveGridViewEmpty || !isOverdueGridViewEmpty) {
+                                // `DueTodayHeader`
+                                runningItemCount += 1;
+                            }
 
                             dueTodayGridViewResult.onRenderedRangeLayoutChange(
                                 shiftRenderedRange(
@@ -1112,8 +1448,14 @@ export function TaskPersonalView({
                         }
 
                         if (!isDueSoonGridViewEmpty) {
-                            // `DueSoonHeader`
-                            runningItemCount += 1;
+                            if (
+                                !isActiveGridViewEmpty ||
+                                !isOverdueGridViewEmpty ||
+                                !isDueTodayGridViewEmpty
+                            ) {
+                                // `DueSoonHeader`
+                                runningItemCount += 1;
+                            }
 
                             dueSoonGridViewResult.onRenderedRangeLayoutChange(
                                 shiftRenderedRange(
