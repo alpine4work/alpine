@@ -449,3 +449,404 @@ test("can insert unordered list in an empty paragraph", () => {
     );
     expect(getSelection()).toEqual({type: "text", anchor: 7, head: 7});
 });
+
+test("can insert table at beginning of paragraph", () => {
+    const editorRef: MutableRefObject<TestContentEditorRef | null> = {current: null};
+
+    render(
+        <TestContentEditor
+            ref={editorRef}
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foobar")]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foobar"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    act(() => assertExists(editorRef.current).insertTable());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))), paragraph("foobar"))',
+    );
+    expect(getSelection()).toEqual({anchor: 4, head: 4, type: "text"});
+});
+
+test("can insert table at end of paragraph", () => {
+    const editorRef: MutableRefObject<TestContentEditorRef | null> = {current: null};
+
+    render(
+        <TestContentEditor
+            ref={editorRef}
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foobar")]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foobar"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(7))));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foobar"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 7, head: 7});
+
+    act(() => assertExists(editorRef.current).insertTable());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(paragraph("foobar"), table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))))',
+    );
+    expect(getSelection()).toEqual({anchor: 12, head: 12, type: "text"});
+});
+
+test("can insert table in the middle of paragraph", () => {
+    const editorRef: MutableRefObject<TestContentEditorRef | null> = {current: null};
+
+    render(
+        <TestContentEditor
+            ref={editorRef}
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foobar")]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foobar"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foobar"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    act(() => assertExists(editorRef.current).insertTable());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(paragraph("foo"), table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))), paragraph("bar"))',
+    );
+    expect(getSelection()).toEqual({anchor: 9, head: 9, type: "text"});
+});
+
+test("can insert table in the middle of paragraph with selected text", () => {
+    const editorRef: MutableRefObject<TestContentEditorRef | null> = {current: null};
+
+    render(
+        <TestContentEditor
+            ref={editorRef}
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foobar")]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foobar"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(3), state.doc.resolve(5))),
+    );
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foobar"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 3, head: 5});
+
+    act(() => assertExists(editorRef.current).insertTable());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(paragraph("fo"), table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))), paragraph("ar"))',
+    );
+    expect(getSelection()).toEqual({anchor: 8, head: 8, type: "text"});
+});
+
+test("can insert table in an empty paragraph", () => {
+    const editorRef: MutableRefObject<TestContentEditorRef | null> = {current: null};
+
+    render(
+        <TestContentEditor
+            ref={editorRef}
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("paragraph", {}, []),
+                schema.node("paragraph", {}, [schema.text("bar")]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), paragraph, paragraph("bar"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(6))));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), paragraph, paragraph("bar"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 6, head: 6});
+
+    act(() => assertExists(editorRef.current).insertTable());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(paragraph("foo"), table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))), paragraph("bar"))',
+    );
+    expect(getSelection()).toEqual({anchor: 9, head: 9, type: "text"});
+});
+
+test("can insert bullet list inside a table cell", () => {
+    const editorRef: MutableRefObject<TestContentEditorRef | null> = {current: null};
+
+    render(
+        <TestContentEditor
+            ref={editorRef}
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        "doc(table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))))",
+    );
+
+    // Position cursor in the first table cell
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    act(() => assertExists(editorRef.current).insertUnorderedListItem());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(table(tableRow(tableCell(unorderedListItem(paragraph)), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))))",
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 10, head: 10});
+});
+
+test("can insert numbered list inside a table cell", () => {
+    const editorRef: MutableRefObject<TestContentEditorRef | null> = {current: null};
+
+    render(
+        <TestContentEditor
+            ref={editorRef}
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        "doc(table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))))",
+    );
+
+    // Position cursor in the first table cell
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    act(() => assertExists(editorRef.current).insertOrderedListItem());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(table(tableRow(tableCell(orderedListItem(paragraph)), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))))",
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 10, head: 10});
+});
+
+test("can insert heading inside a table cell", () => {
+    const editorRef: MutableRefObject<TestContentEditorRef | null> = {current: null};
+
+    render(
+        <TestContentEditor
+            ref={editorRef}
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        "doc(table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))))",
+    );
+
+    // Position cursor in the first table cell
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    act(() => assertExists(editorRef.current).insertHeading(2));
+
+    expect(getDoc().toString()).toEqual(
+        "doc(table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))), heading)",
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 23, head: 23});
+});
+
+test("can insert table inside a table cell", () => {
+    const editorRef: MutableRefObject<TestContentEditorRef | null> = {current: null};
+
+    render(
+        <TestContentEditor
+            ref={editorRef}
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        "doc(table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))))",
+    );
+
+    // Position cursor in the first table cell
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    act(() => assertExists(editorRef.current).insertTable());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))), table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))))",
+    );
+    // Check cursor position is in the first cell of the newly inserted table
+    expect(getSelection()).toEqual({type: "text", anchor: 26, head: 26});
+});
+
+test("can insert divider inside a table cell", () => {
+    const editorRef: MutableRefObject<TestContentEditorRef | null> = {current: null};
+
+    render(
+        <TestContentEditor
+            ref={editorRef}
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        "doc(table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))))",
+    );
+
+    // Position cursor in the first table cell
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    act(() => assertExists(editorRef.current).insertDivider());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))), divider)",
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 22});
+});
+
+test("can insert code block inside a table cell", () => {
+    const editorRef: MutableRefObject<TestContentEditorRef | null> = {current: null};
+
+    render(
+        <TestContentEditor
+            ref={editorRef}
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        "doc(table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))))",
+    );
+
+    // Position cursor in the first table cell
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    act(() => assertExists(editorRef.current).insertCodeBlock());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(table(tableRow(tableCell(codeBlock(codeBlockLine)), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))))",
+    );
+    // Check cursor position is inside the code block
+    expect(getSelection()).toEqual({type: "text", anchor: 10, head: 10});
+});
+
+test("can insert quote block inside a table cell", () => {
+    const editorRef: MutableRefObject<TestContentEditorRef | null> = {current: null};
+
+    render(
+        <TestContentEditor
+            ref={editorRef}
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        "doc(table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))))",
+    );
+
+    // Position cursor in the first table cell
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    act(() => assertExists(editorRef.current).insertQuoteBlock());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(table(tableRow(tableCell(quoteBlock(paragraph)), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))))",
+    );
+    // Check cursor position is inside the quote block
+    expect(getSelection()).toEqual({type: "text", anchor: 10, head: 10});
+});

@@ -12,7 +12,7 @@ import {
     TextHTwo,
 } from "phosphor-react";
 import {history, redo, redoDepth, undo, undoDepth} from "prosemirror-history";
-import {Fragment, Node, ResolvedPos, Slice} from "prosemirror-model";
+import {Fragment, Node, Schema as ProsemirrorSchema, ResolvedPos, Slice} from "prosemirror-model";
 import {
     AllSelection,
     EditorState,
@@ -75,7 +75,7 @@ import {
     insertContentQuoteBlock,
     insertContentTable,
     insertContentUnorderedListItem,
-    isNodeTableBlock,
+    isContentTableBlockNode,
 } from "~/client/content/internal/content_editor_insert.js";
 import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_keymap_plugin.js";
 import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
@@ -104,10 +104,7 @@ import {
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {createContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
-import {
-    isInContentTable,
-    isSelectionInContentTable,
-} from "~/client/content/internal/table/content_table_client_util.js";
+import {isSelectionInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
 import {handleContentTablePaste} from "~/client/content/internal/table/content_table_input.js";
 import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
@@ -349,6 +346,11 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
      * are generally taken from an `<input type="file">` element.
      */
     insertFiles(files: ReadonlyArray<File>): void;
+
+    /**
+     * Insert a table node.
+     */
+    insertTable(): void;
 
     /**
      * Set the `hasPresentShortcut` attribute.
@@ -738,6 +740,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                 insertQuoteBlock: unimplementedDispatchCommand,
                 insertCodeBlock: unimplementedDispatchCommand,
                 insertFiles: unimplementedDispatchCommand,
+                insertTable: unimplementedDispatchCommand,
                 setHasPresentShortcut: unimplementedDispatchCommand,
                 openMobileKeyboardToolbarCommentInputIfPossible: () => {
                     throw new UnimplementedError(
@@ -1005,6 +1008,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             insertQuoteBlock: () => insertContentQuoteBlock(assertExists(viewRef.current)),
             insertCodeBlock: () => insertContentCodeBlock(assertExists(viewRef.current)),
             insertFiles: files => insertContentFiles(assertExists(viewRef.current), files),
+            insertTable: () => insertContentTable(assertExists(viewRef.current)),
             setHasPresentShortcut: hasPresentShortcut => {
                 const view = assertExists(viewRef.current);
                 view.dispatch(
@@ -4497,30 +4501,34 @@ function handlePasteAfterResolvingReferences(
     event: ClipboardEvent,
     slice: Slice,
 ): void {
-    let hasNonTableContent = false; // flag to see if any one of the node is not
-    // tableBlock, If found, then only do that transformation
-    let remainingSlice: Slice;
+    // If pasting into a table, transform pasted content to make sure it matches
+    // the expected content type for a table.
+    {
+        // flag to see if any one of the node is not tableBlock, If found, then only do
+        // that transformation
+        let hasNonTableContent = false;
+        let remainingSlice: Slice;
 
-    if (isSelectionInContentTable(selection)) {
-        slice.content.forEach(node => {
-            if (!isNodeTableBlock(node)) {
-                hasNonTableContent = true;
-            }
-        });
+        if (isSelectionInContentTable(selection)) {
+            slice.content.forEach(node => {
+                if (!isContentTableBlockNode(node)) {
+                    hasNonTableContent = true;
+                }
+            });
+            if (hasNonTableContent) {
+                [slice, remainingSlice] = transformPastedForContentTable(doc.type.schema, slice);
 
-        if (hasNonTableContent) {
-            [slice, remainingSlice] = transformPastedForContentTable(slice);
-
-            // Validate remainingSlice exists and has content before proceeding
-            if (remainingSlice && remainingSlice.content && remainingSlice.content.size > 0) {
-                const originalCreateTransaction = createTransaction;
-                createTransaction = () => {
-                    const transaction = originalCreateTransaction();
-                    // Insert remainingSlice after the table
-                    const insertPos = selection.$anchor.after(1);
-                    transaction.insert(insertPos, remainingSlice.content);
-                    return transaction;
-                };
+                // Validate remainingSlice exists and has content before proceeding
+                if (remainingSlice && remainingSlice.content && remainingSlice.content.size > 0) {
+                    const originalCreateTransaction = createTransaction;
+                    createTransaction = () => {
+                        const transaction = originalCreateTransaction();
+                        // Insert remainingSlice after the table
+                        const insertPos = selection.$anchor.after(1);
+                        transaction.insert(insertPos, remainingSlice.content);
+                        return transaction;
+                    };
+                }
             }
         }
     }
@@ -4614,13 +4622,50 @@ function handlePasteAfterResolvingReferences(
     dispatch(transaction.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"));
 }
 
-function transformPastedForContentTable(slice: Slice): [slice: Slice, remainingSlice: Slice] {
+/**
+ * If pasting into a table, transform pasted content to make sure it matches
+ * the expected content type for a table.
+ */
+function transformPastedForContentTable(
+    schema: ProsemirrorSchema,
+    slice: Slice,
+): [slice: Slice, remainingSlice: Slice] {
     const remainingContent: Array<Node> = []; // paste outside of table in next position
     const primaryContent: Array<Node> = []; // paste inside of table / table cell with modifications
-    const schema = slice.content.firstChild?.type.schema;
-    if (!schema) return [slice, Slice.empty];
 
     slice.content.content.forEach(node => {
+        // NOTE(rohit): It is recommended that once we add one node to remainingContent, all
+        // future nodes in the slice should be remainingContent. The reason being if you paste
+        // content like this:
+
+        // <p>Text explaining table 1</p>
+        // <table><!-- Table 1 --></table>
+        // <p>Text explaining table 2</p>
+        // <table><!-- Table 2 --></table>
+
+        // It would be weird to paste this inside the table:
+        // <p>Text explaining table 1</p>
+        // <p>Text explaining table 2</p>
+        //
+        // …and this outside the table:
+        // <table><!-- Table 1 --></table>
+        // <table><!-- Table 2 --></table>
+        //
+        // I feel like it would make more sense to the user if we paste this inside the table:
+        // <p>Text explaining table 1</p>
+        // …and this outside the table:
+
+        // <table><!-- Table 1 --></table>
+        // <p>Text explaining table 2</p>
+        // <table><!-- Table 2 --></table>
+        //
+        // This doesn't break the user's intent. However reordering their content might break
+        // the user's intent!
+        if (remainingContent.length > 0) {
+            remainingContent.push(node);
+            return;
+        }
+
         switch (node.type.name) {
             case "table": {
                 // Tables go into remainingContent to be inserted after the current table
@@ -4629,21 +4674,16 @@ function transformPastedForContentTable(slice: Slice): [slice: Slice, remainingS
             }
 
             case "heading": {
-                const boldMark = schema.marks.bold?.create();
-                const paragraphType = schema.nodes.paragraph;
-                if (!boldMark || !paragraphType) {
-                    break;
-                }
-                // Create new text node with:
-                // - Original text (or empty string if null)
-                // - Combine existing marks with new bold mark
-                // Create a single text node for the entire heading content
-                const newContent = schema.text(node.textContent || "", [
-                    ...(node.marks || []),
-                    boldMark,
-                ]);
+                const boldMark = assertExists(schema.marks.bold).create();
+                const paragraphType = assertExists(schema.nodes.paragraph);
 
-                const paragraphNode = paragraphType.create(node.attrs, Fragment.from(newContent));
+                const paragraphNode = paragraphType.create(
+                    null,
+                    node.content.content.map(childNode => {
+                        assert(childNode.isText);
+                        return childNode.mark(boldMark.addToSet(childNode.marks));
+                    }),
+                );
                 primaryContent.push(paragraphNode);
                 break;
             }
@@ -4662,8 +4702,10 @@ function transformPastedForContentTable(slice: Slice): [slice: Slice, remainingS
 
             default: {
                 // Check if node is allowed in table cell
-                if (isNodeTableBlock(node)) {
+                if (isContentTableBlockNode(node)) {
                     primaryContent.push(node);
+                } else {
+                    remainingContent.push(node);
                 }
                 break;
             }
@@ -4674,8 +4716,10 @@ function transformPastedForContentTable(slice: Slice): [slice: Slice, remainingS
         primaryContent.length > 0
             ? new Slice(
                   Fragment.fromArray(primaryContent),
-                  0, // Set openStart to 0 since we're creating new paragraphs
-                  0, // Set openEnd to 0 for the same reason
+                  primaryContent[0] === slice.content.firstChild ? slice.openStart : 0,
+                  primaryContent[primaryContent.length - 1] === slice.content.lastChild
+                      ? slice.openEnd
+                      : 0,
               )
             : Slice.empty,
         remainingContent.length > 0
