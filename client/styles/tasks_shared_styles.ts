@@ -28,7 +28,7 @@ export const taskDetailViewStatusButtonSize = {
 export const taskDetailViewStatusButtonMobilePaddingTop = "3";
 export const taskDetailViewStatusButtonMobilePaddingBottom = "2";
 
-export const taskGridViewColumnHeaderHeight = "5";
+export const taskGridViewColumnHeaderHeight = "4";
 
 // It takes 2px to render the bottom borders on our column header. 1px for the
 // border itself and 1px below that to avoid covering the first row's bottom
@@ -88,6 +88,8 @@ export const taskRowTitleInputPaddingYPx = createObjectFromKeys(
             contentStyles.paragraphLineHeightPx[spacingScale]) /
         2,
 );
+
+export const taskRowViewPaddingBottom = "6";
 
 export const taskNotepadViewActiveSectionCardGap: Spacing = "3";
 

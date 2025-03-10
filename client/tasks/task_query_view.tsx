@@ -381,6 +381,7 @@ export function TaskQueryView({
                     hasMultilineTitle: false,
                     hasDenseFields: false,
                     hasColumns: true,
+                    withoutAssigneeColumn: false,
                 };
             } else {
                 return {
@@ -389,6 +390,7 @@ export function TaskQueryView({
                     hasMultilineTitle: true,
                     hasDenseFields: true,
                     hasColumns: false,
+                    withoutAssigneeColumn: false,
                 };
             }
         }, [routeLayout]),

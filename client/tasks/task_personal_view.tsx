@@ -8,15 +8,21 @@ import {
     useImperativeHandle,
     useMemo,
     useRef,
+    useState,
 } from "react";
 import {Box} from "~/client/design/box.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
-import {tasksStyles} from "~/client/styles/styles.js";
-import {taskRowViewMinHeight} from "~/client/styles/tasks_shared_styles.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {navigationBarStyles, tasksStyles} from "~/client/styles/styles.js";
+import {
+    taskGridViewColumnHeaderHeight,
+    taskRowViewMinHeight,
+} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
     TaskClientStore,
@@ -33,34 +39,33 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {spacing} from "~/shared/design/core/spacing.js";
+import {interFontCapHeight, interFontXHeight} from "~/shared/design/core/font_metrics.js";
+import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
+import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {OutOfRangeError, UnimplementedError} from "~/shared/error/error.js";
+import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 
-// TODO(calebmer, 2025-03-07): The `react-compiler` ESLint rule seems to be
-// bugged in this file. It's flagging a bunch of valid hook calls as if they're
-// inside an `if` branch. Try isolating the bug, filing a bug report, and when
-// it's fixed remove this eslint-disable comment.
-/* eslint-disable react-compiler/react-compiler */
+type TaskPersonalViewVisibleSection = "Active" | "Overdue" | "DueToday" | "DueSoon" | "Remaining";
 
 export function TaskPersonalView({
     store,
-    assigneeActiveQuery,
-    assigneeOverdueQuery,
+    activeQuery,
+    overdueQuery,
     assigneeDueTodayQuery,
-    assigneeDueSoonQuery,
-    assigneeRemainingQuery,
+    dueSoonQuery,
+    remainingQuery,
     affinityManager,
 }: {
     store: TaskClientStore;
-    assigneeActiveQuery: {
+    activeQuery: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;
     };
-    assigneeOverdueQuery: {
+    overdueQuery: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;
     };
@@ -68,44 +73,45 @@ export function TaskPersonalView({
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;
     };
-    assigneeDueSoonQuery: {
+    dueSoonQuery: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;
     };
-    assigneeRemainingQuery: {
+    remainingQuery: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;
     };
     affinityManager: TaskClientStoreSearchAffinityManager;
 }) {
+    const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const {isAppleDevice} = useClientInfo();
 
     // Retain our queries.
     useEffect(() => {
-        assigneeActiveQuery.query.retain();
-        assigneeOverdueQuery.query.retain();
+        activeQuery.query.retain();
+        overdueQuery.query.retain();
         assigneeDueTodayQuery.query.retain();
-        assigneeDueSoonQuery.query.retain();
-        assigneeRemainingQuery.query.retain();
+        dueSoonQuery.query.retain();
+        remainingQuery.query.retain();
 
         return () => {
             // Release after a microtask in case the effect re-runs in which case we'll
             // synchronously call `retain()` again.
             scheduleMicrotask(() => {
-                assigneeActiveQuery.query.release();
-                assigneeOverdueQuery.query.release();
+                activeQuery.query.release();
+                overdueQuery.query.release();
                 assigneeDueTodayQuery.query.release();
-                assigneeDueSoonQuery.query.release();
-                assigneeRemainingQuery.query.release();
+                dueSoonQuery.query.release();
+                remainingQuery.query.release();
             });
         };
     }, [
-        assigneeActiveQuery.query,
-        assigneeDueSoonQuery.query,
+        activeQuery.query,
+        dueSoonQuery.query,
         assigneeDueTodayQuery.query,
-        assigneeOverdueQuery.query,
-        assigneeRemainingQuery.query,
+        overdueQuery.query,
+        remainingQuery.query,
     ]);
 
     assert(
@@ -186,24 +192,137 @@ export function TaskPersonalView({
     };
 
     /* ========================================================================== *\
+     *                              Visible section                               *
+    \* ========================================================================== */
+
+    const [visibleSectionState, setVisibleSectionState] = useState<{
+        section: TaskPersonalViewVisibleSection;
+        previousSections: ReadonlySet<TaskPersonalViewVisibleSection>;
+    }>({section: "Active", previousSections: emptySet});
+
+    const visibleSectionPositionStateRef = useRef<{
+        overdueHeaderPosition: {offset: number; height: number} | null;
+        dueTodayHeaderPosition: {offset: number; height: number} | null;
+        dueSoonHeaderPosition: {offset: number; height: number} | null;
+        remainingHeaderPosition: {offset: number; height: number} | null;
+    } | null>(null);
+
+    const handleScroll = () => {
+        const view = assertExists(viewRef.current);
+
+        // When the user scrolls, only update state if it hasn't been initialized yet.
+        // Just because the user scrolled doesn't mean virtualized scroll view state
+        // will change.
+        if (visibleSectionPositionStateRef.current === null) {
+            visibleSectionPositionStateRef.current = {
+                overdueHeaderPosition: view.getPositionByKeyIfExists("OverdueHeader"),
+                dueTodayHeaderPosition: view.getPositionByKeyIfExists("DueTodayHeader"),
+                dueSoonHeaderPosition: view.getPositionByKeyIfExists("DueSoonHeader"),
+                remainingHeaderPosition: view.getPositionByKeyIfExists("RemainingHeader"),
+            };
+        }
+
+        handleScrollOrStateChange(view, visibleSectionPositionStateRef.current);
+    };
+
+    const handleStateChange = () => {
+        const view = assertExists(viewRef.current);
+
+        // Always reset state when the virtualized scroll view state changes. Any
+        // position may have updated.
+        visibleSectionPositionStateRef.current = {
+            overdueHeaderPosition: view.getPositionByKeyIfExists("OverdueHeader"),
+            dueTodayHeaderPosition: view.getPositionByKeyIfExists("DueTodayHeader"),
+            dueSoonHeaderPosition: view.getPositionByKeyIfExists("DueSoonHeader"),
+            remainingHeaderPosition: view.getPositionByKeyIfExists("RemainingHeader"),
+        };
+
+        handleScrollOrStateChange(view, visibleSectionPositionStateRef.current);
+    };
+
+    const columnHeaderHeight = useMemo(
+        () =>
+            convertRemLengthToPx(
+                addRemLengths(navigationBarHeight, taskGridViewColumnHeaderHeight),
+                spacingScale,
+            ),
+        [spacingScale],
+    );
+
+    const handleScrollOrStateChange = (
+        view: VirtualizedScrollViewRef,
+        visibleSectionPositionState: {
+            overdueHeaderPosition: {offset: number; height: number} | null;
+            dueTodayHeaderPosition: {offset: number; height: number} | null;
+            dueSoonHeaderPosition: {offset: number; height: number} | null;
+            remainingHeaderPosition: {offset: number; height: number} | null;
+        },
+    ) => {
+        const scrollOffset = view.getScrollOffset();
+
+        let newVisibleSection: TaskPersonalViewVisibleSection = "Active";
+
+        if (
+            visibleSectionPositionState.remainingHeaderPosition !== null &&
+            scrollOffset + columnHeaderHeight >=
+                visibleSectionPositionState.remainingHeaderPosition.offset
+        ) {
+            newVisibleSection = "Remaining";
+        } else if (
+            visibleSectionPositionState.dueSoonHeaderPosition !== null &&
+            scrollOffset + columnHeaderHeight >=
+                visibleSectionPositionState.dueSoonHeaderPosition.offset
+        ) {
+            newVisibleSection = "DueSoon";
+        } else if (
+            visibleSectionPositionState.dueTodayHeaderPosition !== null &&
+            scrollOffset + columnHeaderHeight >=
+                visibleSectionPositionState.dueTodayHeaderPosition.offset
+        ) {
+            newVisibleSection = "DueToday";
+        } else if (
+            visibleSectionPositionState.overdueHeaderPosition !== null &&
+            scrollOffset + columnHeaderHeight >=
+                visibleSectionPositionState.overdueHeaderPosition.offset
+        ) {
+            newVisibleSection = "Overdue";
+        }
+
+        setVisibleSectionState(visibleSectionState => {
+            if (visibleSectionState.section === newVisibleSection) return visibleSectionState;
+
+            if (visibleSectionState.previousSections.has(visibleSectionState.section)) {
+                return {...visibleSectionState, section: newVisibleSection};
+            }
+
+            return {
+                section: newVisibleSection,
+                previousSections: new Set([
+                    ...visibleSectionState.previousSections,
+                    visibleSectionState.section,
+                ]),
+            };
+        });
+    };
+
+    /* ========================================================================== *\
      *                                   Events                                   *
     \* ========================================================================== */
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
     const events = useEvents({
-        getAssigneeActiveItemCount: () => assigneeActiveGridViewResult.itemCount,
-        getAssigneeOverdueItemCount: () => assigneeOverdueGridViewResult.itemCount,
-        getAssigneeDueTodayItemCount: () => assigneeDueTodayGridViewResult.itemCount,
-        getAssigneeDueSoonItemCount: () => assigneeDueSoonGridViewResult.itemCount,
-        getAssigneeRemainingItemCount: () => assigneeRemainingGridViewResult.itemCount,
+        getActiveItemCount: () => activeGridViewResult.itemCount,
+        getOverdueItemCount: () => overdueGridViewResult.itemCount,
+        getDueTodayItemCount: () => assigneeDueTodayGridViewResult.itemCount,
+        getDueSoonItemCount: () => dueSoonGridViewResult.itemCount,
+        getRemainingItemCount: () => remainingGridViewResult.itemCount,
     });
 
     /* ========================================================================== *\
      *                           Virtualized list state                           *
     \* ========================================================================== */
 
-    // NOCOMMIT: No assignee column
     const gridViewCapabilities: Memo<TaskGridViewCapabilities> = useMemo(() => {
         if (routeLayout !== "narrow") {
             return {
@@ -211,6 +330,7 @@ export function TaskPersonalView({
                 hasParentTaskTitle: true,
                 hasMultilineTitle: false,
                 hasColumns: true,
+                withoutAssigneeColumn: true,
                 hasDenseFields: false,
             };
         } else {
@@ -219,6 +339,7 @@ export function TaskPersonalView({
                 hasParentTaskTitle: true,
                 hasMultilineTitle: true,
                 hasColumns: false,
+                withoutAssigneeColumn: true,
                 hasDenseFields: true,
             };
         }
@@ -227,25 +348,159 @@ export function TaskPersonalView({
     let runningItemCount = 0;
     const alwaysRenderAdditionalItemIndexes: Array<number> = [];
 
-    const assigneeActiveGridViewRef = useTaskGridViewVirtualizedListViewRef(
-        viewRef,
-        runningItemCount,
-        events.getAssigneeActiveItemCount,
-    );
-
-    const assigneeActiveGridViewResult = useTaskGridViewVirtualizedListBase({
-        structuralItemKeyPrefix: "AssigneeActive-",
+    const activeGridViewResult = useTaskGridViewVirtualizedListBase({
+        structuralItemKeyPrefix: "Active-",
         capabilities: gridViewCapabilities,
         store,
-        query: assigneeActiveQuery,
+        query: activeQuery,
         affinityManager,
-        viewRef: assigneeActiveGridViewRef,
+        viewRef: useTaskGridViewVirtualizedListViewRef(
+            viewRef,
+            runningItemCount,
+            events.getActiveItemCount,
+        ),
         getMoveTaskToQueryActions: (taskId, position) => {
             throw new UnimplementedError("NOCOMMIT");
         },
         getMaybeRemoveTaskFromQueryActions: taskId => {
             throw new UnimplementedError("NOCOMMIT");
         },
+        columnHeaderControls: useMemo(() => {
+            const hasAnyPreviousVisibleSection = visibleSectionState.previousSections.size > 0;
+
+            const hasActivePreviousVisibleSection =
+                visibleSectionState.previousSections.has("Active");
+            const hasOverduePreviousVisibleSection =
+                visibleSectionState.previousSections.has("Overdue");
+            const hasDueTodayPreviousVisibleSection =
+                visibleSectionState.previousSections.has("DueToday");
+            const hasDueSoonPreviousVisibleSection =
+                visibleSectionState.previousSections.has("DueSoon");
+
+            const isActiveVisibleSection = visibleSectionState.section === "Active";
+            const isOverdueVisibleSection = visibleSectionState.section === "Overdue";
+            const isDueTodayVisibleSection = visibleSectionState.section === "DueToday";
+            const isDueSoonVisibleSection = visibleSectionState.section === "DueSoon";
+
+            return {
+                minHeight: spacing[navigationBarHeight],
+                node: (
+                    <Box
+                        display="flex"
+                        alignItems="center"
+                        height={navigationBarHeight}
+                        paddingLeft="10"
+                    >
+                        <Box display="flex" alignItems="baseline" gap="3">
+                            <Box fontSize="400" fontStyle="bold">
+                                My tasks
+                            </Box>
+                            <Box
+                                position="relative"
+                                width="24"
+                                fontSize="100"
+                                fontStyle="semi-bold"
+                                color="grey-50"
+                                style={{
+                                    fontSize:
+                                        fontSizesBySpacingScale["400"][spacingScale].fontSize *
+                                        (interFontXHeight / interFontCapHeight),
+                                }}
+                            >
+                                <Box
+                                    aria-hidden={!isActiveVisibleSection}
+                                    // We can only use fade in/out animation classes if the section has previously
+                                    // been visible. Otherwise we animate on initial mount which is wrong.
+                                    opacity={
+                                        !hasActivePreviousVisibleSection && !isActiveVisibleSection
+                                            ? "0"
+                                            : undefined
+                                    }
+                                    className={
+                                        hasAnyPreviousVisibleSection && isActiveVisibleSection
+                                            ? navigationBarStyles.titleFadeInAnimationClassName
+                                            : hasActivePreviousVisibleSection
+                                            ? navigationBarStyles.titleFadeOutAnimationClassName
+                                            : undefined
+                                    }
+                                >
+                                    Active
+                                </Box>
+                                <Box
+                                    aria-hidden={!isOverdueVisibleSection}
+                                    // We can only use fade in/out animation classes if the section has previously
+                                    // been visible. Otherwise we animate on initial mount which is wrong.
+                                    opacity={
+                                        !hasOverduePreviousVisibleSection &&
+                                        !isOverdueVisibleSection
+                                            ? "0"
+                                            : undefined
+                                    }
+                                    className={
+                                        hasAnyPreviousVisibleSection && isOverdueVisibleSection
+                                            ? navigationBarStyles.titleFadeInAnimationClassName
+                                            : hasOverduePreviousVisibleSection
+                                            ? navigationBarStyles.titleFadeOutAnimationClassName
+                                            : undefined
+                                    }
+                                    position="absolute"
+                                    left="0"
+                                    top="0"
+                                >
+                                    Overdue
+                                </Box>
+                                <Box
+                                    aria-hidden={!isDueTodayVisibleSection}
+                                    // We can only use fade in/out animation classes if the section has previously
+                                    // been visible. Otherwise we animate on initial mount which is wrong.
+                                    opacity={
+                                        !hasDueTodayPreviousVisibleSection &&
+                                        !isDueTodayVisibleSection
+                                            ? "0"
+                                            : undefined
+                                    }
+                                    className={
+                                        hasAnyPreviousVisibleSection && isDueTodayVisibleSection
+                                            ? navigationBarStyles.titleFadeInAnimationClassName
+                                            : hasDueTodayPreviousVisibleSection
+                                            ? navigationBarStyles.titleFadeOutAnimationClassName
+                                            : undefined
+                                    }
+                                    position="absolute"
+                                    left="0"
+                                    top="0"
+                                >
+                                    Due today
+                                </Box>
+                                <Box
+                                    aria-hidden={!isDueSoonVisibleSection}
+                                    // We can only use fade in/out animation classes if the section has previously
+                                    // been visible. Otherwise we animate on initial mount which is wrong.
+                                    opacity={
+                                        !hasDueSoonPreviousVisibleSection &&
+                                        !isDueSoonVisibleSection
+                                            ? "0"
+                                            : undefined
+                                    }
+                                    className={
+                                        hasAnyPreviousVisibleSection && isDueSoonVisibleSection
+                                            ? navigationBarStyles.titleFadeInAnimationClassName
+                                            : hasDueSoonPreviousVisibleSection
+                                            ? navigationBarStyles.titleFadeOutAnimationClassName
+                                            : undefined
+                                    }
+                                    position="absolute"
+                                    left="0"
+                                    top="0"
+                                >
+                                    Due soon
+                                </Box>
+                            </Box>
+                        </Box>
+                    </Box>
+                ),
+            };
+        }, [spacingScale, visibleSectionState]),
         isDragging,
         draggingData,
         pushUndoStackEntry,
@@ -254,31 +509,33 @@ export function TaskPersonalView({
         },
     });
 
-    for (const index of assigneeActiveGridViewResult.alwaysRenderAdditionalItemIndexes) {
+    for (const index of activeGridViewResult.alwaysRenderAdditionalItemIndexes) {
         alwaysRenderAdditionalItemIndexes.push(index + runningItemCount);
     }
 
-    runningItemCount += assigneeActiveGridViewResult.itemCount;
+    runningItemCount += activeGridViewResult.itemCount;
 
-    const assigneeOverdueGridViewRef = useTaskGridViewVirtualizedListViewRef(
-        viewRef,
-        runningItemCount,
-        events.getAssigneeOverdueItemCount,
-    );
+    // `OverdueHeader`
+    runningItemCount += 1;
 
-    const assigneeOverdueGridViewResult = useTaskGridViewVirtualizedListBase({
-        structuralItemKeyPrefix: "AssigneeOverdue-",
+    const overdueGridViewResult = useTaskGridViewVirtualizedListBase({
+        structuralItemKeyPrefix: "Overdue-",
         capabilities: gridViewCapabilities,
         store,
-        query: assigneeOverdueQuery,
+        query: overdueQuery,
         affinityManager,
-        viewRef: assigneeOverdueGridViewRef,
+        viewRef: useTaskGridViewVirtualizedListViewRef(
+            viewRef,
+            runningItemCount,
+            events.getOverdueItemCount,
+        ),
         getMoveTaskToQueryActions: (taskId, position) => {
             throw new UnimplementedError("NOCOMMIT");
         },
         getMaybeRemoveTaskFromQueryActions: taskId => {
             throw new UnimplementedError("NOCOMMIT");
         },
+        withoutColumnHeader: true,
         isDragging,
         draggingData,
         pushUndoStackEntry,
@@ -287,31 +544,33 @@ export function TaskPersonalView({
         },
     });
 
-    for (const index of assigneeOverdueGridViewResult.alwaysRenderAdditionalItemIndexes) {
+    for (const index of overdueGridViewResult.alwaysRenderAdditionalItemIndexes) {
         alwaysRenderAdditionalItemIndexes.push(index + runningItemCount);
     }
 
-    runningItemCount += assigneeOverdueGridViewResult.itemCount;
+    runningItemCount += overdueGridViewResult.itemCount;
 
-    const assigneeDueTodayGridViewRef = useTaskGridViewVirtualizedListViewRef(
-        viewRef,
-        runningItemCount,
-        events.getAssigneeDueTodayItemCount,
-    );
+    // `DueTodayHeader`
+    runningItemCount += 1;
 
     const assigneeDueTodayGridViewResult = useTaskGridViewVirtualizedListBase({
-        structuralItemKeyPrefix: "AssigneeDueToday-",
+        structuralItemKeyPrefix: "DueToday-",
         capabilities: gridViewCapabilities,
         store,
         query: assigneeDueTodayQuery,
         affinityManager,
-        viewRef: assigneeDueTodayGridViewRef,
+        viewRef: useTaskGridViewVirtualizedListViewRef(
+            viewRef,
+            runningItemCount,
+            events.getDueTodayItemCount,
+        ),
         getMoveTaskToQueryActions: (taskId, position) => {
             throw new UnimplementedError("NOCOMMIT");
         },
         getMaybeRemoveTaskFromQueryActions: taskId => {
             throw new UnimplementedError("NOCOMMIT");
         },
+        withoutColumnHeader: true,
         isDragging,
         draggingData,
         pushUndoStackEntry,
@@ -326,25 +585,27 @@ export function TaskPersonalView({
 
     runningItemCount += assigneeDueTodayGridViewResult.itemCount;
 
-    const assigneeDueSoonGridViewRef = useTaskGridViewVirtualizedListViewRef(
-        viewRef,
-        runningItemCount,
-        events.getAssigneeDueSoonItemCount,
-    );
+    // `DueSoonHeader`
+    runningItemCount += 1;
 
-    const assigneeDueSoonGridViewResult = useTaskGridViewVirtualizedListBase({
-        structuralItemKeyPrefix: "AssigneeDueSoon-",
+    const dueSoonGridViewResult = useTaskGridViewVirtualizedListBase({
+        structuralItemKeyPrefix: "DueSoon-",
         capabilities: gridViewCapabilities,
         store,
-        query: assigneeDueSoonQuery,
+        query: dueSoonQuery,
         affinityManager,
-        viewRef: assigneeDueSoonGridViewRef,
+        viewRef: useTaskGridViewVirtualizedListViewRef(
+            viewRef,
+            runningItemCount,
+            events.getDueSoonItemCount,
+        ),
         getMoveTaskToQueryActions: (taskId, position) => {
             throw new UnimplementedError("NOCOMMIT");
         },
         getMaybeRemoveTaskFromQueryActions: taskId => {
             throw new UnimplementedError("NOCOMMIT");
         },
+        withoutColumnHeader: true,
         isDragging,
         draggingData,
         pushUndoStackEntry,
@@ -353,31 +614,33 @@ export function TaskPersonalView({
         },
     });
 
-    for (const index of assigneeDueSoonGridViewResult.alwaysRenderAdditionalItemIndexes) {
+    for (const index of dueSoonGridViewResult.alwaysRenderAdditionalItemIndexes) {
         alwaysRenderAdditionalItemIndexes.push(index + runningItemCount);
     }
 
-    runningItemCount += assigneeDueSoonGridViewResult.itemCount;
+    runningItemCount += dueSoonGridViewResult.itemCount;
 
-    const assigneeRemainingGridViewRef = useTaskGridViewVirtualizedListViewRef(
-        viewRef,
-        runningItemCount,
-        events.getAssigneeRemainingItemCount,
-    );
+    // `RemainingHeader`
+    runningItemCount += 1;
 
-    const assigneeRemainingGridViewResult = useTaskGridViewVirtualizedListBase({
-        structuralItemKeyPrefix: "AssigneeRemaining-",
+    const remainingGridViewResult = useTaskGridViewVirtualizedListBase({
+        structuralItemKeyPrefix: "Remaining-",
         capabilities: gridViewCapabilities,
         store,
-        query: assigneeRemainingQuery,
+        query: remainingQuery,
         affinityManager,
-        viewRef: assigneeRemainingGridViewRef,
+        viewRef: useTaskGridViewVirtualizedListViewRef(
+            viewRef,
+            runningItemCount,
+            events.getRemainingItemCount,
+        ),
         getMoveTaskToQueryActions: (taskId, position) => {
             throw new UnimplementedError("NOCOMMIT");
         },
         getMaybeRemoveTaskFromQueryActions: taskId => {
             throw new UnimplementedError("NOCOMMIT");
         },
+        withoutColumnHeader: true,
         isDragging,
         draggingData,
         pushUndoStackEntry,
@@ -386,41 +649,41 @@ export function TaskPersonalView({
         },
     });
 
-    for (const index of assigneeRemainingGridViewResult.alwaysRenderAdditionalItemIndexes) {
+    for (const index of remainingGridViewResult.alwaysRenderAdditionalItemIndexes) {
         alwaysRenderAdditionalItemIndexes.push(index + runningItemCount);
     }
 
-    runningItemCount += assigneeRemainingGridViewResult.itemCount;
+    runningItemCount += remainingGridViewResult.itemCount;
 
     /* ========================================================================== *\
      *                                   Render                                   *
     \* ========================================================================== */
 
     const focusEnd = () => {
-        if (assigneeRemainingGridViewResult.itemCount > 0) {
-            assigneeRemainingGridViewResult.focusEnd();
-        } else if (assigneeDueSoonGridViewResult.itemCount > 0) {
-            assigneeDueSoonGridViewResult.focusEnd();
+        if (remainingGridViewResult.itemCount > 0) {
+            remainingGridViewResult.focusEnd();
+        } else if (dueSoonGridViewResult.itemCount > 0) {
+            dueSoonGridViewResult.focusEnd();
         } else if (assigneeDueTodayGridViewResult.itemCount > 0) {
             assigneeDueTodayGridViewResult.focusEnd();
-        } else if (assigneeOverdueGridViewResult.itemCount > 0) {
-            assigneeOverdueGridViewResult.focusEnd();
-        } else if (assigneeActiveGridViewResult.itemCount > 0) {
-            assigneeActiveGridViewResult.focusEnd();
+        } else if (overdueGridViewResult.itemCount > 0) {
+            overdueGridViewResult.focusEnd();
+        } else if (activeGridViewResult.itemCount > 0) {
+            activeGridViewResult.focusEnd();
         }
     };
 
     // Extract the `renderItem` property so we can call it in `useCallback()`
-    // without depending on the whole `assigneeActiveGridViewResult` object. If we
-    // called `assigneeActiveGridViewResult.renderItem()` then
-    // `assigneeActiveGridViewResult` would be assigned to `this` in `renderItem`
-    // and React would need to add a dependency on `assigneeActiveGridViewResult`
+    // without depending on the whole `activeGridViewResult` object. If we
+    // called `activeGridViewResult.renderItem()` then
+    // `activeGridViewResult` would be assigned to `this` in `renderItem`
+    // and React would need to add a dependency on `activeGridViewResult`
     // to the `useCallback()`.
-    const renderAssigneeActiveGridViewItem = assigneeActiveGridViewResult.renderItem;
-    const renderAssigneeOverdueGridViewItem = assigneeOverdueGridViewResult.renderItem;
-    const renderAssigneeDueTodayGridViewItem = assigneeDueTodayGridViewResult.renderItem;
-    const renderAssigneeDueSoonGridViewItem = assigneeDueSoonGridViewResult.renderItem;
-    const renderAssigneeRemainingGridViewItem = assigneeRemainingGridViewResult.renderItem;
+    const renderActiveGridViewItem = activeGridViewResult.renderItem;
+    const renderOverdueGridViewItem = overdueGridViewResult.renderItem;
+    const renderDueTodayGridViewItem = assigneeDueTodayGridViewResult.renderItem;
+    const renderDueSoonGridViewItem = dueSoonGridViewResult.renderItem;
+    const renderRemainingGridViewItem = remainingGridViewResult.renderItem;
 
     const renderItem = useCallback(
         (index: number) => {
@@ -428,49 +691,145 @@ export function TaskPersonalView({
             // be exclusive. If a task shows up in one section it should not show up in
             // any other section.
 
-            if (index < assigneeActiveGridViewResult.itemCount) {
-                return renderAssigneeActiveGridViewItem(index);
+            if (index < activeGridViewResult.itemCount) {
+                return renderActiveGridViewItem(index);
             }
 
-            index -= assigneeActiveGridViewResult.itemCount;
+            index -= activeGridViewResult.itemCount;
 
-            if (index < assigneeOverdueGridViewResult.itemCount) {
-                return renderAssigneeOverdueGridViewItem(index);
+            if (index === 0) {
+                const height = "14";
+
+                return {
+                    key: "OverdueHeader",
+                    minHeight: spacing[height],
+                    node: (
+                        <Box
+                            display="flex"
+                            alignItems="center"
+                            height={height}
+                            paddingTop="2"
+                            paddingLeft="10"
+                        >
+                            <Box fontSize="200" fontStyle="bold">
+                                Overdue
+                            </Box>
+                        </Box>
+                    ),
+                };
             }
 
-            index -= assigneeOverdueGridViewResult.itemCount;
+            index -= 1;
+
+            if (index < overdueGridViewResult.itemCount) {
+                return renderOverdueGridViewItem(index);
+            }
+
+            index -= overdueGridViewResult.itemCount;
+
+            if (index === 0) {
+                const height = "14";
+
+                return {
+                    key: "DueTodayHeader",
+                    minHeight: spacing[height],
+                    node: (
+                        <Box
+                            display="flex"
+                            alignItems="center"
+                            height={height}
+                            paddingTop="2"
+                            paddingLeft="10"
+                        >
+                            <Box fontSize="200" fontStyle="bold">
+                                Due today
+                            </Box>
+                        </Box>
+                    ),
+                };
+            }
+
+            index -= 1;
 
             if (index < assigneeDueTodayGridViewResult.itemCount) {
-                return renderAssigneeDueTodayGridViewItem(index);
+                return renderDueTodayGridViewItem(index);
             }
 
             index -= assigneeDueTodayGridViewResult.itemCount;
 
-            if (index < assigneeDueSoonGridViewResult.itemCount) {
-                return renderAssigneeDueSoonGridViewItem(index);
+            if (index === 0) {
+                const height = "14";
+
+                return {
+                    key: "DueSoonHeader",
+                    minHeight: spacing[height],
+                    node: (
+                        <Box
+                            display="flex"
+                            alignItems="center"
+                            height={height}
+                            paddingTop="2"
+                            paddingLeft="10"
+                        >
+                            <Box fontSize="200" fontStyle="bold">
+                                Due soon
+                            </Box>
+                        </Box>
+                    ),
+                };
             }
 
-            index -= assigneeDueSoonGridViewResult.itemCount;
+            index -= 1;
 
-            if (index < assigneeRemainingGridViewResult.itemCount) {
-                return renderAssigneeRemainingGridViewItem(index);
+            if (index < dueSoonGridViewResult.itemCount) {
+                return renderDueSoonGridViewItem(index);
             }
 
-            index -= assigneeRemainingGridViewResult.itemCount;
+            index -= dueSoonGridViewResult.itemCount;
+
+            if (index === 0) {
+                const height = "14";
+
+                return {
+                    key: "RemainingHeader",
+                    minHeight: spacing[height],
+                    node: (
+                        <Box
+                            display="flex"
+                            alignItems="center"
+                            height={height}
+                            paddingTop="2"
+                            paddingLeft="10"
+                        >
+                            <Box fontSize="200" fontStyle="bold">
+                                My tasks
+                            </Box>
+                        </Box>
+                    ),
+                };
+            }
+
+            index -= 1;
+
+            if (index < remainingGridViewResult.itemCount) {
+                return renderRemainingGridViewItem(index);
+            }
+
+            index -= remainingGridViewResult.itemCount;
 
             throw new OutOfRangeError("Index out of personal task view bounds");
         },
         [
-            assigneeActiveGridViewResult.itemCount,
-            assigneeDueSoonGridViewResult.itemCount,
+            activeGridViewResult.itemCount,
+            dueSoonGridViewResult.itemCount,
             assigneeDueTodayGridViewResult.itemCount,
-            assigneeOverdueGridViewResult.itemCount,
-            assigneeRemainingGridViewResult.itemCount,
-            renderAssigneeActiveGridViewItem,
-            renderAssigneeDueSoonGridViewItem,
-            renderAssigneeDueTodayGridViewItem,
-            renderAssigneeOverdueGridViewItem,
-            renderAssigneeRemainingGridViewItem,
+            overdueGridViewResult.itemCount,
+            remainingGridViewResult.itemCount,
+            renderActiveGridViewItem,
+            renderDueSoonGridViewItem,
+            renderDueTodayGridViewItem,
+            renderOverdueGridViewItem,
+            renderRemainingGridViewItem,
         ],
     );
 
@@ -491,49 +850,61 @@ export function TaskPersonalView({
                 onSelectAll: focusEnd,
             })}
         >
-            {assigneeActiveGridViewResult.modals}
-            {assigneeOverdueGridViewResult.modals}
+            {activeGridViewResult.modals}
+            {overdueGridViewResult.modals}
             {assigneeDueTodayGridViewResult.modals}
-            {assigneeDueSoonGridViewResult.modals}
-            {assigneeRemainingGridViewResult.modals}
+            {dueSoonGridViewResult.modals}
+            {remainingGridViewResult.modals}
             <GlobalKeyDownEvent onGlobalKeyDown={onGlobalKeyDown}>
                 <VirtualizedScrollView
                     ref={viewRef}
                     bufferedItemHeight={spacing[taskRowViewMinHeight]}
                     itemCount={
-                        assigneeActiveGridViewResult.itemCount +
-                        assigneeOverdueGridViewResult.itemCount +
+                        activeGridViewResult.itemCount +
+                        // `OverdueHeader`
+                        1 +
+                        overdueGridViewResult.itemCount +
+                        // `DueTodayHeader`
+                        1 +
                         assigneeDueTodayGridViewResult.itemCount +
-                        assigneeDueSoonGridViewResult.itemCount +
-                        assigneeRemainingGridViewResult.itemCount
+                        // `DueSoonHeader`
+                        1 +
+                        dueSoonGridViewResult.itemCount +
+                        // `RemainingHeader`
+                        1 +
+                        remainingGridViewResult.itemCount
                     }
                     alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalItemIndexes}
-                    scrollbarInsetTopItemIndex={
-                        assigneeActiveGridViewResult.scrollbarInsetTopItemIndex
-                    }
+                    scrollbarInsetTopItemIndex={activeGridViewResult.scrollbarInsetTopItemIndex}
                     renderItem={renderItem}
                     onRenderedRangeChange={range => {
                         let runningItemCount = 0;
 
-                        assigneeActiveGridViewResult.onRenderedRangeChange(
+                        activeGridViewResult.onRenderedRangeChange(
                             shiftRenderedRange(
                                 runningItemCount,
-                                assigneeActiveGridViewResult.itemCount,
+                                activeGridViewResult.itemCount,
                                 range,
                             ),
                         );
 
-                        runningItemCount += assigneeActiveGridViewResult.itemCount;
+                        runningItemCount += activeGridViewResult.itemCount;
 
-                        assigneeOverdueGridViewResult.onRenderedRangeChange(
+                        // `OverdueHeader`
+                        runningItemCount += 1;
+
+                        overdueGridViewResult.onRenderedRangeChange(
                             shiftRenderedRange(
                                 runningItemCount,
-                                assigneeOverdueGridViewResult.itemCount,
+                                overdueGridViewResult.itemCount,
                                 range,
                             ),
                         );
 
-                        runningItemCount += assigneeOverdueGridViewResult.itemCount;
+                        runningItemCount += overdueGridViewResult.itemCount;
+
+                        // `DueTodayHeader`
+                        runningItemCount += 1;
 
                         assigneeDueTodayGridViewResult.onRenderedRangeChange(
                             shiftRenderedRange(
@@ -545,20 +916,26 @@ export function TaskPersonalView({
 
                         runningItemCount += assigneeDueTodayGridViewResult.itemCount;
 
-                        assigneeDueSoonGridViewResult.onRenderedRangeChange(
+                        // `DueSoonHeader`
+                        runningItemCount += 1;
+
+                        dueSoonGridViewResult.onRenderedRangeChange(
                             shiftRenderedRange(
                                 runningItemCount,
-                                assigneeDueSoonGridViewResult.itemCount,
+                                dueSoonGridViewResult.itemCount,
                                 range,
                             ),
                         );
 
-                        runningItemCount += assigneeDueSoonGridViewResult.itemCount;
+                        runningItemCount += dueSoonGridViewResult.itemCount;
 
-                        assigneeRemainingGridViewResult.onRenderedRangeChange(
+                        // `RemainingHeader`
+                        runningItemCount += 1;
+
+                        remainingGridViewResult.onRenderedRangeChange(
                             shiftRenderedRange(
                                 runningItemCount,
-                                assigneeRemainingGridViewResult.itemCount,
+                                remainingGridViewResult.itemCount,
                                 range,
                             ),
                         );
@@ -566,25 +943,31 @@ export function TaskPersonalView({
                     onRenderedRangeLayoutChange={range => {
                         let runningItemCount = 0;
 
-                        assigneeActiveGridViewResult.onRenderedRangeLayoutChange(
+                        activeGridViewResult.onRenderedRangeLayoutChange(
                             shiftRenderedRange(
                                 runningItemCount,
-                                assigneeActiveGridViewResult.itemCount,
+                                activeGridViewResult.itemCount,
                                 range,
                             ),
                         );
 
-                        runningItemCount += assigneeActiveGridViewResult.itemCount;
+                        runningItemCount += activeGridViewResult.itemCount;
 
-                        assigneeOverdueGridViewResult.onRenderedRangeLayoutChange(
+                        // `OverdueHeader`
+                        runningItemCount += 1;
+
+                        overdueGridViewResult.onRenderedRangeLayoutChange(
                             shiftRenderedRange(
                                 runningItemCount,
-                                assigneeOverdueGridViewResult.itemCount,
+                                overdueGridViewResult.itemCount,
                                 range,
                             ),
                         );
 
-                        runningItemCount += assigneeOverdueGridViewResult.itemCount;
+                        runningItemCount += overdueGridViewResult.itemCount;
+
+                        // `DueTodayHeader`
+                        runningItemCount += 1;
 
                         assigneeDueTodayGridViewResult.onRenderedRangeLayoutChange(
                             shiftRenderedRange(
@@ -596,24 +979,32 @@ export function TaskPersonalView({
 
                         runningItemCount += assigneeDueTodayGridViewResult.itemCount;
 
-                        assigneeDueSoonGridViewResult.onRenderedRangeLayoutChange(
+                        // `DueSoonHeader`
+                        runningItemCount += 1;
+
+                        dueSoonGridViewResult.onRenderedRangeLayoutChange(
                             shiftRenderedRange(
                                 runningItemCount,
-                                assigneeDueSoonGridViewResult.itemCount,
+                                dueSoonGridViewResult.itemCount,
                                 range,
                             ),
                         );
 
-                        runningItemCount += assigneeDueSoonGridViewResult.itemCount;
+                        runningItemCount += dueSoonGridViewResult.itemCount;
 
-                        assigneeRemainingGridViewResult.onRenderedRangeLayoutChange(
+                        // `RemainingHeader`
+                        runningItemCount += 1;
+
+                        remainingGridViewResult.onRenderedRangeLayoutChange(
                             shiftRenderedRange(
                                 runningItemCount,
-                                assigneeRemainingGridViewResult.itemCount,
+                                remainingGridViewResult.itemCount,
                                 range,
                             ),
                         );
                     }}
+                    onScroll={handleScroll}
+                    onStateChange={handleStateChange}
                 />
             </GlobalKeyDownEvent>
         </Box>

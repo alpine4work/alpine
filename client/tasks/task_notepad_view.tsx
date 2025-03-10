@@ -331,6 +331,7 @@ export function TaskNotepadView({
                 hasParentTaskTitle: false,
                 hasMultilineTitle: false,
                 hasColumns: true,
+                withoutAssigneeColumn: false,
                 hasDenseFields: false,
             };
         } else {
@@ -339,6 +340,7 @@ export function TaskNotepadView({
                 hasParentTaskTitle: false,
                 hasMultilineTitle: true,
                 hasColumns: false,
+                withoutAssigneeColumn: false,
                 hasDenseFields: true,
             };
         }

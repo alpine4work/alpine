@@ -565,6 +565,7 @@ export function TaskCollectionView({
                     hasMultilineTitle: false,
                     hasDenseFields: false,
                     hasColumns: true,
+                    withoutAssigneeColumn: false,
                 };
             } else {
                 return {
@@ -573,6 +574,7 @@ export function TaskCollectionView({
                     hasMultilineTitle: true,
                     hasDenseFields: true,
                     hasColumns: false,
+                    withoutAssigneeColumn: false,
                 };
             }
         }, [hasEditAccessLevel, routeLayout]),

@@ -23,13 +23,16 @@ export type TaskGridViewCapabilities = {
     | {
           hasDenseFields: false;
           hasColumns: false;
+          withoutAssigneeColumn: false;
       }
     | {
           hasDenseFields: true;
           hasColumns: false;
+          withoutAssigneeColumn: boolean;
       }
     | {
           hasDenseFields: false;
           hasColumns: true;
+          withoutAssigneeColumn: boolean;
       }
 );

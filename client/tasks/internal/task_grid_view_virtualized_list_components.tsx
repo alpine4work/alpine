@@ -27,6 +27,7 @@ import {TaskRowShimmer} from "~/client/shimmer/task_row_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     colorSchemeVars,
+    grey5SemiTransparentColorVar,
     pulseAnimationClassName,
     spinAnimationClassName,
 } from "~/client/styles/styles.js";
@@ -42,6 +43,7 @@ import {
     taskRowViewFirstColumnWidth,
     taskRowViewLastColumnPaddingRight,
     taskRowViewMinHeight,
+    taskRowViewPaddingBottom,
 } from "~/client/styles/tasks_shared_styles.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
@@ -80,12 +82,14 @@ export const TaskGridViewColumnHeaderMemo = memo(forwardRef(TaskGridViewColumnHe
 function TaskGridViewColumnHeader(
     {
         hasColumns,
+        withoutAssigneeColumn,
         columnHeaderControls,
         minHeight,
         offset,
         shouldRenderWithRelativePositioning,
     }: {
         hasColumns: boolean;
+        withoutAssigneeColumn: boolean;
         columnHeaderControls: Memo<{minHeight: number; node: ReactNode}> | null;
         minHeight: number;
         offset: number;
@@ -135,8 +139,7 @@ function TaskGridViewColumnHeader(
                         left={screenPaddingX}
                         right={screenPaddingX}
                         height="border"
-                        backgroundColor="grey-5"
-                        style={{bottom: -1}}
+                        style={{backgroundColor: grey5SemiTransparentColorVar, bottom: -1}}
                     />
                 </Box>
                 <OverlayScopeContextProvider
@@ -149,11 +152,7 @@ function TaskGridViewColumnHeader(
                         </Box>
                     )}
                     {hasColumns && (
-                        <Box
-                            height={taskGridViewColumnHeaderHeight}
-                            paddingTop="0.5"
-                            display="flex"
-                        >
+                        <Box height={taskGridViewColumnHeaderHeight} display="flex">
                             <Box
                                 flexShrink="0"
                                 width="32"
@@ -170,19 +169,21 @@ function TaskGridViewColumnHeader(
                                 Name
                             </Box>
                             <Box flexGrow="1" />
-                            <Box
-                                flexShrink="0"
-                                paddingX={taskRowViewColumnPaddingX}
-                                paddingBottom="1"
-                                color="grey-40"
-                                fontSize="50"
-                                style={{
-                                    width: taskRowViewFirstColumnWidth,
-                                    paddingLeft: taskRowViewFirstColumnPaddingLeft,
-                                }}
-                            >
-                                Assignee
-                            </Box>
+                            {!withoutAssigneeColumn && (
+                                <Box
+                                    flexShrink="0"
+                                    paddingX={taskRowViewColumnPaddingX}
+                                    paddingBottom="1"
+                                    color="grey-40"
+                                    fontSize="50"
+                                    style={{
+                                        width: taskRowViewFirstColumnWidth,
+                                        paddingLeft: taskRowViewFirstColumnPaddingLeft,
+                                    }}
+                                >
+                                    Assignee
+                                </Box>
+                            )}
                             <Box
                                 flexShrink="0"
                                 paddingX={taskRowViewColumnPaddingX}
@@ -287,7 +288,10 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
         capabilities,
         rowMaxWidth,
         isRootQueryNull,
+        structuralItemKeyPrefix,
+        hasColumnHeader,
         relativeItemIndex,
+        isFirstRow,
         withPaddingBottom,
         focusPreviousTaskTitleEnd,
         focusPreviousTaskTitleAll,
@@ -295,7 +299,10 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
         capabilities: Memo<TaskGridViewCapabilities>;
         rowMaxWidth: Spacing | null;
         isRootQueryNull: boolean;
+        structuralItemKeyPrefix: string;
+        hasColumnHeader: boolean;
         relativeItemIndex: number;
+        isFirstRow: boolean;
         withPaddingBottom: boolean;
         focusPreviousTaskTitleEnd: Memo<(key: string) => void>;
         focusPreviousTaskTitleAll: Memo<(key: string) => void>;
@@ -318,9 +325,13 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
                 {...useOutOfBoundsClickSelection({
                     isDisabled: isInert,
                     onSelect: () =>
-                        focusPreviousTaskTitleEnd(`DecorativeGhostTask:${relativeItemIndex}`),
+                        focusPreviousTaskTitleEnd(
+                            `${structuralItemKeyPrefix}DecorativeGhostTask:${relativeItemIndex}`,
+                        ),
                     onSelectAll: () =>
-                        focusPreviousTaskTitleAll(`DecorativeGhostTask:${relativeItemIndex}`),
+                        focusPreviousTaskTitleAll(
+                            `${structuralItemKeyPrefix}DecorativeGhostTask:${relativeItemIndex}`,
+                        ),
                 })}
             >
                 <Box
@@ -332,18 +343,24 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
                         //
                         // 1. Doesn't add 2px to layout
                         // 2. Adjacent borders share the same space so we don't get 2px dividers
-                        boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                        boxShadow:
+                            // The columns in a grid view render a semi-translucent grey border. To avoid
+                            // drawing a border darker than `grey-5` at the top of the screen if this is the
+                            // first row in a grid with columns then only render a bottom border.
+                            capabilities.hasColumns && hasColumnHeader && isFirstRow
+                                ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}`
+                                : `0 1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
                     }}
                 />
                 {withPaddingBottom && (
                     <Box
                         width="full"
-                        height="5"
+                        height={taskRowViewPaddingBottom}
                         pointerEvents="none"
                         style={{
                             height:
                                 platform === "mobile"
-                                    ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing["5"]})`
+                                    ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[taskRowViewPaddingBottom]})`
                                     : undefined,
                         }}
                     />
@@ -508,6 +525,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     rootQuery,
     isRootQueryManuallySorted,
     affinityManager,
+    hasColumnHeader,
     query,
     gridKey,
     cursor,
@@ -539,6 +557,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     rootQuery: TaskClientQuery;
     isRootQueryManuallySorted: boolean;
     affinityManager: TaskClientStoreSearchAffinityManager;
+    hasColumnHeader: boolean;
     query: TaskClientQuery;
     gridKey: TaskGridViewTaskKey;
     cursor: TaskQuerySortCursor | null;
@@ -1256,6 +1275,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             isQueryManuallySorted={isQueryManuallySorted}
             undoManager={undoManager}
             affinityManager={affinityManager}
+            hasColumnHeader={hasColumnHeader}
             cursor={cursor}
             ghostTaskId={ghostTaskId}
             onGhostTaskCreated={

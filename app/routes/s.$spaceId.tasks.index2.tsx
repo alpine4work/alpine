@@ -47,7 +47,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
         accountIds: assertNonEmptyReadonlySet(new Set([context.actor.getAccountId()])),
     };
 
-    const assigneeActiveQuery: {
+    const activeQuery: {
         limit: number;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
@@ -76,7 +76,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
         ],
     };
 
-    const assigneeOverdueQuery: {
+    const overdueQuery: {
         limit: number;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
@@ -92,8 +92,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
             },
             dueDateFilter: {
                 type: "Range",
-                exclusiveLowerBoundDate: currentDate,
-                exclusiveUpperBoundDate: null,
+                exclusiveLowerBoundDate: null,
+                exclusiveUpperBoundDate: currentDate,
             },
         },
         // NOCOMMIT:
@@ -136,7 +136,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
         ],
     };
 
-    const assigneeDueSoonQuery: {
+    const dueSoonQuery: {
         limit: number;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
@@ -153,7 +153,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
             dueDateFilter: {
                 type: "Range",
                 exclusiveLowerBoundDate: currentDate,
-                exclusiveUpperBoundDate: currentDate.add({days: 7}),
+                exclusiveUpperBoundDate: currentDate.add({days: 8}),
             },
         },
         // NOCOMMIT:
@@ -166,7 +166,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
         ],
     };
 
-    const assigneeRemainingQuery: {
+    const remainingQuery: {
         limit: number;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
@@ -182,7 +182,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
             },
             dueDateFilter: {
                 type: "RangeOrIsEmpty",
-                exclusiveLowerBoundDate: currentDate.add({days: 6}),
+                exclusiveLowerBoundDate: currentDate.add({days: 7}),
                 exclusiveUpperBoundDate: null,
             },
         },
@@ -197,48 +197,42 @@ export async function loader({request, params, context: unauthenticatedContext}:
     };
 
     const {queries, extraQueries, updateEvent} = await context.tasks.loadQueries(spaceId, {
-        queries: [
-            assigneeActiveQuery,
-            assigneeOverdueQuery,
-            assigneeDueTodayQuery,
-            assigneeDueSoonQuery,
-            assigneeRemainingQuery,
-        ],
+        queries: [activeQuery, overdueQuery, assigneeDueTodayQuery, dueSoonQuery, remainingQuery],
         taskIds: [],
         collectionIds: [],
     });
 
-    const assigneeActiveQueryOutput = assertExists(queries[0]);
-    const assigneeOverdueQueryOutput = assertExists(queries[1]);
+    const activeQueryOutput = assertExists(queries[0]);
+    const overdueQueryOutput = assertExists(queries[1]);
     const assigneeDueTodayQueryOutput = assertExists(queries[2]);
-    const assigneeDueSoonQueryOutput = assertExists(queries[3]);
-    const assigneeRemainingQueryOutput = assertExists(queries[4]);
+    const dueSoonQueryOutput = assertExists(queries[3]);
+    const remainingQueryOutput = assertExists(queries[4]);
 
     return jsonWithSchema(
         LoaderSchema,
         {
             initialGridViewExpansionStates: [
-                assigneeActiveQueryOutput.gridViewExpansionState,
-                assigneeOverdueQueryOutput.gridViewExpansionState,
+                activeQueryOutput.gridViewExpansionState,
+                overdueQueryOutput.gridViewExpansionState,
                 assigneeDueTodayQueryOutput.gridViewExpansionState,
-                assigneeDueSoonQueryOutput.gridViewExpansionState,
-                assigneeRemainingQueryOutput.gridViewExpansionState,
+                dueSoonQueryOutput.gridViewExpansionState,
+                remainingQueryOutput.gridViewExpansionState,
             ],
         },
         {
             taskStoreLoaderData: {
                 queries: [
                     {
-                        limit: assigneeActiveQuery.limit,
-                        filters: assigneeActiveQuery.filters,
-                        sorts: assigneeActiveQuery.sorts,
-                        loadedState: assigneeActiveQueryOutput.loadedState,
+                        limit: activeQuery.limit,
+                        filters: activeQuery.filters,
+                        sorts: activeQuery.sorts,
+                        loadedState: activeQueryOutput.loadedState,
                     },
                     {
-                        limit: assigneeOverdueQuery.limit,
-                        filters: assigneeOverdueQuery.filters,
-                        sorts: assigneeOverdueQuery.sorts,
-                        loadedState: assigneeOverdueQueryOutput.loadedState,
+                        limit: overdueQuery.limit,
+                        filters: overdueQuery.filters,
+                        sorts: overdueQuery.sorts,
+                        loadedState: overdueQueryOutput.loadedState,
                     },
                     {
                         limit: assigneeDueTodayQuery.limit,
@@ -247,16 +241,16 @@ export async function loader({request, params, context: unauthenticatedContext}:
                         loadedState: assigneeDueTodayQueryOutput.loadedState,
                     },
                     {
-                        limit: assigneeDueSoonQuery.limit,
-                        filters: assigneeDueSoonQuery.filters,
-                        sorts: assigneeDueSoonQuery.sorts,
-                        loadedState: assigneeDueSoonQueryOutput.loadedState,
+                        limit: dueSoonQuery.limit,
+                        filters: dueSoonQuery.filters,
+                        sorts: dueSoonQuery.sorts,
+                        loadedState: dueSoonQueryOutput.loadedState,
                     },
                     {
-                        limit: assigneeRemainingQuery.limit,
-                        filters: assigneeRemainingQuery.filters,
-                        sorts: assigneeRemainingQuery.sorts,
-                        loadedState: assigneeRemainingQueryOutput.loadedState,
+                        limit: remainingQuery.limit,
+                        filters: remainingQuery.filters,
+                        sorts: remainingQuery.sorts,
+                        loadedState: remainingQueryOutput.loadedState,
                     },
                     ...extraQueries,
                 ],
@@ -275,28 +269,16 @@ export default function TasksRoute() {
     // expected to retain them.
     const {
         store,
-        queries: [
-            assigneeActiveQuery,
-            assigneeOverdueQuery,
-            assigneeDueTodayQuery,
-            assigneeDueSoonQuery,
-            assigneeRemainingQuery,
-        ],
+        queries: [activeQuery, overdueQuery, assigneeDueTodayQuery, dueSoonQuery, remainingQuery],
     } = useTaskStoreLoaderDataWithoutRetaining();
-    assert(
-        assigneeActiveQuery &&
-            assigneeOverdueQuery &&
-            assigneeDueTodayQuery &&
-            assigneeDueSoonQuery &&
-            assigneeRemainingQuery,
-    );
+    assert(activeQuery && overdueQuery && assigneeDueTodayQuery && dueSoonQuery && remainingQuery);
 
     const [
-        initialAssigneeActiveGridViewExpansionState,
-        initialAssigneeOverdueGridViewExpansionState,
-        initialAssigneeDueTodayGridViewExpansionState,
-        initialAssigneeDueSoonGridViewExpansionState,
-        initialAssigneeRemainingGridViewExpansionState,
+        initialActiveGridViewExpansionState,
+        initialOverdueGridViewExpansionState,
+        initialDueTodayGridViewExpansionState,
+        initialDueSoonGridViewExpansionState,
+        initialRemainingGridViewExpansionState,
     ] = initialGridViewExpansionStates;
 
     // NOCOMMIT: Should be `TaskPersonal` not `TaskNotepad`.
@@ -306,25 +288,25 @@ export default function TasksRoute() {
         <TaskGridViewDndContext store={store}>
             <TaskPersonalView
                 store={store}
-                assigneeActiveQuery={{
-                    query: assigneeActiveQuery,
-                    initialGridViewExpansionState: initialAssigneeActiveGridViewExpansionState,
+                activeQuery={{
+                    query: activeQuery,
+                    initialGridViewExpansionState: initialActiveGridViewExpansionState,
                 }}
-                assigneeOverdueQuery={{
-                    query: assigneeOverdueQuery,
-                    initialGridViewExpansionState: initialAssigneeOverdueGridViewExpansionState,
+                overdueQuery={{
+                    query: overdueQuery,
+                    initialGridViewExpansionState: initialOverdueGridViewExpansionState,
                 }}
                 assigneeDueTodayQuery={{
                     query: assigneeDueTodayQuery,
-                    initialGridViewExpansionState: initialAssigneeDueTodayGridViewExpansionState,
+                    initialGridViewExpansionState: initialDueTodayGridViewExpansionState,
                 }}
-                assigneeDueSoonQuery={{
-                    query: assigneeDueSoonQuery,
-                    initialGridViewExpansionState: initialAssigneeDueSoonGridViewExpansionState,
+                dueSoonQuery={{
+                    query: dueSoonQuery,
+                    initialGridViewExpansionState: initialDueSoonGridViewExpansionState,
                 }}
-                assigneeRemainingQuery={{
-                    query: assigneeRemainingQuery,
-                    initialGridViewExpansionState: initialAssigneeRemainingGridViewExpansionState,
+                remainingQuery={{
+                    query: remainingQuery,
+                    initialGridViewExpansionState: initialRemainingGridViewExpansionState,
                 }}
                 affinityManager={affinityManager}
             />

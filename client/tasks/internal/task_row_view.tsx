@@ -52,6 +52,7 @@ import {
     taskRowViewFirstColumnExtraPaddingLeft,
     taskRowViewIndentationRem,
     taskRowViewMinHeight,
+    taskRowViewPaddingBottom,
     taskRowViewStatusButtonWidth,
     taskRowViewStatusButtonWidthRem,
 } from "~/client/styles/tasks_shared_styles.js";
@@ -279,11 +280,9 @@ const titleCellClassName = sprinkles({
     pointerEvents: "none",
 });
 
-const paddingBottomHeight = "5";
-
 const paddingBottomClassName = sprinkles({
     width: "full",
-    height: paddingBottomHeight,
+    height: taskRowViewPaddingBottom,
 });
 
 function TaskRowView(
@@ -295,6 +294,7 @@ function TaskRowView(
         isQueryManuallySorted,
         undoManager,
         affinityManager,
+        hasColumnHeader,
         cursor,
         ghostTaskId = null,
         onGhostTaskCreated,
@@ -339,6 +339,7 @@ function TaskRowView(
         isQueryManuallySorted: boolean;
         undoManager: TaskClientStoreUndoManager;
         affinityManager: TaskClientStoreSearchAffinityManager;
+        hasColumnHeader: boolean;
         cursor: TaskQuerySortCursor | null;
         ghostTaskId?: TaskId | null;
         onGhostTaskCreated?: () => void;
@@ -561,14 +562,16 @@ function TaskRowView(
         columns.push("Title");
 
         if (capabilities.hasColumns) {
-            columns.push("Assignee");
+            if (!capabilities.withoutAssigneeColumn) {
+                columns.push("Assignee");
+            }
             columns.push("Priority");
             columns.push("DueDate");
             columns.push("Collections");
         }
 
         return columns;
-    }, [capabilities.hasColumns, hasTask]);
+    }, [capabilities.hasColumns, capabilities.withoutAssigneeColumn, hasTask]);
 
     const {
         isFocusWithin,
@@ -671,10 +674,12 @@ function TaskRowView(
                     return;
                 }
                 case "Assignee": {
-                    if (capabilities.hasColumns && columns.includes(column)) {
-                        assertExists(assigneeCellRef.current).focusCell();
-                    } else if (capabilities.hasDenseFields) {
-                        assertExists(denseFieldsRef.current).focusAssigneeInput();
+                    if (!capabilities.withoutAssigneeColumn) {
+                        if (capabilities.hasColumns && columns.includes(column)) {
+                            assertExists(assigneeCellRef.current).focusCell();
+                        } else if (capabilities.hasDenseFields) {
+                            assertExists(denseFieldsRef.current).focusAssigneeInput();
+                        }
                     }
                     return;
                 }
@@ -1446,7 +1451,13 @@ function TaskRowView(
                 //
                 // 1. Doesn't add 2px to layout
                 // 2. Adjacent borders share the same space so we don't get 2px dividers
-                boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                boxShadow:
+                    // The columns in a grid view render a semi-translucent grey border. To avoid
+                    // drawing a border darker than `grey-5` at the top of the screen if this is the
+                    // first row in a grid with columns then only render a bottom border.
+                    capabilities.hasColumns && hasColumnHeader && isFirstRow
+                        ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}`
+                        : `0 1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
             }}
         />
     );
@@ -1770,19 +1781,23 @@ function TaskRowView(
             </div>
             {capabilities.hasColumns && (
                 <>
-                    <TaskRowAssigneeCell
-                        ref={assigneeCellRef}
-                        isReadOnly={!hasEditAccessLevel}
-                        store={query.store}
-                        task={task}
-                        disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
-                        isFirstRow={isFirstRow}
-                        onCellKeyDown={handleCellKeyDown}
-                        onCellKeyDownCapture={handleCellKeyDownCapture}
-                        focusNextCell={focusNextCell}
-                        focusPreviousCell={focusPreviousCell}
-                        commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
-                    />
+                    {!capabilities.withoutAssigneeColumn && (
+                        <TaskRowAssigneeCell
+                            ref={assigneeCellRef}
+                            isReadOnly={!hasEditAccessLevel}
+                            store={query.store}
+                            task={task}
+                            disableExpensiveFeaturesDuringScroll={
+                                disableExpensiveFeaturesDuringScroll
+                            }
+                            isFirstRow={isFirstRow}
+                            onCellKeyDown={handleCellKeyDown}
+                            onCellKeyDownCapture={handleCellKeyDownCapture}
+                            focusNextCell={focusNextCell}
+                            focusPreviousCell={focusPreviousCell}
+                            commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
+                        />
+                    )}
                     <TaskRowPriorityCell
                         ref={priorityCellRef}
                         isReadOnly={!hasEditAccessLevel}
@@ -2104,7 +2119,7 @@ function TaskRowViewPaddingBottom({
                 cursor: hasEditAccessLevel ? "text" : undefined,
                 height:
                     platform === "mobile"
-                        ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[paddingBottomHeight]})`
+                        ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[taskRowViewPaddingBottom]})`
                         : undefined,
             }}
             {...useOutOfBoundsClickSelection({
