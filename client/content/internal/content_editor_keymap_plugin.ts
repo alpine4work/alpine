@@ -1378,7 +1378,8 @@ export function buildContentEditorKeymapPlugin(
                         parentNode.type.name === "codeBlock") ||
                     (selection instanceof NodeSelection &&
                         (selection.node.type.name === "divider" ||
-                            selection.node.type.name === "file"))
+                            selection.node.type.name === "file")) ||
+                    (currentNode.type.name === "paragraph" && parentNode.type.name === "tableCell")
                 ) {
                     const paragraphNode = schema.nodes.paragraph;
                     if (!paragraphNode) {

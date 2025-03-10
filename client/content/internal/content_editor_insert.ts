@@ -1,12 +1,48 @@
-import {Node, ResolvedPos} from "prosemirror-model";
+import {Node, NodeType, ResolvedPos} from "prosemirror-model";
 import {Command, NodeSelection, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/create_toggle_block_type_command.js";
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
+import {isSelectionInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
-function getInsertPosOrSelection(selection: Selection): number | Selection {
+/**
+ * Check if a node is a tableBlock node.
+ * In [content table schema](https://github.com/cyberworlds/cyberworlds/blob/591dcf3bf996c8d7db3aac351cc9041115a42857/shared/content/table/content_table_schema.ts#L111-L114)
+ * we define the tableCell content schema where we only allow tableBlock nodes.
+ */
+export function isContentTableBlockNode(node: Node | NodeType): boolean {
+    if (node instanceof Node) {
+        return node.type.groups.includes("tableBlock");
+    }
+    return node.groups.includes("tableBlock");
+}
+
+function getInsertPosOrSelection(selection: Selection, node: Node | NodeType): number | Selection {
     const doc = selection.$anchor.doc;
+
+    // if the selection is in a table and the node is not a table block, we want to insert
+    // at the next node after the table.
+    if (isSelectionInContentTable(selection) && !isContentTableBlockNode(node)) {
+        // selection.$anchor.after(1) is the position after the last table cell in the table.
+        // `1` is the depth of the table.
+        // depth of table related nodes is 4.
+        // For depth: 4 paragraph -> edge/ last node in the table cell
+        // For depth: 3 tableCell -> last node in the table row
+        // For depth: 2 tableRow -> last node in the table
+        // For depth: 1 table -> table node.
+        //
+        // METHOD 1: We hardcode the depth to 1.
+        // So we want to insert after the table node, that is why we use `1` as the depth.
+        // depth of any selection can be calculated by `const depth = selection.$anchor.depth;`
+        //
+        return selection.$anchor.after(1);
+
+        // METHOD 2(better, but need to handle fileNode separately): We iterate from the current
+        // depth down to 0 to find the first valid insertion point. This is a better way to do it
+        // because it works for any node and not just table nodes.
+    }
 
     // If the selection is on a file we'll insert below the file instead of
     // replacing the file. Since files take a lot of intention to add to the
@@ -47,7 +83,7 @@ function getInsertPosOrSelection(selection: Selection): number | Selection {
 function insertNode(view: EditorView, node: Node, commandIfNotEmpty?: Command) {
     const {state} = view;
 
-    const insertPosOrSelection = getInsertPosOrSelection(state.selection);
+    const insertPosOrSelection = getInsertPosOrSelection(view.state.selection, node);
 
     if (
         commandIfNotEmpty &&
@@ -184,7 +220,10 @@ export function insertContentFiles(
         view.state.selection.node.type.name === "file" &&
         view.state.selection.$anchor.parent.type.name === "fileRow"
             ? view.state.selection.anchor + 1
-            : getInsertPosOrSelection(view.state.selection);
+            : getInsertPosOrSelection(
+                  view.state.selection,
+                  assertExists(view.state.schema.nodes.fileRow),
+              );
 
     view.insertFiles(insertPosOrSelection, files);
 }

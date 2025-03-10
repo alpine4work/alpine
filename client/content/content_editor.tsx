@@ -12,7 +12,7 @@ import {
     TextHTwo,
 } from "phosphor-react";
 import {history, redo, redoDepth, undo, undoDepth} from "prosemirror-history";
-import {Fragment, Node, ResolvedPos, Slice} from "prosemirror-model";
+import {Fragment, Node, Schema as ProsemirrorSchema, ResolvedPos, Slice} from "prosemirror-model";
 import {
     AllSelection,
     EditorState,
@@ -75,6 +75,7 @@ import {
     insertContentQuoteBlock,
     insertContentTable,
     insertContentUnorderedListItem,
+    isContentTableBlockNode,
 } from "~/client/content/internal/content_editor_insert.js";
 import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_keymap_plugin.js";
 import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
@@ -102,6 +103,7 @@ import {
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {createContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
+import {isSelectionInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
 import {handleContentTablePaste} from "~/client/content/internal/table/content_table_input.js";
 import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
@@ -342,6 +344,11 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
      * are generally taken from an `<input type="file">` element.
      */
     insertFiles(files: ReadonlyArray<File>): void;
+
+    /**
+     * Insert a table node.
+     */
+    insertTable(): void;
 
     /**
      * Set the `hasPresentShortcut` attribute.
@@ -731,6 +738,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                 insertQuoteBlock: unimplementedDispatchCommand,
                 insertCodeBlock: unimplementedDispatchCommand,
                 insertFiles: unimplementedDispatchCommand,
+                insertTable: unimplementedDispatchCommand,
                 setHasPresentShortcut: unimplementedDispatchCommand,
                 openMobileKeyboardToolbarCommentInputIfPossible: () => {
                     throw new UnimplementedError(
@@ -998,6 +1006,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             insertQuoteBlock: () => insertContentQuoteBlock(assertExists(viewRef.current)),
             insertCodeBlock: () => insertContentCodeBlock(assertExists(viewRef.current)),
             insertFiles: files => insertContentFiles(assertExists(viewRef.current), files),
+            insertTable: () => insertContentTable(assertExists(viewRef.current)),
             setHasPresentShortcut: hasPresentShortcut => {
                 const view = assertExists(viewRef.current);
                 view.dispatch(
@@ -1974,52 +1983,19 @@ function ContentEditor<Content extends ContentWithReferences>(
                 slice,
                 dataTransfer: event.clipboardData,
                 action: ([selection], slice, createTransaction) => {
-                    if (
-                        handlePasteAfterResolvingReferences(
-                            view.state.doc,
-                            selection,
-                            () => {
-                                const transaction = createTransaction();
-
-                                if (isSync && selection !== view.state.selection) {
-                                    transaction.setSelection(selection);
-                                }
-
-                                return transaction;
-                            },
-                            transaction => view.dispatch(transaction),
-                            event,
-                            slice,
-                        )
-                    ) {
-                        return;
-                    }
-
-                    // Implement the same logic as ProseMirror's `doPaste` function:
-                    // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L592-L601
-
-                    const transaction = createTransaction();
-
-                    if (isSync && selection !== view.state.selection) {
-                        transaction.setSelection(selection);
-                    }
-
-                    const singleNode =
-                        slice.openStart == 0 && slice.openEnd == 0 && slice.content.childCount == 1
-                            ? slice.content.firstChild
-                            : null;
-
-                    if (singleNode) {
-                        selection.replaceWith(transaction, singleNode);
-                    } else {
-                        selection.replace(transaction, slice);
-                    }
-
-                    view.dispatch(
-                        transaction
-                            .scrollIntoView()
-                            .setMeta("paste", true)
-                            .setMeta("uiEvent", "paste"),
+                    handlePasteAfterResolvingReferences(
+                        view.state.doc,
+                        selection,
+                        () => {
+                            const transaction = createTransaction();
+                            if (isSync && selection !== view.state.selection) {
+                                transaction.setSelection(selection);
+                            }
+                            return transaction;
+                        },
+                        transaction => view.dispatch(transaction),
+                        event,
+                        slice,
                     );
                 },
             });
@@ -4511,14 +4487,44 @@ function handlePasteAfterResolvingReferences(
     dispatch: (transaction: Transaction) => void,
     event: ClipboardEvent,
     slice: Slice,
-): boolean {
-    // First check if we're in a table - if so, delegate to table paste handler
-    if (handleContentTablePaste(doc, selection, createTransaction, dispatch, slice)) return true;
+): void {
+    // If pasting into a table, transform pasted content to make sure it matches
+    // the expected content type for a table.
+    {
+        // flag to see if any one of the node is not tableBlock, If found, then only do
+        // that transformation
+        let hasNonTableContent = false;
+        let remainingSlice: Slice;
 
-    if (handleLinkPasteWithSelection(doc, selection, createTransaction, dispatch, event))
-        return true;
-    if (handleLinkPasteWithoutSelection(doc, selection, createTransaction, dispatch, event))
-        return true;
+        if (isSelectionInContentTable(selection)) {
+            slice.content.forEach(node => {
+                if (!isContentTableBlockNode(node)) {
+                    hasNonTableContent = true;
+                }
+            });
+            if (hasNonTableContent) {
+                [slice, remainingSlice] = transformPastedForContentTable(doc.type.schema, slice);
+
+                // Validate remainingSlice exists and has content before proceeding
+                if (remainingSlice && remainingSlice.content && remainingSlice.content.size > 0) {
+                    const originalCreateTransaction = createTransaction;
+                    createTransaction = () => {
+                        const transaction = originalCreateTransaction();
+                        // Insert remainingSlice after the table
+                        const insertPos = selection.$anchor.after(1);
+                        transaction.insert(insertPos, remainingSlice.content);
+                        return transaction;
+                    };
+                }
+            }
+        }
+    }
+
+    // First check if we're in a table - if so, delegate to table paste handler
+    if (handleContentTablePaste(doc, selection, createTransaction, dispatch, slice)) return;
+
+    if (handleLinkPasteWithSelection(doc, selection, createTransaction, dispatch, event)) return;
+    if (handleLinkPasteWithoutSelection(doc, selection, createTransaction, dispatch, event)) return;
 
     // If we're pasting into an empty paragraph at the top level, then paste the
     // entire slice content with `openStart` 0 to avoid losing our first node's
@@ -4542,7 +4548,7 @@ function handlePasteAfterResolvingReferences(
                 new Slice(slice.content, 0, slice.openEnd),
             ),
         );
-        return true;
+        return;
     }
 
     // If we're pasting a code block into a code block then we want to update
@@ -4582,10 +4588,131 @@ function handlePasteAfterResolvingReferences(
         }
 
         dispatch(transaction.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"));
-        return true;
+        return;
     }
 
-    return false;
+    // Implement the same logic as ProseMirror's `doPaste` function:
+    // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L592-L601
+    const transaction = createTransaction();
+
+    const singleNode =
+        slice.openStart == 0 && slice.openEnd == 0 && slice.content.childCount == 1
+            ? slice.content.firstChild
+            : null;
+
+    if (singleNode) {
+        selection.replaceWith(transaction, singleNode);
+    } else {
+        selection.replace(transaction, slice);
+    }
+
+    dispatch(transaction.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"));
+}
+
+/**
+ * If pasting into a table, transform pasted content to make sure it matches
+ * the expected content type for a table.
+ */
+function transformPastedForContentTable(
+    schema: ProsemirrorSchema,
+    slice: Slice,
+): [slice: Slice, remainingSlice: Slice] {
+    const remainingContent: Array<Node> = []; // paste outside of table in next position
+    const primaryContent: Array<Node> = []; // paste inside of table / table cell with modifications
+
+    slice.content.content.forEach(node => {
+        // NOTE(rohit): It is recommended that once we add one node to remainingContent, all
+        // future nodes in the slice should be remainingContent. The reason being if you paste
+        // content like this:
+
+        // <p>Text explaining table 1</p>
+        // <table><!-- Table 1 --></table>
+        // <p>Text explaining table 2</p>
+        // <table><!-- Table 2 --></table>
+
+        // It would be weird to paste this inside the table:
+        // <p>Text explaining table 1</p>
+        // <p>Text explaining table 2</p>
+        //
+        // …and this outside the table:
+        // <table><!-- Table 1 --></table>
+        // <table><!-- Table 2 --></table>
+        //
+        // I feel like it would make more sense to the user if we paste this inside the table:
+        // <p>Text explaining table 1</p>
+        // …and this outside the table:
+
+        // <table><!-- Table 1 --></table>
+        // <p>Text explaining table 2</p>
+        // <table><!-- Table 2 --></table>
+        //
+        // This doesn't break the user's intent. However reordering their content might break
+        // the user's intent!
+        if (remainingContent.length > 0) {
+            remainingContent.push(node);
+            return;
+        }
+
+        switch (node.type.name) {
+            case "table": {
+                // Tables go into remainingContent to be inserted after the current table
+                remainingContent.push(node);
+                break;
+            }
+
+            case "heading": {
+                const boldMark = assertExists(schema.marks.bold).create();
+                const paragraphType = assertExists(schema.nodes.paragraph);
+
+                const paragraphNode = paragraphType.create(
+                    null,
+                    node.content.content.map(childNode => {
+                        assert(childNode.isText);
+                        return childNode.mark(boldMark.addToSet(childNode.marks));
+                    }),
+                );
+                primaryContent.push(paragraphNode);
+                break;
+            }
+
+            case "fileRow":
+            case "fileFloat": {
+                // File related nodes go into remainingContent to be inserted after table
+                remainingContent.push(node);
+                break;
+            }
+
+            case "divider": {
+                // Divider nodes are dropped completely
+                break;
+            }
+
+            default: {
+                // Check if node is allowed in table cell
+                if (isContentTableBlockNode(node)) {
+                    primaryContent.push(node);
+                } else {
+                    remainingContent.push(node);
+                }
+                break;
+            }
+        }
+    });
+
+    return [
+        primaryContent.length > 0
+            ? new Slice(
+                  Fragment.fromArray(primaryContent),
+                  primaryContent[0] === slice.content.firstChild ? slice.openStart : 0,
+                  primaryContent[primaryContent.length - 1] === slice.content.lastChild
+                      ? slice.openEnd
+                      : 0,
+              )
+            : Slice.empty,
+        remainingContent.length > 0
+            ? new Slice(Fragment.fromArray(remainingContent), 0, 0)
+            : Slice.empty,
+    ];
 }
 
 /**
