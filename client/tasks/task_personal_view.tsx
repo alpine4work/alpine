@@ -42,7 +42,10 @@ import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/interna
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewColumnHeader} from "~/client/tasks/internal/task_grid_view_column_header.js";
 import {TaskGridViewHasDndContext} from "~/client/tasks/internal/task_grid_view_has_dnd_context.js";
-import {useTaskGridViewVirtualizedListBase} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {
+    useTaskGridViewVirtualizedListBase,
+    useTaskGridViewVirtualizedListItemAnimation,
+} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskGridViewVirtualizedListViewRef} from "~/client/tasks/internal/task_grid_view_virtualized_list_types.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {
@@ -777,6 +780,13 @@ export function TaskPersonalView({
         overdueGridViewResult.stateItemCount === 0 &&
         overdueGridViewResult.loadedState === "FullyLoaded";
 
+    const {onRenderedRangeLayoutChange: onRenderedRangeLayoutChangeForOverdueHeader} =
+        useTaskGridViewVirtualizedListItemAnimation(
+            viewRef,
+            activeGridViewResult,
+            !isOverdueGridViewEmpty ? runningItemCount - 1 : null,
+        );
+
     if (isOverdueGridViewEmpty) {
         // We won't show the `OverdueHeader` item we added previously if this grid view
         // is empty.
@@ -929,6 +939,13 @@ export function TaskPersonalView({
         dueTodayGridViewResult.stateItemCount === 0 &&
         dueTodayGridViewResult.loadedState === "FullyLoaded";
 
+    const {onRenderedRangeLayoutChange: onRenderedRangeLayoutChangeForDueTodayHeader} =
+        useTaskGridViewVirtualizedListItemAnimation(
+            viewRef,
+            overdueGridViewResult,
+            !isDueTodayGridViewEmpty ? runningItemCount - 1 : null,
+        );
+
     if (isDueTodayGridViewEmpty) {
         // We won't show the `DueTodayHeader` item we added previously if this grid
         // view is empty.
@@ -1076,6 +1093,13 @@ export function TaskPersonalView({
         dueSoonGridViewResult.stateItemCount === 0 &&
         dueSoonGridViewResult.loadedState === "FullyLoaded";
 
+    const {onRenderedRangeLayoutChange: onRenderedRangeLayoutChangeForDueSoonHeader} =
+        useTaskGridViewVirtualizedListItemAnimation(
+            viewRef,
+            dueTodayGridViewResult,
+            !isDueSoonGridViewEmpty ? runningItemCount - 1 : null,
+        );
+
     if (isDueSoonGridViewEmpty) {
         // We won't show the `DueSoonHeader` item we added previously if this grid view
         // is empty.
@@ -1178,6 +1202,18 @@ export function TaskPersonalView({
             ? activeGridViewResult
             : undefined,
     });
+
+    const {onRenderedRangeLayoutChange: onRenderedRangeLayoutChangeForRemainingHeader} =
+        useTaskGridViewVirtualizedListItemAnimation(
+            viewRef,
+            dueSoonGridViewResult,
+            !isActiveGridViewEmpty ||
+                !isOverdueGridViewEmpty ||
+                !isDueTodayGridViewEmpty ||
+                !isDueSoonGridViewEmpty
+                ? runningItemCount - 1
+                : null,
+        );
 
     if (
         !isActiveGridViewEmpty ||
@@ -1604,6 +1640,11 @@ export function TaskPersonalView({
                         );
                     }}
                     onRenderedRangeLayoutChange={range => {
+                        onRenderedRangeLayoutChangeForOverdueHeader();
+                        onRenderedRangeLayoutChangeForDueTodayHeader();
+                        onRenderedRangeLayoutChangeForDueSoonHeader();
+                        onRenderedRangeLayoutChangeForRemainingHeader();
+
                         let runningItemCount = 0;
 
                         // `NavigationBar`
