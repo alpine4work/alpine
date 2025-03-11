@@ -1541,7 +1541,7 @@ const TaskPersonalViewNavigationBar = memo(function TaskPersonalViewNavigationBa
         <div
             className={pointerEventsNoneNotInheritedClassName}
             style={{
-                zIndex: "60",
+                zIndex: "50",
                 ...(shouldRenderWithRelativePositioning
                     ? {position: "relative"}
                     : {
@@ -1732,7 +1732,6 @@ const TaskPersonalViewFirstHeader = memo(function TaskPersonalViewFirstHeader({
         <div
             className={pointerEventsNoneNotInheritedClassName}
             style={{
-                zIndex: "50",
                 ...(shouldRenderWithRelativePositioning
                     ? {position: "relative"}
                     : {
@@ -1744,7 +1743,7 @@ const TaskPersonalViewFirstHeader = memo(function TaskPersonalViewFirstHeader({
                       }),
             }}
         >
-            <Box ref={itemRef} style={{height: taskPersonalViewHeaderHeight}}>
+            <Box ref={itemRef} zIndex="40" style={{height: taskPersonalViewHeaderHeight}}>
                 <Box
                     height={taskPersonalViewHeaderNameHeight}
                     display="flex"
@@ -1758,6 +1757,7 @@ const TaskPersonalViewFirstHeader = memo(function TaskPersonalViewFirstHeader({
             </Box>
             <Box
                 position="sticky"
+                zIndex="50"
                 top={navigationBarHeight}
                 marginTop={`-${taskGridViewColumnHeaderHeight}`}
             >
