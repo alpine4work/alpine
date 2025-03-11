@@ -72,6 +72,7 @@ type TaskPersonalViewVisibleSection = "Active" | "Overdue" | "DueToday" | "DueSo
 
 const initialTaskPersonalViewVisibleSectionState = {section: null, previousSections: emptySet};
 
+// NOCOMMIT: Saved grid view state isn't working
 export function TaskPersonalView({
     store,
     activeQuery,
@@ -387,6 +388,10 @@ export function TaskPersonalView({
     alwaysRenderAdditionalItemIndexes.push(runningItemCount);
     runningItemCount += 1;
 
+    // `ActiveHeader` (must be before `useTaskGridViewVirtualizedListViewRef()` to
+    // shift indexes correctly)
+    runningItemCount += 1;
+
     const activeGridViewResult = useTaskGridViewVirtualizedListBase({
         structuralItemKeyPrefix: "Active-",
         capabilities: gridViewCapabilities,
@@ -444,7 +449,7 @@ export function TaskPersonalView({
                         accountId: currentAccount.id,
                         position: getNewTaskPositionForQuerySortedByPosition(
                             time3,
-                            remainingQuery.query,
+                            activeQuery.query,
                             position,
                         ),
                     },
@@ -476,16 +481,17 @@ export function TaskPersonalView({
         activeGridViewResult.taskItemCount === 0 &&
         activeGridViewResult.loadedState === "FullyLoaded";
 
-    if (!isActiveGridViewEmpty) {
+    if (isActiveGridViewEmpty) {
+        // We won't show the `ActiveHeader` item we added previously if this grid view
+        // is empty.
+        runningItemCount -= 1;
+    } else {
         // Always render the first header since its column names will be
         // `position: sticky`.
         if (!hasFirstHeader) {
             hasFirstHeader = true;
-            alwaysRenderAdditionalItemIndexes.push(runningItemCount);
+            alwaysRenderAdditionalItemIndexes.push(runningItemCount - 1);
         }
-
-        // `ActiveHeader`
-        runningItemCount += 1;
 
         for (const index of activeGridViewResult.alwaysRenderAdditionalItemIndexes) {
             alwaysRenderAdditionalItemIndexes.push(index + runningItemCount);
@@ -493,6 +499,10 @@ export function TaskPersonalView({
 
         runningItemCount += activeGridViewResult.itemCount;
     }
+
+    // `OverdueHeader` (must be before `useTaskGridViewVirtualizedListViewRef()` to
+    // shift indexes correctly)
+    runningItemCount += 1;
 
     const overdueGridViewResult = useTaskGridViewVirtualizedListBase({
         structuralItemKeyPrefix: "Overdue-",
@@ -556,7 +566,7 @@ export function TaskPersonalView({
                         accountId: currentAccount.id,
                         position: getNewTaskPositionForQuerySortedByPosition(
                             time3,
-                            remainingQuery.query,
+                            overdueQuery.query,
                             position,
                         ),
                     },
@@ -571,6 +581,15 @@ export function TaskPersonalView({
                 taskAction: {
                     type: "UpdateAssignee",
                     assignee: null,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateDueDate",
+                    dueDate: null,
                 },
             },
         ],
@@ -588,16 +607,17 @@ export function TaskPersonalView({
         overdueGridViewResult.taskItemCount === 0 &&
         overdueGridViewResult.loadedState === "FullyLoaded";
 
-    if (!isOverdueGridViewEmpty) {
+    if (isOverdueGridViewEmpty) {
+        // We won't show the `OverdueHeader` item we added previously if this grid view
+        // is empty.
+        runningItemCount -= 1;
+    } else {
         // Always render the first header since its column names will be
         // `position: sticky`.
         if (!hasFirstHeader) {
             hasFirstHeader = true;
-            alwaysRenderAdditionalItemIndexes.push(runningItemCount);
+            alwaysRenderAdditionalItemIndexes.push(runningItemCount - 1);
         }
-
-        // `OverdueHeader`
-        runningItemCount += 1;
 
         for (const index of overdueGridViewResult.alwaysRenderAdditionalItemIndexes) {
             alwaysRenderAdditionalItemIndexes.push(index + runningItemCount);
@@ -605,6 +625,10 @@ export function TaskPersonalView({
 
         runningItemCount += overdueGridViewResult.itemCount;
     }
+
+    // `DueTodayHeader` (must be before `useTaskGridViewVirtualizedListViewRef()`
+    // to shift indexes correctly)
+    runningItemCount += 1;
 
     const dueTodayGridViewResult = useTaskGridViewVirtualizedListBase({
         structuralItemKeyPrefix: "DueToday-",
@@ -664,7 +688,7 @@ export function TaskPersonalView({
                         accountId: currentAccount.id,
                         position: getNewTaskPositionForQuerySortedByPosition(
                             time3,
-                            remainingQuery.query,
+                            dueTodayQuery.query,
                             position,
                         ),
                     },
@@ -679,6 +703,15 @@ export function TaskPersonalView({
                 taskAction: {
                     type: "UpdateAssignee",
                     assignee: null,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateDueDate",
+                    dueDate: null,
                 },
             },
         ],
@@ -696,16 +729,17 @@ export function TaskPersonalView({
         dueTodayGridViewResult.taskItemCount === 0 &&
         dueTodayGridViewResult.loadedState === "FullyLoaded";
 
-    if (!isDueTodayGridViewEmpty) {
+    if (isDueTodayGridViewEmpty) {
+        // We won't show the `DueTodayHeader` item we added previously if this grid
+        // view is empty.
+        runningItemCount -= 1;
+    } else {
         // Always render the first header since its column names will be
         // `position: sticky`.
         if (!hasFirstHeader) {
             hasFirstHeader = true;
-            alwaysRenderAdditionalItemIndexes.push(runningItemCount);
+            alwaysRenderAdditionalItemIndexes.push(runningItemCount - 1);
         }
-
-        // `DueTodayHeader`
-        runningItemCount += 1;
 
         for (const index of dueTodayGridViewResult.alwaysRenderAdditionalItemIndexes) {
             alwaysRenderAdditionalItemIndexes.push(index + runningItemCount);
@@ -713,6 +747,10 @@ export function TaskPersonalView({
 
         runningItemCount += dueTodayGridViewResult.itemCount;
     }
+
+    // `DueSoonHeader` (must be before `useTaskGridViewVirtualizedListViewRef()`
+    // to shift indexes correctly)
+    runningItemCount += 1;
 
     const dueSoonGridViewResult = useTaskGridViewVirtualizedListBase({
         structuralItemKeyPrefix: "DueSoon-",
@@ -777,7 +815,7 @@ export function TaskPersonalView({
                         accountId: currentAccount.id,
                         position: getNewTaskPositionForQuerySortedByPosition(
                             time3,
-                            remainingQuery.query,
+                            dueSoonQuery.query,
                             position,
                         ),
                     },
@@ -792,6 +830,15 @@ export function TaskPersonalView({
                 taskAction: {
                     type: "UpdateAssignee",
                     assignee: null,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateDueDate",
+                    dueDate: null,
                 },
             },
         ],
@@ -809,16 +856,17 @@ export function TaskPersonalView({
         dueSoonGridViewResult.taskItemCount === 0 &&
         dueSoonGridViewResult.loadedState === "FullyLoaded";
 
-    if (!isDueSoonGridViewEmpty) {
+    if (isDueSoonGridViewEmpty) {
+        // We won't show the `DueSoonHeader` item we added previously if this grid view
+        // is empty.
+        runningItemCount -= 1;
+    } else {
         // Always render the first header since its column names will be
         // `position: sticky`.
         if (!hasFirstHeader) {
             hasFirstHeader = true;
-            alwaysRenderAdditionalItemIndexes.push(runningItemCount);
+            alwaysRenderAdditionalItemIndexes.push(runningItemCount - 1);
         }
-
-        // `DueSoonHeader`
-        runningItemCount += 1;
 
         for (const index of dueSoonGridViewResult.alwaysRenderAdditionalItemIndexes) {
             alwaysRenderAdditionalItemIndexes.push(index + runningItemCount);
@@ -826,6 +874,10 @@ export function TaskPersonalView({
 
         runningItemCount += dueSoonGridViewResult.itemCount;
     }
+
+    // `RemainingHeader` (must be before `useTaskGridViewVirtualizedListViewRef()`
+    // to shift indexes correctly)
+    runningItemCount += 1;
 
     const remainingGridViewResult = useTaskGridViewVirtualizedListBase({
         structuralItemKeyPrefix: "Remaining-",
@@ -902,8 +954,11 @@ export function TaskPersonalView({
         !isDueTodayGridViewEmpty ||
         !isDueSoonGridViewEmpty
     ) {
-        // `RemainingHeader`
-        runningItemCount += 1;
+        // `RemainingHeader` is already added.
+    } else {
+        // We won't show the `RemainingHeader` item we added previously if all other
+        // grid views are empty.
+        runningItemCount -= 1;
     }
 
     for (const index of remainingGridViewResult.alwaysRenderAdditionalItemIndexes) {
