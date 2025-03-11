@@ -27,6 +27,7 @@ import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskCollectionCreateAction} from "~/shared/tasks/actions/task_collection_action.js";
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
@@ -14501,4 +14502,116 @@ test("create collection applied after optimistic updates that are resolved out o
 
     expect(errors.length).toEqual(2);
     errors = [];
+});
+
+test("subscription to parent task captures all updates during child task removal", async () => {
+    const store = createAutoRetainStore();
+
+    // Create parent task
+    const parentTask = createTask(store);
+    const childTask = createTask(store);
+
+    // Set up parent-child relationship
+    const setParentAction: TaskAction = {
+        type: "UpdateTask",
+        time: store.clock.now(),
+        taskId: childTask.id,
+        taskAction: {
+            type: "UpdateParentTaskId",
+            parentTaskId: parentTask.id,
+        },
+    };
+
+    // Backfill tasks into the store
+    store.applyUpdateEvent({
+        type: "Update",
+        originClientId: null,
+        defaultAuthorizationStateVersion: clock.now(),
+        actions: [],
+        backfillTasks: [
+            {type: "Authorized", task: parentTask},
+            {type: "Authorized", task: childTask},
+        ],
+        backfillCollections: [],
+        referencedAccounts: [account1],
+    });
+
+    // Apply the set parent action to establish parent-child relationship
+    store.applyUpdateEvent({
+        type: "Update",
+        originClientId: null,
+        defaultAuthorizationStateVersion: clock.now(),
+        actions: [setParentAction],
+        backfillTasks: [],
+        backfillCollections: [],
+        referencedAccounts: [],
+    });
+
+    {
+        // Verify parent-child relationship was established
+        const newChildTask = assertExists(
+            store.getTaskEntryStoreIfExists(childTask.id)?.getSnapshot().task,
+        );
+        expect(newChildTask.getParent()?.taskId).toBe(parentTask.id);
+    }
+
+    // Create subscription to parent task before performing the removal
+    // This is crucial for the bug reproduction
+    const parentSubscription = store.createAndRetainTaskSubscription(parentTask.id);
+
+    // Now remove the parent reference which should update child counts on parent
+    const removeParentAction: TaskActionModel = {
+        type: "UpdateTask",
+        time: store.clock.now(),
+        taskId: childTask.id,
+        taskAction: {
+            type: "UpdateParentTaskId",
+            parentTaskId: null,
+        },
+    };
+
+    // The bug appears to be related to how these updates are processed
+    // Commit the action instead of applying it directly to test the optimistic update path
+    store.commitTaskActionTransaction(context, [removeParentAction], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
+
+    {
+        // Verify that the child's parent is now null
+        const newChildTask = assertExists(
+            store.getTaskEntryStoreIfExists(childTask.id)?.getSnapshot().task,
+        );
+        expect(newChildTask.getParent()).toBeNull();
+    }
+
+    // Wait for the commit to process
+    await resolveLastRpcExecution(commitTaskActionTransaction, {
+        extraActions: [
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: parentTask.id,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 1,
+                    removedChildTaskCount: 1,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ],
+        referencedAccounts: [],
+    });
+
+    {
+        // Verify that the child's parent is now null
+        const newChildTask = assertExists(
+            store.getTaskEntryStoreIfExists(childTask.id)?.getSnapshot().task,
+        );
+        expect(newChildTask.getParent()).toBeNull();
+    }
+
+    // Clean up
+    parentSubscription.release();
 });

@@ -206,6 +206,7 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
         try {
             for (const taskId of updatedOriginalReferencedTaskIds) {
                 if (alreadyUpdatedReferencedTaskIds.has(taskId)) continue;
+                alreadyUpdatedReferencedTaskIds.add(taskId);
 
                 const taskEntryUpdate = taskEntryUpdateById.get(taskId);
                 if (!taskEntryUpdate) continue;
