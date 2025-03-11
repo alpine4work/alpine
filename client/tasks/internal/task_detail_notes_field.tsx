@@ -123,6 +123,7 @@ function TaskDetailNotesField(
                                 pushUndoStackEntry({
                                     type: "Notes",
                                     rootParentTaskId: taskId,
+                                    extra: null,
                                     taskId,
                                     contentEditorRef: editorRef,
                                     release: noop,
@@ -132,6 +133,7 @@ function TaskDetailNotesField(
                                 pushUndoStackEntryFromRedo({
                                     type: "Notes",
                                     rootParentTaskId: taskId,
+                                    extra: null,
                                     taskId,
                                     contentEditorRef: editorRef,
                                     release: noop,
@@ -141,6 +143,7 @@ function TaskDetailNotesField(
                                 pushRedoStackEntry({
                                     type: "Notes",
                                     rootParentTaskId: taskId,
+                                    extra: null,
                                     taskId,
                                     contentEditorRef: editorRef,
                                     release: noop,

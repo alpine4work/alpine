@@ -22,10 +22,11 @@ import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_
  * helps us disambiguate the task's position. If a task is nested in a parent
  * task we know it's unique within that subtree.
  */
-export type TaskUndoStackEntry =
+export type TaskUndoStackEntry<Extra = unknown> =
     | {
           readonly type: "Actions";
           readonly rootParentTaskId: TaskId;
+          readonly extra: Extra;
           readonly undoActions: TaskUndoActions;
           readonly removedFromQueries: ReadonlySet<TaskClientQuery>;
           readonly leaseId: TaskActionTransactionLeaseId | null;
@@ -34,6 +35,7 @@ export type TaskUndoStackEntry =
     | {
           readonly type: "Notes";
           readonly rootParentTaskId: TaskId;
+          readonly extra: Extra;
           readonly taskId: TaskId;
           readonly contentEditorRef: RefObject<ContentEditorRef<TaskNotesContentWithReferences> | null>;
           readonly release: () => void;
@@ -47,20 +49,22 @@ export type TaskUndoStackEntry =
  *   of time
  * - Clears redo stack when progress is made
  */
-export function useTaskUndoStackState({stateKey}: {stateKey?: Id | undefined} = emptyObject) {
+export function useTaskUndoStackState<Extra = unknown>({
+    stateKey,
+}: {stateKey?: Id | undefined} = emptyObject) {
     const [undoState] = useStateWithDependencies(
         () => ({
             undoStackRef: cast<
                 MutableRefObject<
                     Array<
-                        TaskUndoStackEntry & {
+                        TaskUndoStackEntry<Extra> & {
                             readonly time: number;
                             readonly fromRedo: boolean;
                         }
                     >
                 >
             >({current: []}),
-            redoStackRef: cast<MutableRefObject<Array<TaskUndoStackEntry>>>({current: []}),
+            redoStackRef: cast<MutableRefObject<Array<TaskUndoStackEntry<Extra>>>>({current: []}),
         }),
         [stateKey],
     );
@@ -78,7 +82,7 @@ export function useTaskUndoStackState({stateKey}: {stateKey?: Id | undefined} = 
         };
     }, [undoState.redoStackRef, undoState.undoStackRef]);
 
-    const pushUndoStackEntry = (entry: TaskUndoStackEntry) => {
+    const pushUndoStackEntry = (entry: TaskUndoStackEntry<Extra>) => {
         // Any action that's not an undo or redo clears our redo stack.
         for (const oldEntry of undoState.redoStackRef.current) oldEntry.release();
         undoState.redoStackRef.current = [];
@@ -164,7 +168,7 @@ export function useTaskUndoStackState({stateKey}: {stateKey?: Id | undefined} = 
         });
     };
 
-    const pushUndoStackEntryFromRedo = (entry: TaskUndoStackEntry) => {
+    const pushUndoStackEntryFromRedo = (entry: TaskUndoStackEntry<Extra>) => {
         undoState.undoStackRef.current.push({
             ...entry,
             time: Date.now(),
@@ -172,11 +176,11 @@ export function useTaskUndoStackState({stateKey}: {stateKey?: Id | undefined} = 
         });
     };
 
-    const pushRedoStackEntry = (entry: TaskUndoStackEntry) => {
+    const pushRedoStackEntry = (entry: TaskUndoStackEntry<Extra>) => {
         undoState.redoStackRef.current.push(entry);
     };
 
-    const popUndoStackEntry = (): DistributiveOmit<TaskUndoStackEntry, "release"> | null => {
+    const popUndoStackEntry = (): DistributiveOmit<TaskUndoStackEntry<Extra>, "release"> | null => {
         const undoStackEntry = undoState.undoStackRef.current.pop();
         if (!undoStackEntry) return null;
 
@@ -189,7 +193,7 @@ export function useTaskUndoStackState({stateKey}: {stateKey?: Id | undefined} = 
         return remainingUndoStackEntry;
     };
 
-    const popRedoStackEntry = (): DistributiveOmit<TaskUndoStackEntry, "release"> | null => {
+    const popRedoStackEntry = (): DistributiveOmit<TaskUndoStackEntry<Extra>, "release"> | null => {
         const undoStackEntry = undoState.redoStackRef.current.pop();
         if (!undoStackEntry) return null;
 

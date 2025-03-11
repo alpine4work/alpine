@@ -36,6 +36,7 @@ import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
+    TaskClientStoreUndoManager,
 } from "~/client/tasks/core/task_client_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
@@ -44,7 +45,10 @@ import {TaskGridViewHasDndContext} from "~/client/tasks/internal/task_grid_view_
 import {useTaskGridViewVirtualizedListBase} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskGridViewVirtualizedListViewRef} from "~/client/tasks/internal/task_grid_view_virtualized_list_types.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {useTaskUndoStackState} from "~/client/tasks/internal/use_task_undo_stack_state.js";
+import {
+    TaskUndoStackEntry,
+    useTaskUndoStackState,
+} from "~/client/tasks/internal/use_task_undo_stack_state.js";
 import {TaskGridViewDraggableData} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
     VirtualizedScrollView,
@@ -64,11 +68,14 @@ import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 
-type TaskPersonalViewVisibleSection = "Active" | "Overdue" | "DueToday" | "DueSoon";
+type TaskPersonalViewSection = "Active" | "Overdue" | "DueToday" | "DueSoon" | "Remaining";
+type TaskPersonalViewVisibleSection = Exclude<TaskPersonalViewSection, "Remaining">;
 
 const initialTaskPersonalViewVisibleSectionState = {section: null, previousSections: emptySet};
 
@@ -167,14 +174,110 @@ export function TaskPersonalView({
         pushRedoStackEntry,
         popUndoStackEntry,
         popRedoStackEntry,
-    } = useTaskUndoStackState();
+    } = useTaskUndoStackState<TaskPersonalViewSection>();
 
     const undo = () => {
-        throw new UnimplementedError("NOCOMMIT");
+        // Keep trying to undo until we find an entry we can apply.
+        while (true) {
+            const undoStackEntry = popUndoStackEntry();
+            if (!undoStackEntry) break;
+
+            let applyUndoStackEntry: (
+                type: "Undo" | "Redo",
+                entry: DistributiveOmit<TaskUndoStackEntry, "release">,
+                options: {pushUndoStackEntry: TaskClientStoreUndoManager["pushUndoStackEntry"]},
+            ) => boolean;
+
+            switch (undoStackEntry.extra) {
+                case "Active":
+                    applyUndoStackEntry = activeGridViewResult.applyUndoStackEntry;
+                    break;
+                case "Overdue":
+                    applyUndoStackEntry = overdueGridViewResult.applyUndoStackEntry;
+                    break;
+                case "DueToday":
+                    applyUndoStackEntry = dueTodayGridViewResult.applyUndoStackEntry;
+                    break;
+                case "DueSoon":
+                    applyUndoStackEntry = dueSoonGridViewResult.applyUndoStackEntry;
+                    break;
+                case "Remaining":
+                    applyUndoStackEntry = remainingGridViewResult.applyUndoStackEntry;
+                    break;
+                default:
+                    throw exhaustive(undoStackEntry.extra);
+            }
+
+            if (
+                applyUndoStackEntry("Undo", undoStackEntry, {
+                    pushUndoStackEntry: entry => {
+                        pushRedoStackEntry({
+                            type: "Actions",
+                            rootParentTaskId: undoStackEntry.rootParentTaskId,
+                            extra: undoStackEntry.extra,
+                            undoActions: entry.undoActions,
+                            removedFromQueries: entry.removedFromQueries,
+                            leaseId: entry.leaseId,
+                            release: entry.release,
+                        });
+                    },
+                })
+            ) {
+                break;
+            }
+        }
     };
 
     const redo = () => {
-        throw new UnimplementedError("NOCOMMIT");
+        // Keep trying to redo until we find an entry we can apply.
+        while (true) {
+            const undoStackEntry = popRedoStackEntry();
+            if (!undoStackEntry) break;
+
+            let applyUndoStackEntry: (
+                type: "Undo" | "Redo",
+                entry: DistributiveOmit<TaskUndoStackEntry, "release">,
+                options: {pushUndoStackEntry: TaskClientStoreUndoManager["pushUndoStackEntry"]},
+            ) => boolean;
+
+            switch (undoStackEntry.extra) {
+                case "Active":
+                    applyUndoStackEntry = activeGridViewResult.applyUndoStackEntry;
+                    break;
+                case "Overdue":
+                    applyUndoStackEntry = overdueGridViewResult.applyUndoStackEntry;
+                    break;
+                case "DueToday":
+                    applyUndoStackEntry = dueTodayGridViewResult.applyUndoStackEntry;
+                    break;
+                case "DueSoon":
+                    applyUndoStackEntry = dueSoonGridViewResult.applyUndoStackEntry;
+                    break;
+                case "Remaining":
+                    applyUndoStackEntry = remainingGridViewResult.applyUndoStackEntry;
+                    break;
+                default:
+                    throw exhaustive(undoStackEntry.extra);
+            }
+
+            if (
+                applyUndoStackEntry("Redo", undoStackEntry, {
+                    pushUndoStackEntry: entry => {
+                        pushUndoStackEntryFromRedo({
+                            type: "Actions",
+                            rootParentTaskId: undoStackEntry.rootParentTaskId,
+                            extra: undoStackEntry.extra,
+                            undoActions: entry.undoActions,
+                            removedFromQueries: entry.removedFromQueries,
+                            leaseId: entry.leaseId,
+                            release: entry.release,
+                        });
+                    },
+                })
+            ) {
+                break;
+            }
+        }
     };
 
     const onGlobalKeyDown = (event: KeyboardEvent) => {
@@ -469,7 +572,9 @@ export function TaskPersonalView({
         withoutFirstRowBorderTop: true,
         isDragging,
         draggingData,
-        pushUndoStackEntry,
+        pushUndoStackEntry: entry => {
+            pushUndoStackEntry({...entry, extra: "Active"});
+        },
         scrollToAnchorPosition: () => {
             throw new UnimplementedError("NOCOMMIT");
         },
@@ -630,7 +735,9 @@ export function TaskPersonalView({
         withoutFirstRowBorderTop: true,
         isDragging,
         draggingData,
-        pushUndoStackEntry,
+        pushUndoStackEntry: entry => {
+            pushUndoStackEntry({...entry, extra: "Overdue"});
+        },
         scrollToAnchorPosition: () => {
             throw new UnimplementedError("NOCOMMIT");
         },
@@ -782,7 +889,9 @@ export function TaskPersonalView({
         withoutFirstRowBorderTop: true,
         isDragging,
         draggingData,
-        pushUndoStackEntry,
+        pushUndoStackEntry: entry => {
+            pushUndoStackEntry({...entry, extra: "DueToday"});
+        },
         scrollToAnchorPosition: () => {
             throw new UnimplementedError("NOCOMMIT");
         },
@@ -937,7 +1046,9 @@ export function TaskPersonalView({
         withoutFirstRowBorderTop: true,
         isDragging,
         draggingData,
-        pushUndoStackEntry,
+        pushUndoStackEntry: entry => {
+            pushUndoStackEntry({...entry, extra: "DueSoon"});
+        },
         scrollToAnchorPosition: () => {
             throw new UnimplementedError("NOCOMMIT");
         },
@@ -1051,7 +1162,9 @@ export function TaskPersonalView({
         withoutFirstRowBorderTop: true,
         isDragging,
         draggingData,
-        pushUndoStackEntry,
+        pushUndoStackEntry: entry => {
+            pushUndoStackEntry({...entry, extra: "Remaining"});
+        },
         scrollToAnchorPosition: () => {
             throw new UnimplementedError("NOCOMMIT");
         },

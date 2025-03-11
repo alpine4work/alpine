@@ -436,6 +436,7 @@ export function useTaskGridViewVirtualizedList(
                         pushRedoStackEntry({
                             type: "Actions",
                             rootParentTaskId: undoStackEntry.rootParentTaskId,
+                            extra: null,
                             undoActions: entry.undoActions,
                             removedFromQueries: entry.removedFromQueries,
                             leaseId: entry.leaseId,
@@ -461,6 +462,7 @@ export function useTaskGridViewVirtualizedList(
                         pushUndoStackEntryFromRedo({
                             type: "Actions",
                             rootParentTaskId: undoStackEntry.rootParentTaskId,
+                            extra: null,
                             undoActions: entry.undoActions,
                             removedFromQueries: entry.removedFromQueries,
                             leaseId: entry.leaseId,

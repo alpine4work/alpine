@@ -548,6 +548,7 @@ export function TaskDetailView({
                 pushUndoStackEntry({
                     type: "Actions",
                     rootParentTaskId: taskId,
+                    extra: null,
                     undoActions,
                     removedFromQueries,
                     leaseId,
