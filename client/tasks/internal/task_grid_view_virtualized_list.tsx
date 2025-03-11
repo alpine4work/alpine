@@ -77,6 +77,7 @@ import {
     TaskGridViewVirtualizedListViewRef,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list_types.js";
 import {TaskGridViewColumn, TaskRowViewRef} from "~/client/tasks/internal/task_row_view.js";
+import {usePreloadSearchTaskCollectionsByAffinity} from "~/client/tasks/internal/use_search_task_collections_by_affinity.js";
 import {useTaskGhostRowPlaceholderTutorial} from "~/client/tasks/internal/use_task_ghost_row_placeholder_tutorial.js";
 import {useTaskGridViewExpansionState} from "~/client/tasks/internal/use_task_grid_view_expansion_state.js";
 import {
@@ -668,6 +669,10 @@ export function useTaskGridViewVirtualizedListBase({
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
+
+    // If our grid view has columns then preload task collections so we don't show
+    // a loading spinner when selecting the task collection cell.
+    usePreloadSearchTaskCollectionsByAffinity({isDisabled: !capabilities.hasColumns});
 
     const mobileKeyboardToolbarPortalRef = useRef<HTMLDivElement>(null);
 
