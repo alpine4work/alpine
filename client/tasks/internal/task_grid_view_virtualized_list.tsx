@@ -1081,8 +1081,6 @@ export function useTaskGridViewVirtualizedListBase({
 
     // Clear the last arrow navigation X position whenever the user's caret moves
     // somewhere else.
-    //
-    // NOCOMMIT: I think this needs to be moved out of base?
     useEffect(() => {
         const clearLastArrowNavigationCoord = () => {
             if (
