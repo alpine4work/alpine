@@ -301,7 +301,6 @@ function TaskRowView(
         rowMaxWidth,
         disableExpensiveFeaturesDuringScroll,
         isFirstRow,
-        withoutFirstRowBorderTop,
         isFirstTaskInQuery,
         nextIndentation,
         titlePlaceholder,
@@ -346,7 +345,6 @@ function TaskRowView(
         rowMaxWidth: Spacing | null;
         disableExpensiveFeaturesDuringScroll: boolean;
         isFirstRow: boolean;
-        withoutFirstRowBorderTop: boolean;
         isFirstTaskInQuery: boolean;
         nextIndentation: number;
         titlePlaceholder?: string;
@@ -1452,10 +1450,10 @@ function TaskRowView(
                 // 1. Doesn't add 2px to layout
                 // 2. Adjacent borders share the same space so we don't get 2px dividers
                 boxShadow:
-                    // The columns in a grid view render a semi-translucent grey border. To avoid
-                    // drawing a border darker than `grey-5` at the top of the screen if this is the
-                    // first row in a grid with columns then only render a bottom border.
-                    isFirstRow && withoutFirstRowBorderTop
+                    // The column header in a grid view renders a semi-translucent grey border. To
+                    // avoid drawing a border darker than `grey-5` at the top of the screen if this
+                    // is the first row in a grid with columns then only render a bottom border.
+                    isFirstRow && capabilities.hasColumns
                         ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}`
                         : `0 1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
             }}

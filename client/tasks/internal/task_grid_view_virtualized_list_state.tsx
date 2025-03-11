@@ -23,7 +23,8 @@ import {
     getTaskQuerySortCursorTaskId,
 } from "~/shared/tasks/task_query_sort_cursor.js";
 
-const taskAnimationDurationMs = 100;
+// NOCOMMIT
+const taskAnimationDurationMs = 100 * 20;
 
 // HACK(calebmer): Hackishly get the constructor for a
 // `functional-red-black-tree` iterator so we can construct it since there's

@@ -152,14 +152,50 @@ const virtualizedScrollViewStateKeyByActiveQuery = new WeakMap<TaskClientQuery, 
 const zIndexesByTaskRowItemElement = new WeakMap<HTMLElement, Array<number>>();
 
 export type TaskGridViewVirtualizedListProps = {
+    /**
+     * Capabilities of the task grid view. These are common shared props we pass
+     * around to the grid view's children. For example, does the grid view have
+     * columns? If so, which columns are visible?
+     */
     capabilities: Memo<TaskGridViewCapabilities>;
+
+    /**
+     * Ref to the `<VirtualizedScrollView>` we render the virtualized list in. We
+     * only use a subset of methods on `VirtualizedScrollViewRef` which makes it
+     * easier to shift indexes around if we have other items in the virtualized
+     * scroll view above the grid view.
+     */
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef>;
+
+    /**
+     * The client store of task data.
+     */
     store: TaskClientStore;
+
+    /**
+     * The query rendered by the grid view and the initial expansion state stored
+     * on the server. Null if we're not currently rendering any query.
+     */
     query: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;
     } | null;
+
+    /**
+     * Contains a reference to the entity rendering the grid view so any
+     * interactions will add affinity score to the right entity on the backend.
+     */
     affinityManager: TaskClientStoreSearchAffinityManager;
+
+    /**
+     * Should return a list of actions that make the task visible in the query's
+     * filters at the provided position. For example, if this is a collection query
+     * then we'll add the task to the collection and set the collection position
+     * relative to whatever `position` was provided.
+     *
+     * Will be used when hitting `Enter` to create a new task or `Shift+Tab` to
+     * move a task out of a parent task and into the query.
+     */
     getMoveTaskToQueryActions: (
         taskId: TaskId,
         position:
@@ -168,28 +204,82 @@ export type TaskGridViewVirtualizedListProps = {
             | {type: "Above"; taskId: TaskId}
             | {type: "Below"; taskId: TaskId},
     ) => Array<TaskActionModel>;
+
+    /**
+     * Should return a list of actions that remove the task from the query's
+     * filters. For example, if this is a collection query then we'll remove the
+     * task from the collection.
+     *
+     * Will be used when hitting `Tab` to indent a task under the previous task
+     * which also removes the task from the grid view.
+     */
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
-    // We add this item key prefix to all "structural" items. For example the
-    // column header item and decorative task items. This is used by the personal
-    // task view which needs to render multiple virtualized lists at once. Tasks do
-    // not get this item key prefix since we want to easily be able to find a task
-    // by its `TaskId` regardless of the virtualized list it's in.
+
+    /**
+     * We add this item key prefix to all "structural" items. For example the
+     * column header item and decorative task items. This is used by the personal
+     * task view which needs to render multiple virtualized lists at once. Tasks do
+     * not get this item key prefix since we want to easily be able to find a task
+     * by its `TaskId` regardless of the virtualized list it's in.
+     */
     structuralItemKeyPrefix?: string;
+
+    /**
+     * Don't render a column header item even if `capabilities.hasColumns` is true.
+     * The caller is expected to render its own column header. You can use
+     * `<TaskGridViewColumnHeader>` if needed.
+     */
     withoutColumnHeader?: boolean;
-    withoutFirstRowBorderTop?: boolean;
+
+    /**
+     * Additional controls rendered in the column header item adding to its height.
+     * Useful for rendering filters that'll be sticky with the rest of the column
+     * header.
+     */
     columnHeaderControls?: Memo<{minHeight: RemLength | number; node: ReactNode}>;
+
+    /**
+     * The max width of a `<TaskRowView>`. Used by `<TaskDetailView>` to make sure
+     * the subtasks grid view is the same width as the rest of the detail view's
+     * content.
+     */
     rowMaxWidth?: Spacing | null;
+
+    /**
+     * Don't render the up to three decorative ghost row items if there's no tasks.
+     * If this is true and `withoutColumnHeader` is true then if there are no tasks
+     * in the query we should render zero items.
+     */
     withoutDecorativeGhostRowsIfEmpty?: boolean;
+
+    /**
+     * Is the top ghost task row visible immediately on mount? If false then you
+     * can call `showTopGhostTaskAndFocus()` to show the top ghost task.
+     */
     initiallyWithTopGhostTaskRow?: boolean;
+
+    /**
+     * Provide custom handling for the undo/redo stack entry. Important for
+     * `<TaskDetailView>` which needs to manually implement undo/redo handling for
+     * task notes.
+     */
     onApplyUndoStackEntry?: (options: {
         type: "Undo" | "Redo";
         entry: DistributiveOmit<TaskUndoStackEntry, "release">;
         target: {taskId: TaskId; column: TaskGridViewColumn};
         undoManager: TaskClientStoreUndoManager;
     }) => boolean;
+
+    // NOCOMMIT: Document
     getAnchorPosition?: Memo<
         (oldVisibleRect: {top: number; bottom: number}) => {top: number; height: number} | null
     >;
+
+    /**
+     * If this grid view is one of many in a list of grid view sections (for
+     * example, `<TaskPersonalView>`) then set this to the
+     * `TaskGridViewVirtualizedListResult` of the previous grid view.
+     */
     previousGridView?: {
         focusLastTaskTitleStart: () => void;
         focusLastTaskTitleEnd: () => void;
@@ -197,6 +287,12 @@ export type TaskGridViewVirtualizedListProps = {
         focusLastTaskTitleCoord: (coord: number) => void;
         focusLastTaskCell: (column: TaskGridViewColumn) => void;
     };
+
+    /**
+     * If this grid view is one of many in a list of grid view sections (for
+     * example, `<TaskPersonalView>`) then set this to the
+     * `TaskGridViewVirtualizedListResult` of the next grid view.
+     */
     nextGridView?: {
         focusFirstTaskTitleStart: () => void;
         focusFirstTaskTitleCoord: (coord: number) => void;
@@ -354,16 +450,27 @@ export type TaskGridViewVirtualizedListResult = {
     spacingScale: SpacingScale;
 
     /**
-     * (Optional) the number of `<TaskRowView>` items. Excludes ghost rows, load
-     * more indicators, and column headers.
-     */
-    taskItemCount: number;
-
-    /**
      * (Optional) The loaded state of the underlying task query. Same as
      * `useStore(query.loadedStateStore)`.
      */
     loadedState: "Unloaded" | "PartiallyLoaded" | "FullyLoaded";
+
+    /**
+     * (Optional) The underlying virtualized list state object.
+     */
+    state: TaskGridViewVirtualizedListState;
+
+    /**
+     * (Optional) the number of `<TaskRowView>` items. Excludes ghost rows, load
+     * more indicators, and column headers. Same as `state.getItemCount()`.
+     */
+    stateItemCount: number;
+
+    /**
+     * (Optional) The animations we're currently running on the grid view.
+     * Generated by diffing the current `state` with the previous `state`.
+     */
+    animations: ReadonlyArray<TaskGridViewVirtualizedListAnimation>;
 };
 
 /**
@@ -687,7 +794,6 @@ export function useTaskGridViewVirtualizedListBase({
     getMaybeRemoveTaskFromQueryActions: getMaybeRemoveTaskFromRootQueryActions,
     structuralItemKeyPrefix = "",
     withoutColumnHeader = false,
-    withoutFirstRowBorderTop: withoutFirstRowBorderTopProp = false,
     columnHeaderControls,
     rowMaxWidth = null,
     withoutDecorativeGhostRowsIfEmpty = false,
@@ -853,8 +959,6 @@ export function useTaskGridViewVirtualizedListBase({
 
     const hasColumnHeader: boolean =
         (capabilities.hasColumns && !withoutColumnHeader) || !!columnHeaderControls;
-    const withoutFirstRowBorderTop: boolean =
-        (capabilities.hasColumns && hasColumnHeader) || withoutFirstRowBorderTopProp;
     const itemCountBeforeState = (hasColumnHeader ? 1 : 0) + (hasTopGhostTask ? 1 : 0);
 
     const itemCount =
@@ -2013,13 +2117,14 @@ export function useTaskGridViewVirtualizedListBase({
     \* ========================================================================== */
 
     // NOCOMMIT: Animation state needs to be shared across grid views
-    const [animationState, setAnimationState] = useState<{
+    const [originalAnimationState, setAnimationState] = useState<{
         readonly state: TaskGridViewVirtualizedListState;
         readonly animations: ReadonlyArray<TaskGridViewVirtualizedListAnimation>;
     }>({
         state,
         animations: emptyArray,
     });
+    let animationState = originalAnimationState;
 
     // If our state changed then compute any animations from the state change and
     // update our state so we can start rendering these animations.
@@ -2037,10 +2142,11 @@ export function useTaskGridViewVirtualizedListBase({
             }
         }
 
-        setAnimationState({
+        animationState = {
             state,
             animations: newAnimations ?? animationState.animations,
-        });
+        };
+        setAnimationState(animationState);
     }
 
     // Cleanup animations from our state when they finish.
@@ -2445,7 +2551,6 @@ export function useTaskGridViewVirtualizedListBase({
                                             !isDragging && disableExpensiveFeaturesDuringScroll
                                         }
                                         isFirstRow={true}
-                                        withoutFirstRowBorderTop={withoutFirstRowBorderTop}
                                         // The ghost row is not a task in the query so always report as false.
                                         isFirstTaskInQuery={false}
                                         nextIndentation={0}
@@ -2538,7 +2643,6 @@ export function useTaskGridViewVirtualizedListBase({
                                             !isDragging && disableExpensiveFeaturesDuringScroll
                                         }
                                         isFirstRow={!hasTopGhostTask && stateItemCount === 0}
-                                        withoutFirstRowBorderTop={withoutFirstRowBorderTop}
                                         // The ghost row is not a task in the query so always report as false.
                                         isFirstTaskInQuery={false}
                                         nextIndentation={0}
@@ -2591,7 +2695,6 @@ export function useTaskGridViewVirtualizedListBase({
                             hasColumnHeader={hasColumnHeader}
                             relativeItemIndex={relativeItemIndex}
                             isFirstRow={!hasTopGhostTask && itemIndex - itemCountBeforeState === 0}
-                            withoutFirstRowBorderTop={withoutFirstRowBorderTop}
                             withPaddingBottom={itemIndex === itemCount - 1}
                             focusPreviousTaskTitleEnd={events.focusPreviousTaskTitleEnd}
                             focusPreviousTaskTitleAll={events.focusPreviousTaskTitleAll}
@@ -2634,7 +2737,6 @@ export function useTaskGridViewVirtualizedListBase({
                                 isFirstRow={
                                     !hasTopGhostTask && itemIndex - itemCountBeforeState === 0
                                 }
-                                withoutFirstRowBorderTop={withoutFirstRowBorderTop}
                                 isFirstTaskInQuery={item.isFirstTaskInQuery}
                                 nextIndentation={
                                     itemIndex + 1 < itemCountBeforeState + stateItemCount
@@ -2720,7 +2822,6 @@ export function useTaskGridViewVirtualizedListBase({
         toggleAreChildTasksExpanded,
         topGhostTaskId,
         viewRef,
-        withoutFirstRowBorderTop,
     ]);
 
     const onLayoutEffectCallbacksRef = useRef<Array<() => void>>([]);
@@ -2740,8 +2841,6 @@ export function useTaskGridViewVirtualizedListBase({
         stateKey,
         bufferedItemHeight: spacing[taskRowViewMinHeight],
         itemCount,
-        taskItemCount: stateItemCount,
-        loadedState,
         renderItem,
         onRenderedRangeChange: tryLoadingMoreData,
         onRenderedRangeLayoutChange: (
@@ -2794,6 +2893,10 @@ export function useTaskGridViewVirtualizedListBase({
         focusFirstTaskCell: events.focusFirstTaskCell,
         showTopGhostTaskAndFocus: events.showTopGhostTaskAndFocus,
         spacingScale,
+        loadedState,
+        state,
+        stateItemCount,
+        animations: animationState.animations,
         applyUndoStackEntry,
     };
 }

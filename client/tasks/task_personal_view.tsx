@@ -569,7 +569,7 @@ export function TaskPersonalView({
             },
         ],
         withoutColumnHeader: true,
-        withoutFirstRowBorderTop: true,
+        withoutDecorativeGhostRowsIfEmpty: true,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
@@ -616,7 +616,7 @@ export function TaskPersonalView({
     });
 
     const isActiveGridViewEmpty =
-        activeGridViewResult.taskItemCount === 0 &&
+        activeGridViewResult.stateItemCount === 0 &&
         activeGridViewResult.loadedState === "FullyLoaded";
 
     if (isActiveGridViewEmpty) {
@@ -732,7 +732,7 @@ export function TaskPersonalView({
             },
         ],
         withoutColumnHeader: true,
-        withoutFirstRowBorderTop: true,
+        withoutDecorativeGhostRowsIfEmpty: true,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
@@ -774,7 +774,7 @@ export function TaskPersonalView({
     });
 
     const isOverdueGridViewEmpty =
-        overdueGridViewResult.taskItemCount === 0 &&
+        overdueGridViewResult.stateItemCount === 0 &&
         overdueGridViewResult.loadedState === "FullyLoaded";
 
     if (isOverdueGridViewEmpty) {
@@ -886,7 +886,7 @@ export function TaskPersonalView({
             },
         ],
         withoutColumnHeader: true,
-        withoutFirstRowBorderTop: true,
+        withoutDecorativeGhostRowsIfEmpty: true,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
@@ -926,7 +926,7 @@ export function TaskPersonalView({
     });
 
     const isDueTodayGridViewEmpty =
-        dueTodayGridViewResult.taskItemCount === 0 &&
+        dueTodayGridViewResult.stateItemCount === 0 &&
         dueTodayGridViewResult.loadedState === "FullyLoaded";
 
     if (isDueTodayGridViewEmpty) {
@@ -1043,7 +1043,7 @@ export function TaskPersonalView({
             },
         ],
         withoutColumnHeader: true,
-        withoutFirstRowBorderTop: true,
+        withoutDecorativeGhostRowsIfEmpty: true,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
@@ -1073,7 +1073,7 @@ export function TaskPersonalView({
     });
 
     const isDueSoonGridViewEmpty =
-        dueSoonGridViewResult.taskItemCount === 0 &&
+        dueSoonGridViewResult.stateItemCount === 0 &&
         dueSoonGridViewResult.loadedState === "FullyLoaded";
 
     if (isDueSoonGridViewEmpty) {
@@ -1159,7 +1159,7 @@ export function TaskPersonalView({
             },
         ],
         withoutColumnHeader: true,
-        withoutFirstRowBorderTop: true,
+        withoutDecorativeGhostRowsIfEmpty: true,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
