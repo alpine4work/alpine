@@ -10,7 +10,7 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
@@ -50,6 +50,7 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
         limit: number;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
     } = {
         limit: getTaskGridViewLoadQueryLimit(context.loader.getClientInfo()),
 
@@ -73,12 +74,15 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
                 missing: "Last",
             },
         ],
+
+        shouldLoadGridViewExpandedChildTasksForBrowserId: context.loader.getBrowserId(),
     };
 
     const overdueQuery: {
         limit: number;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
     } = {
         limit: getTaskGridViewLoadQueryLimit(context.loader.getClientInfo()),
 
@@ -107,12 +111,15 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
                 missing: "Last",
             },
         ],
+
+        shouldLoadGridViewExpandedChildTasksForBrowserId: context.loader.getBrowserId(),
     };
 
     const dueTodayQuery: {
         limit: number;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
     } = {
         limit: getTaskGridViewLoadQueryLimit(context.loader.getClientInfo()),
 
@@ -141,12 +148,15 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
                 missing: "Last",
             },
         ],
+
+        shouldLoadGridViewExpandedChildTasksForBrowserId: context.loader.getBrowserId(),
     };
 
     const dueSoonQuery: {
         limit: number;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
     } = {
         limit: getTaskGridViewLoadQueryLimit(context.loader.getClientInfo()),
 
@@ -175,12 +185,15 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
                 missing: "Last",
             },
         ],
+
+        shouldLoadGridViewExpandedChildTasksForBrowserId: context.loader.getBrowserId(),
     };
 
     const remainingQuery: {
         limit: number;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
     } = {
         limit: getTaskGridViewLoadQueryLimit(context.loader.getClientInfo()),
 
@@ -209,6 +222,8 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
                 missing: "Last",
             },
         ],
+
+        shouldLoadGridViewExpandedChildTasksForBrowserId: context.loader.getBrowserId(),
     };
 
     const {queries, extraQueries, updateEvent} = await context.tasks.loadQueries(spaceId, {
