@@ -77,6 +77,14 @@ export type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly focusLastVisibleTaskTitleEnd: () => void;
     readonly focusLastVisibleTaskCell: (column: TaskGridViewColumn) => void;
     readonly scrollLastVisiblePageDownTaskIntoView: () => Promise<TaskRowViewRef | null>;
+    readonly focusLastTaskTitleStart: () => void;
+    readonly focusLastTaskTitleEnd: () => void;
+    readonly focusLastTaskTitleAll: () => void;
+    readonly focusLastTaskTitleCoord: (coord: number) => void;
+    readonly focusLastTaskCell: (column: TaskGridViewColumn) => void;
+    readonly focusFirstTaskTitleStart: () => void;
+    readonly focusFirstTaskTitleCoord: (coord: number) => void;
+    readonly focusFirstTaskCell: (column: TaskGridViewColumn) => void;
     readonly setTaskRowZIndex: (gridKey: TaskGridViewTaskKey, zIndex: number) => () => void;
     readonly scrollToAnchorPosition: () => void;
 }>;

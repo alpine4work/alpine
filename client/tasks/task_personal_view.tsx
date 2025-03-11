@@ -72,7 +72,6 @@ type TaskPersonalViewVisibleSection = "Active" | "Overdue" | "DueToday" | "DueSo
 
 const initialTaskPersonalViewVisibleSectionState = {section: null, previousSections: emptySet};
 
-// NOCOMMIT: Arrow key navigation between sections
 export function TaskPersonalView({
     store,
     activeQuery,
@@ -474,6 +473,41 @@ export function TaskPersonalView({
         scrollToAnchorPosition: () => {
             throw new UnimplementedError("NOCOMMIT");
         },
+        nextGridView: {
+            focusFirstTaskTitleStart: () => {
+                if (!isOverdueGridViewEmpty) {
+                    overdueGridViewResult.focusFirstTaskTitleStart();
+                } else if (!isDueTodayGridViewEmpty) {
+                    dueTodayGridViewResult.focusFirstTaskTitleStart();
+                } else if (!isDueSoonGridViewEmpty) {
+                    dueSoonGridViewResult.focusFirstTaskTitleStart();
+                } else {
+                    remainingGridViewResult.focusFirstTaskTitleStart();
+                }
+            },
+            focusFirstTaskTitleCoord: coord => {
+                if (!isOverdueGridViewEmpty) {
+                    overdueGridViewResult.focusFirstTaskTitleCoord(coord);
+                } else if (!isDueTodayGridViewEmpty) {
+                    dueTodayGridViewResult.focusFirstTaskTitleCoord(coord);
+                } else if (!isDueSoonGridViewEmpty) {
+                    dueSoonGridViewResult.focusFirstTaskTitleCoord(coord);
+                } else {
+                    remainingGridViewResult.focusFirstTaskTitleCoord(coord);
+                }
+            },
+            focusFirstTaskCell: column => {
+                if (!isOverdueGridViewEmpty) {
+                    overdueGridViewResult.focusFirstTaskCell(column);
+                } else if (!isDueTodayGridViewEmpty) {
+                    dueTodayGridViewResult.focusFirstTaskCell(column);
+                } else if (!isDueSoonGridViewEmpty) {
+                    dueSoonGridViewResult.focusFirstTaskCell(column);
+                } else {
+                    remainingGridViewResult.focusFirstTaskCell(column);
+                }
+            },
+        },
     });
 
     const isActiveGridViewEmpty =
@@ -600,6 +634,36 @@ export function TaskPersonalView({
         scrollToAnchorPosition: () => {
             throw new UnimplementedError("NOCOMMIT");
         },
+        previousGridView: !isActiveGridViewEmpty ? activeGridViewResult : undefined,
+        nextGridView: {
+            focusFirstTaskTitleStart: () => {
+                if (!isDueTodayGridViewEmpty) {
+                    dueTodayGridViewResult.focusFirstTaskTitleStart();
+                } else if (!isDueSoonGridViewEmpty) {
+                    dueSoonGridViewResult.focusFirstTaskTitleStart();
+                } else {
+                    remainingGridViewResult.focusFirstTaskTitleStart();
+                }
+            },
+            focusFirstTaskTitleCoord: coord => {
+                if (!isDueTodayGridViewEmpty) {
+                    dueTodayGridViewResult.focusFirstTaskTitleCoord(coord);
+                } else if (!isDueSoonGridViewEmpty) {
+                    dueSoonGridViewResult.focusFirstTaskTitleCoord(coord);
+                } else {
+                    remainingGridViewResult.focusFirstTaskTitleCoord(coord);
+                }
+            },
+            focusFirstTaskCell: column => {
+                if (!isDueTodayGridViewEmpty) {
+                    dueTodayGridViewResult.focusFirstTaskCell(column);
+                } else if (!isDueSoonGridViewEmpty) {
+                    dueSoonGridViewResult.focusFirstTaskCell(column);
+                } else {
+                    remainingGridViewResult.focusFirstTaskCell(column);
+                }
+            },
+        },
     });
 
     const isOverdueGridViewEmpty =
@@ -721,6 +785,34 @@ export function TaskPersonalView({
         pushUndoStackEntry,
         scrollToAnchorPosition: () => {
             throw new UnimplementedError("NOCOMMIT");
+        },
+        previousGridView: !isOverdueGridViewEmpty
+            ? overdueGridViewResult
+            : !isActiveGridViewEmpty
+            ? activeGridViewResult
+            : undefined,
+        nextGridView: {
+            focusFirstTaskTitleStart: () => {
+                if (!isDueSoonGridViewEmpty) {
+                    dueSoonGridViewResult.focusFirstTaskTitleStart();
+                } else {
+                    remainingGridViewResult.focusFirstTaskTitleStart();
+                }
+            },
+            focusFirstTaskTitleCoord: coord => {
+                if (!isDueSoonGridViewEmpty) {
+                    dueSoonGridViewResult.focusFirstTaskTitleCoord(coord);
+                } else {
+                    remainingGridViewResult.focusFirstTaskTitleCoord(coord);
+                }
+            },
+            focusFirstTaskCell: column => {
+                if (!isDueSoonGridViewEmpty) {
+                    dueSoonGridViewResult.focusFirstTaskCell(column);
+                } else {
+                    remainingGridViewResult.focusFirstTaskCell(column);
+                }
+            },
         },
     });
 
@@ -849,6 +941,24 @@ export function TaskPersonalView({
         scrollToAnchorPosition: () => {
             throw new UnimplementedError("NOCOMMIT");
         },
+        previousGridView: !isDueTodayGridViewEmpty
+            ? dueTodayGridViewResult
+            : !isOverdueGridViewEmpty
+            ? overdueGridViewResult
+            : !isActiveGridViewEmpty
+            ? activeGridViewResult
+            : undefined,
+        nextGridView: {
+            focusFirstTaskTitleStart: () => {
+                remainingGridViewResult.focusFirstTaskTitleStart();
+            },
+            focusFirstTaskTitleCoord: coord => {
+                remainingGridViewResult.focusFirstTaskTitleCoord(coord);
+            },
+            focusFirstTaskCell: column => {
+                remainingGridViewResult.focusFirstTaskCell(column);
+            },
+        },
     });
 
     const isDueSoonGridViewEmpty =
@@ -945,6 +1055,15 @@ export function TaskPersonalView({
         scrollToAnchorPosition: () => {
             throw new UnimplementedError("NOCOMMIT");
         },
+        previousGridView: !isDueSoonGridViewEmpty
+            ? dueSoonGridViewResult
+            : !isDueTodayGridViewEmpty
+            ? dueTodayGridViewResult
+            : !isOverdueGridViewEmpty
+            ? overdueGridViewResult
+            : !isActiveGridViewEmpty
+            ? activeGridViewResult
+            : undefined,
     });
 
     if (

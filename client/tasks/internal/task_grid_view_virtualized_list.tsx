@@ -190,6 +190,18 @@ export type TaskGridViewVirtualizedListProps = {
     getAnchorPosition?: Memo<
         (oldVisibleRect: {top: number; bottom: number}) => {top: number; height: number} | null
     >;
+    previousGridView?: {
+        focusLastTaskTitleStart: () => void;
+        focusLastTaskTitleEnd: () => void;
+        focusLastTaskTitleAll: () => void;
+        focusLastTaskTitleCoord: (coord: number) => void;
+        focusLastTaskCell: (column: TaskGridViewColumn) => void;
+    };
+    nextGridView?: {
+        focusFirstTaskTitleStart: () => void;
+        focusFirstTaskTitleCoord: (coord: number) => void;
+        focusFirstTaskCell: (column: TaskGridViewColumn) => void;
+    };
 };
 
 export type TaskGridViewVirtualizedListResult = {
@@ -263,6 +275,48 @@ export type TaskGridViewVirtualizedListResult = {
      * (Optional) Focuses the end of the grid view.
      */
     focusEnd: Memo<() => void>;
+
+    /**
+     * (Optional) Focuses the start of the last task title in the grid view.
+     */
+    focusLastTaskTitleStart: () => void;
+
+    /**
+     * (Optional) Focuses the end of the last task title in the grid view.
+     */
+    focusLastTaskTitleEnd: () => void;
+
+    /**
+     * (Optional) Focuses all the text in the last task title in the grid view.
+     */
+    focusLastTaskTitleAll: () => void;
+
+    /**
+     * (Optional) Focuses an X coordinate position in the last task title in the
+     * grid view.
+     */
+    focusLastTaskTitleCoord: (coord: number) => void;
+
+    /**
+     * (Optional) Focuses a column in the last task title in the grid view.
+     */
+    focusLastTaskCell: (column: TaskGridViewColumn) => void;
+
+    /**
+     * (Optional) Focuses the start of the first task title in the grid view.
+     */
+    focusFirstTaskTitleStart: () => void;
+
+    /**
+     * (Optional) Focuses an X coordinate position in the first task title in the
+     * grid view.
+     */
+    focusFirstTaskTitleCoord: (coord: number) => void;
+
+    /**
+     * (Optional) Focuses a column in the first task title in the grid view.
+     */
+    focusFirstTaskCell: (column: TaskGridViewColumn) => void;
 
     /**
      * (Optional) Makes sure the top ghost task is visible and focuses it.
@@ -642,6 +696,8 @@ export function useTaskGridViewVirtualizedListBase({
     draggingData,
     pushUndoStackEntry: pushUndoStackEntryFromProps,
     scrollToAnchorPosition: scrollToAnchorPositionFromProps,
+    previousGridView,
+    nextGridView,
 }: Omit<TaskGridViewVirtualizedListProps, "getAnchorPosition"> & {
     stateKey?: string;
     isDragging: boolean;
@@ -1286,24 +1342,38 @@ export function useTaskGridViewVirtualizedListBase({
         focusPreviousTaskTitleEnd: (key: Key) => {
             const itemIndex = assertExists(viewRef.current?.getIndexByKeyIfExists(key));
 
+            let hasFocused = false;
+
             for (let index = itemIndex - 1; index >= 0; index--) {
                 const taskRow = events.getTaskRowByIndexIfExists(index);
                 if (!taskRow) continue;
 
+                hasFocused = true;
                 taskRow.focusTitleEnd();
                 break;
+            }
+
+            if (!hasFocused) {
+                previousGridView?.focusLastTaskTitleEnd();
             }
         },
 
         focusPreviousTaskTitleAll: (key: Key) => {
             const itemIndex = assertExists(viewRef.current?.getIndexByKeyIfExists(key));
 
+            let hasFocused = false;
+
             for (let index = itemIndex - 1; index >= 0; index--) {
                 const taskRow = events.getTaskRowByIndexIfExists(index);
                 if (!taskRow) continue;
 
+                hasFocused = true;
                 taskRow.focusTitleAll();
                 break;
+            }
+
+            if (!hasFocused) {
+                previousGridView?.focusLastTaskTitleAll();
             }
         },
 
@@ -1326,12 +1396,19 @@ export function useTaskGridViewVirtualizedListBase({
                 viewRef.current?.getIndexByKeyIfExists(`Task:${gridKey}`),
             );
 
+            let hasFocused = false;
+
             for (let index = itemIndex + 1; index < itemCount; index++) {
                 const taskRow = events.getTaskRowByIndexIfExists(index);
                 if (!taskRow) continue;
 
+                hasFocused = true;
                 taskRow.focusTitleCoord(coord, "top");
                 break;
+            }
+
+            if (!hasFocused) {
+                nextGridView?.focusFirstTaskTitleCoord(coord);
             }
 
             lastArrowNavigationCoordRef.current = {
@@ -1351,12 +1428,19 @@ export function useTaskGridViewVirtualizedListBase({
                 viewRef.current?.getIndexByKeyIfExists(`Task:${gridKey}`),
             );
 
+            let hasFocused = false;
+
             for (let index = itemIndex - 1; index >= 0; index--) {
                 const taskRow = events.getTaskRowByIndexIfExists(index);
                 if (!taskRow) continue;
 
+                hasFocused = true;
                 taskRow.focusTitleCoord(coord, "bottom");
                 break;
+            }
+
+            if (!hasFocused) {
+                previousGridView?.focusLastTaskTitleCoord(coord);
             }
 
             lastArrowNavigationCoordRef.current = {
@@ -1370,12 +1454,19 @@ export function useTaskGridViewVirtualizedListBase({
                 viewRef.current?.getIndexByKeyIfExists(`Task:${gridKey}`),
             );
 
+            let hasFocused = false;
+
             for (let index = itemIndex + 1; index < itemCount; index++) {
                 const taskRow = events.getTaskRowByIndexIfExists(index);
                 if (!taskRow) continue;
 
+                hasFocused = true;
                 taskRow.focusCell(column);
                 break;
+            }
+
+            if (!hasFocused) {
+                nextGridView?.focusFirstTaskCell(column);
             }
         },
 
@@ -1384,12 +1475,19 @@ export function useTaskGridViewVirtualizedListBase({
                 viewRef.current?.getIndexByKeyIfExists(`Task:${gridKey}`),
             );
 
+            let hasFocused = false;
+
             for (let index = itemIndex - 1; index >= 0; index--) {
                 const taskRow = events.getTaskRowByIndexIfExists(index);
                 if (!taskRow) continue;
 
+                hasFocused = true;
                 taskRow.focusCell(column);
                 break;
+            }
+
+            if (!hasFocused) {
+                previousGridView?.focusLastTaskCell(column);
             }
         },
 
@@ -1409,13 +1507,28 @@ export function useTaskGridViewVirtualizedListBase({
             // If the first visible task title is already focused then we want to scroll
             // one page up and focus the first task after scrolling.
             if (firstVisibleTaskRow.isFocusWithin()) {
+                let firstTaskRow: TaskRowViewRef | null = null;
+                for (let index = 0; index < itemCount; index++) {
+                    const taskRow = events.getTaskRowByIndexIfExists(index);
+                    if (!taskRow) continue;
+
+                    firstTaskRow = taskRow;
+                    break;
+                }
+
+                if (firstTaskRow === firstVisibleTaskRow) {
+                    previousGridView?.focusLastTaskTitleStart();
+                    return;
+                }
+
                 runPromiseWithoutAwaiting(async () => {
                     const firstVisibleTaskRow = await events.scrollFirstVisiblePageUpTaskIntoView();
                     firstVisibleTaskRow?.focusTitleStart();
                 });
-            } else {
-                firstVisibleTaskRow.focusTitleStart();
+                return;
             }
+
+            firstVisibleTaskRow.focusTitleStart();
         },
 
         focusFirstVisibleTaskCell: (column: TaskGridViewColumn) => {
@@ -1425,13 +1538,28 @@ export function useTaskGridViewVirtualizedListBase({
             // If the first visible task title is already focused then we want to scroll
             // one page up and focus the first task after scrolling.
             if (firstVisibleTaskRow.isFocusWithin()) {
+                let firstTaskRow: TaskRowViewRef | null = null;
+                for (let index = 0; index < itemCount; index++) {
+                    const taskRow = events.getTaskRowByIndexIfExists(index);
+                    if (!taskRow) continue;
+
+                    firstTaskRow = taskRow;
+                    break;
+                }
+
+                if (firstTaskRow === firstVisibleTaskRow) {
+                    previousGridView?.focusLastTaskCell(column);
+                    return;
+                }
+
                 runPromiseWithoutAwaiting(async () => {
                     const firstVisibleTaskRow = await events.scrollFirstVisiblePageUpTaskIntoView();
                     firstVisibleTaskRow?.focusCell(column);
                 });
-            } else {
-                firstVisibleTaskRow.focusCell(column);
+                return;
             }
+
+            firstVisibleTaskRow.focusCell(column);
         },
 
         getFirstVisibleTaskRowIfExists: (): TaskRowViewRef | null => {
@@ -1454,15 +1582,12 @@ export function useTaskGridViewVirtualizedListBase({
                 // `Math.max(columnHeaderPosition?.height ?? 0)` for `<TaskRowTitleInput>`s
                 // `scrollMarginTop` too.
                 columnHeaderPosition?.height ?? 0,
-                // Same as `scrollMarginTop` in `<TaskRowTitleInput>`.
-                taskRowTitleInputPaddingYPx[spacingScale] +
-                    convertRemLengthToPx(spacing["4"], spacingScale) +
-                    (platform === "mobile"
-                        ? convertRemLengthToPx(navigationBarHeight, spacingScale)
-                        : convertRemLengthToPx(
-                              addRemLengths(navigationBarHeight, taskGridViewColumnHeaderHeight),
-                              spacingScale,
-                          )),
+                platform === "mobile"
+                    ? convertRemLengthToPx(navigationBarHeight, spacingScale)
+                    : convertRemLengthToPx(
+                          addRemLengths(navigationBarHeight, taskGridViewColumnHeaderHeight),
+                          spacingScale,
+                      ),
             );
 
             const effectiveHeight = view.getHeight() - scrollMarginTop;
@@ -1511,15 +1636,12 @@ export function useTaskGridViewVirtualizedListBase({
                 // `Math.max(columnHeaderPosition?.height ?? 0)` for `<TaskRowTitleInput>`s
                 // `scrollMarginTop` too.
                 columnHeaderPosition?.height ?? 0,
-                // Same as `scrollMarginTop` in `<TaskRowTitleInput>`.
-                taskRowTitleInputPaddingYPx[spacingScale] +
-                    convertRemLengthToPx(spacing["4"], spacingScale) +
-                    (platform === "mobile"
-                        ? convertRemLengthToPx(navigationBarHeight, spacingScale)
-                        : convertRemLengthToPx(
-                              addRemLengths(navigationBarHeight, taskGridViewColumnHeaderHeight),
-                              spacingScale,
-                          )),
+                platform === "mobile"
+                    ? convertRemLengthToPx(navigationBarHeight, spacingScale)
+                    : convertRemLengthToPx(
+                          addRemLengths(navigationBarHeight, taskGridViewColumnHeaderHeight),
+                          spacingScale,
+                      ),
             );
 
             const height = view.getHeight();
@@ -1573,13 +1695,28 @@ export function useTaskGridViewVirtualizedListBase({
             // If the last visible task title is already focused then we want to scroll
             // one page down and focus the last task after scrolling.
             if (lastVisibleTaskRow.isFocusWithin()) {
+                let lastTaskRow: TaskRowViewRef | null = null;
+                for (let index = itemCount - 1; index >= 0; index--) {
+                    const taskRow = events.getTaskRowByIndexIfExists(index);
+                    if (!taskRow) continue;
+
+                    lastTaskRow = taskRow;
+                    break;
+                }
+
+                if (lastTaskRow === lastVisibleTaskRow) {
+                    nextGridView?.focusFirstTaskTitleStart();
+                    return;
+                }
+
                 runPromiseWithoutAwaiting(async () => {
                     const lastVisibleTaskRow = await events.scrollLastVisiblePageDownTaskIntoView();
                     lastVisibleTaskRow?.focusTitleEnd();
                 });
-            } else {
-                lastVisibleTaskRow.focusTitleEnd();
+                return;
             }
+
+            lastVisibleTaskRow.focusTitleEnd();
         },
 
         focusLastVisibleTaskCell: (column: TaskGridViewColumn) => {
@@ -1589,13 +1726,28 @@ export function useTaskGridViewVirtualizedListBase({
             // If the last visible task title is already focused then we want to scroll
             // one page down and focus the last task after scrolling.
             if (lastVisibleTaskRow.isFocusWithin()) {
+                let lastTaskRow: TaskRowViewRef | null = null;
+                for (let index = itemCount - 1; index >= 0; index--) {
+                    const taskRow = events.getTaskRowByIndexIfExists(index);
+                    if (!taskRow) continue;
+
+                    lastTaskRow = taskRow;
+                    break;
+                }
+
+                if (lastTaskRow === lastVisibleTaskRow) {
+                    nextGridView?.focusFirstTaskCell(column);
+                    return;
+                }
+
                 runPromiseWithoutAwaiting(async () => {
                     const lastVisibleTaskRow = await events.scrollLastVisiblePageDownTaskIntoView();
                     lastVisibleTaskRow?.focusCell(column);
                 });
-            } else {
-                lastVisibleTaskRow.focusCell(column);
+                return;
             }
+
+            lastVisibleTaskRow.focusCell(column);
         },
 
         getLastVisibleTaskRowIfExists: (): TaskRowViewRef | null => {
@@ -1727,6 +1879,96 @@ export function useTaskGridViewVirtualizedListBase({
                         resolve(lastVisibleTaskRow);
                     });
                 });
+            }
+        },
+
+        focusLastTaskTitleStart: () => {
+            for (let index = itemCount - 1; index >= 0; index--) {
+                const taskRow = events.getTaskRowByIndexIfExists(index);
+                if (!taskRow) continue;
+
+                taskRow.focusTitleStart();
+                break;
+            }
+        },
+
+        focusLastTaskTitleEnd: () => {
+            for (let index = itemCount - 1; index >= 0; index--) {
+                const taskRow = events.getTaskRowByIndexIfExists(index);
+                if (!taskRow) continue;
+
+                taskRow.focusTitleEnd();
+                break;
+            }
+        },
+
+        focusLastTaskTitleAll: () => {
+            for (let index = itemCount - 1; index >= 0; index--) {
+                const taskRow = events.getTaskRowByIndexIfExists(index);
+                if (!taskRow) continue;
+
+                taskRow.focusTitleAll();
+                break;
+            }
+        },
+
+        focusLastTaskTitleCoord: coord => {
+            for (let index = itemCount - 1; index >= 0; index--) {
+                const taskRow = events.getTaskRowByIndexIfExists(index);
+                if (!taskRow) continue;
+
+                taskRow.focusTitleCoord(coord, "bottom");
+                break;
+            }
+
+            lastArrowNavigationCoordRef.current = {
+                setTime: new Date(),
+                coord,
+            };
+        },
+
+        focusLastTaskCell: column => {
+            for (let index = itemCount - 1; index >= 0; index--) {
+                const taskRow = events.getTaskRowByIndexIfExists(index);
+                if (!taskRow) continue;
+
+                taskRow.focusCell(column);
+                break;
+            }
+        },
+
+        focusFirstTaskTitleStart: () => {
+            for (let index = 0; index < itemCount; index++) {
+                const taskRow = events.getTaskRowByIndexIfExists(index);
+                if (!taskRow) continue;
+
+                taskRow.focusTitleStart();
+                break;
+            }
+        },
+
+        focusFirstTaskTitleCoord: coord => {
+            for (let index = 0; index < itemCount; index++) {
+                const taskRow = events.getTaskRowByIndexIfExists(index);
+                if (!taskRow) continue;
+
+                taskRow.focusTitleCoord(coord, "top");
+                break;
+            }
+
+            lastArrowNavigationCoordRef.current = {
+                setTime: new Date(),
+                coord,
+            };
+        },
+
+        focusFirstTaskCell: column => {
+            for (let index = 0; index < itemCount; index++) {
+                const taskRow = events.getTaskRowByIndexIfExists(index);
+                if (!taskRow) continue;
+
+                taskRow.focusCell(column);
+                break;
             }
         },
 
@@ -2542,6 +2784,14 @@ export function useTaskGridViewVirtualizedListBase({
         ),
         focusStart: events.focusStart,
         focusEnd: events.focusEnd,
+        focusLastTaskTitleStart: events.focusLastTaskTitleStart,
+        focusLastTaskTitleEnd: events.focusLastTaskTitleEnd,
+        focusLastTaskTitleAll: events.focusLastTaskTitleAll,
+        focusLastTaskTitleCoord: events.focusLastTaskTitleCoord,
+        focusLastTaskCell: events.focusLastTaskCell,
+        focusFirstTaskTitleStart: events.focusFirstTaskTitleStart,
+        focusFirstTaskTitleCoord: events.focusFirstTaskTitleCoord,
+        focusFirstTaskCell: events.focusFirstTaskCell,
         showTopGhostTaskAndFocus: events.showTopGhostTaskAndFocus,
         spacingScale,
         applyUndoStackEntry,
