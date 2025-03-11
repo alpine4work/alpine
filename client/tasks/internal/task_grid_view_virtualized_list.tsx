@@ -16,6 +16,7 @@ import {
     useState,
 } from "react";
 import {useAppContext} from "~/client/context/app_context.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
@@ -36,6 +37,7 @@ import {tasksStyles} from "~/client/styles/styles.js";
 import {
     taskGridViewColumnHeaderExtraPaddingBottomPx,
     taskGridViewColumnHeaderHeight,
+    taskRowTitleInputPaddingYPx,
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
 import {
@@ -1444,9 +1446,27 @@ export function useTaskGridViewVirtualizedListBase({
                 `${structuralItemKeyPrefix}ColumnHeader`,
             );
 
-            const effectiveHeight = view.getHeight() - (columnHeaderPosition?.height ?? 0);
-            const effectiveScrollOffset =
-                view.getScrollOffset() + (columnHeaderPosition?.height ?? 0);
+            const scrollMarginTop = Math.max(
+                // In case the column header controls make the column header bigger than the
+                // default expected height of navigation bar height plus column header height.
+                //
+                // TODO(calebmer): We should probably add
+                // `Math.max(columnHeaderPosition?.height ?? 0)` for `<TaskRowTitleInput>`s
+                // `scrollMarginTop` too.
+                columnHeaderPosition?.height ?? 0,
+                // Same as `scrollMarginTop` in `<TaskRowTitleInput>`.
+                taskRowTitleInputPaddingYPx[spacingScale] +
+                    convertRemLengthToPx(spacing["4"], spacingScale) +
+                    (platform === "mobile"
+                        ? convertRemLengthToPx(navigationBarHeight, spacingScale)
+                        : convertRemLengthToPx(
+                              addRemLengths(navigationBarHeight, taskGridViewColumnHeaderHeight),
+                              spacingScale,
+                          )),
+            );
+
+            const effectiveHeight = view.getHeight() - scrollMarginTop;
+            const effectiveScrollOffset = view.getScrollOffset() + scrollMarginTop;
 
             for (let index = renderedRange.startIndex; index <= renderedRange.endIndex; index++) {
                 const position = view.getPositionByIndex(index);
@@ -1483,10 +1503,29 @@ export function useTaskGridViewVirtualizedListBase({
                 `${structuralItemKeyPrefix}ColumnHeader`,
             );
 
+            const scrollMarginTop = Math.max(
+                // In case the column header controls make the column header bigger than the
+                // default expected height of navigation bar height plus column header height.
+                //
+                // TODO(calebmer): We should probably add
+                // `Math.max(columnHeaderPosition?.height ?? 0)` for `<TaskRowTitleInput>`s
+                // `scrollMarginTop` too.
+                columnHeaderPosition?.height ?? 0,
+                // Same as `scrollMarginTop` in `<TaskRowTitleInput>`.
+                taskRowTitleInputPaddingYPx[spacingScale] +
+                    convertRemLengthToPx(spacing["4"], spacingScale) +
+                    (platform === "mobile"
+                        ? convertRemLengthToPx(navigationBarHeight, spacingScale)
+                        : convertRemLengthToPx(
+                              addRemLengths(navigationBarHeight, taskGridViewColumnHeaderHeight),
+                              spacingScale,
+                          )),
+            );
+
             const height = view.getHeight();
             const scrollOffset = view.getScrollOffset();
 
-            const effectiveHeight = height - (columnHeaderPosition?.height ?? 0);
+            const effectiveHeight = height - scrollMarginTop;
 
             const newScrollOffset = Math.max(
                 0,
@@ -1571,9 +1610,27 @@ export function useTaskGridViewVirtualizedListBase({
                 `${structuralItemKeyPrefix}ColumnHeader`,
             );
 
-            const effectiveHeight = view.getHeight() - (columnHeaderPosition?.height ?? 0);
-            const effectiveScrollOffset =
-                view.getScrollOffset() + (columnHeaderPosition?.height ?? 0);
+            const scrollMarginTop = Math.max(
+                // In case the column header controls make the column header bigger than the
+                // default expected height of navigation bar height plus column header height.
+                //
+                // TODO(calebmer): We should probably add
+                // `Math.max(columnHeaderPosition?.height ?? 0)` for `<TaskRowTitleInput>`s
+                // `scrollMarginTop` too.
+                columnHeaderPosition?.height ?? 0,
+                // Same as `scrollMarginTop` in `<TaskRowTitleInput>`.
+                taskRowTitleInputPaddingYPx[spacingScale] +
+                    convertRemLengthToPx(spacing["4"], spacingScale) +
+                    (platform === "mobile"
+                        ? convertRemLengthToPx(navigationBarHeight, spacingScale)
+                        : convertRemLengthToPx(
+                              addRemLengths(navigationBarHeight, taskGridViewColumnHeaderHeight),
+                              spacingScale,
+                          )),
+            );
+
+            const effectiveHeight = view.getHeight() - scrollMarginTop;
+            const effectiveScrollOffset = view.getScrollOffset() + scrollMarginTop;
 
             for (let index = renderedRange.endIndex; index >= renderedRange.startIndex; index--) {
                 const position = view.getPositionByIndex(index);
@@ -1610,10 +1667,29 @@ export function useTaskGridViewVirtualizedListBase({
                 `${structuralItemKeyPrefix}ColumnHeader`,
             );
 
+            const scrollMarginTop = Math.max(
+                // In case the column header controls make the column header bigger than the
+                // default expected height of navigation bar height plus column header height.
+                //
+                // TODO(calebmer): We should probably add
+                // `Math.max(columnHeaderPosition?.height ?? 0)` for `<TaskRowTitleInput>`s
+                // `scrollMarginTop` too.
+                columnHeaderPosition?.height ?? 0,
+                // Same as `scrollMarginTop` in `<TaskRowTitleInput>`.
+                taskRowTitleInputPaddingYPx[spacingScale] +
+                    convertRemLengthToPx(spacing["4"], spacingScale) +
+                    (platform === "mobile"
+                        ? convertRemLengthToPx(navigationBarHeight, spacingScale)
+                        : convertRemLengthToPx(
+                              addRemLengths(navigationBarHeight, taskGridViewColumnHeaderHeight),
+                              spacingScale,
+                          )),
+            );
+
             const height = view.getHeight();
             const scrollOffset = view.getScrollOffset();
 
-            const effectiveHeight = height - (columnHeaderPosition?.height ?? 0);
+            const effectiveHeight = height - scrollMarginTop;
 
             const newScrollOffset = Math.min(
                 view.getContentHeight() - height,

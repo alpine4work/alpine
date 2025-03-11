@@ -73,6 +73,7 @@ type TaskPersonalViewVisibleSection = "Active" | "Overdue" | "DueToday" | "DueSo
 const initialTaskPersonalViewVisibleSectionState = {section: null, previousSections: emptySet};
 
 // NOCOMMIT: Saved grid view state isn't working
+// NOCOMMIT: Arrow key navigation between sections
 export function TaskPersonalView({
     store,
     activeQuery,

@@ -32,13 +32,17 @@ import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
 import {parseContentFromClipboard} from "~/client/content/parse_content_from_clipboard.js";
 import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/shared/build_shared_content_editor_input_rules_plugin.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useCanPrimaryInputHover} from "~/client/remix/platform_context.js";
+import {
+    getPlatformWithoutListening,
+    useCanPrimaryInputHover,
+} from "~/client/remix/platform_context.js";
 import {
     getSpacingScaleWithoutListening,
     useSpacingScale,
@@ -52,6 +56,7 @@ import {
     tasksStyles,
 } from "~/client/styles/styles.js";
 import {
+    taskGridViewColumnHeaderHeight,
     taskRowTitleInputPaddingYPx,
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
@@ -71,6 +76,7 @@ import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_b
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {contentBaseProsemirrorSchemaSpec} from "~/shared/content/content_schema.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {
     RemLength,
     Spacing,
@@ -739,21 +745,54 @@ function TaskRowTitleInput(
             const initialHasEditAccessLevel = propsRef.current.hasEditAccessLevel;
             const initialIsEditable = !initialIsDualModality && initialHasEditAccessLevel;
 
+            let lastPlatform: Platform | null = null;
             let lastSpacingScale: SpacingScale | null = null;
-            let lastScrollMargin: number | null = null;
+            let lastScrollMargin: {
+                top: number;
+                bottom: number;
+                left: number;
+                right: number;
+            } | null = null;
 
             function getScrollMargin() {
+                const platform = getPlatformWithoutListening();
                 const spacingScale = getSpacingScaleWithoutListening();
 
-                if (lastScrollMargin !== null && lastSpacingScale === spacingScale)
+                if (
+                    lastScrollMargin !== null &&
+                    lastPlatform === platform &&
+                    lastSpacingScale === spacingScale
+                ) {
                     return lastScrollMargin;
+                }
 
+                lastPlatform = platform;
                 lastSpacingScale = spacingScale;
 
-                lastScrollMargin = convertRemLengthToPx(
+                const scrollMarginY =
+                    taskRowTitleInputPaddingYPx[spacingScale] +
+                    convertRemLengthToPx(spacing["4"], spacingScale);
+
+                const scrollMarginTop =
+                    scrollMarginY +
+                    (platform === "mobile"
+                        ? convertRemLengthToPx(navigationBarHeight, spacingScale)
+                        : convertRemLengthToPx(
+                              addRemLengths(navigationBarHeight, taskGridViewColumnHeaderHeight),
+                              spacingScale,
+                          ));
+
+                const scrollMarginX = convertRemLengthToPx(
                     tasksStyles.rowTitleInputSingleLineOverflowGradientMarginX,
                     spacingScale,
                 );
+
+                lastScrollMargin = {
+                    top: scrollMarginTop,
+                    bottom: scrollMarginY,
+                    left: scrollMarginX,
+                    right: scrollMarginX,
+                };
 
                 return lastScrollMargin;
             }
