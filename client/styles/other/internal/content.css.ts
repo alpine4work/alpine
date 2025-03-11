@@ -47,7 +47,7 @@ import {
     fileFloatClassName,
     fileFloatLeftClassName,
     fileFloatRightClassName,
-    fileRowClassName,
+    fileRowBaseClassName,
     headingLevel1ClassName,
     headingLevel2ClassName,
     headingLevel3ClassName,
@@ -927,7 +927,7 @@ const fileRowGapWidth = spacing[fileRowGapWidthSpacing];
 export const fileRowGapWidthRem = parseRemLength(fileRowGapWidth);
 export const fileTablePaddingRem = 0.5;
 
-globalStyle(fileRowClassName, {
+globalStyle(fileRowBaseClassName, {
     ...blockStyles,
     position: "relative",
     marginTop: standaloneBlockMargin,
@@ -940,11 +940,11 @@ globalStyle(fileRowClassName, {
     userSelect: "none",
 });
 
-globalStyle(`${fileRowClassName}:has(+ ${fileRowClassName})`, {
+globalStyle(`${fileRowBaseClassName}:has(+ ${fileRowBaseClassName})`, {
     marginBottom: fileRowGapWidth,
 });
 
-globalStyle(`${fileRowClassName} + ${fileRowClassName}`, {
+globalStyle(`${fileRowBaseClassName} + ${fileRowBaseClassName}`, {
     marginTop: fileRowGapWidth,
 });
 
@@ -1531,7 +1531,7 @@ globalStyle(`${darkColorSchemeSelector} ${commentClassName} ${commentClassName}`
     backgroundColor: nestedCommentBackgroundColors.dark.default,
 });
 
-globalStyle(`:is(${fileRowClassName}, ${fileFloatClassName}) ${commentClassName}`, {
+globalStyle(`:is(${fileRowBaseClassName}, ${fileFloatClassName}) ${commentClassName}`, {
     position: "relative",
     display: "grid",
     backgroundColor: "transparent",
@@ -1539,7 +1539,7 @@ globalStyle(`:is(${fileRowClassName}, ${fileFloatClassName}) ${commentClassName}
     paddingBottom: 0,
 });
 
-globalStyle(`:is(${fileRowClassName}, ${fileFloatClassName}) ${commentClassName}::after`, {
+globalStyle(`:is(${fileRowBaseClassName}, ${fileFloatClassName}) ${commentClassName}::after`, {
     content: '""',
     position: "absolute",
     backgroundColor: "transparent",
@@ -1549,12 +1549,12 @@ globalStyle(`:is(${fileRowClassName}, ${fileFloatClassName}) ${commentClassName}
     borderRadius: 8,
 });
 
-globalStyle(`:is(${fileRowClassName}, ${fileFloatClassName}) > ${commentClassName}::after`, {
+globalStyle(`:is(${fileRowBaseClassName}, ${fileFloatClassName}) > ${commentClassName}::after`, {
     backgroundColor: commentBackgroundColors.light.default,
 });
 
 globalStyle(
-    `${darkColorSchemeSelector} :is(${fileRowClassName}, ${fileFloatClassName}) > ${commentClassName}::after`,
+    `${darkColorSchemeSelector} :is(${fileRowBaseClassName}, ${fileFloatClassName}) > ${commentClassName}::after`,
     {
         backgroundColor: commentBackgroundColors.dark.default,
     },
@@ -1727,11 +1727,11 @@ ${darkColorSchemeSelector} #$containerId .${commentClassName}[data-comment="$com
 ${darkColorSchemeSelector} #$containerId .${commentClassName} .${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
     nestedCommentBackgroundColors.dark.active
 }}
-#$containerId :is(.${fileRowClassName}, .${fileFloatClassName}) .${commentClassName}[data-comment="$commentThreadId"] {background-color: transparent}
-#$containerId :is(.${fileRowClassName}, .${fileFloatClassName}) .${commentClassName}[data-comment="$commentThreadId"]::after {background-color: ${
+#$containerId :is(.${fileRowBaseClassName}, .${fileFloatClassName}) .${commentClassName}[data-comment="$commentThreadId"] {background-color: transparent}
+#$containerId :is(.${fileRowBaseClassName}, .${fileFloatClassName}) .${commentClassName}[data-comment="$commentThreadId"]::after {background-color: ${
     commentBackgroundColors.light.active
 }}
-#$containerId :is(.${fileRowClassName}, .${fileFloatClassName}) > .${commentClassName}:not([data-comment="$commentThreadId"]):has(.${commentClassName}[data-comment="$commentThreadId"])::after {background-color: transparent}
+#$containerId :is(.${fileRowBaseClassName}, .${fileFloatClassName}) > .${commentClassName}:not([data-comment="$commentThreadId"]):has(.${commentClassName}[data-comment="$commentThreadId"])::after {background-color: transparent}
 ${getObjectKeysWithKeyofType(colorByHighlightColor)
     .map(
         highlightColor => `\

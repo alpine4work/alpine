@@ -6,8 +6,7 @@ import {
     fileFloatClassName,
     fileFloatLeftClassName,
     fileFloatRightClassName,
-    fileRowClassName,
-    fileTableClassName,
+    fileRowBaseClassName,
     headingLevel1ClassName,
     headingLevel2ClassName,
     headingLevel3ClassName,
@@ -127,7 +126,7 @@ export const createContentFileProsemirrorNodeSpecs = ({fileMarks}: {fileMarks?: 
             // in documents). Comments should never appear on `fileRow`. Only on `file`. We
             // validate this is the case in `get_collaboratively_update_content_result.ts`.
             marks: fileMarks,
-            toDOM: () => ["div", {class: fileRowClassName}, 0],
+            toDOM: () => ["div", {class: fileRowBaseClassName}, 0],
             // A `<div>` or `<p>` with a direct child that has a `data-cy-tmp-file`
             // attribute is parsed as a `fileRow`.
             //
@@ -296,9 +295,8 @@ export const createContentFileTableProsemirrorNodeSpecs = ({
             toDOM: node => [
                 "div",
                 {
-                    // NOCOMMIT: replace this with fileTableClassName when we're ready to
-                    // use the new file table node
-                    class: fileRowClassName,
+                    // same classes being uised for fileRow and fileTable
+                    class: fileRowBaseClassName,
                 },
                 0,
             ],
