@@ -384,7 +384,6 @@ export function TaskPersonalView({
     let hasFirstHeader = false;
     const alwaysRenderAdditionalItemIndexes: Array<number> = [];
 
-    // NOCOMMIT: Always render sticky column header
     alwaysRenderAdditionalItemIndexes.push(runningItemCount);
     runningItemCount += 1;
 
