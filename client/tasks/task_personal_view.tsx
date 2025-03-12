@@ -1183,7 +1183,6 @@ export function TaskPersonalView({
             },
         ],
         withoutColumnHeader: true,
-        withoutDecorativeGhostRowsIfEmpty: true,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
