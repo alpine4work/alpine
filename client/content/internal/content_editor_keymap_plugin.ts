@@ -1715,7 +1715,10 @@ export function buildContentEditorKeymapPlugin(
         if (!(state.selection instanceof NodeSelection)) return false;
         if (state.selection.node.type.name !== "file") return false;
 
-        assert(state.selection.$anchor.parent.type.name === "fileRow");
+        assert(
+            state.selection.$anchor.parent.type.name === "fileRow" ||
+                state.selection.$anchor.parent.type.name === "fileTable",
+        );
 
         let $last = state.doc.resolve(state.selection.$anchor.end() - 1);
         assert($last.nodeAfter?.type.name === "file");

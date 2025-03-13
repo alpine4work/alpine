@@ -22,7 +22,7 @@ import {
     TextSelection,
     Transaction,
 } from "prosemirror-state";
-import {Transform, dropPoint} from "prosemirror-transform";
+import {dropPoint} from "prosemirror-transform";
 import {Decoration, DecorationSet, DirectEditorProps, EditorView} from "prosemirror-view";
 import {
     FocusEvent,
@@ -104,7 +104,10 @@ import {
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {createContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
-import {isSelectionInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
+import {
+    isInContentTable,
+    isSelectionInContentTable,
+} from "~/client/content/internal/table/content_table_client_util.js";
 import {handleContentTablePaste} from "~/client/content/internal/table/content_table_input.js";
 import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
@@ -162,7 +165,6 @@ import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
-import {createEmptyDocumentContent} from "~/shared/documents/document_content_schema.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -652,7 +654,6 @@ function ContentEditorWrapper<Content extends ContentWithReferences>(
     // Only preload space accounts outside of Jest unit tests! That way we don't
     // depend on space context in unit tests.
     if (!import.meta.jest) {
-        // eslint-disable-next-line react-compiler/react-compiler
         // eslint-disable-next-line react-hooks/rules-of-hooks
         useExpensivelyPreloadAllSpaceAccounts();
     }
@@ -1658,6 +1659,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             } else if (
                 schema.nodes.file &&
                 schema.nodes.fileRow &&
+                schema.nodes.fileTable &&
                 slice.size === 0 &&
                 dataTransfer?.items &&
                 // If `transformPastedDOM` already parsed some files from HTML then ignore any
@@ -2035,7 +2037,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                 fileDragState &&
                 (slice.size === 0 ||
                     slice.content.content.every(
-                        node => node.type.name === "fileRow" || node.type.name === "file",
+                        node =>
+                            node.type.name === "fileRow" ||
+                            node.type.name === "file" ||
+                            node.type.name === "fileTable",
                     ))
                     ? fileDragState.getDropTarget()
                     : null;
@@ -2071,6 +2076,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                         : null;
 
                     if (fileDropTarget) {
+                        console.log("fileDropTarget", fileDropTarget.action?.pos);
                         if (slice.size === 0) return;
 
                         assert(fileDropTarget.action);
@@ -2083,7 +2089,13 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 Fragment.from(
                                     slice.content.content.map(node =>
                                         node.type.name === "file"
-                                            ? schema.node("fileRow", {}, [node])
+                                            ? schema.node(
+                                                  isInContentTable(view.state)
+                                                      ? "fileTable"
+                                                      : "fileRow",
+                                                  {},
+                                                  [node],
+                                              )
                                             : node,
                                     ),
                                 ),
@@ -2124,7 +2136,6 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                         const pos = transaction.mapping.map(fileDropTarget.action.pos);
                         const $pos = transaction.doc.resolve(pos);
-
                         switch (fileDropTarget.action.type) {
                             case "InsertFileRow": {
                                 // If we're dragging a file float then preserve the file float
@@ -2244,6 +2255,92 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 }
                                 break;
                             }
+                            case "InsertFileIntoTableCell": {
+                                assert(slice.size > 0);
+
+                                // Get parent node at the target position to confirm it's a table cell
+                                const $targetPos = transaction.doc.resolve(pos);
+
+                                const parentNode = $targetPos.parent;
+                                // Extract all file nodes from the slice
+                                const fileNodes: Array<Node> = [];
+                                const isSourceFileTable =
+                                    slice.content.content.length === 1 &&
+                                    slice.content.content[0]!.type.name === "fileTable";
+
+                                // Case 1: Moving a fileTable node (already suitable for tables)
+                                if (isSourceFileTable) {
+                                    const fileTableNode = slice.content.content[0]!;
+                                    const cellStart = $targetPos.start();
+
+                                    // Insert the fileTableNode at the beginning of the cell
+                                    transaction.replaceRangeWith(
+                                        cellStart,
+                                        cellStart,
+                                        fileTableNode,
+                                    );
+                                }
+                                // Case 2: Moving a fileRow or fileFloat that needs conversion to fileTable
+                                else {
+                                    for (const sourceNode of slice.content.content) {
+                                        if (sourceNode.type.name === "fileRow") {
+                                            // Extract files from fileRow
+                                            for (const fileNode of sourceNode.content.content) {
+                                                assert(fileNode.type.name === "file");
+                                                fileNodes.push(fileNode);
+                                            }
+                                        } else if (sourceNode.type.name === "fileFloat") {
+                                            // Extract files from fileFloat
+                                            for (const fileNode of sourceNode.content.content) {
+                                                assert(fileNode.type.name === "file");
+                                                fileNodes.push(fileNode);
+                                            }
+                                        } else if (sourceNode.type.name === "file") {
+                                            // very unlikely to happen
+                                            // Direct file node
+                                            fileNodes.push(sourceNode);
+                                        }
+                                    }
+
+                                    assert(fileNodes.length > 0, "No file nodes found in slice");
+
+                                    // Create a new fileTable node with the collected files
+                                    // We'll use the first file node as the content of the fileTable
+                                    // (You may need to adjust the schema or structure based on your fileTable implementation)
+                                    const fileTableNode = schema.node("fileTable", {}, [
+                                        fileNodes[0]!,
+                                    ]);
+                                    // Replace the content of the cell with the new fileTable
+
+                                    //NOCOMMIT: replacing the whole content is not the right way to perfrom
+                                    // this insertion. Improvise on this!
+                                    transaction.replaceWith(
+                                        pos,
+                                        pos + parentNode.content.size,
+                                        fileTableNode,
+                                    );
+
+                                    // NOCOMMIT: multiple files copy paste needs to be handled differently
+                                    // If there are additional files that didn't fit, you might handle them differently
+                                    // For example, you could add them to adjacent cells or create a new row
+                                    // if (fileNodes.length > 1) {
+                                    //     // Additional handling for extra files if needed
+                                    //     console.log(
+                                    //         "Multiple files dropped into table cell - using only the first one",
+                                    //     );
+                                    // }
+                                }
+
+                                // Update the selection to the newly inserted content and scroll into view
+                                // NOCOMMIT: this is not needed because we're replacing the content of the cell
+                                // const $newPos = transaction.doc.resolve(pos);
+                                // transaction
+                                //     .setSelection(new NodeSelection($newPos))
+                                //     .scrollIntoView();
+
+                                break;
+                            }
+
                             default:
                                 throw exhaustive(fileDropTarget.action);
                         }
@@ -2269,16 +2366,22 @@ function ContentEditor<Content extends ContentWithReferences>(
                     if (move) selection.replace(transaction);
 
                     const pos = transaction.mapping.map(insertPos);
+
                     const isNode =
                         slice.openStart === 0 &&
                         slice.openEnd === 0 &&
                         slice.content.childCount === 1;
+
                     const beforeInsert = transaction.doc;
+                    // if single node, use `replaceRangeWith`
                     if (isNode) transaction.replaceRangeWith(pos, pos, slice.content.firstChild!);
+                    // if not single node, use `replaceRange`
                     else transaction.replaceRange(pos, pos, slice);
+                    // NOCOMMIT: can this be replaced with assert(transaction.doc.eq(beforeInsert))??
                     if (transaction.doc.eq(beforeInsert)) return;
 
                     const $pos = transaction.doc.resolve(pos);
+
                     if (
                         isNode &&
                         NodeSelection.isSelectable(slice.content.firstChild!) &&
@@ -2291,12 +2394,14 @@ function ContentEditor<Content extends ContentWithReferences>(
                         transaction.mapping.maps[transaction.mapping.maps.length - 1]!.forEach(
                             (from, to, newFrom, newTo) => (end = newTo),
                         );
+
                         transaction.setSelection(
                             view.someProp("createSelectionBetween", f =>
                                 f(view, $pos, transaction.doc.resolve(end)),
                             ) || TextSelection.between($pos, transaction.doc.resolve(end)),
                         );
                     }
+
                     view.focus();
                     view.dispatch(transaction.setMeta("uiEvent", "drop"));
                 },
@@ -5346,7 +5451,6 @@ class ContentEditorFileDragState {
         }
 
         const dropTarget = nearestCollision?.dropTarget ?? null;
-
         if (!dropTarget) {
             this._lastDropTarget = null;
         } else {

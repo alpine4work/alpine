@@ -1,9 +1,12 @@
 import {Node} from "prosemirror-model";
 import {EditorView} from "prosemirror-view";
+import {selectedContentTableRect} from "~/client/content/internal/table/content_table_client_util.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 export type ContentEditorFileDropTarget = {
     readonly offsetParent: Element | null;
@@ -22,6 +25,11 @@ export type ContentEditorFileDropTarget = {
         | {
               readonly type: "InsertFileIntoRow";
               readonly indicator: "Top" | "Left" | "Right";
+              readonly pos: number;
+          }
+        | {
+              readonly type: "InsertFileIntoTableCell";
+              readonly indicator: "Top";
               readonly pos: number;
           }
         | null;
@@ -66,7 +74,9 @@ export function getContentEditorFileDropTargets(
 
     const {doc} = view.state;
     const {schema} = doc.type;
-    if (!schema.nodes.fileRow) return dropTargets;
+    if (!schema.nodes.fileRow || !schema.nodes.fileTable) {
+        return dropTargets;
+    }
 
     const $draggingFilePos = draggingFilePos !== null ? doc.resolve(draggingFilePos) : null;
 
@@ -130,9 +140,9 @@ export function getContentEditorFileDropTargets(
         if (!(currentElement instanceof HTMLElement)) continue;
         const lastElement = element;
         element = currentElement;
-
         if (i < startIndex) continue;
 
+        // Horizontal Drop Target Creation
         if (doc.canReplaceWith(i, i, schema.nodes.fileRow)) {
             previousDropTargetOffsetY = lastElement
                 ? (element.offsetTop - (lastElement.offsetTop + lastElement.offsetHeight)) / 2
@@ -435,6 +445,12 @@ export function getContentEditorFileDropTargets(
                 });
             }
         }
+
+        if (node.type.name === "table" && i === aroundIndex) {
+            // Recusrively traverse the table cells and generate all drop targets
+            // doing this in a function
+            getContentEditorTableFileDropTargets(node, element, dropTargets, pos);
+        }
     }
 
     if (
@@ -468,6 +484,67 @@ export function getContentEditorFileDropTargets(
             },
         });
     }
-
     return dropTargets;
+}
+
+function getContentEditorTableFileDropTargets(
+    tableNode: Node,
+    tableElement: HTMLElement,
+    dropTargets: Array<ContentEditorFileDropTarget>,
+    tablePos: number,
+): void {
+    assert(tableElement);
+
+    const tableRect = tableElement.getBoundingClientRect();
+    const tableCells = tableElement.querySelectorAll("td");
+    const spacingScale = getSpacingScaleWithoutListening();
+    const remPx = remPxBySpacingScale[spacingScale];
+    const tableMap = ContentTableMap.get(tableNode);
+    for (let row = 0; row < tableMap.height; row++) {
+        for (let col = 0; col < tableMap.width; col++) {
+            const relativeCellPos = tableMap.positionAt(row, col, tableNode);
+            if (relativeCellPos === null || relativeCellPos === undefined) continue;
+
+            // relativeCellPos is the position of the cell in the table node.
+            // tablePos is the position of the table in the document.
+            // We need to add 2 to the relative cell position to get the absolute
+            // cell paragraph position where the file will be inserted.
+            const absoluteCellPos = relativeCellPos + tablePos + 2;
+
+            // Calculate the index in the DOM elements array
+            const cellIndex = row * tableMap.width + col;
+            if (cellIndex >= tableCells.length) continue;
+
+            const cellElement = tableCells[cellIndex];
+            if (!(cellElement instanceof HTMLElement)) continue;
+            const cellRect = cellElement.getBoundingClientRect();
+
+            dropTargets.push({
+                offsetParent: tableElement.offsetParent,
+                rect: {
+                    left:
+                        tableElement.offsetLeft +
+                        (cellRect.left - tableRect.left) +
+                        contentStyles.fileRowGapWidthRem * remPx,
+                    right:
+                        tableElement.offsetLeft +
+                        (cellRect.right - tableRect.left) -
+                        contentStyles.fileRowGapWidthRem * remPx,
+                    top:
+                        tableElement.offsetTop +
+                        (cellRect.top - tableRect.top) +
+                        contentStyles.fileRowGapWidthRem * remPx,
+                    bottom:
+                        tableElement.offsetTop +
+                        (cellRect.bottom - tableRect.top) -
+                        contentStyles.fileRowGapWidthRem * remPx,
+                },
+                action: {
+                    type: "InsertFileIntoTableCell",
+                    indicator: "Top",
+                    pos: absoluteCellPos,
+                },
+            });
+        }
+    }
 }
