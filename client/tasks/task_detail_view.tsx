@@ -245,7 +245,7 @@ export function TaskDetailView({
                 hasMultilineTitle: true,
                 hasDenseFields: true,
                 hasColumns: false,
-                withoutAssigneeColumn: false,
+                withoutAssigneeField: false,
             }),
             [hasEditAccessLevel],
         ),

@@ -11,11 +11,7 @@ import {
     taskRowViewLastColumnPaddingRight,
 } from "~/client/styles/tasks_shared_styles.js";
 
-export function TaskGridViewColumnHeader({
-    withoutAssigneeColumn,
-}: {
-    withoutAssigneeColumn?: boolean;
-}) {
+export function TaskGridViewColumnHeader({withoutAssigneeField}: {withoutAssigneeField?: boolean}) {
     return (
         <Box height={taskGridViewColumnHeaderHeight} display="flex">
             <Box
@@ -33,7 +29,7 @@ export function TaskGridViewColumnHeader({
                 Name
             </Box>
             <Box flexGrow="1" />
-            {!withoutAssigneeColumn && (
+            {!withoutAssigneeField && (
                 <Box
                     flexShrink="0"
                     paddingX={taskRowViewColumnPaddingX}

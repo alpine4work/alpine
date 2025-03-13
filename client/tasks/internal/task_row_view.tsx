@@ -301,6 +301,7 @@ function TaskRowView(
         rowMaxWidth,
         disableExpensiveFeaturesDuringScroll,
         isFirstRow,
+        withoutTopBorderIfFirstRow,
         isFirstTaskInQuery,
         nextIndentation,
         titlePlaceholder,
@@ -345,6 +346,7 @@ function TaskRowView(
         rowMaxWidth: Spacing | null;
         disableExpensiveFeaturesDuringScroll: boolean;
         isFirstRow: boolean;
+        withoutTopBorderIfFirstRow: boolean;
         isFirstTaskInQuery: boolean;
         nextIndentation: number;
         titlePlaceholder?: string;
@@ -560,7 +562,7 @@ function TaskRowView(
         columns.push("Title");
 
         if (capabilities.hasColumns) {
-            if (!capabilities.withoutAssigneeColumn) {
+            if (!capabilities.withoutAssigneeField) {
                 columns.push("Assignee");
             }
             columns.push("Priority");
@@ -569,7 +571,7 @@ function TaskRowView(
         }
 
         return columns;
-    }, [capabilities.hasColumns, capabilities.withoutAssigneeColumn, hasTask]);
+    }, [capabilities.hasColumns, capabilities.withoutAssigneeField, hasTask]);
 
     const {
         isFocusWithin,
@@ -672,7 +674,7 @@ function TaskRowView(
                     return;
                 }
                 case "Assignee": {
-                    if (!capabilities.withoutAssigneeColumn) {
+                    if (!capabilities.withoutAssigneeField) {
                         if (capabilities.hasColumns && columns.includes(column)) {
                             assertExists(assigneeCellRef.current).focusCell();
                         } else if (capabilities.hasDenseFields) {
@@ -1453,7 +1455,7 @@ function TaskRowView(
                     // The column header in a grid view renders a semi-translucent grey border. To
                     // avoid drawing a border darker than `grey-5` at the top of the screen if this
                     // is the first row in a grid with columns then only render a bottom border.
-                    isFirstRow && capabilities.hasColumns
+                    isFirstRow && withoutTopBorderIfFirstRow
                         ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}`
                         : `0 1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
             }}
@@ -1779,7 +1781,7 @@ function TaskRowView(
             </div>
             {capabilities.hasColumns && (
                 <>
-                    {!capabilities.withoutAssigneeColumn && (
+                    {!capabilities.withoutAssigneeField && (
                         <TaskRowAssigneeCell
                             ref={assigneeCellRef}
                             isReadOnly={!hasEditAccessLevel}
@@ -1893,6 +1895,7 @@ function TaskRowView(
                             // us down.
                             ref={denseFieldsRef}
                             isReadOnly={!hasEditAccessLevel}
+                            withoutAssigneeField={capabilities.withoutAssigneeField}
                             store={query.store}
                             task={task}
                             marginLeft={marginLeft}

@@ -74,14 +74,14 @@ export const TaskGridViewColumnHeaderMemo = memo(forwardRef(TaskGridViewColumnHe
 function TaskGridViewColumnHeader(
     {
         hasColumns,
-        withoutAssigneeColumn,
+        withoutAssigneeField,
         columnHeaderControls,
         minHeight,
         offset,
         shouldRenderWithRelativePositioning,
     }: {
         hasColumns: boolean;
-        withoutAssigneeColumn: boolean;
+        withoutAssigneeField: boolean;
         columnHeaderControls: Memo<{minHeight: number; node: ReactNode}> | null;
         minHeight: number;
         offset: number;
@@ -145,7 +145,7 @@ function TaskGridViewColumnHeader(
                     )}
                     {hasColumns && (
                         <TaskGridViewActualColumnHeader
-                            withoutAssigneeColumn={withoutAssigneeColumn}
+                            withoutAssigneeField={withoutAssigneeField}
                         />
                     )}
                 </OverlayScopeContextProvider>
@@ -221,6 +221,7 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
         structuralItemKeyPrefix,
         relativeItemIndex,
         isFirstRow,
+        withoutTopBorderIfFirstRow,
         withPaddingBottom,
         focusPreviousTaskTitleEnd,
         focusPreviousTaskTitleAll,
@@ -232,6 +233,7 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
         hasColumnHeader: boolean;
         relativeItemIndex: number;
         isFirstRow: boolean;
+        withoutTopBorderIfFirstRow: boolean;
         withPaddingBottom: boolean;
         focusPreviousTaskTitleEnd: Memo<(key: string) => void>;
         focusPreviousTaskTitleAll: Memo<(key: string) => void>;
@@ -276,7 +278,7 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
                             // The column header in a grid view renders a semi-translucent grey border. To
                             // avoid drawing a border darker than `grey-5` at the top of the screen if this
                             // is the first row in a grid with columns then only render a bottom border.
-                            isFirstRow && capabilities.hasColumns
+                            isFirstRow && withoutTopBorderIfFirstRow
                                 ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}`
                                 : `0 1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
                     }}
@@ -463,6 +465,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     rowMaxWidth,
     disableExpensiveFeaturesDuringScroll,
     isFirstRow,
+    withoutTopBorderIfFirstRow,
     isFirstTaskInQuery,
     nextIndentation,
     titlePlaceholder,
@@ -494,6 +497,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     rowMaxWidth: Spacing | null;
     disableExpensiveFeaturesDuringScroll: boolean;
     isFirstRow: boolean;
+    withoutTopBorderIfFirstRow: boolean;
     isFirstTaskInQuery: boolean;
     nextIndentation: number;
     titlePlaceholder?: string;
@@ -1213,6 +1217,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
             titlePlaceholder={titlePlaceholder}
             isFirstRow={isFirstRow}
+            withoutTopBorderIfFirstRow={withoutTopBorderIfFirstRow}
             isFirstTaskInQuery={isFirstTaskInQuery}
             nextIndentation={nextIndentation}
             areChildTasksExpandedStore={areChildTasksExpandedStore}

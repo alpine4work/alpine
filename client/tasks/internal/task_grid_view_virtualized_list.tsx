@@ -232,6 +232,13 @@ export type TaskGridViewVirtualizedListProps = {
     withoutColumnHeader?: boolean;
 
     /**
+     * Should the first row item not have a top border? By default the first row
+     * item won't have a top border and you're expected to render one in the
+     * navigation bar.
+     */
+    withoutTopBorderIfFirstRow?: boolean;
+
+    /**
      * Additional controls rendered in the column header item adding to its height.
      * Useful for rendering filters that'll be sticky with the rest of the column
      * header.
@@ -820,6 +827,7 @@ export function useTaskGridViewVirtualizedListBase({
     getMaybeRemoveTaskFromQueryActions: getMaybeRemoveTaskFromRootQueryActions,
     structuralItemKeyPrefix = "",
     withoutColumnHeader = false,
+    withoutTopBorderIfFirstRow = false,
     columnHeaderControls,
     rowMaxWidth = null,
     withoutBottomGhostTaskIfEmpty = false,
@@ -2559,7 +2567,7 @@ export function useTaskGridViewVirtualizedListBase({
                                 <TaskGridViewColumnHeaderMemo
                                     ref={ref}
                                     hasColumns={capabilities.hasColumns}
-                                    withoutAssigneeColumn={capabilities.withoutAssigneeColumn}
+                                    withoutAssigneeField={capabilities.withoutAssigneeField}
                                     columnHeaderControls={columnHeaderControlsWithMinHeightPx}
                                     minHeight={minHeight}
                                     offset={offset}
@@ -2606,6 +2614,7 @@ export function useTaskGridViewVirtualizedListBase({
                                             !isDragging && disableExpensiveFeaturesDuringScroll
                                         }
                                         isFirstRow={true}
+                                        withoutTopBorderIfFirstRow={withoutTopBorderIfFirstRow}
                                         // The ghost row is not a task in the query so always report as false.
                                         isFirstTaskInQuery={false}
                                         nextIndentation={0}
@@ -2698,6 +2707,7 @@ export function useTaskGridViewVirtualizedListBase({
                                             !isDragging && disableExpensiveFeaturesDuringScroll
                                         }
                                         isFirstRow={!hasTopGhostTask && stateItemCount === 0}
+                                        withoutTopBorderIfFirstRow={withoutTopBorderIfFirstRow}
                                         // The ghost row is not a task in the query so always report as false.
                                         isFirstTaskInQuery={false}
                                         nextIndentation={0}
@@ -2750,6 +2760,7 @@ export function useTaskGridViewVirtualizedListBase({
                             hasColumnHeader={hasColumnHeader}
                             relativeItemIndex={relativeItemIndex}
                             isFirstRow={!hasTopGhostTask && itemIndex - itemCountBeforeState === 0}
+                            withoutTopBorderIfFirstRow={withoutTopBorderIfFirstRow}
                             withPaddingBottom={itemIndex === itemCount - 1}
                             focusPreviousTaskTitleEnd={events.focusPreviousTaskTitleEnd}
                             focusPreviousTaskTitleAll={events.focusPreviousTaskTitleAll}
@@ -2792,6 +2803,7 @@ export function useTaskGridViewVirtualizedListBase({
                                 isFirstRow={
                                     !hasTopGhostTask && itemIndex - itemCountBeforeState === 0
                                 }
+                                withoutTopBorderIfFirstRow={withoutTopBorderIfFirstRow}
                                 isFirstTaskInQuery={item.isFirstTaskInQuery}
                                 nextIndentation={
                                     itemIndex + 1 < itemCountBeforeState + stateItemCount
@@ -2877,6 +2889,7 @@ export function useTaskGridViewVirtualizedListBase({
         toggleAreChildTasksExpanded,
         topGhostTaskId,
         viewRef,
+        withoutTopBorderIfFirstRow,
     ]);
 
     const onLayoutEffectCallbacksRef = useRef<Array<() => void>>([]);

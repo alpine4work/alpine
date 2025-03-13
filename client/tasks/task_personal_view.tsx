@@ -14,10 +14,13 @@ import {
 } from "react";
 import {Box} from "~/client/design/box.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
+import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
@@ -64,7 +67,10 @@ import {
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {interFontCapHeight, interFontXHeight} from "~/shared/design/core/font_metrics.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {
+    RemLength,
+    Spacing,
     addRemLengths,
     convertRemLengthToPx,
     parseRemLength,
@@ -122,6 +128,7 @@ export function TaskPersonalView({
     };
     affinityManager: TaskClientStoreSearchAffinityManager;
 }) {
+    const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const {isAppleDevice, timeZone} = useClientInfo();
@@ -454,6 +461,24 @@ export function TaskPersonalView({
     };
 
     /* ========================================================================== *\
+     *                               Navigation Bar                               *
+    \* ========================================================================== */
+
+    const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
+        isDisabled: routeLayout !== "narrow",
+        withoutDisappearingTitle: true,
+        title:
+            platform === "mobile" ? (
+                "My tasks"
+            ) : (
+                <TaskPersonalViewNavigationBarTitleDesktop
+                    paddingLeft="5"
+                    visibleSectionState={visibleSectionState}
+                />
+            ),
+    });
+
+    /* ========================================================================== *\
      *                                   Events                                   *
     \* ========================================================================== */
 
@@ -478,7 +503,7 @@ export function TaskPersonalView({
                 hasParentTaskTitle: true,
                 hasMultilineTitle: false,
                 hasColumns: true,
-                withoutAssigneeColumn: true,
+                withoutAssigneeField: true,
                 hasDenseFields: false,
             };
         } else {
@@ -487,7 +512,7 @@ export function TaskPersonalView({
                 hasParentTaskTitle: true,
                 hasMultilineTitle: true,
                 hasColumns: false,
-                withoutAssigneeColumn: true,
+                withoutAssigneeField: true,
                 hasDenseFields: true,
             };
         }
@@ -580,6 +605,7 @@ export function TaskPersonalView({
             },
         ],
         withoutColumnHeader: true,
+        withoutTopBorderIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
         withoutBottomGhostTaskIfEmpty: true,
         withoutDecorativeGhostRowsIfEmpty: true,
         isDragging,
@@ -758,6 +784,7 @@ export function TaskPersonalView({
             },
         ],
         withoutColumnHeader: true,
+        withoutTopBorderIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
         withoutBottomGhostTaskIfEmpty: true,
         withoutDecorativeGhostRowsIfEmpty: true,
         isDragging,
@@ -944,6 +971,7 @@ export function TaskPersonalView({
             },
         ],
         withoutColumnHeader: true,
+        withoutTopBorderIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
         withoutBottomGhostTaskIfEmpty: true,
         withoutDecorativeGhostRowsIfEmpty: true,
         isDragging,
@@ -1133,6 +1161,7 @@ export function TaskPersonalView({
             },
         ],
         withoutColumnHeader: true,
+        withoutTopBorderIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
         withoutBottomGhostTaskIfEmpty: true,
         withoutDecorativeGhostRowsIfEmpty: true,
         isDragging,
@@ -1303,6 +1332,7 @@ export function TaskPersonalView({
             },
         ],
         withoutColumnHeader: true,
+        withoutTopBorderIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
@@ -1375,44 +1405,57 @@ export function TaskPersonalView({
             let hasFirstHeader = false;
 
             if (index === 0) {
-                return {
-                    key: "NavigationBar",
-                    minHeight: !isRemainingGridViewHeaderVisible
-                        ? addRemLengths(navigationBarHeight, taskGridViewColumnHeaderHeight)
-                        : spacing[navigationBarHeight],
-                    withManualLayout: true,
-                    render: ({ref, offset, shouldRenderWithRelativePositioning}) => (
-                        <TaskPersonalViewNavigationBar
-                            itemRef={ref}
-                            offset={offset}
-                            shouldRenderWithRelativePositioning={
-                                shouldRenderWithRelativePositioning
-                            }
-                            withColumnHeader={!isRemainingGridViewHeaderVisible}
-                            visibleSectionState={visibleSectionState}
-                        />
-                    ),
-                };
+                if (routeLayout === "narrow") {
+                    return {
+                        key: "NavigationBar",
+                        minHeight: spacing[navigationBarHeight],
+                        node: (
+                            <>
+                                <Box height="safe-area-inset-top" />
+                                <Box height={navigationBarHeight} />
+                            </>
+                        ),
+                    };
+                } else {
+                    return {
+                        key: "NavigationBar",
+                        minHeight: !isRemainingGridViewHeaderVisible
+                            ? addRemLengths(navigationBarHeight, taskGridViewColumnHeaderHeight)
+                            : spacing[navigationBarHeight],
+                        withManualLayout: true,
+                        render: ({ref, offset, shouldRenderWithRelativePositioning}) => (
+                            <TaskPersonalViewNavigationBar
+                                itemRef={ref}
+                                offset={offset}
+                                shouldRenderWithRelativePositioning={
+                                    shouldRenderWithRelativePositioning
+                                }
+                                withoutRemainingGridViewHeader={!isRemainingGridViewHeaderVisible}
+                                visibleSectionState={visibleSectionState}
+                            />
+                        ),
+                    };
+                }
             }
 
             index -= 1;
 
             if (!isActiveGridViewEmpty) {
                 if (index === 0) {
-                    if (hasFirstHeader) {
+                    if (routeLayout === "narrow" || hasFirstHeader) {
                         return {
                             key: "ActiveHeader",
-                            minHeight: taskPersonalViewHeaderHeight,
+                            minHeight: taskPersonalViewHeaderHeight[routeLayout],
                             zIndex: "50",
                             node: <TaskPersonalViewHeader name="Active" />,
                         };
                     } else {
                         return {
                             key: "ActiveHeader",
-                            minHeight: taskPersonalViewHeaderHeight,
+                            minHeight: taskPersonalViewHeaderHeight[routeLayout],
                             withManualLayout: true,
                             render: ({ref, offset, shouldRenderWithRelativePositioning}) => (
-                                <TaskPersonalViewFirstHeader
+                                <TaskPersonalViewFirstHeaderDesktop
                                     itemRef={ref}
                                     offset={offset}
                                     shouldRenderWithRelativePositioning={
@@ -1437,20 +1480,20 @@ export function TaskPersonalView({
 
             if (!isOverdueGridViewEmpty) {
                 if (index === 0) {
-                    if (hasFirstHeader) {
+                    if (routeLayout === "narrow" || hasFirstHeader) {
                         return {
                             key: "OverdueHeader",
-                            minHeight: taskPersonalViewHeaderHeight,
+                            minHeight: taskPersonalViewHeaderHeight[routeLayout],
                             zIndex: "50",
                             node: <TaskPersonalViewHeader name="Overdue" />,
                         };
                     } else {
                         return {
                             key: "OverdueHeader",
-                            minHeight: taskPersonalViewHeaderHeight,
+                            minHeight: taskPersonalViewHeaderHeight[routeLayout],
                             withManualLayout: true,
                             render: ({ref, offset, shouldRenderWithRelativePositioning}) => (
-                                <TaskPersonalViewFirstHeader
+                                <TaskPersonalViewFirstHeaderDesktop
                                     itemRef={ref}
                                     offset={offset}
                                     shouldRenderWithRelativePositioning={
@@ -1475,20 +1518,20 @@ export function TaskPersonalView({
 
             if (!isDueTodayGridViewEmpty) {
                 if (index === 0) {
-                    if (hasFirstHeader) {
+                    if (routeLayout === "narrow" || hasFirstHeader) {
                         return {
                             key: "DueTodayHeader",
-                            minHeight: taskPersonalViewHeaderHeight,
+                            minHeight: taskPersonalViewHeaderHeight[routeLayout],
                             zIndex: "50",
                             node: <TaskPersonalViewHeader name="Due today" />,
                         };
                     } else {
                         return {
                             key: "DueTodayHeader",
-                            minHeight: taskPersonalViewHeaderHeight,
+                            minHeight: taskPersonalViewHeaderHeight[routeLayout],
                             withManualLayout: true,
                             render: ({ref, offset, shouldRenderWithRelativePositioning}) => (
-                                <TaskPersonalViewFirstHeader
+                                <TaskPersonalViewFirstHeaderDesktop
                                     itemRef={ref}
                                     offset={offset}
                                     shouldRenderWithRelativePositioning={
@@ -1513,20 +1556,20 @@ export function TaskPersonalView({
 
             if (!isDueSoonGridViewEmpty) {
                 if (index === 0) {
-                    if (hasFirstHeader) {
+                    if (routeLayout === "narrow" || hasFirstHeader) {
                         return {
                             key: "DueSoonHeader",
-                            minHeight: taskPersonalViewHeaderHeight,
+                            minHeight: taskPersonalViewHeaderHeight[routeLayout],
                             zIndex: "50",
                             node: <TaskPersonalViewHeader name="Due soon" />,
                         };
                     } else {
                         return {
                             key: "DueSoonHeader",
-                            minHeight: taskPersonalViewHeaderHeight,
+                            minHeight: taskPersonalViewHeaderHeight[routeLayout],
                             withManualLayout: true,
                             render: ({ref, offset, shouldRenderWithRelativePositioning}) => (
-                                <TaskPersonalViewFirstHeader
+                                <TaskPersonalViewFirstHeaderDesktop
                                     itemRef={ref}
                                     offset={offset}
                                     shouldRenderWithRelativePositioning={
@@ -1553,7 +1596,7 @@ export function TaskPersonalView({
                 if (index === 0) {
                     return {
                         key: "RemainingHeader",
-                        minHeight: taskPersonalViewHeaderHeight,
+                        minHeight: taskPersonalViewHeaderHeight[routeLayout],
                         zIndex: "50",
                         node: <TaskPersonalViewHeader name="Tasks" />,
                     };
@@ -1579,6 +1622,7 @@ export function TaskPersonalView({
             remainingGridViewResult.itemCount,
             visibleSectionState,
             activeGridViewResult.itemCount,
+            routeLayout,
             renderActiveGridViewItem,
             overdueGridViewResult.itemCount,
             renderOverdueGridViewItem,
@@ -1615,6 +1659,7 @@ export function TaskPersonalView({
             <GlobalKeyDownEvent onGlobalKeyDown={onGlobalKeyDown}>
                 <VirtualizedScrollView
                     ref={viewRef}
+                    elementRef={scrollViewRef}
                     bufferedItemHeight={spacing[taskRowViewMinHeight]}
                     itemCount={
                         // `NavigationBar`
@@ -1645,7 +1690,18 @@ export function TaskPersonalView({
                         remainingGridViewResult.itemCount
                     }
                     alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalItemIndexes}
-                    scrollbarInsetTopItemIndex={activeGridViewResult.scrollbarInsetTopItemIndex}
+                    scrollbarInsetTop={
+                        routeLayout === "narrow"
+                            ? scrollbarInsetTop ?? safeAreaOnlyScrollbarInsetTop
+                            : undefined
+                    }
+                    scrollbarInsetTopItemIndex={
+                        routeLayout !== "narrow"
+                            ? isRemainingGridViewHeaderVisible
+                                ? 1
+                                : 0
+                            : undefined
+                    }
                     renderItem={renderItem}
                     onRenderedRangeChange={range => {
                         let runningItemCount = 0;
@@ -1822,6 +1878,7 @@ export function TaskPersonalView({
                     }}
                     onScroll={handleScroll}
                     onStateChange={handleStateChange}
+                    extraChildren={navigationBar}
                 />
             </GlobalKeyDownEvent>
         </Box>
@@ -1931,30 +1988,18 @@ const TaskPersonalViewNavigationBar = memo(function TaskPersonalViewNavigationBa
     itemRef,
     offset,
     shouldRenderWithRelativePositioning,
-    withColumnHeader,
+    withoutRemainingGridViewHeader,
     visibleSectionState,
 }: {
     itemRef: Ref<HTMLDivElement>;
     offset: number;
     shouldRenderWithRelativePositioning: boolean;
-    withColumnHeader: boolean;
+    withoutRemainingGridViewHeader: boolean;
     visibleSectionState: {
         section: TaskPersonalViewVisibleSection | null;
         previousSections: ReadonlySet<TaskPersonalViewVisibleSection>;
     };
 }) {
-    const spacingScale = useSpacingScale();
-
-    const hasActivePreviousVisibleSection = visibleSectionState.previousSections.has("Active");
-    const hasOverduePreviousVisibleSection = visibleSectionState.previousSections.has("Overdue");
-    const hasDueTodayPreviousVisibleSection = visibleSectionState.previousSections.has("DueToday");
-    const hasDueSoonPreviousVisibleSection = visibleSectionState.previousSections.has("DueSoon");
-
-    const isActiveVisibleSection = visibleSectionState.section === "Active";
-    const isOverdueVisibleSection = visibleSectionState.section === "Overdue";
-    const isDueTodayVisibleSection = visibleSectionState.section === "DueToday";
-    const isDueSoonVisibleSection = visibleSectionState.section === "DueSoon";
-
     return (
         <div
             className={pointerEventsNoneNotInheritedClassName}
@@ -1971,18 +2016,74 @@ const TaskPersonalViewNavigationBar = memo(function TaskPersonalViewNavigationBa
                       }),
             }}
         >
-            <Box ref={itemRef} position="sticky" top="0">
-                <Box
-                    display="flex"
-                    alignItems="center"
-                    height={navigationBarHeight}
-                    backgroundColor="grey-0"
+            <Box
+                ref={itemRef}
+                position="sticky"
+                top="0"
+                paddingTop="safe-area-inset"
+                backgroundColor="grey-0"
+            >
+                <TaskPersonalViewNavigationBarTitleDesktop
                     paddingLeft="10"
-                >
-                    <Box display="flex" alignItems="baseline" gap="3">
-                        <Box fontSize="400" fontStyle="bold">
-                            My tasks
+                    visibleSectionState={visibleSectionState}
+                />
+                {withoutRemainingGridViewHeader && (
+                    <>
+                        <TaskGridViewColumnHeader withoutAssigneeField />
+                        <Box zIndex="-10" position="absolute" inset="0" backgroundColor="grey-0">
+                            <Box
+                                position="absolute"
+                                left={screenPaddingX}
+                                right={screenPaddingX}
+                                height="border"
+                                style={{backgroundColor: grey5SemiTransparentColorVar, bottom: -1}}
+                            />
                         </Box>
+                    </>
+                )}
+            </Box>
+        </div>
+    );
+});
+
+const TaskPersonalViewNavigationBarTitleDesktop = memo(
+    function TaskPersonalViewNavigationBarTitleDesktop({
+        paddingLeft,
+        visibleSectionState,
+    }: {
+        paddingLeft: Spacing;
+        visibleSectionState: {
+            section: TaskPersonalViewVisibleSection | null;
+            previousSections: ReadonlySet<TaskPersonalViewVisibleSection>;
+        };
+    }) {
+        const spacingScale = useSpacingScale();
+
+        const hasActivePreviousVisibleSection = visibleSectionState.previousSections.has("Active");
+        const hasOverduePreviousVisibleSection =
+            visibleSectionState.previousSections.has("Overdue");
+        const hasDueTodayPreviousVisibleSection =
+            visibleSectionState.previousSections.has("DueToday");
+        const hasDueSoonPreviousVisibleSection =
+            visibleSectionState.previousSections.has("DueSoon");
+
+        const isActiveVisibleSection = visibleSectionState.section === "Active";
+        const isOverdueVisibleSection = visibleSectionState.section === "Overdue";
+        const isDueTodayVisibleSection = visibleSectionState.section === "DueToday";
+        const isDueSoonVisibleSection = visibleSectionState.section === "DueSoon";
+
+        return (
+            <Box
+                display="flex"
+                alignItems="center"
+                height={navigationBarHeight}
+                paddingLeft={paddingLeft}
+            >
+                <Box display="flex" alignItems="baseline" gap="3">
+                    <Box fontSize="400" fontStyle="bold">
+                        My tasks
+                    </Box>
+                    {
                         <Box
                             position="relative"
                             width="24"
@@ -2081,61 +2182,45 @@ const TaskPersonalViewNavigationBar = memo(function TaskPersonalViewNavigationBa
                                 Due soon
                             </Box>
                         </Box>
-                    </Box>
+                    }
                 </Box>
-                {withColumnHeader && (
-                    <>
-                        <TaskGridViewColumnHeader withoutAssigneeColumn />
-                        <Box zIndex="-10" position="absolute" inset="0" backgroundColor="grey-0">
-                            <Box
-                                position="absolute"
-                                left={screenPaddingX}
-                                right={screenPaddingX}
-                                height="border"
-                                style={{backgroundColor: grey5SemiTransparentColorVar, bottom: -1}}
-                            />
-                        </Box>
-                    </>
-                )}
             </Box>
-        </div>
-    );
-});
-
-const taskPersonalViewHeaderNameHeight = "10";
-const taskPersonalViewHeaderHeight = addRemLengths(
-    taskPersonalViewHeaderNameHeight,
-    taskGridViewColumnHeaderHeight,
+        );
+    },
 );
 
+const taskPersonalViewHeaderNameHeight = "10";
+const taskPersonalViewHeaderHeight: Record<RouteLayout, RemLength> = {
+    wide: addRemLengths(taskPersonalViewHeaderNameHeight, taskGridViewColumnHeaderHeight),
+    narrow: spacing[taskPersonalViewHeaderNameHeight],
+};
+
 const TaskPersonalViewHeader = memo(function TaskPersonalViewHeader({name}: {name: string}) {
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
+
     return (
         <>
             <Box
                 height={taskPersonalViewHeaderNameHeight}
                 display="flex"
                 alignItems="center"
-                paddingLeft="10"
+                paddingLeft={platform === "mobile" ? "5" : "10"}
             >
-                <Box fontSize="200" fontStyle="bold">
+                <Box
+                    fontSize={platform === "mobile" ? "200" : "200"}
+                    fontStyle={platform === "mobile" ? "bold" : "bold"}
+                >
                     {name}
                 </Box>
             </Box>
-            <TaskGridViewColumnHeader withoutAssigneeColumn />
-            <Box zIndex="-10" position="absolute" inset="0" backgroundColor="grey-0">
-                <Box
-                    position="absolute"
-                    left={screenPaddingX}
-                    right={screenPaddingX}
-                    height="border"
-                    style={{backgroundColor: grey5SemiTransparentColorVar, bottom: -1}}
-                />
-            </Box>
+            {routeLayout !== "narrow" && <TaskGridViewColumnHeader withoutAssigneeField />}
+            <Box zIndex="-10" position="absolute" inset="0" backgroundColor="grey-0" />
         </>
     );
 });
 
-const TaskPersonalViewFirstHeader = memo(function TaskPersonalViewFirstHeader({
+const TaskPersonalViewFirstHeaderDesktop = memo(function TaskPersonalViewFirstHeaderDesktop({
     itemRef,
     offset,
     shouldRenderWithRelativePositioning,
@@ -2146,6 +2231,8 @@ const TaskPersonalViewFirstHeader = memo(function TaskPersonalViewFirstHeader({
     shouldRenderWithRelativePositioning: boolean;
     name: string;
 }) {
+    const routeLayout = useRouteLayout();
+
     return (
         <div
             className={pointerEventsNoneNotInheritedClassName}
@@ -2161,7 +2248,11 @@ const TaskPersonalViewFirstHeader = memo(function TaskPersonalViewFirstHeader({
                       }),
             }}
         >
-            <Box ref={itemRef} zIndex="50" style={{height: taskPersonalViewHeaderHeight}}>
+            <Box
+                ref={itemRef}
+                zIndex="50"
+                style={{height: taskPersonalViewHeaderHeight[routeLayout]}}
+            >
                 <Box
                     height={taskPersonalViewHeaderNameHeight}
                     display="flex"
@@ -2176,10 +2267,14 @@ const TaskPersonalViewFirstHeader = memo(function TaskPersonalViewFirstHeader({
             <Box
                 position="sticky"
                 zIndex="60"
-                top={navigationBarHeight}
-                marginTop={`-${taskGridViewColumnHeaderHeight}`}
+                marginTop={
+                    routeLayout !== "narrow" ? `-${taskGridViewColumnHeaderHeight}` : undefined
+                }
+                style={{
+                    top: `calc(${spacing[navigationBarHeight]} + var(--safe-area-inset-top, 0px))`,
+                }}
             >
-                <TaskGridViewColumnHeader withoutAssigneeColumn />
+                {routeLayout !== "narrow" && <TaskGridViewColumnHeader withoutAssigneeField />}
                 <Box zIndex="-10" position="absolute" inset="0" backgroundColor="grey-0">
                     <Box
                         position="absolute"
@@ -2198,8 +2293,80 @@ function useTaskPersonalViewHeaderAnimations(gridViewResult: {
     stateItemCount: number;
     itemCount: number;
 }) {
+    const routeLayout = useRouteLayout();
+
     const [animations, setAnimations] = useStateWithDependencies(
-        initializeTaskPersonalViewHeaderAnimations,
+        (
+            [stateItemCount, itemCount]: readonly [number, number],
+            previousAnimations: ReadonlyArray<TaskGridViewVirtualizedListAnimation> | undefined,
+            previousDependencies: readonly [number, number] | undefined,
+        ): ReadonlyArray<TaskGridViewVirtualizedListAnimation> => {
+            if (previousAnimations === undefined || previousDependencies === undefined)
+                return emptyArray;
+
+            const [previousStateCount, previousItemCount] = previousDependencies;
+
+            const isEmpty = itemCount === 0;
+            const previousIsEmpty = previousItemCount === 0;
+
+            // Only add animations if the task grid view is appearing or disappearing.
+            if (isEmpty === previousIsEmpty) return previousAnimations;
+
+            const nonStateItemCount = itemCount - stateItemCount;
+            const previousNonStateItemCount = previousItemCount - previousStateCount;
+
+            const nonStateItemCountDifference = nonStateItemCount - previousNonStateItemCount;
+
+            if (nonStateItemCountDifference === 0) {
+                return previousAnimations;
+            } else if (nonStateItemCountDifference < 0) {
+                const heightRem =
+                    parseRemLength(taskPersonalViewHeaderHeight[routeLayout]) +
+                    // We assume all non-state items have a height of `taskRowViewMinHeight`. This
+                    // is true for the bottom ghost task and decorative ghost rows. The grid view
+                    // shouldn't have a column header so it's safe to assume all non-state items
+                    // have a height of `taskRowViewMinHeight`.
+                    parseRemLength(taskRowViewMinHeight) * -nonStateItemCountDifference +
+                    parseRemLength(taskRowViewPaddingBottom);
+
+                return [
+                    ...previousAnimations,
+                    {
+                        type: "Delete",
+                        startTime: Date.now(),
+                        // Take a little longer for header create/delete animations so everything
+                        // doesn't move too fast.
+                        duration: taskAnimationDurationMs * 2,
+                        kind: "Unknown",
+                        height: `${heightRem}rem`,
+                    },
+                ];
+            } else {
+                assert(nonStateItemCountDifference > 0);
+
+                const heightRem =
+                    parseRemLength(taskPersonalViewHeaderHeight[routeLayout]) +
+                    // We assume all non-state items have a height of `taskRowViewMinHeight`. This
+                    // is true for the bottom ghost task and decorative ghost rows. The grid view
+                    // shouldn't have a column header so it's safe to assume all non-state items
+                    // have a height of `taskRowViewMinHeight`.
+                    parseRemLength(taskRowViewMinHeight) * nonStateItemCountDifference +
+                    parseRemLength(taskRowViewPaddingBottom);
+
+                return [
+                    ...previousAnimations,
+                    {
+                        type: "Create",
+                        startTime: Date.now(),
+                        // Take a little longer for header create/delete animations so everything
+                        // doesn't move too fast.
+                        duration: taskAnimationDurationMs * 2,
+                        kind: "Unknown",
+                        height: `${heightRem}rem`,
+                    },
+                ];
+            }
+        },
         [gridViewResult.stateItemCount, gridViewResult.itemCount],
     );
 
@@ -2252,80 +2419,50 @@ function useTaskPersonalViewHeaderAnimations(gridViewResult: {
     return animations;
 }
 
-function initializeTaskPersonalViewHeaderAnimations(
-    [stateItemCount, itemCount]: readonly [number, number],
-    previousAnimations: ReadonlyArray<TaskGridViewVirtualizedListAnimation> | undefined,
-    previousDependencies: readonly [number, number] | undefined,
-): ReadonlyArray<TaskGridViewVirtualizedListAnimation> {
-    if (previousAnimations === undefined || previousDependencies === undefined) return emptyArray;
-
-    const [previousStateCount, previousItemCount] = previousDependencies;
-
-    const isEmpty = itemCount === 0;
-    const previousIsEmpty = previousItemCount === 0;
-
-    // Only add animations if the task grid view is appearing or disappearing.
-    if (isEmpty === previousIsEmpty) return previousAnimations;
-
-    const nonStateItemCount = itemCount - stateItemCount;
-    const previousNonStateItemCount = previousItemCount - previousStateCount;
-
-    const nonStateItemCountDifference = nonStateItemCount - previousNonStateItemCount;
-
-    if (nonStateItemCountDifference === 0) {
-        return previousAnimations;
-    } else if (nonStateItemCountDifference < 0) {
-        const heightRem =
-            parseRemLength(taskPersonalViewHeaderHeight) +
-            // We assume all non-state items have a height of `taskRowViewMinHeight`. This
-            // is true for the bottom ghost task and decorative ghost rows. The grid view
-            // shouldn't have a column header so it's safe to assume all non-state items
-            // have a height of `taskRowViewMinHeight`.
-            parseRemLength(taskRowViewMinHeight) * -nonStateItemCountDifference +
-            parseRemLength(taskRowViewPaddingBottom);
-
-        return [
-            ...previousAnimations,
-            {
-                type: "Delete",
-                startTime: Date.now(),
-                // Take a little longer for header create/delete animations so everything
-                // doesn't move too fast.
-                duration: taskAnimationDurationMs * 2,
-                kind: "Unknown",
-                height: `${heightRem}rem`,
-            },
-        ];
-    } else {
-        assert(nonStateItemCountDifference > 0);
-
-        const heightRem =
-            parseRemLength(taskPersonalViewHeaderHeight) +
-            // We assume all non-state items have a height of `taskRowViewMinHeight`. This
-            // is true for the bottom ghost task and decorative ghost rows. The grid view
-            // shouldn't have a column header so it's safe to assume all non-state items
-            // have a height of `taskRowViewMinHeight`.
-            parseRemLength(taskRowViewMinHeight) * nonStateItemCountDifference +
-            parseRemLength(taskRowViewPaddingBottom);
-
-        return [
-            ...previousAnimations,
-            {
-                type: "Create",
-                startTime: Date.now(),
-                // Take a little longer for header create/delete animations so everything
-                // doesn't move too fast.
-                duration: taskAnimationDurationMs * 2,
-                kind: "Unknown",
-                height: `${heightRem}rem`,
-            },
-        ];
-    }
-}
-
 function useTaskPersonalViewRemainingHeaderAnimations(isRemainingHeaderVisible: boolean) {
     const [animations, setAnimations] = useStateWithDependencies(
-        initializeTaskPersonalViewRemainingHeaderAnimations,
+        (
+            [isRemainingHeaderVisible]: readonly [boolean],
+            previousAnimations: ReadonlyArray<TaskGridViewVirtualizedListAnimation> | undefined,
+            previousDependencies: readonly [boolean] | undefined,
+        ): ReadonlyArray<TaskGridViewVirtualizedListAnimation> => {
+            if (previousAnimations === undefined || previousDependencies === undefined)
+                return emptyArray;
+
+            const [previousIsRemainingHeaderVisible] = previousDependencies;
+
+            if (isRemainingHeaderVisible === previousIsRemainingHeaderVisible) {
+                return previousAnimations;
+            } else if (!isRemainingHeaderVisible) {
+                return [
+                    ...previousAnimations,
+                    {
+                        type: "Delete",
+                        startTime: Date.now(),
+                        duration: taskAnimationDurationMs,
+                        kind: "Unknown",
+                        // Only the header name height since the column height will be added to the
+                        // navigation bar item.
+                        height: taskPersonalViewHeaderNameHeight,
+                    },
+                ];
+            } else {
+                assert(isRemainingHeaderVisible);
+
+                return [
+                    ...previousAnimations,
+                    {
+                        type: "Create",
+                        startTime: Date.now(),
+                        duration: taskAnimationDurationMs,
+                        kind: "Unknown",
+                        // Only the header name height since the column height will be added to the
+                        // navigation bar item.
+                        height: taskPersonalViewHeaderNameHeight,
+                    },
+                ];
+            }
+        },
         [isRemainingHeaderVisible],
     );
 
@@ -2376,46 +2513,4 @@ function useTaskPersonalViewRemainingHeaderAnimations(isRemainingHeaderVisible: 
     }, [animations, setAnimations]);
 
     return animations;
-}
-
-function initializeTaskPersonalViewRemainingHeaderAnimations(
-    [isRemainingHeaderVisible]: readonly [boolean],
-    previousAnimations: ReadonlyArray<TaskGridViewVirtualizedListAnimation> | undefined,
-    previousDependencies: readonly [boolean] | undefined,
-): ReadonlyArray<TaskGridViewVirtualizedListAnimation> {
-    if (previousAnimations === undefined || previousDependencies === undefined) return emptyArray;
-
-    const [previousIsRemainingHeaderVisible] = previousDependencies;
-
-    if (isRemainingHeaderVisible === previousIsRemainingHeaderVisible) {
-        return previousAnimations;
-    } else if (!isRemainingHeaderVisible) {
-        return [
-            ...previousAnimations,
-            {
-                type: "Delete",
-                startTime: Date.now(),
-                duration: taskAnimationDurationMs,
-                kind: "Unknown",
-                // Only the header name height since the column height will be added to the
-                // navigation bar item.
-                height: taskPersonalViewHeaderNameHeight,
-            },
-        ];
-    } else {
-        assert(isRemainingHeaderVisible);
-
-        return [
-            ...previousAnimations,
-            {
-                type: "Create",
-                startTime: Date.now(),
-                duration: taskAnimationDurationMs,
-                kind: "Unknown",
-                // Only the header name height since the column height will be added to the
-                // navigation bar item.
-                height: taskPersonalViewHeaderNameHeight,
-            },
-        ];
-    }
 }
