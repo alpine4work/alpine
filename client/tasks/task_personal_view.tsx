@@ -22,7 +22,6 @@ import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {
-    colorSchemeVars,
     grey5SemiTransparentColorVar,
     navigationBarStyles,
     pointerEventsNoneNotInheritedClassName,

@@ -1,4 +1,5 @@
 import {fromDate, toCalendarDate} from "@internationalized/date";
+import {ShouldRevalidateFunction} from "react-router";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
@@ -291,6 +292,18 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
         },
     );
 }
+
+// We don't need to revalidate if the URL doesn't change. We're connected to
+// realtime so should receive realtime updates.
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+    currentUrl: originalCurrentUrl,
+    nextUrl: originalNextUrl,
+}) => {
+    const currentUrl = new URL(originalCurrentUrl);
+    const nextUrl = new URL(originalNextUrl);
+
+    return nextUrl.toString() !== currentUrl.toString();
+};
 
 export default function TasksRoute() {
     const {initialGridViewExpansionStates} = useLoaderDataWithSchema(LoaderSchema);
