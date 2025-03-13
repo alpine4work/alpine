@@ -15,6 +15,7 @@ export function useStateWithDependencies<State, const Dependencies extends Depen
         | ((
               dependencies: BlockInference<Dependencies>,
               previousState: BlockInference<State> | undefined,
+              previousDependencies: BlockInference<Dependencies> | undefined,
           ) => State),
     dependencies: Dependencies,
 ): [State, Dispatch<SetStateAction<State>>] {
@@ -29,8 +30,9 @@ export function useStateWithDependencies<State, const Dependencies extends Depen
                       initializeState as (
                           dependencies: Dependencies,
                           previousState: State | undefined,
+                          previousDependencies: Dependencies | undefined,
                       ) => State
-                  )(dependencies, undefined)
+                  )(dependencies, undefined, undefined)
                 : initializeState,
     }));
 
@@ -61,8 +63,13 @@ export function useStateWithDependencies<State, const Dependencies extends Depen
                               initializeState as (
                                   dependencies: Dependencies,
                                   previousState: State | undefined,
+                                  previousDependencies: Dependencies | undefined,
                               ) => State
-                          )(dependencies, stateWithDependencies.state)
+                          )(
+                              dependencies,
+                              stateWithDependencies.state,
+                              stateWithDependencies.dependencies,
+                          )
                         : initializeState;
 
                     const newState = (action as (oldState: State) => State)(oldState);
@@ -97,8 +104,13 @@ export function useStateWithDependencies<State, const Dependencies extends Depen
                           initializeState as (
                               dependencies: Dependencies,
                               previousState: State | undefined,
+                              previousDependencies: Dependencies | undefined,
                           ) => State
-                      )(dependencies, stateWithDependencies.state)
+                      )(
+                          dependencies,
+                          stateWithDependencies.state,
+                          stateWithDependencies.dependencies,
+                      )
                     : initializeState,
         };
 
