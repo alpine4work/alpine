@@ -1404,7 +1404,7 @@ export function TaskPersonalView({
                         return {
                             key: "ActiveHeader",
                             minHeight: taskPersonalViewHeaderHeight,
-                            zIndex: "40",
+                            zIndex: "50",
                             node: <TaskPersonalViewHeader name="Active" />,
                         };
                     } else {
@@ -1442,7 +1442,7 @@ export function TaskPersonalView({
                         return {
                             key: "OverdueHeader",
                             minHeight: taskPersonalViewHeaderHeight,
-                            zIndex: "40",
+                            zIndex: "50",
                             node: <TaskPersonalViewHeader name="Overdue" />,
                         };
                     } else {
@@ -1480,7 +1480,7 @@ export function TaskPersonalView({
                         return {
                             key: "DueTodayHeader",
                             minHeight: taskPersonalViewHeaderHeight,
-                            zIndex: "40",
+                            zIndex: "50",
                             node: <TaskPersonalViewHeader name="Due today" />,
                         };
                     } else {
@@ -1518,7 +1518,7 @@ export function TaskPersonalView({
                         return {
                             key: "DueSoonHeader",
                             minHeight: taskPersonalViewHeaderHeight,
-                            zIndex: "40",
+                            zIndex: "50",
                             node: <TaskPersonalViewHeader name="Due soon" />,
                         };
                     } else {
@@ -1555,7 +1555,7 @@ export function TaskPersonalView({
                     return {
                         key: "RemainingHeader",
                         minHeight: taskPersonalViewHeaderHeight,
-                        zIndex: "40",
+                        zIndex: "50",
                         node: <TaskPersonalViewHeader name="Tasks" />,
                     };
                 }
@@ -1960,7 +1960,7 @@ const TaskPersonalViewNavigationBar = memo(function TaskPersonalViewNavigationBa
         <div
             className={pointerEventsNoneNotInheritedClassName}
             style={{
-                zIndex: "50",
+                zIndex: "60",
                 ...(shouldRenderWithRelativePositioning
                     ? {position: "relative"}
                     : {
@@ -2129,7 +2129,7 @@ const TaskPersonalViewHeader = memo(function TaskPersonalViewHeader({name}: {nam
                     left={screenPaddingX}
                     right={screenPaddingX}
                     height="border"
-                    style={{backgroundColor: colorSchemeVars["grey-5"], bottom: -1}}
+                    style={{backgroundColor: grey5SemiTransparentColorVar, bottom: -1}}
                 />
             </Box>
         </>
@@ -2162,7 +2162,7 @@ const TaskPersonalViewFirstHeader = memo(function TaskPersonalViewFirstHeader({
                       }),
             }}
         >
-            <Box ref={itemRef} zIndex="40" style={{height: taskPersonalViewHeaderHeight}}>
+            <Box ref={itemRef} zIndex="50" style={{height: taskPersonalViewHeaderHeight}}>
                 <Box
                     height={taskPersonalViewHeaderNameHeight}
                     display="flex"
@@ -2176,7 +2176,7 @@ const TaskPersonalViewFirstHeader = memo(function TaskPersonalViewFirstHeader({
             </Box>
             <Box
                 position="sticky"
-                zIndex="50"
+                zIndex="60"
                 top={navigationBarHeight}
                 marginTop={`-${taskGridViewColumnHeaderHeight}`}
             >
