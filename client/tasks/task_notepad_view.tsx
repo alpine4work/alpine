@@ -368,7 +368,7 @@ export function TaskNotepadView({
         query: queryState.activeQuery.query,
         affinityManager,
         viewRef: gridViewRef,
-        initiallyWithTopGhostTaskRow:
+        initiallyWithTopGhostTask:
             shouldInitiallyFocusTopGhostTask || shouldInitiallyShowTopGhostTask,
         getMoveTaskToQueryActions: (taskId, position) => {
             const time = store.clock.now();

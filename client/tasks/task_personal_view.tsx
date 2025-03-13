@@ -572,6 +572,7 @@ export function TaskPersonalView({
             },
         ],
         withoutColumnHeader: true,
+        withoutBottomGhostTaskIfEmpty: true,
         withoutDecorativeGhostRowsIfEmpty: true,
         isDragging,
         draggingData,
@@ -626,6 +627,12 @@ export function TaskPersonalView({
         // We won't show the `ActiveHeader` item we added previously if this grid view
         // is empty.
         runningItemCount -= 1;
+
+        // Safety check: Make sure the grid view has no virtualized scroll view
+        // items if we determine it to be empty. That way if the effects in the
+        // virtualized scroll view check `viewRef.current.getRenderedRange()` we'll
+        // accurately return null.
+        assert(activeGridViewResult.itemCount === 0);
     } else {
         // Always render the first header since its column names will be
         // `position: sticky`.
@@ -640,6 +647,8 @@ export function TaskPersonalView({
 
         runningItemCount += activeGridViewResult.itemCount;
     }
+
+    let previousGridViewAnimations = activeGridViewResult.animations;
 
     // `OverdueHeader` (must be before `useTaskGridViewVirtualizedListViewRef()` to
     // shift indexes correctly)
@@ -735,6 +744,7 @@ export function TaskPersonalView({
             },
         ],
         withoutColumnHeader: true,
+        withoutBottomGhostTaskIfEmpty: true,
         withoutDecorativeGhostRowsIfEmpty: true,
         isDragging,
         draggingData,
@@ -745,6 +755,7 @@ export function TaskPersonalView({
             throw new UnimplementedError("NOCOMMIT");
         },
         previousGridView: !isActiveGridViewEmpty ? activeGridViewResult : undefined,
+        previousGridViewAnimations,
         nextGridView: {
             focusFirstTaskTitleStart: () => {
                 if (!isDueTodayGridViewEmpty) {
@@ -783,7 +794,7 @@ export function TaskPersonalView({
     const {onRenderedRangeLayoutChange: onRenderedRangeLayoutChangeForOverdueHeader} =
         useTaskGridViewVirtualizedListItemAnimation(
             viewRef,
-            activeGridViewResult,
+            previousGridViewAnimations,
             !isOverdueGridViewEmpty ? runningItemCount - 1 : null,
         );
 
@@ -791,6 +802,12 @@ export function TaskPersonalView({
         // We won't show the `OverdueHeader` item we added previously if this grid view
         // is empty.
         runningItemCount -= 1;
+
+        // Safety check: Make sure the grid view has no virtualized scroll view
+        // items if we determine it to be empty. That way if the effects in the
+        // virtualized scroll view check `viewRef.current.getRenderedRange()` we'll
+        // accurately return null.
+        assert(overdueGridViewResult.itemCount === 0);
     } else {
         // Always render the first header since its column names will be
         // `position: sticky`.
@@ -805,6 +822,12 @@ export function TaskPersonalView({
 
         runningItemCount += overdueGridViewResult.itemCount;
     }
+
+    previousGridViewAnimations = useMemo(() => {
+        if (previousGridViewAnimations.length === 0) return overdueGridViewResult.animations;
+        if (overdueGridViewResult.animations.length === 0) return previousGridViewAnimations;
+        return [...previousGridViewAnimations, ...overdueGridViewResult.animations];
+    }, [overdueGridViewResult.animations, previousGridViewAnimations]);
 
     // `DueTodayHeader` (must be before `useTaskGridViewVirtualizedListViewRef()`
     // to shift indexes correctly)
@@ -896,6 +919,7 @@ export function TaskPersonalView({
             },
         ],
         withoutColumnHeader: true,
+        withoutBottomGhostTaskIfEmpty: true,
         withoutDecorativeGhostRowsIfEmpty: true,
         isDragging,
         draggingData,
@@ -910,6 +934,7 @@ export function TaskPersonalView({
             : !isActiveGridViewEmpty
             ? activeGridViewResult
             : undefined,
+        previousGridViewAnimations,
         nextGridView: {
             focusFirstTaskTitleStart: () => {
                 if (!isDueSoonGridViewEmpty) {
@@ -942,7 +967,7 @@ export function TaskPersonalView({
     const {onRenderedRangeLayoutChange: onRenderedRangeLayoutChangeForDueTodayHeader} =
         useTaskGridViewVirtualizedListItemAnimation(
             viewRef,
-            overdueGridViewResult,
+            previousGridViewAnimations,
             !isDueTodayGridViewEmpty ? runningItemCount - 1 : null,
         );
 
@@ -950,6 +975,12 @@ export function TaskPersonalView({
         // We won't show the `DueTodayHeader` item we added previously if this grid
         // view is empty.
         runningItemCount -= 1;
+
+        // Safety check: Make sure the grid view has no virtualized scroll view
+        // items if we determine it to be empty. That way if the effects in the
+        // virtualized scroll view check `viewRef.current.getRenderedRange()` we'll
+        // accurately return null.
+        assert(dueTodayGridViewResult.itemCount === 0);
     } else {
         // Always render the first header since its column names will be
         // `position: sticky`.
@@ -964,6 +995,12 @@ export function TaskPersonalView({
 
         runningItemCount += dueTodayGridViewResult.itemCount;
     }
+
+    previousGridViewAnimations = useMemo(() => {
+        if (previousGridViewAnimations.length === 0) return dueTodayGridViewResult.animations;
+        if (dueTodayGridViewResult.animations.length === 0) return previousGridViewAnimations;
+        return [...previousGridViewAnimations, ...dueTodayGridViewResult.animations];
+    }, [dueTodayGridViewResult.animations, previousGridViewAnimations]);
 
     // `DueSoonHeader` (must be before `useTaskGridViewVirtualizedListViewRef()`
     // to shift indexes correctly)
@@ -1060,6 +1097,7 @@ export function TaskPersonalView({
             },
         ],
         withoutColumnHeader: true,
+        withoutBottomGhostTaskIfEmpty: true,
         withoutDecorativeGhostRowsIfEmpty: true,
         isDragging,
         draggingData,
@@ -1076,6 +1114,7 @@ export function TaskPersonalView({
             : !isActiveGridViewEmpty
             ? activeGridViewResult
             : undefined,
+        previousGridViewAnimations,
         nextGridView: {
             focusFirstTaskTitleStart: () => {
                 remainingGridViewResult.focusFirstTaskTitleStart();
@@ -1096,7 +1135,7 @@ export function TaskPersonalView({
     const {onRenderedRangeLayoutChange: onRenderedRangeLayoutChangeForDueSoonHeader} =
         useTaskGridViewVirtualizedListItemAnimation(
             viewRef,
-            dueTodayGridViewResult,
+            previousGridViewAnimations,
             !isDueSoonGridViewEmpty ? runningItemCount - 1 : null,
         );
 
@@ -1104,6 +1143,12 @@ export function TaskPersonalView({
         // We won't show the `DueSoonHeader` item we added previously if this grid view
         // is empty.
         runningItemCount -= 1;
+
+        // Safety check: Make sure the grid view has no virtualized scroll view
+        // items if we determine it to be empty. That way if the effects in the
+        // virtualized scroll view check `viewRef.current.getRenderedRange()` we'll
+        // accurately return null.
+        assert(dueSoonGridViewResult.itemCount === 0);
     } else {
         // Always render the first header since its column names will be
         // `position: sticky`.
@@ -1119,9 +1164,27 @@ export function TaskPersonalView({
         runningItemCount += dueSoonGridViewResult.itemCount;
     }
 
-    // `RemainingHeader` (must be before `useTaskGridViewVirtualizedListViewRef()`
-    // to shift indexes correctly)
-    runningItemCount += 1;
+    previousGridViewAnimations = useMemo(() => {
+        if (previousGridViewAnimations.length === 0) return dueSoonGridViewResult.animations;
+        if (dueSoonGridViewResult.animations.length === 0) return previousGridViewAnimations;
+        return [...previousGridViewAnimations, ...dueSoonGridViewResult.animations];
+    }, [dueSoonGridViewResult.animations, previousGridViewAnimations]);
+
+    // `RemainingHeader`
+    //
+    // This is conditional since if `RemainingHeader` isn't visible because none of
+    // the other grid views are visible we don't want to shift the remaining grid
+    // view items incorrectly because the remaining grid view will always be
+    // visible. It's ok if we incorrectly shift other grid views when they have an
+    // item count of 0 so the shift won't matter.
+    if (
+        !isActiveGridViewEmpty ||
+        !isOverdueGridViewEmpty ||
+        !isDueTodayGridViewEmpty ||
+        !isDueSoonGridViewEmpty
+    ) {
+        runningItemCount += 1;
+    }
 
     const remainingGridViewResult = useTaskGridViewVirtualizedListBase({
         structuralItemKeyPrefix: "Remaining-",
@@ -1200,12 +1263,13 @@ export function TaskPersonalView({
             : !isActiveGridViewEmpty
             ? activeGridViewResult
             : undefined,
+        previousGridViewAnimations,
     });
 
     const {onRenderedRangeLayoutChange: onRenderedRangeLayoutChangeForRemainingHeader} =
         useTaskGridViewVirtualizedListItemAnimation(
             viewRef,
-            dueSoonGridViewResult,
+            previousGridViewAnimations,
             !isActiveGridViewEmpty ||
                 !isOverdueGridViewEmpty ||
                 !isDueTodayGridViewEmpty ||
@@ -1213,19 +1277,6 @@ export function TaskPersonalView({
                 ? runningItemCount - 1
                 : null,
         );
-
-    if (
-        !isActiveGridViewEmpty ||
-        !isOverdueGridViewEmpty ||
-        !isDueTodayGridViewEmpty ||
-        !isDueSoonGridViewEmpty
-    ) {
-        // `RemainingHeader` is already added.
-    } else {
-        // We won't show the `RemainingHeader` item we added previously if all other
-        // grid views are empty.
-        runningItemCount -= 1;
-    }
 
     for (const index of remainingGridViewResult.alwaysRenderAdditionalItemIndexes) {
         alwaysRenderAdditionalItemIndexes.push(index + runningItemCount);
@@ -1818,9 +1869,8 @@ function shiftRenderedRange(
     itemCount: number,
     range: {startIndex: number; endIndex: number} | null,
 ) {
-    if (!range) {
-        return null;
-    }
+    if (!range) return null;
+    if (itemCount === 0) return null;
 
     const startIndex = range.startIndex - previousItemCount;
     const endIndex = range.endIndex - previousItemCount;

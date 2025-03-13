@@ -246,9 +246,23 @@ export type TaskGridViewVirtualizedListProps = {
     rowMaxWidth?: Spacing | null;
 
     /**
+     * Don't render the bottom ghost task if there are no tasks. Similar to
+     * `withoutDecorativeGhostRowsIfEmpty`.
+     *
+     * If this is true and `withoutColumnHeader` is true and
+     * `withoutDecorativeGhostRowsIfEmpty` is true and there are no tasks in the
+     * query then this list should render zero items.
+     */
+    withoutBottomGhostTaskIfEmpty?: boolean;
+
+    /**
      * Don't render the up to three decorative ghost row items if there's no tasks.
-     * If this is true and `withoutColumnHeader` is true then if there are no tasks
-     * in the query we should render zero items.
+     * Similar to `withoutBottomGhostTaskIfEmpty`.
+     *
+     * If this is true and `withoutColumnHeader` is true and the query is auto
+     * sorted then if there are no tasks in the query we should render zero items.
+     * If the query is not auto sorted then `withoutBottomGhostTaskIfEmpty` must
+     * also be true to render zero items when there's no tasks.
      */
     withoutDecorativeGhostRowsIfEmpty?: boolean;
 
@@ -256,7 +270,7 @@ export type TaskGridViewVirtualizedListProps = {
      * Is the top ghost task row visible immediately on mount? If false then you
      * can call `showTopGhostTaskAndFocus()` to show the top ghost task.
      */
-    initiallyWithTopGhostTaskRow?: boolean;
+    initiallyWithTopGhostTask?: boolean;
 
     /**
      * Provide custom handling for the undo/redo stack entry. Important for
@@ -281,8 +295,6 @@ export type TaskGridViewVirtualizedListProps = {
      * `TaskGridViewVirtualizedListResult` of the previous grid view.
      */
     previousGridView?: {
-        animations: ReadonlyArray<TaskGridViewVirtualizedListAnimation>;
-        previousGridViewAnimations: ReadonlyArray<TaskGridViewVirtualizedListAnimation>;
         focusLastTaskTitleStart: () => void;
         focusLastTaskTitleEnd: () => void;
         focusLastTaskTitleAll: () => void;
@@ -300,6 +312,17 @@ export type TaskGridViewVirtualizedListProps = {
         focusFirstTaskTitleCoord: (coord: number) => void;
         focusFirstTaskCell: (column: TaskGridViewColumn) => void;
     };
+
+    /**
+     * Animations from previous grid views. This is separate from
+     * `previousGridView` since if a grid view is hidden the caller may set
+     * `previousGridView` to undefined (or a different grid view) which would mean
+     * we lose the animations from the newly hidden grid view.
+     *
+     * It's expected that the caller keep accumulating all previous grid view
+     * animations (including from hidden grid views) and pass it into this array.
+     */
+    previousGridViewAnimations?: ReadonlyArray<TaskGridViewVirtualizedListAnimation>;
 };
 
 export type TaskGridViewVirtualizedListResult = {
@@ -474,13 +497,6 @@ export type TaskGridViewVirtualizedListResult = {
      * Does not include any animations we're inheriting from `previousGridView`.
      */
     animations: ReadonlyArray<TaskGridViewVirtualizedListAnimation>;
-
-    /**
-     * (Optional) The animations we're currently running on previous grid views
-     * (recursively). Does not include the animations we're running directly on
-     * this grid view (that's in `animations`).
-     */
-    previousGridViewAnimations: ReadonlyArray<TaskGridViewVirtualizedListAnimation>;
 };
 
 /**
@@ -806,8 +822,9 @@ export function useTaskGridViewVirtualizedListBase({
     withoutColumnHeader = false,
     columnHeaderControls,
     rowMaxWidth = null,
+    withoutBottomGhostTaskIfEmpty = false,
     withoutDecorativeGhostRowsIfEmpty = false,
-    initiallyWithTopGhostTaskRow = false,
+    initiallyWithTopGhostTask = false,
     onApplyUndoStackEntry,
     stateKey: stateKeyFromProps,
     isDragging,
@@ -816,6 +833,7 @@ export function useTaskGridViewVirtualizedListBase({
     scrollToAnchorPosition: scrollToAnchorPositionFromProps,
     previousGridView,
     nextGridView,
+    previousGridViewAnimations = emptyArray,
 }: Omit<TaskGridViewVirtualizedListProps, "getAnchorPosition"> & {
     stateKey?: string;
     isDragging: boolean;
@@ -909,7 +927,7 @@ export function useTaskGridViewVirtualizedListBase({
     const isRootQueryManuallySorted = isTaskQueryManuallySorted(rootQuery?.sorts ?? emptyArray);
 
     const [topGhostTaskId, setTopGhostTaskId] = useState(() => {
-        if (!initiallyWithTopGhostTaskRow) return null;
+        if (!initiallyWithTopGhostTask) return null;
         if (!isRootQueryManuallySorted) return null;
         if (!initialAppRenderId) return generateId<TaskId>();
 
@@ -965,7 +983,8 @@ export function useTaskGridViewVirtualizedListBase({
         !capabilities.isReadOnly &&
         !isRootQueryNull &&
         isRootQueryManuallySorted &&
-        bottomGhostTaskId;
+        bottomGhostTaskId !== null &&
+        (!withoutBottomGhostTaskIfEmpty || stateItemCount > 0);
 
     const hasColumnHeader: boolean =
         (capabilities.hasColumns && !withoutColumnHeader) || !!columnHeaderControls;
@@ -2207,17 +2226,6 @@ export function useTaskGridViewVirtualizedListBase({
         return () => timeout.clear();
     }, [animationState.animations]);
 
-    const previousGridViewAnimations = useMemo(() => {
-        if (!previousGridView?.animations) return emptyArray;
-
-        if (previousGridView.previousGridViewAnimations.length === 0)
-            return previousGridView.animations;
-        if (previousGridView.animations.length === 0)
-            return previousGridView.previousGridViewAnimations;
-
-        return [...previousGridView.previousGridViewAnimations, ...previousGridView.animations];
-    }, [previousGridView?.animations, previousGridView?.previousGridViewAnimations]);
-
     const cancelAnimationRef = useRef<(() => void) | null>(null);
 
     const updateAnimations = useCallback(() => {
@@ -2233,10 +2241,10 @@ export function useTaskGridViewVirtualizedListBase({
         const actualAnimations = new Set<AnimationControls>();
 
         // Loop through every rendered item checking if it needs to be animated.
-        for (let i = renderedRange.startIndex; i <= renderedRange.endIndex; i++) {
+        for (let index = renderedRange.startIndex; index <= renderedRange.endIndex; index++) {
             const item =
-                itemCountBeforeState <= i && i < itemCountBeforeState + stateItemCount
-                    ? state.getItem(i - itemCountBeforeState)
+                itemCountBeforeState <= index && index < itemCountBeforeState + stateItemCount
+                    ? state.getItem(index - itemCountBeforeState)
                     : null;
 
             let movements: LinkedList<Movement> = null;
@@ -2256,7 +2264,7 @@ export function useTaskGridViewVirtualizedListBase({
                                     animation.newItem,
                                     item,
                                 )) ||
-                            i >= itemCountBeforeState + stateItemCount;
+                            index >= itemCountBeforeState + stateItemCount;
 
                         const isChildOfNewItem =
                             !isPreviousGridView &&
@@ -2308,7 +2316,7 @@ export function useTaskGridViewVirtualizedListBase({
                                     animation.oldItem,
                                     item,
                                 )) ||
-                            i >= itemCountBeforeState + stateItemCount;
+                            index >= itemCountBeforeState + stateItemCount;
 
                         if (!isAfterOldItem) return;
 
@@ -2351,7 +2359,7 @@ export function useTaskGridViewVirtualizedListBase({
                                     animation.oldItem,
                                     item,
                                 )) ||
-                            i >= itemCountBeforeState + stateItemCount;
+                            index >= itemCountBeforeState + stateItemCount;
 
                         const isAfterNewItem =
                             isPreviousGridView ||
@@ -2360,7 +2368,7 @@ export function useTaskGridViewVirtualizedListBase({
                                     animation.newItem,
                                     item,
                                 )) ||
-                            i >= itemCountBeforeState + stateItemCount;
+                            index >= itemCountBeforeState + stateItemCount;
 
                         const isNewItem =
                             item?.type === "Task" &&
@@ -2430,7 +2438,7 @@ export function useTaskGridViewVirtualizedListBase({
 
             if (movements === null) continue;
 
-            const key = view.getKeyByIndexIfExists(i);
+            const key = view.getKeyByIndexIfExists(index);
             const element = key ? view.getElementByKeyIfExists(key) : null;
 
             if (!element) continue;
@@ -2941,7 +2949,6 @@ export function useTaskGridViewVirtualizedListBase({
         state,
         stateItemCount,
         animations: animationState.animations,
-        previousGridViewAnimations,
         applyUndoStackEntry,
     };
 }
@@ -3081,20 +3088,13 @@ function convertMovementsToKeyframes(movements: LinkedList<Movement>) {
  */
 export function useTaskGridViewVirtualizedListItemAnimation(
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef>,
-    previousGridView: {
-        animations: ReadonlyArray<TaskGridViewVirtualizedListAnimation>;
-        previousGridViewAnimations: ReadonlyArray<TaskGridViewVirtualizedListAnimation>;
-    },
+    previousGridViewAnimations: ReadonlyArray<TaskGridViewVirtualizedListAnimation>,
     itemIndex: number | null,
 ) {
     const cancelAnimationRef = useRef<(() => void) | null>(null);
 
     const updateAnimations = useCallback(() => {
-        if (
-            itemIndex === null ||
-            (previousGridView.animations.length === 0 &&
-                previousGridView.previousGridViewAnimations.length === 0)
-        ) {
+        if (itemIndex === null || previousGridViewAnimations.length === 0) {
             return null;
         }
 
@@ -3109,13 +3109,13 @@ export function useTaskGridViewVirtualizedListItemAnimation(
 
         // Total up the distance this task needs to move from all ongoing animations.
         // The row may be affected by multiple animations at once.
-        const addAnimationMovement = (animation: TaskGridViewVirtualizedListAnimation) => {
+        for (const animation of previousGridViewAnimations) {
             switch (animation.type) {
                 case "Create": {
                     const endTime = animation.startTime + animation.duration;
                     const remainingDuration = endTime - currentTime;
 
-                    if (remainingDuration <= 0) return;
+                    if (remainingDuration <= 0) break;
 
                     // TODO(calebmer): Ideally we'd get access to the new item's actual
                     // height since the height is not a constant in task detail view.
@@ -3141,7 +3141,7 @@ export function useTaskGridViewVirtualizedListItemAnimation(
                     const endTime = animation.startTime + animation.duration;
                     const remainingDuration = endTime - currentTime;
 
-                    if (remainingDuration <= 0) return;
+                    if (remainingDuration <= 0) break;
 
                     // TODO(calebmer): Ideally we'd somehow get access to the old item's actual
                     // height since the height is not a constant in task detail view.
@@ -3163,19 +3163,11 @@ export function useTaskGridViewVirtualizedListItemAnimation(
                 case "Move": {
                     // We don't need to animate moves since right now a move animation may only
                     // happen entirely within a single grid view.
-                    return;
+                    break;
                 }
                 default:
                     exhaustive(animation);
             }
-        };
-
-        for (const animation of previousGridView.previousGridViewAnimations) {
-            addAnimationMovement(animation);
-        }
-
-        for (const animation of previousGridView.animations) {
-            addAnimationMovement(animation);
         }
 
         if (movements === null) return noop;
@@ -3213,12 +3205,7 @@ export function useTaskGridViewVirtualizedListItemAnimation(
         return () => {
             actualAnimation.finish();
         };
-    }, [
-        itemIndex,
-        previousGridView.animations,
-        previousGridView.previousGridViewAnimations,
-        viewRef,
-    ]);
+    }, [itemIndex, previousGridViewAnimations, viewRef]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         cancelAnimationRef.current?.();

@@ -582,7 +582,7 @@ export function TaskCollectionView({
         store,
         query: queryState.activeQuery.query,
         affinityManager,
-        initiallyWithTopGhostTaskRow: shouldInitiallyShowTopGhostTask,
+        initiallyWithTopGhostTask: shouldInitiallyShowTopGhostTask,
         getMoveTaskToQueryActions: (taskId, position): Array<TaskActionModel> => {
             assert(collectionSubscription && queryState.activeQuery.isAvailable);
 
