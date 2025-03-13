@@ -300,13 +300,6 @@ export type TaskGridViewVirtualizedListProps = {
         focusFirstTaskTitleCoord: (coord: number) => void;
         focusFirstTaskCell: (column: TaskGridViewColumn) => void;
     };
-
-    /**
-     * Additional animations from the previous grid view. Useful in case we have
-     * other items in the virtualized list that cause animations. Are considered to
-     * be a part of `previousGridView.animations`.
-     */
-    additionalPreviousGridViewAnimations?: ReadonlyArray<TaskGridViewVirtualizedListAnimation>;
 };
 
 export type TaskGridViewVirtualizedListResult = {
@@ -823,7 +816,6 @@ export function useTaskGridViewVirtualizedListBase({
     scrollToAnchorPosition: scrollToAnchorPositionFromProps,
     previousGridView,
     nextGridView,
-    additionalPreviousGridViewAnimations = emptyArray,
 }: Omit<TaskGridViewVirtualizedListProps, "getAnchorPosition"> & {
     stateKey?: string;
     isDragging: boolean;
@@ -2216,37 +2208,15 @@ export function useTaskGridViewVirtualizedListBase({
     }, [animationState.animations]);
 
     const previousGridViewAnimations = useMemo(() => {
-        if (!previousGridView?.animations) return additionalPreviousGridViewAnimations;
+        if (!previousGridView?.animations) return emptyArray;
 
-        if (
-            previousGridView.previousGridViewAnimations.length === 0 &&
-            additionalPreviousGridViewAnimations.length === 0
-        ) {
+        if (previousGridView.previousGridViewAnimations.length === 0)
             return previousGridView.animations;
-        }
-        if (
-            previousGridView.animations.length === 0 &&
-            additionalPreviousGridViewAnimations.length === 0
-        ) {
+        if (previousGridView.animations.length === 0)
             return previousGridView.previousGridViewAnimations;
-        }
-        if (
-            previousGridView.animations.length === 0 &&
-            previousGridView.previousGridViewAnimations.length === 0
-        ) {
-            return additionalPreviousGridViewAnimations;
-        }
 
-        return [
-            ...previousGridView.previousGridViewAnimations,
-            ...previousGridView.animations,
-            ...additionalPreviousGridViewAnimations,
-        ];
-    }, [
-        additionalPreviousGridViewAnimations,
-        previousGridView?.animations,
-        previousGridView?.previousGridViewAnimations,
-    ]);
+        return [...previousGridView.previousGridViewAnimations, ...previousGridView.animations];
+    }, [previousGridView?.animations, previousGridView?.previousGridViewAnimations]);
 
     const cancelAnimationRef = useRef<(() => void) | null>(null);
 

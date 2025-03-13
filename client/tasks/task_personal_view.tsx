@@ -46,10 +46,6 @@ import {
     useTaskGridViewVirtualizedListBase,
     useTaskGridViewVirtualizedListItemAnimation,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
-import {
-    TaskGridViewVirtualizedListAnimation,
-    taskAnimationDurationMs,
-} from "~/client/tasks/internal/task_grid_view_virtualized_list_state.js";
 import {TaskGridViewVirtualizedListViewRef} from "~/client/tasks/internal/task_grid_view_virtualized_list_types.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {
@@ -71,10 +67,8 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {OutOfRangeError, UnimplementedError} from "~/shared/error/error.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -628,9 +622,6 @@ export function TaskPersonalView({
         activeGridViewResult.stateItemCount === 0 &&
         activeGridViewResult.loadedState === "FullyLoaded";
 
-    const activeGridViewHeaderAnimations =
-        useTaskPersonalViewHeaderAnimations(isActiveGridViewEmpty);
-
     if (isActiveGridViewEmpty) {
         // We won't show the `ActiveHeader` item we added previously if this grid view
         // is empty.
@@ -789,9 +780,6 @@ export function TaskPersonalView({
         overdueGridViewResult.stateItemCount === 0 &&
         overdueGridViewResult.loadedState === "FullyLoaded";
 
-    const overdueGridViewHeaderAnimations =
-        useTaskPersonalViewHeaderAnimations(isOverdueGridViewEmpty);
-
     const {onRenderedRangeLayoutChange: onRenderedRangeLayoutChangeForOverdueHeader} =
         useTaskGridViewVirtualizedListItemAnimation(
             viewRef,
@@ -945,15 +933,11 @@ export function TaskPersonalView({
                 }
             },
         },
-        additionalPreviousGridViewAnimations: overdueGridViewHeaderAnimations,
     });
 
     const isDueTodayGridViewEmpty =
         dueTodayGridViewResult.stateItemCount === 0 &&
         dueTodayGridViewResult.loadedState === "FullyLoaded";
-
-    const [wasDueTodayGridViewEmpty, setWasDueTodayGridViewEmpty] =
-        useState(isDueTodayGridViewEmpty);
 
     const {onRenderedRangeLayoutChange: onRenderedRangeLayoutChangeForDueTodayHeader} =
         useTaskGridViewVirtualizedListItemAnimation(
@@ -1108,8 +1092,6 @@ export function TaskPersonalView({
     const isDueSoonGridViewEmpty =
         dueSoonGridViewResult.stateItemCount === 0 &&
         dueSoonGridViewResult.loadedState === "FullyLoaded";
-
-    const [wasDueSoonGridViewEmpty, setWasDueSoonGridViewEmpty] = useState(isDueSoonGridViewEmpty);
 
     const {onRenderedRangeLayoutChange: onRenderedRangeLayoutChangeForDueSoonHeader} =
         useTaskGridViewVirtualizedListItemAnimation(
@@ -2119,94 +2101,3 @@ const TaskPersonalViewFirstHeader = memo(function TaskPersonalViewFirstHeader({
         </div>
     );
 });
-
-function useTaskPersonalViewHeaderAnimations(isGridViewEmpty: boolean) {
-    const [animations, setAnimations] = useStateWithDependencies(
-        initializeTaskPersonalViewHeaderAnimations,
-        [isGridViewEmpty],
-    );
-
-    // Cleanup animations from our state when they finish.
-    useEffect(() => {
-        const currentTime = Date.now();
-        let minDuration = Infinity;
-
-        for (const animation of animations) {
-            const endTime = animation.startTime + animation.duration;
-
-            minDuration = Math.min(minDuration, endTime - currentTime);
-        }
-
-        const cleanup = () => {
-            setAnimations(animations => {
-                const currentTime = Date.now();
-
-                const newAnimations: Array<TaskGridViewVirtualizedListAnimation> = [];
-
-                for (const animation of animations) {
-                    const endTime = animation.startTime + animation.duration;
-
-                    if (endTime > currentTime) {
-                        newAnimations.push(animation);
-                    }
-                }
-
-                // Optimization: No animations expired. We can avoid a re-render.
-                if (newAnimations.length === animations.length) {
-                    return animations;
-                }
-
-                return newAnimations;
-            });
-        };
-
-        if (minDuration <= 0) {
-            cleanup();
-            return;
-        }
-
-        // If there are no animations then `minDuration` is `Infinity`
-        if (!isFinite(minDuration)) return;
-
-        const timeout = createTimeout(cleanup, minDuration);
-        return () => timeout.clear();
-    }, [animations, setAnimations]);
-
-    return animations;
-}
-
-function initializeTaskPersonalViewHeaderAnimations(
-    [isGridViewEmpty]: readonly [boolean],
-    previousAnimations:
-        | ReadonlyArray<TaskGridViewVirtualizedListAnimation>
-        | undefined = emptyArray,
-    previousDependencies: readonly [boolean] | undefined,
-): ReadonlyArray<TaskGridViewVirtualizedListAnimation> {
-    if (previousDependencies === undefined) return previousAnimations;
-
-    if (isGridViewEmpty && !previousDependencies[0]) {
-        return [
-            ...previousAnimations,
-            {
-                type: "DeleteUnknown",
-                startTime: Date.now(),
-                duration: taskAnimationDurationMs,
-                height: taskPersonalViewHeaderHeight,
-            },
-        ];
-    }
-
-    if (!isGridViewEmpty && previousDependencies[0]) {
-        return [
-            ...previousAnimations,
-            {
-                type: "CreateUnknown",
-                startTime: Date.now(),
-                duration: taskAnimationDurationMs,
-                height: taskPersonalViewHeaderHeight,
-            },
-        ];
-    }
-
-    return previousAnimations;
-}

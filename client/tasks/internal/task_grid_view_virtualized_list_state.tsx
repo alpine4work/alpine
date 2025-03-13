@@ -4,7 +4,6 @@ import createTree, {
     Node as TreeNode,
 } from "functional-red-black-tree";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
-import {ParsableRemLength} from "~/shared/design/core/spacing.js";
 import {OutOfRangeError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
@@ -24,8 +23,7 @@ import {
     getTaskQuerySortCursorTaskId,
 } from "~/shared/tasks/task_query_sort_cursor.js";
 
-// NOCOMMIT
-export const taskAnimationDurationMs = 100 * 20;
+const taskAnimationDurationMs = 100;
 
 // HACK(calebmer): Hackishly get the constructor for a
 // `functional-red-black-tree` iterator so we can construct it since there's
@@ -201,18 +199,6 @@ export type TaskGridViewVirtualizedListAnimation =
           readonly newItem: Omit<TaskGridViewVirtualizedListStateTaskItem, "isFirstTaskInQuery">;
           readonly oldItem: Omit<TaskGridViewVirtualizedListStateTaskItem, "isFirstTaskInQuery">;
           readonly direction: "Up" | "Down";
-      }
-    | {
-          readonly type: "CreateUnknown";
-          readonly startTime: number;
-          readonly duration: number;
-          readonly height: ParsableRemLength;
-      }
-    | {
-          readonly type: "DeleteUnknown";
-          readonly startTime: number;
-          readonly duration: number;
-          readonly height: ParsableRemLength;
       };
 
 // All animations must have `startTime` and `duration`.
