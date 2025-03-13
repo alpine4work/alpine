@@ -2465,7 +2465,7 @@ export function useTaskGridViewVirtualizedListBase({
 
         return () => {
             for (const actualAnimation of actualAnimations) {
-                actualAnimation.cancel();
+                actualAnimation.finish();
             }
         };
     }, [
@@ -3211,7 +3211,7 @@ export function useTaskGridViewVirtualizedListItemAnimation(
         );
 
         return () => {
-            actualAnimation.cancel();
+            actualAnimation.finish();
         };
     }, [
         itemIndex,
