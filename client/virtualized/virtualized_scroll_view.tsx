@@ -2091,7 +2091,7 @@ function getElementPosition(
     const scrollRect = scrollElement.getBoundingClientRect();
     const rect = element.getBoundingClientRect();
 
-    const offset =
+    let offset =
         rect.top -
         scrollRect.top +
         scrollElement.scrollTop +
@@ -2099,15 +2099,39 @@ function getElementPosition(
         // reflected in `scrollElement.scrollTop` during the scroll.
         (scrollAnchorAdjustmentDuringMobileWebKitScroll ?? 0);
 
-    // Development debug warning. We want the offset we return to be equivalent to
-    // `offsetTop` but with subpixel accuracy. If it's not equal, something's
-    // going wrong!
-    if (process.env.NODE_ENV !== "production" && Math.abs(offset - element.offsetTop) >= 1) {
-        // eslint-disable-next-line no-console
-        console.warn(
-            "`<VirtualizedScrollView>` expected offset computed from element to be within 1px of `offsetTop`",
-            {actual: offset, expected: element.offsetTop},
-        );
+    if (Math.abs(offset - element.offsetTop) >= 1) {
+        // Fallback to `element.offsetTop` if the calculated `offset` based on bounding
+        // client rects is incorrect. We'll lose sub-pixel accuracy but get the right
+        // result. This happens if `element` is animating with a CSS animation (e.g.
+        // task grid view animates virtualized scroll view elements).
+        offset = element.offsetTop;
+
+        // Development debug warning. We want the offset we return to be equivalent to
+        // `offsetTop` but with subpixel accuracy. If it's not equal, something's
+        // going wrong!
+        if (process.env.NODE_ENV !== "production") {
+            let hasAnimations = false;
+
+            let parentElement: HTMLElement | null = element;
+            while (parentElement !== null) {
+                if (parentElement.getAnimations().length > 0) {
+                    hasAnimations = true;
+                    break;
+                }
+                parentElement = parentElement.parentElement;
+            }
+
+            // Don't log if we call `element.getAnimations()` and there are some
+            // animations. It's expected that we'll need to reset `offset` back to
+            // `element.offsetTop` if there are animations.
+            if (!hasAnimations) {
+                // eslint-disable-next-line no-console
+                console.warn(
+                    "`<VirtualizedScrollView>` expected offset computed from element to be within 1px of `offsetTop`",
+                    {actual: offset, expected: element.offsetTop},
+                );
+            }
+        }
     }
 
     return {
