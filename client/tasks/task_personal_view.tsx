@@ -31,6 +31,7 @@ import {
 import {
     taskGridViewColumnHeaderHeight,
     taskRowViewMinHeight,
+    taskRowViewPaddingBottom,
 } from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
@@ -46,6 +47,10 @@ import {
     useTaskGridViewVirtualizedListBase,
     useTaskGridViewVirtualizedListItemAnimation,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {
+    TaskGridViewVirtualizedListAnimation,
+    taskAnimationDurationMs,
+} from "~/client/tasks/internal/task_grid_view_virtualized_list_state.js";
 import {TaskGridViewVirtualizedListViewRef} from "~/client/tasks/internal/task_grid_view_virtualized_list_types.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {
@@ -63,12 +68,16 @@ import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {
     addRemLengths,
     convertRemLengthToPx,
+    parseRemLength,
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {OutOfRangeError, UnimplementedError} from "~/shared/error/error.js";
+import {concatReadonlyArrays} from "~/shared/helpers/array/concat_readonly_arrays.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -648,7 +657,13 @@ export function TaskPersonalView({
         runningItemCount += activeGridViewResult.itemCount;
     }
 
-    let previousGridViewAnimations = activeGridViewResult.animations;
+    const activeGridViewHeaderAnimations =
+        useTaskPersonalViewHeaderAnimations(activeGridViewResult);
+
+    let previousGridViewAnimations = useMemo(
+        () => concatReadonlyArrays(activeGridViewHeaderAnimations, activeGridViewResult.animations),
+        [activeGridViewHeaderAnimations, activeGridViewResult.animations],
+    );
 
     // `OverdueHeader` (must be before `useTaskGridViewVirtualizedListViewRef()` to
     // shift indexes correctly)
@@ -823,11 +838,22 @@ export function TaskPersonalView({
         runningItemCount += overdueGridViewResult.itemCount;
     }
 
-    previousGridViewAnimations = useMemo(() => {
-        if (previousGridViewAnimations.length === 0) return overdueGridViewResult.animations;
-        if (overdueGridViewResult.animations.length === 0) return previousGridViewAnimations;
-        return [...previousGridViewAnimations, ...overdueGridViewResult.animations];
-    }, [overdueGridViewResult.animations, previousGridViewAnimations]);
+    const overdueGridViewHeaderAnimations =
+        useTaskPersonalViewHeaderAnimations(overdueGridViewResult);
+
+    previousGridViewAnimations = useMemo(
+        () =>
+            concatReadonlyArrays(
+                previousGridViewAnimations,
+                overdueGridViewHeaderAnimations,
+                overdueGridViewResult.animations,
+            ),
+        [
+            overdueGridViewHeaderAnimations,
+            overdueGridViewResult.animations,
+            previousGridViewAnimations,
+        ],
+    );
 
     // `DueTodayHeader` (must be before `useTaskGridViewVirtualizedListViewRef()`
     // to shift indexes correctly)
@@ -996,11 +1022,22 @@ export function TaskPersonalView({
         runningItemCount += dueTodayGridViewResult.itemCount;
     }
 
-    previousGridViewAnimations = useMemo(() => {
-        if (previousGridViewAnimations.length === 0) return dueTodayGridViewResult.animations;
-        if (dueTodayGridViewResult.animations.length === 0) return previousGridViewAnimations;
-        return [...previousGridViewAnimations, ...dueTodayGridViewResult.animations];
-    }, [dueTodayGridViewResult.animations, previousGridViewAnimations]);
+    const dueTodayGridViewHeaderAnimations =
+        useTaskPersonalViewHeaderAnimations(dueTodayGridViewResult);
+
+    previousGridViewAnimations = useMemo(
+        () =>
+            concatReadonlyArrays(
+                previousGridViewAnimations,
+                dueTodayGridViewHeaderAnimations,
+                dueTodayGridViewResult.animations,
+            ),
+        [
+            dueTodayGridViewHeaderAnimations,
+            dueTodayGridViewResult.animations,
+            previousGridViewAnimations,
+        ],
+    );
 
     // `DueSoonHeader` (must be before `useTaskGridViewVirtualizedListViewRef()`
     // to shift indexes correctly)
@@ -1164,11 +1201,28 @@ export function TaskPersonalView({
         runningItemCount += dueSoonGridViewResult.itemCount;
     }
 
-    previousGridViewAnimations = useMemo(() => {
-        if (previousGridViewAnimations.length === 0) return dueSoonGridViewResult.animations;
-        if (dueSoonGridViewResult.animations.length === 0) return previousGridViewAnimations;
-        return [...previousGridViewAnimations, ...dueSoonGridViewResult.animations];
-    }, [dueSoonGridViewResult.animations, previousGridViewAnimations]);
+    const dueSoonGridViewHeaderAnimations =
+        useTaskPersonalViewHeaderAnimations(dueSoonGridViewResult);
+
+    previousGridViewAnimations = useMemo(
+        () =>
+            concatReadonlyArrays(
+                previousGridViewAnimations,
+                dueSoonGridViewHeaderAnimations,
+                dueSoonGridViewResult.animations,
+            ),
+        [
+            dueSoonGridViewHeaderAnimations,
+            dueSoonGridViewResult.animations,
+            previousGridViewAnimations,
+        ],
+    );
+
+    const isRemainingGridViewHeaderVisible =
+        !isActiveGridViewEmpty ||
+        !isOverdueGridViewEmpty ||
+        !isDueTodayGridViewEmpty ||
+        !isDueSoonGridViewEmpty;
 
     // `RemainingHeader`
     //
@@ -1177,14 +1231,18 @@ export function TaskPersonalView({
     // view items incorrectly because the remaining grid view will always be
     // visible. It's ok if we incorrectly shift other grid views when they have an
     // item count of 0 so the shift won't matter.
-    if (
-        !isActiveGridViewEmpty ||
-        !isOverdueGridViewEmpty ||
-        !isDueTodayGridViewEmpty ||
-        !isDueSoonGridViewEmpty
-    ) {
+    if (isRemainingGridViewHeaderVisible) {
         runningItemCount += 1;
     }
+
+    const remainingGridViewHeaderAnimations = useTaskPersonalViewRemainingHeaderAnimations(
+        isRemainingGridViewHeaderVisible,
+    );
+
+    previousGridViewAnimations = useMemo(
+        () => concatReadonlyArrays(previousGridViewAnimations, remainingGridViewHeaderAnimations),
+        [previousGridViewAnimations, remainingGridViewHeaderAnimations],
+    );
 
     const remainingGridViewResult = useTaskGridViewVirtualizedListBase({
         structuralItemKeyPrefix: "Remaining-",
@@ -1270,12 +1328,7 @@ export function TaskPersonalView({
         useTaskGridViewVirtualizedListItemAnimation(
             viewRef,
             previousGridViewAnimations,
-            !isActiveGridViewEmpty ||
-                !isOverdueGridViewEmpty ||
-                !isDueTodayGridViewEmpty ||
-                !isDueSoonGridViewEmpty
-                ? runningItemCount - 1
-                : null,
+            isRemainingGridViewHeaderVisible ? runningItemCount - 1 : null,
         );
 
     for (const index of remainingGridViewResult.alwaysRenderAdditionalItemIndexes) {
@@ -1323,15 +1376,9 @@ export function TaskPersonalView({
             let hasFirstHeader = false;
 
             if (index === 0) {
-                const withColumnHeader =
-                    isActiveGridViewEmpty &&
-                    isOverdueGridViewEmpty &&
-                    isDueTodayGridViewEmpty &&
-                    isDueSoonGridViewEmpty;
-
                 return {
                     key: "NavigationBar",
-                    minHeight: withColumnHeader
+                    minHeight: !isRemainingGridViewHeaderVisible
                         ? addRemLengths(navigationBarHeight, taskGridViewColumnHeaderHeight)
                         : spacing[navigationBarHeight],
                     withManualLayout: true,
@@ -1342,7 +1389,7 @@ export function TaskPersonalView({
                             shouldRenderWithRelativePositioning={
                                 shouldRenderWithRelativePositioning
                             }
-                            withColumnHeader={withColumnHeader}
+                            withColumnHeader={!isRemainingGridViewHeaderVisible}
                             visibleSectionState={visibleSectionState}
                         />
                     ),
@@ -1503,12 +1550,7 @@ export function TaskPersonalView({
                 index -= dueSoonGridViewResult.itemCount;
             }
 
-            if (
-                !isActiveGridViewEmpty ||
-                !isOverdueGridViewEmpty ||
-                !isDueTodayGridViewEmpty ||
-                !isDueSoonGridViewEmpty
-            ) {
+            if (isRemainingGridViewHeaderVisible) {
                 if (index === 0) {
                     return {
                         key: "RemainingHeader",
@@ -1534,6 +1576,7 @@ export function TaskPersonalView({
             isOverdueGridViewEmpty,
             isDueTodayGridViewEmpty,
             isDueSoonGridViewEmpty,
+            isRemainingGridViewHeaderVisible,
             remainingGridViewResult.itemCount,
             visibleSectionState,
             activeGridViewResult.itemCount,
@@ -2080,7 +2123,7 @@ const TaskPersonalViewHeader = memo(function TaskPersonalViewHeader({name}: {nam
                 </Box>
             </Box>
             <TaskGridViewColumnHeader withoutAssigneeColumn />
-            <Box zIndex="-10" position="absolute" inset="0">
+            <Box zIndex="-10" position="absolute" inset="0" backgroundColor="grey-0">
                 <Box
                     position="absolute"
                     left={screenPaddingX}
@@ -2151,3 +2194,229 @@ const TaskPersonalViewFirstHeader = memo(function TaskPersonalViewFirstHeader({
         </div>
     );
 });
+
+function useTaskPersonalViewHeaderAnimations(gridViewResult: {
+    stateItemCount: number;
+    itemCount: number;
+}) {
+    const [animations, setAnimations] = useStateWithDependencies(
+        initializeTaskPersonalViewHeaderAnimations,
+        [gridViewResult.stateItemCount, gridViewResult.itemCount],
+    );
+
+    // Cleanup animations from our state when they finish.
+    useEffect(() => {
+        const currentTime = Date.now();
+        let minDuration = Infinity;
+
+        for (const animation of animations) {
+            const endTime = animation.startTime + animation.duration;
+
+            minDuration = Math.min(minDuration, endTime - currentTime);
+        }
+
+        const cleanup = () => {
+            setAnimations(animations => {
+                const currentTime = Date.now();
+
+                const newAnimations: Array<TaskGridViewVirtualizedListAnimation> = [];
+
+                for (const animation of animations) {
+                    const endTime = animation.startTime + animation.duration;
+
+                    if (endTime > currentTime) {
+                        newAnimations.push(animation);
+                    }
+                }
+
+                // Optimization: No animations expired. We can avoid a re-render.
+                if (newAnimations.length === animations.length) {
+                    return animations;
+                }
+
+                return newAnimations;
+            });
+        };
+
+        if (minDuration <= 0) {
+            cleanup();
+            return;
+        }
+
+        // If there are no animations then `minDuration` is `Infinity`
+        if (!isFinite(minDuration)) return;
+
+        const timeout = createTimeout(cleanup, minDuration);
+        return () => timeout.clear();
+    }, [animations, setAnimations]);
+
+    return animations;
+}
+
+function initializeTaskPersonalViewHeaderAnimations(
+    [stateItemCount, itemCount]: readonly [number, number],
+    previousAnimations: ReadonlyArray<TaskGridViewVirtualizedListAnimation> | undefined,
+    previousDependencies: readonly [number, number] | undefined,
+): ReadonlyArray<TaskGridViewVirtualizedListAnimation> {
+    if (previousAnimations === undefined || previousDependencies === undefined) return emptyArray;
+
+    const [previousStateCount, previousItemCount] = previousDependencies;
+
+    const isEmpty = itemCount === 0;
+    const previousIsEmpty = previousItemCount === 0;
+
+    // Only add animations if the task grid view is appearing or disappearing.
+    if (isEmpty === previousIsEmpty) return previousAnimations;
+
+    const nonStateItemCount = itemCount - stateItemCount;
+    const previousNonStateItemCount = previousItemCount - previousStateCount;
+
+    const nonStateItemCountDifference = nonStateItemCount - previousNonStateItemCount;
+
+    if (nonStateItemCountDifference === 0) {
+        return previousAnimations;
+    } else if (nonStateItemCountDifference < 0) {
+        const heightRem =
+            parseRemLength(taskPersonalViewHeaderHeight) +
+            // We assume all non-state items have a height of `taskRowViewMinHeight`. This
+            // is true for the bottom ghost task and decorative ghost rows. The grid view
+            // shouldn't have a column header so it's safe to assume all non-state items
+            // have a height of `taskRowViewMinHeight`.
+            parseRemLength(taskRowViewMinHeight) * -nonStateItemCountDifference +
+            parseRemLength(taskRowViewPaddingBottom);
+
+        return [
+            ...previousAnimations,
+            {
+                type: "Delete",
+                startTime: Date.now(),
+                // Take a little longer for header create/delete animations so everything
+                // doesn't move too fast.
+                duration: taskAnimationDurationMs * 2,
+                kind: "Unknown",
+                height: `${heightRem}rem`,
+            },
+        ];
+    } else {
+        assert(nonStateItemCountDifference > 0);
+
+        const heightRem =
+            parseRemLength(taskPersonalViewHeaderHeight) +
+            // We assume all non-state items have a height of `taskRowViewMinHeight`. This
+            // is true for the bottom ghost task and decorative ghost rows. The grid view
+            // shouldn't have a column header so it's safe to assume all non-state items
+            // have a height of `taskRowViewMinHeight`.
+            parseRemLength(taskRowViewMinHeight) * nonStateItemCountDifference +
+            parseRemLength(taskRowViewPaddingBottom);
+
+        return [
+            ...previousAnimations,
+            {
+                type: "Create",
+                startTime: Date.now(),
+                // Take a little longer for header create/delete animations so everything
+                // doesn't move too fast.
+                duration: taskAnimationDurationMs * 2,
+                kind: "Unknown",
+                height: `${heightRem}rem`,
+            },
+        ];
+    }
+}
+
+function useTaskPersonalViewRemainingHeaderAnimations(isRemainingHeaderVisible: boolean) {
+    const [animations, setAnimations] = useStateWithDependencies(
+        initializeTaskPersonalViewRemainingHeaderAnimations,
+        [isRemainingHeaderVisible],
+    );
+
+    // Cleanup animations from our state when they finish.
+    useEffect(() => {
+        const currentTime = Date.now();
+        let minDuration = Infinity;
+
+        for (const animation of animations) {
+            const endTime = animation.startTime + animation.duration;
+
+            minDuration = Math.min(minDuration, endTime - currentTime);
+        }
+
+        const cleanup = () => {
+            setAnimations(animations => {
+                const currentTime = Date.now();
+
+                const newAnimations: Array<TaskGridViewVirtualizedListAnimation> = [];
+
+                for (const animation of animations) {
+                    const endTime = animation.startTime + animation.duration;
+
+                    if (endTime > currentTime) {
+                        newAnimations.push(animation);
+                    }
+                }
+
+                // Optimization: No animations expired. We can avoid a re-render.
+                if (newAnimations.length === animations.length) {
+                    return animations;
+                }
+
+                return newAnimations;
+            });
+        };
+
+        if (minDuration <= 0) {
+            cleanup();
+            return;
+        }
+
+        // If there are no animations then `minDuration` is `Infinity`
+        if (!isFinite(minDuration)) return;
+
+        const timeout = createTimeout(cleanup, minDuration);
+        return () => timeout.clear();
+    }, [animations, setAnimations]);
+
+    return animations;
+}
+
+function initializeTaskPersonalViewRemainingHeaderAnimations(
+    [isRemainingHeaderVisible]: readonly [boolean],
+    previousAnimations: ReadonlyArray<TaskGridViewVirtualizedListAnimation> | undefined,
+    previousDependencies: readonly [boolean] | undefined,
+): ReadonlyArray<TaskGridViewVirtualizedListAnimation> {
+    if (previousAnimations === undefined || previousDependencies === undefined) return emptyArray;
+
+    const [previousIsRemainingHeaderVisible] = previousDependencies;
+
+    if (isRemainingHeaderVisible === previousIsRemainingHeaderVisible) {
+        return previousAnimations;
+    } else if (!isRemainingHeaderVisible) {
+        return [
+            ...previousAnimations,
+            {
+                type: "Delete",
+                startTime: Date.now(),
+                duration: taskAnimationDurationMs,
+                kind: "Unknown",
+                // Only the header name height since the column height will be added to the
+                // navigation bar item.
+                height: taskPersonalViewHeaderNameHeight,
+            },
+        ];
+    } else {
+        assert(isRemainingHeaderVisible);
+
+        return [
+            ...previousAnimations,
+            {
+                type: "Create",
+                startTime: Date.now(),
+                duration: taskAnimationDurationMs,
+                kind: "Unknown",
+                // Only the header name height since the column height will be added to the
+                // navigation bar item.
+                height: taskPersonalViewHeaderNameHeight,
+            },
+        ];
+    }
+}

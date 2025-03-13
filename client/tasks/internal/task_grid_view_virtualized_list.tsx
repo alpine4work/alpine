@@ -2233,6 +2233,7 @@ export function useTaskGridViewVirtualizedListBase({
             return null;
 
         const view = assertExists(viewRef.current);
+        const spacingScale = getSpacingScaleWithoutListening();
 
         const renderedRange = view.getRenderedRange();
         if (!renderedRange) return null;
@@ -2259,7 +2260,8 @@ export function useTaskGridViewVirtualizedListBase({
                     case "Create": {
                         const isAfterNewItem =
                             isPreviousGridView ||
-                            (item &&
+                            (animation.kind === "Task" &&
+                                item &&
                                 isTaskGridViewVirtualizedListStateItemAfter(
                                     animation.newItem,
                                     item,
@@ -2268,6 +2270,7 @@ export function useTaskGridViewVirtualizedListBase({
 
                         const isChildOfNewItem =
                             !isPreviousGridView &&
+                            animation.kind === "Task" &&
                             item?.type === "Task" &&
                             item.parents.length >= animation.newItem.parents.length + 1 &&
                             item.parents
@@ -2287,15 +2290,15 @@ export function useTaskGridViewVirtualizedListBase({
 
                         if (remainingDuration <= 0) return;
 
-                        // TODO(calebmer): Ideally we'd get access to the new item's actual
-                        // height since the height is not a constant in task detail view.
-                        const distance = -(
-                            (1 + animation.newChildrenCount) *
-                            convertRemLengthToPx(
-                                taskRowViewMinHeight,
-                                getSpacingScaleWithoutListening(),
-                            )
-                        );
+                        const distance =
+                            animation.kind === "Unknown"
+                                ? -convertRemLengthToPx(animation.height, spacingScale)
+                                : // TODO(calebmer): Ideally we'd get access to the new item's actual
+                                  // height since the height is not a constant in task detail view.
+                                  -(
+                                      (1 + animation.newChildrenCount) *
+                                      convertRemLengthToPx(taskRowViewMinHeight, spacingScale)
+                                  );
 
                         const remainingDistance =
                             distance * (remainingDuration / animation.duration);
@@ -2311,7 +2314,8 @@ export function useTaskGridViewVirtualizedListBase({
                     case "Delete": {
                         const isAfterOldItem =
                             isPreviousGridView ||
-                            (item &&
+                            (animation.kind === "Task" &&
+                                item &&
                                 isTaskGridViewVirtualizedListStateItemAfter(
                                     animation.oldItem,
                                     item,
@@ -2325,14 +2329,13 @@ export function useTaskGridViewVirtualizedListBase({
 
                         if (remainingDuration <= 0) return;
 
-                        // TODO(calebmer): Ideally we'd somehow get access to the old item's actual
-                        // height since the height is not a constant in task detail view.
                         const distance =
-                            (1 + animation.oldChildrenCount) *
-                            convertRemLengthToPx(
-                                taskRowViewMinHeight,
-                                getSpacingScaleWithoutListening(),
-                            );
+                            animation.kind === "Unknown"
+                                ? convertRemLengthToPx(animation.height, spacingScale)
+                                : // TODO(calebmer): Ideally we'd get access to the new item's actual
+                                  // height since the height is not a constant in task detail view.
+                                  (1 + animation.oldChildrenCount) *
+                                  convertRemLengthToPx(taskRowViewMinHeight, spacingScale);
 
                         const remainingDistance =
                             distance * (remainingDuration / animation.duration);
@@ -2407,10 +2410,7 @@ export function useTaskGridViewVirtualizedListBase({
 
                         // TODO(calebmer): Ideally we'd somehow get access to the old item's actual
                         // height since the height is not a constant in task detail view.
-                        const distance = convertRemLengthToPx(
-                            taskRowViewMinHeight,
-                            getSpacingScaleWithoutListening(),
-                        );
+                        const distance = convertRemLengthToPx(taskRowViewMinHeight, spacingScale);
 
                         const remainingDistance =
                             distance *
@@ -2500,7 +2500,10 @@ export function useTaskGridViewVirtualizedListBase({
         const unsetZIndexes: Array<() => void> = [];
 
         for (const animation of animationState.animations) {
-            if (animation.type === "Create" || animation.type === "Move") {
+            if (
+                animation.kind === "Task" &&
+                (animation.type === "Create" || animation.type === "Move")
+            ) {
                 unsetZIndexes.push(
                     events.setTaskRowZIndex(getTaskGridViewTaskKey(animation.newItem), -10),
                 );
@@ -3099,6 +3102,7 @@ export function useTaskGridViewVirtualizedListItemAnimation(
         }
 
         const view = assertExists(viewRef.current);
+        const spacingScale = getSpacingScaleWithoutListening();
 
         const renderedRange = view.getRenderedRange();
         if (!renderedRange) return null;
@@ -3117,15 +3121,15 @@ export function useTaskGridViewVirtualizedListItemAnimation(
 
                     if (remainingDuration <= 0) break;
 
-                    // TODO(calebmer): Ideally we'd get access to the new item's actual
-                    // height since the height is not a constant in task detail view.
-                    const distance = -(
-                        (1 + animation.newChildrenCount) *
-                        convertRemLengthToPx(
-                            taskRowViewMinHeight,
-                            getSpacingScaleWithoutListening(),
-                        )
-                    );
+                    const distance =
+                        animation.kind === "Unknown"
+                            ? -convertRemLengthToPx(animation.height, spacingScale)
+                            : // TODO(calebmer): Ideally we'd get access to the new item's actual
+                              // height since the height is not a constant in task detail view.
+                              -(
+                                  (1 + animation.newChildrenCount) *
+                                  convertRemLengthToPx(taskRowViewMinHeight, spacingScale)
+                              );
 
                     const remainingDistance = distance * (remainingDuration / animation.duration);
 
@@ -3143,14 +3147,13 @@ export function useTaskGridViewVirtualizedListItemAnimation(
 
                     if (remainingDuration <= 0) break;
 
-                    // TODO(calebmer): Ideally we'd somehow get access to the old item's actual
-                    // height since the height is not a constant in task detail view.
                     const distance =
-                        (1 + animation.oldChildrenCount) *
-                        convertRemLengthToPx(
-                            taskRowViewMinHeight,
-                            getSpacingScaleWithoutListening(),
-                        );
+                        animation.kind === "Unknown"
+                            ? convertRemLengthToPx(animation.height, spacingScale)
+                            : // TODO(calebmer): Ideally we'd get access to the new item's actual
+                              // height since the height is not a constant in task detail view.
+                              (1 + animation.oldChildrenCount) *
+                              convertRemLengthToPx(taskRowViewMinHeight, spacingScale);
 
                     const remainingDistance = distance * (remainingDuration / animation.duration);
 
