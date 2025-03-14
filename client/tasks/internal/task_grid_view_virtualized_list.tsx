@@ -291,7 +291,10 @@ export type TaskGridViewVirtualizedListProps = {
         undoManager: TaskClientStoreUndoManager;
     }) => boolean;
 
-    // NOCOMMIT: Document
+    /**
+     * Get the position of content we want to anchor when the keyboard opens on
+     * mobile. This is passed into `useScrollToAvoidBottomBarsAndMobileKeyboard()`.
+     */
     getAnchorPosition?: Memo<
         (oldVisibleRect: {top: number; bottom: number}) => {top: number; height: number} | null
     >;
@@ -673,7 +676,20 @@ export function useTaskGridViewVirtualizedList(
     });
 }
 
-// NOCOMMIT: Document
+/**
+ * Sets up `useScrollToAvoidBottomBarsAndMobileKeyboard()` for the task grid
+ * view. Task grid views have some custom anchor positioning logic to make sure
+ * priority inputs or calendar date inputs are visible when the user clicks on
+ * them and opens the keyboard.
+ *
+ * Also returns a function, `scrollToAnchorPosition`, which scrolls to the
+ * current anchor position.
+ *
+ * If you're using `useTaskGridViewVirtualizedListBase()` multiple times to
+ * render multiple grid views on one page then you'll also want to use this
+ * hook once to make sure scroll position is managed properly on mobile in the
+ * face of the keyboard opening/closing.
+ */
 export function useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKeyboard(
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef>,
     getAnchorPositionFromProps?: Memo<
