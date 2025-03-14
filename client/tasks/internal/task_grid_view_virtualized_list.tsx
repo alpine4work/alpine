@@ -517,7 +517,6 @@ export function useTaskGridViewVirtualizedList(
 ): TaskGridViewVirtualizedListResult {
     const {viewRef, getAnchorPosition: getAnchorPositionFromProps} = props;
 
-    const platform = usePlatform();
     const {isAppleDevice} = useClientInfo();
 
     assert(
@@ -546,10 +545,6 @@ export function useTaskGridViewVirtualizedList(
     const stateKey = rootQuery
         ? getOrSetDefaultMapValue(virtualizedScrollViewStateKeyByActiveQuery, rootQuery, generateId)
         : undefined;
-
-    /* ========================================================================== *\
-     *                                 Undo/Redo                                  *
-    \* ========================================================================== */
 
     const {
         pushUndoStackEntry,
@@ -652,9 +647,40 @@ export function useTaskGridViewVirtualizedList(
         }
     };
 
-    /* ========================================================================== *\
-     *                              Mobile Scrolling                              *
-    \* ========================================================================== */
+    const {scrollToAnchorPosition} =
+        useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKeyboard(
+            viewRef,
+            getAnchorPositionFromProps,
+        );
+
+    const result = useTaskGridViewVirtualizedListBase(
+        Object.assign(props, {
+            stateKey,
+            isDragging,
+            draggingData,
+            pushUndoStackEntry,
+            scrollToAnchorPosition,
+        }),
+    );
+
+    return Object.assign(result, {
+        onGlobalKeyDown,
+        undo,
+        redo,
+        pushUndoStackEntry,
+        pushUndoStackEntryFromRedo,
+        pushRedoStackEntry,
+    });
+}
+
+// NOCOMMIT: Document
+export function useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKeyboard(
+    viewRef: RefObject<TaskGridViewVirtualizedListViewRef>,
+    getAnchorPositionFromProps?: Memo<
+        (oldVisibleRect: {top: number; bottom: number}) => {top: number; height: number} | null
+    >,
+) {
+    const platform = usePlatform();
 
     const getAnchorPosition = useCallback(
         (oldVisibleRect: {top: number; bottom: number}): {top: number; height: number} | null => {
@@ -782,28 +808,7 @@ export function useTaskGridViewVirtualizedList(
         });
     };
 
-    /* ========================================================================== *\
-     *                                 Base hook                                  *
-    \* ========================================================================== */
-
-    const result = useTaskGridViewVirtualizedListBase(
-        Object.assign(props, {
-            stateKey,
-            isDragging,
-            draggingData,
-            pushUndoStackEntry,
-            scrollToAnchorPosition,
-        }),
-    );
-
-    return Object.assign(result, {
-        onGlobalKeyDown,
-        undo,
-        redo,
-        pushUndoStackEntry,
-        pushUndoStackEntryFromRedo,
-        pushRedoStackEntry,
-    });
+    return {scrollToAnchorPosition};
 }
 
 /**
@@ -871,6 +876,8 @@ export function useTaskGridViewVirtualizedListBase({
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
+
+    const hasNextGridView = !!nextGridView;
 
     // If our grid view has columns then preload task collections so we don't show
     // a loading spinner when selecting the task collection cell.
@@ -2639,6 +2646,7 @@ export function useTaskGridViewVirtualizedListBase({
                                             !capabilities.hasColumns && stateItemCount === 0
                                         }
                                         withPaddingBottom={itemIndex === itemCount - 1}
+                                        hasNextGridView={hasNextGridView}
                                         mobileKeyboardToolbarPortalRef={
                                             mobileKeyboardToolbarPortalRef
                                         }
@@ -2736,6 +2744,7 @@ export function useTaskGridViewVirtualizedListBase({
                                             !capabilities.hasColumns && stateItemCount === 0
                                         }
                                         withPaddingBottom={itemIndex === itemCount - 1}
+                                        hasNextGridView={hasNextGridView}
                                         mobileKeyboardToolbarPortalRef={
                                             mobileKeyboardToolbarPortalRef
                                         }
@@ -2762,6 +2771,7 @@ export function useTaskGridViewVirtualizedListBase({
                             isFirstRow={!hasTopGhostTask && itemIndex - itemCountBeforeState === 0}
                             withoutTopBorderIfFirstRow={withoutTopBorderIfFirstRow}
                             withPaddingBottom={itemIndex === itemCount - 1}
+                            hasNextGridView={hasNextGridView}
                             focusPreviousTaskTitleEnd={events.focusPreviousTaskTitleEnd}
                             focusPreviousTaskTitleAll={events.focusPreviousTaskTitleAll}
                         />
@@ -2824,6 +2834,7 @@ export function useTaskGridViewVirtualizedListBase({
                                     onTaskDeleteConfirmationModalDialogClosedCallbacksRef
                                 }
                                 withPaddingBottom={itemIndex === itemCount - 1}
+                                hasNextGridView={hasNextGridView}
                                 mobileKeyboardToolbarPortalRef={mobileKeyboardToolbarPortalRef}
                             />
                         ),
@@ -2870,6 +2881,7 @@ export function useTaskGridViewVirtualizedListBase({
         getAreChildTasksExpandedStore,
         hasBottomGhostTask,
         hasColumnHeader,
+        hasNextGridView,
         hasTopGhostTask,
         isDragging,
         isRootQueryManuallySorted,
@@ -2945,6 +2957,7 @@ export function useTaskGridViewVirtualizedListBase({
                     // this prop.
                     <TaskGridViewMobileKeyboardToolbarContainer
                         portalRef={mobileKeyboardToolbarPortalRef}
+                        withoutAssigneeField={capabilities.withoutAssigneeField}
                     />
                 )}
             </>

@@ -223,6 +223,7 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
         isFirstRow,
         withoutTopBorderIfFirstRow,
         withPaddingBottom,
+        hasNextGridView,
         focusPreviousTaskTitleEnd,
         focusPreviousTaskTitleAll,
     }: {
@@ -235,6 +236,7 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
         isFirstRow: boolean;
         withoutTopBorderIfFirstRow: boolean;
         withPaddingBottom: boolean;
+        hasNextGridView: boolean;
         focusPreviousTaskTitleEnd: Memo<(key: string) => void>;
         focusPreviousTaskTitleAll: Memo<(key: string) => void>;
     }) {
@@ -290,7 +292,7 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
                         pointerEvents="none"
                         style={{
                             height:
-                                platform === "mobile"
+                                platform === "mobile" && !hasNextGridView
                                     ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[taskRowViewPaddingBottom]})`
                                     : undefined,
                         }}
@@ -479,6 +481,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     onTaskDeleteConfirmationModalDialogClosedCallbacksRef,
     withoutPaddingLeft,
     withPaddingBottom,
+    hasNextGridView,
     mobileKeyboardToolbarPortalRef,
 }: {
     context: AppContext;
@@ -521,6 +524,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     onTaskDeleteConfirmationModalDialogClosedCallbacksRef: MutableRefObject<Array<() => void>>;
     withoutPaddingLeft?: boolean;
     withPaddingBottom?: boolean;
+    hasNextGridView: boolean;
     mobileKeyboardToolbarPortalRef: RefObject<HTMLDivElement>;
 }) {
     const {timeZone} = useClientInfo();
@@ -1227,6 +1231,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             }}
             withoutPaddingLeft={withoutPaddingLeft}
             withPaddingBottom={withPaddingBottom}
+            hasNextGridView={hasNextGridView}
             getMoveTaskToRootQueryActions={events.getMoveTaskToRootQueryActions}
             getMoveTaskToQueryActions={getMoveTaskToQueryActions}
             getMaybeRemoveTaskFromQueryActions={getMaybeRemoveTaskFromQueryActions}

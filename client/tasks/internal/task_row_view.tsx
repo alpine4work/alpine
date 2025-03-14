@@ -309,6 +309,7 @@ function TaskRowView(
         onAreChildTasksExpandedToggle,
         withoutPaddingLeft,
         withPaddingBottom,
+        hasNextGridView,
         getMoveTaskToQueryActions,
         getMoveTaskToRootQueryActions,
         getMaybeRemoveTaskFromQueryActions,
@@ -354,6 +355,7 @@ function TaskRowView(
         onAreChildTasksExpandedToggle: () => void;
         withoutPaddingLeft?: boolean;
         withPaddingBottom?: boolean;
+        hasNextGridView: boolean;
         getMoveTaskToQueryActions: (
             taskId: TaskId,
             position:
@@ -1912,6 +1914,7 @@ function TaskRowView(
             {withPaddingBottom && (
                 <TaskRowViewPaddingBottom
                     hasEditAccessLevel={hasEditAccessLevel}
+                    hasNextGridView={hasNextGridView}
                     focusTitleEnd={focusTitleEnd}
                     focusTitleAll={focusTitleAll}
                 />
@@ -1922,6 +1925,7 @@ function TaskRowView(
                     maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
                     task={task}
                     parents={parents}
+                    withoutAssigneeField={capabilities.withoutAssigneeField}
                     isQueryManuallySorted={isQueryManuallySorted}
                     isFirstTaskInQuery={isFirstTaskInQuery}
                     titleInputRef={titleInputRef}
@@ -2104,10 +2108,12 @@ function TaskRowViewDragAfterLongTouchController({
 
 function TaskRowViewPaddingBottom({
     hasEditAccessLevel,
+    hasNextGridView,
     focusTitleEnd,
     focusTitleAll,
 }: {
     hasEditAccessLevel: boolean;
+    hasNextGridView: boolean;
     focusTitleEnd: () => void;
     focusTitleAll: () => void;
 }) {
@@ -2119,7 +2125,7 @@ function TaskRowViewPaddingBottom({
             style={{
                 cursor: hasEditAccessLevel ? "text" : undefined,
                 height:
-                    platform === "mobile"
+                    platform === "mobile" && !hasNextGridView
                         ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[taskRowViewPaddingBottom]})`
                         : undefined,
             }}

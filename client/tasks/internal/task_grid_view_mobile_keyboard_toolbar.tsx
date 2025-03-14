@@ -66,6 +66,7 @@ export function TaskGridViewMobileKeyboardToolbar({
     task,
     parents,
     isFirstTaskInQuery,
+    withoutAssigneeField,
     isQueryManuallySorted,
     titleInputRef,
     nestWithPreviousTaskRowIfExistsAndExpand,
@@ -79,6 +80,7 @@ export function TaskGridViewMobileKeyboardToolbar({
     maxGridExpandableTaskDepth: number;
     task: TaskModel | null;
     parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
+    withoutAssigneeField: boolean;
     isQueryManuallySorted: boolean;
     isFirstTaskInQuery: boolean;
     titleInputRef: RefObject<TaskRowTitleInputRef>;
@@ -117,6 +119,7 @@ export function TaskGridViewMobileKeyboardToolbar({
                       }
                     : null
             }
+            withoutAssigneeField={withoutAssigneeField}
             isAssigneeActive={!!task?.getAssignee()}
             onAssigneePress={() => {
                 // `flushSync()` so React re-renders with an open overlay which influences the
@@ -149,8 +152,10 @@ export function TaskGridViewMobileKeyboardToolbar({
 
 export function TaskGridViewMobileKeyboardToolbarContainer({
     portalRef,
+    withoutAssigneeField,
 }: {
     portalRef: Ref<HTMLDivElement>;
+    withoutAssigneeField: boolean;
 }) {
     const {isNativeMobile} = useClientInfo();
     const rootPortalElement = assertExists(
@@ -404,6 +409,7 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
                         <TaskGridViewMobileKeyboardToolbarContent
                             onDedentPress={null}
                             onIndentPress={null}
+                            withoutAssigneeField={withoutAssigneeField}
                             isAssigneeActive={false}
                             onAssigneePress={null}
                             isPriorityActive={false}
@@ -423,6 +429,7 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
 function TaskGridViewMobileKeyboardToolbarContent({
     onDedentPress,
     onIndentPress,
+    withoutAssigneeField,
     isAssigneeActive,
     onAssigneePress,
     isPriorityActive,
@@ -433,6 +440,7 @@ function TaskGridViewMobileKeyboardToolbarContent({
 }: {
     onDedentPress: (() => void) | null;
     onIndentPress: (() => void) | null;
+    withoutAssigneeField: boolean;
     isAssigneeActive: boolean;
     onAssigneePress: (() => void) | null;
     isPriorityActive: boolean;
@@ -465,16 +473,19 @@ function TaskGridViewMobileKeyboardToolbarContent({
             >
                 <TextIndent />
             </TaskGridViewMobileKeyboardToolbarButton>
+            {!withoutAssigneeField && (
+                <TaskGridViewMobileKeyboardToolbarButton
+                    dividerLeft
+                    label="Assignee"
+                    isActive={isAssigneeActive}
+                    isDisabled={!onAssigneePress}
+                    onPress={onAssigneePress ?? noop}
+                >
+                    <User />
+                </TaskGridViewMobileKeyboardToolbarButton>
+            )}
             <TaskGridViewMobileKeyboardToolbarButton
-                dividerLeft
-                label="Assignee"
-                isActive={isAssigneeActive}
-                isDisabled={!onAssigneePress}
-                onPress={onAssigneePress ?? noop}
-            >
-                <User />
-            </TaskGridViewMobileKeyboardToolbarButton>
-            <TaskGridViewMobileKeyboardToolbarButton
+                dividerLeft={withoutAssigneeField}
                 label="Priority"
                 isActive={isPriorityActive}
                 isDisabled={!onPriorityPress}

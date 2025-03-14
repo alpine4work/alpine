@@ -48,6 +48,7 @@ import {TaskGridViewHasDndContext} from "~/client/tasks/internal/task_grid_view_
 import {
     useTaskGridViewVirtualizedListBase,
     useTaskGridViewVirtualizedListItemAnimation,
+    useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKeyboard,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {
     TaskGridViewVirtualizedListAnimation,
@@ -77,7 +78,7 @@ import {
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {OutOfRangeError, UnimplementedError} from "~/shared/error/error.js";
+import {OutOfRangeError} from "~/shared/error/error.js";
 import {concatReadonlyArrays} from "~/shared/helpers/array/concat_readonly_arrays.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {emptySet} from "~/shared/helpers/array/empty_set.js";
@@ -493,6 +494,13 @@ export function TaskPersonalView({
     });
 
     /* ========================================================================== *\
+     *                              Mobile Scrolling                              *
+    \* ========================================================================== */
+
+    const {scrollToAnchorPosition} =
+        useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKeyboard(viewRef);
+
+    /* ========================================================================== *\
      *                           Virtualized list state                           *
     \* ========================================================================== */
 
@@ -613,9 +621,7 @@ export function TaskPersonalView({
         pushUndoStackEntry: entry => {
             pushUndoStackEntry({...entry, extra: "Active"});
         },
-        scrollToAnchorPosition: () => {
-            throw new UnimplementedError("NOCOMMIT");
-        },
+        scrollToAnchorPosition,
         nextGridView: {
             focusFirstTaskTitleStart: () => {
                 if (!isOverdueGridViewEmpty) {
@@ -792,9 +798,7 @@ export function TaskPersonalView({
         pushUndoStackEntry: entry => {
             pushUndoStackEntry({...entry, extra: "Overdue"});
         },
-        scrollToAnchorPosition: () => {
-            throw new UnimplementedError("NOCOMMIT");
-        },
+        scrollToAnchorPosition,
         previousGridView: !isActiveGridViewEmpty ? activeGridViewResult : undefined,
         previousGridViewAnimations,
         nextGridView: {
@@ -979,9 +983,7 @@ export function TaskPersonalView({
         pushUndoStackEntry: entry => {
             pushUndoStackEntry({...entry, extra: "DueToday"});
         },
-        scrollToAnchorPosition: () => {
-            throw new UnimplementedError("NOCOMMIT");
-        },
+        scrollToAnchorPosition,
         previousGridView: !isOverdueGridViewEmpty
             ? overdueGridViewResult
             : !isActiveGridViewEmpty
@@ -1169,9 +1171,7 @@ export function TaskPersonalView({
         pushUndoStackEntry: entry => {
             pushUndoStackEntry({...entry, extra: "DueSoon"});
         },
-        scrollToAnchorPosition: () => {
-            throw new UnimplementedError("NOCOMMIT");
-        },
+        scrollToAnchorPosition,
         previousGridView: !isDueTodayGridViewEmpty
             ? dueTodayGridViewResult
             : !isOverdueGridViewEmpty
@@ -1338,9 +1338,7 @@ export function TaskPersonalView({
         pushUndoStackEntry: entry => {
             pushUndoStackEntry({...entry, extra: "Remaining"});
         },
-        scrollToAnchorPosition: () => {
-            throw new UnimplementedError("NOCOMMIT");
-        },
+        scrollToAnchorPosition,
         previousGridView: !isDueSoonGridViewEmpty
             ? dueSoonGridViewResult
             : !isDueTodayGridViewEmpty
