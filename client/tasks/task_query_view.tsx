@@ -398,6 +398,7 @@ export function TaskQueryView({
         store,
         affinityManager,
         query: queryState.activeQuery.query,
+        withoutTopBorderIfFirstRow: routeLayout !== "narrow",
         // Don't render the three decorative ghost rows on mobile when we're rendering
         // the instructional view component. This allows us to visually center the new
         // view instructions.
