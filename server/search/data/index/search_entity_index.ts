@@ -1664,6 +1664,7 @@ export async function searchByAffinity(
     const affinities = await internalGetSearchAffinities(context, {spaceId, limit});
 
     let taskNotepadAffinityIndex: number | null = null;
+    let taskPersonalAffinityIndex: number | null = null;
     const entityIds: Array<SearchEntityId> = [];
     const entities: Array<Replace<(typeof affinities)[number], {affinityId: SearchEntityId}>> = [];
 
@@ -1672,6 +1673,8 @@ export async function searchByAffinity(
 
         if (affinity.affinityId === "TaskNotepad") {
             taskNotepadAffinityIndex = i;
+        } else if (affinity.affinityId === "TaskPersonal") {
+            taskPersonalAffinityIndex = i;
         } else {
             entityIds.push(affinity.affinityId);
             entities.push(
@@ -1754,6 +1757,20 @@ export async function searchByAffinity(
             id: "TaskNotepad",
             score: affinity.points,
             title: "Task notepad",
+            bodyTextSnippet: [],
+            media: null,
+        });
+    }
+
+    // Add back the personal tasks item. We don't have to load it from
+    // OpenSearch since it doesn't exist in OpenSearch.
+    if (taskPersonalAffinityIndex !== null) {
+        const affinity = affinities[taskPersonalAffinityIndex]!;
+
+        results.splice(taskPersonalAffinityIndex, 0, {
+            id: "TaskPersonal",
+            score: affinity.points,
+            title: "My tasks",
             bodyTextSnippet: [],
             media: null,
         });

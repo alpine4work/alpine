@@ -324,8 +324,7 @@ export default function TasksRoute() {
         initialRemainingGridViewExpansionState,
     ] = initialGridViewExpansionStates;
 
-    // NOCOMMIT: Should be `TaskPersonal` not `TaskNotepad`.
-    const affinityManager = useTaskClientStoreSearchAffinityManager("TaskNotepad");
+    const affinityManager = useTaskClientStoreSearchAffinityManager("TaskPersonal");
 
     return (
         <TaskGridViewDndContext store={store}>

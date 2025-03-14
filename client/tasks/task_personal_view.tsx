@@ -97,6 +97,7 @@ type TaskPersonalViewVisibleSection = Exclude<TaskPersonalViewSection, "Remainin
 
 const initialTaskPersonalViewVisibleSectionState = {section: null, previousSections: emptySet};
 
+// NOCOMMIT: Collections combobox
 export function TaskPersonalView({
     store,
     activeQuery,

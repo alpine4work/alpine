@@ -66,7 +66,11 @@ export function getSearchResultDestinationPath({
         }
         case "CreateTask":
         case "TaskNotepad": {
+            // NOCOMMIT: Open empty task
             return `/s/${spaceId}/tasks?show=new`;
+        }
+        case "TaskPersonal": {
+            return `/s/${spaceId}/tasks/index2`;
         }
         case "TaskQueryFilteredToCreatorIsCurrentAccount": {
             const nameSearchParam = encodeURIComponent("Tasks I’ve created");

@@ -23,6 +23,7 @@ export type SearchCommandId =
     | "CreateTaskCollection"
     | "CreateTaskView"
     | "TaskNotepad"
+    | "TaskPersonal"
     | "TaskQueryFilteredToCreatorIsCurrentAccount"
     | "TaskQueryFilteredToAssigneeIsCurrentAccount"
     | "TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive"
@@ -89,6 +90,10 @@ const searchCommandById: {
     TaskNotepad: {
         title: "Task notepad",
         otherHitTexts: ["my tasks"],
+    },
+    TaskPersonal: {
+        title: "My tasks",
+        otherHitTexts: ["all tasks", "tasks", "my tasks"],
     },
     TaskQueryFilteredToCreatorIsCurrentAccount: {
         title: "Tasks I’ve created",

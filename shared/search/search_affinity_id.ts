@@ -37,15 +37,19 @@ export type SearchAffinityId =
     | `TaskCollection:${TaskCollectionId}`
     // You can build affinity with your task notepad even though we don't index
     // a search entity doc for it.
-    | "TaskNotepad";
+    | "TaskNotepad"
+    | "TaskPersonal";
 
 // Make sure `SearchAffinityId`s are valid `SearchEntityId`s (excluding
 // `TaskNotepad`).
-assertAssignableTypes<Exclude<SearchAffinityId, "TaskNotepad">, SearchEntityId>();
+assertAssignableTypes<Exclude<SearchAffinityId, "TaskNotepad" | "TaskPersonal">, SearchEntityId>();
 
 // Make sure there's no overlap between `SearchAffinityId` and `SearchCommandId`
 // (excluding `TaskNotepad`).
-assertEqualTypes<Exclude<SearchAffinityId, "TaskNotepad"> & SearchCommandId, never>();
+assertEqualTypes<
+    Exclude<SearchAffinityId, "TaskNotepad" | "TaskPersonal"> & SearchCommandId,
+    never
+>();
 
 export const SearchAffinityIdSchema = Schema.string as Schema<SearchAffinityId>;
 
@@ -65,6 +69,7 @@ const searchAffinityIdTestMap: GetSearchAffinityIdTestMapType<SearchAffinityId> 
     Task: true,
     TaskCollection: true,
     TaskNotepad: false,
+    TaskPersonal: false,
 };
 
 /**
