@@ -12,6 +12,8 @@ import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_cl
 import {Context} from "~/shared/context/context.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {Clock} from "~/shared/helpers/clock/clock.js";
@@ -228,6 +230,7 @@ export type TaskClientStoreBatchUpdate = {
             readonly newCollectionEntry: TaskClientStoreCollectionEntry;
         }
     >;
+    readonly actions: ReadonlyArray<TaskActionMaybeModel>;
 };
 
 export interface TaskClientStoreUndoManager {
@@ -837,8 +840,9 @@ export class TaskClientStoreInternal {
         // applying the action we avoid a warning.
         if (event.originClientId === this._clientId) {
             return action({
-                taskEntryUpdateById: new Map(),
-                collectionEntryUpdateById: new Map(),
+                taskEntryUpdateById: emptyMap,
+                collectionEntryUpdateById: emptyMap,
+                actions: emptyArray,
             });
         }
 
@@ -1557,7 +1561,12 @@ export class TaskClientStoreInternal {
             }
         }
 
-        return this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, action);
+        return this._batchUpdateStore(
+            newTaskEntryById,
+            newCollectionEntryById,
+            event.actions,
+            action,
+        );
     }
 
     /**
@@ -2366,8 +2375,9 @@ export class TaskClientStoreInternal {
     } {
         if (actions.length === 0) {
             const actionValue = action({
-                taskEntryUpdateById: new Map(),
-                collectionEntryUpdateById: new Map(),
+                taskEntryUpdateById: emptyMap,
+                collectionEntryUpdateById: emptyMap,
+                actions: emptyArray,
             });
             return {actionValue, pendingActions: [], release: noop};
         }
@@ -2727,7 +2737,12 @@ export class TaskClientStoreInternal {
 
         let actionValue;
         try {
-            actionValue = this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, action);
+            actionValue = this._batchUpdateStore(
+                newTaskEntryById,
+                newCollectionEntryById,
+                actions,
+                action,
+            );
         } finally {
             // Any tasks or collections that were released while updating our store, we
             // want to retain until the optimistic action is committed or rejected. Because
@@ -3143,7 +3158,7 @@ export class TaskClientStoreInternal {
             }
         }
 
-        this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, noop);
+        this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, emptyArray, noop);
     }
 
     private _revertOptimisticTaskActions(pendingActions: Iterable<TaskClientStorePendingAction>) {
@@ -3608,12 +3623,16 @@ export class TaskClientStoreInternal {
             }
         }
 
-        this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, noop);
+        this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, emptyArray, noop);
     }
 
     private _batchUpdateStore<Value>(
         newTaskEntryById: ReadonlyMap<TaskId, TaskClientStoreTaskEntry>,
         newCollectionEntryById: ReadonlyMap<TaskCollectionId, TaskClientStoreCollectionEntry>,
+        // If there were actions that contributed to this update then the actions are
+        // provided here. Not all task or collection updates will have an associated
+        // action.
+        actions: ReadonlyArray<TaskActionMaybeModel>,
         // This action is called after our updates have been applied to the store and
         // before we clean up any new tasks/collections with zero references. It lets
         // you "save" tasks/collections that were about to be released.
@@ -3808,6 +3827,7 @@ export class TaskClientStoreInternal {
                 const batchUpdate = {
                     taskEntryUpdateById,
                     collectionEntryUpdateById,
+                    actions,
                 };
 
                 const actionValue = action(batchUpdate);

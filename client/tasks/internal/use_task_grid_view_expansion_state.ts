@@ -543,9 +543,10 @@ export function useTaskGridViewExpansionState({
 
         const queryParentTaskId = getParentTaskIdIfChildrenQuery(stateManager);
 
-        return stateManager.store.subscribeToBatchUpdate(({taskEntryUpdateById}) => {
+        return stateManager.store.subscribeToBatchUpdate(({taskEntryUpdateById, actions}) => {
             const releaseCallbacks: Array<() => void> = [];
             const childTaskIdsByNewlyCreatedParentTaskId = new Map<TaskId, Array<TaskId>>();
+            const isNewlyCreatedTaskById = new Map<TaskId, boolean>();
 
             try {
                 // This for loop does the following:
@@ -572,7 +573,17 @@ export function useTaskGridViewExpansionState({
                         if (
                             taskEntryUpdate &&
                             !taskEntryUpdate.oldTaskEntry &&
-                            taskEntryUpdate.newTaskEntry
+                            taskEntryUpdate.newTaskEntry &&
+                            // Make sure the task was actually created in this update by checking actions.
+                            // Instead of being newly introduced to the store through a backfill.
+                            getOrSetDefaultMapValue(isNewlyCreatedTaskById, newParentTaskId, () =>
+                                actions.some(
+                                    action =>
+                                        action.type === "UpdateTask" &&
+                                        action.taskAction.type === "Create" &&
+                                        action.taskId === newParentTaskId,
+                                ),
+                            )
                         ) {
                             getOrSetDefaultMapValue(
                                 childTaskIdsByNewlyCreatedParentTaskId,
@@ -663,19 +674,22 @@ export function useTaskGridViewExpansionState({
                                 ?.getSnapshot()
                                 .task?.getChildTaskCount() === 1
                         ) {
-                            const query = stateManager.store.ensureAndRetainTaskChildrenQuery(
-                                newTaskPath[newTaskPath.length - 1]!,
-                                {limit: 1},
-                            );
+                            const taskChildrenQuery =
+                                stateManager.store.ensureAndRetainTaskChildrenQuery(
+                                    newTaskPath[newTaskPath.length - 1]!,
+                                    {limit: 1},
+                                );
 
                             // Release our query at the end of this code block. `stateManager` will grab
                             // its own reference to the query if we need it.
                             releaseCallbacks.push(() => {
-                                query.release();
+                                taskChildrenQuery.release();
                             });
 
-                            if (query.loadedStateStore.getSnapshot() !== "FullyLoaded") {
-                                stateManager.store.loadTasksIntoQuery(query, {
+                            if (
+                                taskChildrenQuery.loadedStateStore.getSnapshot() !== "FullyLoaded"
+                            ) {
+                                stateManager.store.loadTasksIntoQuery(taskChildrenQuery, {
                                     limit: 1,
                                     loadedState: {type: "Full"},
                                     previouslyBackfilledTaskIds: [newTaskEntry.task.id],
@@ -721,7 +735,7 @@ export function useTaskGridViewExpansionState({
                     newlyCreatedParentTaskId,
                     childTaskIds,
                 ] of childTaskIdsByNewlyCreatedParentTaskId) {
-                    const query = stateManager.store.ensureAndRetainTaskChildrenQuery(
+                    const taskChildrenQuery = stateManager.store.ensureAndRetainTaskChildrenQuery(
                         newlyCreatedParentTaskId,
                         {limit: childTaskIds.length},
                     );
@@ -729,11 +743,11 @@ export function useTaskGridViewExpansionState({
                     // Release our query at the end of this code block. `stateManager` will grab
                     // its own reference to the query if we need it.
                     releaseCallbacks.push(() => {
-                        query.release();
+                        taskChildrenQuery.release();
                     });
 
-                    if (query.loadedStateStore.getSnapshot() !== "FullyLoaded") {
-                        stateManager.store.loadTasksIntoQuery(query, {
+                    if (taskChildrenQuery.loadedStateStore.getSnapshot() !== "FullyLoaded") {
+                        stateManager.store.loadTasksIntoQuery(taskChildrenQuery, {
                             limit: childTaskIds.length,
                             loadedState: {type: "Full"},
                             previouslyBackfilledTaskIds: childTaskIds,
