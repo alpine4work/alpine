@@ -474,7 +474,7 @@ export function TaskPersonalView({
                 "My tasks"
             ) : (
                 <TaskPersonalNavigationBarTitleDesktop
-                    paddingLeft="5"
+                    paddingLeft="0"
                     visibleSectionState={visibleSectionState}
                 />
             ),
@@ -2211,7 +2211,7 @@ const TaskPersonalViewHeader = memo(function TaskPersonalViewHeader({name}: {nam
                 height={taskPersonalViewHeaderNameHeight}
                 display="flex"
                 alignItems="center"
-                paddingLeft={platform === "mobile" ? "5" : "10"}
+                paddingLeft={routeLayout === "narrow" ? "5" : "10"}
             >
                 <Box
                     fontSize={platform === "mobile" ? "200" : "200"}
