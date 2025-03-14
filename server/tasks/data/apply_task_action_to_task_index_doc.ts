@@ -309,11 +309,6 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
                 version: actionTime,
             });
 
-            const newRawAssigneePosition = task.rawAssigneePosition.apply({
-                value: null,
-                version: actionTime,
-            });
-
             const newRawAssigneeActivePosition = task.rawAssigneeActivePosition.apply({
                 value: null,
                 version: actionTime,
@@ -322,7 +317,6 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
             if (
                 newAssignee === task.assignee &&
                 newRawAssigneeStatus === task.rawAssigneeStatus &&
-                newRawAssigneePosition === task.rawAssigneePosition &&
                 newRawAssigneeActivePosition === task.rawAssigneeActivePosition
             ) {
                 return task;
@@ -332,8 +326,16 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
                 ...task,
                 assignee: newAssignee,
                 rawAssigneeStatus: newRawAssigneeStatus,
-                rawAssigneePosition: newRawAssigneePosition,
                 rawAssigneeActivePosition: newRawAssigneeActivePosition,
+
+                // NOTE(calebmer): We intentionally don't update `assigneePosition` during an
+                // `UpdateAssignee` action. That way if the user changes the task's assignee
+                // and undoes the change, then the task will be placed back in the old assignee
+                // position.
+                //
+                // Whenever we use the `assigneePosition` we always check that
+                // `assigneePosition.accountId` matches the assigned account before using the
+                // position.
             };
         }
         case "UpdateAssigneeStatus": {
