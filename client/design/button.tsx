@@ -146,6 +146,12 @@ function Button(
         shouldSubmitForm?: boolean;
 
         /**
+         * Don't focus the button when it's pressed. By default, this is true if
+         * `isFocusable` is false.
+         */
+        withoutFocusOnPress?: boolean;
+
+        /**
          * Control how much horizontal padding on this button. Default is `3`.
          */
         paddingX?: "1.5" | "2" | "2.5" | "3";
@@ -236,6 +242,7 @@ function Button(
         fullWidth = false,
         withoutMinWidth = false,
         shouldSubmitForm = false,
+        withoutFocusOnPress = false,
         onPress,
         pressErrorTitle,
         paddingX = "3",
@@ -317,7 +324,7 @@ function Button(
             //
             // @ts-expect-error: This prop exists but is undocumented
             // https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/button/src/useButton.ts#L57-L58
-            preventFocusOnPress: platform === "mobile" || !isFocusable,
+            preventFocusOnPress: withoutFocusOnPress || platform === "mobile" || !isFocusable,
             onKeyDown: event => {
                 // `react-spectrum` prevents propagation by default. If
                 // `event.preventDefault()` wasn't called, we want the event to propagate. That

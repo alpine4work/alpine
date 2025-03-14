@@ -28,6 +28,7 @@ import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indica
 import {useTouchSlop} from "~/client/design/use_touch_slop.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {assignRef} from "~/client/helpers/refs/assign_ref.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {
     Sprinkles,
     accentThemeBackgroundColor,
@@ -134,6 +135,12 @@ function IconButton(
          * `isPending` is set to true, some other loading indicator is visible.
          */
         withoutLoadingIndicator?: boolean;
+
+        /**
+         * Don't focus the button when it's pressed. By default, this is true if
+         * `isFocusable` is false.
+         */
+        withoutFocusOnPress?: boolean;
 
         /**
          * Should we show the pressed style even if the button isn't currently pressed?
@@ -250,6 +257,7 @@ function IconButton(
         keyboardShortcutHint,
         isPending: isPendingFromProps,
         withoutLoadingIndicator = false,
+        withoutFocusOnPress = false,
         isPressed: isPressedFromProps,
         borderRadius = "full",
         backgroundColor: backgroundColorFromProps,
@@ -268,6 +276,7 @@ function IconButton(
         onKeyDownCapture,
     } = props;
     const localRef = useRef<HTMLElement | null>(null);
+    const platform = usePlatform();
     const reporter = useReporter();
 
     const [isPendingFromPress, setIsPendingFromPress] = useState(false);
@@ -329,6 +338,15 @@ function IconButton(
             isDisabled,
             "aria-label": description,
             onPress: handlePress,
+            // We don't focus on press on mobile since if you press down a button the user
+            // might be scrolling! So if the keyboard is open we don't want to close the
+            // keyboard since the button is focused. An easy case to test this is
+            // `<TaskNotepadView>`. Open the keyboard on a task then start your scroll on
+            // the "Fresh page" button.
+            //
+            // @ts-expect-error: This prop exists but is undocumented
+            // https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/button/src/useButton.ts#L57-L58
+            preventFocusOnPress: withoutFocusOnPress || platform === "mobile" || !isFocusable,
         },
         localRef,
     );

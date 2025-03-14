@@ -69,7 +69,7 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
 }) {
     const platform = usePlatform();
 
-    const {pressProps, isPressed} = usePress({});
+    const {pressProps, isPressed} = usePress({preventFocusOnPress: true});
     const {hoverProps, isHovered} = useHover({});
 
     return (

@@ -55,6 +55,7 @@ import {
     taskAnimationDurationMs,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list_state.js";
 import {TaskGridViewVirtualizedListViewRef} from "~/client/tasks/internal/task_grid_view_virtualized_list_types.js";
+import {TaskPersonalNavigationBarCollectionsButton} from "~/client/tasks/internal/task_personal_navigation_bar_collections_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {
     TaskUndoStackEntry,
@@ -97,7 +98,6 @@ type TaskPersonalViewVisibleSection = Exclude<TaskPersonalViewSection, "Remainin
 
 const initialTaskPersonalViewVisibleSectionState = {section: null, previousSections: emptySet};
 
-// NOCOMMIT: Collections combobox
 export function TaskPersonalView({
     store,
     activeQuery,
@@ -473,7 +473,7 @@ export function TaskPersonalView({
             platform === "mobile" ? (
                 "My tasks"
             ) : (
-                <TaskPersonalViewNavigationBarTitleDesktop
+                <TaskPersonalNavigationBarTitleDesktop
                     paddingLeft="5"
                     visibleSectionState={visibleSectionState}
                 />
@@ -1423,8 +1423,9 @@ export function TaskPersonalView({
                             : spacing[navigationBarHeight],
                         withManualLayout: true,
                         render: ({ref, offset, shouldRenderWithRelativePositioning}) => (
-                            <TaskPersonalViewNavigationBar
+                            <TaskPersonalNavigationBar
                                 itemRef={ref}
+                                store={store}
                                 offset={offset}
                                 shouldRenderWithRelativePositioning={
                                     shouldRenderWithRelativePositioning
@@ -1445,7 +1446,7 @@ export function TaskPersonalView({
                         return {
                             key: "ActiveHeader",
                             minHeight: taskPersonalViewHeaderHeight[routeLayout],
-                            zIndex: "50",
+                            zIndex: "40",
                             node: <TaskPersonalViewHeader name="Active" />,
                         };
                     } else {
@@ -1483,7 +1484,7 @@ export function TaskPersonalView({
                         return {
                             key: "OverdueHeader",
                             minHeight: taskPersonalViewHeaderHeight[routeLayout],
-                            zIndex: "50",
+                            zIndex: "40",
                             node: <TaskPersonalViewHeader name="Overdue" />,
                         };
                     } else {
@@ -1521,7 +1522,7 @@ export function TaskPersonalView({
                         return {
                             key: "DueTodayHeader",
                             minHeight: taskPersonalViewHeaderHeight[routeLayout],
-                            zIndex: "50",
+                            zIndex: "40",
                             node: <TaskPersonalViewHeader name="Due today" />,
                         };
                     } else {
@@ -1559,7 +1560,7 @@ export function TaskPersonalView({
                         return {
                             key: "DueSoonHeader",
                             minHeight: taskPersonalViewHeaderHeight[routeLayout],
-                            zIndex: "50",
+                            zIndex: "40",
                             node: <TaskPersonalViewHeader name="Due soon" />,
                         };
                     } else {
@@ -1596,7 +1597,7 @@ export function TaskPersonalView({
                     return {
                         key: "RemainingHeader",
                         minHeight: taskPersonalViewHeaderHeight[routeLayout],
-                        zIndex: "50",
+                        zIndex: "40",
                         node: <TaskPersonalViewHeader name="Tasks" />,
                     };
                 }
@@ -1619,9 +1620,10 @@ export function TaskPersonalView({
             isDueSoonGridViewEmpty,
             isRemainingGridViewHeaderVisible,
             remainingGridViewResult.itemCount,
+            routeLayout,
+            store,
             visibleSectionState,
             activeGridViewResult.itemCount,
-            routeLayout,
             renderActiveGridViewItem,
             overdueGridViewResult.itemCount,
             renderOverdueGridViewItem,
@@ -1983,14 +1985,16 @@ function shiftRenderedRange(
     }
 }
 
-const TaskPersonalViewNavigationBar = memo(function TaskPersonalViewNavigationBar({
+const TaskPersonalNavigationBar = memo(function TaskPersonalNavigationBar({
     itemRef,
+    store,
     offset,
     shouldRenderWithRelativePositioning,
     withoutRemainingGridViewHeader,
     visibleSectionState,
 }: {
     itemRef: Ref<HTMLDivElement>;
+    store: TaskClientStore;
     offset: number;
     shouldRenderWithRelativePositioning: boolean;
     withoutRemainingGridViewHeader: boolean;
@@ -2003,7 +2007,7 @@ const TaskPersonalViewNavigationBar = memo(function TaskPersonalViewNavigationBa
         <div
             className={pointerEventsNoneNotInheritedClassName}
             style={{
-                zIndex: "60",
+                zIndex: "50",
                 ...(shouldRenderWithRelativePositioning
                     ? {position: "relative"}
                     : {
@@ -2022,10 +2026,18 @@ const TaskPersonalViewNavigationBar = memo(function TaskPersonalViewNavigationBa
                 paddingTop="safe-area-inset"
                 backgroundColor="grey-0"
             >
-                <TaskPersonalViewNavigationBarTitleDesktop
-                    paddingLeft="10"
-                    visibleSectionState={visibleSectionState}
-                />
+                <Box
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    paddingRight={screenPaddingX.desktop}
+                >
+                    <TaskPersonalNavigationBarTitleDesktop
+                        paddingLeft="10"
+                        visibleSectionState={visibleSectionState}
+                    />
+                    <TaskPersonalNavigationBarCollectionsButton store={store} />
+                </Box>
                 {withoutRemainingGridViewHeader && (
                     <>
                         <TaskGridViewColumnHeader withoutAssigneeField />
@@ -2045,148 +2057,143 @@ const TaskPersonalViewNavigationBar = memo(function TaskPersonalViewNavigationBa
     );
 });
 
-const TaskPersonalViewNavigationBarTitleDesktop = memo(
-    function TaskPersonalViewNavigationBarTitleDesktop({
-        paddingLeft,
-        visibleSectionState,
-    }: {
-        paddingLeft: Spacing;
-        visibleSectionState: {
-            section: TaskPersonalViewVisibleSection | null;
-            previousSections: ReadonlySet<TaskPersonalViewVisibleSection>;
-        };
-    }) {
-        const spacingScale = useSpacingScale();
+const TaskPersonalNavigationBarTitleDesktop = memo(function TaskPersonalNavigationBarTitleDesktop({
+    paddingLeft,
+    visibleSectionState,
+}: {
+    paddingLeft: Spacing;
+    visibleSectionState: {
+        section: TaskPersonalViewVisibleSection | null;
+        previousSections: ReadonlySet<TaskPersonalViewVisibleSection>;
+    };
+}) {
+    const spacingScale = useSpacingScale();
 
-        const hasActivePreviousVisibleSection = visibleSectionState.previousSections.has("Active");
-        const hasOverduePreviousVisibleSection =
-            visibleSectionState.previousSections.has("Overdue");
-        const hasDueTodayPreviousVisibleSection =
-            visibleSectionState.previousSections.has("DueToday");
-        const hasDueSoonPreviousVisibleSection =
-            visibleSectionState.previousSections.has("DueSoon");
+    const hasActivePreviousVisibleSection = visibleSectionState.previousSections.has("Active");
+    const hasOverduePreviousVisibleSection = visibleSectionState.previousSections.has("Overdue");
+    const hasDueTodayPreviousVisibleSection = visibleSectionState.previousSections.has("DueToday");
+    const hasDueSoonPreviousVisibleSection = visibleSectionState.previousSections.has("DueSoon");
 
-        const isActiveVisibleSection = visibleSectionState.section === "Active";
-        const isOverdueVisibleSection = visibleSectionState.section === "Overdue";
-        const isDueTodayVisibleSection = visibleSectionState.section === "DueToday";
-        const isDueSoonVisibleSection = visibleSectionState.section === "DueSoon";
+    const isActiveVisibleSection = visibleSectionState.section === "Active";
+    const isOverdueVisibleSection = visibleSectionState.section === "Overdue";
+    const isDueTodayVisibleSection = visibleSectionState.section === "DueToday";
+    const isDueSoonVisibleSection = visibleSectionState.section === "DueSoon";
 
-        return (
-            <Box
-                display="flex"
-                alignItems="center"
-                height={navigationBarHeight}
-                paddingLeft={paddingLeft}
-            >
-                <Box display="flex" alignItems="baseline" gap="3">
-                    <Box fontSize="400" fontStyle="bold">
-                        My tasks
-                    </Box>
-                    {
-                        <Box
-                            position="relative"
-                            width="24"
-                            fontSize="100"
-                            fontStyle="semi-bold"
-                            color="grey-50"
-                            style={{
-                                fontSize:
-                                    fontSizesBySpacingScale["400"][spacingScale].fontSize *
-                                    (interFontXHeight / interFontCapHeight),
-                            }}
-                        >
-                            <Box
-                                aria-hidden={!isActiveVisibleSection}
-                                // We can only use fade in/out animation classes if the section has previously
-                                // been visible. Otherwise we animate on initial mount which is wrong.
-                                opacity={
-                                    !hasActivePreviousVisibleSection && !isActiveVisibleSection
-                                        ? "0"
-                                        : undefined
-                                }
-                                className={
-                                    isActiveVisibleSection
-                                        ? navigationBarStyles.titleFadeInAnimationClassName
-                                        : hasActivePreviousVisibleSection
-                                        ? navigationBarStyles.titleFadeOutAnimationClassName
-                                        : undefined
-                                }
-                            >
-                                Active
-                            </Box>
-                            <Box
-                                aria-hidden={!isOverdueVisibleSection}
-                                // We can only use fade in/out animation classes if the section has previously
-                                // been visible. Otherwise we animate on initial mount which is wrong.
-                                opacity={
-                                    !hasOverduePreviousVisibleSection && !isOverdueVisibleSection
-                                        ? "0"
-                                        : undefined
-                                }
-                                className={
-                                    isOverdueVisibleSection
-                                        ? navigationBarStyles.titleFadeInAnimationClassName
-                                        : hasOverduePreviousVisibleSection
-                                        ? navigationBarStyles.titleFadeOutAnimationClassName
-                                        : undefined
-                                }
-                                position="absolute"
-                                left="0"
-                                top="0"
-                            >
-                                Overdue
-                            </Box>
-                            <Box
-                                aria-hidden={!isDueTodayVisibleSection}
-                                // We can only use fade in/out animation classes if the section has previously
-                                // been visible. Otherwise we animate on initial mount which is wrong.
-                                opacity={
-                                    !hasDueTodayPreviousVisibleSection && !isDueTodayVisibleSection
-                                        ? "0"
-                                        : undefined
-                                }
-                                className={
-                                    isDueTodayVisibleSection
-                                        ? navigationBarStyles.titleFadeInAnimationClassName
-                                        : hasDueTodayPreviousVisibleSection
-                                        ? navigationBarStyles.titleFadeOutAnimationClassName
-                                        : undefined
-                                }
-                                position="absolute"
-                                left="0"
-                                top="0"
-                            >
-                                Due today
-                            </Box>
-                            <Box
-                                aria-hidden={!isDueSoonVisibleSection}
-                                // We can only use fade in/out animation classes if the section has previously
-                                // been visible. Otherwise we animate on initial mount which is wrong.
-                                opacity={
-                                    !hasDueSoonPreviousVisibleSection && !isDueSoonVisibleSection
-                                        ? "0"
-                                        : undefined
-                                }
-                                className={
-                                    isDueSoonVisibleSection
-                                        ? navigationBarStyles.titleFadeInAnimationClassName
-                                        : hasDueSoonPreviousVisibleSection
-                                        ? navigationBarStyles.titleFadeOutAnimationClassName
-                                        : undefined
-                                }
-                                position="absolute"
-                                left="0"
-                                top="0"
-                            >
-                                Due soon
-                            </Box>
-                        </Box>
-                    }
+    return (
+        <Box
+            display="flex"
+            alignItems="center"
+            height={navigationBarHeight}
+            paddingLeft={paddingLeft}
+        >
+            <Box display="flex" alignItems="baseline" gap="3">
+                <Box fontSize="400" fontStyle="bold">
+                    My tasks
                 </Box>
+                {
+                    <Box
+                        position="relative"
+                        width="24"
+                        fontSize="100"
+                        fontStyle="semi-bold"
+                        color="grey-50"
+                        style={{
+                            fontSize:
+                                fontSizesBySpacingScale["400"][spacingScale].fontSize *
+                                (interFontXHeight / interFontCapHeight),
+                        }}
+                    >
+                        <Box
+                            aria-hidden={!isActiveVisibleSection}
+                            // We can only use fade in/out animation classes if the section has previously
+                            // been visible. Otherwise we animate on initial mount which is wrong.
+                            opacity={
+                                !hasActivePreviousVisibleSection && !isActiveVisibleSection
+                                    ? "0"
+                                    : undefined
+                            }
+                            className={
+                                isActiveVisibleSection
+                                    ? navigationBarStyles.titleFadeInAnimationClassName
+                                    : hasActivePreviousVisibleSection
+                                    ? navigationBarStyles.titleFadeOutAnimationClassName
+                                    : undefined
+                            }
+                        >
+                            Active
+                        </Box>
+                        <Box
+                            aria-hidden={!isOverdueVisibleSection}
+                            // We can only use fade in/out animation classes if the section has previously
+                            // been visible. Otherwise we animate on initial mount which is wrong.
+                            opacity={
+                                !hasOverduePreviousVisibleSection && !isOverdueVisibleSection
+                                    ? "0"
+                                    : undefined
+                            }
+                            className={
+                                isOverdueVisibleSection
+                                    ? navigationBarStyles.titleFadeInAnimationClassName
+                                    : hasOverduePreviousVisibleSection
+                                    ? navigationBarStyles.titleFadeOutAnimationClassName
+                                    : undefined
+                            }
+                            position="absolute"
+                            left="0"
+                            top="0"
+                        >
+                            Overdue
+                        </Box>
+                        <Box
+                            aria-hidden={!isDueTodayVisibleSection}
+                            // We can only use fade in/out animation classes if the section has previously
+                            // been visible. Otherwise we animate on initial mount which is wrong.
+                            opacity={
+                                !hasDueTodayPreviousVisibleSection && !isDueTodayVisibleSection
+                                    ? "0"
+                                    : undefined
+                            }
+                            className={
+                                isDueTodayVisibleSection
+                                    ? navigationBarStyles.titleFadeInAnimationClassName
+                                    : hasDueTodayPreviousVisibleSection
+                                    ? navigationBarStyles.titleFadeOutAnimationClassName
+                                    : undefined
+                            }
+                            position="absolute"
+                            left="0"
+                            top="0"
+                        >
+                            Due today
+                        </Box>
+                        <Box
+                            aria-hidden={!isDueSoonVisibleSection}
+                            // We can only use fade in/out animation classes if the section has previously
+                            // been visible. Otherwise we animate on initial mount which is wrong.
+                            opacity={
+                                !hasDueSoonPreviousVisibleSection && !isDueSoonVisibleSection
+                                    ? "0"
+                                    : undefined
+                            }
+                            className={
+                                isDueSoonVisibleSection
+                                    ? navigationBarStyles.titleFadeInAnimationClassName
+                                    : hasDueSoonPreviousVisibleSection
+                                    ? navigationBarStyles.titleFadeOutAnimationClassName
+                                    : undefined
+                            }
+                            position="absolute"
+                            left="0"
+                            top="0"
+                        >
+                            Due soon
+                        </Box>
+                    </Box>
+                }
             </Box>
-        );
-    },
-);
+        </Box>
+    );
+});
 
 const taskPersonalViewHeaderNameHeight = "10";
 const taskPersonalViewHeaderHeight: Record<RouteLayout, RemLength> = {
@@ -2249,7 +2256,7 @@ const TaskPersonalViewFirstHeaderDesktop = memo(function TaskPersonalViewFirstHe
         >
             <Box
                 ref={itemRef}
-                zIndex="50"
+                zIndex="40"
                 style={{height: taskPersonalViewHeaderHeight[routeLayout]}}
             >
                 <Box
@@ -2265,7 +2272,7 @@ const TaskPersonalViewFirstHeaderDesktop = memo(function TaskPersonalViewFirstHe
             </Box>
             <Box
                 position="sticky"
-                zIndex="60"
+                zIndex="50"
                 marginTop={
                     routeLayout !== "narrow" ? `-${taskGridViewColumnHeaderHeight}` : undefined
                 }
