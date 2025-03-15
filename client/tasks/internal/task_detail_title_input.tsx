@@ -13,12 +13,14 @@ import {
     useRef,
 } from "react";
 import {flushSync} from "react-dom";
+import {isBrowserSpellcheckEnabled} from "~/client/content/is_browser_spellcheck_enabled.js";
 import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/shared/build_shared_content_editor_input_rules_plugin.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {fontSizes, sprinkles, tasksStyles} from "~/client/styles/styles.js";
 import {taskDetailViewTitleFontSize} from "~/client/styles/tasks_shared_styles.js";
 import {buildTaskTitleInputKeymapPlugin} from "~/client/tasks/internal/build_task_title_input_keymap_plugin.js";
@@ -67,6 +69,7 @@ function TaskDetailTitleInput(
     const {title, placeholder, isReadOnly, elementRef} = props;
 
     const isInitialAppRender = useIsInitialAppRender();
+    const {currentAccount} = useSpaceContext();
 
     const viewRef = useRef<
         | {isReady: false; callbacks: Array<(view: EditorView) => void>}
@@ -75,9 +78,11 @@ function TaskDetailTitleInput(
 
     const propsRef = useRef(props);
     const isReadOnlyRef = useRef(isReadOnly);
+    const currentAccountIdRef = useRef(currentAccount?.id);
     useInsertionEffect(() => {
         propsRef.current = props;
         isReadOnlyRef.current = isReadOnly;
+        currentAccountIdRef.current = currentAccount?.id;
     });
 
     const updateTitleStateRef = useRef<{
@@ -156,7 +161,10 @@ function TaskDetailTitleInput(
                         // spellings. But if we have our own right-click menu we can't show the correct
                         // spellings there so we only show a permanent red squiggle which is bad. I
                         // think the best answer here is to build our own spellchecker eventually.
-                        ...(!isMobileWebKit ? {spellcheck: "false"} : undefined),
+                        ...(!isMobileWebKit &&
+                        !isBrowserSpellcheckEnabled(currentAccountIdRef.current)
+                            ? {spellcheck: "false"}
+                            : undefined),
                     },
 
                     dispatchTransaction: transaction => {
