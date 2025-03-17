@@ -223,7 +223,7 @@ export function DocumentContentEditor({
     } | null;
     initialScroll: DocumentContentEditorInitialScroll | null;
     shouldInitiallyFocus: boolean;
-    onCreate?: () => void;
+    onCreate: () => void;
     onContentChange?: (content: DocumentContent) => void;
     onContentLocalChange?: () => void;
     onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;

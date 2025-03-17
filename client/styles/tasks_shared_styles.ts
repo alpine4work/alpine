@@ -1,4 +1,10 @@
-import {contentStyles, fontSizes, navigationBarStyles} from "~/client/styles/styles.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
+import {
+    contentStyles,
+    fontSizes,
+    navigationBarStyles,
+    tasksStyles,
+} from "~/client/styles/styles.js";
 import {
     RemLength,
     Spacing,
@@ -14,7 +20,9 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export const taskDetailViewSectionGap = "10";
 export const taskDetailViewDenseFieldGap = "5";
+export const taskDetailViewDenseFieldMinHeight = "4";
 export const taskDetailViewTitleFontSize = "300";
+export const taskDetailViewTitleLineHeight = "6";
 export const taskDetailViewFieldLabelFontSize = "75";
 export const taskDetailViewCommentSidebarWidth = "96";
 export const taskDetailNotesFieldLabelPaddingBottom = "1";
@@ -170,3 +178,31 @@ export const taskQueryViewCustomizationBarDesktopMarginY: RemLength = `${
         parseRemLength(taskQueryFilterEditorDesktopHeight)) /
     2
 }rem`;
+
+export const taskDetailViewMainMinHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        convertRemLengthToPx(
+            addRemLengths(
+                navigationBarHeight,
+                taskDetailViewTitleLineHeight,
+                taskDetailViewSectionGap,
+                taskDetailViewDenseFieldMinHeight,
+                taskDetailViewDenseFieldGap,
+                taskDetailViewDenseFieldMinHeight,
+                taskDetailViewSectionGap,
+                fontSizes[taskDetailViewFieldLabelFontSize].lineHeight,
+                taskDetailNotesFieldLabelPaddingBottom,
+            ),
+            spacingScale,
+        ) +
+        tasksStyles.detailNotesContentEditorMinHeightPx[spacingScale] +
+        convertRemLengthToPx(
+            addRemLengths(
+                taskDetailViewSectionGap,
+                fontSizes[taskDetailViewFieldLabelFontSize].lineHeight,
+                taskDetailViewSubtasksFieldLabelPaddingBottom,
+            ),
+            spacingScale,
+        ),
+);

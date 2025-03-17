@@ -4199,7 +4199,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
     };
 }
 
-async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
+async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItemsIfExists<Value>(
     context: ServerActionContext,
     taskId: TaskId,
     expectedAccessLevel: AccessLevel,
@@ -4209,7 +4209,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
         notesItem: TaskNotesItem | null;
     }) => Promise<Value>,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
-): Promise<Value> {
+): Promise<Value | null> {
     let item: TaskEssentialAttributesItem | null = null;
     let commentsSummaryItem: TaskCommentsSummaryItem | null = null;
     let notesItem: TaskNotesItem | null = null;
@@ -4238,18 +4238,22 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
             }
         }
 
-        if (!item) {
-            throw new NotFoundError("Task not found");
-        }
-
         return item;
     })();
 
     // Cache the `taskItem` in case `getTaskItemForAuthorization()` is called for
     // the same `TaskId` later.
-    TaskItemAuthorizationCache.set(context, taskId, itemPromise);
+    TaskItemAuthorizationCache.set(
+        context,
+        taskId,
+        itemPromise.then(item => {
+            if (!item) throw new NotFoundError("Task not found");
+            return item;
+        }),
+    );
 
     item = await itemPromise;
+    if (!item) return null;
 
     const [, value] = await runAllPromises([
         authorizeTaskItemAccess(context, item, expectedAccessLevel, {
@@ -4264,6 +4268,29 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
         }),
     ]);
 
+    return value;
+}
+
+async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
+    context: ServerActionContext,
+    taskId: TaskId,
+    expectedAccessLevel: AccessLevel,
+    process: (options: {
+        item: TaskEssentialAttributesItem;
+        commentsSummaryItem: TaskCommentsSummaryItem | null;
+        notesItem: TaskNotesItem | null;
+    }) => Promise<Value>,
+    options?: {consistency?: DynamoReadConsistency},
+): Promise<Value> {
+    const value = await authorizeTaskAccessAndGetCommentsSummaryAndNotesItemsIfExists(
+        context,
+        taskId,
+        expectedAccessLevel,
+        process,
+        options,
+    );
+
+    if (!value) throw new NotFoundError("Task not found");
     return value;
 }
 
@@ -5873,17 +5900,18 @@ export function getTaskNotesContentWithoutReferences(
 }
 
 /**
- * Get the current notes content for some task.
+ * Get the current notes content for some task. Returns null if the task
+ * doesn't exist.
  */
-export function getTaskNotesContent(
+export function getTaskNotesContentIfExists(
     context: ServerContentActionContext,
     taskId: TaskId,
 ): Promise<{
     spaceId: SpaceId;
     version: number;
     content: TaskNotesContentWithReferences;
-}> {
-    return authorizeTaskAccessAndGetCommentsSummaryAndNotesItems(
+} | null> {
+    return authorizeTaskAccessAndGetCommentsSummaryAndNotesItemsIfExists(
         context,
         taskId,
         "View",
@@ -5906,6 +5934,23 @@ export function getTaskNotesContent(
             },
         }),
     );
+}
+
+/**
+ * Get the current notes content for some task. Throws an error if the task
+ * doesn't exist.
+ */
+export async function getTaskNotesContent(
+    context: ServerContentActionContext,
+    taskId: TaskId,
+): Promise<{
+    spaceId: SpaceId;
+    version: number;
+    content: TaskNotesContentWithReferences;
+}> {
+    const taskNotes = await getTaskNotesContentIfExists(context, taskId);
+    if (!taskNotes) throw new NotFoundError("Task not found");
+    return taskNotes;
 }
 
 /**

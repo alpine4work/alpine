@@ -153,6 +153,12 @@ const zIndexesByTaskRowItemElement = new WeakMap<HTMLElement, Array<number>>();
 
 export type TaskGridViewVirtualizedListProps = {
     /**
+     * Override the generated `stateKey`. Useful if you want to maintain state
+     * across different queries instead of generating a new `stateKey` every query.
+     */
+    stateKey?: string;
+
+    /**
      * Capabilities of the task grid view. These are common shared props we pass
      * around to the grid view's children. For example, does the grid view have
      * columns? If so, which columns are visible?
@@ -216,6 +222,22 @@ export type TaskGridViewVirtualizedListProps = {
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
 
     /**
+     * By default the grid view needs to commit an action transaction it directly
+     * calls `store.commitTaskActionTransaction()`. However, if this prop is
+     * provided then we call this function instead. Useful if you need to add some
+     * additional actions to a task action transaction.
+     */
+    commitActionTransaction?: Memo<
+        (
+            getActions: () => Iterable<TaskActionModel>,
+            options: {
+                undoManager: TaskClientStoreUndoManager;
+                affinityManager: TaskClientStoreSearchAffinityManager;
+            },
+        ) => {finally(listener: () => void): void}
+    > | null;
+
+    /**
      * We add this item key prefix to all "structural" items. For example the
      * column header item and decorative task items. This is used by the personal
      * task view which needs to render multiple virtualized lists at once. Tasks do
@@ -236,7 +258,7 @@ export type TaskGridViewVirtualizedListProps = {
      * item won't have a top border and you're expected to render one in the
      * navigation bar.
      */
-    withoutTopBorderIfFirstRow?: boolean;
+    withoutBorderTopIfFirstRow?: boolean;
 
     /**
      * Additional controls rendered in the column header item adding to its height.
@@ -261,6 +283,17 @@ export type TaskGridViewVirtualizedListProps = {
      * query then this list should render zero items.
      */
     withoutBottomGhostTaskIfEmpty?: boolean;
+
+    /**
+     * If `query` is null then we don't render a bottom ghost task. However, if you
+     * set this to true then we will render a bottom ghost task when `query` is
+     * null.
+     *
+     * Useful for `<TaskDetailView>` when creating a new task since we don't
+     * actually create the task until the first update so we'll have a null query
+     * but we still want to render the ghost task.
+     */
+    withBottomGhostTaskIfNullQuery?: boolean;
 
     /**
      * Don't render the up to three decorative ghost row items if there's no tasks.
@@ -289,7 +322,7 @@ export type TaskGridViewVirtualizedListProps = {
         entry: DistributiveOmit<TaskUndoStackEntry, "release">;
         target: {taskId: TaskId; column: TaskGridViewColumn};
         undoManager: TaskClientStoreUndoManager;
-    }) => boolean;
+    }) => {preventDefault: boolean} | void;
 
     /**
      * Get the position of content we want to anchor when the keyboard opens on
@@ -545,9 +578,17 @@ export function useTaskGridViewVirtualizedList(
 
     const rootQuery = props.query?.query ?? null;
 
-    const stateKey = rootQuery
-        ? getOrSetDefaultMapValue(virtualizedScrollViewStateKeyByActiveQuery, rootQuery, generateId)
-        : undefined;
+    // By default, we generate a different state key whenever the root query
+    // changes. However, the caller may override the state key with a prop.
+    const stateKey =
+        props.stateKey ??
+        (rootQuery
+            ? getOrSetDefaultMapValue(
+                  virtualizedScrollViewStateKeyByActiveQuery,
+                  rootQuery,
+                  generateId,
+              )
+            : undefined);
 
     const {
         pushUndoStackEntry,
@@ -846,12 +887,14 @@ export function useTaskGridViewVirtualizedListBase({
     affinityManager,
     getMoveTaskToQueryActions: getMoveTaskToRootQueryActions,
     getMaybeRemoveTaskFromQueryActions: getMaybeRemoveTaskFromRootQueryActions,
+    commitActionTransaction: commitActionTransactionFromProps,
     structuralItemKeyPrefix = "",
     withoutColumnHeader = false,
-    withoutTopBorderIfFirstRow = false,
+    withoutBorderTopIfFirstRow = false,
     columnHeaderControls,
     rowMaxWidth = null,
     withoutBottomGhostTaskIfEmpty = false,
+    withBottomGhostTaskIfNullQuery = false,
     withoutDecorativeGhostRowsIfEmpty = false,
     initiallyWithTopGhostTask = false,
     onApplyUndoStackEntry,
@@ -864,7 +907,6 @@ export function useTaskGridViewVirtualizedListBase({
     nextGridView,
     previousGridViewAnimations = emptyArray,
 }: Omit<TaskGridViewVirtualizedListProps, "getAnchorPosition"> & {
-    stateKey?: string;
     isDragging: boolean;
     draggingData: (TaskGridViewDraggableData & {readonly type: "Row"}) | null;
     pushUndoStackEntry: (entry: TaskUndoStackEntry) => void;
@@ -905,7 +947,7 @@ export function useTaskGridViewVirtualizedListBase({
 
     const [bottomGhostTaskId, setBottomGhostTaskId] = useStateWithDependencies(
         ([rootQuery]) => {
-            if (!rootQuery) return null;
+            if (!rootQuery && !withBottomGhostTaskIfNullQuery) return null;
             if (!initialAppRenderId) return generateId<TaskId>();
 
             // If this is the initial app render, generate a stable `Id` that's consistent
@@ -955,7 +997,12 @@ export function useTaskGridViewVirtualizedListBase({
             : undefined);
 
     const isRootQueryNull = rootQuery === null;
-    const isRootQueryManuallySorted = isTaskQueryManuallySorted(rootQuery?.sorts ?? emptyArray);
+    const isRootQueryManuallySorted = !isRootQueryNull
+        ? isTaskQueryManuallySorted(rootQuery.sorts)
+        : // We treat the grid view as manually sorted if
+          // `withBottomGhostTaskIfNullQuery` is true. Since ghost rows only appear in
+          // manually sorted queries.
+          !!withBottomGhostTaskIfNullQuery;
 
     const [topGhostTaskId, setTopGhostTaskId] = useState(() => {
         if (!initiallyWithTopGhostTask) return null;
@@ -1012,7 +1059,7 @@ export function useTaskGridViewVirtualizedListBase({
 
     const hasBottomGhostTask =
         !capabilities.isReadOnly &&
-        !isRootQueryNull &&
+        (!isRootQueryNull || withBottomGhostTaskIfNullQuery) &&
         isRootQueryManuallySorted &&
         bottomGhostTaskId !== null &&
         (!withoutBottomGhostTaskIfEmpty || stateItemCount > 0);
@@ -1076,7 +1123,7 @@ export function useTaskGridViewVirtualizedListBase({
             const undoManager: TaskClientStoreUndoManager = {pushUndoStackEntry};
 
             // If this function returns true then the undo stack entry was handled.
-            if (onApplyUndoStackEntry?.({type, entry, target, undoManager})) {
+            if (onApplyUndoStackEntry?.({type, entry, target, undoManager})?.preventDefault) {
                 return true;
             }
 
@@ -1120,15 +1167,15 @@ export function useTaskGridViewVirtualizedListBase({
 
             switch (entry.type) {
                 case "Actions": {
-                    rootQuery.store.commitTaskActionTransaction(
-                        context,
-                        entry.undoActions.get(store),
-                        {
-                            undoManager,
-                            affinityManager,
-                            leaseId: entry.leaseId,
-                        },
-                    );
+                    // Doesn't call the `commitActionTransaction()` prop since:
+                    //
+                    // 1. We don't want that function to add anything to our undo action transaction
+                    // 2. That function doesn't have to support leases which is convenient
+                    store.commitTaskActionTransaction(context, entry.undoActions.get(store), {
+                        undoManager,
+                        affinityManager,
+                        leaseId: entry.leaseId,
+                    });
                     break;
                 }
                 // Note undo/redo is only applicable to `<TaskDetailView>`.
@@ -1373,10 +1420,9 @@ export function useTaskGridViewVirtualizedListBase({
                     });
 
                     for (const taskId of parentTaskIdsToLoad) {
-                        const childrenQuery = rootQuery.store.ensureAndRetainTaskChildrenQuery(
-                            taskId,
-                            {limit: getTaskGridViewLoadQueryLimit(getClientInfo())},
-                        );
+                        const childrenQuery = store.ensureAndRetainTaskChildrenQuery(taskId, {
+                            limit: getTaskGridViewLoadQueryLimit(getClientInfo()),
+                        });
                         retainedChildrenQueries.push(childrenQuery);
 
                         childrenQuery?.loadMoreTasks(
@@ -1388,7 +1434,7 @@ export function useTaskGridViewVirtualizedListBase({
                         for (const {taskId: expandedChildTaskId} of iterateExpandedTaskIdsUnderPath(
                             [taskId],
                         )) {
-                            const childrenQuery = rootQuery.store.ensureAndRetainTaskChildrenQuery(
+                            const childrenQuery = store.ensureAndRetainTaskChildrenQuery(
                                 expandedChildTaskId,
                                 {
                                     limit: getTaskGridViewLoadQueryLimit(getClientInfo()),
@@ -2170,6 +2216,20 @@ export function useTaskGridViewVirtualizedListBase({
                 setZIndex();
             };
         },
+
+        commitActionTransaction: (getActions, {undoManager}) => {
+            if (commitActionTransactionFromProps) {
+                return commitActionTransactionFromProps(getActions, {
+                    undoManager,
+                    affinityManager,
+                });
+            } else {
+                return store.commitTaskActionTransaction(context, getActions(), {
+                    undoManager,
+                    affinityManager,
+                });
+            }
+        },
     });
 
     /* ========================================================================== *\
@@ -2616,13 +2676,13 @@ export function useTaskGridViewVirtualizedListBase({
                             render: renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll(
                                 disableExpensiveFeaturesDuringScroll => (
                                     <TaskRowViewMemo
-                                        context={context}
                                         capabilities={capabilities}
                                         maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
                                         stateKey={stateKey}
                                         rootQuery={rootQuery}
                                         isRootQueryManuallySorted={isRootQueryManuallySorted}
                                         affinityManager={affinityManager}
+                                        store={store}
                                         query={rootQuery}
                                         gridKey={topGhostTaskId}
                                         cursor={null}
@@ -2637,7 +2697,7 @@ export function useTaskGridViewVirtualizedListBase({
                                             !isDragging && disableExpensiveFeaturesDuringScroll
                                         }
                                         isFirstRow={true}
-                                        withoutTopBorderIfFirstRow={withoutTopBorderIfFirstRow}
+                                        withoutBorderTopIfFirstRow={withoutBorderTopIfFirstRow}
                                         // The ghost row is not a task in the query so always report as false.
                                         isFirstTaskInQuery={false}
                                         nextIndentation={0}
@@ -2691,6 +2751,11 @@ export function useTaskGridViewVirtualizedListBase({
                             <TaskGridViewMoreUnloadedTasksMemo
                                 capabilities={capabilities}
                                 rowMaxWidth={rowMaxWidth}
+                                withoutBorderTop={
+                                    withoutBorderTopIfFirstRow &&
+                                    !hasTopGhostTask &&
+                                    itemIndex - itemCountBeforeState === 0
+                                }
                                 focusPreviousTaskTitleEnd={events.focusPreviousTaskTitleEnd}
                                 focusPreviousTaskTitleAll={events.focusPreviousTaskTitleAll}
                             />
@@ -2711,10 +2776,10 @@ export function useTaskGridViewVirtualizedListBase({
                             render: renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll(
                                 disableExpensiveFeaturesDuringScroll => (
                                     <TaskRowViewMemo
-                                        context={context}
                                         capabilities={capabilities}
                                         maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
                                         stateKey={stateKey}
+                                        store={store}
                                         rootQuery={rootQuery}
                                         isRootQueryManuallySorted={isRootQueryManuallySorted}
                                         affinityManager={affinityManager}
@@ -2731,7 +2796,7 @@ export function useTaskGridViewVirtualizedListBase({
                                             !isDragging && disableExpensiveFeaturesDuringScroll
                                         }
                                         isFirstRow={!hasTopGhostTask && stateItemCount === 0}
-                                        withoutTopBorderIfFirstRow={withoutTopBorderIfFirstRow}
+                                        withoutBorderTopIfFirstRow={withoutBorderTopIfFirstRow}
                                         // The ghost row is not a task in the query so always report as false.
                                         isFirstTaskInQuery={false}
                                         nextIndentation={0}
@@ -2778,14 +2843,16 @@ export function useTaskGridViewVirtualizedListBase({
                     minHeight: spacing[taskRowViewMinHeight],
                     node: (
                         <TaskGridViewDecorativeGhostTaskMemo
-                            capabilities={capabilities}
                             rowMaxWidth={rowMaxWidth}
-                            isRootQueryNull={isRootQueryNull}
+                            isInert={
+                                capabilities.isReadOnly ||
+                                (isRootQueryNull && !withBottomGhostTaskIfNullQuery)
+                            }
                             structuralItemKeyPrefix={structuralItemKeyPrefix}
                             hasColumnHeader={hasColumnHeader}
                             relativeItemIndex={relativeItemIndex}
                             isFirstRow={!hasTopGhostTask && itemIndex - itemCountBeforeState === 0}
-                            withoutTopBorderIfFirstRow={withoutTopBorderIfFirstRow}
+                            withoutBorderTopIfFirstRow={withoutBorderTopIfFirstRow}
                             withPaddingBottom={itemIndex === itemCount - 1}
                             hasNextGridView={hasNextGridView}
                             focusPreviousTaskTitleEnd={events.focusPreviousTaskTitleEnd}
@@ -2807,12 +2874,12 @@ export function useTaskGridViewVirtualizedListBase({
                     render: renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll(
                         disableExpensiveFeaturesDuringScroll => (
                             <TaskRowViewMemo
-                                context={context}
                                 capabilities={capabilities}
                                 maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
                                 stateKey={stateKey}
+                                store={store}
                                 // If we have a task item then that must mean we have a query.
-                                rootQuery={rootQuery!}
+                                rootQuery={rootQuery}
                                 isRootQueryManuallySorted={isRootQueryManuallySorted}
                                 affinityManager={affinityManager}
                                 query={item.query}
@@ -2829,7 +2896,7 @@ export function useTaskGridViewVirtualizedListBase({
                                 isFirstRow={
                                     !hasTopGhostTask && itemIndex - itemCountBeforeState === 0
                                 }
-                                withoutTopBorderIfFirstRow={withoutTopBorderIfFirstRow}
+                                withoutBorderTopIfFirstRow={withoutBorderTopIfFirstRow}
                                 isFirstTaskInQuery={item.isFirstTaskInQuery}
                                 nextIndentation={
                                     itemIndex + 1 < itemCountBeforeState + stateItemCount
@@ -2892,7 +2959,6 @@ export function useTaskGridViewVirtualizedListBase({
         bottomGhostTaskId,
         capabilities,
         columnHeaderControlsWithMinHeightPx,
-        context,
         events,
         getAreChildTasksExpandedStore,
         hasBottomGhostTask,
@@ -2912,12 +2978,14 @@ export function useTaskGridViewVirtualizedListBase({
         state,
         stateItemCount,
         stateKey,
+        store,
         structuralItemKeyPrefix,
         taskGhostRowPlaceholder,
         toggleAreChildTasksExpanded,
         topGhostTaskId,
         viewRef,
-        withoutTopBorderIfFirstRow,
+        withBottomGhostTaskIfNullQuery,
+        withoutBorderTopIfFirstRow,
     ]);
 
     const onLayoutEffectCallbacksRef = useRef<Array<() => void>>([]);
@@ -2961,7 +3029,7 @@ export function useTaskGridViewVirtualizedListBase({
             <>
                 {taskDeleteConfirmationState && rootQuery && (
                     <TaskDeleteConfirmationModalDialog
-                        store={rootQuery.store}
+                        store={store}
                         undoManager={taskDeleteConfirmationState.undoManager}
                         taskId={taskDeleteConfirmationState.taskId}
                         onClose={() => setTaskDeleteConfirmationState(null)}

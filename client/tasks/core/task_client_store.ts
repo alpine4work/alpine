@@ -14,8 +14,10 @@ import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction
 import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {emptyMap} from "~/shared/helpers/array/empty_map.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Clock} from "~/shared/helpers/clock/clock.js";
 import {
     HybridLogicalClock,
@@ -284,6 +286,26 @@ export interface TaskClientStoreSearchAffinityManager {
 }
 
 /**
+ * `TaskClientStore` but without any methods that mutate task data. Notably,
+ * there's no `commitTaskActionTransaction()` function.
+ */
+export type TaskClientReadonlyStore = Pick<
+    TaskClientStore,
+    | "accountStore"
+    | "spaceId"
+    | "currentAccountId"
+    | "clock"
+    | "getTaskEntryStoreIfExists"
+    | "getCollectionEntryStoreIfExists"
+    | "getTaskAssigneeAccountStore"
+    | "getReferencedAccountStoreIfExists"
+    | "getSubscriptionsStore"
+    | "subscribeToBatchUpdate"
+    | "waitForCommitTaskActionTransactions"
+    | "getTaskChildrenQueryStore"
+>;
+
+/**
  * The client model store holds all our task data for a space on the client.
  * Similar to `TaskRealtimeStore` but whereas `TaskRealtimeStore` lives on the
  * server in `TaskRealtimeService` and contains all tasks irregardless of
@@ -372,11 +394,12 @@ export class TaskClientStore {
 
     public commitTaskActionTransaction(
         context: Context<{rpc: RpcContextModuleBase}>,
-        actions: ReadonlyArray<TaskActionModel>,
+        actions: Iterable<TaskActionModel>,
         options: {
             undoManager: TaskClientStoreUndoManager | null;
             affinityManager: TaskClientStoreSearchAffinityManager;
             leaseId?: TaskActionTransactionLeaseId | null;
+            undoableActions?: ReadonlyArray<TaskActionModel>;
         },
     ): {finally: (callback: () => void) => void} {
         return this._internal.commitTaskActionTransaction(context, actions, options);
@@ -1588,11 +1611,12 @@ export class TaskClientStoreInternal {
      */
     public commitTaskActionTransaction(
         context: Context<{rpc: RpcContextModuleBase}>,
-        actions: ReadonlyArray<TaskActionModel>,
+        actionsIterable: Iterable<TaskActionModel>,
         {
             undoManager,
             affinityManager,
             leaseId = null,
+            undoableActions,
         }: {
             // This property is required to force callers to make a decision on whether or
             // not to pass in `undoManager`. Most of the time you want to pass in
@@ -1602,8 +1626,16 @@ export class TaskClientStoreInternal {
             // object from the route component.
             affinityManager: TaskClientStoreSearchAffinityManager;
             leaseId?: TaskActionTransactionLeaseId | null;
+            undoableActions?: ReadonlyArray<TaskActionModel>;
         },
     ): {finally: (callback: () => void) => void} {
+        const actions: ReadonlyArray<TaskActionModel> = isReadonlyArray(actionsIterable)
+            ? actionsIterable
+            : Array.from(actionsIterable);
+
+        // Noop if there aren't any actions.
+        if (actions.length === 0) return {finally: callback => scheduleMicrotask(callback)};
+
         const mutexLockedPromiseResolver = createPromiseResolver();
         const mutexUnlockPromiseResolver = createPromiseResolver();
 
@@ -1639,7 +1671,9 @@ export class TaskClientStoreInternal {
         try {
             // We need to create undo actions before applying our actions to the store so
             // we can read old task data from the store.
-            undoActions = undoManager ? createTaskUndoActionsIfPossible(this, actions) : null;
+            undoActions = undoManager
+                ? createTaskUndoActionsIfPossible(this, undoableActions ?? actions)
+                : null;
 
             assert(this.onQueryLoadedTaskRemove === null);
             const removedFromQueries = new Set<TaskClientQuery>();

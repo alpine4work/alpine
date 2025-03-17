@@ -7,7 +7,7 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {pointerEventsNoneNotInheritedClassName, tasksStyles} from "~/client/styles/styles.js";
-import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientReadonlyStore} from "~/client/tasks/core/task_client_store.js";
 import {TaskAssigneeInput} from "~/client/tasks/internal/task_assignee_input.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
@@ -39,19 +39,17 @@ function TaskRowViewDenseFields(
         focusTitleStart,
         focusTitleEnd,
         focusTitleAll,
-        commitActionTransactionEvenIfGhost,
+        commitActionTransaction,
     }: {
         isReadOnly: boolean;
         withoutAssigneeField: boolean;
-        store: TaskClientStore;
+        store: TaskClientReadonlyStore;
         task: TaskModel | null;
         marginLeft: RemLength;
         focusTitleEnd: () => void;
         focusTitleStart: () => void;
         focusTitleAll: () => void;
-        commitActionTransactionEvenIfGhost: (
-            getActions: (taskId: TaskId) => Array<TaskActionModel>,
-        ) => void;
+        commitActionTransaction: (getActions: (taskId: TaskId) => Array<TaskActionModel>) => void;
     },
     ref: Ref<TaskRowViewDenseFieldsRef>,
 ) {
@@ -308,7 +306,7 @@ function TaskRowViewDenseFields(
 
                                 const time = store.clock.now();
 
-                                commitActionTransactionEvenIfGhost(taskId => [
+                                commitActionTransaction(taskId => [
                                     {
                                         type: "UpdateTask",
                                         time,
@@ -367,7 +365,7 @@ function TaskRowViewDenseFields(
                             withoutBlurAfterSelection={platform === "mobile"}
                             priority={priority}
                             onPriorityChange={priority => {
-                                commitActionTransactionEvenIfGhost(taskId => [
+                                commitActionTransaction(taskId => [
                                     {
                                         type: "UpdateTask",
                                         time: store.clock.now(),
@@ -415,7 +413,7 @@ function TaskRowViewDenseFields(
                             shouldFormatAroundToday={true}
                             color="grey-60"
                             onDateChange={dueDate => {
-                                commitActionTransactionEvenIfGhost(taskId => [
+                                commitActionTransaction(taskId => [
                                     {
                                         type: "UpdateTask",
                                         time: store.clock.now(),

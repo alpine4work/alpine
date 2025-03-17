@@ -97,6 +97,7 @@ import {
     taskDetailViewStatusButtonSize,
     taskDetailViewSubtasksFieldLabelPaddingBottom,
     taskDetailViewTitleFontSize,
+    taskDetailViewTitleLineHeight,
     taskGridViewColumnHeaderExtraPaddingBottomPx,
     taskGridViewColumnHeaderHeight,
     taskNotepadViewActiveSectionActualMarginBottom,
@@ -1479,7 +1480,13 @@ function TaskDetailRouteShimmer({searchParams}: {searchParams: URLSearchParams})
                             />
                         </Box>
                     )}
-                    <TextShimmer fontSize={taskDetailViewTitleFontSize} width="64" />
+                    <TextShimmer
+                        fontSize={{
+                            fontSize: fontSizes[taskDetailViewTitleFontSize].fontSize,
+                            lineHeight: taskDetailViewTitleLineHeight,
+                        }}
+                        width="64"
+                    />
                     <Box height={taskDetailViewSectionGap} />
                     <Box display="flex" alignItems="center" gap={taskDetailViewDenseFieldGap}>
                         <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="16" />
@@ -1495,7 +1502,7 @@ function TaskDetailRouteShimmer({searchParams}: {searchParams: URLSearchParams})
                     <Box height={taskDetailNotesFieldLabelPaddingBottom} />
                     <Box
                         style={{
-                            height: tasksStyles.detailNotesContentEditorMinHeight[spacingScale],
+                            height: tasksStyles.detailNotesContentEditorMinHeightPx[spacingScale],
                         }}
                     />
                     <Box height={taskDetailViewSectionGap} />

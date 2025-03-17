@@ -62,7 +62,10 @@ import {
 } from "~/client/styles/tasks_shared_styles.js";
 import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
-import {TaskClientStore, TaskClientStoreTaskEntry} from "~/client/tasks/core/task_client_store.js";
+import {
+    TaskClientReadonlyStore,
+    TaskClientStoreTaskEntry,
+} from "~/client/tasks/core/task_client_store.js";
 import {buildTaskTitleInputKeymapPlugin} from "~/client/tasks/internal/build_task_title_input_keymap_plugin.js";
 import {createTaskEntryAccessStore} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
@@ -289,7 +292,8 @@ function TaskRowTitleInput(
         hasEditAccessLevel: boolean;
         maxGridExpandableTaskDepth: number;
         stateKey: Key | undefined;
-        query: TaskClientQuery;
+        store: TaskClientReadonlyStore;
+        query: TaskClientQuery | null;
         isQueryManuallySorted: boolean;
         task: TaskModel | null;
         onTitleChange: (titleUpdate: TaskTitleUpdateModel) => void;
@@ -325,7 +329,7 @@ function TaskRowTitleInput(
                 | {type: "Below"; taskId: TaskId},
         ) => Array<TaskActionModel>;
         getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
-        commitActionTransactionEvenIfGhost: (
+        commitActionTransaction: (
             getActions:
                 | ((taskId: TaskId) => Iterable<TaskActionModel>)
                 | {
@@ -881,7 +885,7 @@ function TaskRowTitleInput(
                     handleDOMEvents: {
                         paste: (view, event) => {
                             handleTaskRowTitleInputPaste(event, {
-                                store: propsRef.current.query.store,
+                                store: propsRef.current.store,
                                 spaceId: spaceIdRef.current,
                                 currentAccountId: assertExists(currentAccountIdRef.current),
                                 timeZone: timeZoneRef.current,
@@ -896,8 +900,7 @@ function TaskRowTitleInput(
                                     propsRef.current.getMoveTaskToQueryActions,
                                 getMaybeRemoveTaskFromQueryActions:
                                     propsRef.current.getMaybeRemoveTaskFromQueryActions,
-                                commitActionTransactionEvenIfGhost:
-                                    propsRef.current.commitActionTransactionEvenIfGhost,
+                                commitActionTransaction: propsRef.current.commitActionTransaction,
                             });
 
                             return true;
@@ -1865,7 +1868,7 @@ function TaskRowTitleParentTaskTitle({
     query,
     parentTaskEntryStore,
 }: {
-    query: TaskClientQuery;
+    query: TaskClientQuery | null;
     parentTaskEntryStore: Store<TaskClientStoreTaskEntry>;
 }) {
     // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
@@ -1888,7 +1891,14 @@ function TaskRowTitleParentTaskTitle({
 
     const access = useStore(
         useMemo(
-            () => createTaskEntryAccessStore(currentAccount?.id, query, parentTaskEntryStore),
+            () =>
+                createTaskEntryAccessStore(
+                    currentAccount?.id,
+                    // If `query` is null then we'll only ever render a ghost task. Ghost tasks
+                    // should never have a parent task.
+                    assertExists(query),
+                    parentTaskEntryStore,
+                ),
             [currentAccount?.id, parentTaskEntryStore, query],
         ),
     );
@@ -1951,9 +1961,9 @@ function handleTaskRowTitleInputPaste(
         focusTaskTitleSelection,
         getMoveTaskToQueryActions,
         getMaybeRemoveTaskFromQueryActions,
-        commitActionTransactionEvenIfGhost,
+        commitActionTransaction,
     }: {
-        store: TaskClientStore;
+        store: TaskClientReadonlyStore;
         spaceId: SpaceId;
         currentAccountId: AccountId;
         timeZone: TimeZone;
@@ -1976,7 +1986,7 @@ function handleTaskRowTitleInputPaste(
                 | {type: "Below"; taskId: TaskId},
         ) => Array<TaskActionModel>;
         getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
-        commitActionTransactionEvenIfGhost: (
+        commitActionTransaction: (
             getActions:
                 | ((taskId: TaskId) => Iterable<TaskActionModel>)
                 | {
@@ -2109,7 +2119,7 @@ function handleTaskRowTitleInputPaste(
         };
 
         flushSync(() => {
-            commitActionTransactionEvenIfGhost(taskId => [
+            commitActionTransaction(taskId => [
                 {
                     type: "UpdateTask",
                     time: store.clock.now(),
@@ -2293,7 +2303,7 @@ function handleTaskRowTitleInputPaste(
     // Synchronous flush to make sure `updateTitleStateRef` is used before it's
     // reset to null at the end of this function.
     flushSync(() => {
-        commitActionTransactionEvenIfGhost({
+        commitActionTransaction({
             getBeforeMoveTaskActions: getActions,
             getAfterMoveTaskActions: () => emptyArray,
         });

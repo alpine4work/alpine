@@ -1,15 +1,28 @@
-import {useCallback, useEffect} from "react";
-import {useParams} from "react-router";
+import {useCallback, useEffect, useState} from "react";
+import {flushSync} from "react-dom";
+import {ShouldRevalidateFunction, useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
+import {useAppContext} from "~/client/context/app_context.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getInitialAppRenderPlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {taskDetailViewCommentSidebarWidth} from "~/client/styles/tasks_shared_styles.js";
+import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
+import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
+import {
+    TaskClientStoreSearchAffinityManager,
+    TaskClientStoreUndoManager,
+} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
+import {unknownTaskQueryFromServerRetentionPeriodMs} from "~/client/tasks/core/task_realtime_client.js";
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/tasks/core/task_realtime_client_context_provider.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskDetailAndCommentsView} from "~/client/tasks/task_detail_and_comments_view.js";
@@ -18,25 +31,34 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/spaces_table.js";
 import {
-    getTaskNotesContent,
     getTaskNotesContentAndOptionalInitialComments,
+    getTaskNotesContentIfExists,
 } from "~/server/tasks/data/task_table.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {NotFoundError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {isId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
+import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
-import {TaskNotesContentWithReferencesSchema} from "~/shared/tasks/task_notes_content_schema.js";
+import {
+    TaskNotesContentWithReferencesSchema,
+    emptyTaskNotesContentWithReferences,
+} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskRealtimeUpdateEventBackfillTask} from "~/shared/tasks/task_realtime_protocol.js";
+import {TaskRealtimeLoadQueriesOutput} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/task_title.js";
 
 const LoaderSchema = Schema.object({
@@ -68,6 +90,10 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
     const platform = getInitialAppRenderPlatform(clientInfo);
 
     const isSpaceAccessAuthorized = (await authorizeSpaceAccessIfPossible(context, spaceId)).ok;
+
+    const isCreatingTask = url.searchParams.get("create") === "";
+    const showComments = !isCreatingTask && url.searchParams.get("comments") === "show";
+    const showInboxEntry = url.searchParams.get("inbox") === "show";
 
     const childrenQuery: {
         limit: number;
@@ -106,28 +132,28 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
             : undefined,
     };
 
-    const showComments = url.searchParams.get("comments") === "show";
-
-    const [
-        {queries, extraQueries, updateEvent},
-        {
-            notes: {version: notesVersion, content: notesContent},
-            initialComments,
-        },
-        inboxEntry,
-    ] = await runAllPromises([
-        context.tasks.loadQueries(spaceId, {
-            queries: [childrenQuery],
-            taskIds: [taskId],
-            collectionIds: [],
-        }),
+    const [loadQueriesOutputResult, task, inboxEntry] = await runAllPromises([
+        captureResultPromise(
+            context.tasks.loadQueries(spaceId, {
+                queries: [childrenQuery],
+                taskIds: [taskId],
+                collectionIds: [],
+            }),
+        ),
         showComments && platform !== "mobile"
             ? getTaskNotesContentAndOptionalInitialComments(context, {
                   taskId,
                   commentsLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
               })
-            : getTaskNotesContent(context, taskId).then(notes => ({notes, initialComments: null})),
-        isSpaceAccessAuthorized && url.searchParams.get("inbox") === "show"
+            : getTaskNotesContentIfExists(context, taskId).then(notes =>
+                  notes
+                      ? {
+                            notes,
+                            initialComments: null,
+                        }
+                      : null,
+              ),
+        isSpaceAccessAuthorized && showInboxEntry
             ? getInboxEntry(context.actor.authorizeSession(), {
                   spaceId,
                   key: {type: "Task", taskId},
@@ -135,51 +161,99 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
             : null,
     ]);
 
-    const backfillTask = updateEvent.backfillTasks.find(
+    let loadQueriesOutput: TaskRealtimeLoadQueriesOutput | null;
+
+    if (!isCreatingTask) {
+        if (!task) throw new NotFoundError("Task not found");
+        loadQueriesOutput = unwrapResult(loadQueriesOutputResult);
+    } else {
+        if (loadQueriesOutputResult.ok) {
+            loadQueriesOutput = loadQueriesOutputResult.value;
+        }
+        // If the `create` search param is set, the task doesn't exist, and
+        // `loadQueries()` throws a `NotFoundError` then ignore the error since we're
+        // ok rendering an empty task we create later.
+        else if (!task && loadQueriesOutputResult.error instanceof NotFoundError) {
+            loadQueriesOutput = null;
+        } else {
+            throw loadQueriesOutputResult.error;
+        }
+    }
+
+    const backfillTask = loadQueriesOutput?.updateEvent.backfillTasks.find(
         (
             backfillTask,
         ): backfillTask is TaskRealtimeUpdateEventBackfillTask & {type: "Authorized"} =>
             backfillTask.type === "Authorized" && backfillTask.task.id === taskId,
     );
-    const childrenQueryOutput = assertExists(queries[0]);
 
     return jsonWithSchema(
         LoaderSchema,
         {
             initialMetaTitleText: backfillTask?.task.getTitle().getText() ?? "",
-            childrenGridViewExpansionState: childrenQueryOutput.gridViewExpansionState,
-            notesVersion,
-            notesContent,
-            initialComments,
+            childrenGridViewExpansionState:
+                loadQueriesOutput?.queries[0]?.gridViewExpansionState ?? null,
+            notesVersion: task?.notes.version ?? 0,
+            notesContent: task?.notes.content ?? emptyTaskNotesContentWithReferences,
+            initialComments: task?.initialComments ?? null,
             inboxEntry,
         },
         {
             propagateEventData: {
                 context: {taskId},
             },
-            taskStoreLoaderData: {
-                queries: [
-                    {
-                        limit: childrenQuery.limit,
-                        filters: childrenQuery.filters,
-                        sorts: childrenQuery.sorts,
-                        loadedState: childrenQueryOutput.loadedState,
-                    },
-                    ...extraQueries,
-                ],
-                taskIds: [taskId],
-                collectionIds: [],
-                updateEvent,
-            },
+            taskStoreLoaderData: loadQueriesOutput
+                ? {
+                      queries: [
+                          {
+                              limit: childrenQuery.limit,
+                              filters: childrenQuery.filters,
+                              sorts: childrenQuery.sorts,
+                              loadedState: assertExists(loadQueriesOutput.queries[0]).loadedState,
+                          },
+                          ...loadQueriesOutput.extraQueries,
+                      ],
+                      taskIds: [taskId],
+                      collectionIds: [],
+                      updateEvent: loadQueriesOutput.updateEvent,
+                  }
+                : undefined,
         },
     );
 }
 
+// We don't need to reload when certain search params change.
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+    currentUrl: originalCurrentUrl,
+    nextUrl: originalNextUrl,
+}) => {
+    const currentUrl = new URL(originalCurrentUrl);
+    const nextUrl = new URL(originalNextUrl);
+
+    // Used when creating tasks:
+    nextUrl.searchParams.delete("create");
+    currentUrl.searchParams.delete("create");
+
+    // Used to open comments:
+    nextUrl.searchParams.delete("comments");
+    currentUrl.searchParams.delete("comments");
+
+    return nextUrl.toString() !== currentUrl.toString();
+};
+
 export default function TaskRoute() {
+    const clientInfo = useClientInfo();
+    const context = useAppContext();
+    const {currentAccount} = useSpaceContext();
     const {taskId, spaceId} = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     assert(taskId && isId<TaskId>(taskId));
     assert(spaceId && isId<SpaceId>(spaceId));
+
+    const isCreatingTask = searchParams.get("create") === "";
+    const showComments = !isCreatingTask && searchParams.get("comments") === "show";
+
+    const [shouldInitiallyFocus] = useState(searchParams.get("focus") === "");
 
     const {
         childrenGridViewExpansionState: initialChildrenGridViewExpansionState,
@@ -189,29 +263,86 @@ export default function TaskRoute() {
         inboxEntry,
     } = useLoaderDataWithSchema(LoaderSchema);
     const {
-        queries: [childrenQuery],
-        taskSubscriptions: [taskSubscription],
+        store,
+        queries: [childrenQueryFromLoader = null],
+        taskSubscriptions: [taskSubscriptionFromLoader = null],
     } = useTaskStoreLoaderDataWithoutRetaining();
-    assert(childrenQuery && taskSubscription);
+
+    const [
+        newlyCreatedTaskSubscriptionAndChildrenQuery,
+        setNewlyCreatedTaskSubscriptionAndChildrenQuery,
+    ] = useState<{
+        taskSubscription: TaskClientTaskSubscription;
+        childrenQuery: TaskClientQuery;
+    } | null>(null);
+
+    if (!isCreatingTask && !newlyCreatedTaskSubscriptionAndChildrenQuery) {
+        assert(childrenQueryFromLoader && taskSubscriptionFromLoader);
+    } else {
+        // Either both `childrenQuery` and `taskSubscription` exist or neither of
+        // them exist (when creating a new task).
+        assert(
+            (childrenQueryFromLoader && taskSubscriptionFromLoader) ||
+                (!childrenQueryFromLoader && !taskSubscriptionFromLoader),
+        );
+    }
+
+    // If we get a children query or task subscription from the server then null
+    // out the newly created children query and task subscription.
+    if (
+        newlyCreatedTaskSubscriptionAndChildrenQuery &&
+        (childrenQueryFromLoader || taskSubscriptionFromLoader)
+    ) {
+        setNewlyCreatedTaskSubscriptionAndChildrenQuery(null);
+    }
+
+    const taskSubscription =
+        taskSubscriptionFromLoader ??
+        newlyCreatedTaskSubscriptionAndChildrenQuery?.taskSubscription ??
+        null;
+    const childrenQuery =
+        childrenQueryFromLoader ??
+        newlyCreatedTaskSubscriptionAndChildrenQuery?.childrenQuery ??
+        null;
 
     const routeLayout = useRouteLayout();
 
     // Retain our queries so they aren't destroyed while we're using them.
     useEffect(() => {
-        childrenQuery.retain();
-        taskSubscription.retain();
+        childrenQuery?.retain();
+        taskSubscription?.retain();
 
         return () => {
-            // Release after a microtask in case the component is re-rendering which will
-            // synchronously call `retain()` again.
-            scheduleMicrotask(() => {
-                batchStoreUpdates(() => {
-                    childrenQuery.release();
-                    taskSubscription.release();
+            if (childrenQuery || taskSubscription) {
+                // Release after a microtask in case the component is re-rendering which will
+                // synchronously call `retain()` again.
+                scheduleMicrotask(() => {
+                    batchStoreUpdates(() => {
+                        childrenQuery?.release();
+                        taskSubscription?.release();
+                    });
                 });
-            });
+            }
         };
     }, [childrenQuery, taskSubscription]);
+
+    // Remove the `create` search param.
+    useEffect(() => {
+        if ((childrenQuery || taskSubscription) && searchParams.has("create")) {
+            const newSearchParams = new URLSearchParams(searchParams);
+            newSearchParams.delete("create");
+            setSearchParams(newSearchParams, {replace: true});
+        }
+    }, [childrenQuery, searchParams, setSearchParams, taskSubscription]);
+
+    // Remove the `focus` search param.
+    useEffect(() => {
+        if (searchParams.has("focus")) {
+            const newSearchParams = new URLSearchParams(searchParams);
+            newSearchParams.delete("focus");
+            setSearchParams(newSearchParams, {replace: true});
+        }
+    }, [searchParams, setSearchParams]);
 
     const updateMetaTitle = useUpdateMetaTitle();
 
@@ -220,23 +351,23 @@ export default function TaskRoute() {
         const update = () => {
             updateMetaTitle(
                 `${addFallbackToTaskTitle(
-                    taskSubscription.taskEntryStore.getSnapshot().task?.getTitle().getText() ?? "",
+                    taskSubscription?.taskEntryStore.getSnapshot().task?.getTitle().getText() ?? "",
                 )}${metaTitlePostfix}`,
             );
         };
 
         update();
-        return taskSubscription.taskEntryStore.subscribe(update);
-    }, [taskSubscription.taskEntryStore, updateMetaTitle]);
+        return taskSubscription?.taskEntryStore.subscribe(update);
+    }, [taskSubscription?.taskEntryStore, updateMetaTitle]);
 
     const commentIndexString = searchParams.get("comment");
     const initialScrollToCommentIndex = commentIndexString
         ? parseInt(commentIndexString, 10)
         : null;
 
-    const affinityManager = useTaskClientStoreSearchAffinityManager(`Task:${taskId}`);
-
-    const showComments = searchParams.get("comments") === "show";
+    const affinityManager = useTaskClientStoreSearchAffinityManager(
+        taskSubscription ? `Task:${taskId}` : null,
+    );
 
     const setShowComments = useCallback(
         (showComments: boolean) => {
@@ -281,11 +412,130 @@ export default function TaskRoute() {
         if (routeLayout === "narrow") return;
 
         if (!showComments) {
-            localStorage.removeItem(`cyberworlds/taskShowComments/${taskSubscription.taskId}`);
+            localStorage.removeItem(`cyberworlds/taskShowComments/${taskId}`);
         } else {
-            localStorage.setItem(`cyberworlds/taskShowComments/${taskSubscription.taskId}`, "true");
+            localStorage.setItem(`cyberworlds/taskShowComments/${taskId}`, "true");
         }
-    }, [routeLayout, showComments, taskSubscription.taskId]);
+    }, [routeLayout, showComments, taskId]);
+
+    const commitActionTransactionAndCreateIfNeeded = useEvent(
+        (
+            getActions: () => Iterable<TaskActionModel>,
+            {
+                undoManager,
+                affinityManager,
+            }: {
+                undoManager: TaskClientStoreUndoManager | null;
+                affinityManager: TaskClientStoreSearchAffinityManager;
+            },
+        ): {
+            finally: (callback: () => void) => void;
+        } => {
+            if (taskSubscription) {
+                return store.commitTaskActionTransaction(context, getActions(), {
+                    undoManager,
+                    affinityManager,
+                });
+            }
+
+            // Currently, accounts without space access can't edit tasks. The max
+            // permission level of `urlGrant` is `View`.
+            assert(currentAccount);
+
+            // Make sure any state update from the `onGhostTaskCreated` callback runs in
+            // the same React commit as our store updates (which use
+            // `useSyncExternalStore()`).
+            return flushSync(() => {
+                return batchStoreUpdates(() => {
+                    disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
+
+                    const time1 = store.clock.now();
+                    const time2 = store.clock.now();
+
+                    const actions: Array<TaskActionModel> = [
+                        {
+                            type: "UpdateTask",
+                            time: time1,
+                            taskId,
+                            taskAction: {
+                                type: "Create",
+                                creatorId: currentAccount.id,
+                                creatorTimeZone: clientInfo.timeZone,
+                            },
+                        },
+                        // When we create a ghost task from detail view we automatically assign the
+                        // ghost task to the current account. That way the new task shows up in the
+                        // "My tasks" view.
+                        {
+                            type: "UpdateTask",
+                            time: time2,
+                            taskId,
+                            taskAction: {
+                                type: "UpdateAssignee",
+                                assignee: {
+                                    assigneeId: currentAccount.id,
+                                    assignerId: currentAccount.id,
+                                    assignedTime: new TaskFilterableTime({
+                                        absoluteTime: time2,
+                                        setterTimeZone: clientInfo.timeZone,
+                                    }),
+                                },
+                            },
+                        },
+                    ];
+
+                    const undoableActions: Array<TaskActionModel> = [];
+
+                    for (const action of getActions()) {
+                        actions.push(action);
+                        undoableActions.push(action);
+                    }
+
+                    // When we create a new task that occupies our ghost `TaskId` then we need to
+                    // create a task subscription to make sure the store doesn't immediately throw
+                    // away the data.
+                    //
+                    // It's important that this goes before the
+                    // `store.commitTaskActionTransaction()` call!
+                    const taskSubscription = store.createAndRetainTaskSubscription(taskId);
+
+                    const childrenQuery = store.ensureAndRetainTaskChildrenQuery(taskId, {
+                        limit: getTaskGridViewLoadQueryLimit(clientInfo),
+                    });
+
+                    store.loadTasksIntoQuery(childrenQuery, {
+                        limit: 0,
+                        loadedState: {type: "Full"},
+                        previouslyBackfilledTaskIds: [],
+                    });
+
+                    // Hold our new subscriptions long enough for the `useEffect()` in this
+                    // component to `retain()` them then we can release the reference count for
+                    // this function.
+                    setTimeout(() => {
+                        taskSubscription.release();
+                        childrenQuery.release();
+                    }, unknownTaskQueryFromServerRetentionPeriodMs);
+
+                    setNewlyCreatedTaskSubscriptionAndChildrenQuery({
+                        taskSubscription,
+                        childrenQuery,
+                    });
+
+                    const commitPromise = store.commitTaskActionTransaction(context, actions, {
+                        undoManager,
+                        affinityManager,
+                        // Don't undo the create task action or the update assignee action. These
+                        // actions are not explicitly performed by the user so it would be strange to
+                        // include them in the undo stack.
+                        undoableActions,
+                    });
+
+                    return commitPromise;
+                });
+            });
+        },
+    );
 
     return useInboxBannerOutletContainer(
         {
@@ -295,13 +545,17 @@ export default function TaskRoute() {
         },
         <TaskDetailAndCommentsView
             // Remount when the `TaskId` changes.
-            key={taskSubscription.taskId}
+            key={taskId}
+            taskId={taskId}
+            store={store}
             taskSubscription={taskSubscription}
             childrenQuery={childrenQuery}
-            affinityManager={affinityManager}
             initialChildrenGridViewExpansionState={initialChildrenGridViewExpansionState}
             initialNotesVersion={initialNotesVersion}
             initialNotesContent={initialNotesContent}
+            commitActionTransactionAndCreateIfNeeded={commitActionTransactionAndCreateIfNeeded}
+            affinityManager={affinityManager}
+            shouldInitiallyFocus={shouldInitiallyFocus}
             showComments={showComments && routeLayout !== "narrow"}
             onShowCommentsChange={setShowComments}
             initialComments={initialComments}

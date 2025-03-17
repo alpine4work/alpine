@@ -32,7 +32,7 @@ import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collabor
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
 
-type TaskNotesContentEditorState = CollaborativeContentEditorState<
+export type TaskNotesContentEditorState = CollaborativeContentEditorState<
     TaskNotesContentWithReferences,
     TaskNotesContentEditorExtraState
 >;
@@ -58,7 +58,7 @@ export type TaskDetailNotesContentEditorWebSocketClientProcedures = Pick<
     (typeof TaskDetailNotesContentEditorWebSocketClient.procedureNames)[number]
 >;
 
-const reduceCollaborativeContentEditorState = createCollaborativeContentEditorStateReducer<
+export const reduceTaskNotesContentEditorState = createCollaborativeContentEditorStateReducer<
     TaskNotesContentWithReferences,
     TaskNotesContentEditorExtraState,
     TaskNotesContentEditorExtraAction
@@ -70,6 +70,23 @@ const reduceCollaborativeContentEditorState = createCollaborativeContentEditorSt
 
     return state;
 });
+
+export function getInitialTaskNotesContentEditorState({
+    taskId,
+    initialNotesVersion,
+    initialNotesContent,
+}: {
+    taskId: TaskId;
+    initialNotesVersion: number;
+    initialNotesContent: TaskNotesContentWithReferences;
+}): TaskNotesContentEditorState {
+    return getInitialCollaborativeContentEditorState({
+        initialVersion: initialNotesVersion,
+        initialContent: initialNotesContent,
+        reduceReferences: reduceContentReferences,
+        extra: {taskId},
+    });
+}
 
 /**
  * Object representing our connection to the task notes collaboration service
@@ -117,9 +134,8 @@ export class TaskDetailNotesContentEditorWebSocketClient {
         getContext,
         addGlobalLoadingIndicator,
         taskId,
-        initialNotesVersion,
-        initialNotesContent,
         displayError,
+        initialState,
     }: {
         getContext: () => AppContext;
         addGlobalLoadingIndicator: (
@@ -127,9 +143,8 @@ export class TaskDetailNotesContentEditorWebSocketClient {
             indicator: GlobalLoadingIndicator,
         ) => void;
         taskId: TaskId;
-        initialNotesVersion: number;
-        initialNotesContent: TaskNotesContentWithReferences;
         displayError: (title: string, error: unknown) => void;
+        initialState: TaskNotesContentEditorState;
     }) {
         this.taskId = taskId;
         this._getContext = getContext;
@@ -140,14 +155,8 @@ export class TaskDetailNotesContentEditorWebSocketClient {
             TaskNotesCollaborationProtocol,
             `/api/durable-objects/task-notes/${taskId}`,
         );
-        this._state = new ValueStore(
-            getInitialCollaborativeContentEditorState({
-                initialVersion: initialNotesVersion,
-                initialContent: initialNotesContent,
-                reduceReferences: reduceContentReferences,
-                extra: {taskId},
-            }),
-        );
+        assert(initialState.extra.taskId === taskId);
+        this._state = new ValueStore(initialState);
         this._displayError = displayError;
 
         this.procedures = pickObject(
@@ -157,11 +166,11 @@ export class TaskDetailNotesContentEditorWebSocketClient {
     }
 
     private _dispatchBatch(actions: ReadonlyArray<TaskNotesContentEditorAction>) {
-        this._state.set(reduceCollaborativeContentEditorState(this._state.getSnapshot(), actions));
+        this._state.set(reduceTaskNotesContentEditorState(this._state.getSnapshot(), actions));
     }
 
     private _dispatch(action: TaskNotesContentEditorAction) {
-        this._state.set(reduceCollaborativeContentEditorState(this._state.getSnapshot(), [action]));
+        this._state.set(reduceTaskNotesContentEditorState(this._state.getSnapshot(), [action]));
     }
 
     public changeEditorState(editorState: ContentEditorState<TaskNotesContentWithReferences>) {

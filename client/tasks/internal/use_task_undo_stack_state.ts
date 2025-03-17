@@ -8,7 +8,6 @@ import {emptyObject} from "~/shared/helpers/array/empty_object.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
-import {Id} from "~/shared/id/id.js";
 import {TaskActionTransactionLeaseId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 
@@ -51,7 +50,7 @@ export type TaskUndoStackEntry<Extra = unknown> =
  */
 export function useTaskUndoStackState<Extra = unknown>({
     stateKey,
-}: {stateKey?: Id | undefined} = emptyObject) {
+}: {stateKey?: string | undefined} = emptyObject) {
     const [undoState] = useStateWithDependencies(
         () => ({
             undoStackRef: cast<

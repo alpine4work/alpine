@@ -24,7 +24,7 @@ import {
     taskRowViewColumnWidth,
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
-import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientReadonlyStore} from "~/client/tasks/core/task_client_store.js";
 import {
     TaskAssigneeInput,
     TaskAssigneeInputRef,
@@ -98,10 +98,10 @@ function TaskRowAssigneeCell(
         onCellKeyDownCapture,
         focusNextCell,
         focusPreviousCell,
-        commitActionTransactionEvenIfGhost,
+        commitActionTransaction,
     }: {
         isReadOnly: boolean;
-        store: TaskClientStore;
+        store: TaskClientReadonlyStore;
         task: TaskModel | null;
         disableExpensiveFeaturesDuringScroll: boolean;
         isFirstRow: boolean;
@@ -109,7 +109,7 @@ function TaskRowAssigneeCell(
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
-        commitActionTransactionEvenIfGhost: Memo<
+        commitActionTransaction: Memo<
             (getActions: (taskId: TaskId) => Array<TaskActionModel>) => void
         >;
     },
@@ -184,7 +184,7 @@ function TaskRowAssigneeCell(
         // permission level of `urlGrant` is `View`.
         assert(currentAccount);
 
-        commitActionTransactionEvenIfGhost(taskId => {
+        commitActionTransaction(taskId => {
             const time = store.clock.now();
 
             return [

@@ -11,10 +11,12 @@ export function TaskRowShimmer({
     width,
     ragRight,
     indentation = 0,
+    withoutBorderTop,
 }: {
     width: Spacing;
     ragRight?: Spacing;
     indentation?: number;
+    withoutBorderTop?: boolean;
 }) {
     const platform = usePlatform();
 
@@ -32,6 +34,16 @@ export function TaskRowShimmer({
             paddingX={screenPaddingX}
             display="flex"
         >
+            {!withoutBorderTop && (
+                <Box
+                    position="absolute"
+                    left={screenPaddingX}
+                    right={screenPaddingX}
+                    height="border"
+                    backgroundColor="grey-5"
+                    style={{top: 0}}
+                />
+            )}
             <Box
                 position="absolute"
                 left={screenPaddingX}
