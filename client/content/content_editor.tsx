@@ -111,6 +111,7 @@ import {
 import {handleContentTablePaste} from "~/client/content/internal/table/content_table_input.js";
 import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
+import {isBrowserSpellcheckEnabled} from "~/client/content/is_browser_spellcheck_enabled.js";
 import {selectFiles} from "~/client/content/select_files.js";
 import {AppContext, useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -1083,7 +1084,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // spellings. But if we have our own right-click menu we can't show the correct
                 // spellings there so we only show a permanent red squiggle which is bad. I
                 // think the best answer here is to build our own spellchecker eventually.
-                ...(!isMobileWebKit ? {spellcheck: "false"} : undefined),
+                ...(!isMobileWebKit &&
+                !isBrowserSpellcheckEnabled(spaceContextRef.current?.currentAccount?.id)
+                    ? {spellcheck: "false"}
+                    : undefined),
             },
 
             domParser: ContentEditorDomParser.fromSchema(schema),

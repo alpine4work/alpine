@@ -29,6 +29,7 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
+import {isBrowserSpellcheckEnabled} from "~/client/content/is_browser_spellcheck_enabled.js";
 import {parseContentFromClipboard} from "~/client/content/parse_content_from_clipboard.js";
 import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/shared/build_shared_content_editor_input_rules_plugin.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
@@ -820,7 +821,10 @@ function TaskRowTitleInput(
                         // spellings. But if we have our own right-click menu we can't show the correct
                         // spellings there so we only show a permanent red squiggle which is bad. I
                         // think the best answer here is to build our own spellchecker eventually.
-                        ...(!isMobileWebKit ? {spellcheck: "false"} : undefined),
+                        ...(!isMobileWebKit &&
+                        !isBrowserSpellcheckEnabled(currentAccountIdRef.current)
+                            ? {spellcheck: "false"}
+                            : undefined),
                     },
 
                     handleKeyDown: (view, event) => {
@@ -1301,7 +1305,9 @@ function TaskRowTitleInput(
             // documentation on why we set these attributes.
             attributes: {
                 ...(isEditable ? {tabindex: "-1"} : {}),
-                ...(!isMobileWebKit ? {spellcheck: "false"} : undefined),
+                ...(!isMobileWebKit && !isBrowserSpellcheckEnabled(currentAccountIdRef.current)
+                    ? {spellcheck: "false"}
+                    : undefined),
             },
         });
 
