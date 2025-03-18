@@ -4,8 +4,9 @@ import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
 type ExpectTaskGridViewTaskDefinitionAttributes = [
-    // `true` is `OpenInactive` and `false` is `Closed`.
-    status: TaskDisplayStatus | boolean,
+    // `true` is `OpenInactive`, `false` is `Closed`, and `null` is no status
+    // button (for ghost row).
+    status: TaskDisplayStatus | boolean | null,
     title: string,
     assignee?: string,
     priority?: string,
@@ -44,9 +45,11 @@ export async function expectTaskGridView(
     {
         hasGhostTaskRow = true,
         withoutColumns = false,
+        withoutAssigneeField = false,
     }: {
         hasGhostTaskRow?: boolean;
         withoutColumns?: boolean;
+        withoutAssigneeField?: boolean;
     } = {},
 ) {
     let taskCount = 0;
@@ -61,7 +64,7 @@ export async function expectTaskGridView(
         const attributes = getExpectTaskGridViewTaskDefinitionAttributes(taskDefinition);
         const children = getExpectTaskGridViewTaskDefinitionChildren(taskDefinition);
 
-        const displayStatus: TaskDisplayStatus =
+        const displayStatus: TaskDisplayStatus | null =
             typeof attributes[0] === "boolean"
                 ? attributes[0]
                     ? "OpenInactive"
@@ -73,45 +76,51 @@ export async function expectTaskGridView(
         const priority = attributes[3] ?? "";
         const dueDate = attributes[4] ?? "";
 
-        switch (displayStatus) {
-            case "OpenInactive": {
-                await expect(
-                    locator
-                        .getByTestId("TaskStatusButton")
-                        .getByRole("img", {name: "Open", exact: true}),
-                ).toBeVisible();
-                break;
+        if (displayStatus === null) {
+            await expect(locator.getByTestId("TaskStatusButton")).toBeHidden();
+        } else {
+            switch (displayStatus) {
+                case "OpenInactive": {
+                    await expect(
+                        locator
+                            .getByTestId("TaskStatusButton")
+                            .getByRole("img", {name: "Open", exact: true}),
+                    ).toBeVisible();
+                    break;
+                }
+                case "OpenActive": {
+                    await expect(
+                        locator
+                            .getByTestId("TaskStatusButton")
+                            .getByRole("img", {name: "Open (active)", exact: true}),
+                    ).toBeVisible();
+                    break;
+                }
+                case "Closed": {
+                    await expect(
+                        locator
+                            .getByTestId("TaskStatusButton")
+                            .getByRole("img", {name: "Closed", exact: true}),
+                    ).toBeVisible();
+                    break;
+                }
+                default:
+                    throw exhaustive(displayStatus);
             }
-            case "OpenActive": {
-                await expect(
-                    locator
-                        .getByTestId("TaskStatusButton")
-                        .getByRole("img", {name: "Open (active)", exact: true}),
-                ).toBeVisible();
-                break;
-            }
-            case "Closed": {
-                await expect(
-                    locator
-                        .getByTestId("TaskStatusButton")
-                        .getByRole("img", {name: "Closed", exact: true}),
-                ).toBeVisible();
-                break;
-            }
-            default:
-                throw exhaustive(displayStatus);
         }
 
         await expect(locator.getByRole("textbox", {name: "Title"})).toHaveText(title);
 
         if (!withoutColumns) {
-            if (await locator.getByLabel("Assignee").isVisible()) {
-                await expect(locator.getByLabel("Assignee")).toHaveValue(assignee);
-            } else {
-                await expect(locator.getByTestId("TaskRowAssigneeCell")).toHaveText(
-                    // Use regex since text may start with the avatar's initials.
-                    new RegExp(`[A-Z0-9]{0,2}${escapeRegExp(assignee)}`),
-                );
+            if (!withoutAssigneeField) {
+                if (await locator.getByLabel("Assignee").isVisible()) {
+                    await expect(locator.getByLabel("Assignee")).toHaveValue(assignee);
+                } else {
+                    await expect(locator.getByTestId("TaskRowAssigneeCell")).toHaveText(
+                        // Use regex since text may start with the avatar's initials.
+                        new RegExp(`[A-Z0-9]{0,2}${escapeRegExp(assignee)}`),
+                    );
+                }
             }
 
             await expectTaskRowViewPriority(locator, priority);

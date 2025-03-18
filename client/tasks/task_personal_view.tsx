@@ -28,6 +28,7 @@ import {
     grey5SemiTransparentColorVar,
     navigationBarStyles,
     pointerEventsNoneNotInheritedClassName,
+    sprinkles,
     tasksStyles,
 } from "~/client/styles/styles.js";
 import {
@@ -2087,9 +2088,7 @@ const TaskPersonalNavigationBarTitleDesktop = memo(function TaskPersonalNavigati
             paddingLeft={paddingLeft}
         >
             <Box display="flex" alignItems="baseline" gap="3">
-                <Box fontSize="400" fontStyle="bold">
-                    My tasks
-                </Box>
+                <h1 className={sprinkles({fontSize: "400", fontStyle: "bold"})}>My tasks</h1>
                 {
                     <Box
                         position="relative"
@@ -2202,7 +2201,6 @@ const taskPersonalViewHeaderHeight: Record<RouteLayout, RemLength> = {
 };
 
 const TaskPersonalViewHeader = memo(function TaskPersonalViewHeader({name}: {name: string}) {
-    const platform = usePlatform();
     const routeLayout = useRouteLayout();
 
     return (
@@ -2213,12 +2211,7 @@ const TaskPersonalViewHeader = memo(function TaskPersonalViewHeader({name}: {nam
                 alignItems="center"
                 paddingLeft={routeLayout === "narrow" ? "5" : "10"}
             >
-                <Box
-                    fontSize={platform === "mobile" ? "200" : "200"}
-                    fontStyle={platform === "mobile" ? "bold" : "bold"}
-                >
-                    {name}
-                </Box>
+                <h2 className={sprinkles({fontSize: "200", fontStyle: "bold"})}>{name}</h2>
             </Box>
             {routeLayout !== "narrow" && <TaskGridViewColumnHeader withoutAssigneeField />}
             <Box zIndex="-10" position="absolute" inset="0" backgroundColor="grey-0" />
@@ -2265,9 +2258,7 @@ const TaskPersonalViewFirstHeaderDesktop = memo(function TaskPersonalViewFirstHe
                     alignItems="center"
                     paddingLeft="10"
                 >
-                    <Box fontSize="200" fontStyle="bold">
-                        {name}
-                    </Box>
+                    <h2 className={sprinkles({fontSize: "200", fontStyle: "bold"})}>{name}</h2>
                 </Box>
             </Box>
             <Box

@@ -19,6 +19,5 @@ export const allMigrations: {
     IndexTaskAndTaskCollectionSearchEntities: runIndexTaskAndTaskCollectionSearchEntitiesMigration,
     MoveForumChannelsAndPostsMigration: runMoveForumChannelsAndPostsMigration,
     MoveInboxAttributesItem: runMoveInboxAttributesItemMigration,
-    // NOCOMMIT: Run this migration in production
     IndexTaskInitialAssigneePosition: runIndexTaskInitialAssigneePositionMigration,
 };
