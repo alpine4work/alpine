@@ -72,7 +72,7 @@ export function getSearchResultDestinationPath({
             return `/s/${spaceId}/tasks/${taskId}?create`;
         }
         case "TaskPersonal": {
-            return `/s/${spaceId}/tasks/index2`;
+            return `/s/${spaceId}/tasks`;
         }
         case "TaskQueryFilteredToCreatorIsCurrentAccount": {
             const nameSearchParam = encodeURIComponent("Tasks I’ve created");
