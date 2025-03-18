@@ -1084,7 +1084,6 @@ test("collaborative update scenario", () => {
                 }),
             ],
         },
-        lastReceivedSendableStepsVersion: null,
         errorState: {hasError: false},
         extra: {
             currentAccountId,

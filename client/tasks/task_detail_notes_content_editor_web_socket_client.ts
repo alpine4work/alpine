@@ -18,7 +18,6 @@ import {
 } from "~/client/web_socket/web_socket_client.js";
 import {UnavailableError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -113,7 +112,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
     private readonly _displayError: (title: string, error: unknown) => void;
     private readonly _getContext: () => AppContext;
     private readonly _addGlobalLoadingIndicator: (
-        promise: Promise<void>,
+        promise: Promise<unknown>,
         indicator: GlobalLoadingIndicator,
     ) => void;
     private readonly _client: WebSocketClient<typeof TaskNotesCollaborationProtocol>;
@@ -139,7 +138,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
     }: {
         getContext: () => AppContext;
         addGlobalLoadingIndicator: (
-            promise: Promise<void>,
+            promise: Promise<unknown>,
             indicator: GlobalLoadingIndicator,
         ) => void;
         taskId: TaskId;
@@ -299,26 +298,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
             }
         });
 
-        let savingPromiseResolver: PromiseResolver<void> | null = null;
-
         const unsubscribeFromState = this._state.subscribe(() => {
-            const state = this._state.getSnapshot();
-
-            const isSaving =
-                state.pendingSendableSteps !== null ||
-                (state.lastReceivedSendableStepsVersion !== null &&
-                    state.lastReceivedSendableStepsVersion > state.persistedVersion);
-
-            if (savingPromiseResolver === null && isSaving) {
-                savingPromiseResolver = createPromiseResolver();
-                this._addGlobalLoadingIndicator(savingPromiseResolver.promise, {type: "Saving"});
-            }
-
-            if (savingPromiseResolver !== null && !isSaving) {
-                savingPromiseResolver.resolve();
-                savingPromiseResolver = null;
-            }
-
             maybeSendUpdatesToServer();
         });
 
@@ -353,7 +333,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
 
                 lastPendingSendableStepsVersionSentToServer = state.pendingSendableSteps.version;
 
-                this._client.procedures
+                const savingPromise = this._client.procedures
                     .updateNotesContent({
                         version: state.pendingSendableSteps.version,
                         steps: state.pendingSendableSteps.steps,
@@ -384,6 +364,8 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                             lastPendingSendableStepsVersionSentToServer = "SilentError";
                         }
                     });
+
+                this._addGlobalLoadingIndicator(savingPromise, {type: "Saving"});
             }
         };
 
@@ -392,26 +374,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
             unsubscribeFromClientMessages();
             unsubscribeFromState();
 
-            void this._client.disconnect().finally(() => {
-                // Only resolve our saving promise once the client actually disconnects. Since
-                // if we're soft closing the connection we want to wait for any
-                // `updateNotesContent` procedures to finish. Two downsides here:
-                //
-                // 1. If there are other pending procedures besides `updateNotesContent` we'll
-                //    have to wait for those to finish too.
-                //
-                // 2. Just because `updateNotesContent` finished doesn't mean our content has
-                //    persisted. A soft closed client won't receive a `PersistedContent`
-                //    message.
-                //
-                // A better approach is to leave a phantom WebSocket connection until we see a
-                // `PersistedContent` message and then disconnect. But that's complicated so
-                // I'm writing it like this for now.
-                if (savingPromiseResolver !== null) {
-                    savingPromiseResolver.resolve();
-                    savingPromiseResolver = null;
-                }
-            });
+            void this._client.disconnect();
         };
     }
 

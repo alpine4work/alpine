@@ -1,7 +1,6 @@
 import {SpinnerGap} from "phosphor-react";
 import {ReactNode, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
-import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {
@@ -16,6 +15,7 @@ import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
@@ -24,17 +24,18 @@ let nextGlobalLoadingIndicatorId = 1;
 
 type GlobalLoadingIndicatorState = {
     readonly mergedIndicator: GlobalLoadingIndicator | null;
-    readonly replaceMergedIndicatorTime: number | null;
+    readonly clearMergedIndicatorTime: number | null;
     readonly indicators: ReadonlyArray<{
         readonly id: number;
         readonly promise: Promise<unknown>;
+        readonly startTime: number;
         readonly indicator: GlobalLoadingIndicator;
     }>;
 };
 
 const initialGlobalLoadingIndicatorState: GlobalLoadingIndicatorState = {
     mergedIndicator: null,
-    replaceMergedIndicatorTime: null,
+    clearMergedIndicatorTime: null,
     indicators: emptyArray,
 };
 
@@ -48,38 +49,40 @@ export function GlobalLoadingIndicatorContextProvider({
     );
 
     useEffect(() => {
-        if (indicatorState.replaceMergedIndicatorTime === null) return;
+        if (indicatorState.clearMergedIndicatorTime === null) return;
 
         const timeout = createTimeout(() => {
             setIndicatorState(indicatorState => ({
                 mergedIndicator: mergeManyGlobalLoadingIndicators(
                     mapIterable(indicatorState.indicators, ({indicator}) => indicator),
                 ),
-                replaceMergedIndicatorTime: null,
+                clearMergedIndicatorTime: null,
                 indicators: indicatorState.indicators,
             }));
-        }, indicatorState.replaceMergedIndicatorTime - Date.now());
+        }, indicatorState.clearMergedIndicatorTime - Date.now());
 
         return () => {
             timeout.clear();
         };
-    }, [indicatorState.replaceMergedIndicatorTime]);
+    }, [indicatorState.clearMergedIndicatorTime]);
 
     const add = useCallback((promise: Promise<unknown>, indicator: GlobalLoadingIndicator) => {
         const id = nextGlobalLoadingIndicatorId;
         nextGlobalLoadingIndicatorId++;
+
+        const startTime = Date.now();
 
         setIndicatorState(indicatorState => ({
             mergedIndicator:
                 indicatorState.mergedIndicator !== null
                     ? mergeGlobalLoadingIndicators(indicatorState.mergedIndicator, indicator)
                     : indicator,
-            replaceMergedIndicatorTime: indicatorState.replaceMergedIndicatorTime,
-            indicators: [...indicatorState.indicators, {id, promise, indicator}],
+            clearMergedIndicatorTime: indicatorState.clearMergedIndicatorTime,
+            indicators: [...indicatorState.indicators, {id, promise, startTime, indicator}],
         }));
 
         const remove = () => {
-            const currentTime = Date.now();
+            const endTime = Date.now();
 
             setIndicatorState(indicatorState => {
                 const newIndicators = indicatorState.indicators.filter(
@@ -96,9 +99,9 @@ export function GlobalLoadingIndicatorContextProvider({
                     // is followed by a short "Saving" indicator. Instead of flashing the "Saving"
                     // indicator we'd like to keep showing the "Uploading" indicator until saving
                     // completes.
-                    replaceMergedIndicatorTime:
-                        indicatorState.replaceMergedIndicatorTime ??
-                        currentTime + delayLoadingIndicatorLimitMs,
+                    clearMergedIndicatorTime:
+                        indicatorState.clearMergedIndicatorTime ??
+                        endTime + delayLoadingIndicatorLimitMs,
                     indicators: newIndicators,
                 };
             });
@@ -111,6 +114,18 @@ export function GlobalLoadingIndicatorContextProvider({
     }, []);
 
     const indicator = indicatorState.mergedIndicator;
+
+    const minIndicatorStartTime = useMemo(() => {
+        let minIndicatorStartTime = null;
+
+        for (const indicator of indicatorState.indicators) {
+            if (minIndicatorStartTime === null || indicator.startTime < minIndicatorStartTime) {
+                minIndicatorStartTime = indicator.startTime;
+            }
+        }
+
+        return minIndicatorStartTime;
+    }, [indicatorState.indicators]);
 
     const hasSavingIndicator = indicator !== null && indicator.type !== "Loading";
     const hasSavingIndicatorRef = useRef(hasSavingIndicator);
@@ -153,7 +168,55 @@ export function GlobalLoadingIndicatorContextProvider({
         };
     }, [hasSavingIndicator]);
 
-    const shouldShowIndicator = useDelayLoadingIndicator(indicator !== null);
+    const hasIndicator = indicator !== null;
+
+    // `shouldShowIndicator` is true if we're more than
+    // `delayLoadingIndicatorLimitMs` from the oldest indicator
+    // (determined by `minIndicatorStartTime`). Once the oldest indicator
+    // completes, we set `shouldShowIndicator` to false if the remaining indicators
+    // are younger than `delayLoadingIndicatorLimitMs`.
+    //
+    // This way if a user is continuously typing and an individual update while
+    // they're typing takes a while we'll show the indicator just for that update
+    // and then the update disappears if the subsequent updates are fast.
+    //
+    // This code is similar to `useDelayLoadingIndicator()`.
+    let shouldShowIndicator = false;
+    {
+        const [originalShouldShowIndicator, setShouldShowIndicator] = useState(false);
+        shouldShowIndicator = originalShouldShowIndicator;
+
+        if (hasIndicator === false && shouldShowIndicator === true) {
+            shouldShowIndicator = false;
+            setShouldShowIndicator(false);
+        }
+
+        useEffect(() => {
+            if (hasIndicator === false) return;
+
+            // The assert is fine since if `hasIndicator` is true then
+            // `minIndicatorStartTime` should be non-null since there's at least one
+            // indicator.
+            const timeoutMs =
+                assertExists(minIndicatorStartTime) + delayLoadingIndicatorLimitMs - Date.now();
+
+            if (timeoutMs <= 0) {
+                setShouldShowIndicator(true);
+                return;
+            }
+
+            setShouldShowIndicator(false);
+
+            const timeout = createTimeout(() => {
+                setShouldShowIndicator(true);
+            }, timeoutMs);
+
+            return () => {
+                timeout.clear();
+            };
+        }, [hasIndicator, minIndicatorStartTime]);
+    }
+
     const delayedIndicator = shouldShowIndicator ? indicator : null;
 
     return (

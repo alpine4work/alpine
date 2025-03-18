@@ -21,7 +21,6 @@ import {
     DocumentCommentThreadModel,
 } from "~/shared/documents/document_model.js";
 import {isTransientError} from "~/shared/error/is_transient_error_code.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -430,26 +429,7 @@ export class DocumentContentEditorWebSocketClient {
             }
         });
 
-        let savingPromiseResolver: PromiseResolver<void> | null = null;
-
         const unsubscribeFromState = this._state.subscribe(() => {
-            const state = this._state.getSnapshot();
-
-            const isSaving =
-                state.pendingSendableSteps !== null ||
-                (state.lastReceivedSendableStepsVersion !== null &&
-                    state.lastReceivedSendableStepsVersion > state.persistedVersion);
-
-            if (savingPromiseResolver === null && isSaving) {
-                savingPromiseResolver = createPromiseResolver();
-                this._addGlobalLoadingIndicator(savingPromiseResolver.promise, {type: "Saving"});
-            }
-
-            if (savingPromiseResolver !== null && !isSaving) {
-                savingPromiseResolver.resolve();
-                savingPromiseResolver = null;
-            }
-
             maybeSendUpdatesToServer();
         });
 
@@ -495,7 +475,7 @@ export class DocumentContentEditorWebSocketClient {
                 lastPendingSendableStepsVersionSentToServer = state.pendingSendableSteps.version;
                 lastOurPresenceStateSentToServer = state.extra.ourPresenceState;
 
-                this._client.procedures
+                const savingPromise = this._client.procedures
                     .updateContent({
                         version: state.pendingSendableSteps.version,
                         steps: state.pendingSendableSteps.steps,
@@ -575,6 +555,8 @@ export class DocumentContentEditorWebSocketClient {
                             }
                         },
                     );
+
+                this._addGlobalLoadingIndicator(savingPromise, {type: "Saving"});
             }
 
             if (
@@ -669,26 +651,7 @@ export class DocumentContentEditorWebSocketClient {
             unsubscribeFromClientMessages();
             unsubscribeFromState();
 
-            void this._client.disconnect().finally(() => {
-                // Only resolve our saving promise once the client actually disconnects. Since
-                // if we're soft closing the connection we want to wait for any `updateContent`
-                // procedures to finish. Two downsides here:
-                //
-                // 1. If there are other pending procedures besides `updateContent` we'll have
-                //    to wait for those to finish too.
-                //
-                // 2. Just because `updateContent` finished doesn't mean our content has
-                //    persisted. A soft closed client won't receive a `PersistedContent`
-                //    message.
-                //
-                // A better approach is to leave a phantom WebSocket connection until we see a
-                // `PersistedContent` message and then disconnect. But that's complicated so
-                // I'm writing it like this for now.
-                if (savingPromiseResolver !== null) {
-                    savingPromiseResolver.resolve();
-                    savingPromiseResolver = null;
-                }
-            });
+            void this._client.disconnect();
         };
     }
 
