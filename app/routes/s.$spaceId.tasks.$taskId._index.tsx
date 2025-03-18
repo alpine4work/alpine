@@ -234,6 +234,10 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     nextUrl.searchParams.delete("create");
     currentUrl.searchParams.delete("create");
 
+    // Used to focus the task:
+    nextUrl.searchParams.delete("focus");
+    currentUrl.searchParams.delete("focus");
+
     // Used to open comments:
     nextUrl.searchParams.delete("comments");
     currentUrl.searchParams.delete("comments");
