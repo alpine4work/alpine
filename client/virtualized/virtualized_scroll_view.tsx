@@ -1451,15 +1451,6 @@ function VirtualizedScrollView(
                 //    the page and jump to that message. Scroll anchor adjustments *should* be
                 //    applied to make sure while data loads around the anchored message the
                 //    anchored message stays centered.
-                //
-                // 3. In task notepad view in mobile mode, drag down the first task so the view
-                //    scrolls a little then drop. Scroll anchor adjustments *should NOT* be
-                //    applied because the scroll anchor (the first task) moved in the DOM so
-                //    its new position should not effect the scroll.
-                //
-                //    If you scroll enough that the second task becomes the scroll anchor then
-                //    drop the scroll anchor adjustments *should* be applied since while the
-                //    first task moved in the DOM, the second task did not.
                 if (
                     nextPosition.nextElementSibling === "ignore" ||
                     nextPosition.previousElementSibling === "ignore" ||

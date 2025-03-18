@@ -8,13 +8,11 @@ import {
     TaskParentTaskIdRegister,
 } from "~/shared/tasks/actions/task_task_action.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
-import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
 import {TaskAssigneePositionRegister} from "~/shared/tasks/task_assignee_position.js";
 import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskPositionRegister} from "~/shared/tasks/task_position.js";
-import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
 import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
 import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
@@ -51,16 +49,10 @@ export function createEmptyTaskIndexDoc(
                 positionById: TaskPositionByCollectionIdMap.empty,
             },
         },
-        notepadPages: {
-            raw: {
-                positionById: TaskPositionByAccountIdAndNotepadPageIdMap.empty,
-            },
-        },
         status: new TaskStatusWithSortableAccountRegister({type: "Open"}, actionTime),
         assignee: new TaskAssigneeWithSortableAccountRegister(null, actionTime),
         rawAssigneeStatus: new TaskAssigneeStatusRegister({type: "Inactive"}, actionTime),
         rawAssigneePosition: new TaskAssigneePositionRegister(null, actionTime),
-        rawAssigneeActivePosition: new TaskAssigneeActivePositionRegister(null, actionTime),
         title: {raw: emptyTaskTitle.get()},
         dueDate: new TaskDueDateRegister(null, actionTime),
         priority: new TaskPriorityRegister(null, actionTime),

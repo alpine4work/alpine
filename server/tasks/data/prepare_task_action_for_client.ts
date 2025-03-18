@@ -1,6 +1,5 @@
 import {TaskAuthorizationActor} from "~/server/tasks/data/task_table.js";
 import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
@@ -92,25 +91,7 @@ export async function prepareTaskActionForClient(
                     }
                     return action;
                 }
-                case "UpdateNotepadPagePosition": {
-                    if (
-                        actor.type !== "Session" ||
-                        action.taskAction.accountId !== actor.getAccountId()
-                    ) {
-                        return null;
-                    }
-                    return action;
-                }
                 case "UpdateAssigneePosition": {
-                    if (
-                        actor.type !== "Session" ||
-                        action.taskAction.accountId !== actor.getAccountId()
-                    ) {
-                        return null;
-                    }
-                    return action;
-                }
-                case "UpdateAssigneeActivePosition": {
                     if (
                         actor.type !== "Session" ||
                         action.taskAction.accountId !== actor.getAccountId()
@@ -135,14 +116,6 @@ export async function prepareTaskActionForClient(
                 default:
                     throw exhaustive(action.collectionAction);
             }
-        }
-        case "UpdateNotepadPage": {
-            if (actor.type !== "Session" || action.accountId !== actor.getAccountId()) {
-                return null;
-            }
-
-            cast<"Create">(action.notepadPageAction.type);
-            return action;
         }
         case "UpdateAccountName": {
             return action;

@@ -142,9 +142,7 @@ export function isTaskQueryManuallySorted(sorts: ReadonlyArray<TaskQueryNormaliz
     return (
         firstSort.type === "ParentPosition" ||
         firstSort.type === "CollectionPosition" ||
-        firstSort.type === "AssigneePosition" ||
-        firstSort.type === "NotepadPagePosition" ||
-        firstSort.type === "AssigneeActivePosition"
+        firstSort.type === "AssigneePosition"
     );
 }
 
@@ -3368,9 +3366,7 @@ function getTaskUndoActionsGridViewTargetIfExists(
             case "UpdateParentPosition":
             case "UpdateChildrenCounts":
             case "UpdateCollectionPosition":
-            case "UpdateNotepadPagePosition":
-            case "UpdateAssigneePosition":
-            case "UpdateAssigneeActivePosition": {
+            case "UpdateAssigneePosition": {
                 column = "Title";
                 preference = 6;
                 break;

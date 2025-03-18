@@ -318,9 +318,7 @@ function Button(
             onPress: handlePress,
             // We don't focus on press on mobile since if you press down a button the user
             // might be scrolling! So if the keyboard is open we don't want to close the
-            // keyboard since the button is focused. An easy case to test this is
-            // `<TaskNotepadView>`. Open the keyboard on a task then start your scroll on
-            // the "Fresh page" button.
+            // keyboard since the button is focused.
             //
             // @ts-expect-error: This prop exists but is undocumented
             // https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/button/src/useButton.ts#L57-L58

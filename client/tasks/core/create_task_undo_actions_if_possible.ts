@@ -308,7 +308,6 @@ export function createTaskUndoActionsIfPossible(
 
         switch (action.type) {
             // These actions are not undo-able.
-            case "UpdateNotepadPage":
             case "UpdateAccountName":
                 return null;
 
@@ -544,31 +543,6 @@ function pushTaskUndoAction(
             });
             break;
         }
-        case "UpdateNotepadPagePosition": {
-            const task = getTask(action.taskId);
-            if (!task) return null;
-
-            // `UpdateNotepadPagePosition` is used to add tasks to a notepad page and
-            // remove them from a notepad page. So if a position doesn't exist it means
-            // to undo we need to remove the task from the notepad page.
-            const position =
-                task.rawData.positionByAccountIdAndNotepadPageId.get(
-                    `${action.taskAction.accountId}-${action.taskAction.notepadPageId}`,
-                ) ?? null;
-
-            undoActions.push({
-                type: "UpdateTask",
-                time: action.time,
-                taskId: action.taskId,
-                taskAction: {
-                    type: "UpdateNotepadPagePosition",
-                    accountId: action.taskAction.accountId,
-                    notepadPageId: action.taskAction.notepadPageId,
-                    position,
-                },
-            });
-            break;
-        }
         case "UpdateStatus": {
             const task = getTask(action.taskId);
             if (!task) return null;
@@ -676,36 +650,6 @@ function pushTaskUndoAction(
                     accountId,
                     position: task.rawData.assigneePosition.value?.position ?? {
                         orderTime: task.rawData.assignee.version,
-                        orderKey: initialOrderKey,
-                    },
-                },
-            });
-            break;
-        }
-        case "UpdateAssigneeActivePosition": {
-            const task = getTask(action.taskId);
-            if (!task) return null;
-
-            const accountId =
-                task.rawData.assigneeActivePosition.value?.accountId ??
-                task.rawData.assignee.value?.assignee.accountId;
-
-            // If the task has neither `assigneeActivePosition` or `assignee` then updating
-            // the active position will fail since you may only update the active position
-            // if your current user is assigned to a task.
-            if (!accountId) {
-                return null;
-            }
-
-            undoActions.push({
-                type: "UpdateTask",
-                time: action.time,
-                taskId: action.taskId,
-                taskAction: {
-                    type: "UpdateAssigneeActivePosition",
-                    accountId,
-                    position: task.rawData.assigneeActivePosition.value?.position ?? {
-                        orderTime: task.rawData.assigneeStatus.version,
                         orderKey: initialOrderKey,
                     },
                 },

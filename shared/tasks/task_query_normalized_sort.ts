@@ -1,7 +1,6 @@
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {ObjectSchema, Schema} from "~/shared/schema/schema.js";
-import {TaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 /**
@@ -13,9 +12,7 @@ export type TaskQueryNormalizedSort =
     | TaskQueryBasicNormalizedSort
     | TaskQueryParentPositionNormalizedSort
     | TaskQueryCollectionPositionNormalizedSort
-    | TaskQueryAssigneePositionNormalizedSort
-    | TaskQueryNotepadPagePositionNormalizedSort
-    | TaskQueryAssigneeActivePositionNormalizedSort;
+    | TaskQueryAssigneePositionNormalizedSort;
 
 export const defaultTaskQueryNormalizedSorts: ReadonlyArray<TaskQueryNormalizedSort> = [
     {type: "CreatedTime", direction: "Ascending", missing: "Last"},
@@ -134,41 +131,11 @@ const TaskQueryAssigneePositionNormalizedSortSchema = Schema.object({
     missing: Schema.enum(["First", "Last"]),
 });
 
-export type TaskQueryNotepadPagePositionNormalizedSort = {
-    readonly type: "NotepadPagePosition";
-    readonly accountId: AccountId;
-    readonly notepadPageId: TaskNotepadPageId;
-    readonly direction: "Ascending" | "Descending";
-    readonly missing: "Last";
-};
-
-const TaskQueryNotepadPagePositionNormalizedSortSchema = Schema.object({
-    type: Schema.value("NotepadPagePosition"),
-    accountId: Schema.id<AccountId>(),
-    notepadPageId: Schema.integer as any as Schema<TaskNotepadPageId>,
-    direction: Schema.enum(["Ascending", "Descending"]),
-    missing: Schema.value("Last"),
-});
-
-export type TaskQueryAssigneeActivePositionNormalizedSort = {
-    readonly type: "AssigneeActivePosition";
-    readonly direction: "Ascending" | "Descending";
-    readonly missing: "Last" | "First";
-};
-
-const TaskQueryAssigneeActivePositionNormalizedSortSchema = Schema.object({
-    type: Schema.value("AssigneeActivePosition"),
-    direction: Schema.enum(["Ascending", "Descending"]),
-    missing: Schema.enum(["Last", "First"]),
-});
-
 export const TaskQueryNormalizedSortSchema: Schema<TaskQueryNormalizedSort> = Schema.union({
     ...TaskQueryBasicNormalizedSortSchemas,
     ParentPosition: TaskQueryParentPositionNormalizedSortSchema,
     CollectionPosition: TaskQueryCollectionPositionNormalizedSortSchema,
     AssigneePosition: TaskQueryAssigneePositionNormalizedSortSchema,
-    NotepadPagePosition: TaskQueryNotepadPagePositionNormalizedSortSchema,
-    AssigneeActivePosition: TaskQueryAssigneeActivePositionNormalizedSortSchema,
 });
 
 assertAssignableTypes<

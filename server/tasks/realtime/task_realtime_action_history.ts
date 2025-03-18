@@ -393,10 +393,6 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
                     spaceSegment.updateAccountNameActions.push(action);
                     break;
                 }
-                case "UpdateNotepadPage": {
-                    // Ignore...
-                    break;
-                }
                 default:
                     throw exhaustive(action);
             }

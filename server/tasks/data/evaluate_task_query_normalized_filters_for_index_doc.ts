@@ -37,7 +37,6 @@ assertEqualTypes<
     | "closedDateFilter"
     | "activatedDateFilter"
     | "parentFilter"
-    | "notepadPageFilter"
 >();
 
 /**
@@ -196,16 +195,6 @@ export function evaluateTaskQueryNormalizedFiltersForIndexDoc(
     if (
         filters.parentFilter !== undefined &&
         filters.parentFilter.parentTaskId !== task.parent.taskId.value
-    ) {
-        return false;
-    }
-
-    if (
-        filters.notepadPageFilter !== undefined &&
-        (task.creator.accountId !== filters.notepadPageFilter.accountId ||
-            !task.notepadPages.raw.positionById.has(
-                `${filters.notepadPageFilter.accountId}-${filters.notepadPageFilter.notepadPageId}`,
-            ))
     ) {
         return false;
     }

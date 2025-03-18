@@ -21,7 +21,6 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -681,11 +680,6 @@ export class TaskRealtimeQuery {
                             default:
                                 throw exhaustive(action.collectionAction);
                         }
-                        break;
-                    }
-                    case "UpdateNotepadPage": {
-                        cast<"Create">(action.notepadPageAction.type);
-                        // Doesn't affect query
                         break;
                     }
                     case "UpdateAccountName": {

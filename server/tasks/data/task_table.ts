@@ -88,7 +88,6 @@ import {
     compareHybridLogicalTimes,
     maxHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
@@ -105,10 +104,15 @@ import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {isVtencBigInt64SetEmpty} from "~/shared/helpers/number/vtenc_big_uint_64_set.js";
+import {
+    VtencBigUint64Set,
+    decodeVtencBigUint64List,
+    encodeVtencBigUint64Set,
+} from "~/shared/helpers/number/vtenc_big_uint_64_set.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -155,10 +159,6 @@ import {
     TaskGridViewExpansionState,
     TaskGridViewExpansionStateSchema,
 } from "~/shared/tasks/task_grid_view_expansion_state.js";
-import {
-    TaskNotepadPageIdCompressedSet,
-    generateTaskNotepadPageId,
-} from "~/shared/tasks/task_notepad_page_id.js";
 import {
     TaskNotesContent,
     TaskNotesContentSchema,
@@ -324,11 +324,20 @@ const TaskTable = DynamoTableSchema.new({
                 accountId: DynamoKeyAttributeSchema.id<AccountId>(),
             },
             sortRanges: [
+                // NOCOMMIT: Document that this exists for backwards compatibility
                 {
                     name: "Notepad",
                     sortKeyAttributes: {},
                     attributes: Schema.object({
-                        pageIds: TaskNotepadPageIdCompressedSet.schema,
+                        pageIds: (
+                            Schema.bytes as Schema<any> as Schema<VtencBigUint64Set>
+                        ).transform<ReadonlySet<number>>({
+                            serialize: ids => encodeVtencBigUint64Set(mapIterable(ids, BigInt)),
+                            deserialize: compressedIds =>
+                                new Set(
+                                    mapIterable(decodeVtencBigUint64List(compressedIds), Number),
+                                ),
+                        }),
                     }),
                 },
 
@@ -857,8 +866,6 @@ type TaskActionTransactionItem = DynamoTableItemType<
     "ActionTransaction"
 >;
 
-type TaskAccountNotepadItem = DynamoTableItemType<typeof TaskTable, "Account", "Notepad">;
-
 type TaskAccountActionTransactionLeaseItem = DynamoTableItemType<
     typeof TaskTable,
     "Account",
@@ -1266,8 +1273,6 @@ class TaskActionTransactionCommitState {
           }
     >();
 
-    private _actorNotepadItemTransactionEntry: TaskAccountNotepadItem | null = null;
-
     private readonly _actionTransactionLeaseTransactionEntries: Array<TaskAccountActionTransactionLeaseItem> =
         [];
 
@@ -1276,7 +1281,6 @@ class TaskActionTransactionCommitState {
         TaskCollectionId,
         Promise<TaskCollectionEssentialAttributesItem | null>
     >();
-    private _actorNotepadItemPromise: Promise<TaskAccountNotepadItem> | null = null;
 
     private constructor(
         context: ServerSessionActionContext,
@@ -1543,12 +1547,6 @@ class TaskActionTransactionCommitState {
             }
         }
 
-        if (this._actorNotepadItemTransactionEntry) {
-            transactionEntries.push(
-                TaskTable.transactionDirectlyUpdateItem(this._actorNotepadItemTransactionEntry),
-            );
-        }
-
         for (const transactionEntry of this._actionTransactionLeaseTransactionEntries) {
             transactionEntries.push(TaskTable.transactionCreateItem(transactionEntry));
         }
@@ -1605,8 +1603,6 @@ class TaskActionTransactionCommitState {
         for (const [collectionId, collectionItem] of this._collectionItemById) {
             newState._collectionItemById.set(collectionId, collectionItem);
         }
-
-        newState._actorNotepadItemPromise = this._actorNotepadItemPromise;
 
         return newState;
     }
@@ -1969,39 +1965,6 @@ class TaskActionTransactionCommitState {
             default:
                 throw exhaustive(transactionEntry);
         }
-    }
-
-    public getActorNotepadItem(): Promise<TaskAccountNotepadItem> {
-        if (this._actorNotepadItemPromise === null) {
-            this._actorNotepadItemPromise = (async () => {
-                let notepadPagesItem = await TaskTable.getItemIfExists(this._context, {
-                    partitionType: "Account",
-                    sortRangeType: "Notepad",
-                    accountId: this._context.actor.getAccountId(),
-                    spaceId: this._spaceId,
-                });
-
-                notepadPagesItem ??= {
-                    partitionType: "Account",
-                    sortRangeType: "Notepad",
-                    accountId: this._context.actor.getAccountId(),
-                    spaceId: this._spaceId,
-                    pageIds: new TaskNotepadPageIdCompressedSet(new Set()),
-                };
-
-                return notepadPagesItem;
-            })();
-        }
-
-        return this._actorNotepadItemPromise;
-    }
-
-    public updateActorNotepadItem(notepadItem: TaskAccountNotepadItem) {
-        assert(notepadItem.accountId === this._context.actor.getAccountId());
-        assert(notepadItem.spaceId === this._spaceId);
-
-        this._actorNotepadItemPromise = Promise.resolve(notepadItem);
-        this._actorNotepadItemTransactionEntry = notepadItem;
     }
 
     public evaluateAccessPolicy(accessPolicy: AccessPolicy, expectedAccessLevel: AccessLevel) {
@@ -2587,29 +2550,6 @@ async function actuallyCommitTaskActionTransaction(
                                 );
                                 break;
                             }
-                            case "UpdateNotepadPagePosition": {
-                                if (
-                                    taskAction.position &&
-                                    !state.isTimeReasonable(taskAction.position.orderTime[0])
-                                ) {
-                                    throw new InvalidArgumentError(
-                                        "Action `orderTime` is too far in the future",
-                                    );
-                                }
-
-                                if (taskAction.accountId !== state.getActorAccountId()) {
-                                    throw new PermissionDeniedError(
-                                        "Can only access your account's notepad",
-                                    );
-                                }
-
-                                if (taskItem.creatorId !== state.getActorAccountId()) {
-                                    throw new PermissionDeniedError(
-                                        "Can only add tasks you created to your account's notepad",
-                                    );
-                                }
-                                break;
-                            }
                             case "UpdateStatus": {
                                 if (
                                     taskAction.status.type === "Closed" &&
@@ -2804,26 +2744,6 @@ async function actuallyCommitTaskActionTransaction(
                                 if (taskAction.accountId !== state.getActorAccountId()) {
                                     throw new PermissionDeniedError(
                                         "Must use the actor `AccountId` when updating the task's assignee position",
-                                    );
-                                }
-                                break;
-                            }
-                            case "UpdateAssigneeActivePosition": {
-                                if (!state.isTimeReasonable(taskAction.position.orderTime[0])) {
-                                    throw new InvalidArgumentError(
-                                        "Action `orderTime` is too far in the future",
-                                    );
-                                }
-
-                                if (taskItem.assigneeId.value !== state.getActorAccountId()) {
-                                    throw new PermissionDeniedError(
-                                        "Can only update the task's active position if you are the task's assignee",
-                                    );
-                                }
-
-                                if (taskAction.accountId !== state.getActorAccountId()) {
-                                    throw new PermissionDeniedError(
-                                        "Must use the actor `AccountId` when updating the task's active position",
                                     );
                                 }
                                 break;
@@ -3028,28 +2948,6 @@ async function actuallyCommitTaskActionTransaction(
                         break;
                     }
                 }
-                break;
-            }
-            case "UpdateNotepadPage": {
-                const {notepadPageId, notepadPageAction} = action;
-
-                if (action.accountId !== state.getActorAccountId())
-                    throw new PermissionDeniedError("Can only access your account's notepad");
-
-                const notepadItem = await state.getActorNotepadItem();
-
-                cast<"Create">(notepadPageAction.type);
-
-                if (notepadItem.pageIds.get().has(notepadPageId))
-                    throw new FailedPreconditionError("Notepad page already exists");
-
-                const newPageIds = new Set(notepadItem.pageIds.get());
-                newPageIds.add(notepadPageId);
-
-                state.updateActorNotepadItem({
-                    ...notepadItem,
-                    pageIds: new TaskNotepadPageIdCompressedSet(newPageIds),
-                });
                 break;
             }
             case "UpdateAccountName": {
@@ -5559,22 +5457,6 @@ export async function authorizeTaskQueryAccess(
         hasAccess = true;
     }
 
-    // You can only add tasks you created to your notepad. So a notepad filter for
-    // an account implies a task creator filter.
-    if (
-        context.actor.type === "Session" &&
-        filters.notepadPageFilter?.accountId === context.actor.getAccountId() &&
-        // You must be a space member to filter for tasks in your notepad. If you lost
-        // access to a space you can't filter for your own tasks anymore.
-        (await isAccountMemberOfSpaceWithoutAuthorization(
-            context,
-            spaceId,
-            context.actor.getAccountId(),
-        ))
-    ) {
-        hasAccess = true;
-    }
-
     await runAllPromiseThunks(
         async () => {
             if (!filters.collectionsFilter) return;
@@ -5698,38 +5580,6 @@ export async function authorizeTaskQueryAccess(
                                 "Must filter assignee to session account to sort by assignee position",
                             );
                         }
-                        case "NotepadPagePosition": {
-                            if (
-                                context.actor.type === "Session" &&
-                                sort.accountId === context.actor.getAccountId()
-                            ) {
-                                break;
-                            }
-
-                            throw new PermissionDeniedError(
-                                "Can't sort by notepad page that's not yours",
-                            );
-                        }
-                        case "AssigneeActivePosition": {
-                            // A task's active position is private to the account whom the task is
-                            // assigned. Only allow sorting by active position when also filtering for
-                            // tasks assigned to you.
-                            if (
-                                context.actor.type === "Session" &&
-                                filters.assigneeFilter?.accountIds.size === 1 &&
-                                filters.assigneeFilter.accountIds.has(context.actor.getAccountId())
-                            ) {
-                                // If the actor doesn't have space access then throw an "actor doesn't have
-                                // space access" error.
-                                await authorizeSpaceAccess(context, spaceId);
-
-                                break;
-                            }
-
-                            throw new PermissionDeniedError(
-                                "Must filter assignee to session account to sort by active position",
-                            );
-                        }
                         case "Creator":
                         case "Assigner": {
                             // Must have space access to sort by hidden accounts. We only send account
@@ -5817,51 +5667,6 @@ function convertTaskCollectionIndexDocToItem(
         color: collection.color,
         accessPolicy: collection.accessPolicy,
     };
-}
-
-/**
- * Get the account's task notepad pages for the space. We will always return at
- * least one notepad page. If the user hasn't create a notepad page yet then
- * we'll create their first page.
- */
-export async function getTaskNotepadPageIds(
-    context: Context<TaskSessionActionContextModules & {tasks: TaskContextModuleBase}>,
-    spaceId: SpaceId,
-): Promise<TaskNotepadPageIdCompressedSet> {
-    const notepadItem = await TaskTable.getItemIfExists(context, {
-        partitionType: "Account",
-        sortRangeType: "Notepad",
-        accountId: context.actor.getAccountId(),
-        spaceId,
-    });
-
-    let notepadPageIds = notepadItem?.pageIds;
-    const actualNotepadPageIds = notepadPageIds?.getAvailable();
-
-    if (
-        !notepadPageIds ||
-        !actualNotepadPageIds ||
-        // Is the notepad page id set empty?
-        (actualNotepadPageIds instanceof Uint8Array &&
-            isVtencBigInt64SetEmpty(actualNotepadPageIds)) ||
-        (!(actualNotepadPageIds instanceof Uint8Array) && actualNotepadPageIds.size === 0)
-    ) {
-        const notepadPageId = generateTaskNotepadPageId(unsynchronizedSystemClock);
-
-        await commitTaskActionTransaction(context, spaceId, [
-            {
-                type: "UpdateNotepadPage",
-                time: [unsynchronizedSystemClock.now(), 0],
-                accountId: context.actor.getAccountId(),
-                notepadPageId,
-                notepadPageAction: {type: "Create"},
-            },
-        ]);
-
-        notepadPageIds = new TaskNotepadPageIdCompressedSet(new Set([notepadPageId]));
-    }
-
-    return notepadPageIds;
 }
 
 /**

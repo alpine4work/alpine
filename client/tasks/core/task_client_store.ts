@@ -1520,10 +1520,6 @@ export class TaskClientStoreInternal {
                     });
                     continue;
                 }
-                case "UpdateNotepadPage": {
-                    // We don't maintain an account's notepad page list in realtime.
-                    break;
-                }
                 case "UpdateAccountName": {
                     updateAccountNameActions.push({action, getActionReferencedSortableAccount});
                     break;
@@ -1967,7 +1963,6 @@ export class TaskClientStoreInternal {
             error => {
                 const taskIds = new Set<TaskId>();
                 const collectionIds = new Set<TaskCollectionId>();
-                let notepadPageCount = 0;
 
                 for (const action of actions) {
                     switch (action.type) {
@@ -1977,10 +1972,6 @@ export class TaskClientStoreInternal {
                         }
                         case "UpdateCollection": {
                             collectionIds.add(action.collectionId);
-                            break;
-                        }
-                        case "UpdateNotepadPage": {
-                            notepadPageCount++;
                             break;
                         }
                         case "UpdateAccountName": {
@@ -1999,9 +1990,6 @@ export class TaskClientStoreInternal {
                 }
                 if (collectionIds.size > 0) {
                     failedNouns.push(collectionIds.size === 1 ? "collection" : "collections");
-                }
-                if (notepadPageCount > 0) {
-                    failedNouns.push("notepad");
                 }
 
                 this._onError({
@@ -2750,10 +2738,6 @@ export class TaskClientStoreInternal {
                     });
                     continue;
                 }
-                case "UpdateNotepadPage": {
-                    // We don't maintain an account's notepad page list in realtime.
-                    continue;
-                }
                 case "UpdateAccountName": {
                     throw new InternalError(
                         "Can't optimistically apply `UpdateAccountName` action",
@@ -3184,10 +3168,6 @@ export class TaskClientStoreInternal {
                             actions: newOptimisticActions,
                         },
                     });
-                    continue;
-                }
-                case "UpdateNotepadPage": {
-                    // We don't maintain an account's notepad page list in realtime.
                     continue;
                 }
                 case "UpdateAccountName": {
@@ -3649,10 +3629,6 @@ export class TaskClientStoreInternal {
                                 ),
                         });
                     }
-                    continue;
-                }
-                case "UpdateNotepadPage": {
-                    // We don't maintain an account's notepad page list in realtime.
                     continue;
                 }
                 case "UpdateAccountName": {

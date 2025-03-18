@@ -1663,7 +1663,6 @@ export async function searchByAffinity(
 
     const affinities = await internalGetSearchAffinities(context, {spaceId, limit});
 
-    let taskNotepadAffinityIndex: number | null = null;
     let taskPersonalAffinityIndex: number | null = null;
     const entityIds: Array<SearchEntityId> = [];
     const entities: Array<Replace<(typeof affinities)[number], {affinityId: SearchEntityId}>> = [];
@@ -1671,9 +1670,7 @@ export async function searchByAffinity(
     for (let i = 0; i < affinities.length; i++) {
         const affinity = affinities[i]!;
 
-        if (affinity.affinityId === "TaskNotepad") {
-            taskNotepadAffinityIndex = i;
-        } else if (affinity.affinityId === "TaskPersonal") {
+        if (affinity.affinityId === "TaskPersonal") {
             taskPersonalAffinityIndex = i;
         } else {
             entityIds.push(affinity.affinityId);
@@ -1747,20 +1744,6 @@ export async function searchByAffinity(
             };
         }),
     );
-
-    // Add back the task notepad item. We don't have to load it from
-    // OpenSearch since it doesn't exist in OpenSearch.
-    if (taskNotepadAffinityIndex !== null) {
-        const affinity = affinities[taskNotepadAffinityIndex]!;
-
-        results.splice(taskNotepadAffinityIndex, 0, {
-            id: "TaskNotepad",
-            score: affinity.points,
-            title: "Task notepad",
-            bodyTextSnippet: [],
-            media: null,
-        });
-    }
 
     // Add back the personal tasks item. We don't have to load it from
     // OpenSearch since it doesn't exist in OpenSearch.

@@ -19,7 +19,6 @@ import {applyTaskActionToTaskModelData} from "~/shared/tasks/model/apply_task_ac
 import {applyTaskUpdateAccountNameToTaskModelData} from "~/shared/tasks/model/apply_task_update_account_name_to_task_model_data.js";
 import {mergeTaskModelData} from "~/shared/tasks/model/merge_task_model_data.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
-import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
 import {TaskAssigneePositionRegister} from "~/shared/tasks/task_assignee_position.js";
 import {
     TaskAssigneeStatus,
@@ -29,7 +28,6 @@ import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskPosition, TaskPositionRegister} from "~/shared/tasks/task_position.js";
-import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
 import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
 import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
 import {
@@ -66,15 +64,10 @@ const TaskModelDataSchema = Schema.object({
     collections: TaskCollectionSet.schema,
     positionByCollectionId: TaskPositionByCollectionIdMap.schema,
 
-    // We only include the positions for notepad pages owned by the account actor.
-    // Other positions we filter out on the server.
-    positionByAccountIdAndNotepadPageId: TaskPositionByAccountIdAndNotepadPageIdMap.schema,
-
     status: TaskStatusWithSortableAccountRegister.schema,
     assignee: TaskAssigneeWithSortableAccountRegister.schema,
     assigneeStatus: TaskAssigneeStatusRegister.schema,
     assigneePosition: TaskAssigneePositionRegister.schema,
-    assigneeActivePosition: TaskAssigneeActivePositionRegister.schema,
 
     title: TaskTitleModel.schema,
     dueDate: TaskDueDateRegister.schema,
@@ -152,12 +145,10 @@ export class TaskModel {
             removedClosedChildTaskCount: 0,
             collections: TaskCollectionSet.empty,
             positionByCollectionId: TaskPositionByCollectionIdMap.empty,
-            positionByAccountIdAndNotepadPageId: TaskPositionByAccountIdAndNotepadPageIdMap.empty,
             status: new TaskStatusWithSortableAccountRegister({type: "Open"}, actionTime),
             assignee: new TaskAssigneeWithSortableAccountRegister(null, actionTime),
             assigneeStatus: new TaskAssigneeStatusRegister({type: "Inactive"}, actionTime),
             assigneePosition: new TaskAssigneePositionRegister(null, actionTime),
-            assigneeActivePosition: new TaskAssigneeActivePositionRegister(null, actionTime),
             title: emptyTaskTitleModel.get(),
             dueDate: new TaskDueDateRegister(null, actionTime),
             priority: new TaskPriorityRegister(null, actionTime),
@@ -321,17 +312,12 @@ export class TaskModel {
             : taskInactiveAssigneeStatus;
     }
 
-    public getAssigneeActivePosition() {
-        return this.rawData.status.value.type === "Open" &&
-            this.rawData.assignee.value &&
-            this.rawData.assigneeStatus?.value.type === "Active"
-            ? this.rawData.assigneeActivePosition.value?.accountId ===
+    public getAssigneePosition() {
+        return this.rawData.assignee.value
+            ? this.rawData.assigneePosition.value?.accountId ===
               this.rawData.assignee.value.assignee.accountId
-                ? this.rawData.assigneeActivePosition.value.position
-                : // TODO(calebmer): Ideally we'd return a referentially identical object here
-                  // whenever this function is called instead of creating a new object. Does it
-                  // matter for performance?
-                  {orderTime: this.rawData.assigneeStatus.version, orderKey: initialOrderKey}
+                ? this.rawData.assigneePosition.value.position
+                : {orderTime: this.rawData.assignee.version, orderKey: initialOrderKey}
             : null;
     }
 
@@ -356,11 +342,10 @@ function tickTaskModelData(task: TaskModelData, clock: HybridLogicalClock) {
     clock.tick(task.parent.position.version);
     task.collections.tick(clock);
     task.positionByCollectionId.tick(clock);
-    task.positionByAccountIdAndNotepadPageId.tick(clock);
     clock.tick(task.status.version);
     clock.tick(task.assignee.version);
     clock.tick(task.assigneeStatus.version);
-    clock.tick(task.assigneeActivePosition.version);
+    clock.tick(task.assigneePosition.version);
     clock.tick(task.dueDate.version);
     clock.tick(task.priority.version);
 }

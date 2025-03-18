@@ -116,38 +116,6 @@ function getTaskQueryNormalizedSortCursorValueForModel(
                 ];
             }
         }
-        case "NotepadPagePosition": {
-            const position = task.rawData.positionByAccountIdAndNotepadPageId.get(
-                `${sort.accountId}-${sort.notepadPageId}`,
-            );
-            if (!position) {
-                return null;
-            } else {
-                return [position.orderTime[0], position.orderTime[1], position.orderKey];
-            }
-        }
-        case "AssigneeActivePosition": {
-            const status = task.getStatus();
-            const assignee = task.getAssignee();
-
-            if (status.type !== "Open" || !assignee || task.getAssigneeStatus().type !== "Active") {
-                return null;
-            } else {
-                const assigneeActivePosition = (task.rawData.assigneeActivePosition.value
-                    ?.accountId === assignee.assignee.accountId
-                    ? task.rawData.assigneeActivePosition.value.position
-                    : null) ?? {
-                    orderTime: task.rawData.assigneeStatus.version,
-                    orderKey: initialOrderKey,
-                };
-
-                return [
-                    assigneeActivePosition.orderTime[0],
-                    assigneeActivePosition.orderTime[1],
-                    assigneeActivePosition.orderKey,
-                ];
-            }
-        }
         default:
             throw exhaustive(sort);
     }

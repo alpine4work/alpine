@@ -11,7 +11,7 @@ Some useful things to know when working with Playwright tests:
     these files by running `dev testlogs`. To find the files manually, they're available in
     `bazel-testlogs/app/integration_tests/**/test.outputs`. On test failure we also will log a
     command you can run to quickly open the trace (e.g.
-    `bazel run //app/integration_tests:tasks/task_notepad_chromium_test_show_trace -- tasks-task_notepad-can-create-new-notepad-pages-chromium/trace.zip`)
+    `bazel run //app/integration_tests:documents/document_comments_chromium_test_show_trace -- documents-document_comment-b43c3--the-comment-thread-sidebar-chromium/trace.zip`)
 
 -   If your test fails in CI after you push to GitHub you can download the `bazel-testlogs` folder
     from the run under the GitHub action run's artifacts section. If you pass the path of this

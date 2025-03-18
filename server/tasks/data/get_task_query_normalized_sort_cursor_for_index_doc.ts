@@ -89,56 +89,23 @@ function getTaskQueryNormalizedSortCursorValueForIndexDoc(
             if (!task.assignee.value) {
                 return null;
             } else {
-                let assigneeActivePosition: TaskPosition;
+                let assigneePosition: TaskPosition;
                 if (
                     task.rawAssigneePosition.value?.accountId ===
                     task.assignee.value.assignee.accountId
                 ) {
-                    assigneeActivePosition = task.rawAssigneePosition.value.position;
+                    assigneePosition = task.rawAssigneePosition.value.position;
                 } else {
-                    assigneeActivePosition = {
+                    assigneePosition = {
                         orderTime: task.rawAssigneeStatus.version,
                         orderKey: initialOrderKey,
                     };
                 }
 
                 return [
-                    assigneeActivePosition.orderTime[0],
-                    assigneeActivePosition.orderTime[1],
-                    assigneeActivePosition.orderKey,
-                ];
-            }
-        }
-        case "NotepadPagePosition": {
-            const position = task.notepadPages.raw.positionById.get(
-                `${sort.accountId}-${sort.notepadPageId}`,
-            );
-            if (!position) {
-                return null;
-            } else {
-                return [position.orderTime[0], position.orderTime[1], position.orderKey];
-            }
-        }
-        case "AssigneeActivePosition": {
-            if (
-                task.status.value.type !== "Open" ||
-                !task.assignee.value ||
-                task.rawAssigneeStatus.value.type !== "Active"
-            ) {
-                return null;
-            } else {
-                const assigneeActivePosition = (task.rawAssigneeActivePosition.value?.accountId ===
-                task.assignee.value.assignee.accountId
-                    ? task.rawAssigneeActivePosition.value.position
-                    : null) ?? {
-                    orderTime: task.rawAssigneeStatus.version,
-                    orderKey: initialOrderKey,
-                };
-
-                return [
-                    assigneeActivePosition.orderTime[0],
-                    assigneeActivePosition.orderTime[1],
-                    assigneeActivePosition.orderKey,
+                    assigneePosition.orderTime[0],
+                    assigneePosition.orderTime[1],
+                    assigneePosition.orderKey,
                 ];
             }
         }

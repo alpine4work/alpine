@@ -16,7 +16,7 @@ import type {
     PointerEventHandlers,
     PointerSensorProps,
 } from "@dnd-kit/core/dist/sensors";
-import {ReactElement, ReactNode, RefObject, useContext, useMemo, useRef, useState} from "react";
+import {ReactNode, RefObject, useContext, useMemo, useRef, useState} from "react";
 import {createPortal, flushSync} from "react-dom";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -38,69 +38,35 @@ import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
-import {TaskPosition, compareTaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskTitleModel} from "~/shared/tasks/task_title.js";
 
-export type TaskGridViewDraggableData =
-    | {
-          readonly type: "Row";
-          readonly undoManager: TaskClientStoreUndoManager;
-          readonly affinityManager: TaskClientStoreSearchAffinityManager;
-          readonly parents: ReadonlyArray<{
-              readonly query: TaskClientQuery;
-              readonly cursor: TaskQuerySortCursor;
-          }>;
-          readonly cursor: TaskQuerySortCursor;
-          readonly taskId: TaskId;
-          readonly displayStatus: TaskDisplayStatus;
-          readonly title: TaskTitleModel;
-          readonly assigneeAccountId: AccountId | null;
-          readonly getDropOnRowActions: (taskId: TaskId) => Array<TaskActionModel>;
-          readonly overlayPlacement: "ActivatorNode" | "ActivatorTouch";
-      }
-    | {
-          readonly type: "Card";
-          readonly undoManager?: undefined;
-          readonly affinityManager: TaskClientStoreSearchAffinityManager;
-          readonly taskId: TaskId;
-          readonly displayStatus: TaskDisplayStatus;
-          readonly assigneeAccountId: AccountId | null;
-          readonly assigneeActivePosition: TaskPosition;
-          readonly overlayNode: ReactElement;
-      };
+export type TaskGridViewDraggableData = {
+    readonly type: "Row";
+    readonly undoManager: TaskClientStoreUndoManager;
+    readonly affinityManager: TaskClientStoreSearchAffinityManager;
+    readonly parents: ReadonlyArray<{
+        readonly query: TaskClientQuery;
+        readonly cursor: TaskQuerySortCursor;
+    }>;
+    readonly cursor: TaskQuerySortCursor;
+    readonly taskId: TaskId;
+    readonly displayStatus: TaskDisplayStatus;
+    readonly title: TaskTitleModel;
+    readonly assigneeAccountId: AccountId | null;
+    readonly getDropOnRowActions: (taskId: TaskId) => Array<TaskActionModel>;
+    readonly overlayPlacement: "ActivatorNode" | "ActivatorTouch";
+};
 
-export type TaskGridViewDroppableData =
-    | {
-          readonly type: "Row";
-          readonly getDropActions: (taskId: TaskId) => Array<TaskActionModel>;
-      }
-    | {
-          readonly type: "ActiveCard";
-          readonly taskId: TaskId | null;
-          readonly showHintIndex: number;
-          readonly previousAssigneeActivePosition: TaskPosition | null;
-          readonly assigneeActivePosition: TaskPosition | null;
-          readonly nextAssigneeActivePosition: TaskPosition | null;
-          readonly getDropActions: (
-              task: {
-                  taskId: TaskId;
-                  displayStatus: TaskDisplayStatus;
-                  assigneeAccountId: AccountId | null;
-              },
-              position:
-                  | {type: "Start"}
-                  | {type: "End"}
-                  | {type: "Above"; taskId: TaskId}
-                  | {type: "Below"; taskId: TaskId},
-          ) => Array<TaskActionModel>;
-      };
+export type TaskGridViewDroppableData = {
+    readonly type: "Row";
+    readonly getDropActions: (taskId: TaskId) => Array<TaskActionModel>;
+};
 
 class MouseSensorWithFlushSyncEnd extends MouseSensor {
     constructor(props: MouseSensorProps) {
@@ -250,160 +216,87 @@ export function TaskGridViewDndContext({
         activeData: TaskGridViewDraggableData,
         overData: TaskGridViewDroppableData,
     ) => {
-        switch (overData.type) {
-            case "Row": {
-                switch (activeData.type) {
-                    case "Row": {
-                        disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(
-                            activeData.taskId,
-                        );
+        disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(activeData.taskId);
 
-                        const dropOnRowActions = activeData.getDropOnRowActions(activeData.taskId);
+        const dropOnRowActions = activeData.getDropOnRowActions(activeData.taskId);
 
-                        const actions = [
-                            ...overData.getDropActions(activeData.taskId),
+        const actions = [
+            ...overData.getDropActions(activeData.taskId),
 
-                            // The order here is important! `overData.getDropActions()` will place our
-                            // task in its new position. `activeData.getDropOnRowActions()` will remove our
-                            // task from its old position. We have to add the task to its new position
-                            // before we can remove it since removing the task from its old position may
-                            // cause us to lose access causing an authorization failure when we try to add
-                            // the task to its new position.
-                            //
-                            // But we also want `overData.getDropActions()` actions to win in case of
-                            // conflict (e.g. if we both remove the task from a collection and add it back
-                            // in one transaction). So we call `activeData.getDropOnRowActions()` first
-                            // (to get earlier timestamps) but apply it second.
-                            //
-                            // The final result of an action transaction is determined by timestamps but
-                            // authorization is evaluated serially as individual actions are committed.
-                            ...dropOnRowActions,
-                        ];
+            // The order here is important! `overData.getDropActions()` will place our
+            // task in its new position. `activeData.getDropOnRowActions()` will remove our
+            // task from its old position. We have to add the task to its new position
+            // before we can remove it since removing the task from its old position may
+            // cause us to lose access causing an authorization failure when we try to add
+            // the task to its new position.
+            //
+            // But we also want `overData.getDropActions()` actions to win in case of
+            // conflict (e.g. if we both remove the task from a collection and add it back
+            // in one transaction). So we call `activeData.getDropOnRowActions()` first
+            // (to get earlier timestamps) but apply it second.
+            //
+            // The final result of an action transaction is determined by timestamps but
+            // authorization is evaluated serially as individual actions are committed.
+            ...dropOnRowActions,
+        ];
 
-                        // Some drag operations may introduce a circular dependency. For example
-                        // dragging a task inside itself. We want to ignore these drops entirely!
-                        // So look at the tasks in our store after `actions` are applied and if we
-                        // find out that the action would introduce a circular dependency we don't
-                        // commit the actions.
-                        //
-                        // We may not have all the parent tasks loaded. In that case it's up to the
-                        // server to reject a drag that would create a circular dependency.
-                        let wouldCreateCircularDependency = false;
-                        {
-                            const newTaskById = new Map<TaskId, TaskModel>();
+        // Some drag operations may introduce a circular dependency. For example
+        // dragging a task inside itself. We want to ignore these drops entirely!
+        // So look at the tasks in our store after `actions` are applied and if we
+        // find out that the action would introduce a circular dependency we don't
+        // commit the actions.
+        //
+        // We may not have all the parent tasks loaded. In that case it's up to the
+        // server to reject a drag that would create a circular dependency.
+        let wouldCreateCircularDependency = false;
+        {
+            const newTaskById = new Map<TaskId, TaskModel>();
 
-                            for (const action of actions) {
-                                if (action.type !== "UpdateTask") continue;
+            for (const action of actions) {
+                if (action.type !== "UpdateTask") continue;
 
-                                const task =
-                                    newTaskById.get(action.taskId) ??
-                                    store.getTaskEntryStoreIfExists(action.taskId)?.getSnapshot()
-                                        .task;
-                                if (!task) continue;
+                const task =
+                    newTaskById.get(action.taskId) ??
+                    store.getTaskEntryStoreIfExists(action.taskId)?.getSnapshot().task;
+                if (!task) continue;
 
-                                newTaskById.set(
-                                    task.id,
-                                    task.applyAction(
-                                        action,
-                                        createGetTaskActionReferencedSortableAccount(
-                                            store.accountStore,
-                                            action,
-                                        ),
-                                    ),
-                                );
-                            }
+                newTaskById.set(
+                    task.id,
+                    task.applyAction(
+                        action,
+                        createGetTaskActionReferencedSortableAccount(store.accountStore, action),
+                    ),
+                );
+            }
 
-                            for (const task of newTaskById.values()) {
-                                const seenTaskIds = new Set<TaskId>([task.id]);
+            for (const task of newTaskById.values()) {
+                const seenTaskIds = new Set<TaskId>([task.id]);
 
-                                let parentTaskId = task.getParent()?.taskId;
-                                while (parentTaskId) {
-                                    if (seenTaskIds.has(parentTaskId)) {
-                                        wouldCreateCircularDependency = true;
-                                        break;
-                                    }
-                                    seenTaskIds.add(parentTaskId);
-
-                                    const parentTask =
-                                        newTaskById.get(parentTaskId) ??
-                                        store.getTaskEntryStoreIfExists(parentTaskId)?.getSnapshot()
-                                            .task;
-                                    if (!parentTask) break;
-
-                                    parentTaskId = parentTask.getParent()?.taskId;
-                                }
-
-                                if (wouldCreateCircularDependency) break;
-                            }
-                        }
-
-                        if (!wouldCreateCircularDependency) {
-                            store.commitTaskActionTransaction(context, actions, {
-                                undoManager: activeData.undoManager,
-                                affinityManager: activeData.affinityManager,
-                            });
-                        }
+                let parentTaskId = task.getParent()?.taskId;
+                while (parentTaskId) {
+                    if (seenTaskIds.has(parentTaskId)) {
+                        wouldCreateCircularDependency = true;
                         break;
                     }
-                    case "Card": {
-                        // Can not drop cards into row positions...
-                        break;
-                    }
-                    default:
-                        throw exhaustive(activeData);
+                    seenTaskIds.add(parentTaskId);
+
+                    const parentTask =
+                        newTaskById.get(parentTaskId) ??
+                        store.getTaskEntryStoreIfExists(parentTaskId)?.getSnapshot().task;
+                    if (!parentTask) break;
+
+                    parentTaskId = parentTask.getParent()?.taskId;
                 }
-                break;
+
+                if (wouldCreateCircularDependency) break;
             }
-            case "ActiveCard": {
-                let position:
-                    | {type: "Start"}
-                    | {type: "End"}
-                    | {type: "Above"; taskId: TaskId}
-                    | {type: "Below"; taskId: TaskId};
+        }
 
-                // Rows always push cards to the right.
-                if (activeData.type === "Row" || !overData.assigneeActivePosition) {
-                    position = !overData.previousAssigneeActivePosition
-                        ? {type: "Start"}
-                        : overData.taskId
-                        ? {type: "Above", taskId: overData.taskId}
-                        : {type: "End"};
-                }
-                // Cards push to the right when moved to an earlier position and push to the
-                // left when moved to a later position.
-                else {
-                    if (
-                        compareTaskPosition(
-                            activeData.assigneeActivePosition,
-                            overData.assigneeActivePosition,
-                        ) > 0
-                    ) {
-                        position = !overData.nextAssigneeActivePosition
-                            ? {type: "End"}
-                            : overData.taskId
-                            ? {type: "Below", taskId: overData.taskId}
-                            : {type: "Start"};
-                    } else {
-                        position = !overData.previousAssigneeActivePosition
-                            ? {type: "Start"}
-                            : overData.taskId
-                            ? {type: "Above", taskId: overData.taskId}
-                            : {type: "End"};
-                    }
-                }
-
-                const actions = overData.getDropActions(activeData, position);
-
-                store.commitTaskActionTransaction(context, actions, {
-                    // Dragging/dropping a row can be undone but we don't currently support undoing
-                    // a drag/drop for a card.
-                    undoManager: activeData.undoManager ?? null,
-                    affinityManager: activeData.affinityManager,
-                });
-                break;
-            }
-            default:
-                throw exhaustive(overData);
+        if (!wouldCreateCircularDependency) {
+            store.commitTaskActionTransaction(context, actions, {
+                undoManager: activeData.undoManager,
+                affinityManager: activeData.affinityManager,
+            });
         }
     };
 
@@ -447,15 +340,6 @@ const taskGridViewDndCollisionDetection: CollisionDetection = ({
     let nearestNonIntersectingCollision: CollisionDescriptor | null = null;
 
     for (const droppableContainer of droppableContainers) {
-        const droppableData = assertExists(
-            droppableContainer.data.current,
-        ) as TaskGridViewDroppableData;
-
-        // Can't drag cards onto rows.
-        if (activeData.type === "Card" && droppableData.type === "Row") {
-            continue;
-        }
-
         const {id} = droppableContainer;
         const rect = droppableRects.get(id);
 
@@ -567,78 +451,65 @@ function TaskRowViewDragOverlay({
     const [activatorTouchOffset] = useState(getActivatorTouchOffset);
 
     return useMemo(() => {
-        switch (data.type) {
-            case "Row": {
-                return (
-                    <Box
-                        display="inline-block"
-                        minWidth="48"
-                        maxWidth={{desktop: "128", mobile: "64"}}
-                        paddingX="3"
-                        borderRadius="1.5"
-                        boxShadow="elevation-30"
-                        backgroundColor="grey-0"
-                        position="relative"
-                        opacity="80"
-                        style={{
-                            height: `calc(${spacing[taskRowViewMinHeight]} + 1px)`,
-                            paddingTop: 1,
-                            left:
-                                data.overlayPlacement === "ActivatorTouch" && activatorTouchOffset
-                                    ? activatorTouchOffset.left
-                                    : spacing["2"],
-                            top:
-                                data.overlayPlacement === "ActivatorTouch" && activatorTouchOffset
-                                    ? `calc(${activatorTouchOffset.top - 1}px - ${
-                                          parseRemLength(taskRowViewMinHeight) / 2
-                                      }rem)`
-                                    : -1,
-                            transform: [
-                                `scale(${taskRowViewDragOverlayScale})`,
-                                ...(data.overlayPlacement === "ActivatorTouch" &&
-                                activatorTouchOffset
-                                    ? ["translateX(-50%)"]
-                                    : []),
-                            ].join(" "),
-                            transformOrigin: "center left",
-                        }}
-                    >
-                        <Box
-                            height="full"
-                            display="flex"
-                            alignItems="center"
-                            gap="2"
-                            style={{opacity: 0.5}}
-                        >
-                            <Box flexShrink="0">
-                                <TaskDisplayStatusCircle
-                                    size="4"
-                                    displayStatus={data.displayStatus}
-                                />
-                            </Box>
-                            <Box
-                                fontStyle="truncate"
-                                style={{
-                                    ...contentStyles.paragraphFontSize,
-                                    // Render contextual alternate glyphs. User text may be rendered here. Helpful
-                                    // for consistency if the user types anything like 2x2 or an @ mention.
-                                    fontFeatureSettings: '"calt" on',
-                                }}
-                                dangerouslySetInnerHTML={{
-                                    __html: serializeProsemirrorFragmentToHtml(
-                                        data.title.getProsemirrorNode().content,
-                                    ),
-                                }}
-                            />
-                        </Box>
+        return (
+            <Box
+                display="inline-block"
+                minWidth="48"
+                maxWidth={{desktop: "128", mobile: "64"}}
+                paddingX="3"
+                borderRadius="1.5"
+                boxShadow="elevation-30"
+                backgroundColor="grey-0"
+                position="relative"
+                opacity="80"
+                style={{
+                    height: `calc(${spacing[taskRowViewMinHeight]} + 1px)`,
+                    paddingTop: 1,
+                    left:
+                        data.overlayPlacement === "ActivatorTouch" && activatorTouchOffset
+                            ? activatorTouchOffset.left
+                            : spacing["2"],
+                    top:
+                        data.overlayPlacement === "ActivatorTouch" && activatorTouchOffset
+                            ? `calc(${activatorTouchOffset.top - 1}px - ${
+                                  parseRemLength(taskRowViewMinHeight) / 2
+                              }rem)`
+                            : -1,
+                    transform: [
+                        `scale(${taskRowViewDragOverlayScale})`,
+                        ...(data.overlayPlacement === "ActivatorTouch" && activatorTouchOffset
+                            ? ["translateX(-50%)"]
+                            : []),
+                    ].join(" "),
+                    transformOrigin: "center left",
+                }}
+            >
+                <Box
+                    height="full"
+                    display="flex"
+                    alignItems="center"
+                    gap="2"
+                    style={{opacity: 0.5}}
+                >
+                    <Box flexShrink="0">
+                        <TaskDisplayStatusCircle size="4" displayStatus={data.displayStatus} />
                     </Box>
-                );
-            }
-            case "Card": {
-                return data.overlayNode;
-            }
-            default:
-                throw exhaustive(data);
-        }
+                    <Box
+                        fontStyle="truncate"
+                        style={{
+                            ...contentStyles.paragraphFontSize,
+                            // Render contextual alternate glyphs. User text may be rendered here. Helpful
+                            // for consistency if the user types anything like 2x2 or an @ mention.
+                            fontFeatureSettings: '"calt" on',
+                        }}
+                        dangerouslySetInnerHTML={{
+                            __html: serializeProsemirrorFragmentToHtml(
+                                data.title.getProsemirrorNode().content,
+                            ),
+                        }}
+                    />
+                </Box>
+            </Box>
+        );
     }, [activatorTouchOffset, data]);
 }

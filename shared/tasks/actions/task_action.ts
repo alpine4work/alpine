@@ -6,9 +6,7 @@ import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_ti
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskCollectionActionSchema} from "~/shared/tasks/actions/task_collection_action.js";
-import {TaskNotepadPageActionSchema} from "~/shared/tasks/actions/task_notepad_page_action.js";
 import {TaskTaskActionSchema} from "~/shared/tasks/actions/task_task_action.js";
-import {TaskNotepadPageIdSchema} from "~/shared/tasks/task_notepad_page_id.js";
 
 /**
  * All updates to the task database in a space are done through task actions.
@@ -85,19 +83,6 @@ const TaskUpdateCollectionActionSchema = Schema.object({
 });
 
 /**
- * An action that updates a single task notepad page of some user.
- */
-export type TaskUpdateNotepadPageAction = SchemaType<typeof TaskUpdateNotepadPageActionSchema>;
-
-const TaskUpdateNotepadPageActionSchema = Schema.object({
-    type: Schema.value("UpdateNotepadPage"),
-    time: HybridLogicalTimeSchema,
-    accountId: Schema.id<AccountId>(),
-    notepadPageId: TaskNotepadPageIdSchema,
-    notepadPageAction: TaskNotepadPageActionSchema,
-});
-
-/**
  * When a task references an account it needs to sort/group by it uses the
  * `TaskSortableAccount` object. This object inlines the account's name so that
  * the task system can consistently sort by account names alphabetically. We
@@ -126,7 +111,6 @@ const TaskUpdateAccountNameActionSchema = Schema.object({
 export const TaskActionSchema = Schema.union({
     UpdateTask: TaskUpdateTaskActionSchema,
     UpdateCollection: TaskUpdateCollectionActionSchema,
-    UpdateNotepadPage: TaskUpdateNotepadPageActionSchema,
     UpdateAccountName: TaskUpdateAccountNameActionSchema,
 });
 
@@ -144,8 +128,6 @@ export function getTaskActionLabel(action: TaskAction): string {
             return `${action.type}_${action.taskAction.type}`;
         case "UpdateCollection":
             return `${action.type}_${action.collectionAction.type}`;
-        case "UpdateNotepadPage":
-            return `${action.type}_${action.notepadPageAction.type}`;
         case "UpdateAccountName":
             return action.type;
         default:

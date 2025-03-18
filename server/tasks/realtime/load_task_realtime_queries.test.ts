@@ -24,13 +24,11 @@ import {
 } from "~/shared/tasks/actions/task_task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
-import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
 import {TaskAssigneePositionRegister} from "~/shared/tasks/task_assignee_position.js";
 import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskPositionRegister} from "~/shared/tasks/task_position.js";
-import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
 import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
 import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
@@ -3101,8 +3099,6 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             version: addCollectionTime,
                         }),
                         positionByCollectionId: TaskPositionByCollectionIdMap.empty,
-                        positionByAccountIdAndNotepadPageId:
-                            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
@@ -3142,10 +3138,6 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             updateAssigneeTime1,
                         ),
                         assigneePosition: new TaskAssigneePositionRegister(
-                            null,
-                            updateAssigneeTime1,
-                        ),
-                        assigneeActivePosition: new TaskAssigneeActivePositionRegister(
                             null,
                             updateAssigneeTime1,
                         ),
@@ -3232,8 +3224,6 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             version: addCollectionTime,
                         }),
                         positionByCollectionId: TaskPositionByCollectionIdMap.empty,
-                        positionByAccountIdAndNotepadPageId:
-                            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
@@ -3273,10 +3263,6 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             updateAssigneeTime1,
                         ),
                         assigneePosition: new TaskAssigneePositionRegister(
-                            null,
-                            updateAssigneeTime1,
-                        ),
-                        assigneeActivePosition: new TaskAssigneeActivePositionRegister(
                             null,
                             updateAssigneeTime1,
                         ),
@@ -3358,8 +3344,6 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             version: addCollectionTime,
                         }),
                         positionByCollectionId: TaskPositionByCollectionIdMap.empty,
-                        positionByAccountIdAndNotepadPageId:
-                            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
@@ -3399,10 +3383,6 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             updateAssigneeTime1,
                         ),
                         assigneePosition: new TaskAssigneePositionRegister(
-                            null,
-                            updateAssigneeTime1,
-                        ),
-                        assigneeActivePosition: new TaskAssigneeActivePositionRegister(
                             null,
                             updateAssigneeTime1,
                         ),
@@ -3489,8 +3469,6 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             version: addCollectionTime,
                         }),
                         positionByCollectionId: TaskPositionByCollectionIdMap.empty,
-                        positionByAccountIdAndNotepadPageId:
-                            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
@@ -3530,10 +3508,6 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             updateAssigneeTime2,
                         ),
                         assigneePosition: new TaskAssigneePositionRegister(
-                            null,
-                            updateAssigneeTime2,
-                        ),
-                        assigneeActivePosition: new TaskAssigneeActivePositionRegister(
                             null,
                             updateAssigneeTime2,
                         ),
@@ -3620,8 +3594,6 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             version: addCollectionTime,
                         }),
                         positionByCollectionId: TaskPositionByCollectionIdMap.empty,
-                        positionByAccountIdAndNotepadPageId:
-                            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
@@ -3661,10 +3633,6 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             updateAssigneeTime2,
                         ),
                         assigneePosition: new TaskAssigneePositionRegister(
-                            null,
-                            updateAssigneeTime2,
-                        ),
-                        assigneeActivePosition: new TaskAssigneeActivePositionRegister(
                             null,
                             updateAssigneeTime2,
                         ),
@@ -3746,8 +3714,6 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             version: addCollectionTime,
                         }),
                         positionByCollectionId: TaskPositionByCollectionIdMap.empty,
-                        positionByAccountIdAndNotepadPageId:
-                            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
@@ -3787,10 +3753,6 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             updateAssigneeTime2,
                         ),
                         assigneePosition: new TaskAssigneePositionRegister(
-                            null,
-                            updateAssigneeTime2,
-                        ),
-                        assigneeActivePosition: new TaskAssigneeActivePositionRegister(
                             null,
                             updateAssigneeTime2,
                         ),
@@ -3874,8 +3836,6 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             version: addCollectionTime,
                         }),
                         positionByCollectionId: TaskPositionByCollectionIdMap.empty,
-                        positionByAccountIdAndNotepadPageId:
-                            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
@@ -3900,10 +3860,6 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             updateAssigneeTime3,
                         ),
                         assigneePosition: new TaskAssigneePositionRegister(
-                            null,
-                            updateAssigneeTime3,
-                        ),
-                        assigneeActivePosition: new TaskAssigneeActivePositionRegister(
                             null,
                             updateAssigneeTime3,
                         ),
@@ -3985,8 +3941,6 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             version: addCollectionTime,
                         }),
                         positionByCollectionId: TaskPositionByCollectionIdMap.empty,
-                        positionByAccountIdAndNotepadPageId:
-                            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
@@ -4011,10 +3965,6 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             updateAssigneeTime3,
                         ),
                         assigneePosition: new TaskAssigneePositionRegister(
-                            null,
-                            updateAssigneeTime3,
-                        ),
-                        assigneeActivePosition: new TaskAssigneeActivePositionRegister(
                             null,
                             updateAssigneeTime3,
                         ),
@@ -4096,8 +4046,6 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             version: addCollectionTime,
                         }),
                         positionByCollectionId: TaskPositionByCollectionIdMap.empty,
-                        positionByAccountIdAndNotepadPageId:
-                            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
@@ -4122,10 +4070,6 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             updateAssigneeTime3,
                         ),
                         assigneePosition: new TaskAssigneePositionRegister(
-                            null,
-                            updateAssigneeTime3,
-                        ),
-                        assigneeActivePosition: new TaskAssigneeActivePositionRegister(
                             null,
                             updateAssigneeTime3,
                         ),

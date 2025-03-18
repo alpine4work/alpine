@@ -43,7 +43,6 @@ assertEqualTypes<
     | "closedDateFilter"
     | "activatedDateFilter"
     | "parentFilter"
-    | "notepadPageFilter"
 >();
 
 type TaskIndexFlattenedKeys = OpensearchIndexTypeFlattenedKeysType<typeof TaskIndexDocType>;
@@ -395,29 +394,6 @@ function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
         filterQueryClauses.push({
             term: {
                 "parent.taskId.value": new OpensearchQueryValue(filters.parentFilter.parentTaskId),
-            },
-        });
-    }
-
-    if (filters.notepadPageFilter) {
-        // A notepad page can only contain tasks your account created for permissions
-        // reasons. We can't let you add tasks to a notepad page that you later lose
-        // access to. Since we authorize task queries at execution time which means all
-        // tasks within the query should be visible.
-        //
-        // If you want to remove this condition you need to change
-        // `authorizeTaskQueryAccess()`.
-        filterQueryClauses.push({
-            term: {
-                "creator.accountId": new OpensearchQueryValue(filters.notepadPageFilter.accountId),
-            },
-        });
-
-        filterQueryClauses.push({
-            term: {
-                "notepadPages.ids": new OpensearchQueryValue(
-                    `${filters.notepadPageFilter.accountId}-${filters.notepadPageFilter.notepadPageId}`,
-                ),
             },
         });
     }

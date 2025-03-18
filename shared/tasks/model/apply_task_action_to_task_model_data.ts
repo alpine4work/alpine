@@ -202,29 +202,6 @@ export function applyTaskActionToTaskModelData(
                 positionByCollectionId: newPositionByCollectionId,
             };
         }
-        case "UpdateNotepadPagePosition": {
-            const newPositionByAccountIdAndNotepadPageId =
-                action.position !== null
-                    ? task.positionByAccountIdAndNotepadPageId.apply({
-                          type: "Set",
-                          key: `${action.accountId}-${action.notepadPageId}`,
-                          value: action.position,
-                          version: actionTime,
-                      })
-                    : task.positionByAccountIdAndNotepadPageId.apply({
-                          type: "Delete",
-                          key: `${action.accountId}-${action.notepadPageId}`,
-                          version: actionTime,
-                      });
-
-            if (newPositionByAccountIdAndNotepadPageId === task.positionByAccountIdAndNotepadPageId)
-                return task;
-
-            return {
-                ...task,
-                positionByAccountIdAndNotepadPageId: newPositionByAccountIdAndNotepadPageId,
-            };
-        }
         case "UpdateStatus": {
             let status: TaskStatusWithSortableAccount;
             if (action.status.type !== "Closed") {
@@ -247,16 +224,7 @@ export function applyTaskActionToTaskModelData(
                 version: actionTime,
             });
 
-            const newAssigneeActivePosition = task.assigneeActivePosition.apply({
-                value: null,
-                version: actionTime,
-            });
-
-            if (
-                newStatus === task.status &&
-                newAssigneeStatus === task.assigneeStatus &&
-                newAssigneeActivePosition === task.assigneeActivePosition
-            ) {
+            if (newStatus === task.status && newAssigneeStatus === task.assigneeStatus) {
                 return task;
             }
 
@@ -264,7 +232,6 @@ export function applyTaskActionToTaskModelData(
                 ...task,
                 status: newStatus,
                 assigneeStatus: newAssigneeStatus,
-                assigneeActivePosition: newAssigneeActivePosition,
             };
         }
         case "UpdateAssignee": {
@@ -289,16 +256,7 @@ export function applyTaskActionToTaskModelData(
                 version: actionTime,
             });
 
-            const newAssigneeActivePosition = task.assigneeActivePosition.apply({
-                value: null,
-                version: actionTime,
-            });
-
-            if (
-                newAssignee === task.assignee &&
-                newAssigneeStatus === task.assigneeStatus &&
-                newAssigneeActivePosition === task.assigneeActivePosition
-            ) {
+            if (newAssignee === task.assignee && newAssigneeStatus === task.assigneeStatus) {
                 return task;
             }
 
@@ -306,7 +264,6 @@ export function applyTaskActionToTaskModelData(
                 ...task,
                 assignee: newAssignee,
                 assigneeStatus: newAssigneeStatus,
-                assigneeActivePosition: newAssigneeActivePosition,
 
                 // NOTE(calebmer): We intentionally don't update `assigneePosition` during an
                 // `UpdateAssignee` action. That way if the user changes the task's assignee
@@ -324,22 +281,13 @@ export function applyTaskActionToTaskModelData(
                 version: actionTime,
             });
 
-            const newAssigneeActivePosition = task.assigneeActivePosition.apply({
-                value: null,
-                version: actionTime,
-            });
-
-            if (
-                newAssigneeStatus === task.assigneeStatus &&
-                newAssigneeActivePosition === task.assigneeActivePosition
-            ) {
+            if (newAssigneeStatus === task.assigneeStatus) {
                 return task;
             }
 
             return {
                 ...task,
                 assigneeStatus: newAssigneeStatus,
-                assigneeActivePosition: newAssigneeActivePosition,
             };
         }
         case "UpdateAssigneePosition": {
@@ -358,24 +306,6 @@ export function applyTaskActionToTaskModelData(
             return {
                 ...task,
                 assigneePosition: newAssigneePosition,
-            };
-        }
-        case "UpdateAssigneeActivePosition": {
-            const newAssigneeActivePosition = task.assigneeActivePosition.apply({
-                value: {
-                    accountId: action.accountId,
-                    position: action.position,
-                },
-                version: actionTime,
-            });
-
-            if (newAssigneeActivePosition === task.assigneeActivePosition) {
-                return task;
-            }
-
-            return {
-                ...task,
-                assigneeActivePosition: newAssigneeActivePosition,
             };
         }
         case "UpdateTitle": {

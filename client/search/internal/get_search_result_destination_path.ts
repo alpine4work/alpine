@@ -71,9 +71,6 @@ export function getSearchResultDestinationPath({
 
             return `/s/${spaceId}/tasks/${taskId}?create`;
         }
-        case "TaskNotepad": {
-            return `/s/${spaceId}/tasks?show=new`;
-        }
         case "TaskPersonal": {
             return `/s/${spaceId}/tasks/index2`;
         }

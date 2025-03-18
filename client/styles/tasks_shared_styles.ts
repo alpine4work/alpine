@@ -98,24 +98,8 @@ export const taskRowTitleInputPaddingYPx = createObjectFromKeys(
 
 export const taskRowViewPaddingBottom = "6";
 
-export const taskNotepadViewActiveSectionCardGap: Spacing = "3";
-
-// Height of a card with an extra field (e.g. assignee) and two lines of text
-// in the title.
-export const taskNotepadViewActiveSectionInstructionalPlaceholderCardHeight = "6.5rem";
-
 export const taskCardViewMinHeight = "5.375rem";
 export const taskCardViewMaxWidth = "96";
-
-export const taskNotepadViewActiveSectionMarginTop = {desktop: "4", mobile: "2"} as const;
-export const taskNotepadViewActiveSectionMarginBottom = "8";
-export const taskNotepadViewActiveSectionPaddingY = "2";
-export const taskNotepadViewActiveSectionTitleFontSize = {desktop: "200", mobile: "100"} as const;
-
-export const taskNotepadViewActiveSectionActualMarginBottom = {
-    desktop: `max(${spacing[taskNotepadViewActiveSectionMarginBottom]} - var(--safe-area-inset-top, 0px), 0px)`,
-    mobile: spacing[taskNotepadViewActiveSectionMarginBottom],
-};
 
 export const taskQueryViewCustomizationMobileSectionGap = "4";
 export const taskQueryViewCustomizationMobileSectionMarginBottom = "7";
@@ -133,27 +117,6 @@ export const taskCollectionChipHeight: {desktop: Spacing; mobile: Spacing} = {
 };
 export const taskCollectionChipPaddingY: Spacing = "0.5";
 export const taskCollectionChipBorderRadius = "1";
-
-export const taskNotepadViewActiveSectionMinHeight = {
-    desktop: addRemLengths(
-        taskNotepadViewActiveSectionMarginTop.desktop,
-        fontSizes[taskNotepadViewActiveSectionTitleFontSize.desktop].lineHeight,
-        taskNotepadViewActiveSectionPaddingY,
-        taskCardViewMinHeight,
-        taskNotepadViewActiveSectionPaddingY,
-        taskNotepadViewActiveSectionMarginBottom,
-    ),
-    mobile: addRemLengths(
-        taskNotepadViewActiveSectionMarginTop.mobile,
-        fontSizes[taskNotepadViewActiveSectionTitleFontSize.mobile].lineHeight,
-        taskNotepadViewActiveSectionPaddingY,
-        taskCardViewMinHeight,
-        taskNotepadViewActiveSectionPaddingY,
-        taskNotepadViewActiveSectionMarginBottom,
-    ),
-};
-
-export const taskNotepadViewPaginatorHeight = {desktop: "6", mobile: "7"} as const;
 
 export const newTaskCollectionNamePlaceholder = "New collection";
 export const defaultTaskQueryViewName = "New view";

@@ -1,5 +1,4 @@
 import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {TaskActionMaybeModel} from "~/shared/tasks/actions/task_action_model.js";
@@ -13,9 +12,9 @@ import {TaskActionMaybeModel} from "~/shared/tasks/actions/task_action_model.js"
  * we need to index tasks by the account name in OpenSearch).
  *
  * For example, the task assignee is considered referenced (we need to both
- * render the assignee and sort by assignee) but the `AccountId` in a notepad
- * page ID is not referenced since those accounts aren't rendered in the UI.
- * (The client should also only ever see its own notepad pages anyway.)
+ * render the assignee and sort by assignee) but the `AccountId` in
+ * `UpdateAssigneePosition` is not referenced since those accounts aren't
+ * rendered in the UI.
  *
  * `prepareTaskActionForClient()` will replace accounts we're not allowed to
  * see with `unknownAccountId`. So we skip over any accounts with an unknown
@@ -49,12 +48,6 @@ export function collectReferencedAccountIdsFromTaskAction(
                     }
                     return;
                 }
-                case "UpdateNotepadPagePosition": {
-                    // Even though there is an `AccountId` in `UpdateNotepadPagePosition` we don't
-                    // consider it referenced since the UI doesn't need to render or sort based on
-                    // the notepad page's `AccountId`.
-                    return;
-                }
                 case "Delete":
                 case "Undelete":
                 case "UpdateParentTaskId":
@@ -65,7 +58,6 @@ export function collectReferencedAccountIdsFromTaskAction(
                 case "UpdateCollectionPosition":
                 case "UpdateAssigneeStatus":
                 case "UpdateAssigneePosition":
-                case "UpdateAssigneeActivePosition":
                 case "UpdateTitle":
                 case "UpdateDueDate":
                 case "UpdatePriority": {
@@ -92,13 +84,6 @@ export function collectReferencedAccountIdsFromTaskAction(
                 default:
                     throw exhaustive(action.collectionAction);
             }
-        }
-        case "UpdateNotepadPage": {
-            cast<"Create">(action.notepadPageAction.type);
-            // Even though there is an `AccountId` in `UpdateNotepadPage` we don't
-            // consider it referenced since the UI doesn't need to render or sort based on
-            // the notepad page's `AccountId`.
-            return;
         }
         case "UpdateAccountName": {
             // We need to send an up-to-date `AccountModel` to the client with

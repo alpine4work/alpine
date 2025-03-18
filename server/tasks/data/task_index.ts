@@ -68,7 +68,6 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {areHybridLogicalTimesEqual} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
@@ -1419,11 +1418,6 @@ async function actuallyIndexTaskAction(
             }
             return;
         }
-        case "UpdateNotepadPage": {
-            cast<"Create">(action.notepadPageAction.type);
-            // We don't index any information about notepad pages.
-            return;
-        }
         default:
             throw exhaustive(action);
     }
@@ -1443,7 +1437,6 @@ function getTaskActionApproximateActionCountType(
         // updates private information not observable by anyone but the assigned
         // account.
         case "UpdateAssigneePosition":
-        case "UpdateAssigneeActivePosition":
             return null;
 
         case "Create":
@@ -1454,7 +1447,6 @@ function getTaskActionApproximateActionCountType(
         case "AddCollection":
         case "RemoveCollection":
         case "UpdateCollectionPosition":
-        case "UpdateNotepadPagePosition":
         case "UpdateStatus":
         case "UpdateAssignee":
         case "UpdateAssigneeStatus":

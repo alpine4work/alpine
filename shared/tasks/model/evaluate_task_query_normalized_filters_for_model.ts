@@ -31,7 +31,6 @@ assertEqualTypes<
     | "closedDateFilter"
     | "activatedDateFilter"
     | "parentFilter"
-    | "notepadPageFilter"
 >();
 
 /**
@@ -193,16 +192,6 @@ export function evaluateTaskQueryNormalizedFiltersForModel(
     if (
         filters.parentFilter !== undefined &&
         filters.parentFilter.parentTaskId !== task.getParent()?.taskId
-    ) {
-        return false;
-    }
-
-    if (
-        filters.notepadPageFilter !== undefined &&
-        (task.getCreator().accountId !== filters.notepadPageFilter.accountId ||
-            !task.rawData.positionByAccountIdAndNotepadPageId.has(
-                `${filters.notepadPageFilter.accountId}-${filters.notepadPageFilter.notepadPageId}`,
-            ))
     ) {
         return false;
     }
