@@ -60,7 +60,9 @@ export function collectReferencedAccountIdsFromTaskAction(
                 case "UpdateAssigneePosition":
                 case "UpdateTitle":
                 case "UpdateDueDate":
-                case "UpdatePriority": {
+                case "UpdatePriority":
+                case "UpdateNotepadPagePosition":
+                case "UpdateAssigneeActivePosition": {
                     return;
                 }
                 default:
@@ -89,6 +91,9 @@ export function collectReferencedAccountIdsFromTaskAction(
             // We need to send an up-to-date `AccountModel` to the client with
             // `UpdateAccountName` actions.
             if (action.accountId !== unknownAccountId) accountIds.add(action.accountId);
+            return;
+        }
+        case "UpdateNotepadPage": {
             return;
         }
         default:

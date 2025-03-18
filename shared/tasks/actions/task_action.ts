@@ -112,6 +112,14 @@ export const TaskActionSchema = Schema.union({
     UpdateTask: TaskUpdateTaskActionSchema,
     UpdateCollection: TaskUpdateCollectionActionSchema,
     UpdateAccountName: TaskUpdateAccountNameActionSchema,
+    // NOTE(calebmer, 2025-03-18): Remnants of the task notepad feature. We ignore
+    // these actions at this point but we need minimal handling for backwards
+    // compatibility to avoid crashes since we have actions of these types saved in
+    // the database.
+    UpdateNotepadPage: Schema.object({
+        type: Schema.value("UpdateNotepadPage"),
+        time: HybridLogicalTimeSchema,
+    }),
 });
 
 // Every action should have a `time` property with the logical time of
@@ -129,6 +137,8 @@ export function getTaskActionLabel(action: TaskAction): string {
         case "UpdateCollection":
             return `${action.type}_${action.collectionAction.type}`;
         case "UpdateAccountName":
+            return action.type;
+        case "UpdateNotepadPage":
             return action.type;
         default:
             throw exhaustive(action);

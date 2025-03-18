@@ -3366,7 +3366,9 @@ function getTaskUndoActionsGridViewTargetIfExists(
             case "UpdateParentPosition":
             case "UpdateChildrenCounts":
             case "UpdateCollectionPosition":
-            case "UpdateAssigneePosition": {
+            case "UpdateAssigneePosition":
+            case "UpdateNotepadPagePosition":
+            case "UpdateAssigneeActivePosition": {
                 column = "Title";
                 preference = 6;
                 break;

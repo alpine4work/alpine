@@ -384,6 +384,10 @@ const TaskUpdatePriorityActionSchema = Schema.object({
     priority: TaskPrioritySchema.nullable(),
 });
 
+function emptyObjectSchema<const Type extends string>(type: Type) {
+    return Schema.object({type: Schema.value(type)});
+}
+
 export const TaskTaskActionSchema = Schema.union({
     Create: TaskCreateActionSchema,
     Delete: TaskDeleteActionSchema,
@@ -401,4 +405,10 @@ export const TaskTaskActionSchema = Schema.union({
     UpdateTitle: TaskUpdateTitleActionSchema,
     UpdateDueDate: TaskUpdateDueDateActionSchema,
     UpdatePriority: TaskUpdatePriorityActionSchema,
+    // NOTE(calebmer, 2025-03-18): Remnants of the task notepad feature. We ignore
+    // these actions at this point but we need minimal handling for backwards
+    // compatibility to avoid crashes since we have actions of these types saved in
+    // the database.
+    UpdateNotepadPagePosition: emptyObjectSchema("UpdateNotepadPagePosition"),
+    UpdateAssigneeActivePosition: emptyObjectSchema("UpdateAssigneeActivePosition"),
 });

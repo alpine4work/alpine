@@ -393,6 +393,9 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
                     spaceSegment.updateAccountNameActions.push(action);
                     break;
                 }
+                case "UpdateNotepadPage": {
+                    break;
+                }
                 default:
                     throw exhaustive(action);
             }

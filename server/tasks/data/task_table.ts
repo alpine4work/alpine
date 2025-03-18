@@ -324,7 +324,10 @@ const TaskTable = DynamoTableSchema.new({
                 accountId: DynamoKeyAttributeSchema.id<AccountId>(),
             },
             sortRanges: [
-                // NOCOMMIT: Document that this exists for backwards compatibility
+                // NOTE(calebmer, 2025-03-18): Remnants of the task notepad feature. We ignore
+                // these item at this point but we need minimal handling for backwards
+                // compatibility to avoid crashes since we have objects of this type saved in
+                // the database.
                 {
                     name: "Notepad",
                     sortKeyAttributes: {},
@@ -2763,6 +2766,12 @@ async function actuallyCommitTaskActionTransaction(
                                 // is validated above.
                                 break;
                             }
+                            case "UpdateNotepadPagePosition":
+                            case "UpdateAssigneeActivePosition": {
+                                throw new InvalidArgumentError(
+                                    quote`Can't commit deprecated task action type ${action.taskAction.type}`,
+                                );
+                            }
                             default:
                                 throw exhaustive(taskAction);
                         }
@@ -2956,6 +2965,11 @@ async function actuallyCommitTaskActionTransaction(
                 // an account's name.
                 throw new InvalidArgumentError(
                     "Clients are not allowed to commit an `UpdateAccountName` action",
+                );
+            }
+            case "UpdateNotepadPage": {
+                throw new InvalidArgumentError(
+                    quote`Can't commit deprecated action type ${action.type}`,
                 );
             }
             default:

@@ -1418,6 +1418,9 @@ async function actuallyIndexTaskAction(
             }
             return;
         }
+        case "UpdateNotepadPage": {
+            return;
+        }
         default:
             throw exhaustive(action);
     }
@@ -1456,6 +1459,10 @@ function getTaskActionApproximateActionCountType(
 
         case "UpdateTitle":
             return "Continuous";
+
+        case "UpdateNotepadPagePosition":
+        case "UpdateAssigneeActivePosition":
+            return null;
 
         default:
             throw exhaustive(actionType);

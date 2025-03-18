@@ -361,6 +361,10 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
                 priority: newPriority,
             };
         }
+        case "UpdateNotepadPagePosition":
+        case "UpdateAssigneeActivePosition": {
+            return task;
+        }
         default:
             throw exhaustive(action);
     }

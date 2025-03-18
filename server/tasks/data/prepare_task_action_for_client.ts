@@ -100,6 +100,10 @@ export async function prepareTaskActionForClient(
                     }
                     return action;
                 }
+                case "UpdateNotepadPagePosition":
+                case "UpdateAssigneeActivePosition": {
+                    return null;
+                }
                 default:
                     throw exhaustive(action.taskAction);
             }
@@ -119,6 +123,9 @@ export async function prepareTaskActionForClient(
         }
         case "UpdateAccountName": {
             return action;
+        }
+        case "UpdateNotepadPage": {
+            return null;
         }
         default:
             throw exhaustive(action);

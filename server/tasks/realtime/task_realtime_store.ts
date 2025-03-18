@@ -863,6 +863,9 @@ export class TaskRealtimeStoreInternal {
                     }
                     break;
                 }
+                case "UpdateNotepadPage": {
+                    break;
+                }
                 default:
                     throw exhaustive(action);
             }

@@ -702,6 +702,9 @@ export class TaskRealtimeQuery {
                         // to add anything to `maybeAddVisibleTaskIdsToLoad`.
                         break;
                     }
+                    case "UpdateNotepadPage": {
+                        break;
+                    }
                     default:
                         throw exhaustive(action);
                 }

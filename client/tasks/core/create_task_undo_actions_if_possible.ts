@@ -343,7 +343,16 @@ export function createTaskUndoActionsIfPossible(
                     ((undoableSlice.startIndex === null || undoableSlice.startIndex <= index) &&
                         (undoableSlice.endIndex === null || index < undoableSlice.endIndex))
                 ) {
-                    pushTaskUndoAction(store.currentAccountId, getTask, action, undoActions);
+                    const result = pushTaskUndoAction(
+                        store.currentAccountId,
+                        getTask,
+                        action,
+                        undoActions,
+                    );
+
+                    if (result?.abort) {
+                        return null;
+                    }
                 }
 
                 const getActionReferencedSortableAccount =
@@ -396,6 +405,9 @@ export function createTaskUndoActionsIfPossible(
                 workingTaskEntryById.set(action.taskId, taskEntry);
                 break;
             }
+            case "UpdateNotepadPage": {
+                break;
+            }
             default:
                 throw exhaustive(action);
         }
@@ -423,7 +435,7 @@ function pushTaskUndoAction(
     getTask: (taskId: TaskId) => TaskModel | null,
     action: TaskUpdateTaskActionModel,
     undoActions: Array<TaskUndoAction>,
-) {
+): {abort: boolean} | undefined {
     switch (action.taskAction.type) {
         case "Create":
         case "Undelete": {
@@ -450,7 +462,7 @@ function pushTaskUndoAction(
         }
         case "UpdateParentTaskId": {
             const task = getTask(action.taskId);
-            if (!task) return null;
+            if (!task) return {abort: true};
 
             undoActions.push({
                 type: "UpdateTask",
@@ -466,7 +478,7 @@ function pushTaskUndoAction(
         }
         case "UpdateParentPosition": {
             const task = getTask(action.taskId);
-            if (!task) return null;
+            if (!task) return {abort: true};
 
             undoActions.push({
                 type: "UpdateTask",
@@ -498,11 +510,11 @@ function pushTaskUndoAction(
         }
         case "RemoveCollection": {
             const task = getTask(action.taskId);
-            if (!task) return null;
+            if (!task) return {abort: true};
 
             // If there is no order key, collection was not added in the first place.
             const orderKey = task.rawData.collections.getOrderKey(action.taskAction.collectionId);
-            if (!orderKey) return null;
+            if (!orderKey) return {abort: true};
 
             undoActions.push({
                 type: "UpdateTask",
@@ -518,11 +530,11 @@ function pushTaskUndoAction(
         }
         case "UpdateCollectionPosition": {
             const task = getTask(action.taskId);
-            if (!task) return null;
+            if (!task) return {abort: true};
 
             // If there is no version, collection was not part of task in the first place.
             const version = task.rawData.collections.getVersion(action.taskAction.collectionId);
-            if (!version) return null;
+            if (!version) return {abort: true};
 
             undoActions.push({
                 type: "UpdateTask",
@@ -545,7 +557,7 @@ function pushTaskUndoAction(
         }
         case "UpdateStatus": {
             const task = getTask(action.taskId);
-            if (!task) return null;
+            if (!task) return {abort: true};
 
             undoActions.push({
                 type: "UpdateTask",
@@ -561,7 +573,7 @@ function pushTaskUndoAction(
         }
         case "UpdateAssignee": {
             const task = getTask(action.taskId);
-            if (!task) return null;
+            if (!task) return {abort: true};
 
             undoActions.push({
                 type: "UpdateTask",
@@ -613,7 +625,7 @@ function pushTaskUndoAction(
         }
         case "UpdateAssigneeStatus": {
             const task = getTask(action.taskId);
-            if (!task) return null;
+            if (!task) return {abort: true};
 
             undoActions.push({
                 type: "UpdateTask",
@@ -628,7 +640,7 @@ function pushTaskUndoAction(
         }
         case "UpdateAssigneePosition": {
             const task = getTask(action.taskId);
-            if (!task) return null;
+            if (!task) return {abort: true};
 
             const accountId =
                 task.rawData.assigneePosition.value?.accountId ??
@@ -637,9 +649,7 @@ function pushTaskUndoAction(
             // If the task has neither `assigneePosition` or `assignee` then updating the
             // assignee position will fail since you may only update the assignee position
             // if your current user is assigned to a task.
-            if (!accountId) {
-                return null;
-            }
+            if (!accountId) return {abort: true};
 
             undoActions.push({
                 type: "UpdateTask",
@@ -682,7 +692,7 @@ function pushTaskUndoAction(
         }
         case "UpdateDueDate": {
             const task = getTask(action.taskId);
-            if (!task) return null;
+            if (!task) return {abort: true};
 
             undoActions.push({
                 type: "UpdateTask",
@@ -697,7 +707,7 @@ function pushTaskUndoAction(
         }
         case "UpdatePriority": {
             const task = getTask(action.taskId);
-            if (!task) return null;
+            if (!task) return {abort: true};
 
             undoActions.push({
                 type: "UpdateTask",
@@ -708,6 +718,10 @@ function pushTaskUndoAction(
                     priority: task.rawData.priority.value,
                 },
             });
+            break;
+        }
+        case "UpdateNotepadPagePosition":
+        case "UpdateAssigneeActivePosition": {
             break;
         }
         default:

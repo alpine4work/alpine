@@ -414,6 +414,10 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
                     throw exhaustive(action.priority);
             }
         }
+        case "UpdateNotepadPagePosition":
+        case "UpdateAssigneeActivePosition": {
+            return false;
+        }
         default:
             throw exhaustive(action);
     }

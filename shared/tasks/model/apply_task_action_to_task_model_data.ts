@@ -344,6 +344,10 @@ export function applyTaskActionToTaskModelData(
                 priority: newPriority,
             };
         }
+        case "UpdateNotepadPagePosition":
+        case "UpdateAssigneeActivePosition": {
+            return task;
+        }
         default:
             throw exhaustive(action);
     }

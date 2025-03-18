@@ -34,6 +34,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -1524,6 +1525,9 @@ export class TaskClientStoreInternal {
                     updateAccountNameActions.push({action, getActionReferencedSortableAccount});
                     break;
                 }
+                case "UpdateNotepadPage": {
+                    break;
+                }
                 default:
                     throw exhaustive(action);
             }
@@ -1977,6 +1981,9 @@ export class TaskClientStoreInternal {
                         case "UpdateAccountName": {
                             // Generic error message if this fails. The client shouldn't be committing
                             // this anyway.
+                            break;
+                        }
+                        case "UpdateNotepadPage": {
                             break;
                         }
                         default:
@@ -2738,9 +2745,10 @@ export class TaskClientStoreInternal {
                     });
                     continue;
                 }
-                case "UpdateAccountName": {
+                case "UpdateAccountName":
+                case "UpdateNotepadPage": {
                     throw new InternalError(
-                        "Can't optimistically apply `UpdateAccountName` action",
+                        quote`Can't optimistically apply ${action.type} action`,
                     );
                 }
                 default:
@@ -3170,9 +3178,10 @@ export class TaskClientStoreInternal {
                     });
                     continue;
                 }
-                case "UpdateAccountName": {
+                case "UpdateAccountName":
+                case "UpdateNotepadPage": {
                     throw new InternalError(
-                        "Can't optimistically apply `UpdateAccountName` action",
+                        quote`Can't optimistically apply ${action.type} action`,
                     );
                 }
                 default:
@@ -3631,9 +3640,10 @@ export class TaskClientStoreInternal {
                     }
                     continue;
                 }
-                case "UpdateAccountName": {
+                case "UpdateAccountName":
+                case "UpdateNotepadPage": {
                     throw new InternalError(
-                        "Can't optimistically apply `UpdateAccountName` action",
+                        quote`Can't optimistically apply ${action.type} action`,
                     );
                 }
                 default:
