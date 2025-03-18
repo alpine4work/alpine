@@ -2,6 +2,7 @@ import {CalendarDate} from "@internationalized/date";
 import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
 import {
+    TaskClientReadonlyStore,
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
     setShouldDisableCommitTaskActionTransactionMutexForTest,
@@ -175,7 +176,7 @@ afterEach(() => {
         throw InternalError.from(previousErrors[0], "Received error");
     }
 
-    const stores = new Set<TaskClientStore>();
+    const stores = new Set<TaskClientReadonlyStore>();
 
     const previousTaskSubscriptions = taskSubscriptions;
     taskSubscriptions = [];

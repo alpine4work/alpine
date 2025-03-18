@@ -8,7 +8,7 @@ import {getClientInfo, useBrowserId} from "~/client/remix/client_info_context.js
 import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
-    TaskClientStore,
+    TaskClientReadonlyStore,
     getParentTaskIdIfChildrenQuery,
 } from "~/client/tasks/core/task_client_store.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
@@ -53,7 +53,7 @@ function createTaskGridViewExpansionStateManager({
     broadcastChannelRef,
 }: {
     getContext: () => AppContext;
-    store: TaskClientStore;
+    store: TaskClientReadonlyStore;
     browserId: BrowserId;
     filters: TaskQueryNormalizedFilters;
     sorts: ReadonlyArray<TaskQueryNormalizedSort>;

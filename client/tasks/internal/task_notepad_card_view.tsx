@@ -30,7 +30,10 @@ import {
     taskNotepadViewActiveSectionCardGap,
 } from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
-import {TaskClientStoreSearchAffinityManager} from "~/client/tasks/core/task_client_store.js";
+import {
+    TaskClientStore,
+    TaskClientStoreSearchAffinityManager,
+} from "~/client/tasks/core/task_client_store.js";
 import {createDisplayTaskCollectionsStore} from "~/client/tasks/internal/create_display_task_collections_store.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {TaskCardViewContent} from "~/client/tasks/internal/task_card_view_content.js";
@@ -54,6 +57,7 @@ export {TaskNotepadCardViewMemo as TaskNotepadCardView};
 function TaskNotepadCardView({
     widthStyle,
     affinityManager,
+    store,
     query,
     taskId,
     assigneeActivePosition,
@@ -62,6 +66,7 @@ function TaskNotepadCardView({
 }: {
     widthStyle: string;
     affinityManager: TaskClientStoreSearchAffinityManager;
+    store: TaskClientStore;
     query: TaskClientQuery;
     taskId: TaskId;
     assigneeActivePosition: TaskPosition;
@@ -76,7 +81,6 @@ function TaskNotepadCardView({
 
     const cardRef = useRef<HTMLDivElement>(null);
 
-    const {store} = query;
     const {task} = useStore(query.getLoadedTaskEntryStore(taskId));
     const displayStatus = task?.getDisplayStatus() ?? "OpenInactive";
     const title = task?.getTitle() ?? emptyTaskTitleModel.get();
@@ -271,16 +275,19 @@ function TaskNotepadCardView({
 
         contextMenuActions.push(
             getTaskStatusMenuActions({
-                context,
                 timeZone,
                 currentAccount,
                 store,
-                // Can't undo changes from the notepad active section.
-                undoManager: null,
-                affinityManager,
                 task,
                 onCloseConfirmationDialogueOpen: ({onConfirm}) => {
                     setTaskCloseConfirmationState({taskId: task.id, onConfirm});
+                },
+                commitActionTransaction: getActions => {
+                    store.commitTaskActionTransaction(context, getActions(task.id), {
+                        // Can't undo changes from the notepad active section.
+                        undoManager: null,
+                        affinityManager,
+                    });
                 },
             }),
         );

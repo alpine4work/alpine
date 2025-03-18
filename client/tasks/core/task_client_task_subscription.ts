@@ -1,6 +1,5 @@
 import {
     TaskClientReadonlyStore,
-    TaskClientStore,
     TaskClientStoreInternal,
     TaskClientStoreTaskEntry,
 } from "~/client/tasks/core/task_client_store.js";

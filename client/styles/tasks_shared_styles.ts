@@ -1,4 +1,3 @@
-import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {
     contentStyles,
     fontSizes,
@@ -184,7 +183,7 @@ export const taskDetailViewMainMinHeightPx = createObjectFromKeys(
     spacingScale =>
         convertRemLengthToPx(
             addRemLengths(
-                navigationBarHeight,
+                navigationBarStyles.navigationBarHeight,
                 taskDetailViewTitleLineHeight,
                 taskDetailViewSectionGap,
                 taskDetailViewDenseFieldMinHeight,

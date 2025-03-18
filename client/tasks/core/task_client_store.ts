@@ -291,6 +291,8 @@ export interface TaskClientStoreSearchAffinityManager {
  */
 export type TaskClientReadonlyStore = Pick<
     TaskClientStore,
+    | "getTaskCountForTest"
+    | "getCollectionCountForTest"
     | "accountStore"
     | "spaceId"
     | "currentAccountId"
@@ -302,7 +304,13 @@ export type TaskClientReadonlyStore = Pick<
     | "getSubscriptionsStore"
     | "subscribeToBatchUpdate"
     | "waitForCommitTaskActionTransactions"
+    | "createAndRetainQuery"
+    | "createAndRetainQueries"
+    | "loadTasksIntoQuery"
+    | "ensureAndRetainTaskChildrenQuery"
     | "getTaskChildrenQueryStore"
+    | "createAndRetainTaskSubscription"
+    | "createAndRetainCollectionSubscription"
 >;
 
 /**

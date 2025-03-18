@@ -53,6 +53,7 @@ import {
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
+import {TaskAssigneePositionRegister} from "~/shared/tasks/task_assignee_position.js";
 import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
@@ -16180,6 +16181,10 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
                                 {type: "Inactive"},
                                 updateAssigneeTime1,
                             ),
+                            assigneePosition: new TaskAssigneePositionRegister(
+                                null,
+                                updateAssigneeTime1,
+                            ),
                             assigneeActivePosition: new TaskAssigneeActivePositionRegister(
                                 null,
                                 updateAssigneeTime1,
@@ -16298,6 +16303,10 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
                             ),
                             assigneeStatus: new TaskAssigneeStatusRegister(
                                 {type: "Inactive"},
+                                updateAssigneeTime2,
+                            ),
+                            assigneePosition: new TaskAssigneePositionRegister(
+                                null,
                                 updateAssigneeTime2,
                             ),
                             assigneeActivePosition: new TaskAssigneeActivePositionRegister(

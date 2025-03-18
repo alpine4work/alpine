@@ -233,6 +233,7 @@ function convertTaskIndexDocToModel(task: TaskIndexDoc): TaskModel {
         status: task.status,
         assignee: task.assignee,
         assigneeStatus: task.rawAssigneeStatus,
+        assigneePosition: task.rawAssigneePosition,
         assigneeActivePosition: task.rawAssigneeActivePosition,
         title: new TaskTitleModel(task.title.raw),
         dueDate: task.dueDate,

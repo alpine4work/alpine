@@ -25,6 +25,7 @@ import {
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
+import {TaskAssigneePositionRegister} from "~/shared/tasks/task_assignee_position.js";
 import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
@@ -3140,6 +3141,10 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             {type: "Inactive"},
                             updateAssigneeTime1,
                         ),
+                        assigneePosition: new TaskAssigneePositionRegister(
+                            null,
+                            updateAssigneeTime1,
+                        ),
                         assigneeActivePosition: new TaskAssigneeActivePositionRegister(
                             null,
                             updateAssigneeTime1,
@@ -3267,6 +3272,10 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             {type: "Inactive"},
                             updateAssigneeTime1,
                         ),
+                        assigneePosition: new TaskAssigneePositionRegister(
+                            null,
+                            updateAssigneeTime1,
+                        ),
                         assigneeActivePosition: new TaskAssigneeActivePositionRegister(
                             null,
                             updateAssigneeTime1,
@@ -3387,6 +3396,10 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                         ),
                         assigneeStatus: new TaskAssigneeStatusRegister(
                             {type: "Inactive"},
+                            updateAssigneeTime1,
+                        ),
+                        assigneePosition: new TaskAssigneePositionRegister(
+                            null,
                             updateAssigneeTime1,
                         ),
                         assigneeActivePosition: new TaskAssigneeActivePositionRegister(
@@ -3516,6 +3529,10 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             {type: "Inactive"},
                             updateAssigneeTime2,
                         ),
+                        assigneePosition: new TaskAssigneePositionRegister(
+                            null,
+                            updateAssigneeTime2,
+                        ),
                         assigneeActivePosition: new TaskAssigneeActivePositionRegister(
                             null,
                             updateAssigneeTime2,
@@ -3643,6 +3660,10 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             {type: "Inactive"},
                             updateAssigneeTime2,
                         ),
+                        assigneePosition: new TaskAssigneePositionRegister(
+                            null,
+                            updateAssigneeTime2,
+                        ),
                         assigneeActivePosition: new TaskAssigneeActivePositionRegister(
                             null,
                             updateAssigneeTime2,
@@ -3765,6 +3786,10 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             {type: "Inactive"},
                             updateAssigneeTime2,
                         ),
+                        assigneePosition: new TaskAssigneePositionRegister(
+                            null,
+                            updateAssigneeTime2,
+                        ),
                         assigneeActivePosition: new TaskAssigneeActivePositionRegister(
                             null,
                             updateAssigneeTime2,
@@ -3874,6 +3899,10 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             {type: "Inactive"},
                             updateAssigneeTime3,
                         ),
+                        assigneePosition: new TaskAssigneePositionRegister(
+                            null,
+                            updateAssigneeTime3,
+                        ),
                         assigneeActivePosition: new TaskAssigneeActivePositionRegister(
                             null,
                             updateAssigneeTime3,
@@ -3981,6 +4010,10 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             {type: "Inactive"},
                             updateAssigneeTime3,
                         ),
+                        assigneePosition: new TaskAssigneePositionRegister(
+                            null,
+                            updateAssigneeTime3,
+                        ),
                         assigneeActivePosition: new TaskAssigneeActivePositionRegister(
                             null,
                             updateAssigneeTime3,
@@ -4086,6 +4119,10 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                         ),
                         assigneeStatus: new TaskAssigneeStatusRegister(
                             {type: "Inactive"},
+                            updateAssigneeTime3,
+                        ),
+                        assigneePosition: new TaskAssigneePositionRegister(
+                            null,
                             updateAssigneeTime3,
                         ),
                         assigneeActivePosition: new TaskAssigneeActivePositionRegister(

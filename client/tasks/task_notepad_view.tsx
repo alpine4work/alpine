@@ -551,6 +551,7 @@ export function TaskNotepadView({
                                     node: (
                                         <>
                                             <TaskNotepadViewActiveSection
+                                                store={store}
                                                 affinityManager={affinityManager}
                                                 assigneeActiveQuery={assigneeActiveQuery}
                                                 activeDraggableData={activeDraggableData}
@@ -576,6 +577,7 @@ export function TaskNotepadView({
                             paginatorElement,
                             platform,
                             renderGridViewItem,
+                            store,
                         ],
                     )}
                     onRenderedRangeChange={range => {

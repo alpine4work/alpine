@@ -50,6 +50,7 @@ assertEqualTypes<
     | "ActivatedTime"
     | "ParentPosition"
     | "CollectionPosition"
+    | "AssigneePosition"
     | "NotepadPagePosition"
     | "AssigneeActivePosition"
 >();

@@ -29,7 +29,10 @@ import {
     taskNotepadViewActiveSectionTitleFontSize,
 } from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
-import {TaskClientStoreSearchAffinityManager} from "~/client/tasks/core/task_client_store.js";
+import {
+    TaskClientStore,
+    TaskClientStoreSearchAffinityManager,
+} from "~/client/tasks/core/task_client_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
 import {TaskNotepadCardView} from "~/client/tasks/internal/task_notepad_card_view.js";
@@ -71,11 +74,13 @@ const TaskNotepadViewActiveSectionMemo = memo(TaskNotepadViewActiveSection);
 export {TaskNotepadViewActiveSectionMemo as TaskNotepadViewActiveSection};
 
 function TaskNotepadViewActiveSection({
+    store,
     affinityManager,
     assigneeActiveQuery,
     activeDraggableData,
     overDroppableData,
 }: {
+    store: TaskClientStore;
     affinityManager: TaskClientStoreSearchAffinityManager;
     assigneeActiveQuery: TaskClientQuery;
     activeDraggableData: TaskGridViewDraggableData | undefined;
@@ -218,6 +223,7 @@ function TaskNotepadViewActiveSection({
                         key={taskId}
                         widthStyle={cardWidthStyle}
                         affinityManager={affinityManager}
+                        store={store}
                         query={assigneeActiveQuery}
                         taskId={taskId}
                         assigneeActivePosition={assigneeActivePosition}
@@ -403,7 +409,7 @@ function TaskNotepadViewActiveSection({
             </Box>
             {taskDeleteConfirmationState && (
                 <TaskDeleteConfirmationModalDialog
-                    store={assigneeActiveQuery.store}
+                    store={store}
                     // Can't undo changes from the notepad active section.
                     undoManager={null}
                     taskId={taskDeleteConfirmationState.taskId}
