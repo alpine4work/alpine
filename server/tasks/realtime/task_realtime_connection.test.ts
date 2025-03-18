@@ -16179,7 +16179,7 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
                             ),
                             assigneePosition: new TaskAssigneePositionRegister(
                                 null,
-                                updateAssigneeTime1,
+                                task.createdTime,
                             ),
                             title: new TaskTitleModel(emptyTaskTitle.get()),
                             dueDate: new TaskDueDateRegister(null, task.createdTime),
@@ -16297,7 +16297,7 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
                             ),
                             assigneePosition: new TaskAssigneePositionRegister(
                                 null,
-                                updateAssigneeTime2,
+                                task.createdTime,
                             ),
                             title: new TaskTitleModel(emptyTaskTitle.get()),
                             dueDate: new TaskDueDateRegister(null, task.createdTime),

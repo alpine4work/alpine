@@ -31,7 +31,6 @@ import {
     spinAnimationClassName,
 } from "~/client/styles/styles.js";
 import {
-    taskGridViewColumnHeaderExtraPaddingBottomPx,
     taskRowViewMinHeight,
     taskRowViewPaddingBottom,
 } from "~/client/styles/tasks_shared_styles.js";
@@ -122,7 +121,6 @@ function TaskGridViewColumnHeader(
                 style={{
                     top: !shouldRenderWithRelativePositioning ? 0 : undefined,
                     minHeight,
-                    paddingBottom: taskGridViewColumnHeaderExtraPaddingBottomPx,
                 }}
             >
                 <Box zIndex="-10" position="absolute" inset="0" backgroundColor="grey-0">

@@ -908,6 +908,7 @@ const taskTaskActionTestCases: Array<{
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
+                    assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                 },
             };
         },
@@ -948,6 +949,7 @@ const taskTaskActionTestCases: Array<{
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
+                    assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                 },
             };
         },
@@ -1041,6 +1043,7 @@ const taskTaskActionTestCases: Array<{
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
+                    assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                 },
             };
         },
@@ -1100,6 +1103,7 @@ const taskTaskActionTestCases: Array<{
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
+                    assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                 },
             };
         },
@@ -1159,6 +1163,7 @@ const taskTaskActionTestCases: Array<{
                         }),
                     },
                     assigneeStatus: {type: "Inactive"},
+                    assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                 },
             };
         },
@@ -1233,6 +1238,7 @@ const taskTaskActionTestCases: Array<{
                         }),
                     },
                     assigneeStatus: {type: "Inactive"},
+                    assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                 },
             };
         },
@@ -1292,6 +1298,7 @@ const taskTaskActionTestCases: Array<{
                         }),
                     },
                     assigneeStatus: {type: "Inactive"},
+                    assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                 },
             };
         },
@@ -1358,6 +1365,7 @@ const taskTaskActionTestCases: Array<{
                         }),
                     },
                     assigneeStatus: {type: "Inactive"},
+                    assigneePosition: {orderTime: time4, orderKey: initialOrderKey},
                 },
             };
         },
@@ -1424,6 +1432,7 @@ const taskTaskActionTestCases: Array<{
                         }),
                     },
                     assigneeStatus: {type: "Inactive"},
+                    assigneePosition: {orderTime: time4, orderKey: initialOrderKey},
                 },
             };
         },
@@ -1557,13 +1566,13 @@ const taskTaskActionTestCases: Array<{
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
-                    assigneePosition: {orderTime: time3, orderKey: initialOrderKey},
+                    assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                 },
             };
         },
     },
     {
-        name: "updating status resets assignee position",
+        name: "updating status doesn't reset assignee position",
         create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
@@ -1639,7 +1648,7 @@ const taskTaskActionTestCases: Array<{
                         }),
                     },
                     assigneeStatus: {type: "Inactive"},
-                    assigneePosition: null,
+                    assigneePosition: {orderTime: time3, orderKey: assertOrderKey("a2")},
                 },
             };
         },
@@ -1713,13 +1722,13 @@ const taskTaskActionTestCases: Array<{
                         }),
                     },
                     assigneeStatus: {type: "Inactive"},
-                    assigneePosition: null,
+                    assigneePosition: {orderTime: time5, orderKey: initialOrderKey},
                 },
             };
         },
     },
     {
-        name: "updating assignee status resets assignee position",
+        name: "updating assignee status doesn't resets assignee position",
         create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
@@ -1780,7 +1789,7 @@ const taskTaskActionTestCases: Array<{
                         }),
                     },
                     assigneeStatus: {type: "Inactive"},
-                    assigneePosition: null,
+                    assigneePosition: {orderTime: time3, orderKey: assertOrderKey("a2")},
                 },
             };
         },
@@ -3766,6 +3775,7 @@ const taskActionTestCases: Array<{
                                 assigner: creator,
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                 ],
@@ -3838,6 +3848,7 @@ const taskActionTestCases: Array<{
                                 },
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                 ],
@@ -3925,6 +3936,7 @@ const taskActionTestCases: Array<{
                                 assigner: creator,
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                     {
@@ -3939,6 +3951,7 @@ const taskActionTestCases: Array<{
                                 assigner: creator,
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                 ],
@@ -4026,6 +4039,7 @@ const taskActionTestCases: Array<{
                                 assigner: creator,
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                     {
@@ -4036,6 +4050,7 @@ const taskActionTestCases: Array<{
                                 assigner: creator,
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                 ],
@@ -4099,6 +4114,7 @@ const taskActionTestCases: Array<{
                                 },
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                 ],
@@ -4186,6 +4202,7 @@ const taskActionTestCases: Array<{
                                 },
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                     {
@@ -4200,6 +4217,7 @@ const taskActionTestCases: Array<{
                                 },
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                 ],
@@ -4287,6 +4305,7 @@ const taskActionTestCases: Array<{
                                 },
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                     {
@@ -4297,6 +4316,7 @@ const taskActionTestCases: Array<{
                                 assigner: creator,
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                 ],

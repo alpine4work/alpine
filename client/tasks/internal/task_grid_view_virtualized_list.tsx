@@ -35,7 +35,6 @@ import {
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {tasksStyles} from "~/client/styles/styles.js";
 import {
-    taskGridViewColumnHeaderExtraPaddingBottomPx,
     taskGridViewColumnHeaderHeight,
     taskRowTitleInputPaddingYPx,
     taskRowViewMinHeight,
@@ -3075,8 +3074,7 @@ export function getTaskGridViewColumnHeaderWithControlsHeight(
             : columnHeaderControlsHeight) +
         (capabilities.hasColumns
             ? convertRemLengthToPx(taskGridViewColumnHeaderHeight, spacingScale)
-            : 0) +
-        taskGridViewColumnHeaderExtraPaddingBottomPx
+            : 0)
     );
 }
 

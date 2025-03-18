@@ -37,12 +37,6 @@ export const taskDetailViewStatusButtonMobilePaddingBottom = "2";
 
 export const taskGridViewColumnHeaderHeight = "4";
 
-// It takes 2px to render the bottom borders on our column header. 1px for the
-// border itself and 1px below that to avoid covering the first row's bottom
-// border. We don't want to take those 2px from the column header's height so
-// we need to add back some extra padding bottom height.
-export const taskGridViewColumnHeaderExtraPaddingBottomPx = 2;
-
 export const taskRowViewMinHeight = "10";
 
 const taskRowViewColumnWidthRem = spacing["32"];

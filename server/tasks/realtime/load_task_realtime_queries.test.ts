@@ -3010,7 +3010,7 @@ test("loads a query as an anonymous actor", async () => {
     ).rejects.toThrow("Account doesn't have access to space");
 });
 
-test("task creator, closer and assigner are obfuscated for anonymous actors but assignee is shared", async () => {
+test("task creator, closer, and assigner are obfuscated for anonymous actors but assignee is shared", async () => {
     const space = await TestSpace.create(context);
     const [creatorSession, closerSession, assignerSession1, assignerSession2, assigneeSession] =
         await space.createSessions(5);
@@ -3137,10 +3137,7 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             {type: "Inactive"},
                             updateAssigneeTime1,
                         ),
-                        assigneePosition: new TaskAssigneePositionRegister(
-                            null,
-                            updateAssigneeTime1,
-                        ),
+                        assigneePosition: new TaskAssigneePositionRegister(null, task.createdTime),
                         title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
@@ -3262,10 +3259,7 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             {type: "Inactive"},
                             updateAssigneeTime1,
                         ),
-                        assigneePosition: new TaskAssigneePositionRegister(
-                            null,
-                            updateAssigneeTime1,
-                        ),
+                        assigneePosition: new TaskAssigneePositionRegister(null, task.createdTime),
                         title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
@@ -3382,10 +3376,7 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             {type: "Inactive"},
                             updateAssigneeTime1,
                         ),
-                        assigneePosition: new TaskAssigneePositionRegister(
-                            null,
-                            updateAssigneeTime1,
-                        ),
+                        assigneePosition: new TaskAssigneePositionRegister(null, task.createdTime),
                         title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
@@ -3507,10 +3498,7 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             {type: "Inactive"},
                             updateAssigneeTime2,
                         ),
-                        assigneePosition: new TaskAssigneePositionRegister(
-                            null,
-                            updateAssigneeTime2,
-                        ),
+                        assigneePosition: new TaskAssigneePositionRegister(null, task.createdTime),
                         title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
@@ -3632,10 +3620,7 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             {type: "Inactive"},
                             updateAssigneeTime2,
                         ),
-                        assigneePosition: new TaskAssigneePositionRegister(
-                            null,
-                            updateAssigneeTime2,
-                        ),
+                        assigneePosition: new TaskAssigneePositionRegister(null, task.createdTime),
                         title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
@@ -3752,10 +3737,7 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             {type: "Inactive"},
                             updateAssigneeTime2,
                         ),
-                        assigneePosition: new TaskAssigneePositionRegister(
-                            null,
-                            updateAssigneeTime2,
-                        ),
+                        assigneePosition: new TaskAssigneePositionRegister(null, task.createdTime),
                         title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
@@ -3859,10 +3841,7 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             {type: "Inactive"},
                             updateAssigneeTime3,
                         ),
-                        assigneePosition: new TaskAssigneePositionRegister(
-                            null,
-                            updateAssigneeTime3,
-                        ),
+                        assigneePosition: new TaskAssigneePositionRegister(null, task.createdTime),
                         title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
@@ -3964,10 +3943,7 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             {type: "Inactive"},
                             updateAssigneeTime3,
                         ),
-                        assigneePosition: new TaskAssigneePositionRegister(
-                            null,
-                            updateAssigneeTime3,
-                        ),
+                        assigneePosition: new TaskAssigneePositionRegister(null, task.createdTime),
                         title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
@@ -4069,10 +4045,7 @@ test("task creator, closer and assigner are obfuscated for anonymous actors but 
                             {type: "Inactive"},
                             updateAssigneeTime3,
                         ),
-                        assigneePosition: new TaskAssigneePositionRegister(
-                            null,
-                            updateAssigneeTime3,
-                        ),
+                        assigneePosition: new TaskAssigneePositionRegister(null, task.createdTime),
                         title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),

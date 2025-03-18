@@ -97,7 +97,6 @@ import {
     taskDetailViewSubtasksFieldLabelPaddingBottom,
     taskDetailViewTitleFontSize,
     taskDetailViewTitleLineHeight,
-    taskGridViewColumnHeaderExtraPaddingBottomPx,
     taskGridViewColumnHeaderHeight,
     taskQueryViewCustomizationMobileLayoutMarginTop,
     taskQueryViewCustomizationMobileSectionGap,
@@ -181,13 +180,14 @@ const shimmerOptionsByRouteId: {
     },
     "routes/s.$spaceId.posts.new.$draftId": {component: NewPostRouteShimmer},
     "routes/s.$spaceId.search": {component: SearchRouteShimmer},
+    "routes/s.$spaceId.tasks._index": {component: TaskPersonalRouteShimmer},
     // TODO: `inboxBannerMaxWidth` for this route.
     "routes/s.$spaceId.tasks.$taskId._index": {component: TaskDetailRouteShimmer},
     "routes/s.$spaceId.tasks.$taskId.comments": {
         inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: TaskCommentsRouteShimmer,
     },
-    "routes/s.$spaceId.tasks.collections.$collectionId": {component: TaskGridRouteShimmer},
+    "routes/s.$spaceId.tasks.collections.$collectionId": {component: TaskCollectionRouteShimmer},
     "routes/s.$spaceId.tasks.view": {component: TaskQueryRouteShimmer},
 
     // TODO(calebmer): We don't currently have a design for these routes. Once we
@@ -1474,7 +1474,7 @@ function TaskDetailRouteShimmer({searchParams}: {searchParams: URLSearchParams})
                     <TextShimmer
                         fontSize={{
                             fontSize: fontSizes[taskDetailViewTitleFontSize].fontSize,
-                            lineHeight: taskDetailViewTitleLineHeight,
+                            lineHeight: spacing[taskDetailViewTitleLineHeight],
                         }}
                         width="64"
                     />
@@ -1574,9 +1574,11 @@ export function TaskCommentsViewShimmer({withNavigationBar}: {withNavigationBar?
 
 function TaskGridRouteShimmer({
     titleWidth,
+    titlePaddingLeft,
     customizationBar,
 }: {
-    titleWidth?: Spacing;
+    titleWidth: Spacing;
+    titlePaddingLeft?: Spacing;
     customizationBar?: ReactNode;
 }) {
     const platform = usePlatform();
@@ -1585,38 +1587,35 @@ function TaskGridRouteShimmer({
     return (
         <Box width="full" height="full" overflow="hidden">
             <Box height="safe-area-inset-top" />
-            {platform !== "mobile" ? (
+            {platform === "mobile" ? (
                 <Box
                     height={navigationBarHeight}
                     display="flex"
                     alignItems="center"
-                    paddingX={screenPaddingX}
+                    justifyContent="space-between"
+                    paddingX={navigationBarMobileGap}
                 >
-                    <TextShimmer fontSize="200" width={titleWidth ?? "48"} />
+                    <MobileBackButton />
+                    <TextShimmer fontSize="100" width="24" />
+                    <MobileBackButtonSpacer />
                 </Box>
             ) : (
-                <Box paddingY="2">
-                    <Box height="7" />
+                <Box
+                    height={navigationBarHeight}
+                    display="flex"
+                    alignItems="center"
+                    paddingLeft={titlePaddingLeft ?? screenPaddingX}
+                    paddingRight={screenPaddingX}
+                >
+                    <TextShimmer fontSize="200" width={titleWidth} />
                 </Box>
             )}
             <Box position="relative" paddingX={screenPaddingX}>
                 {customizationBar}
-                <Box
-                    position="absolute"
-                    bottom="0"
-                    left={screenPaddingX}
-                    right={screenPaddingX}
-                    borderBottom={routeLayout === "narrow" ? "grey-5" : undefined}
-                />
+                <Box position="absolute" bottom="0" left={screenPaddingX} right={screenPaddingX} />
             </Box>
             {routeLayout !== "narrow" && (
-                <Box
-                    paddingRight={screenPaddingX}
-                    borderBottom="grey-5"
-                    style={{
-                        height: `calc(${spacing[taskGridViewColumnHeaderHeight]} + ${taskGridViewColumnHeaderExtraPaddingBottomPx}px)`,
-                    }}
-                >
+                <Box height={taskGridViewColumnHeaderHeight} paddingRight={screenPaddingX}>
                     <Box height={taskGridViewColumnHeaderHeight} display="flex" alignItems="center">
                         <Box
                             flexGrow="1"
@@ -1685,12 +1684,29 @@ function TaskGridRouteShimmer({
     );
 }
 
+function TaskPersonalRouteShimmer() {
+    const routeLayout = useRouteLayout();
+
+    return (
+        <TaskGridRouteShimmer
+            titleWidth="20"
+            titlePaddingLeft={routeLayout !== "narrow" ? "10" : undefined}
+        />
+    );
+}
+
+function TaskCollectionRouteShimmer() {
+    return <TaskGridRouteShimmer titleWidth="48" />;
+}
+
 function TaskQueryRouteShimmer() {
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
 
     return (
         <TaskGridRouteShimmer
+            titleWidth="48"
+            titlePaddingLeft={routeLayout !== "narrow" ? "10" : undefined}
             customizationBar={
                 routeLayout === "narrow" &&
                 (platform === "mobile" ? (

@@ -10506,7 +10506,7 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new PermissionDeniedError(
-                "Can only update the task's active position if you are the task's assignee",
+                "Can only update the task's assignee position if you are the task's assignee",
             ),
         );
     });
@@ -10544,7 +10544,7 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new PermissionDeniedError(
-                "Can only update the task's active position if you are the task's assignee",
+                "Can only update the task's assignee position if you are the task's assignee",
             ),
         );
     });
@@ -10598,7 +10598,7 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new PermissionDeniedError(
-                "Must use the actor `AccountId` when updating the task's active position",
+                "Must use the actor `AccountId` when updating the task's assignee position",
             ),
         );
     });
