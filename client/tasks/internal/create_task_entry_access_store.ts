@@ -32,6 +32,16 @@ export type TaskAccess =
 // https://en.wikipedia.org/wiki/String_interning
 const taskAccessInternMap = new Map<string, TaskAccess>();
 
+export function getPermissionGrantedTaskAccess(level: AccessLevel) {
+    const access: TaskAccess = {type: "PermissionGranted", level};
+    return getOrSetDefaultMapValue(taskAccessInternMap, jsonStableStringify(access), () => access);
+}
+
+export function getPermissionDeniedTaskAccess() {
+    const access: TaskAccess = {type: "PermissionDenied", level: null};
+    return getOrSetDefaultMapValue(taskAccessInternMap, jsonStableStringify(access), () => access);
+}
+
 /**
  * Determines whether our client has access to the provided task and at what
  * access level. This is a client-side implementation of the server-side task

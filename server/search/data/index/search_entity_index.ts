@@ -1663,15 +1663,15 @@ export async function searchByAffinity(
 
     const affinities = await internalGetSearchAffinities(context, {spaceId, limit});
 
-    let taskNotepadAffinityIndex: number | null = null;
+    let taskPersonalAffinityIndex: number | null = null;
     const entityIds: Array<SearchEntityId> = [];
     const entities: Array<Replace<(typeof affinities)[number], {affinityId: SearchEntityId}>> = [];
 
     for (let i = 0; i < affinities.length; i++) {
         const affinity = affinities[i]!;
 
-        if (affinity.affinityId === "TaskNotepad") {
-            taskNotepadAffinityIndex = i;
+        if (affinity.affinityId === "TaskPersonal") {
+            taskPersonalAffinityIndex = i;
         } else {
             entityIds.push(affinity.affinityId);
             entities.push(
@@ -1745,15 +1745,15 @@ export async function searchByAffinity(
         }),
     );
 
-    // Add back the task notepad item. We don't have to load it from
+    // Add back the personal tasks item. We don't have to load it from
     // OpenSearch since it doesn't exist in OpenSearch.
-    if (taskNotepadAffinityIndex !== null) {
-        const affinity = affinities[taskNotepadAffinityIndex]!;
+    if (taskPersonalAffinityIndex !== null) {
+        const affinity = affinities[taskPersonalAffinityIndex]!;
 
-        results.splice(taskNotepadAffinityIndex, 0, {
-            id: "TaskNotepad",
+        results.splice(taskPersonalAffinityIndex, 0, {
+            id: "TaskPersonal",
             score: affinity.points,
-            title: "Task notepad",
+            title: "My tasks",
             bodyTextSnippet: [],
             media: null,
         });

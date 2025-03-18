@@ -28,7 +28,7 @@ import {
     taskRowViewColumnWidth,
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
-import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientReadonlyStore} from "~/client/tasks/core/task_client_store.js";
 import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
@@ -106,17 +106,17 @@ function TaskRowDueDateCell(
         onCellKeyDownCapture,
         focusPreviousCell,
         focusNextCell,
-        commitActionTransactionEvenIfGhost,
+        commitActionTransaction,
     }: {
         isReadOnly: boolean;
-        store: TaskClientStore;
+        store: TaskClientReadonlyStore;
         task: TaskModel | null;
         disableExpensiveFeaturesDuringScroll: boolean;
         onCellKeyDown: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
         focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
-        commitActionTransactionEvenIfGhost: Memo<
+        commitActionTransaction: Memo<
             (getActions: (taskId: TaskId) => Array<TaskActionModel>) => void
         >;
     },
@@ -186,7 +186,7 @@ function TaskRowDueDateCell(
     );
 
     const handleDueDateChange = (dueDate: CalendarDate | null) => {
-        commitActionTransactionEvenIfGhost(taskId => [
+        commitActionTransaction(taskId => [
             {
                 type: "UpdateTask",
                 time: store.clock.now(),

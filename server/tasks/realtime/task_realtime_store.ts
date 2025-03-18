@@ -833,11 +833,6 @@ export class TaskRealtimeStoreInternal {
                     }
                     break;
                 }
-                case "UpdateNotepadPage": {
-                    cast<"Create">(action.notepadPageAction.type);
-                    // Doesn't affect store data
-                    break;
-                }
                 case "UpdateAccountName": {
                     for (const taskEntry of this._taskEntryById.values()) {
                         const oldTask = taskEntry.task;
@@ -866,6 +861,9 @@ export class TaskRealtimeStoreInternal {
                             ),
                         })).actions.push(action);
                     }
+                    break;
+                }
+                case "UpdateNotepadPage": {
                     break;
                 }
                 default:

@@ -12,6 +12,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
+import {filterAsyncIterableIterator} from "~/shared/helpers/iterable/filter_async_iterable_iterator.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {Id, assertId} from "~/shared/id/id.js";
 import {
@@ -833,15 +834,24 @@ export async function internalGetSearchAffinities(
         spaceId,
         limit,
         queryItems: () =>
-            AccountAffinitiveSearchEntitiesIndex.query(context, {
-                partitionKey: {
-                    accountId,
-                    spaceId,
-                },
-                descending: true,
-                limit: "All",
-                pageLimit: searchAffinityQueryPageLimit,
-            }),
+            filterAsyncIterableIterator(
+                AccountAffinitiveSearchEntitiesIndex.query(context, {
+                    partitionKey: {
+                        accountId,
+                        spaceId,
+                    },
+                    descending: true,
+                    limit: "All",
+                    pageLimit: searchAffinityQueryPageLimit,
+                }),
+                item =>
+                    // NOTE(calebmer, 2025-03-18): Needed for backwards compatibility. We used to
+                    // have a task notepad affinity entity. Make sure we don't return it from this
+                    // function since it will cause problems. Eventually (maybe in six months?),
+                    // affinity items for `entityId` `TaskNotepad` will expire and we can
+                    // remove this.
+                    (item as any).entityId !== "TaskNotepad",
+            ),
         deleteItem: item => SearchEntityTable.deleteItem(context, item),
         directlyUpdateItem: (item, newAttributes) =>
             SearchEntityTable.directlyUpdateItem(context, {...item, ...newAttributes}),

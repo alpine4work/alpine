@@ -2536,7 +2536,7 @@ test("highlighting bullet points with bold formatting works well", async () => {
     });
 });
 
-test("search by affinity can include the task notepad", async () => {
+test("search by affinity can include my tasks", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -2546,7 +2546,7 @@ test("search by affinity can include the task notepad", async () => {
 
     await markSearchAffinityInteraction(session1.action(), {
         spaceId: space.id,
-        affinityId: "TaskNotepad",
+        affinityId: "TaskPersonal",
         interaction: {type: "HighIntentUpdate"},
     });
 
@@ -2573,9 +2573,9 @@ test("search by affinity can include the task notepad", async () => {
                 media: null,
             },
             {
-                id: "TaskNotepad",
+                id: "TaskPersonal",
                 score: expect.closeTo(3),
-                title: "Task notepad",
+                title: "My tasks",
                 bodyTextSnippet: [],
                 media: null,
             },

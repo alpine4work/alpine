@@ -7,22 +7,22 @@ import {Spacing, parseRemLength} from "~/shared/design/core/spacing.js";
 export const navigationBarHeight: Spacing = "14";
 export const navigationBarHeightRem = parseRemLength(navigationBarHeight);
 
-const navigationBarTitleFadeOutKeyframes = keyframes({
+const titleFadeOutKeyframes = keyframes({
     from: {opacity: 1, transform: "translateY(0rem)"},
     to: {opacity: 0, transform: "translateY(-0.25rem)"},
 });
 
-export const navigationBarTitleFadeOutAnimationClassName = style({
+export const titleFadeOutAnimationClassName = style({
     transformOrigin: "top center",
-    animation: `${navigationBarTitleFadeOutKeyframes} 250ms ${easeOutQuart.cubicBezier} forwards`,
+    animation: `${titleFadeOutKeyframes} 250ms ${easeOutQuart.cubicBezier} forwards`,
 });
 
-const navigationBarTitleFadeInKeyframes = keyframes({
+const titleFadeInKeyframes = keyframes({
     from: {opacity: 0, transform: "translateY(-0.25rem)"},
     to: {opacity: 1, transform: "translateY(0rem)"},
 });
 
-export const navigationBarTitleFadeInAnimationClassName = style({
+export const titleFadeInAnimationClassName = style({
     transformOrigin: "top center",
-    animation: `${navigationBarTitleFadeInKeyframes} 250ms ${easeInQuart.cubicBezier} forwards`,
+    animation: `${titleFadeInKeyframes} 250ms ${easeInQuart.cubicBezier} forwards`,
 });

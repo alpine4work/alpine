@@ -233,6 +233,12 @@ function TaskQueryViewCustomizationBar(
                         icon={<SortAscending />}
                         height={taskQueryFilterEditorDesktopHeight}
                         paddingX="2"
+                        // Don't focus the button on press since pressing will open the overlay and
+                        // should focus the overlay.
+                        //
+                        // TODO(calebmer): Find a way to automate this instead of setting this prop
+                        // manually on every `<Button>` wrapped in an `<OverlayTriggerButton>`.
+                        withoutFocusOnPress={true}
                     >
                         {sorts.length === 0
                             ? "Sort"

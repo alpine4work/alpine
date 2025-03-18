@@ -1,7 +1,6 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import createJsonBigInt from "json-bigint";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
 import {
@@ -25,7 +24,6 @@ import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {
     TaskQueryNormalizedSort,
     normalizeTaskQuerySorts,
@@ -229,11 +227,10 @@ function convertTaskIndexDocToModel(task: TaskIndexDoc): TaskModel {
         removedClosedChildTaskCount: task.removedClosedChildTaskCount,
         collections: task.collections.raw.collections,
         positionByCollectionId: task.collections.raw.positionById,
-        positionByAccountIdAndNotepadPageId: task.notepadPages.raw.positionById,
         status: task.status,
         assignee: task.assignee,
         assigneeStatus: task.rawAssigneeStatus,
-        assigneeActivePosition: task.rawAssigneeActivePosition,
+        assigneePosition: task.rawAssigneePosition,
         title: new TaskTitleModel(task.title.raw),
         dueDate: task.dueDate,
         priority: task.priority,
@@ -2491,328 +2488,7 @@ test("sorts by parent position", async () => {
     ]);
 });
 
-test("sorts by notepad page position", async () => {
-    const space = await TestSpace.create(context);
-    const session1 = await space.createSession();
-
-    const task1Id = generateId<TaskId>();
-    const task2Id = generateId<TaskId>();
-    const task3Id = generateId<TaskId>();
-    const task4Id = generateId<TaskId>();
-    const task5Id = generateId<TaskId>();
-    const task6Id = generateId<TaskId>();
-    const task7Id = generateId<TaskId>();
-    const task8Id = generateId<TaskId>();
-
-    const notepadPage1Id = generateTaskNotepadPageId(testClock);
-    const notepadPage2Id = (notepadPage1Id + 1) as TaskNotepadPageId;
-
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
-        {
-            type: "UpdateNotepadPage",
-            time: clock.now(),
-            accountId: session1.account.id,
-            notepadPageId: notepadPage1Id,
-            notepadPageAction: {
-                type: "Create",
-            },
-        },
-        {
-            type: "UpdateNotepadPage",
-            time: clock.now(),
-            accountId: session1.account.id,
-            notepadPageId: notepadPage2Id,
-            notepadPageAction: {
-                type: "Create",
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task1Id,
-            taskAction: {
-                type: "Create",
-                creatorId: session1.account.id,
-                creatorTimeZone: defaultTimeZone,
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task2Id,
-            taskAction: {
-                type: "Create",
-                creatorId: session1.account.id,
-                creatorTimeZone: defaultTimeZone,
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task3Id,
-            taskAction: {
-                type: "Create",
-                creatorId: session1.account.id,
-                creatorTimeZone: defaultTimeZone,
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task4Id,
-            taskAction: {
-                type: "Create",
-                creatorId: session1.account.id,
-                creatorTimeZone: defaultTimeZone,
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task5Id,
-            taskAction: {
-                type: "Create",
-                creatorId: session1.account.id,
-                creatorTimeZone: defaultTimeZone,
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task6Id,
-            taskAction: {
-                type: "Create",
-                creatorId: session1.account.id,
-                creatorTimeZone: defaultTimeZone,
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task7Id,
-            taskAction: {
-                type: "Create",
-                creatorId: session1.account.id,
-                creatorTimeZone: defaultTimeZone,
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task8Id,
-            taskAction: {
-                type: "Create",
-                creatorId: session1.account.id,
-                creatorTimeZone: defaultTimeZone,
-            },
-        },
-    ]);
-
-    const time1 = clock.now();
-    const time2 = clock.now();
-    const time3 = clock.now();
-    const time4 = clock.now();
-    const time5 = clock.now();
-    const time6 = clock.now();
-    const time7 = clock.now();
-    const time8 = clock.now();
-    const time9 = clock.now();
-
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
-        {
-            type: "UpdateTask",
-            time: time1,
-            taskId: task1Id,
-            taskAction: {
-                type: "UpdateNotepadPagePosition",
-                notepadPageId: notepadPage1Id,
-                accountId: session1.account.id,
-                position: {orderTime: time1, orderKey: initialOrderKey},
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: time2,
-            taskId: task2Id,
-            taskAction: {
-                type: "UpdateNotepadPagePosition",
-                notepadPageId: notepadPage1Id,
-                accountId: session1.account.id,
-                position: {orderTime: time2, orderKey: initialOrderKey},
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: time3,
-            taskId: task3Id,
-            taskAction: {
-                type: "UpdateNotepadPagePosition",
-                notepadPageId: notepadPage1Id,
-                accountId: session1.account.id,
-                position: {orderTime: time3, orderKey: initialOrderKey},
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: time4,
-            taskId: task4Id,
-            taskAction: {
-                type: "UpdateNotepadPagePosition",
-                notepadPageId: notepadPage1Id,
-                accountId: session1.account.id,
-                position: {orderTime: time4, orderKey: initialOrderKey},
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: time5,
-            taskId: task5Id,
-            taskAction: {
-                type: "UpdateNotepadPagePosition",
-                notepadPageId: notepadPage1Id,
-                accountId: session1.account.id,
-                position: {orderTime: time5, orderKey: initialOrderKey},
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: time6,
-            taskId: task3Id,
-            taskAction: {
-                type: "UpdateNotepadPagePosition",
-                notepadPageId: notepadPage1Id,
-                accountId: session1.account.id,
-                position: {orderTime: time2, orderKey: assertOrderKey("Zz")},
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: time7,
-            taskId: task1Id,
-            taskAction: {
-                type: "UpdateNotepadPagePosition",
-                notepadPageId: notepadPage1Id,
-                accountId: session1.account.id,
-                position: {orderTime: time7, orderKey: initialOrderKey},
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: time8,
-            taskId: task4Id,
-            taskAction: {
-                type: "UpdateNotepadPagePosition",
-                notepadPageId: notepadPage1Id,
-                accountId: session1.account.id,
-                position: {orderTime: time8, orderKey: assertOrderKey("a1")},
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: time9,
-            taskId: task5Id,
-            taskAction: {
-                type: "UpdateNotepadPagePosition",
-                notepadPageId: notepadPage1Id,
-                accountId: session1.account.id,
-                position: {orderTime: time8, orderKey: assertOrderKey("a2")},
-            },
-        },
-    ]);
-
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task7Id,
-            taskAction: {
-                type: "UpdateNotepadPagePosition",
-                notepadPageId: notepadPage2Id,
-                accountId: session1.account.id,
-                position: {orderTime: clock.now(), orderKey: initialOrderKey},
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task8Id,
-            taskAction: {
-                type: "UpdateNotepadPagePosition",
-                notepadPageId: notepadPage1Id,
-                accountId: session1.account.id,
-                position: {orderTime: clock.now(), orderKey: initialOrderKey},
-            },
-        },
-    ]);
-
-    expect(
-        await testQueryWithNormalizedSorts(space, [
-            {
-                type: "NotepadPagePosition",
-                notepadPageId: notepadPage1Id,
-                accountId: session1.account.id,
-                direction: "Ascending",
-                missing: "Last",
-            },
-            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
-        ]),
-    ).toEqual([task3Id, task2Id, task1Id, task4Id, task5Id, task8Id, task6Id, task7Id]);
-
-    expect(
-        await testQueryWithNormalizedSorts(space, [
-            {
-                type: "NotepadPagePosition",
-                notepadPageId: notepadPage1Id,
-                accountId: session1.account.id,
-                direction: "Descending",
-                missing: "Last",
-            },
-            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
-        ]),
-    ).toEqual([task8Id, task5Id, task4Id, task1Id, task2Id, task3Id, task6Id, task7Id]);
-
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task8Id,
-            taskAction: {
-                type: "UpdateNotepadPagePosition",
-                notepadPageId: notepadPage1Id,
-                accountId: session1.account.id,
-                position: null,
-            },
-        },
-    ]);
-
-    expect(
-        await testQueryWithNormalizedSorts(space, [
-            {
-                type: "NotepadPagePosition",
-                notepadPageId: notepadPage1Id,
-                accountId: session1.account.id,
-                direction: "Ascending",
-                missing: "Last",
-            },
-            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
-        ]),
-    ).toEqual([task3Id, task2Id, task1Id, task4Id, task5Id, task6Id, task7Id, task8Id]);
-
-    expect(
-        await testQueryWithNormalizedSorts(space, [
-            {
-                type: "NotepadPagePosition",
-                notepadPageId: notepadPage1Id,
-                accountId: session1.account.id,
-                direction: "Descending",
-                missing: "Last",
-            },
-            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
-        ]),
-    ).toEqual([task5Id, task4Id, task1Id, task2Id, task3Id, task6Id, task7Id, task8Id]);
-});
-
-test("sorts by assignee active position", async () => {
+test("sorts by assignee position", async () => {
     const space = await TestSpace.create(context);
 
     const sessions = await runAllPromises([space.createSession(), space.createSession()]);
@@ -3041,7 +2717,7 @@ test("sorts by assignee active position", async () => {
             time: time1,
             taskId: task1Id,
             taskAction: {
-                type: "UpdateAssigneeActivePosition",
+                type: "UpdateAssigneePosition",
                 accountId: session1.account.id,
                 position: {orderTime: time1, orderKey: initialOrderKey},
             },
@@ -3063,7 +2739,7 @@ test("sorts by assignee active position", async () => {
             time: time2,
             taskId: task2Id,
             taskAction: {
-                type: "UpdateAssigneeActivePosition",
+                type: "UpdateAssigneePosition",
                 accountId: session1.account.id,
                 position: {orderTime: time2, orderKey: initialOrderKey},
             },
@@ -3085,7 +2761,7 @@ test("sorts by assignee active position", async () => {
             time: time3,
             taskId: task3Id,
             taskAction: {
-                type: "UpdateAssigneeActivePosition",
+                type: "UpdateAssigneePosition",
                 accountId: session1.account.id,
                 position: {orderTime: time3, orderKey: initialOrderKey},
             },
@@ -3107,7 +2783,7 @@ test("sorts by assignee active position", async () => {
             time: time4,
             taskId: task4Id,
             taskAction: {
-                type: "UpdateAssigneeActivePosition",
+                type: "UpdateAssigneePosition",
                 accountId: session1.account.id,
                 position: {orderTime: time4, orderKey: initialOrderKey},
             },
@@ -3129,7 +2805,7 @@ test("sorts by assignee active position", async () => {
             time: time5,
             taskId: task5Id,
             taskAction: {
-                type: "UpdateAssigneeActivePosition",
+                type: "UpdateAssigneePosition",
                 accountId: session1.account.id,
                 position: {orderTime: time5, orderKey: initialOrderKey},
             },
@@ -3151,7 +2827,7 @@ test("sorts by assignee active position", async () => {
             time: time6,
             taskId: task3Id,
             taskAction: {
-                type: "UpdateAssigneeActivePosition",
+                type: "UpdateAssigneePosition",
                 accountId: session1.account.id,
                 position: {orderTime: time2, orderKey: assertOrderKey("Zz")},
             },
@@ -3173,7 +2849,7 @@ test("sorts by assignee active position", async () => {
             time: time7,
             taskId: task1Id,
             taskAction: {
-                type: "UpdateAssigneeActivePosition",
+                type: "UpdateAssigneePosition",
                 accountId: session1.account.id,
                 position: {orderTime: time7, orderKey: initialOrderKey},
             },
@@ -3195,7 +2871,7 @@ test("sorts by assignee active position", async () => {
             time: time8,
             taskId: task4Id,
             taskAction: {
-                type: "UpdateAssigneeActivePosition",
+                type: "UpdateAssigneePosition",
                 accountId: session1.account.id,
                 position: {orderTime: time8, orderKey: assertOrderKey("a1")},
             },
@@ -3217,7 +2893,7 @@ test("sorts by assignee active position", async () => {
             time: time9,
             taskId: task5Id,
             taskAction: {
-                type: "UpdateAssigneeActivePosition",
+                type: "UpdateAssigneePosition",
                 accountId: session1.account.id,
                 position: {orderTime: time8, orderKey: assertOrderKey("a2")},
             },
@@ -3242,7 +2918,7 @@ test("sorts by assignee active position", async () => {
             time: clock.now(),
             taskId: task7Id,
             taskAction: {
-                type: "UpdateAssigneeActivePosition",
+                type: "UpdateAssigneePosition",
                 accountId: session2.account.id,
                 position: {orderTime: clock.now(), orderKey: initialOrderKey},
             },
@@ -3279,7 +2955,7 @@ test("sorts by assignee active position", async () => {
             time: clock.now(),
             taskId: task8Id,
             taskAction: {
-                type: "UpdateAssigneeActivePosition",
+                type: "UpdateAssigneePosition",
                 accountId: session1.account.id,
                 position: {orderTime: clock.now(), orderKey: assertOrderKey("a2")},
             },
@@ -3289,7 +2965,7 @@ test("sorts by assignee active position", async () => {
     expect(
         await testQueryWithNormalizedSorts(space, [
             {
-                type: "AssigneeActivePosition",
+                type: "AssigneePosition",
                 direction: "Ascending",
                 missing: "Last",
             },
@@ -3300,7 +2976,7 @@ test("sorts by assignee active position", async () => {
     expect(
         await testQueryWithNormalizedSorts(space, [
             {
-                type: "AssigneeActivePosition",
+                type: "AssigneePosition",
                 direction: "Descending",
                 missing: "Last",
             },
@@ -3325,40 +3001,40 @@ test("sorts by assignee active position", async () => {
     expect(
         await testQueryWithNormalizedSorts(space, [
             {
-                type: "AssigneeActivePosition",
+                type: "AssigneePosition",
                 direction: "Ascending",
                 missing: "Last",
             },
             {type: "CreatedTime", direction: "Ascending", missing: "Last"},
         ]),
-    ).toEqual([task3Id, task2Id, task1Id, task4Id, task5Id, task7Id, task6Id, task8Id]);
+    ).toEqual([task3Id, task2Id, task1Id, task4Id, task5Id, task7Id, task8Id, task6Id]);
 
     expect(
         await testQueryWithNormalizedSorts(space, [
             {
-                type: "AssigneeActivePosition",
+                type: "AssigneePosition",
                 direction: "Descending",
                 missing: "Last",
             },
             {type: "CreatedTime", direction: "Ascending", missing: "Last"},
         ]),
-    ).toEqual([task7Id, task5Id, task4Id, task1Id, task2Id, task3Id, task6Id, task8Id]);
+    ).toEqual([task8Id, task7Id, task5Id, task4Id, task1Id, task2Id, task3Id, task6Id]);
 
     expect(
         await testQueryWithNormalizedSorts(space, [
             {
-                type: "AssigneeActivePosition",
+                type: "AssigneePosition",
                 direction: "Ascending",
                 missing: "First",
             },
             {type: "CreatedTime", direction: "Ascending", missing: "Last"},
         ]),
-    ).toEqual([task6Id, task8Id, task3Id, task2Id, task1Id, task4Id, task5Id, task7Id]);
+    ).toEqual([task6Id, task3Id, task2Id, task1Id, task4Id, task5Id, task7Id, task8Id]);
 
     expect(
         await testQueryWithNormalizedSorts(space, [
             {
-                type: "AssigneeActivePosition",
+                type: "AssigneePosition",
                 direction: "Descending",
                 missing: "First",
             },

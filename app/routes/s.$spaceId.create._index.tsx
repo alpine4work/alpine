@@ -69,7 +69,6 @@ export default function CreateRoute() {
                     pressErrorTitle="Couldn’t create document"
                     onPress={async () => {
                         const documentId = generateId();
-
                         await rootNavigate(`/s/${space.id}/documents/${documentId}?create&focus`);
                     }}
                 />
@@ -79,7 +78,8 @@ export default function CreateRoute() {
                     description="Keep track of work to do later"
                     pressErrorTitle="Couldn’t open tasks"
                     onPress={async () => {
-                        await rootNavigate(`/s/${space.id}/tasks?focus=new`);
+                        const taskId = generateId();
+                        await rootNavigate(`/s/${space.id}/tasks/${taskId}?create&focus`);
                     }}
                 />
                 <MobileSettingsRow

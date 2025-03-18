@@ -1,81 +1,66 @@
-import {AppContext} from "~/client/context/app_context.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {TaskDisplayStatusCircle} from "~/client/design/task_display_status_circle.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {
-    TaskClientStore,
-    TaskClientStoreSearchAffinityManager,
-    TaskClientStoreUndoManager,
-} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientReadonlyStore} from "~/client/tasks/core/task_client_store.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {TaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 
 export function getTaskStatusMenuActions({
-    context,
     timeZone,
     currentAccount,
     store,
-    undoManager,
-    affinityManager,
     task,
     onCloseConfirmationDialogueOpen,
+    commitActionTransaction,
 }: {
-    context: AppContext;
     timeZone: TimeZone;
     currentAccount: AccountModel | null;
-    store: TaskClientStore;
-    undoManager: TaskClientStoreUndoManager | null;
-    affinityManager: TaskClientStoreSearchAffinityManager;
+    store: TaskClientReadonlyStore;
     task: TaskModel;
     onCloseConfirmationDialogueOpen: (options: {onConfirm: () => void}) => void;
+    commitActionTransaction: (
+        getActions: (taskId: TaskId) => ReadonlyArray<TaskActionModel>,
+    ) => void;
 }): ReadonlyArray<MenuAction> {
     return getTaskStatusMenuActionsWithoutFullTask({
-        context,
         timeZone,
         currentAccount,
         store,
-        undoManager,
-        affinityManager,
-        taskId: task.id,
         displayStatus: task.getDisplayStatus(),
-        getAssigneeSnapshot: () => task.getAssignee(),
+        getAssigneeAccountIdSnapshot: () => task.getAssignee()?.assignee.accountId ?? null,
         getOpenChildCountSnapshot: () => task.getOpenChildTaskCount(),
         onCloseConfirmationDialogueOpen,
+        commitActionTransaction,
     });
 }
 
 export function getTaskStatusMenuActionsWithoutFullTask({
-    context,
     timeZone,
     currentAccount,
     store,
-    undoManager,
-    affinityManager,
-    taskId,
     displayStatus,
-    getAssigneeSnapshot,
+    getAssigneeAccountIdSnapshot,
     getOpenChildCountSnapshot,
     onCloseConfirmationDialogueOpen,
+    commitActionTransaction,
 }: {
-    context: AppContext;
     timeZone: TimeZone;
     currentAccount: AccountModel | null;
-    store: TaskClientStore;
-    undoManager: TaskClientStoreUndoManager | null;
-    affinityManager: TaskClientStoreSearchAffinityManager;
-    taskId: TaskId;
+    store: TaskClientReadonlyStore;
     displayStatus: TaskDisplayStatus;
-    getAssigneeSnapshot: () => TaskAssigneeWithSortableAccount | null;
+    getAssigneeAccountIdSnapshot: () => AccountId | null;
     getOpenChildCountSnapshot: () => number;
     onCloseConfirmationDialogueOpen: (options: {onConfirm: () => void}) => void;
+    commitActionTransaction: (
+        getActions: (taskId: TaskId) => ReadonlyArray<TaskActionModel>,
+    ) => void;
 }): ReadonlyArray<MenuAction> {
     switch (displayStatus) {
         case "OpenInactive": {
@@ -91,52 +76,52 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                         // permission level of `urlGrant` is `View`.
                         assert(currentAccount);
 
-                        const time1 = store.clock.now();
-                        const time2 = store.clock.now();
-                        const currentAssignee = getAssigneeSnapshot();
+                        const currentAssigneeAccountId = getAssigneeAccountIdSnapshot();
 
-                        const actions: Array<TaskActionModel> = [];
+                        // If we are marking a task as active and there's not currently an assignee,
+                        // then set ourselves as the assignee.
+                        commitActionTransaction(taskId => {
+                            const time1 = store.clock.now();
+                            const time2 = store.clock.now();
 
-                        if (!currentAssignee) {
+                            const actions: Array<TaskActionModel> = [];
+
+                            if (currentAssigneeAccountId === null) {
+                                actions.push({
+                                    type: "UpdateTask",
+                                    time: time1,
+                                    taskId,
+                                    taskAction: {
+                                        type: "UpdateAssignee",
+                                        assignee: {
+                                            assigneeId: currentAccount.id,
+                                            assignerId: currentAccount.id,
+                                            assignedTime: new TaskFilterableTime({
+                                                absoluteTime: time1,
+                                                setterTimeZone: timeZone,
+                                            }),
+                                        },
+                                    },
+                                });
+                            }
+
                             actions.push({
                                 type: "UpdateTask",
-                                time: time1,
+                                time: time2,
                                 taskId,
                                 taskAction: {
-                                    type: "UpdateAssignee",
-                                    assignee: {
-                                        assigneeId: currentAccount.id,
-                                        assignerId: currentAccount.id,
-                                        assignedTime: new TaskFilterableTime({
+                                    type: "UpdateAssigneeStatus",
+                                    assigneeStatus: {
+                                        type: "Active",
+                                        activatedTime: new TaskFilterableTime({
                                             absoluteTime: time1,
                                             setterTimeZone: timeZone,
                                         }),
                                     },
                                 },
                             });
-                        }
 
-                        actions.push({
-                            type: "UpdateTask",
-                            time: time2,
-                            taskId,
-                            taskAction: {
-                                type: "UpdateAssigneeStatus",
-                                assigneeStatus: {
-                                    type: "Active",
-                                    activatedTime: new TaskFilterableTime({
-                                        absoluteTime: time1,
-                                        setterTimeZone: timeZone,
-                                    }),
-                                },
-                            },
-                        });
-
-                        // If we are marking a task as active and there's not currently an assignee,
-                        // then set ourselves as the assignee.
-                        store.commitTaskActionTransaction(context, actions, {
-                            undoManager,
-                            affinityManager,
+                            return actions;
                         });
 
                         // Reward the user with haptic feedback when they change task's status.
@@ -154,12 +139,11 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                         // permission level of `urlGrant` is `View`.
                         assert(currentAccount);
 
-                        const time = store.clock.now();
-
                         const runCommitTaskActionTransaction = () => {
-                            store.commitTaskActionTransaction(
-                                context,
-                                [
+                            commitActionTransaction(taskId => {
+                                const time = store.clock.now();
+
+                                return [
                                     {
                                         type: "UpdateTask",
                                         time,
@@ -176,9 +160,8 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                                             },
                                         },
                                     },
-                                ],
-                                {undoManager, affinityManager},
-                            );
+                                ];
+                            });
                         };
 
                         // Checks if there are any open subtasks
@@ -207,23 +190,17 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                     ),
                     iconPlacement: "end",
                     onPress: () => {
-                        const time = store.clock.now();
-
-                        store.commitTaskActionTransaction(
-                            context,
-                            [
-                                {
-                                    type: "UpdateTask",
-                                    time,
-                                    taskId,
-                                    taskAction: {
-                                        type: "UpdateStatus",
-                                        status: {type: "Open"},
-                                    },
+                        commitActionTransaction(taskId => [
+                            {
+                                type: "UpdateTask",
+                                time: store.clock.now(),
+                                taskId,
+                                taskAction: {
+                                    type: "UpdateStatus",
+                                    status: {type: "Open"},
                                 },
-                            ],
-                            {undoManager, affinityManager},
-                        );
+                            },
+                        ]);
 
                         // Reward the user with haptic feedback when they change task's status.
                         NativeMobileBridge?.haptic.playLightImpact();
@@ -240,12 +217,11 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                         // permission level of `urlGrant` is `View`.
                         assert(currentAccount);
 
-                        const time = store.clock.now();
-
                         const runCommitTaskActionTransaction = () => {
-                            store.commitTaskActionTransaction(
-                                context,
-                                [
+                            commitActionTransaction(taskId => {
+                                const time = store.clock.now();
+
+                                return [
                                     {
                                         type: "UpdateTask",
                                         time,
@@ -262,9 +238,8 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                                             },
                                         },
                                     },
-                                ],
-                                {undoManager, affinityManager},
-                            );
+                                ];
+                            });
                         };
 
                         // Checks if there are any open subtasks
@@ -291,23 +266,17 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                     icon: <TaskDisplayStatusCircle displayStatus="OpenInactive" size="3" />,
                     iconPlacement: "end",
                     onPress: () => {
-                        const time = store.clock.now();
-
-                        store.commitTaskActionTransaction(
-                            context,
-                            [
-                                {
-                                    type: "UpdateTask",
-                                    time,
-                                    taskId,
-                                    taskAction: {
-                                        type: "UpdateStatus",
-                                        status: {type: "Open"},
-                                    },
+                        commitActionTransaction(taskId => [
+                            {
+                                type: "UpdateTask",
+                                time: store.clock.now(),
+                                taskId,
+                                taskAction: {
+                                    type: "UpdateStatus",
+                                    status: {type: "Open"},
                                 },
-                            ],
-                            {undoManager, affinityManager},
-                        );
+                            },
+                        ]);
 
                         // Reward the user with haptic feedback when they change task's status.
                         NativeMobileBridge?.haptic.playLightImpact();
@@ -322,62 +291,62 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                         // permission level of `urlGrant` is `View`.
                         assert(currentAccount);
 
-                        const time1 = store.clock.now();
-                        const time2 = store.clock.now();
-                        const currentAssignee = getAssigneeSnapshot();
+                        const currentAssigneeAccountId = getAssigneeAccountIdSnapshot();
 
-                        const actions: Array<TaskActionModel> = [];
+                        // If we are marking a task as active and there's not currently an assignee,
+                        // then set ourselves as the assignee.
+                        commitActionTransaction(taskId => {
+                            const time1 = store.clock.now();
+                            const time2 = store.clock.now();
 
-                        actions.push({
-                            type: "UpdateTask",
-                            time: time1,
-                            taskId,
-                            taskAction: {
-                                type: "UpdateStatus",
-                                status: {type: "Open"},
-                            },
-                        });
+                            const actions: Array<TaskActionModel> = [];
 
-                        if (!currentAssignee) {
                             actions.push({
                                 type: "UpdateTask",
                                 time: time1,
                                 taskId,
                                 taskAction: {
-                                    type: "UpdateAssignee",
-                                    assignee: {
-                                        assigneeId: currentAccount.id,
-                                        assignerId: currentAccount.id,
-                                        assignedTime: new TaskFilterableTime({
+                                    type: "UpdateStatus",
+                                    status: {type: "Open"},
+                                },
+                            });
+
+                            if (currentAssigneeAccountId === null) {
+                                actions.push({
+                                    type: "UpdateTask",
+                                    time: time1,
+                                    taskId,
+                                    taskAction: {
+                                        type: "UpdateAssignee",
+                                        assignee: {
+                                            assigneeId: currentAccount.id,
+                                            assignerId: currentAccount.id,
+                                            assignedTime: new TaskFilterableTime({
+                                                absoluteTime: time1,
+                                                setterTimeZone: timeZone,
+                                            }),
+                                        },
+                                    },
+                                });
+                            }
+
+                            actions.push({
+                                type: "UpdateTask",
+                                time: time2,
+                                taskId,
+                                taskAction: {
+                                    type: "UpdateAssigneeStatus",
+                                    assigneeStatus: {
+                                        type: "Active",
+                                        activatedTime: new TaskFilterableTime({
                                             absoluteTime: time1,
                                             setterTimeZone: timeZone,
                                         }),
                                     },
                                 },
                             });
-                        }
 
-                        actions.push({
-                            type: "UpdateTask",
-                            time: time2,
-                            taskId,
-                            taskAction: {
-                                type: "UpdateAssigneeStatus",
-                                assigneeStatus: {
-                                    type: "Active",
-                                    activatedTime: new TaskFilterableTime({
-                                        absoluteTime: time1,
-                                        setterTimeZone: timeZone,
-                                    }),
-                                },
-                            },
-                        });
-
-                        // If we are marking a task as active and there's not currently an assignee,
-                        // then set ourselves as the assignee.
-                        store.commitTaskActionTransaction(context, actions, {
-                            undoManager,
-                            affinityManager,
+                            return actions;
                         });
 
                         // Reward the user with haptic feedback when they change task's status.

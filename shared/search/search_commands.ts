@@ -10,9 +10,10 @@ const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
  * Search commands are consistent across all Alpine spaces. They're used for
  * quick navigation to some action or page.
  *
- * Some search commands accumulate affinity points. For example, `TaskNotepad`
+ * Some search commands accumulate affinity points. For example, `TaskPersonal`
  * exists both in `SearchCommandId` and `SearchAffinityId` because the task
- * notepad accumulates affinity points when you view it or add tasks to it.
+ * personal view accumulates affinity points when you view it or add tasks
+ * to it.
  */
 export type SearchCommandId =
     | "CreateChatMessage"
@@ -22,7 +23,7 @@ export type SearchCommandId =
     | "CreateTask"
     | "CreateTaskCollection"
     | "CreateTaskView"
-    | "TaskNotepad"
+    | "TaskPersonal"
     | "TaskQueryFilteredToCreatorIsCurrentAccount"
     | "TaskQueryFilteredToAssigneeIsCurrentAccount"
     | "TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive"
@@ -86,9 +87,9 @@ const searchCommandById: {
         title: "Create task view",
         otherHitTexts: ["all tasks", "create view", "task views", "new task view", "new view"],
     },
-    TaskNotepad: {
-        title: "Task notepad",
-        otherHitTexts: ["my tasks"],
+    TaskPersonal: {
+        title: "My tasks",
+        otherHitTexts: ["all tasks", "tasks", "my tasks"],
     },
     TaskQueryFilteredToCreatorIsCurrentAccount: {
         title: "Tasks I’ve created",

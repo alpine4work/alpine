@@ -78,7 +78,6 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-import {generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {
     createSimpleTaskNotesContent,
     emptyTaskNotesContent,
@@ -206,29 +205,6 @@ describe("old style", () => {
             absoluteTime: getUnreasonableTime(),
             setterTimeZone: defaultTimeZone,
         });
-    }
-
-    // We create a new space for some tests for resources that are tied to account
-    // + space. So tests don't conflict.
-    async function createSeparateSpace() {
-        const space = await TestSpace.create(context);
-
-        await runAllPromises([
-            addSpaceAccountForTest(context, {
-                spaceId: space.id,
-                accountId: session1.accountId,
-            }),
-            addSpaceAccountForTest(context, {
-                spaceId: space.id,
-                accountId: session2.accountId,
-            }),
-            addSpaceAccountForTest(context, {
-                spaceId: space.id,
-                accountId: session3.accountId,
-            }),
-        ]);
-
-        return {space};
     }
 
     async function createPublicTask(
@@ -10420,7 +10396,7 @@ describe("old style", () => {
         );
     });
 
-    test("can update task assignee active position", async () => {
+    test("can update task assignee position", async () => {
         const {taskId} = await createPublicTask(session1, space.id);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10460,7 +10436,7 @@ describe("old style", () => {
                 time: clock.now(),
                 taskId,
                 taskAction: {
-                    type: "UpdateAssigneeActivePosition",
+                    type: "UpdateAssigneePosition",
                     accountId: session1.accountId,
                     position: {orderTime: clock.now(), orderKey: assertOrderKey("a2")},
                 },
@@ -10473,7 +10449,7 @@ describe("old style", () => {
                 time: clock.now(),
                 taskId,
                 taskAction: {
-                    type: "UpdateAssigneeActivePosition",
+                    type: "UpdateAssigneePosition",
                     accountId: session1.accountId,
                     position: {orderTime: clock.now(), orderKey: assertOrderKey("a3")},
                 },
@@ -10481,7 +10457,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update task assignee active position when another account is assigned", async () => {
+    test("can't update task assignee position when another account is assigned", async () => {
         const {taskId} = await createPublicTask(session1, space.id);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10522,7 +10498,7 @@ describe("old style", () => {
                     time: clock.now(),
                     taskId,
                     taskAction: {
-                        type: "UpdateAssigneeActivePosition",
+                        type: "UpdateAssigneePosition",
                         accountId: session1.accountId,
                         position: {orderTime: clock.now(), orderKey: assertOrderKey("a2")},
                     },
@@ -10530,12 +10506,12 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new PermissionDeniedError(
-                "Can only update the task's active position if you are the task's assignee",
+                "Can only update the task's assignee position if you are the task's assignee",
             ),
         );
     });
 
-    test("can't update task assignee active position when no account is assigned", async () => {
+    test("can't update task assignee position when no account is assigned", async () => {
         const {taskId} = await createPublicTask(session1, space.id);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10560,7 +10536,7 @@ describe("old style", () => {
                     time: clock.now(),
                     taskId,
                     taskAction: {
-                        type: "UpdateAssigneeActivePosition",
+                        type: "UpdateAssigneePosition",
                         accountId: session1.accountId,
                         position: {orderTime: clock.now(), orderKey: assertOrderKey("a2")},
                     },
@@ -10568,12 +10544,12 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new PermissionDeniedError(
-                "Can only update the task's active position if you are the task's assignee",
+                "Can only update the task's assignee position if you are the task's assignee",
             ),
         );
     });
 
-    test("can't update task assignee active position with an account id other than your own", async () => {
+    test("can't update task assignee position with an account id other than your own", async () => {
         const {taskId} = await createPublicTask(session1, space.id);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10614,7 +10590,7 @@ describe("old style", () => {
                     time: clock.now(),
                     taskId,
                     taskAction: {
-                        type: "UpdateAssigneeActivePosition",
+                        type: "UpdateAssigneePosition",
                         accountId: session2.accountId,
                         position: {orderTime: clock.now(), orderKey: assertOrderKey("a2")},
                     },
@@ -10622,12 +10598,12 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new PermissionDeniedError(
-                "Must use the actor `AccountId` when updating the task's active position",
+                "Must use the actor `AccountId` when updating the task's assignee position",
             ),
         );
     });
 
-    test("can't update task assignee active position with unreasonable order time", async () => {
+    test("can't update task assignee position with unreasonable order time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10666,7 +10642,7 @@ describe("old style", () => {
                     time: clock.now(),
                     taskId,
                     taskAction: {
-                        type: "UpdateAssigneeActivePosition",
+                        type: "UpdateAssigneePosition",
                         accountId: session2.accountId,
                         position: {
                             orderTime: getUnreasonableTime(),
@@ -11241,868 +11217,6 @@ describe("old style", () => {
                 },
             ]),
         ).rejects.toThrow(PermissionDeniedError);
-    });
-
-    test("can add task to notepad page", async () => {
-        const {space} = await createSeparateSpace();
-        const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateNotepadPage",
-                time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "Create",
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "Create",
-                    creatorId: session1.accountId,
-                    creatorTimeZone: defaultTimeZone,
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "UpdateNotepadPagePosition",
-                    accountId: session1.accountId,
-                    notepadPageId,
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
-                },
-            },
-        ]);
-    });
-
-    test("can add task to notepad page in one transaction", async () => {
-        const {space} = await createSeparateSpace();
-        const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateNotepadPage",
-                time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "Create",
-                },
-            },
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "Create",
-                    creatorId: session1.accountId,
-                    creatorTimeZone: defaultTimeZone,
-                },
-            },
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "UpdateNotepadPagePosition",
-                    accountId: session1.accountId,
-                    notepadPageId,
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
-                },
-            },
-        ]);
-    });
-
-    test("can add task to notepad page that hasn't been created", async () => {
-        const {space} = await createSeparateSpace();
-        const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "Create",
-                    creatorId: session1.accountId,
-                    creatorTimeZone: defaultTimeZone,
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "UpdateNotepadPagePosition",
-                    accountId: session1.accountId,
-                    notepadPageId,
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
-                },
-            },
-        ]);
-    });
-
-    test("can't create a notepad page for someone else", async () => {
-        const {space} = await createSeparateSpace();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await expect(
-            commitTaskActionTransaction(context.action(session1), space.id, [
-                {
-                    type: "UpdateNotepadPage",
-                    time: clock.now(),
-                    accountId: session2.accountId,
-                    notepadPageId,
-                    notepadPageAction: {
-                        type: "Create",
-                    },
-                },
-            ]),
-        ).rejects.toThrow(new PermissionDeniedError("Can only access your account's notepad"));
-    });
-
-    test("can't add a task to someone else's notepad page", async () => {
-        const {space} = await createSeparateSpace();
-        const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateNotepadPage",
-                time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "Create",
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session2), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "Create",
-                    creatorId: session2.accountId,
-                    creatorTimeZone: defaultTimeZone,
-                },
-            },
-        ]);
-
-        await expect(
-            commitTaskActionTransaction(context.action(session2), space.id, [
-                {
-                    type: "UpdateTask",
-                    time: clock.now(),
-                    taskId,
-                    taskAction: {
-                        type: "UpdateNotepadPagePosition",
-                        accountId: session1.accountId,
-                        notepadPageId,
-                        position: {orderTime: clock.now(), orderKey: initialOrderKey},
-                    },
-                },
-            ]),
-        ).rejects.toThrow(new PermissionDeniedError("Can only access your account's notepad"));
-    });
-
-    test("can't create a notepad page twice", async () => {
-        const {space} = await createSeparateSpace();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateNotepadPage",
-                time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "Create",
-                },
-            },
-        ]);
-
-        await expect(
-            commitTaskActionTransaction(context.action(session1), space.id, [
-                {
-                    type: "UpdateNotepadPage",
-                    time: clock.now(),
-                    accountId: session1.accountId,
-                    notepadPageId,
-                    notepadPageAction: {
-                        type: "Create",
-                    },
-                },
-            ]),
-        ).rejects.toThrow(new FailedPreconditionError("Notepad page already exists"));
-    });
-
-    test("can remove task from notepad page that hasn't been created", async () => {
-        const {space} = await createSeparateSpace();
-        const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "Create",
-                    creatorId: session1.accountId,
-                    creatorTimeZone: defaultTimeZone,
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "UpdateNotepadPagePosition",
-                    accountId: session1.accountId,
-                    notepadPageId,
-                    position: null,
-                },
-            },
-        ]);
-    });
-
-    test("can't add task to notepad page with an unreasonable update time", async () => {
-        const {space} = await createSeparateSpace();
-        const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateNotepadPage",
-                time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "Create",
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "Create",
-                    creatorId: session1.accountId,
-                    creatorTimeZone: defaultTimeZone,
-                },
-            },
-        ]);
-
-        await expect(
-            commitTaskActionTransaction(context.action(session1), space.id, [
-                {
-                    type: "UpdateTask",
-                    time: getUnreasonableTime(),
-                    taskId,
-                    taskAction: {
-                        type: "UpdateNotepadPagePosition",
-                        accountId: session1.accountId,
-                        notepadPageId,
-                        position: {orderTime: clock.now(), orderKey: initialOrderKey},
-                    },
-                },
-            ]),
-        ).rejects.toThrow(new InvalidArgumentError("Action time too far in the future"));
-    });
-
-    test("can't add task to notepad page with an unreasonable order time", async () => {
-        const {space} = await createSeparateSpace();
-        const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateNotepadPage",
-                time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "Create",
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "Create",
-                    creatorId: session1.accountId,
-                    creatorTimeZone: defaultTimeZone,
-                },
-            },
-        ]);
-
-        await expect(
-            commitTaskActionTransaction(context.action(session1), space.id, [
-                {
-                    type: "UpdateTask",
-                    time: clock.now(),
-                    taskId,
-                    taskAction: {
-                        type: "UpdateNotepadPagePosition",
-                        accountId: session1.accountId,
-                        notepadPageId,
-                        position: {orderTime: getUnreasonableTime(), orderKey: initialOrderKey},
-                    },
-                },
-            ]),
-        ).rejects.toThrow(new InvalidArgumentError("Action `orderTime` is too far in the future"));
-    });
-
-    test("can't add task to notepad page that doesn't exist", async () => {
-        const {space} = await createSeparateSpace();
-        const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateNotepadPage",
-                time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "Create",
-                },
-            },
-        ]);
-
-        await expect(
-            commitTaskActionTransaction(context.action(session1), space.id, [
-                {
-                    type: "UpdateTask",
-                    time: clock.now(),
-                    taskId,
-                    taskAction: {
-                        type: "UpdateNotepadPagePosition",
-                        accountId: session1.accountId,
-                        notepadPageId,
-                        position: {orderTime: clock.now(), orderKey: initialOrderKey},
-                    },
-                },
-            ]),
-        ).rejects.toThrow(new NotFoundError("Task not found"));
-    });
-
-    test("can't add task you don't have access to to notepad page", async () => {
-        const {space} = await createSeparateSpace();
-        const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateNotepadPage",
-                time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "Create",
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session2), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "Create",
-                    creatorId: session2.accountId,
-                    creatorTimeZone: defaultTimeZone,
-                },
-            },
-        ]);
-
-        await expect(
-            commitTaskActionTransaction(context.action(session1), space.id, [
-                {
-                    type: "UpdateTask",
-                    time: clock.now(),
-                    taskId,
-                    taskAction: {
-                        type: "UpdateNotepadPagePosition",
-                        accountId: session1.accountId,
-                        notepadPageId,
-                        position: {orderTime: clock.now(), orderKey: initialOrderKey},
-                    },
-                },
-            ]),
-        ).rejects.toThrow(PermissionDeniedError);
-    });
-
-    test("can't add task you have view access to to notepad page", async () => {
-        const {space} = await createSeparateSpace();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateNotepadPage",
-                time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "Create",
-                },
-            },
-        ]);
-
-        const {taskId} = await createPublicTask(session2, space.id, "View");
-
-        await expect(
-            commitTaskActionTransaction(context.action(session1), space.id, [
-                {
-                    type: "UpdateTask",
-                    time: clock.now(),
-                    taskId,
-                    taskAction: {
-                        type: "UpdateNotepadPagePosition",
-                        accountId: session1.accountId,
-                        notepadPageId,
-                        position: {orderTime: clock.now(), orderKey: initialOrderKey},
-                    },
-                },
-            ]),
-        ).rejects.toThrow(
-            new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'),
-        );
-    });
-
-    test("can't add tasks you didn't create to notepad page", async () => {
-        const {space} = await createSeparateSpace();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateNotepadPage",
-                time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "Create",
-                },
-            },
-        ]);
-
-        const {taskId} = await createPublicTask(session2, space.id);
-
-        await expect(
-            commitTaskActionTransaction(context.action(session1), space.id, [
-                {
-                    type: "UpdateTask",
-                    time: clock.now(),
-                    taskId,
-                    taskAction: {
-                        type: "UpdateNotepadPagePosition",
-                        accountId: session1.accountId,
-                        notepadPageId,
-                        position: {orderTime: clock.now(), orderKey: initialOrderKey},
-                    },
-                },
-            ]),
-        ).rejects.toThrow(
-            new PermissionDeniedError("Can only add tasks you created to your account's notepad"),
-        );
-    });
-
-    test("can remove task from notepad page", async () => {
-        const {space} = await createSeparateSpace();
-        const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateNotepadPage",
-                time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "Create",
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "Create",
-                    creatorId: session1.accountId,
-                    creatorTimeZone: defaultTimeZone,
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "UpdateNotepadPagePosition",
-                    accountId: session1.accountId,
-                    notepadPageId,
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "UpdateNotepadPagePosition",
-                    accountId: session1.accountId,
-                    notepadPageId,
-                    position: null,
-                },
-            },
-        ]);
-    });
-
-    test("can remove task from notepad page twice", async () => {
-        const {space} = await createSeparateSpace();
-        const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateNotepadPage",
-                time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "Create",
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "Create",
-                    creatorId: session1.accountId,
-                    creatorTimeZone: defaultTimeZone,
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "UpdateNotepadPagePosition",
-                    accountId: session1.accountId,
-                    notepadPageId,
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "UpdateNotepadPagePosition",
-                    accountId: session1.accountId,
-                    notepadPageId,
-                    position: null,
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "UpdateNotepadPagePosition",
-                    accountId: session1.accountId,
-                    notepadPageId,
-                    position: null,
-                },
-            },
-        ]);
-    });
-
-    test("can remove task from notepad page even if the task was not added", async () => {
-        const {space} = await createSeparateSpace();
-        const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateNotepadPage",
-                time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "Create",
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "Create",
-                    creatorId: session1.accountId,
-                    creatorTimeZone: defaultTimeZone,
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "UpdateNotepadPagePosition",
-                    accountId: session1.accountId,
-                    notepadPageId,
-                    position: null,
-                },
-            },
-        ]);
-    });
-
-    test("can't remove task from notepad page with an unreasonable update time", async () => {
-        const {space} = await createSeparateSpace();
-        const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateNotepadPage",
-                time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "Create",
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "Create",
-                    creatorId: session1.accountId,
-                    creatorTimeZone: defaultTimeZone,
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "UpdateNotepadPagePosition",
-                    accountId: session1.accountId,
-                    notepadPageId,
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
-                },
-            },
-        ]);
-
-        await expect(
-            commitTaskActionTransaction(context.action(session1), space.id, [
-                {
-                    type: "UpdateTask",
-                    time: getUnreasonableTime(),
-                    taskId,
-                    taskAction: {
-                        type: "UpdateNotepadPagePosition",
-                        accountId: session1.accountId,
-                        notepadPageId,
-                        position: null,
-                    },
-                },
-            ]),
-        ).rejects.toThrow(new InvalidArgumentError("Action time too far in the future"));
-    });
-
-    test("can't remove task from notepad page when the task doesn't exist", async () => {
-        const {space} = await createSeparateSpace();
-        const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateNotepadPage",
-                time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "Create",
-                },
-            },
-        ]);
-
-        await expect(
-            commitTaskActionTransaction(context.action(session1), space.id, [
-                {
-                    type: "UpdateTask",
-                    time: clock.now(),
-                    taskId,
-                    taskAction: {
-                        type: "UpdateNotepadPagePosition",
-                        accountId: session1.accountId,
-                        notepadPageId,
-                        position: null,
-                    },
-                },
-            ]),
-        ).rejects.toThrow(new NotFoundError("Task not found"));
-    });
-
-    test("can't remove task you don't have access to from notepad page", async () => {
-        const {space} = await createSeparateSpace();
-        const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateNotepadPage",
-                time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "Create",
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session2), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "Create",
-                    creatorId: session2.accountId,
-                    creatorTimeZone: defaultTimeZone,
-                },
-            },
-        ]);
-
-        await expect(
-            commitTaskActionTransaction(context.action(session1), space.id, [
-                {
-                    type: "UpdateTask",
-                    time: clock.now(),
-                    taskId,
-                    taskAction: {
-                        type: "UpdateNotepadPagePosition",
-                        accountId: session1.accountId,
-                        notepadPageId,
-                        position: null,
-                    },
-                },
-            ]),
-        ).rejects.toThrow(PermissionDeniedError);
-    });
-
-    test("can remove task you have view access to from notepad page", async () => {
-        const {space} = await createSeparateSpace();
-        const notepadPageId = generateTaskNotepadPageId(testClock);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateNotepadPage",
-                time: clock.now(),
-                accountId: session1.accountId,
-                notepadPageId,
-                notepadPageAction: {
-                    type: "Create",
-                },
-            },
-        ]);
-
-        const {taskId} = await createPublicTask(session1, space.id, "View");
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "UpdateNotepadPagePosition",
-                    accountId: session1.accountId,
-                    notepadPageId,
-                    position: {orderTime: clock.now(), orderKey: initialOrderKey},
-                },
-            },
-        ]);
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateTask",
-                time: clock.now(),
-                taskId,
-                taskAction: {
-                    type: "UpdateNotepadPagePosition",
-                    accountId: session1.accountId,
-                    notepadPageId,
-                    position: null,
-                },
-            },
-        ]);
     });
 
     test("can't update a task's title with an account in a different space", async () => {
@@ -14006,80 +13120,6 @@ test("can't authorize a query with missing assignee filter", async () => {
     );
 });
 
-test("can authorize a query with notepad page filter", async () => {
-    const space = await TestSpace.create(context);
-    const session = await space.createSession();
-
-    await testAuthorizeTaskQueryAccess(session.action(), {
-        spaceId: space.id,
-        filters: {
-            ...defaultTaskQueryNormalizedFilters,
-            notepadPageFilter: {
-                accountId: session.account.id,
-                notepadPageId: generateTaskNotepadPageId(testClock),
-            },
-        },
-    });
-});
-
-test("can't authorize a query with notepad page filter if account access was removed", async () => {
-    const space = await TestSpace.create(context);
-    const adminSession = await space.createSession({hasInternalAccess: true});
-    const session = await space.createSession();
-
-    await testAuthorizeTaskQueryAccess(session.action(), {
-        spaceId: space.id,
-        filters: {
-            ...defaultTaskQueryNormalizedFilters,
-            notepadPageFilter: {
-                accountId: session.account.id,
-                notepadPageId: generateTaskNotepadPageId(testClock),
-            },
-        },
-    });
-
-    await removeSpaceAccountAsAdmin(adminSession.action(), {
-        spaceId: space.id,
-        accountId: session.account.id,
-    });
-
-    await expect(
-        testAuthorizeTaskQueryAccess(session.action(), {
-            spaceId: space.id,
-            filters: {
-                ...defaultTaskQueryNormalizedFilters,
-                notepadPageFilter: {
-                    accountId: session.account.id,
-                    notepadPageId: generateTaskNotepadPageId(testClock),
-                },
-            },
-        }),
-    ).rejects.toThrow("Account doesn't have access to space");
-});
-
-test("can't authorize a query with other account's notepad page filter", async () => {
-    const space = await TestSpace.create(context);
-    const session1 = await space.createSession();
-    const session2 = await space.createSession();
-
-    await expect(
-        testAuthorizeTaskQueryAccess(session1.action(), {
-            spaceId: space.id,
-            filters: {
-                ...defaultTaskQueryNormalizedFilters,
-                notepadPageFilter: {
-                    accountId: session2.account.id,
-                    notepadPageId: generateTaskNotepadPageId(testClock),
-                },
-            },
-        }),
-    ).rejects.toThrow(
-        new PermissionDeniedError(
-            "Query may reveal tasks the session account is not allowed to see",
-        ),
-    );
-});
-
 test("can authorize a query with a collection you have access to", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -14996,72 +14036,7 @@ test("must be allowed to access collection to sort by collection position with c
     );
 });
 
-test("can only sort by your notepad page positions", async () => {
-    const space = await TestSpace.create(context);
-    const session1 = await space.createSession();
-    const session2 = await space.createSession();
-
-    await expect(
-        testAuthorizeTaskQueryAccess(session1.action(), {
-            spaceId: space.id,
-            sorts: [
-                {
-                    type: "NotepadPagePosition",
-                    accountId: session1.account.id,
-                    notepadPageId: generateTaskNotepadPageId(testClock),
-                    direction: "Ascending",
-                    missing: "Last",
-                },
-            ],
-        }),
-    ).rejects.toThrow(
-        new PermissionDeniedError(
-            "Query may reveal tasks the session account is not allowed to see",
-        ),
-    );
-
-    await testAuthorizeTaskQueryAccess(session1.action(), {
-        spaceId: space.id,
-        filters: [
-            {
-                type: "Creator",
-                operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
-            },
-        ],
-        sorts: [
-            {
-                type: "NotepadPagePosition",
-                accountId: session1.account.id,
-                notepadPageId: generateTaskNotepadPageId(testClock),
-                direction: "Ascending",
-                missing: "Last",
-            },
-        ],
-    });
-
-    await expect(
-        testAuthorizeTaskQueryAccess(session2.action(), {
-            spaceId: space.id,
-            filters: [
-                {
-                    type: "Creator",
-                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
-                },
-            ],
-            sorts: [
-                {
-                    type: "NotepadPagePosition",
-                    accountId: session1.account.id,
-                    notepadPageId: generateTaskNotepadPageId(testClock),
-                    direction: "Ascending",
-                    missing: "Last",
-                },
-            ],
-        }),
-    ).rejects.toThrow(new PermissionDeniedError("Can't sort by notepad page that's not yours"));
-});
-
-test("must filter by assignee to sort by active position", async () => {
+test("must filter by assignee to sort by assignee position", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const adminSession = await space.createSession({hasInternalAccess: true});
@@ -15071,7 +14046,7 @@ test("must filter by assignee to sort by active position", async () => {
             spaceId: space.id,
             sorts: [
                 {
-                    type: "AssigneeActivePosition",
+                    type: "AssigneePosition",
                     direction: "Ascending",
                     missing: "Last",
                 },
@@ -15079,7 +14054,7 @@ test("must filter by assignee to sort by active position", async () => {
         }),
     ).rejects.toThrow(
         new PermissionDeniedError(
-            "Must filter assignee to session account to sort by active position",
+            "Must filter assignee to session account to sort by assignee position",
         ),
     );
 
@@ -15096,7 +14071,7 @@ test("must filter by assignee to sort by active position", async () => {
         ],
         sorts: [
             {
-                type: "AssigneeActivePosition",
+                type: "AssigneePosition",
                 direction: "Ascending",
                 missing: "Last",
             },
@@ -15114,7 +14089,7 @@ test("must filter by assignee to sort by active position", async () => {
             ],
             sorts: [
                 {
-                    type: "AssigneeActivePosition",
+                    type: "AssigneePosition",
                     direction: "Ascending",
                     missing: "Last",
                 },
@@ -15122,7 +14097,7 @@ test("must filter by assignee to sort by active position", async () => {
         }),
     ).rejects.toThrow(
         new PermissionDeniedError(
-            "Must filter assignee to session account to sort by active position",
+            "Must filter assignee to session account to sort by assignee position",
         ),
     );
 
@@ -15143,7 +14118,7 @@ test("must filter by assignee to sort by active position", async () => {
         ],
         sorts: [
             {
-                type: "AssigneeActivePosition",
+                type: "AssigneePosition",
                 direction: "Ascending",
                 missing: "Last",
             },
@@ -15169,7 +14144,7 @@ test("must filter by assignee to sort by active position", async () => {
             ],
             sorts: [
                 {
-                    type: "AssigneeActivePosition",
+                    type: "AssigneePosition",
                     direction: "Ascending",
                     missing: "Last",
                 },

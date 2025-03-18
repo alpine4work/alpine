@@ -1,8 +1,8 @@
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 
-let indiscriminatelyDisableAllTaskGridViewAnimations = false;
-const disableTaskGridViewAnimationsForTaskIds = new Set<TaskId>();
+let indiscriminatelyDisableAllTaskGridViewAnimations = 0;
+const disableTaskGridViewAnimationsForTaskIds = new Map<TaskId, number>();
 
 export function isDisablingTaskGridViewAnimationsForTaskId(taskId: TaskId) {
     return disableTaskGridViewAnimationsForTaskIds.has(taskId);
@@ -14,14 +14,23 @@ export function isDisablingTaskGridViewAnimationsForTaskId(taskId: TaskId) {
  * up before the next paint.
  */
 export function disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId: TaskId) {
-    disableTaskGridViewAnimationsForTaskIds.add(taskId);
+    disableTaskGridViewAnimationsForTaskIds.set(
+        taskId,
+        (disableTaskGridViewAnimationsForTaskIds.get(taskId) ?? 0) + 1,
+    );
+
     scheduleAfterNextBrowserPaint(() => {
-        disableTaskGridViewAnimationsForTaskIds.delete(taskId);
+        const count = (disableTaskGridViewAnimationsForTaskIds.get(taskId) ?? 0) - 1;
+        if (count > 0) {
+            disableTaskGridViewAnimationsForTaskIds.set(taskId, count);
+        } else {
+            disableTaskGridViewAnimationsForTaskIds.delete(taskId);
+        }
     });
 }
 
 export function isIndiscriminatelyDisablingAllTaskGridViewAnimations() {
-    return indiscriminatelyDisableAllTaskGridViewAnimations;
+    return indiscriminatelyDisableAllTaskGridViewAnimations > 0;
 }
 
 /**
@@ -34,8 +43,8 @@ export function isIndiscriminatelyDisablingAllTaskGridViewAnimations() {
  * specific tasks.
  */
 export function indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint() {
-    indiscriminatelyDisableAllTaskGridViewAnimations = true;
+    indiscriminatelyDisableAllTaskGridViewAnimations++;
     scheduleAfterNextBrowserPaint(() => {
-        indiscriminatelyDisableAllTaskGridViewAnimations = false;
+        indiscriminatelyDisableAllTaskGridViewAnimations--;
     });
 }

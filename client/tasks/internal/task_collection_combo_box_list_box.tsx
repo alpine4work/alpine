@@ -9,7 +9,12 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {fontSizes, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
+import {
+    fontSizes,
+    grey5SemiTransparentColorVar,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {TaskCollectionComboBoxCreateCollectionOption} from "~/client/tasks/internal/task_collection_combo_box_create_collection_option.js";
 import {TaskCollectionComboBoxInstructionalPlaceholder} from "~/client/tasks/internal/task_collection_combo_box_instructional_placeholder.js";
 import {
@@ -22,7 +27,7 @@ import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 export function TaskCollectionComboBoxListBox({
     comboBoxState,
     listBoxRef,
-    listBoxProps: _listBoxProps,
+    listBoxProps: originalListBoxProps,
     pendingKey = null,
     autoFocus,
     shouldHideNoResultsIcon,
@@ -36,7 +41,11 @@ export function TaskCollectionComboBoxListBox({
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const {listBoxProps} = useListBox(
-        {..._listBoxProps, autoFocus: autoFocus ?? _listBoxProps.autoFocus, scrollRef},
+        {
+            ...originalListBoxProps,
+            autoFocus: autoFocus ?? originalListBoxProps.autoFocus,
+            scrollRef,
+        },
         comboBoxState,
         listBoxRef,
     );
@@ -162,7 +171,10 @@ export function TaskCollectionComboBoxListBox({
                 />
             ) : (
                 createCollectionButtonItem && (
-                    <Box borderTop="grey-5" padding="1">
+                    <Box
+                        padding="1"
+                        style={{boxShadow: `0 -1px 0 0 ${grey5SemiTransparentColorVar}`}}
+                    >
                         <TaskCollectionComboBoxCreateCollectionOption
                             comboBoxState={comboBoxState}
                             item={createCollectionButtonItem}

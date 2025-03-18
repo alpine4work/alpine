@@ -2,6 +2,7 @@ import {TaskIndexDoc, getTaskIndexDocDisplayStatus} from "~/server/tasks/data/ta
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {TaskDisplayStatusIntegerMapping} from "~/shared/tasks/task_display_status.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskPriorityIntegerMapping} from "~/shared/tasks/task_priority.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {
@@ -84,36 +85,27 @@ function getTaskQueryNormalizedSortCursorValueForIndexDoc(
                 return [version[0], version[1], initialOrderKey];
             }
         }
-        case "NotepadPagePosition": {
-            const position = task.notepadPages.raw.positionById.get(
-                `${sort.accountId}-${sort.notepadPageId}`,
-            );
-            if (!position) {
+        case "AssigneePosition": {
+            if (!task.assignee.value) {
                 return null;
             } else {
-                return [position.orderTime[0], position.orderTime[1], position.orderKey];
-            }
-        }
-        case "AssigneeActivePosition": {
-            if (
-                task.status.value.type !== "Open" ||
-                !task.assignee.value ||
-                task.rawAssigneeStatus.value.type !== "Active"
-            ) {
-                return null;
-            } else {
-                const assigneeActivePosition = (task.rawAssigneeActivePosition.value?.accountId ===
-                task.assignee.value.assignee.accountId
-                    ? task.rawAssigneeActivePosition.value.position
-                    : null) ?? {
-                    orderTime: task.rawAssigneeStatus.version,
-                    orderKey: initialOrderKey,
-                };
+                let assigneePosition: TaskPosition;
+                if (
+                    task.rawAssigneePosition.value?.accountId ===
+                    task.assignee.value.assignee.accountId
+                ) {
+                    assigneePosition = task.rawAssigneePosition.value.position;
+                } else {
+                    assigneePosition = {
+                        orderTime: task.rawAssigneeStatus.version,
+                        orderKey: initialOrderKey,
+                    };
+                }
 
                 return [
-                    assigneeActivePosition.orderTime[0],
-                    assigneeActivePosition.orderTime[1],
-                    assigneeActivePosition.orderKey,
+                    assigneePosition.orderTime[0],
+                    assigneePosition.orderTime[1],
+                    assigneePosition.orderKey,
                 ];
             }
         }

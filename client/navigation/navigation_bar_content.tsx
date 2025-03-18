@@ -593,6 +593,12 @@ function NavigationBarContentMoreButton({
                     size={platform === "mobile" ? "base" : "md"}
                     description="More"
                     withoutTooltip={true}
+                    // Don't focus the button on press since pressing will open the overlay and
+                    // should focus the overlay.
+                    //
+                    // TODO(calebmer): Find a way to automate this instead of setting this prop
+                    // manually on every `<Button>` wrapped in an `<OverlayTriggerButton>`.
+                    withoutFocusOnPress={true}
                 >
                     <DotsThreeVertical
                     // Vertical dots create better visual balance on mobile because:

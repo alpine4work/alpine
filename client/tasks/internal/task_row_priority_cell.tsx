@@ -19,7 +19,7 @@ import {
     taskRowViewColumnWidth,
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
-import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientReadonlyStore} from "~/client/tasks/core/task_client_store.js";
 import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {
@@ -89,17 +89,17 @@ function TaskRowPriorityCell(
         onCellKeyDownCapture,
         focusNextCell,
         focusPreviousCell,
-        commitActionTransactionEvenIfGhost,
+        commitActionTransaction,
     }: {
         isReadOnly: boolean;
-        store: TaskClientStore;
+        store: TaskClientReadonlyStore;
         task: TaskModel | null;
         disableExpensiveFeaturesDuringScroll: boolean;
         onCellKeyDown: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
-        commitActionTransactionEvenIfGhost: Memo<
+        commitActionTransaction: Memo<
             (getActions: (taskId: TaskId) => Array<TaskActionModel>) => void
         >;
     },
@@ -166,7 +166,7 @@ function TaskRowPriorityCell(
     );
 
     const handlePriorityChange = (priority: TaskPriority | null) => {
-        commitActionTransactionEvenIfGhost(taskId => [
+        commitActionTransaction(taskId => [
             {
                 type: "UpdateTask",
                 time: store.clock.now(),

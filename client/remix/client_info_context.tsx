@@ -6,7 +6,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {defaultTimeZone, getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {getRealmId} from "~/shared/id/realm_id.js";
 import {BrowserId} from "~/shared/id/types/id_types.js";
 import {
@@ -26,7 +26,9 @@ const clientInfo = new Lazy((): ClientInfo => {
     return {
         screenWidth: window.screen.width,
         screenHeight: window.screen.height,
-        timeZone: getCurrentTimeZone(),
+        // In integration tests, always use the default time zone. To help avoid time
+        // zone issues.
+        timeZone: process.env.NODE_ENV === "test" ? defaultTimeZone : getCurrentTimeZone(),
         locale: defaultLocale,
         renderingEngine: getRenderingEngineFromUserAgent(navigator.userAgent),
         // On the client, use `navigator.platform` to test if this is an Apple device

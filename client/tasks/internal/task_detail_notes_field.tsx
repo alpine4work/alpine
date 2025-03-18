@@ -1,6 +1,7 @@
 import classNames from "classnames";
 import {Memo, Ref, forwardRef, useId, useImperativeHandle, useMemo, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -12,13 +13,14 @@ import {
     taskDetailViewFieldLabelFontSize,
 } from "~/client/styles/tasks_shared_styles.js";
 import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_state.js";
-import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
+import {TaskNotesContentEditorState} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {Store} from "~/shared/store/store.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 
 export type TaskDetailNotesFieldRef = {
@@ -37,14 +39,20 @@ function TaskDetailNotesField(
         pushUndoStackEntry,
         pushUndoStackEntryFromRedo,
         pushRedoStackEntry,
-        notesClient,
+        notesEditorStateStore,
+        onNotesEditorStateChange,
+        reconnectNotesClient,
     }: {
         taskId: TaskId;
         isReadOnly: boolean;
         pushUndoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
         pushUndoStackEntryFromRedo: Memo<(entry: TaskUndoStackEntry) => void>;
         pushRedoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
-        notesClient: TaskDetailNotesContentEditorWebSocketClient;
+        notesEditorStateStore: Store<TaskNotesContentEditorState>;
+        onNotesEditorStateChange: Memo<
+            (state: ContentEditorState<TaskNotesContentWithReferences>) => void
+        >;
+        reconnectNotesClient: Memo<() => void>;
     },
     ref: Ref<TaskDetailNotesFieldRef>,
 ) {
@@ -69,9 +77,12 @@ function TaskDetailNotesField(
         [isReadOnly],
     );
 
-    const state = useStore(notesClient.state);
+    const state = useStore(notesEditorStateStore);
 
-    useWebSocketErrorDialog(notesClient, state.errorState);
+    useWebSocketErrorDialog(
+        useMemo(() => ({reconnect: reconnectNotesClient}), [reconnectNotesClient]),
+        state.errorState,
+    );
 
     const fileAttachmentTarget = useMemo(
         (): FileAttachmentTarget => ({type: "TaskNotes", taskId}),
@@ -112,7 +123,7 @@ function TaskDetailNotesField(
                             ref={editorRef}
                             aria-labelledby={labelId}
                             state={state.editorState}
-                            onChange={state => notesClient.changeEditorState(state)}
+                            onChange={onNotesEditorStateChange}
                             placeholder="Add more details…"
                             fileAttachmentTarget={fileAttachmentTarget}
                             className={classNames(
@@ -123,6 +134,7 @@ function TaskDetailNotesField(
                                 pushUndoStackEntry({
                                     type: "Notes",
                                     rootParentTaskId: taskId,
+                                    extra: null,
                                     taskId,
                                     contentEditorRef: editorRef,
                                     release: noop,
@@ -132,6 +144,7 @@ function TaskDetailNotesField(
                                 pushUndoStackEntryFromRedo({
                                     type: "Notes",
                                     rootParentTaskId: taskId,
+                                    extra: null,
                                     taskId,
                                     contentEditorRef: editorRef,
                                     release: noop,
@@ -141,6 +154,7 @@ function TaskDetailNotesField(
                                 pushRedoStackEntry({
                                     type: "Notes",
                                     rootParentTaskId: taskId,
+                                    extra: null,
                                     taskId,
                                     contentEditorRef: editorRef,
                                     release: noop,

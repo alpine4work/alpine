@@ -3,7 +3,7 @@ import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indica
 import {useStore} from "~/client/helpers/use_store.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientReadonlyStore} from "~/client/tasks/core/task_client_store.js";
 import {TaskCollectionComboBoxItem} from "~/client/tasks/internal/task_collection_combo_box_item.js";
 import {useSearchTaskCollectionsByAffinity} from "~/client/tasks/internal/use_search_task_collections_by_affinity.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
@@ -18,7 +18,7 @@ export function useTaskCollectionComboBoxSearchState({
     shouldLoadItems,
     excludeCollectionIds,
 }: {
-    store: TaskClientStore;
+    store: TaskClientReadonlyStore;
     inputValue: string;
     shouldLoadItems: boolean;
     excludeCollectionIds?: ReadonlySet<TaskCollectionId>;

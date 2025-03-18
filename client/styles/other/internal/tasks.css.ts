@@ -8,9 +8,11 @@ import {
     mediumSpacingScaleSelector,
 } from "~/client/styles/core/styles_core.js";
 import {
+    docClassName,
     paragraphLineHeightPx,
     paragraphMargin,
 } from "~/client/styles/other/internal/content.css.js";
+import {containerClassName} from "~/client/styles/other/internal/content_editor.css.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -171,7 +173,7 @@ export const rowTitleInputMultilineAfterClassName = style({
     },
 });
 
-export const detailNotesContentEditorMinHeight = mapObjectValues(
+export const detailNotesContentEditorMinHeightPx = mapObjectValues(
     paragraphLineHeightPx,
     (paragraphLineHeight, spacingScale) =>
         paragraphLineHeight * 2 + convertRemLengthToPx(paragraphMargin, spacingScale) * 1,
@@ -179,13 +181,19 @@ export const detailNotesContentEditorMinHeight = mapObjectValues(
 
 export const detailNotesContentEditorClassName = style({
     height: "100%",
-    minHeight: detailNotesContentEditorMinHeight.small,
     selectors: {
-        [`${mediumSpacingScaleSelector} &`]: {
-            minHeight: detailNotesContentEditorMinHeight.medium,
+        // We need the `${containerClassName} > ${docClassName}` selectors to make sure
+        // we override the `min-height: 100%` set with the same selector.
+        [`&, ${containerClassName} > ${docClassName}&`]: {
+            minHeight: detailNotesContentEditorMinHeightPx.small,
         },
-        [`${largeSpacingScaleSelector} &`]: {
-            minHeight: detailNotesContentEditorMinHeight.large,
-        },
+        [`${mediumSpacingScaleSelector} &, ${mediumSpacingScaleSelector} ${containerClassName} > ${docClassName}&`]:
+            {
+                minHeight: detailNotesContentEditorMinHeightPx.medium,
+            },
+        [`${largeSpacingScaleSelector} &, ${largeSpacingScaleSelector} ${containerClassName} > ${docClassName}&`]:
+            {
+                minHeight: detailNotesContentEditorMinHeightPx.large,
+            },
     },
 });

@@ -4,6 +4,7 @@ import createTree, {
     Node as TreeNode,
 } from "functional-red-black-tree";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
+import {ParsableRemLength} from "~/shared/design/core/spacing.js";
 import {OutOfRangeError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
@@ -23,7 +24,7 @@ import {
     getTaskQuerySortCursorTaskId,
 } from "~/shared/tasks/task_query_sort_cursor.js";
 
-const taskAnimationDurationMs = 100;
+export const taskAnimationDurationMs = 100;
 
 // HACK(calebmer): Hackishly get the constructor for a
 // `functional-red-black-tree` iterator so we can construct it since there's
@@ -179,6 +180,7 @@ export type TaskGridViewVirtualizedListAnimation =
           readonly type: "Create";
           readonly startTime: number;
           readonly duration: number;
+          readonly kind: "Task";
           readonly taskId: TaskId;
           readonly newItem: Omit<TaskGridViewVirtualizedListStateTaskItem, "isFirstTaskInQuery">;
           readonly newChildrenCount: number;
@@ -187,6 +189,7 @@ export type TaskGridViewVirtualizedListAnimation =
           readonly type: "Delete";
           readonly startTime: number;
           readonly duration: number;
+          readonly kind: "Task";
           readonly taskId: TaskId;
           readonly oldItem: Omit<TaskGridViewVirtualizedListStateTaskItem, "isFirstTaskInQuery">;
           readonly oldChildrenCount: number;
@@ -195,10 +198,25 @@ export type TaskGridViewVirtualizedListAnimation =
           readonly type: "Move";
           readonly startTime: number;
           readonly duration: number;
+          readonly kind: "Task";
           readonly taskId: TaskId;
           readonly newItem: Omit<TaskGridViewVirtualizedListStateTaskItem, "isFirstTaskInQuery">;
           readonly oldItem: Omit<TaskGridViewVirtualizedListStateTaskItem, "isFirstTaskInQuery">;
           readonly direction: "Up" | "Down";
+      }
+    | {
+          readonly type: "Create";
+          readonly startTime: number;
+          readonly duration: number;
+          readonly kind: "Unknown";
+          readonly height: ParsableRemLength;
+      }
+    | {
+          readonly type: "Delete";
+          readonly startTime: number;
+          readonly duration: number;
+          readonly kind: "Unknown";
+          readonly height: ParsableRemLength;
       };
 
 // All animations must have `startTime` and `duration`.
@@ -580,12 +598,17 @@ export class TaskGridViewVirtualizedListState {
     /**
      * Get animations to transition us from our old state to our new state.
      */
-    public getAnimations(previousState: TaskGridViewVirtualizedListState) {
+    public getAnimations(
+        previousState: TaskGridViewVirtualizedListState,
+    ): Set<TaskGridViewVirtualizedListAnimation & {kind: "Task"}> {
         const startTime = Date.now();
 
-        const animations = new Set<TaskGridViewVirtualizedListAnimation>();
+        const animations = new Set<TaskGridViewVirtualizedListAnimation & {kind: "Task"}>();
 
-        const animationsByTaskId = new Map<TaskId, Set<TaskGridViewVirtualizedListAnimation>>();
+        const animationsByTaskId = new Map<
+            TaskId,
+            Set<TaskGridViewVirtualizedListAnimation & {kind: "Task"}>
+        >();
 
         const getAnimations = (
             oldTree: TaskGridViewVirtualizedTaskTree | null,
@@ -605,6 +628,7 @@ export class TaskGridViewVirtualizedListState {
                         // If a task has some children, allow the animation to take a little longer but
                         // not too long.
                         duration: taskAnimationDurationMs * (1 + Math.min(newChildrenCount, 1)),
+                        kind: "Task",
                         taskId: getTaskQuerySortCursorTaskId(key),
                         newItem: {
                             type: "Task",
@@ -638,6 +662,7 @@ export class TaskGridViewVirtualizedListState {
                         // If a task has some children, allow the animation to take a little longer but
                         // not too long.
                         duration: taskAnimationDurationMs * (1 + Math.min(oldChildrenCount, 1)),
+                        kind: "Task",
                         taskId: getTaskQuerySortCursorTaskId(key),
                         oldItem: {
                             type: "Task",
@@ -697,6 +722,7 @@ export class TaskGridViewVirtualizedListState {
                             // If a task has some children, allow the animation to take a little longer but
                             // not too long.
                             duration: taskAnimationDurationMs * (1 + Math.min(newChildrenCount, 1)),
+                            kind: "Task",
                             taskId: getTaskQuerySortCursorTaskId(change.key),
                             newItem: {
                                 type: "Task",
@@ -727,6 +753,7 @@ export class TaskGridViewVirtualizedListState {
                             // If a task has some children, allow the animation to take a little longer but
                             // not too long.
                             duration: taskAnimationDurationMs * (1 + Math.min(oldChildrenCount, 1)),
+                            kind: "Task",
                             taskId: getTaskQuerySortCursorTaskId(change.key),
                             oldItem: {
                                 type: "Task",
@@ -784,6 +811,7 @@ export class TaskGridViewVirtualizedListState {
                     type: "Move",
                     startTime,
                     duration: taskAnimationDurationMs,
+                    kind: "Task",
                     taskId: getTaskQuerySortCursorTaskId(animation1.newItem.cursor),
                     newItem: animation1.newItem,
                     oldItem: animation2.oldItem,
@@ -804,6 +832,7 @@ export class TaskGridViewVirtualizedListState {
                     type: "Move",
                     startTime,
                     duration: taskAnimationDurationMs,
+                    kind: "Task",
                     taskId: getTaskQuerySortCursorTaskId(animation2.newItem.cursor),
                     newItem: animation2.newItem,
                     oldItem: animation1.oldItem,

@@ -8313,40 +8313,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 }
                                                                             }
                                                                         },
-                                                                        "UpdateNotepadPagePosition": {
-                                                                            "type": "Object",
-                                                                            "propertySchemaByKey": {
-                                                                                "type": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Value",
-                                                                                        "value": "UpdateNotepadPagePosition"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "accountId": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Id"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "notepadPageId": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Integer"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "position": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Nullable",
-                                                                                        "schema": {
-                                                                                            "type": "Reference",
-                                                                                            "reuseReferenceId": "239e62dc"
-                                                                                        }
-                                                                                    },
-                                                                                    "optional": false
-                                                                                }
-                                                                            }
-                                                                        },
                                                                         "UpdateStatus": {
                                                                             "type": "Object",
                                                                             "propertySchemaByKey": {
@@ -8528,13 +8494,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 }
                                                                             }
                                                                         },
-                                                                        "UpdateAssigneeActivePosition": {
+                                                                        "UpdateAssigneePosition": {
                                                                             "type": "Object",
                                                                             "propertySchemaByKey": {
                                                                                 "type": {
                                                                                     "valueSchema": {
                                                                                         "type": "Value",
-                                                                                        "value": "UpdateAssigneeActivePosition"
+                                                                                        "value": "UpdateAssigneePosition"
                                                                                     },
                                                                                     "optional": false
                                                                                 },
@@ -8614,6 +8580,30 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 "Urgent"
                                                                                             ]
                                                                                         }
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "UpdateNotepadPagePosition": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdateNotepadPagePosition"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "UpdateAssigneeActivePosition": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdateAssigneeActivePosition"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -8785,57 +8775,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                             }
                                                         }
                                                     },
-                                                    "UpdateNotepadPage": {
-                                                        "type": "Object",
-                                                        "propertySchemaByKey": {
-                                                            "type": {
-                                                                "valueSchema": {
-                                                                    "type": "Value",
-                                                                    "value": "UpdateNotepadPage"
-                                                                },
-                                                                "optional": false
-                                                            },
-                                                            "time": {
-                                                                "valueSchema": {
-                                                                    "type": "Uint64"
-                                                                },
-                                                                "optional": false
-                                                            },
-                                                            "accountId": {
-                                                                "valueSchema": {
-                                                                    "type": "Id"
-                                                                },
-                                                                "optional": false
-                                                            },
-                                                            "notepadPageId": {
-                                                                "valueSchema": {
-                                                                    "type": "Integer"
-                                                                },
-                                                                "optional": false
-                                                            },
-                                                            "notepadPageAction": {
-                                                                "valueSchema": {
-                                                                    "type": "Union",
-                                                                    "typeKey": "type",
-                                                                    "variantSchemaByTypeValue": {
-                                                                        "Create": {
-                                                                            "type": "Object",
-                                                                            "propertySchemaByKey": {
-                                                                                "type": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Value",
-                                                                                        "value": "Create"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                }
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                },
-                                                                "optional": false
-                                                            }
-                                                        }
-                                                    },
                                                     "UpdateAccountName": {
                                                         "type": "Object",
                                                         "propertySchemaByKey": {
@@ -8867,6 +8806,24 @@ export const dynamoGeneratedSchemaDescription: {
                                                             "accountNameVersion": {
                                                                 "valueSchema": {
                                                                     "type": "Integer"
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    },
+                                                    "UpdateNotepadPage": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "UpdateNotepadPage"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "time": {
+                                                                "valueSchema": {
+                                                                    "type": "Uint64"
                                                                 },
                                                                 "optional": false
                                                             }

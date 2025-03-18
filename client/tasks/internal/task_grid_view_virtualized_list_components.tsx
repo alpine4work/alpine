@@ -15,7 +15,6 @@ import {
     useMemo,
     useRef,
 } from "react";
-import {AppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {maintainTextInputVisibility} from "~/client/design/use_text_input_visibility_maintainer.js";
@@ -27,30 +26,24 @@ import {TaskRowShimmer} from "~/client/shimmer/task_row_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     colorSchemeVars,
+    grey5SemiTransparentColorVar,
     pulseAnimationClassName,
     spinAnimationClassName,
 } from "~/client/styles/styles.js";
 import {
-    taskGridViewColumnHeaderExtraPaddingBottomPx,
-    taskGridViewColumnHeaderHeight,
-    taskRowViewCollectionsColumnWidth,
-    taskRowViewColumnPaddingX,
-    taskRowViewColumnWidth,
-    taskRowViewDragHandleWidthRem,
-    taskRowViewExpandButtonWidthRem,
-    taskRowViewFirstColumnPaddingLeft,
-    taskRowViewFirstColumnWidth,
-    taskRowViewLastColumnPaddingRight,
     taskRowViewMinHeight,
+    taskRowViewPaddingBottom,
 } from "~/client/styles/tasks_shared_styles.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
+    TaskClientReadonlyStore,
     TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/core/task_client_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
+import {TaskGridViewColumnHeader as TaskGridViewActualColumnHeader} from "~/client/tasks/internal/task_grid_view_column_header.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {
     TaskGridViewVirtualizedListEvents,
@@ -80,12 +73,14 @@ export const TaskGridViewColumnHeaderMemo = memo(forwardRef(TaskGridViewColumnHe
 function TaskGridViewColumnHeader(
     {
         hasColumns,
+        withoutAssigneeField,
         columnHeaderControls,
         minHeight,
         offset,
         shouldRenderWithRelativePositioning,
     }: {
         hasColumns: boolean;
+        withoutAssigneeField: boolean;
         columnHeaderControls: Memo<{minHeight: number; node: ReactNode}> | null;
         minHeight: number;
         offset: number;
@@ -126,7 +121,6 @@ function TaskGridViewColumnHeader(
                 style={{
                     top: !shouldRenderWithRelativePositioning ? 0 : undefined,
                     minHeight,
-                    paddingBottom: taskGridViewColumnHeaderExtraPaddingBottomPx,
                 }}
             >
                 <Box zIndex="-10" position="absolute" inset="0" backgroundColor="grey-0">
@@ -135,8 +129,7 @@ function TaskGridViewColumnHeader(
                         left={screenPaddingX}
                         right={screenPaddingX}
                         height="border"
-                        backgroundColor="grey-5"
-                        style={{bottom: -1}}
+                        style={{backgroundColor: grey5SemiTransparentColorVar, bottom: -1}}
                     />
                 </Box>
                 <OverlayScopeContextProvider
@@ -149,73 +142,9 @@ function TaskGridViewColumnHeader(
                         </Box>
                     )}
                     {hasColumns && (
-                        <Box
-                            height={taskGridViewColumnHeaderHeight}
-                            paddingTop="0.5"
-                            display="flex"
-                        >
-                            <Box
-                                flexShrink="0"
-                                width="32"
-                                paddingBottom="1"
-                                color="grey-40"
-                                fontSize="50"
-                                style={{
-                                    paddingLeft: `${
-                                        taskRowViewDragHandleWidthRem +
-                                        taskRowViewExpandButtonWidthRem
-                                    }rem`,
-                                }}
-                            >
-                                Name
-                            </Box>
-                            <Box flexGrow="1" />
-                            <Box
-                                flexShrink="0"
-                                paddingX={taskRowViewColumnPaddingX}
-                                paddingBottom="1"
-                                color="grey-40"
-                                fontSize="50"
-                                style={{
-                                    width: taskRowViewFirstColumnWidth,
-                                    paddingLeft: taskRowViewFirstColumnPaddingLeft,
-                                }}
-                            >
-                                Assignee
-                            </Box>
-                            <Box
-                                flexShrink="0"
-                                paddingX={taskRowViewColumnPaddingX}
-                                paddingBottom="1"
-                                color="grey-40"
-                                fontSize="50"
-                                style={{width: taskRowViewColumnWidth}}
-                            >
-                                Priority
-                            </Box>
-                            <Box
-                                flexShrink="0"
-                                paddingX={taskRowViewColumnPaddingX}
-                                paddingBottom="1"
-                                color="grey-40"
-                                fontSize="50"
-                                style={{width: taskRowViewColumnWidth}}
-                            >
-                                Due date
-                            </Box>
-                            <Box
-                                flexShrink="0"
-                                paddingLeft={taskRowViewColumnPaddingX}
-                                paddingRight={taskRowViewLastColumnPaddingRight}
-                                paddingBottom="1"
-                                color="grey-40"
-                                fontSize="50"
-                                style={{width: taskRowViewCollectionsColumnWidth}}
-                            >
-                                Collections
-                            </Box>
-                            <Box flexShrink="0" width="5" />
-                        </Box>
+                        <TaskGridViewActualColumnHeader
+                            withoutAssigneeField={withoutAssigneeField}
+                        />
                     )}
                 </OverlayScopeContextProvider>
             </Box>
@@ -226,11 +155,13 @@ function TaskGridViewColumnHeader(
 export const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreUnloadedTasksMemo({
     capabilities,
     rowMaxWidth,
+    withoutBorderTop,
     focusPreviousTaskTitleEnd,
     focusPreviousTaskTitleAll,
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
     rowMaxWidth: Spacing | null;
+    withoutBorderTop: boolean;
     focusPreviousTaskTitleEnd: Memo<(key: string) => void>;
     focusPreviousTaskTitleAll: Memo<(key: string) => void>;
 }) {
@@ -242,6 +173,7 @@ export const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreU
                 randomSeed="MoreUnloadedTasks"
                 index={0}
                 indentation={0}
+                withoutBorderTop={withoutBorderTop}
                 focusPreviousTaskTitleEnd={() => focusPreviousTaskTitleEnd("MoreUnloadedTasks")}
                 focusPreviousTaskTitleAll={() => focusPreviousTaskTitleAll("MoreUnloadedTasks")}
             />
@@ -251,6 +183,7 @@ export const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreU
                 randomSeed="MoreUnloadedTasks"
                 index={1}
                 indentation={0}
+                withoutBorderTop={false}
                 focusPreviousTaskTitleEnd={() => focusPreviousTaskTitleEnd("MoreUnloadedTasks")}
                 focusPreviousTaskTitleAll={() => focusPreviousTaskTitleAll("MoreUnloadedTasks")}
             />
@@ -260,6 +193,7 @@ export const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreU
                 randomSeed="MoreUnloadedTasks"
                 index={2}
                 indentation={0}
+                withoutBorderTop={false}
                 focusPreviousTaskTitleEnd={() => focusPreviousTaskTitleEnd("MoreUnloadedTasks")}
                 focusPreviousTaskTitleAll={() => focusPreviousTaskTitleAll("MoreUnloadedTasks")}
             />
@@ -284,24 +218,30 @@ export const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreU
 
 export const TaskGridViewDecorativeGhostTaskMemo = memo(
     function TaskGridViewDecorativeGhostTaskMemo({
-        capabilities,
         rowMaxWidth,
-        isRootQueryNull,
+        isInert,
+        structuralItemKeyPrefix,
         relativeItemIndex,
+        isFirstRow,
+        withoutBorderTopIfFirstRow,
         withPaddingBottom,
+        hasNextGridView,
         focusPreviousTaskTitleEnd,
         focusPreviousTaskTitleAll,
     }: {
-        capabilities: Memo<TaskGridViewCapabilities>;
         rowMaxWidth: Spacing | null;
-        isRootQueryNull: boolean;
+        isInert: boolean;
+        structuralItemKeyPrefix: string;
+        hasColumnHeader: boolean;
         relativeItemIndex: number;
+        isFirstRow: boolean;
+        withoutBorderTopIfFirstRow: boolean;
         withPaddingBottom: boolean;
+        hasNextGridView: boolean;
         focusPreviousTaskTitleEnd: Memo<(key: string) => void>;
         focusPreviousTaskTitleAll: Memo<(key: string) => void>;
     }) {
         const platform = usePlatform();
-        const isInert = capabilities.isReadOnly || isRootQueryNull;
 
         return (
             <Box
@@ -318,9 +258,13 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
                 {...useOutOfBoundsClickSelection({
                     isDisabled: isInert,
                     onSelect: () =>
-                        focusPreviousTaskTitleEnd(`DecorativeGhostTask:${relativeItemIndex}`),
+                        focusPreviousTaskTitleEnd(
+                            `${structuralItemKeyPrefix}DecorativeGhostTask:${relativeItemIndex}`,
+                        ),
                     onSelectAll: () =>
-                        focusPreviousTaskTitleAll(`DecorativeGhostTask:${relativeItemIndex}`),
+                        focusPreviousTaskTitleAll(
+                            `${structuralItemKeyPrefix}DecorativeGhostTask:${relativeItemIndex}`,
+                        ),
                 })}
             >
                 <Box
@@ -332,18 +276,24 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
                         //
                         // 1. Doesn't add 2px to layout
                         // 2. Adjacent borders share the same space so we don't get 2px dividers
-                        boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                        boxShadow:
+                            // The column header in a grid view renders a semi-translucent grey border. To
+                            // avoid drawing a border darker than `grey-5` at the top of the screen if this
+                            // is the first row in a grid with columns then only render a bottom border.
+                            isFirstRow && withoutBorderTopIfFirstRow
+                                ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}`
+                                : `0 1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
                     }}
                 />
                 {withPaddingBottom && (
                     <Box
                         width="full"
-                        height="5"
+                        height={taskRowViewPaddingBottom}
                         pointerEvents="none"
                         style={{
                             height:
-                                platform === "mobile"
-                                    ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing["5"]})`
+                                platform === "mobile" && !hasNextGridView
+                                    ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[taskRowViewPaddingBottom]})`
                                     : undefined,
                         }}
                     />
@@ -377,6 +327,7 @@ export const TaskGridViewUnloadedChildTaskMemo = memo(function TaskGridViewUnloa
             randomSeed={parentGridKey}
             index={unloadedChildTaskIndex}
             indentation={indentation}
+            withoutBorderTop={false}
             focusPreviousTaskTitleEnd={() =>
                 focusPreviousTaskTitleEnd(
                     `UnloadedChildTask:${parentGridKey}-${unloadedChildTaskIndex}`,
@@ -446,6 +397,7 @@ function TaskGridViewRowShimmer({
     randomSeed,
     index,
     indentation,
+    withoutBorderTop,
     focusPreviousTaskTitleEnd,
     focusPreviousTaskTitleAll,
 }: {
@@ -454,6 +406,7 @@ function TaskGridViewRowShimmer({
     randomSeed: string;
     index: number;
     indentation: number;
+    withoutBorderTop: boolean;
     focusPreviousTaskTitleEnd: () => void;
     focusPreviousTaskTitleAll: () => void;
 }) {
@@ -495,16 +448,21 @@ function TaskGridViewRowShimmer({
                 onSelectAll: focusPreviousTaskTitleAll,
             })}
         >
-            <TaskRowShimmer width={width} ragRight={ragRight} indentation={indentation} />
+            <TaskRowShimmer
+                width={width}
+                ragRight={ragRight}
+                indentation={indentation}
+                withoutBorderTop={withoutBorderTop}
+            />
         </Box>
     );
 }
 
 export const TaskRowViewMemo = memo(function TaskRowViewMemo({
-    context,
     capabilities,
     maxGridExpandableTaskDepth,
     stateKey,
+    store,
     rootQuery,
     isRootQueryManuallySorted,
     affinityManager,
@@ -517,6 +475,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     rowMaxWidth,
     disableExpensiveFeaturesDuringScroll,
     isFirstRow,
+    withoutBorderTopIfFirstRow,
     isFirstTaskInQuery,
     nextIndentation,
     titlePlaceholder,
@@ -530,16 +489,20 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     onTaskDeleteConfirmationModalDialogClosedCallbacksRef,
     withoutPaddingLeft,
     withPaddingBottom,
+    hasNextGridView,
     mobileKeyboardToolbarPortalRef,
 }: {
-    context: AppContext;
     capabilities: Memo<TaskGridViewCapabilities>;
     maxGridExpandableTaskDepth: number;
     stateKey: Key | undefined;
-    rootQuery: TaskClientQuery;
+    // Takes a readonly store so TypeScript errors when you try to call
+    // `store.commitTaskActionTransaction()`. You should call
+    // `events.commitActionTransaction()` instead.
+    store: TaskClientReadonlyStore;
+    rootQuery: TaskClientQuery | null;
     isRootQueryManuallySorted: boolean;
     affinityManager: TaskClientStoreSearchAffinityManager;
-    query: TaskClientQuery;
+    query: TaskClientQuery | null;
     gridKey: TaskGridViewTaskKey;
     cursor: TaskQuerySortCursor | null;
     ghostTaskId?: TaskId | null;
@@ -548,6 +511,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     rowMaxWidth: Spacing | null;
     disableExpensiveFeaturesDuringScroll: boolean;
     isFirstRow: boolean;
+    withoutBorderTopIfFirstRow: boolean;
     isFirstTaskInQuery: boolean;
     nextIndentation: number;
     titlePlaceholder?: string;
@@ -571,6 +535,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     onTaskDeleteConfirmationModalDialogClosedCallbacksRef: MutableRefObject<Array<() => void>>;
     withoutPaddingLeft?: boolean;
     withPaddingBottom?: boolean;
+    hasNextGridView: boolean;
     mobileKeyboardToolbarPortalRef: RefObject<HTMLDivElement>;
 }) {
     const {timeZone} = useClientInfo();
@@ -598,6 +563,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                 events.pushUndoStackEntry({
                     type: "Actions",
                     rootParentTaskId: rootParentTaskId ?? assertExists(ghostTaskId),
+                    extra: null,
                     undoActions,
                     removedFromQueries,
                     leaseId,
@@ -622,8 +588,11 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
         query === rootQuery
             ? events.getMoveTaskToRootQueryActions
             : (newTaskId, position) => {
-                  const time1 = rootQuery.store.clock.now();
-                  const time2 = rootQuery.store.clock.now();
+                  const time1 = store.clock.now();
+                  const time2 = store.clock.now();
+
+                  // `query` can only be null if `rootQuery` is null.
+                  assert(query !== null);
 
                   return [
                       {
@@ -659,7 +628,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             : taskId => [
                   {
                       type: "UpdateTask",
-                      time: rootQuery.store.clock.now(),
+                      time: store.clock.now(),
                       taskId,
                       taskAction: {
                           type: "UpdateParentTaskId",
@@ -690,12 +659,11 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
         disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
 
-        query.store.commitTaskActionTransaction(
-            context,
-            [
+        events.commitActionTransaction(
+            () => [
                 {
                     type: "UpdateTask",
-                    time: query.store.clock.now(),
+                    time: store.clock.now(),
                     taskId: newTaskId,
                     taskAction: {
                         type: "Create",
@@ -708,7 +676,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                     taskId ? {type: "Above", taskId} : {type: "End"},
                 ),
             ],
-            {undoManager, affinityManager},
+            {undoManager},
         );
     };
 
@@ -732,12 +700,11 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
             disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
 
-            query.store.commitTaskActionTransaction(
-                context,
-                [
+            events.commitActionTransaction(
+                () => [
                     {
                         type: "UpdateTask",
-                        time: query.store.clock.now(),
+                        time: store.clock.now(),
                         taskId: newTaskId,
                         taskAction: {
                             type: "Create",
@@ -747,7 +714,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                     },
                     ...getMoveTaskToQueryActions(newTaskId, {type: "Start"}),
                 ],
-                {undoManager, affinityManager},
+                {undoManager},
             );
 
             onLayoutEffectCallbacksRef.current.push(() => {
@@ -767,6 +734,9 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             });
             return;
         }
+
+        // If `query` is null then we only render a ghost task (null `taskId`).
+        assert(query !== null);
 
         const task = query.getLoadedTaskSnapshot(taskId);
 
@@ -811,9 +781,8 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
                 disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
 
-                query.store.commitTaskActionTransaction(
-                    context,
-                    [
+                events.commitActionTransaction(
+                    () => [
                         {
                             type: "UpdateTask",
                             time: time1,
@@ -843,7 +812,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                             },
                         },
                     ],
-                    {undoManager, affinityManager},
+                    {undoManager},
                 );
 
                 onLayoutEffectCallbacksRef.current.push(() => {
@@ -873,9 +842,8 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
         disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
 
-        query.store.commitTaskActionTransaction(
-            context,
-            [
+        events.commitActionTransaction(
+            () => [
                 {
                     type: "UpdateTask",
                     time: query.store.clock.now(),
@@ -888,7 +856,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                 },
                 ...getMoveTaskToQueryActions(newTaskId, {type: "Below", taskId}),
             ],
-            {undoManager, affinityManager},
+            {undoManager},
         );
 
         onLayoutEffectCallbacksRef.current.push(() => {
@@ -956,12 +924,11 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                         ? events.getMaybeRemoveTaskFromRootQueryActions(taskId)
                         : [];
 
-                rootQuery.store.commitTaskActionTransaction(
-                    context,
-                    [
+                events.commitActionTransaction(
+                    () => [
                         {
                             type: "UpdateTask",
-                            time: rootQuery.store.clock.now(),
+                            time: store.clock.now(),
                             taskId,
                             taskAction: {
                                 type: "UpdateParentTaskId",
@@ -981,7 +948,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                         // `UpdateParentTaskId` which grants it back.
                         ...maybeRemoveActions,
                     ],
-                    {undoManager, affinityManager},
+                    {undoManager},
                 );
 
                 onLayoutEffectCallbacksRef.current.push(() => {
@@ -1025,6 +992,9 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     const unnestTaskIfNestedRow = (titleSelection: Selection) => {
         if (!cursor || parents.length === 0) return;
 
+        // If `query` is null then we only render a ghost task (null `cursor`).
+        assert(query !== null);
+
         const taskId = getTaskQuerySortCursorTaskId(cursor);
 
         const oldParentTaskId = query.getLoadedTaskSnapshot(taskId).getParent()?.taskId ?? null;
@@ -1044,7 +1014,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
             const removeAction: TaskActionModel = {
                 type: "UpdateTask",
-                time: rootQuery.store.clock.now(),
+                time: store.clock.now(),
                 taskId,
                 taskAction: {
                     type: "UpdateParentTaskId",
@@ -1052,9 +1022,8 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                 },
             };
 
-            rootQuery.store.commitTaskActionTransaction(
-                context,
-                [
+            events.commitActionTransaction(
+                () => [
                     ...events.getMoveTaskToRootQueryActions(taskId, {
                         type: "Below",
                         taskId: oldParentTaskId,
@@ -1067,24 +1036,21 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                     // case of conflict.
                     removeAction,
                 ],
-                {undoManager, affinityManager},
+                {undoManager},
             );
         }
         // Move the task to our parent's parent. If we have access to the new parent's
         // children query then we can pick a position below our old parent.
         else {
-            const time1 = rootQuery.store.clock.now();
-            const time2 = rootQuery.store.clock.now();
+            const time1 = store.clock.now();
+            const time2 = store.clock.now();
 
-            const newChildrenQuery = rootQuery.store
-                .getTaskChildrenQueryStore(newParentTaskId)
-                .getSnapshot();
+            const newChildrenQuery = store.getTaskChildrenQueryStore(newParentTaskId).getSnapshot();
 
             disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
 
-            rootQuery.store.commitTaskActionTransaction(
-                context,
-                [
+            events.commitActionTransaction(
+                () => [
                     {
                         type: "UpdateTask",
                         time: time1,
@@ -1116,7 +1082,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                         },
                     },
                 ],
-                {undoManager, affinityManager},
+                {undoManager},
             );
         }
 
@@ -1203,17 +1169,16 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
         if (item.query.getLoadedTaskSnapshot(taskId).getChildTaskCount() === 0) {
             disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
 
-            rootQuery.store.commitTaskActionTransaction(
-                context,
-                [
+            events.commitActionTransaction(
+                () => [
                     {
                         type: "UpdateTask",
-                        time: rootQuery.store.clock.now(),
+                        time: store.clock.now(),
                         taskId,
                         taskAction: {type: "Delete"},
                     },
                 ],
-                {undoManager, affinityManager},
+                {undoManager},
             );
 
             focusPreviousRow(itemIndex);
@@ -1250,6 +1215,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             capabilities={capabilities}
             maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
             stateKey={stateKey}
+            store={store}
             // It's important we use the `query` property from `item` since child tasks
             // come from a different query than our root query.
             query={query}
@@ -1266,6 +1232,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
             titlePlaceholder={titlePlaceholder}
             isFirstRow={isFirstRow}
+            withoutBorderTopIfFirstRow={withoutBorderTopIfFirstRow}
             isFirstTaskInQuery={isFirstTaskInQuery}
             nextIndentation={nextIndentation}
             areChildTasksExpandedStore={areChildTasksExpandedStore}
@@ -1275,6 +1242,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             }}
             withoutPaddingLeft={withoutPaddingLeft}
             withPaddingBottom={withPaddingBottom}
+            hasNextGridView={hasNextGridView}
             getMoveTaskToRootQueryActions={events.getMoveTaskToRootQueryActions}
             getMoveTaskToQueryActions={getMoveTaskToQueryActions}
             getMaybeRemoveTaskFromQueryActions={getMaybeRemoveTaskFromQueryActions}
@@ -1306,6 +1274,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             )}
             mobileKeyboardToolbarPortalRef={mobileKeyboardToolbarPortalRef}
             scrollToAnchorPosition={events.scrollToAnchorPosition}
+            commitActionTransaction={events.commitActionTransaction}
         />
     );
 });

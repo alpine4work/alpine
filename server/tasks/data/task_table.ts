@@ -16,6 +16,7 @@ import {
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
+import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -50,6 +51,7 @@ import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
 import {
     ensureLocalTaskIndexesIfEnabled,
+    runIndexTaskInitialAssigneePositionMigrationForTask,
     withSendTaskIndexSearchEntityJobIfNeeded,
 } from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc, isTaskIndexDocDeleted} from "~/server/tasks/data/task_index_doc.js";
@@ -75,7 +77,9 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
@@ -84,7 +88,6 @@ import {
     compareHybridLogicalTimes,
     maxHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
@@ -101,10 +104,15 @@ import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {isVtencBigInt64SetEmpty} from "~/shared/helpers/number/vtenc_big_uint_64_set.js";
+import {
+    VtencBigUint64Set,
+    decodeVtencBigUint64List,
+    encodeVtencBigUint64Set,
+} from "~/shared/helpers/number/vtenc_big_uint_64_set.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -151,10 +159,6 @@ import {
     TaskGridViewExpansionState,
     TaskGridViewExpansionStateSchema,
 } from "~/shared/tasks/task_grid_view_expansion_state.js";
-import {
-    TaskNotepadPageIdCompressedSet,
-    generateTaskNotepadPageId,
-} from "~/shared/tasks/task_notepad_page_id.js";
 import {
     TaskNotesContent,
     TaskNotesContentSchema,
@@ -320,11 +324,23 @@ const TaskTable = DynamoTableSchema.new({
                 accountId: DynamoKeyAttributeSchema.id<AccountId>(),
             },
             sortRanges: [
+                // NOTE(calebmer, 2025-03-18): Remnants of the task notepad feature. We ignore
+                // these item at this point but we need minimal handling for backwards
+                // compatibility to avoid crashes since we have objects of this type saved in
+                // the database.
                 {
                     name: "Notepad",
                     sortKeyAttributes: {},
                     attributes: Schema.object({
-                        pageIds: TaskNotepadPageIdCompressedSet.schema,
+                        pageIds: (
+                            Schema.bytes as Schema<any> as Schema<VtencBigUint64Set>
+                        ).transform<ReadonlySet<number>>({
+                            serialize: ids => encodeVtencBigUint64Set(mapIterable(ids, BigInt)),
+                            deserialize: compressedIds =>
+                                new Set(
+                                    mapIterable(decodeVtencBigUint64List(compressedIds), Number),
+                                ),
+                        }),
                     }),
                 },
 
@@ -608,6 +624,7 @@ const TaskTable = DynamoTableSchema.new({
                             .default(null),
                     }),
                 },
+
                 /**
                  * Information regarding the task's comments. Including comment count and the
                  * next comment index.
@@ -677,6 +694,7 @@ const TaskTable = DynamoTableSchema.new({
                         ).default(new Map()),
                     }),
                 },
+
                 /**
                  * All queryable task data is updated through `TaskAction`s and indexed in
                  * OpenSearch. Task notes are a freeform, collaborative, text area that's not
@@ -754,6 +772,7 @@ const TaskTable = DynamoTableSchema.new({
                         ),
                     }),
                 },
+
                 /**
                  * Comments on a task. Has all the attributes needed for a message in
                  * `MessageInterface`.
@@ -769,6 +788,7 @@ const TaskTable = DynamoTableSchema.new({
                         payload: MessagePayloadSchema,
                     }),
                 },
+
                 /**
                  * We keep a log of changes to comments so that when backfilling for realtime
                  * we can send any missed updates between the last time data was loaded and
@@ -848,8 +868,6 @@ type TaskActionTransactionItem = DynamoTableItemType<
     "TaskActions",
     "ActionTransaction"
 >;
-
-type TaskAccountNotepadItem = DynamoTableItemType<typeof TaskTable, "Account", "Notepad">;
 
 type TaskAccountActionTransactionLeaseItem = DynamoTableItemType<
     typeof TaskTable,
@@ -931,6 +949,35 @@ export async function* expensiveScanEveryTaskAndTaskCollectionForMigration(
             yield {type: "TaskCollection", spaceId: item.spaceId, collectionId: item.collectionId};
         }
     }
+}
+
+/**
+ * We added `assigneePosition` on 2025-03-10. This migration makes sure
+ * `rawAssigneePosition` and `assigneePosition` exist on every task in
+ * OpenSearch.
+ */
+export async function runIndexTaskInitialAssigneePositionMigration(
+    context: Context<ServerProcessContextModules & {opensearch: OpensearchContextModule}>,
+    {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
+) {
+    assert(context.tracer.getRoot().serviceName === "MigrationService");
+
+    let i = 0;
+    const mutexes = createArrayWithLength(5, () => new Mutex());
+
+    for await (const item of TaskTable.expensiveScan(context, {
+        segmentIndex,
+        totalSegmentCount,
+        filter: [{partitionType: "Task", sortRangeType: "EssentialAttributes"}],
+    })) {
+        assert(item.partitionType === "Task" && item.sortRangeType === "EssentialAttributes");
+
+        void mutexes[i++ % mutexes.length]!.withLock(() =>
+            runIndexTaskInitialAssigneePositionMigrationForTask(context, item.spaceId, item.taskId),
+        );
+    }
+
+    await runAllPromises(mutexes.map(mutex => mutex.waitForUnlock()));
 }
 
 /**
@@ -1229,8 +1276,6 @@ class TaskActionTransactionCommitState {
           }
     >();
 
-    private _actorNotepadItemTransactionEntry: TaskAccountNotepadItem | null = null;
-
     private readonly _actionTransactionLeaseTransactionEntries: Array<TaskAccountActionTransactionLeaseItem> =
         [];
 
@@ -1239,7 +1284,6 @@ class TaskActionTransactionCommitState {
         TaskCollectionId,
         Promise<TaskCollectionEssentialAttributesItem | null>
     >();
-    private _actorNotepadItemPromise: Promise<TaskAccountNotepadItem> | null = null;
 
     private constructor(
         context: ServerSessionActionContext,
@@ -1506,12 +1550,6 @@ class TaskActionTransactionCommitState {
             }
         }
 
-        if (this._actorNotepadItemTransactionEntry) {
-            transactionEntries.push(
-                TaskTable.transactionDirectlyUpdateItem(this._actorNotepadItemTransactionEntry),
-            );
-        }
-
         for (const transactionEntry of this._actionTransactionLeaseTransactionEntries) {
             transactionEntries.push(TaskTable.transactionCreateItem(transactionEntry));
         }
@@ -1568,8 +1606,6 @@ class TaskActionTransactionCommitState {
         for (const [collectionId, collectionItem] of this._collectionItemById) {
             newState._collectionItemById.set(collectionId, collectionItem);
         }
-
-        newState._actorNotepadItemPromise = this._actorNotepadItemPromise;
 
         return newState;
     }
@@ -1932,39 +1968,6 @@ class TaskActionTransactionCommitState {
             default:
                 throw exhaustive(transactionEntry);
         }
-    }
-
-    public getActorNotepadItem(): Promise<TaskAccountNotepadItem> {
-        if (this._actorNotepadItemPromise === null) {
-            this._actorNotepadItemPromise = (async () => {
-                let notepadPagesItem = await TaskTable.getItemIfExists(this._context, {
-                    partitionType: "Account",
-                    sortRangeType: "Notepad",
-                    accountId: this._context.actor.getAccountId(),
-                    spaceId: this._spaceId,
-                });
-
-                notepadPagesItem ??= {
-                    partitionType: "Account",
-                    sortRangeType: "Notepad",
-                    accountId: this._context.actor.getAccountId(),
-                    spaceId: this._spaceId,
-                    pageIds: new TaskNotepadPageIdCompressedSet(new Set()),
-                };
-
-                return notepadPagesItem;
-            })();
-        }
-
-        return this._actorNotepadItemPromise;
-    }
-
-    public updateActorNotepadItem(notepadItem: TaskAccountNotepadItem) {
-        assert(notepadItem.accountId === this._context.actor.getAccountId());
-        assert(notepadItem.spaceId === this._spaceId);
-
-        this._actorNotepadItemPromise = Promise.resolve(notepadItem);
-        this._actorNotepadItemTransactionEntry = notepadItem;
     }
 
     public evaluateAccessPolicy(accessPolicy: AccessPolicy, expectedAccessLevel: AccessLevel) {
@@ -2550,29 +2553,6 @@ async function actuallyCommitTaskActionTransaction(
                                 );
                                 break;
                             }
-                            case "UpdateNotepadPagePosition": {
-                                if (
-                                    taskAction.position &&
-                                    !state.isTimeReasonable(taskAction.position.orderTime[0])
-                                ) {
-                                    throw new InvalidArgumentError(
-                                        "Action `orderTime` is too far in the future",
-                                    );
-                                }
-
-                                if (taskAction.accountId !== state.getActorAccountId()) {
-                                    throw new PermissionDeniedError(
-                                        "Can only access your account's notepad",
-                                    );
-                                }
-
-                                if (taskItem.creatorId !== state.getActorAccountId()) {
-                                    throw new PermissionDeniedError(
-                                        "Can only add tasks you created to your account's notepad",
-                                    );
-                                }
-                                break;
-                            }
                             case "UpdateStatus": {
                                 if (
                                     taskAction.status.type === "Closed" &&
@@ -2751,7 +2731,7 @@ async function actuallyCommitTaskActionTransaction(
                                 }
                                 break;
                             }
-                            case "UpdateAssigneeActivePosition": {
+                            case "UpdateAssigneePosition": {
                                 if (!state.isTimeReasonable(taskAction.position.orderTime[0])) {
                                     throw new InvalidArgumentError(
                                         "Action `orderTime` is too far in the future",
@@ -2760,13 +2740,13 @@ async function actuallyCommitTaskActionTransaction(
 
                                 if (taskItem.assigneeId.value !== state.getActorAccountId()) {
                                     throw new PermissionDeniedError(
-                                        "Can only update the task's active position if you are the task's assignee",
+                                        "Can only update the task's assignee position if you are the task's assignee",
                                     );
                                 }
 
                                 if (taskAction.accountId !== state.getActorAccountId()) {
                                     throw new PermissionDeniedError(
-                                        "Must use the actor `AccountId` when updating the task's active position",
+                                        "Must use the actor `AccountId` when updating the task's assignee position",
                                     );
                                 }
                                 break;
@@ -2785,6 +2765,12 @@ async function actuallyCommitTaskActionTransaction(
                                 // We don't store priority in essential attributes and action time
                                 // is validated above.
                                 break;
+                            }
+                            case "UpdateNotepadPagePosition":
+                            case "UpdateAssigneeActivePosition": {
+                                throw new InvalidArgumentError(
+                                    quote`Can't commit deprecated task action type ${action.taskAction.type}`,
+                                );
                             }
                             default:
                                 throw exhaustive(taskAction);
@@ -2973,34 +2959,17 @@ async function actuallyCommitTaskActionTransaction(
                 }
                 break;
             }
-            case "UpdateNotepadPage": {
-                const {notepadPageId, notepadPageAction} = action;
-
-                if (action.accountId !== state.getActorAccountId())
-                    throw new PermissionDeniedError("Can only access your account's notepad");
-
-                const notepadItem = await state.getActorNotepadItem();
-
-                cast<"Create">(notepadPageAction.type);
-
-                if (notepadItem.pageIds.get().has(notepadPageId))
-                    throw new FailedPreconditionError("Notepad page already exists");
-
-                const newPageIds = new Set(notepadItem.pageIds.get());
-                newPageIds.add(notepadPageId);
-
-                state.updateActorNotepadItem({
-                    ...notepadItem,
-                    pageIds: new TaskNotepadPageIdCompressedSet(newPageIds),
-                });
-                break;
-            }
             case "UpdateAccountName": {
                 // Clients can't commit this action whenever they'd like by calling
                 // `commitTaskActionTransaction()`. We only commit this action when updating
                 // an account's name.
                 throw new InvalidArgumentError(
                     "Clients are not allowed to commit an `UpdateAccountName` action",
+                );
+            }
+            case "UpdateNotepadPage": {
+                throw new InvalidArgumentError(
+                    quote`Can't commit deprecated action type ${action.type}`,
                 );
             }
             default:
@@ -3050,10 +3019,11 @@ export function deleteTaskAndAllChildren(
         while (rootParentTaskItem.parentTaskId.value) {
             const parentTaskId = rootParentTaskItem.parentTaskId.value;
 
-            rootParentTaskItem = await ((isInitialAttempt
-                ? TaskItemAuthorizationCache.getIfExists(context, parentTaskId)
-                : null) ??
-                TaskTable.getItem(context, {
+            rootParentTaskItem =
+                (isInitialAttempt
+                    ? await TaskItemAuthorizationCache.getIfExists(context, parentTaskId)
+                    : null) ??
+                (await TaskTable.getItem(context, {
                     partitionType: "Task",
                     sortRangeType: "EssentialAttributes",
                     taskId: parentTaskId,
@@ -3396,7 +3366,7 @@ export async function backfillTaskActionTransactionHistory(
     return actionTransactions;
 }
 
-const TaskItemAuthorizationCache = new ContextCache<TaskId, TaskEssentialAttributesItem>();
+const TaskItemAuthorizationCache = new ContextCache<TaskId, TaskEssentialAttributesItem | null>();
 
 /**
  * Gets a task to be used in authorization. If used in `TaskRealtimeService`
@@ -3425,7 +3395,7 @@ async function getTaskItemForAuthorization(
     const taskIndexDoc = loaders?.getTaskIndexDocIfExists(taskId);
     if (taskIndexDoc) return convertTaskIndexDocToItem(taskIndexDoc);
 
-    return TaskItemAuthorizationCache.get(context, taskId, async () => {
+    const taskItem = await TaskItemAuthorizationCache.get(context, taskId, async () => {
         const taskItem = await TaskTable.getItemIfExists(
             context,
             {
@@ -3441,7 +3411,7 @@ async function getTaskItemForAuthorization(
 
         if (taskItem) return taskItem;
 
-        return TaskTable.getItem(
+        return TaskTable.getItemIfExists(
             context,
             {
                 partitionType: "Task",
@@ -3454,6 +3424,9 @@ async function getTaskItemForAuthorization(
             {consistency: "Strong"},
         );
     });
+
+    if (!taskItem) throw new NotFoundError("Task not found", {aggregateDedupeKey: taskId});
+    return taskItem;
 }
 
 const TaskCollectionItemAuthorizationCache = new ContextCache<
@@ -4117,10 +4090,6 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
             }
         }
 
-        if (!taskItem) {
-            throw new NotFoundError("Task not found");
-        }
-
         return taskItem;
     })();
 
@@ -4129,6 +4098,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
     TaskItemAuthorizationCache.set(context, taskId, taskItemPromise);
 
     taskItem = await taskItemPromise;
+    if (!taskItem) throw new NotFoundError("Task not found");
 
     await authorizeTaskItemAccess(context, taskItem, expectedAccessLevel, {
         getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null),
@@ -4142,7 +4112,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
     };
 }
 
-async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
+async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItemsIfExists<Value>(
     context: ServerActionContext,
     taskId: TaskId,
     expectedAccessLevel: AccessLevel,
@@ -4152,7 +4122,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
         notesItem: TaskNotesItem | null;
     }) => Promise<Value>,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
-): Promise<Value> {
+): Promise<Value | null> {
     let item: TaskEssentialAttributesItem | null = null;
     let commentsSummaryItem: TaskCommentsSummaryItem | null = null;
     let notesItem: TaskNotesItem | null = null;
@@ -4181,10 +4151,6 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
             }
         }
 
-        if (!item) {
-            throw new NotFoundError("Task not found");
-        }
-
         return item;
     })();
 
@@ -4193,6 +4159,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
     TaskItemAuthorizationCache.set(context, taskId, itemPromise);
 
     item = await itemPromise;
+    if (!item) return null;
 
     const [, value] = await runAllPromises([
         authorizeTaskItemAccess(context, item, expectedAccessLevel, {
@@ -4207,6 +4174,29 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
         }),
     ]);
 
+    return value;
+}
+
+async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
+    context: ServerActionContext,
+    taskId: TaskId,
+    expectedAccessLevel: AccessLevel,
+    process: (options: {
+        item: TaskEssentialAttributesItem;
+        commentsSummaryItem: TaskCommentsSummaryItem | null;
+        notesItem: TaskNotesItem | null;
+    }) => Promise<Value>,
+    options?: {consistency?: DynamoReadConsistency},
+): Promise<Value> {
+    const value = await authorizeTaskAccessAndGetCommentsSummaryAndNotesItemsIfExists(
+        context,
+        taskId,
+        expectedAccessLevel,
+        process,
+        options,
+    );
+
+    if (!value) throw new NotFoundError("Task not found");
     return value;
 }
 
@@ -5481,22 +5471,6 @@ export async function authorizeTaskQueryAccess(
         hasAccess = true;
     }
 
-    // You can only add tasks you created to your notepad. So a notepad filter for
-    // an account implies a task creator filter.
-    if (
-        context.actor.type === "Session" &&
-        filters.notepadPageFilter?.accountId === context.actor.getAccountId() &&
-        // You must be a space member to filter for tasks in your notepad. If you lost
-        // access to a space you can't filter for your own tasks anymore.
-        (await isAccountMemberOfSpaceWithoutAuthorization(
-            context,
-            spaceId,
-            context.actor.getAccountId(),
-        ))
-    ) {
-        hasAccess = true;
-    }
-
     await runAllPromiseThunks(
         async () => {
             if (!filters.collectionsFilter) return;
@@ -5600,21 +5574,9 @@ export async function authorizeTaskQueryAccess(
                             }
                             break;
                         }
-                        case "NotepadPagePosition": {
-                            if (
-                                context.actor.type === "Session" &&
-                                sort.accountId === context.actor.getAccountId()
-                            ) {
-                                break;
-                            }
-
-                            throw new PermissionDeniedError(
-                                "Can't sort by notepad page that's not yours",
-                            );
-                        }
-                        case "AssigneeActivePosition": {
-                            // A task's active position is private to the account whom the task is
-                            // assigned. Only allow sorting by active position when also filtering for
+                        case "AssigneePosition": {
+                            // A task's assignee position is private to the account whom the task is
+                            // assigned. Only allow sorting by assignee position when also filtering for
                             // tasks assigned to you.
                             if (
                                 context.actor.type === "Session" &&
@@ -5629,7 +5591,7 @@ export async function authorizeTaskQueryAccess(
                             }
 
                             throw new PermissionDeniedError(
-                                "Must filter assignee to session account to sort by active position",
+                                "Must filter assignee to session account to sort by assignee position",
                             );
                         }
                         case "Creator":
@@ -5722,51 +5684,6 @@ function convertTaskCollectionIndexDocToItem(
 }
 
 /**
- * Get the account's task notepad pages for the space. We will always return at
- * least one notepad page. If the user hasn't create a notepad page yet then
- * we'll create their first page.
- */
-export async function getTaskNotepadPageIds(
-    context: Context<TaskSessionActionContextModules & {tasks: TaskContextModuleBase}>,
-    spaceId: SpaceId,
-): Promise<TaskNotepadPageIdCompressedSet> {
-    const notepadItem = await TaskTable.getItemIfExists(context, {
-        partitionType: "Account",
-        sortRangeType: "Notepad",
-        accountId: context.actor.getAccountId(),
-        spaceId,
-    });
-
-    let notepadPageIds = notepadItem?.pageIds;
-    const actualNotepadPageIds = notepadPageIds?.getAvailable();
-
-    if (
-        !notepadPageIds ||
-        !actualNotepadPageIds ||
-        // Is the notepad page id set empty?
-        (actualNotepadPageIds instanceof Uint8Array &&
-            isVtencBigInt64SetEmpty(actualNotepadPageIds)) ||
-        (!(actualNotepadPageIds instanceof Uint8Array) && actualNotepadPageIds.size === 0)
-    ) {
-        const notepadPageId = generateTaskNotepadPageId(unsynchronizedSystemClock);
-
-        await commitTaskActionTransaction(context, spaceId, [
-            {
-                type: "UpdateNotepadPage",
-                time: [unsynchronizedSystemClock.now(), 0],
-                accountId: context.actor.getAccountId(),
-                notepadPageId,
-                notepadPageAction: {type: "Create"},
-            },
-        ]);
-
-        notepadPageIds = new TaskNotepadPageIdCompressedSet(new Set([notepadPageId]));
-    }
-
-    return notepadPageIds;
-}
-
-/**
  * Get the current notes content for some task without the `ContentReferences`
  * needed to render.
  */
@@ -5796,17 +5713,18 @@ export function getTaskNotesContentWithoutReferences(
 }
 
 /**
- * Get the current notes content for some task.
+ * Get the current notes content for some task. Returns null if the task
+ * doesn't exist.
  */
-export function getTaskNotesContent(
+export function getTaskNotesContentIfExists(
     context: ServerContentActionContext,
     taskId: TaskId,
 ): Promise<{
     spaceId: SpaceId;
     version: number;
     content: TaskNotesContentWithReferences;
-}> {
-    return authorizeTaskAccessAndGetCommentsSummaryAndNotesItems(
+} | null> {
+    return authorizeTaskAccessAndGetCommentsSummaryAndNotesItemsIfExists(
         context,
         taskId,
         "View",
@@ -5829,6 +5747,23 @@ export function getTaskNotesContent(
             },
         }),
     );
+}
+
+/**
+ * Get the current notes content for some task. Throws an error if the task
+ * doesn't exist.
+ */
+export async function getTaskNotesContent(
+    context: ServerContentActionContext,
+    taskId: TaskId,
+): Promise<{
+    spaceId: SpaceId;
+    version: number;
+    content: TaskNotesContentWithReferences;
+}> {
+    const taskNotes = await getTaskNotesContentIfExists(context, taskId);
+    if (!taskNotes) throw new NotFoundError("Task not found");
+    return taskNotes;
 }
 
 /**

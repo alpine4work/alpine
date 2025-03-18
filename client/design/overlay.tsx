@@ -300,7 +300,7 @@ function Overlay(
     const fallbackPlacements = useStableJsonValue(unstableFallbackPlacements ?? null);
 
     const overlayRef = useRef<HTMLDivElement>(null);
-    const popperRef = useRef<Instance | null>(null);
+    const popperRef = useRef<(Instance & {maybeStartAnimationLoop(): void}) | null>(null);
     const blockingCoverRef = useRef<OverlayBlockingCoverRef>(null);
 
     useImperativeHandle(
@@ -617,36 +617,6 @@ function Overlay(
 
             let isCreatingPopper = true;
             try {
-                // The Popper library was deprecated and replaced with Floating UI.
-                // Functionality-wise, Popper is still working great for us. The Popper
-                // documentation lives on here:
-                // https://popper.js.org/docs/v2/
-                const popper = createPopper(targetElement, overlayElement, getOptions());
-
-                popperRef.current = popper;
-
-                // Make sure Popper is positioned correctly. We find that sometimes after
-                // parameter updates (e.g. `placement` changes), Popper won't have the
-                // right position.
-                popper.forceUpdate();
-
-                // Update the overlay placement if the target or overlay element resizes.
-                const handleResize = () => popper.forceUpdate();
-                addResizeListenerForElement(targetElement, handleResize);
-                addResizeListenerForElement(overlayElement, handleResize);
-
-                // If we're using `sameWidth` or `sameHeight` then calling
-                // `popper.forceUpdate()` after a resize will cause the overlay element to
-                // resize. It's ok if resize listeners don't fire on the overlay element after
-                // this.
-                if (
-                    sameWidth ||
-                    sameHeight ||
-                    (isBlocking !== false && (withoutRootBlockingScope || withoutBlockingTarget))
-                ) {
-                    addSuppressResizeLoopErrorNotificationForElement(targetElement);
-                }
-
                 let isAnimationLoopRunning = false;
 
                 // This function checks to see if `targetElement` or any of its parents has a
@@ -713,6 +683,39 @@ function Overlay(
                         isAnimationLoopRunning = false;
                     });
                 };
+
+                // The Popper library was deprecated and replaced with Floating UI.
+                // Functionality-wise, Popper is still working great for us. The Popper
+                // documentation lives on here:
+                // https://popper.js.org/docs/v2/
+                const popper = Object.assign(
+                    createPopper(targetElement, overlayElement, getOptions()),
+                    {maybeStartAnimationLoop},
+                );
+
+                popperRef.current = popper;
+
+                // Make sure Popper is positioned correctly. We find that sometimes after
+                // parameter updates (e.g. `placement` changes), Popper won't have the
+                // right position.
+                popper.forceUpdate();
+
+                // Update the overlay placement if the target or overlay element resizes.
+                const handleResize = () => popper.forceUpdate();
+                addResizeListenerForElement(targetElement, handleResize);
+                addResizeListenerForElement(overlayElement, handleResize);
+
+                // If we're using `sameWidth` or `sameHeight` then calling
+                // `popper.forceUpdate()` after a resize will cause the overlay element to
+                // resize. It's ok if resize listeners don't fire on the overlay element after
+                // this.
+                if (
+                    sameWidth ||
+                    sameHeight ||
+                    (isBlocking !== false && (withoutRootBlockingScope || withoutBlockingTarget))
+                ) {
+                    addSuppressResizeLoopErrorNotificationForElement(targetElement);
+                }
 
                 maybeStartAnimationLoop();
 
@@ -820,6 +823,22 @@ function Overlay(
         // popper position.
         scheduleMicrotask(() => {
             popperRef.current?.forceUpdate();
+
+            // Try starting the animation loop as well in case any animations were started
+            // in a layout effect.
+            popperRef.current?.maybeStartAnimationLoop();
+        });
+    });
+
+    useEffect(() => {
+        if (!isVisible) return;
+
+        // Run in a microtask so that parent effects run before we update the
+        // popper position.
+        scheduleMicrotask(() => {
+            // Try starting the animation loop as well in case any animations were started
+            // in an effect.
+            popperRef.current?.maybeStartAnimationLoop();
         });
     });
 

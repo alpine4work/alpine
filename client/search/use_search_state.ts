@@ -401,7 +401,7 @@ export function useSearchState({
                 // Only count close matches. Exclude search results with too high a score. This
                 // cutoff was picked so typing "Create t" doesn't match "Create chat" and
                 // "Create a" doesn't match "Create task". But "Create tsk" matches
-                // "Create task" and "notepad" matches "Task notepad".
+                // "Create task".
                 if (match.score! < 0.2) {
                     newResults.push({
                         id: match.item.commandId,

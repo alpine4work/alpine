@@ -1,4 +1,4 @@
-import {CalendarDate, DateValue, createCalendar} from "@internationalized/date";
+import {CalendarDate, DateValue, createCalendar, today} from "@internationalized/date";
 import {AriaDateFieldOptions} from "@react-aria/datepicker";
 import classNames from "classnames";
 import {CalendarBlank} from "phosphor-react";
@@ -71,7 +71,7 @@ export function TaskDateInputText({
     onArrowLeftLeaveKeyDown: (() => void) | undefined;
     onArrowRightLeaveKeyDown: (() => void) | undefined;
 }) {
-    const {locale} = useClientInfo();
+    const {locale, timeZone, isAppleDevice} = useClientInfo();
 
     const datePickerProps: DateFieldStateOptions & AriaDateFieldOptions<CalendarDate> = {
         isDisabled: isReadOnly,
@@ -370,11 +370,27 @@ export function TaskDateInputText({
         <div
             className={sprinkles({height: "full"})}
             onKeyDown={event => {
-                if (event.key === "Escape") {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    event.target.blur();
-                    return;
+                switch (event.key) {
+                    case "Escape": {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        event.target.blur();
+                        break;
+                    }
+                    // When I (@calebmer) worked at Airtable Cmd+; was the shortcut for setting a
+                    // date input to today. Copying this pattern here. Looks like that comes from
+                    // Google Sheets where Cmd+; sets the cell to the current date.
+                    //
+                    // TODO(calebmer): When we have date chips in `<ContentEditor>`, I'd love for
+                    // Cmd+; to insert today's date.
+                    case ";": {
+                        if (isAppleDevice ? event.metaKey : event.ctrlKey) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            onDateChange(today(timeZone));
+                        }
+                        break;
+                    }
                 }
             }}
         >

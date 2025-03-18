@@ -35,17 +35,17 @@ export type SearchAffinityId =
     | `Chat:${ChatId}`
     | `Task:${TaskId}`
     | `TaskCollection:${TaskCollectionId}`
-    // You can build affinity with your task notepad even though we don't index
-    // a search entity doc for it.
-    | "TaskNotepad";
+    // You can build affinity with your personal task view even though we don't
+    // index a search entity doc for it.
+    | "TaskPersonal";
 
 // Make sure `SearchAffinityId`s are valid `SearchEntityId`s (excluding
-// `TaskNotepad`).
-assertAssignableTypes<Exclude<SearchAffinityId, "TaskNotepad">, SearchEntityId>();
+// `TaskPersonal`).
+assertAssignableTypes<Exclude<SearchAffinityId, "TaskPersonal">, SearchEntityId>();
 
 // Make sure there's no overlap between `SearchAffinityId` and `SearchCommandId`
-// (excluding `TaskNotepad`).
-assertEqualTypes<Exclude<SearchAffinityId, "TaskNotepad"> & SearchCommandId, never>();
+// (excluding `TaskPersonal`).
+assertEqualTypes<Exclude<SearchAffinityId, "TaskPersonal"> & SearchCommandId, never>();
 
 export const SearchAffinityIdSchema = Schema.string as Schema<SearchAffinityId>;
 
@@ -64,7 +64,7 @@ const searchAffinityIdTestMap: GetSearchAffinityIdTestMapType<SearchAffinityId> 
     Chat: true,
     Task: true,
     TaskCollection: true,
-    TaskNotepad: false,
+    TaskPersonal: false,
 };
 
 /**

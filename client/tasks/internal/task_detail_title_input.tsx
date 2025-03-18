@@ -21,9 +21,13 @@ import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {fontSizes, sprinkles, tasksStyles} from "~/client/styles/styles.js";
-import {taskDetailViewTitleFontSize} from "~/client/styles/tasks_shared_styles.js";
+import {sprinkles, tasksStyles} from "~/client/styles/styles.js";
+import {
+    taskDetailViewTitleFontSize,
+    taskDetailViewTitleLineHeight,
+} from "~/client/styles/tasks_shared_styles.js";
 import {buildTaskTitleInputKeymapPlugin} from "~/client/tasks/internal/build_task_title_input_keymap_plugin.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -36,6 +40,7 @@ import {
 
 export type TaskDetailTitleInputRef = {
     isFocused(): boolean;
+    focus(): void;
     focusAll(): void;
 };
 
@@ -48,6 +53,7 @@ const taskDetailTitleInputClassName = `ProseMirror ${sprinkles({
 })} ${tasksStyles.detailTitleInputPlaceholderClassName}`;
 
 const taskDetailTitleInputStyle: CSSProperties = {
+    lineHeight: spacing[taskDetailViewTitleLineHeight],
     // Render contextual alternate glyphs. User text may be rendered here. Helpful
     // for consistency if the user types anything like 2x2 or an @ mention.
     fontFeatureSettings: '"calt" on',
@@ -364,6 +370,11 @@ function TaskDetailTitleInput(
                 if (!viewRef.current.isReady) return false;
                 return viewRef.current.view.dom === document.activeElement;
             },
+            focus: () => {
+                runWhenViewIsReady(view => {
+                    view.focus();
+                });
+            },
             focusAll: () => {
                 runWhenViewIsReady(view => {
                     const selection = new AllSelection(view.state.doc);
@@ -391,13 +402,14 @@ function TaskDetailTitleInput(
                         title.getProsemirrorNode().childCount === 0 &&
                             tasksStyles.detailTitleInputEmptyContainerClassName,
                     )}
-                    style={{minHeight: fontSizes["300"].lineHeight}}
+                    style={{minHeight: spacing[taskDetailViewTitleLineHeight]}}
                 >
                     {titleNodeForInitialAppRender && (
                         // On server-side render serialize our title to HTML since we can't mount an
                         // `EditorView` until we are on the client.
                         <div
                             className={taskDetailTitleInputClassName}
+                            style={taskDetailTitleInputStyle}
                             aria-label={taskDetailTitleInputAriaLabel}
                             aria-placeholder={placeholder}
                             dangerouslySetInnerHTML={{

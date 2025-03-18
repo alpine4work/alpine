@@ -79,11 +79,11 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) => [
 
 // We don't need to reload when certain search params change.
 export const shouldRevalidate: ShouldRevalidateFunction = ({
-    currentUrl: _currentUrl,
-    nextUrl: _nextUrl,
+    currentUrl: originalCurrentUrl,
+    nextUrl: originalNextUrl,
 }) => {
-    const currentUrl = new URL(_currentUrl);
-    const nextUrl = new URL(_nextUrl);
+    const currentUrl = new URL(originalCurrentUrl);
+    const nextUrl = new URL(originalNextUrl);
 
     // Used when creating documents:
     nextUrl.searchParams.delete("create");
@@ -125,8 +125,7 @@ export default function DocumentRoute() {
 
     const documentId = Schema.id<DocumentId>().deserialize(params.documentId ?? null);
 
-    const focusSearchParam = searchParams.get("focus");
-    const [shouldInitiallyFocus] = useState(focusSearchParam === "");
+    const [shouldInitiallyFocus] = useState(searchParams.get("focus") === "");
 
     const commentIndexString = searchParams.get("comment");
     const commentIndex = commentIndexString ? parseInt(commentIndexString, 10) : null;

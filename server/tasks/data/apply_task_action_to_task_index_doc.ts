@@ -219,32 +219,6 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
                 },
             };
         }
-        case "UpdateNotepadPagePosition": {
-            const newPositionById =
-                action.position !== null
-                    ? task.notepadPages.raw.positionById.apply({
-                          type: "Set",
-                          key: `${action.accountId}-${action.notepadPageId}`,
-                          value: action.position,
-                          version: actionTime,
-                      })
-                    : task.notepadPages.raw.positionById.apply({
-                          type: "Delete",
-                          key: `${action.accountId}-${action.notepadPageId}`,
-                          version: actionTime,
-                      });
-
-            if (newPositionById === task.notepadPages.raw.positionById) return task;
-
-            return {
-                ...task,
-                notepadPages: {
-                    raw: {
-                        positionById: newPositionById,
-                    },
-                },
-            };
-        }
         case "UpdateStatus": {
             let status: TaskStatusWithSortableAccount;
             if (action.status.type !== "Closed") {
@@ -267,16 +241,7 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
                 version: actionTime,
             });
 
-            const newRawAssigneeActivePosition = task.rawAssigneeActivePosition.apply({
-                value: null,
-                version: actionTime,
-            });
-
-            if (
-                newStatus === task.status &&
-                newRawAssigneeStatus === task.rawAssigneeStatus &&
-                newRawAssigneeActivePosition === task.rawAssigneeActivePosition
-            ) {
+            if (newStatus === task.status && newRawAssigneeStatus === task.rawAssigneeStatus) {
                 return task;
             }
 
@@ -284,7 +249,6 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
                 ...task,
                 status: newStatus,
                 rawAssigneeStatus: newRawAssigneeStatus,
-                rawAssigneeActivePosition: newRawAssigneeActivePosition,
             };
         }
         case "UpdateAssignee": {
@@ -309,16 +273,7 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
                 version: actionTime,
             });
 
-            const newRawAssigneeActivePosition = task.rawAssigneeActivePosition.apply({
-                value: null,
-                version: actionTime,
-            });
-
-            if (
-                newAssignee === task.assignee &&
-                newRawAssigneeStatus === task.rawAssigneeStatus &&
-                newRawAssigneeActivePosition === task.rawAssigneeActivePosition
-            ) {
+            if (newAssignee === task.assignee && newRawAssigneeStatus === task.rawAssigneeStatus) {
                 return task;
             }
 
@@ -326,7 +281,15 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
                 ...task,
                 assignee: newAssignee,
                 rawAssigneeStatus: newRawAssigneeStatus,
-                rawAssigneeActivePosition: newRawAssigneeActivePosition,
+
+                // NOTE(calebmer): We intentionally don't update `assigneePosition` during an
+                // `UpdateAssignee` action. That way if the user changes the task's assignee
+                // and undoes the change, then the task will be placed back in the old assignee
+                // position.
+                //
+                // Whenever we use the `assigneePosition` we always check that
+                // `assigneePosition.accountId` matches the assigned account before using the
+                // position.
             };
         }
         case "UpdateAssigneeStatus": {
@@ -335,26 +298,17 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
                 version: actionTime,
             });
 
-            const newRawAssigneeActivePosition = task.rawAssigneeActivePosition.apply({
-                value: null,
-                version: actionTime,
-            });
-
-            if (
-                newRawAssigneeStatus === task.rawAssigneeStatus &&
-                newRawAssigneeActivePosition === task.rawAssigneeActivePosition
-            ) {
+            if (newRawAssigneeStatus === task.rawAssigneeStatus) {
                 return task;
             }
 
             return {
                 ...task,
                 rawAssigneeStatus: newRawAssigneeStatus,
-                rawAssigneeActivePosition: newRawAssigneeActivePosition,
             };
         }
-        case "UpdateAssigneeActivePosition": {
-            const newRawAssigneeActivePosition = task.rawAssigneeActivePosition.apply({
+        case "UpdateAssigneePosition": {
+            const newRawAssigneePosition = task.rawAssigneePosition.apply({
                 value: {
                     accountId: action.accountId,
                     position: action.position,
@@ -362,13 +316,13 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
                 version: actionTime,
             });
 
-            if (newRawAssigneeActivePosition === task.rawAssigneeActivePosition) {
+            if (newRawAssigneePosition === task.rawAssigneePosition) {
                 return task;
             }
 
             return {
                 ...task,
-                rawAssigneeActivePosition: newRawAssigneeActivePosition,
+                rawAssigneePosition: newRawAssigneePosition,
             };
         }
         case "UpdateTitle": {
@@ -406,6 +360,10 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
                 ...task,
                 priority: newPriority,
             };
+        }
+        case "UpdateNotepadPagePosition":
+        case "UpdateAssigneeActivePosition": {
+            return task;
         }
         default:
             throw exhaustive(action);
