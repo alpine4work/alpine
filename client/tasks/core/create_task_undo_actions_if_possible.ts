@@ -263,6 +263,7 @@ export class TaskUndoActions {
 export function createTaskUndoActionsIfPossible(
     store: TaskClientStoreInterface,
     actions: Iterable<TaskActionModel>,
+    undoableSlice: {startIndex: number | null; endIndex: number | null} | null = null,
 ): TaskUndoActions | null {
     // Currently, accounts without space access can't edit tasks. The max
     // permission level of `urlGrant` is `View`.
@@ -289,7 +290,11 @@ export function createTaskUndoActionsIfPossible(
           }
     >();
 
+    let nextIndex = 0;
     for (const action of actions) {
+        const index = nextIndex;
+        nextIndex++;
+
         // To generate undo actions we need to know the old task value. Including any
         // actions made during this transaction. Importantly, if a task was created in
         // this transaction we still need the `TaskModel` when generating an undo
@@ -332,358 +337,14 @@ export function createTaskUndoActionsIfPossible(
             }
 
             case "UpdateTask": {
-                switch (action.taskAction.type) {
-                    case "Create":
-                    case "Undelete": {
-                        undoActions.push({
-                            type: "UpdateTask",
-                            time: action.time,
-                            taskId: action.taskId,
-                            taskAction: {
-                                type: "Delete",
-                            },
-                        });
-                        break;
-                    }
-                    case "Delete": {
-                        undoActions.push({
-                            type: "UpdateTask",
-                            time: action.time,
-                            taskId: action.taskId,
-                            taskAction: {
-                                type: "Undelete",
-                            },
-                        });
-                        break;
-                    }
-                    case "UpdateParentTaskId": {
-                        const task = getTask(action.taskId);
-                        if (!task) return null;
-
-                        undoActions.push({
-                            type: "UpdateTask",
-                            time: action.time,
-                            taskId: action.taskId,
-                            taskAction: {
-                                type: "UpdateParentTaskId",
-                                parentTaskId: task.rawData.parent.taskId.value,
-                                parentPosition: task.rawData.parent.position.value,
-                            },
-                        });
-                        break;
-                    }
-                    case "UpdateParentPosition": {
-                        const task = getTask(action.taskId);
-                        if (!task) return null;
-
-                        undoActions.push({
-                            type: "UpdateTask",
-                            time: action.time,
-                            taskId: action.taskId,
-                            taskAction: {
-                                type: "UpdateParentPosition",
-                                parentPosition: task.rawData.parent.position.value ?? null,
-                            },
-                        });
-                        break;
-                    }
-                    case "UpdateChildrenCounts": {
-                        // Children counts only increment. They don't revert back. The server will tell
-                        // us the correct value through `extraActions`.
-                        break;
-                    }
-                    case "AddCollection": {
-                        undoActions.push({
-                            type: "UpdateTask",
-                            time: action.time,
-                            taskId: action.taskId,
-                            taskAction: {
-                                type: "RemoveCollection",
-                                collectionId: action.taskAction.collectionId,
-                            },
-                        });
-                        break;
-                    }
-                    case "RemoveCollection": {
-                        const task = getTask(action.taskId);
-                        if (!task) return null;
-
-                        // If there is no order key, collection was not added in the first place.
-                        const orderKey = task.rawData.collections.getOrderKey(
-                            action.taskAction.collectionId,
-                        );
-                        if (!orderKey) return null;
-
-                        undoActions.push({
-                            type: "UpdateTask",
-                            time: action.time,
-                            taskId: action.taskId,
-                            taskAction: {
-                                type: "AddCollection",
-                                collectionId: action.taskAction.collectionId,
-                                orderKey,
-                            },
-                        });
-                        break;
-                    }
-                    case "UpdateCollectionPosition": {
-                        const task = getTask(action.taskId);
-                        if (!task) return null;
-
-                        // If there is no version, collection was not part of task in the first place.
-                        const version = task.rawData.collections.getVersion(
-                            action.taskAction.collectionId,
-                        );
-                        if (!version) return null;
-
-                        undoActions.push({
-                            type: "UpdateTask",
-                            time: action.time,
-                            taskId: action.taskId,
-                            taskAction: {
-                                type: "UpdateCollectionPosition",
-                                collectionId: action.taskAction.collectionId,
-                                // If a position is not set, we default to using the collection's version from
-                                // the collection set.
-                                position: task.rawData.positionByCollectionId.get(
-                                    action.taskAction.collectionId,
-                                ) ?? {
-                                    orderTime: version,
-                                    orderKey: initialOrderKey,
-                                },
-                            },
-                        });
-                        break;
-                    }
-                    case "UpdateNotepadPagePosition": {
-                        const task = getTask(action.taskId);
-                        if (!task) return null;
-
-                        // `UpdateNotepadPagePosition` is used to add tasks to a notepad page and
-                        // remove them from a notepad page. So if a position doesn't exist it means
-                        // to undo we need to remove the task from the notepad page.
-                        const position =
-                            task.rawData.positionByAccountIdAndNotepadPageId.get(
-                                `${action.taskAction.accountId}-${action.taskAction.notepadPageId}`,
-                            ) ?? null;
-
-                        undoActions.push({
-                            type: "UpdateTask",
-                            time: action.time,
-                            taskId: action.taskId,
-                            taskAction: {
-                                type: "UpdateNotepadPagePosition",
-                                accountId: action.taskAction.accountId,
-                                notepadPageId: action.taskAction.notepadPageId,
-                                position,
-                            },
-                        });
-                        break;
-                    }
-                    case "UpdateStatus": {
-                        const task = getTask(action.taskId);
-                        if (!task) return null;
-
-                        undoActions.push({
-                            type: "UpdateTask",
-                            time: action.time,
-                            taskId: action.taskId,
-                            taskAction: {
-                                type: "UpdateStatus",
-                                status: upcastTaskStatusWithSortableAccount(
-                                    task.rawData.status.value,
-                                ),
-                                assigneeStatus: task.rawData.assigneeStatus.value,
-                            },
-                        });
-                        break;
-                    }
-                    case "UpdateAssignee": {
-                        const task = getTask(action.taskId);
-                        if (!task) return null;
-
-                        undoActions.push({
-                            type: "UpdateTask",
-                            time: action.time,
-                            taskId: action.taskId,
-                            taskAction: {
-                                type: "UpdateAssignee",
-                                assignee: task.rawData.assignee.value
-                                    ? {
-                                          ...upcastTaskAssigneeWithSortableAccount(
-                                              task.rawData.assignee.value,
-                                          ),
-                                          // NOTE(calebmer): You may only set `assignerId` to your current account.
-                                          // Otherwise there's a `PermissionDeniedError` as you're taking an action on
-                                          // another account's behalf. So if you change the assignee then hit undo you
-                                          // become the new assigner.
-                                          //
-                                          // However, this is an unintuitive user experience. So do we sacrifice security
-                                          // or usability? Some thoughts on solutions:
-                                          //
-                                          // - Maybe we determine the attack vector of an attacker setting an arbitrary
-                                          //   account as `assignerId` isn't that bad and remove the
-                                          //   `PermissionDeniedError`. We'd have to thoroughly think through
-                                          //   all the implications before doing this.
-                                          //
-                                          // - We have a lease system (look around for `TaskActionTransactionLeaseId`)
-                                          //   that will let you commit actions that would have caused a
-                                          //   `PermissionDeniedError` when you're undoing a change you made recently.
-                                          //   Right now we only create leases if your change causes you to fully lose
-                                          //   access. Maybe we should extend the lease system to handle this case? So
-                                          //   a lease is created when you update the assignee allowing you to put the
-                                          //   old assigner back with an undo.
-                                          //
-                                          // TODO(calebmer): Related, currently if you undo an assignee update it resets
-                                          // the `AssigneePosition` instead of putting the task back into its old
-                                          // assignee position. Ideally we'd put the task back into its old assignee
-                                          // position. We can do this by either:
-                                          //
-                                          // - Extending the lease system (as described above) to allow resetting the
-                                          //   assignee position to its previous value.
-                                          //
-                                          // - Keep a map of assignee position by `AccountId` so if the task moves back
-                                          //   to an old assignee at any point then we'll maintain the task's position.
-                                          assignerId: store.currentAccountId,
-                                      }
-                                    : null,
-                                assigneeStatus: task.rawData.assigneeStatus.value,
-                            },
-                        });
-                        break;
-                    }
-                    case "UpdateAssigneeStatus": {
-                        const task = getTask(action.taskId);
-                        if (!task) return null;
-
-                        undoActions.push({
-                            type: "UpdateTask",
-                            time: action.time,
-                            taskId: action.taskId,
-                            taskAction: {
-                                type: "UpdateAssigneeStatus",
-                                assigneeStatus: task.rawData.assigneeStatus.value,
-                            },
-                        });
-                        break;
-                    }
-                    case "UpdateAssigneePosition": {
-                        const task = getTask(action.taskId);
-                        if (!task) return null;
-
-                        const accountId =
-                            task.rawData.assigneePosition.value?.accountId ??
-                            task.rawData.assignee.value?.assignee.accountId;
-
-                        // If the task has neither `assigneePosition` or `assignee` then updating the
-                        // assignee position will fail since you may only update the assignee position
-                        // if your current user is assigned to a task.
-                        if (!accountId) {
-                            return null;
-                        }
-
-                        undoActions.push({
-                            type: "UpdateTask",
-                            time: action.time,
-                            taskId: action.taskId,
-                            taskAction: {
-                                type: "UpdateAssigneePosition",
-                                accountId,
-                                position: task.rawData.assigneePosition.value?.position ?? {
-                                    orderTime: task.rawData.assignee.version,
-                                    orderKey: initialOrderKey,
-                                },
-                            },
-                        });
-                        break;
-                    }
-                    case "UpdateAssigneeActivePosition": {
-                        const task = getTask(action.taskId);
-                        if (!task) return null;
-
-                        const accountId =
-                            task.rawData.assigneeActivePosition.value?.accountId ??
-                            task.rawData.assignee.value?.assignee.accountId;
-
-                        // If the task has neither `assigneeActivePosition` or `assignee` then updating
-                        // the active position will fail since you may only update the active position
-                        // if your current user is assigned to a task.
-                        if (!accountId) {
-                            return null;
-                        }
-
-                        undoActions.push({
-                            type: "UpdateTask",
-                            time: action.time,
-                            taskId: action.taskId,
-                            taskAction: {
-                                type: "UpdateAssigneeActivePosition",
-                                accountId,
-                                position: task.rawData.assigneeActivePosition.value?.position ?? {
-                                    orderTime: task.rawData.assigneeStatus.version,
-                                    orderKey: initialOrderKey,
-                                },
-                            },
-                        });
-                        break;
-                    }
-                    case "UpdateTitle": {
-                        const {titleUpdate} = action.taskAction;
-
-                        undoActions.push({
-                            type: "UpdateTaskWithReconciliation",
-                            time: action.time,
-                            taskId: action.taskId,
-                            taskAction: {
-                                type: "UpdateTitle",
-                                withoutUndoMerge: action.taskAction.withoutUndoMerge ?? false,
-                                getTitleUpdate: getTask => {
-                                    // The task must still exist in our store to be able to undo title changes!
-                                    // Since we need the latest title to figure out the right IDs.
-                                    const task = getTask(action.taskId);
-                                    if (!task) return emptyTaskTitleUpdateModel.get();
-
-                                    return (
-                                        titleUpdate.invert(task.getTitle()) ??
-                                        emptyTaskTitleUpdateModel.get()
-                                    );
-                                },
-                            },
-                        });
-                        break;
-                    }
-                    case "UpdateDueDate": {
-                        const task = getTask(action.taskId);
-                        if (!task) return null;
-
-                        undoActions.push({
-                            type: "UpdateTask",
-                            time: action.time,
-                            taskId: action.taskId,
-                            taskAction: {
-                                type: "UpdateDueDate",
-                                dueDate: task.rawData.dueDate.value,
-                            },
-                        });
-                        break;
-                    }
-                    case "UpdatePriority": {
-                        const task = getTask(action.taskId);
-                        if (!task) return null;
-
-                        undoActions.push({
-                            type: "UpdateTask",
-                            time: action.time,
-                            taskId: action.taskId,
-                            taskAction: {
-                                type: "UpdatePriority",
-                                priority: task.rawData.priority.value,
-                            },
-                        });
-                        break;
-                    }
-                    default:
-                        throw exhaustive(action.taskAction);
+                // Only generate `undoActions` for actions in the undoable slice. However, we
+                // want to locally apply all the actions.
+                if (
+                    undoableSlice === null ||
+                    ((undoableSlice.startIndex === null || undoableSlice.startIndex <= index) &&
+                        (undoableSlice.endIndex === null || index < undoableSlice.endIndex))
+                ) {
+                    pushTaskUndoAction(store.currentAccountId, getTask, action, undoActions);
                 }
 
                 const getActionReferencedSortableAccount =
@@ -756,4 +417,356 @@ export function createTaskUndoActionsIfPossible(
     undoActions.reverse();
 
     return new TaskUndoActions(undoActions);
+}
+
+function pushTaskUndoAction(
+    currentAccountId: AccountId,
+    getTask: (taskId: TaskId) => TaskModel | null,
+    action: TaskUpdateTaskActionModel,
+    undoActions: Array<TaskUndoAction>,
+) {
+    switch (action.taskAction.type) {
+        case "Create":
+        case "Undelete": {
+            undoActions.push({
+                type: "UpdateTask",
+                time: action.time,
+                taskId: action.taskId,
+                taskAction: {
+                    type: "Delete",
+                },
+            });
+            break;
+        }
+        case "Delete": {
+            undoActions.push({
+                type: "UpdateTask",
+                time: action.time,
+                taskId: action.taskId,
+                taskAction: {
+                    type: "Undelete",
+                },
+            });
+            break;
+        }
+        case "UpdateParentTaskId": {
+            const task = getTask(action.taskId);
+            if (!task) return null;
+
+            undoActions.push({
+                type: "UpdateTask",
+                time: action.time,
+                taskId: action.taskId,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task.rawData.parent.taskId.value,
+                    parentPosition: task.rawData.parent.position.value,
+                },
+            });
+            break;
+        }
+        case "UpdateParentPosition": {
+            const task = getTask(action.taskId);
+            if (!task) return null;
+
+            undoActions.push({
+                type: "UpdateTask",
+                time: action.time,
+                taskId: action.taskId,
+                taskAction: {
+                    type: "UpdateParentPosition",
+                    parentPosition: task.rawData.parent.position.value ?? null,
+                },
+            });
+            break;
+        }
+        case "UpdateChildrenCounts": {
+            // Children counts only increment. They don't revert back. The server will tell
+            // us the correct value through `extraActions`.
+            break;
+        }
+        case "AddCollection": {
+            undoActions.push({
+                type: "UpdateTask",
+                time: action.time,
+                taskId: action.taskId,
+                taskAction: {
+                    type: "RemoveCollection",
+                    collectionId: action.taskAction.collectionId,
+                },
+            });
+            break;
+        }
+        case "RemoveCollection": {
+            const task = getTask(action.taskId);
+            if (!task) return null;
+
+            // If there is no order key, collection was not added in the first place.
+            const orderKey = task.rawData.collections.getOrderKey(action.taskAction.collectionId);
+            if (!orderKey) return null;
+
+            undoActions.push({
+                type: "UpdateTask",
+                time: action.time,
+                taskId: action.taskId,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: action.taskAction.collectionId,
+                    orderKey,
+                },
+            });
+            break;
+        }
+        case "UpdateCollectionPosition": {
+            const task = getTask(action.taskId);
+            if (!task) return null;
+
+            // If there is no version, collection was not part of task in the first place.
+            const version = task.rawData.collections.getVersion(action.taskAction.collectionId);
+            if (!version) return null;
+
+            undoActions.push({
+                type: "UpdateTask",
+                time: action.time,
+                taskId: action.taskId,
+                taskAction: {
+                    type: "UpdateCollectionPosition",
+                    collectionId: action.taskAction.collectionId,
+                    // If a position is not set, we default to using the collection's version from
+                    // the collection set.
+                    position: task.rawData.positionByCollectionId.get(
+                        action.taskAction.collectionId,
+                    ) ?? {
+                        orderTime: version,
+                        orderKey: initialOrderKey,
+                    },
+                },
+            });
+            break;
+        }
+        case "UpdateNotepadPagePosition": {
+            const task = getTask(action.taskId);
+            if (!task) return null;
+
+            // `UpdateNotepadPagePosition` is used to add tasks to a notepad page and
+            // remove them from a notepad page. So if a position doesn't exist it means
+            // to undo we need to remove the task from the notepad page.
+            const position =
+                task.rawData.positionByAccountIdAndNotepadPageId.get(
+                    `${action.taskAction.accountId}-${action.taskAction.notepadPageId}`,
+                ) ?? null;
+
+            undoActions.push({
+                type: "UpdateTask",
+                time: action.time,
+                taskId: action.taskId,
+                taskAction: {
+                    type: "UpdateNotepadPagePosition",
+                    accountId: action.taskAction.accountId,
+                    notepadPageId: action.taskAction.notepadPageId,
+                    position,
+                },
+            });
+            break;
+        }
+        case "UpdateStatus": {
+            const task = getTask(action.taskId);
+            if (!task) return null;
+
+            undoActions.push({
+                type: "UpdateTask",
+                time: action.time,
+                taskId: action.taskId,
+                taskAction: {
+                    type: "UpdateStatus",
+                    status: upcastTaskStatusWithSortableAccount(task.rawData.status.value),
+                    assigneeStatus: task.rawData.assigneeStatus.value,
+                },
+            });
+            break;
+        }
+        case "UpdateAssignee": {
+            const task = getTask(action.taskId);
+            if (!task) return null;
+
+            undoActions.push({
+                type: "UpdateTask",
+                time: action.time,
+                taskId: action.taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: task.rawData.assignee.value
+                        ? {
+                              ...upcastTaskAssigneeWithSortableAccount(task.rawData.assignee.value),
+                              // NOTE(calebmer): You may only set `assignerId` to your current account.
+                              // Otherwise there's a `PermissionDeniedError` as you're taking an action on
+                              // another account's behalf. So if you change the assignee then hit undo you
+                              // become the new assigner.
+                              //
+                              // However, this is an unintuitive user experience. So do we sacrifice security
+                              // or usability? Some thoughts on solutions:
+                              //
+                              // - Maybe we determine the attack vector of an attacker setting an arbitrary
+                              //   account as `assignerId` isn't that bad and remove the
+                              //   `PermissionDeniedError`. We'd have to thoroughly think through
+                              //   all the implications before doing this.
+                              //
+                              // - We have a lease system (look around for `TaskActionTransactionLeaseId`)
+                              //   that will let you commit actions that would have caused a
+                              //   `PermissionDeniedError` when you're undoing a change you made recently.
+                              //   Right now we only create leases if your change causes you to fully lose
+                              //   access. Maybe we should extend the lease system to handle this case? So
+                              //   a lease is created when you update the assignee allowing you to put the
+                              //   old assigner back with an undo.
+                              //
+                              // TODO(calebmer): Related, currently if you undo an assignee update it resets
+                              // the `AssigneePosition` instead of putting the task back into its old
+                              // assignee position. Ideally we'd put the task back into its old assignee
+                              // position. We can do this by either:
+                              //
+                              // - Extending the lease system (as described above) to allow resetting the
+                              //   assignee position to its previous value.
+                              //
+                              // - Keep a map of assignee position by `AccountId` so if the task moves back
+                              //   to an old assignee at any point then we'll maintain the task's position.
+                              assignerId: currentAccountId,
+                          }
+                        : null,
+                    assigneeStatus: task.rawData.assigneeStatus.value,
+                },
+            });
+            break;
+        }
+        case "UpdateAssigneeStatus": {
+            const task = getTask(action.taskId);
+            if (!task) return null;
+
+            undoActions.push({
+                type: "UpdateTask",
+                time: action.time,
+                taskId: action.taskId,
+                taskAction: {
+                    type: "UpdateAssigneeStatus",
+                    assigneeStatus: task.rawData.assigneeStatus.value,
+                },
+            });
+            break;
+        }
+        case "UpdateAssigneePosition": {
+            const task = getTask(action.taskId);
+            if (!task) return null;
+
+            const accountId =
+                task.rawData.assigneePosition.value?.accountId ??
+                task.rawData.assignee.value?.assignee.accountId;
+
+            // If the task has neither `assigneePosition` or `assignee` then updating the
+            // assignee position will fail since you may only update the assignee position
+            // if your current user is assigned to a task.
+            if (!accountId) {
+                return null;
+            }
+
+            undoActions.push({
+                type: "UpdateTask",
+                time: action.time,
+                taskId: action.taskId,
+                taskAction: {
+                    type: "UpdateAssigneePosition",
+                    accountId,
+                    position: task.rawData.assigneePosition.value?.position ?? {
+                        orderTime: task.rawData.assignee.version,
+                        orderKey: initialOrderKey,
+                    },
+                },
+            });
+            break;
+        }
+        case "UpdateAssigneeActivePosition": {
+            const task = getTask(action.taskId);
+            if (!task) return null;
+
+            const accountId =
+                task.rawData.assigneeActivePosition.value?.accountId ??
+                task.rawData.assignee.value?.assignee.accountId;
+
+            // If the task has neither `assigneeActivePosition` or `assignee` then updating
+            // the active position will fail since you may only update the active position
+            // if your current user is assigned to a task.
+            if (!accountId) {
+                return null;
+            }
+
+            undoActions.push({
+                type: "UpdateTask",
+                time: action.time,
+                taskId: action.taskId,
+                taskAction: {
+                    type: "UpdateAssigneeActivePosition",
+                    accountId,
+                    position: task.rawData.assigneeActivePosition.value?.position ?? {
+                        orderTime: task.rawData.assigneeStatus.version,
+                        orderKey: initialOrderKey,
+                    },
+                },
+            });
+            break;
+        }
+        case "UpdateTitle": {
+            const {titleUpdate} = action.taskAction;
+
+            undoActions.push({
+                type: "UpdateTaskWithReconciliation",
+                time: action.time,
+                taskId: action.taskId,
+                taskAction: {
+                    type: "UpdateTitle",
+                    withoutUndoMerge: action.taskAction.withoutUndoMerge ?? false,
+                    getTitleUpdate: getTask => {
+                        // The task must still exist in our store to be able to undo title changes!
+                        // Since we need the latest title to figure out the right IDs.
+                        const task = getTask(action.taskId);
+                        if (!task) return emptyTaskTitleUpdateModel.get();
+
+                        return (
+                            titleUpdate.invert(task.getTitle()) ?? emptyTaskTitleUpdateModel.get()
+                        );
+                    },
+                },
+            });
+            break;
+        }
+        case "UpdateDueDate": {
+            const task = getTask(action.taskId);
+            if (!task) return null;
+
+            undoActions.push({
+                type: "UpdateTask",
+                time: action.time,
+                taskId: action.taskId,
+                taskAction: {
+                    type: "UpdateDueDate",
+                    dueDate: task.rawData.dueDate.value,
+                },
+            });
+            break;
+        }
+        case "UpdatePriority": {
+            const task = getTask(action.taskId);
+            if (!task) return null;
+
+            undoActions.push({
+                type: "UpdateTask",
+                time: action.time,
+                taskId: action.taskId,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: task.rawData.priority.value,
+                },
+            });
+            break;
+        }
+        default:
+            throw exhaustive(action.taskAction);
+    }
 }

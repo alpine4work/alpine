@@ -407,7 +407,7 @@ export class TaskClientStore {
             undoManager: TaskClientStoreUndoManager | null;
             affinityManager: TaskClientStoreSearchAffinityManager;
             leaseId?: TaskActionTransactionLeaseId | null;
-            undoableActions?: ReadonlyArray<TaskActionModel>;
+            undoableSlice?: {startIndex: number | null; endIndex: number | null} | null;
         },
     ): {finally: (callback: () => void) => void} {
         return this._internal.commitTaskActionTransaction(context, actions, options);
@@ -1624,7 +1624,7 @@ export class TaskClientStoreInternal {
             undoManager,
             affinityManager,
             leaseId = null,
-            undoableActions,
+            undoableSlice = null,
         }: {
             // This property is required to force callers to make a decision on whether or
             // not to pass in `undoManager`. Most of the time you want to pass in
@@ -1634,7 +1634,7 @@ export class TaskClientStoreInternal {
             // object from the route component.
             affinityManager: TaskClientStoreSearchAffinityManager;
             leaseId?: TaskActionTransactionLeaseId | null;
-            undoableActions?: ReadonlyArray<TaskActionModel>;
+            undoableSlice?: {startIndex: number | null; endIndex: number | null} | null;
         },
     ): {finally: (callback: () => void) => void} {
         const actions: ReadonlyArray<TaskActionModel> = isReadonlyArray(actionsIterable)
@@ -1680,7 +1680,7 @@ export class TaskClientStoreInternal {
             // We need to create undo actions before applying our actions to the store so
             // we can read old task data from the store.
             undoActions = undoManager
-                ? createTaskUndoActionsIfPossible(this, undoableActions ?? actions)
+                ? createTaskUndoActionsIfPossible(this, actions, undoableSlice)
                 : null;
 
             assert(this.onQueryLoadedTaskRemove === null);

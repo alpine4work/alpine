@@ -45,4 +45,7 @@ Some useful things to know when working with Playwright tests:
     });
     ```
 
+    There's a helper, `withDebugPagePause()`, to simplify this setup which will pause whether the
+    test fails or succeeds.
+
 [1]: https://playwright.dev/

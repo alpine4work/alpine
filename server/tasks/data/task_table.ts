@@ -3107,10 +3107,11 @@ export function deleteTaskAndAllChildren(
         while (rootParentTaskItem.parentTaskId.value) {
             const parentTaskId = rootParentTaskItem.parentTaskId.value;
 
-            rootParentTaskItem = await ((isInitialAttempt
-                ? TaskItemAuthorizationCache.getIfExists(context, parentTaskId)
-                : null) ??
-                TaskTable.getItem(context, {
+            rootParentTaskItem =
+                (isInitialAttempt
+                    ? await TaskItemAuthorizationCache.getIfExists(context, parentTaskId)
+                    : null) ??
+                (await TaskTable.getItem(context, {
                     partitionType: "Task",
                     sortRangeType: "EssentialAttributes",
                     taskId: parentTaskId,
@@ -3453,7 +3454,7 @@ export async function backfillTaskActionTransactionHistory(
     return actionTransactions;
 }
 
-const TaskItemAuthorizationCache = new ContextCache<TaskId, TaskEssentialAttributesItem>();
+const TaskItemAuthorizationCache = new ContextCache<TaskId, TaskEssentialAttributesItem | null>();
 
 /**
  * Gets a task to be used in authorization. If used in `TaskRealtimeService`
@@ -3482,7 +3483,7 @@ async function getTaskItemForAuthorization(
     const taskIndexDoc = loaders?.getTaskIndexDocIfExists(taskId);
     if (taskIndexDoc) return convertTaskIndexDocToItem(taskIndexDoc);
 
-    return TaskItemAuthorizationCache.get(context, taskId, async () => {
+    const taskItem = await TaskItemAuthorizationCache.get(context, taskId, async () => {
         const taskItem = await TaskTable.getItemIfExists(
             context,
             {
@@ -3498,7 +3499,7 @@ async function getTaskItemForAuthorization(
 
         if (taskItem) return taskItem;
 
-        return TaskTable.getItem(
+        return TaskTable.getItemIfExists(
             context,
             {
                 partitionType: "Task",
@@ -3511,6 +3512,9 @@ async function getTaskItemForAuthorization(
             {consistency: "Strong"},
         );
     });
+
+    if (!taskItem) throw new NotFoundError("Task not found", {aggregateDedupeKey: taskId});
+    return taskItem;
 }
 
 const TaskCollectionItemAuthorizationCache = new ContextCache<
@@ -4174,10 +4178,6 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
             }
         }
 
-        if (!taskItem) {
-            throw new NotFoundError("Task not found");
-        }
-
         return taskItem;
     })();
 
@@ -4186,6 +4186,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
     TaskItemAuthorizationCache.set(context, taskId, taskItemPromise);
 
     taskItem = await taskItemPromise;
+    if (!taskItem) throw new NotFoundError("Task not found");
 
     await authorizeTaskItemAccess(context, taskItem, expectedAccessLevel, {
         getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null),
@@ -4243,14 +4244,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItemsIfExists<Val
 
     // Cache the `taskItem` in case `getTaskItemForAuthorization()` is called for
     // the same `TaskId` later.
-    TaskItemAuthorizationCache.set(
-        context,
-        taskId,
-        itemPromise.then(item => {
-            if (!item) throw new NotFoundError("Task not found");
-            return item;
-        }),
-    );
+    TaskItemAuthorizationCache.set(context, taskId, itemPromise);
 
     item = await itemPromise;
     if (!item) return null;

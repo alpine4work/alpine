@@ -749,7 +749,6 @@ export function TaskDetailView({
 
             contextMenuActions.push([
                 {
-                    // NOCOMMIT: Test this with ghost task
                     label: "Delete",
                     onPress: () => {
                         if (!taskSubscription) {
@@ -847,7 +846,6 @@ export function TaskDetailView({
                 taskSubscription={taskSubscription}
                 isReadOnly={!hasEditAccessLevel}
                 contextMenuActions={contextMenuActions}
-                // NOCOMMIT: Test creating task by closing
                 commitActionTransaction={commitActionTransaction}
             />
         ),

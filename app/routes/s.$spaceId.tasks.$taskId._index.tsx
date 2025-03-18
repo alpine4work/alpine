@@ -484,11 +484,10 @@ export default function TaskRoute() {
                         },
                     ];
 
-                    const undoableActions: Array<TaskActionModel> = [];
+                    const undoableSliceStartIndex = actions.length;
 
                     for (const action of getActions()) {
                         actions.push(action);
-                        undoableActions.push(action);
                     }
 
                     // When we create a new task that occupies our ghost `TaskId` then we need to
@@ -528,7 +527,7 @@ export default function TaskRoute() {
                         // Don't undo the create task action or the update assignee action. These
                         // actions are not explicitly performed by the user so it would be strange to
                         // include them in the undo stack.
-                        undoableActions,
+                        undoableSlice: {startIndex: undoableSliceStartIndex, endIndex: null},
                     });
 
                     return commitPromise;

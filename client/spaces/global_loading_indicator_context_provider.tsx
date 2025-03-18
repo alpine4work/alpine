@@ -1,7 +1,8 @@
 import {SpinnerGap} from "phosphor-react";
-import {ReactNode, useCallback, useEffect, useMemo, useState} from "react";
+import {ReactNode, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
+import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {
     GlobalLoadingIndicator,
@@ -13,6 +14,7 @@ import {spinAnimationClassName} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -110,12 +112,27 @@ export function GlobalLoadingIndicatorContextProvider({
 
     const indicator = indicatorState.mergedIndicator;
 
-    const hasNonLoadingIndicator = indicator !== null && indicator.type !== "Loading";
+    const hasSavingIndicator = indicator !== null && indicator.type !== "Loading";
+    const hasSavingIndicatorRef = useRef(hasSavingIndicator);
+    const savingIndicatorPromiseResolverRefs = useRef<Array<PromiseResolver<void>> | null>(null);
+
+    useDevConsoleTool("globalLoadingIndicator", () => ({
+        waitForSavingIndicator: () => {
+            if (!hasSavingIndicatorRef.current) return Promise.resolve();
+
+            const promiseResolver = createPromiseResolver();
+            savingIndicatorPromiseResolverRefs.current ??= [];
+            savingIndicatorPromiseResolverRefs.current.push(promiseResolver);
+            return promiseResolver.promise;
+        },
+    }));
 
     // Warn the user if they try to leave Alpine while there are still some changes
     // to which are saving.
     useEffect(() => {
-        if (!hasNonLoadingIndicator) return;
+        hasSavingIndicatorRef.current = hasSavingIndicator;
+
+        if (!hasSavingIndicator) return;
 
         const handleBeforeUnload = (event: BeforeUnloadEvent) => {
             const confirmationMessage = "Changes you made may not be saved.";
@@ -126,8 +143,15 @@ export function GlobalLoadingIndicatorContextProvider({
         window.addEventListener("beforeunload", handleBeforeUnload);
         return () => {
             window.removeEventListener("beforeunload", handleBeforeUnload);
+
+            if (savingIndicatorPromiseResolverRefs.current !== null) {
+                for (const promiseResolver of savingIndicatorPromiseResolverRefs.current) {
+                    promiseResolver.resolve();
+                }
+                savingIndicatorPromiseResolverRefs.current = null;
+            }
         };
-    }, [hasNonLoadingIndicator]);
+    }, [hasSavingIndicator]);
 
     const shouldShowIndicator = useDelayLoadingIndicator(indicator !== null);
     const delayedIndicator = shouldShowIndicator ? indicator : null;

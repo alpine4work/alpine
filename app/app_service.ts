@@ -258,25 +258,30 @@ async function createAppService({
             return [route, matches];
         },
         (request, url, matches, span) => {
-            if (matches === "HealthCheck") {
-                return Promise.resolve(
-                    new Response("200 OK", {
-                        status: 200,
-                        headers: {"content-type": "text/plain"},
-                    }),
-                );
-            }
+            if (typeof matches === "string") {
+                switch (matches) {
+                    case "HealthCheck": {
+                        return Promise.resolve(
+                            new Response("200 OK", {
+                                status: 200,
+                                headers: {"content-type": "text/plain"},
+                            }),
+                        );
+                    }
+                    case "ClearSpaceAccountsCacheForTest": {
+                        const spaceAccountsCache = getSpaceAccountsCacheForTest();
+                        spaceAccountsCache.clearForTest();
 
-            if (matches === "ClearSpaceAccountsCacheForTest") {
-                const spaceAccountsCache = getSpaceAccountsCacheForTest();
-                spaceAccountsCache.clearForTest();
-
-                return Promise.resolve(
-                    new Response("200 OK", {
-                        status: 200,
-                        headers: {"content-type": "text/plain"},
-                    }),
-                );
+                        return Promise.resolve(
+                            new Response("200 OK", {
+                                status: 200,
+                                headers: {"content-type": "text/plain"},
+                            }),
+                        );
+                    }
+                    default:
+                        throw exhaustive(matches);
+                }
             }
 
             return withSessionCookie(tokenAgent, request, async sessionCookie => {

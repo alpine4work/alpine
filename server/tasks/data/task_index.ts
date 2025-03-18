@@ -443,7 +443,7 @@ export function getTaskIndexDocIfExistsForTest(
     taskId: TaskId,
     options?: {realtime?: boolean},
 ) {
-    assert(import.meta.jest);
+    assert(process.env.NODE_ENV === "test");
 
     return context.opensearch.getDocIfExists(TaskIndex, spaceId, taskId, options);
 }
@@ -456,10 +456,11 @@ export function getTaskCollectionIndexDocIfExistsForTest(
     context: Context<{tracer: TracerContextModule; opensearch: OpensearchContextModule}>,
     spaceId: SpaceId,
     collectionId: TaskCollectionId,
+    options?: {realtime?: boolean},
 ) {
-    assert(import.meta.jest);
+    assert(process.env.NODE_ENV === "test");
 
-    return context.opensearch.getDocIfExists(TaskCollectionIndex, spaceId, collectionId);
+    return context.opensearch.getDocIfExists(TaskCollectionIndex, spaceId, collectionId, options);
 }
 
 /**
