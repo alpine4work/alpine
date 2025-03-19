@@ -1665,7 +1665,12 @@ function TaskRowView(
                                     handleCellKeyDownCapture("ExpandButton", event)
                                 }
                             >
-                                <ArrowsOutSimple />
+                                {isHovered || isExpandButtonFocused ? (
+                                    // Optimization: Only render this component when necessary. We've seen this
+                                    // component show up as expensive in the React profiler when rendering a task
+                                    // grid view.
+                                    <ArrowsOutSimple />
+                                ) : null}
                             </IconButton>
                         </div>
                     ) : (
