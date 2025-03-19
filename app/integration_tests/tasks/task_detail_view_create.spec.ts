@@ -470,11 +470,11 @@ test("can create task by updating notes", async ({isMobile, page, context: brows
     await expect(notesLocator).toBeHidden();
 
     if (isMobile) {
-        await page.getByLabel("Notes").tap();
+        await page.getByRole("textbox", {name: "Notes"}).tap();
     } else {
-        await page.getByLabel("Notes").click();
+        await page.getByRole("textbox", {name: "Notes"}).click();
     }
-    await page.getByLabel("Notes").pressSequentially("foobar");
+    await page.getByRole("textbox", {name: "Notes"}).pressSequentially("foobar");
 
     await expect(page).not.toHaveURL(/[?&]create/);
 
@@ -690,11 +690,11 @@ test("can create initially closed task", async ({isMobile, page, context: browse
 
     // Create task by typing in notes.
     if (isMobile) {
-        await page.getByLabel("Notes").tap();
+        await page.getByRole("textbox", {name: "Notes"}).tap();
     } else {
-        await page.getByLabel("Notes").click();
+        await page.getByRole("textbox", {name: "Notes"}).click();
     }
-    await page.getByLabel("Notes").press("x");
+    await page.getByRole("textbox", {name: "Notes"}).press("x");
 
     await expect(page).not.toHaveURL(/[?&]create/);
 
@@ -751,11 +751,11 @@ test("can create initially active task", async ({isMobile, page, context: browse
 
     // Create task by typing in notes.
     if (isMobile) {
-        await page.getByLabel("Notes").tap();
+        await page.getByRole("textbox", {name: "Notes"}).tap();
     } else {
-        await page.getByLabel("Notes").click();
+        await page.getByRole("textbox", {name: "Notes"}).click();
     }
-    await page.getByLabel("Notes").press("x");
+    await page.getByRole("textbox", {name: "Notes"}).press("x");
 
     await expect(page).not.toHaveURL(/[?&]create/);
 
@@ -825,11 +825,11 @@ test("can create task with initial collection", async ({
 
     // Create task by typing in notes.
     if (isMobile) {
-        await page.getByLabel("Notes").tap();
+        await page.getByRole("textbox", {name: "Notes"}).tap();
     } else {
-        await page.getByLabel("Notes").click();
+        await page.getByRole("textbox", {name: "Notes"}).click();
     }
-    await page.getByLabel("Notes").press("x");
+    await page.getByRole("textbox", {name: "Notes"}).press("x");
 
     await expect(page).not.toHaveURL(/[?&]create/);
 
@@ -888,11 +888,11 @@ test("can create task with initial priority", async ({isMobile, page, context: b
 
     // Create task by typing in notes.
     if (isMobile) {
-        await page.getByLabel("Notes").tap();
+        await page.getByRole("textbox", {name: "Notes"}).tap();
     } else {
-        await page.getByLabel("Notes").click();
+        await page.getByRole("textbox", {name: "Notes"}).click();
     }
-    await page.getByLabel("Notes").press("x");
+    await page.getByRole("textbox", {name: "Notes"}).press("x");
 
     await expect(page).not.toHaveURL(/[?&]create/);
 
@@ -949,11 +949,11 @@ test("can create task with initial title", async ({isMobile, page, context: brow
 
     // Create task by typing in notes.
     if (isMobile) {
-        await page.getByLabel("Notes").tap();
+        await page.getByRole("textbox", {name: "Notes"}).tap();
     } else {
-        await page.getByLabel("Notes").click();
+        await page.getByRole("textbox", {name: "Notes"}).click();
     }
-    await page.getByLabel("Notes").press("x");
+    await page.getByRole("textbox", {name: "Notes"}).press("x");
 
     await expect(page).not.toHaveURL(/[?&]create/);
 
@@ -1013,11 +1013,11 @@ test("can create task with initial assignee", async ({isMobile, page, context: b
 
     // Create task by typing in notes.
     if (isMobile) {
-        await page.getByLabel("Notes").tap();
+        await page.getByRole("textbox", {name: "Notes"}).tap();
     } else {
-        await page.getByLabel("Notes").click();
+        await page.getByRole("textbox", {name: "Notes"}).click();
     }
-    await page.getByLabel("Notes").press("x");
+    await page.getByRole("textbox", {name: "Notes"}).press("x");
 
     await expect(page).not.toHaveURL(/[?&]create/);
 
