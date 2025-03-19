@@ -4446,7 +4446,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 />
             )}
             {fileDropTarget?.action &&
-                (fileDropTarget.action.indicator === "Top" ? (
+                (fileDropTarget.action.indicator === "Top" ||
+                fileDropTarget.action.indicator === "Bottom" ? (
                     <Box
                         data-testid={
                             process.env.NODE_ENV !== "production"
