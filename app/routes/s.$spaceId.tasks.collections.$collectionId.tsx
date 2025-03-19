@@ -328,9 +328,6 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     currentUrl.searchParams.delete("focus");
     nextUrl.searchParams.delete("focus");
 
-    currentUrl.searchParams.delete("show");
-    nextUrl.searchParams.delete("show");
-
     currentUrl.searchParams.delete("color");
     nextUrl.searchParams.delete("color");
 
@@ -404,24 +401,17 @@ function TaskCollectionRouteInner() {
         if (!focusString) return true;
         return focusString !== "none";
     });
-    const [shouldInitiallyShowTopGhostTask] = useState(searchParams.get("show") === "new");
 
     // Remove the `create` search param if we have a subscription to an
     // existing collection.
     useEffect(() => {
         if (!collectionSubscription) return;
 
-        if (
-            searchParams.has("create") ||
-            searchParams.has("focus") ||
-            searchParams.has("color") ||
-            searchParams.has("show")
-        ) {
+        if (searchParams.has("create") || searchParams.has("focus") || searchParams.has("color")) {
             const newSearchParams = new URLSearchParams(searchParams);
             newSearchParams.delete("create");
             newSearchParams.delete("focus");
             newSearchParams.delete("color");
-            newSearchParams.delete("show");
             setSearchParams(newSearchParams, {replace: true});
         }
     }, [collectionSubscription, searchParams, setSearchParams]);
@@ -558,7 +548,6 @@ function TaskCollectionRouteInner() {
                     });
                 }}
                 createCollection={createCollection}
-                shouldInitiallyShowTopGhostTask={shouldInitiallyShowTopGhostTask}
             />
         </TaskGridViewDndContext>
     );

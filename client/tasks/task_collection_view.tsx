@@ -110,7 +110,6 @@ export function TaskCollectionView({
     initialSorts,
     onSortsChange,
     createCollection,
-    shouldInitiallyShowTopGhostTask,
 }: {
     store: TaskClientStore;
     collectionId: TaskCollectionId;
@@ -129,7 +128,6 @@ export function TaskCollectionView({
     initialSorts: ReadonlyArray<TaskQuerySort>;
     onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
     createCollection: Memo<(name: string) => Promise<void>>;
-    shouldInitiallyShowTopGhostTask: boolean;
 }) {
     const context = useAppContext();
     const navigate = useNavigate();
@@ -585,7 +583,6 @@ export function TaskCollectionView({
         store,
         query: queryState.activeQuery.query,
         affinityManager,
-        initiallyWithTopGhostTask: shouldInitiallyShowTopGhostTask,
         withoutBorderTopIfFirstRow: routeLayout !== "narrow",
         getMoveTaskToQueryActions: (taskId, position): Array<TaskActionModel> => {
             assert(collectionSubscription && queryState.activeQuery.isAvailable);
