@@ -655,7 +655,7 @@ function ContentEditorWrapper<Content extends ContentWithReferences>(
     // Only preload space accounts outside of Jest unit tests! That way we don't
     // depend on space context in unit tests.
     if (!import.meta.jest) {
-        // eslint-disable-next-line react-hooks/rules-of-hooks
+        // eslint-disable-next-line react-compiler/react-compiler, react-hooks/rules-of-hooks
         useExpensivelyPreloadAllSpaceAccounts();
     }
 
