@@ -7637,6 +7637,12 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "erosion": {
+                                        "valueSchema": {
+                                            "type": "Float"
+                                        },
+                                        "optional": true
+                                    },
                                     "lastUpdatedTime": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -7661,6 +7667,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                         "type": "Float"
                                                     },
                                                     "optional": false
+                                                },
+                                                "erosion": {
+                                                    "valueSchema": {
+                                                        "type": "Value",
+                                                        "value": 0
+                                                    },
+                                                    "optional": true
                                                 },
                                                 "lastUpdatedTime": {
                                                     "valueSchema": {
@@ -7720,6 +7733,13 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "erosion": {
+                                        "valueSchema": {
+                                            "type": "Value",
+                                            "value": 0
+                                        },
+                                        "optional": true
+                                    },
                                     "lastUpdatedTime": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -7773,6 +7793,13 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Integer"
                                         },
                                         "optional": false
+                                    },
+                                    "erosion": {
+                                        "valueSchema": {
+                                            "type": "Value",
+                                            "value": 0
+                                        },
+                                        "optional": true
                                     },
                                     "lastUpdatedTime": {
                                         "valueSchema": {
