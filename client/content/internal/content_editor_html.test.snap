@@ -101,7 +101,7 @@ exports[`bold 1`] = `
   <p
     class="content_paragraph"
   >
-    Hello 
+    Hello
     <strong
       class="content_bold"
     >
@@ -115,7 +115,7 @@ exports[`bold 1`] = `
 exports[`bold: clipboard 1`] = `
 <div>
   <p>
-    Hello 
+    Hello
     <strong>
       world
     </strong>
@@ -203,7 +203,7 @@ exports[`bullet list bold: clipboard 1`] = `
   <ul>
     <li>
       <p>
-        Hello 
+        Hello
         <strong>
           world
         </strong>
@@ -221,7 +221,7 @@ exports[`bullet list code: clipboard 1`] = `
   <ul>
     <li>
       <p>
-        Hello 
+        Hello
         <code>
           world
         </code>
@@ -251,7 +251,7 @@ exports[`bullet list highlight: clipboard 1`] = `
   <ul>
     <li>
       <p>
-        Hello 
+        Hello
         <mark
           data-highlight-color="green"
         >
@@ -271,7 +271,7 @@ exports[`bullet list italic: clipboard 1`] = `
   <ul>
     <li>
       <p>
-        Hello 
+        Hello
         <em>
           world
         </em>
@@ -289,7 +289,7 @@ exports[`bullet list link: clipboard 1`] = `
   <ul>
     <li>
       <p>
-        Hello 
+        Hello
         <a
           href="https://example.com/"
           rel="noopener noreferrer"
@@ -348,7 +348,7 @@ exports[`bullet list strike: clipboard 1`] = `
   <ul>
     <li>
       <p>
-        Hello 
+        Hello
         <del>
           world
         </del>
@@ -639,7 +639,7 @@ exports[`check list (checked) bold: clipboard 1`] = `
         type="checkbox"
       />
       <p>
-        Hello 
+        Hello
         <strong>
           world
         </strong>
@@ -662,7 +662,7 @@ exports[`check list (checked) code: clipboard 1`] = `
         type="checkbox"
       />
       <p>
-        Hello 
+        Hello
         <code>
           world
         </code>
@@ -702,7 +702,7 @@ exports[`check list (checked) highlight: clipboard 1`] = `
         type="checkbox"
       />
       <p>
-        Hello 
+        Hello
         <mark
           data-highlight-color="green"
         >
@@ -727,7 +727,7 @@ exports[`check list (checked) italic: clipboard 1`] = `
         type="checkbox"
       />
       <p>
-        Hello 
+        Hello
         <em>
           world
         </em>
@@ -750,7 +750,7 @@ exports[`check list (checked) link: clipboard 1`] = `
         type="checkbox"
       />
       <p>
-        Hello 
+        Hello
         <a
           href="https://example.com/"
           rel="noopener noreferrer"
@@ -829,7 +829,7 @@ exports[`check list (checked) strike: clipboard 1`] = `
         type="checkbox"
       />
       <p>
-        Hello 
+        Hello
         <del>
           world
         </del>
@@ -851,7 +851,7 @@ exports[`check list (unchecked) bold: clipboard 1`] = `
         type="checkbox"
       />
       <p>
-        Hello 
+        Hello
         <strong>
           world
         </strong>
@@ -873,7 +873,7 @@ exports[`check list (unchecked) code: clipboard 1`] = `
         type="checkbox"
       />
       <p>
-        Hello 
+        Hello
         <code>
           world
         </code>
@@ -911,7 +911,7 @@ exports[`check list (unchecked) highlight: clipboard 1`] = `
         type="checkbox"
       />
       <p>
-        Hello 
+        Hello
         <mark
           data-highlight-color="green"
         >
@@ -935,7 +935,7 @@ exports[`check list (unchecked) italic: clipboard 1`] = `
         type="checkbox"
       />
       <p>
-        Hello 
+        Hello
         <em>
           world
         </em>
@@ -957,7 +957,7 @@ exports[`check list (unchecked) link: clipboard 1`] = `
         type="checkbox"
       />
       <p>
-        Hello 
+        Hello
         <a
           href="https://example.com/"
           rel="noopener noreferrer"
@@ -1034,7 +1034,7 @@ exports[`check list (unchecked) strike: clipboard 1`] = `
         type="checkbox"
       />
       <p>
-        Hello 
+        Hello
         <del>
           world
         </del>
@@ -1437,23 +1437,23 @@ exports[`code (multiline) bold: clipboard 1`] = `
 <div>
   <pre>
     <code>
-      Hello 
+      Hello
       <strong>
         world
       </strong>
       !
-      
 
-      
 
-        Hello 
+
+
+        Hello
       <strong>
         world
       </strong>
       !
-      
 
-      Hello 
+
+      Hello
       <strong>
         world
       </strong>
@@ -1474,12 +1474,12 @@ exports[`code (multiline) empty: clipboard 1`] = `
 <div>
   <pre>
     <code>
-      
 
-      
 
-        
-      
+
+
+
+
 
     </code>
   </pre>
@@ -1489,7 +1489,7 @@ exports[`code (multiline) empty: clipboard 1`] = `
 exports[`code (multiline) empty: clipboard text 1`] = `
 "
 
-  
+
 "
 `;
 
@@ -1497,27 +1497,27 @@ exports[`code (multiline) highlight: clipboard 1`] = `
 <div>
   <pre>
     <code>
-      Hello 
+      Hello
       <mark
         data-highlight-color="green"
       >
         world
       </mark>
       !
-      
 
-      
 
-        Hello 
+
+
+        Hello
       <mark
         data-highlight-color="green"
       >
         world
       </mark>
       !
-      
 
-      Hello 
+
+      Hello
       <mark
         data-highlight-color="green"
       >
@@ -1540,23 +1540,23 @@ exports[`code (multiline) italic: clipboard 1`] = `
 <div>
   <pre>
     <code>
-      Hello 
+      Hello
       <em>
         world
       </em>
       !
-      
 
-      
 
-        Hello 
+
+
+        Hello
       <em>
         world
       </em>
       !
-      
 
-      Hello 
+
+      Hello
       <em>
         world
       </em>
@@ -1577,7 +1577,7 @@ exports[`code (multiline) link: clipboard 1`] = `
 <div>
   <pre>
     <code>
-      Hello 
+      Hello
       <a
         href="https://example.com/"
         rel="noopener noreferrer"
@@ -1586,11 +1586,11 @@ exports[`code (multiline) link: clipboard 1`] = `
         world
       </a>
       !
-      
 
-      
 
-        Hello 
+
+
+        Hello
       <a
         href="https://example.com/"
         rel="noopener noreferrer"
@@ -1599,9 +1599,9 @@ exports[`code (multiline) link: clipboard 1`] = `
         world
       </a>
       !
-      
 
-      Hello 
+
+      Hello
       <a
         href="https://example.com/"
         rel="noopener noreferrer"
@@ -1684,12 +1684,12 @@ exports[`code (multiline) plain: clipboard 1`] = `
   <pre>
     <code>
       Hello world!
-      
 
-      
+
+
 
         Hello world!
-      
+
 
       Hello world!
     </code>
@@ -1708,23 +1708,23 @@ exports[`code (multiline) strike: clipboard 1`] = `
 <div>
   <pre>
     <code>
-      Hello 
+      Hello
       <del>
         world
       </del>
       !
-      
 
-      
 
-        Hello 
+
+
+        Hello
       <del>
         world
       </del>
       !
-      
 
-      Hello 
+
+      Hello
       <del>
         world
       </del>
@@ -1753,7 +1753,7 @@ exports[`code 1`] = `
   <p
     class="content_paragraph"
   >
-    Hello 
+    Hello
     <code
       class="content_code"
     >
@@ -1768,7 +1768,7 @@ exports[`code bold: clipboard 1`] = `
 <div>
   <pre>
     <code>
-      Hello 
+      Hello
       <strong>
         world
       </strong>
@@ -1794,7 +1794,7 @@ exports[`code highlight: clipboard 1`] = `
 <div>
   <pre>
     <code>
-      Hello 
+      Hello
       <mark
         data-highlight-color="green"
       >
@@ -1812,7 +1812,7 @@ exports[`code italic: clipboard 1`] = `
 <div>
   <pre>
     <code>
-      Hello 
+      Hello
       <em>
         world
       </em>
@@ -1828,7 +1828,7 @@ exports[`code link: clipboard 1`] = `
 <div>
   <pre>
     <code>
-      Hello 
+      Hello
       <a
         href="https://example.com/"
         rel="noopener noreferrer"
@@ -1890,7 +1890,7 @@ exports[`code strike: clipboard 1`] = `
 <div>
   <pre>
     <code>
-      Hello 
+      Hello
       <del>
         world
       </del>
@@ -1905,7 +1905,7 @@ exports[`code strike: clipboard text 1`] = `"Hello world!"`;
 exports[`code: clipboard 1`] = `
 <div>
   <p>
-    Hello 
+    Hello
     <code>
       world
     </code>
@@ -1959,7 +1959,7 @@ exports[`file float (left direction) 1`] = `
       <span
         style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
       >
-         
+
       </span>
       <img
         aria-hidden="true"
@@ -2009,7 +2009,7 @@ exports[`file float (right direction) 1`] = `
       <span
         style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
       >
-         
+
       </span>
       <img
         aria-hidden="true"
@@ -2049,7 +2049,7 @@ exports[`file row (one file) 1`] = `
   translate="no"
 >
   <div
-    class="content_fileRow"
+    class="content_fileBase"
     style="height: 512px; grid-template-columns: 0.853333fr;"
   >
     <div
@@ -2059,7 +2059,7 @@ exports[`file row (one file) 1`] = `
       <span
         style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
       >
-         
+
       </span>
       <img
         aria-hidden="true"
@@ -2099,7 +2099,7 @@ exports[`file row (one file, audio type) 1`] = `
   translate="no"
 >
   <div
-    class="content_fileRow"
+    class="content_fileBase"
     style="height: 188.679px; grid-template-columns: 1fr;"
   >
     <div
@@ -2109,7 +2109,7 @@ exports[`file row (one file, audio type) 1`] = `
       <span
         style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
       >
-         
+
       </span>
       <div>
         <audio
@@ -2219,7 +2219,7 @@ exports[`file row (one file, image type) 1`] = `
   translate="no"
 >
   <div
-    class="content_fileRow"
+    class="content_fileBase"
     style="height: 512px; grid-template-columns: 0.853333fr;"
   >
     <div
@@ -2229,7 +2229,7 @@ exports[`file row (one file, image type) 1`] = `
       <span
         style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
       >
-         
+
       </span>
       <img
         aria-hidden="true"
@@ -2269,7 +2269,7 @@ exports[`file row (one file, null reference) 1`] = `
   translate="no"
 >
   <div
-    class="content_fileRow"
+    class="content_fileBase"
     style="height: 133.333px; grid-template-columns: 0.333333fr;"
   >
     <div
@@ -2278,7 +2278,7 @@ exports[`file row (one file, null reference) 1`] = `
       <span
         style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
       >
-         
+
       </span>
       <div>
         <img
@@ -2317,7 +2317,7 @@ exports[`file row (one file, video type) 1`] = `
   translate="no"
 >
   <div
-    class="content_fileRow"
+    class="content_fileBase"
     style="height: 512px; grid-template-columns: 0.853333fr;"
   >
     <div
@@ -2327,7 +2327,7 @@ exports[`file row (one file, video type) 1`] = `
       <span
         style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
       >
-         
+
       </span>
       <img
         aria-hidden="true"
@@ -2452,7 +2452,7 @@ exports[`file row (three files) 1`] = `
   translate="no"
 >
   <div
-    class="content_fileRow"
+    class="content_fileBase"
     style="height: 194.667px; grid-template-columns: 0.333333fr 0.333333fr 0.333333fr;"
   >
     <div
@@ -2462,7 +2462,7 @@ exports[`file row (three files) 1`] = `
       <span
         style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
       >
-         
+
       </span>
       <img
         aria-hidden="true"
@@ -2477,7 +2477,7 @@ exports[`file row (three files) 1`] = `
       <span
         style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
       >
-         
+
       </span>
       <img
         aria-hidden="true"
@@ -2492,7 +2492,7 @@ exports[`file row (three files) 1`] = `
       <span
         style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
       >
-         
+
       </span>
       <img
         aria-hidden="true"
@@ -2547,7 +2547,7 @@ exports[`file row (two files) 1`] = `
   translate="no"
 >
   <div
-    class="content_fileRow"
+    class="content_fileBase"
     style="height: 296px; grid-template-columns: 0.5fr 0.5fr;"
   >
     <div
@@ -2557,7 +2557,7 @@ exports[`file row (two files) 1`] = `
       <span
         style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
       >
-         
+
       </span>
       <img
         aria-hidden="true"
@@ -2572,7 +2572,7 @@ exports[`file row (two files) 1`] = `
       <span
         style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
       >
-         
+
       </span>
       <img
         aria-hidden="true"
@@ -2613,7 +2613,7 @@ exports[`file row (two files): clipboard text 1`] = `""`;
 exports[`heading 1 bold: clipboard 1`] = `
 <div>
   <h2>
-    Hello 
+    Hello
     <strong>
       world
     </strong>
@@ -2627,7 +2627,7 @@ exports[`heading 1 bold: clipboard text 1`] = `"Hello world!"`;
 exports[`heading 1 code: clipboard 1`] = `
 <div>
   <h2>
-    Hello 
+    Hello
     <code>
       world
     </code>
@@ -2649,7 +2649,7 @@ exports[`heading 1 empty: clipboard text 1`] = `""`;
 exports[`heading 1 highlight: clipboard 1`] = `
 <div>
   <h2>
-    Hello 
+    Hello
     <mark
       data-highlight-color="green"
     >
@@ -2665,7 +2665,7 @@ exports[`heading 1 highlight: clipboard text 1`] = `"Hello world!"`;
 exports[`heading 1 italic: clipboard 1`] = `
 <div>
   <h2>
-    Hello 
+    Hello
     <em>
       world
     </em>
@@ -2679,7 +2679,7 @@ exports[`heading 1 italic: clipboard text 1`] = `"Hello world!"`;
 exports[`heading 1 link: clipboard 1`] = `
 <div>
   <h2>
-    Hello 
+    Hello
     <a
       href="https://example.com/"
       rel="noopener noreferrer"
@@ -2724,7 +2724,7 @@ exports[`heading 1 plain: clipboard text 1`] = `"Hello world!"`;
 exports[`heading 1 strike: clipboard 1`] = `
 <div>
   <h2>
-    Hello 
+    Hello
     <del>
       world
     </del>
@@ -2738,7 +2738,7 @@ exports[`heading 1 strike: clipboard text 1`] = `"Hello world!"`;
 exports[`heading 2 bold: clipboard 1`] = `
 <div>
   <h3>
-    Hello 
+    Hello
     <strong>
       world
     </strong>
@@ -2752,7 +2752,7 @@ exports[`heading 2 bold: clipboard text 1`] = `"Hello world!"`;
 exports[`heading 2 code: clipboard 1`] = `
 <div>
   <h3>
-    Hello 
+    Hello
     <code>
       world
     </code>
@@ -2774,7 +2774,7 @@ exports[`heading 2 empty: clipboard text 1`] = `""`;
 exports[`heading 2 highlight: clipboard 1`] = `
 <div>
   <h3>
-    Hello 
+    Hello
     <mark
       data-highlight-color="green"
     >
@@ -2790,7 +2790,7 @@ exports[`heading 2 highlight: clipboard text 1`] = `"Hello world!"`;
 exports[`heading 2 italic: clipboard 1`] = `
 <div>
   <h3>
-    Hello 
+    Hello
     <em>
       world
     </em>
@@ -2804,7 +2804,7 @@ exports[`heading 2 italic: clipboard text 1`] = `"Hello world!"`;
 exports[`heading 2 link: clipboard 1`] = `
 <div>
   <h3>
-    Hello 
+    Hello
     <a
       href="https://example.com/"
       rel="noopener noreferrer"
@@ -2849,7 +2849,7 @@ exports[`heading 2 plain: clipboard text 1`] = `"Hello world!"`;
 exports[`heading 2 strike: clipboard 1`] = `
 <div>
   <h3>
-    Hello 
+    Hello
     <del>
       world
     </del>
@@ -2863,7 +2863,7 @@ exports[`heading 2 strike: clipboard text 1`] = `"Hello world!"`;
 exports[`heading 3 bold: clipboard 1`] = `
 <div>
   <h4>
-    Hello 
+    Hello
     <strong>
       world
     </strong>
@@ -2877,7 +2877,7 @@ exports[`heading 3 bold: clipboard text 1`] = `"Hello world!"`;
 exports[`heading 3 code: clipboard 1`] = `
 <div>
   <h4>
-    Hello 
+    Hello
     <code>
       world
     </code>
@@ -2899,7 +2899,7 @@ exports[`heading 3 empty: clipboard text 1`] = `""`;
 exports[`heading 3 highlight: clipboard 1`] = `
 <div>
   <h4>
-    Hello 
+    Hello
     <mark
       data-highlight-color="green"
     >
@@ -2915,7 +2915,7 @@ exports[`heading 3 highlight: clipboard text 1`] = `"Hello world!"`;
 exports[`heading 3 italic: clipboard 1`] = `
 <div>
   <h4>
-    Hello 
+    Hello
     <em>
       world
     </em>
@@ -2929,7 +2929,7 @@ exports[`heading 3 italic: clipboard text 1`] = `"Hello world!"`;
 exports[`heading 3 link: clipboard 1`] = `
 <div>
   <h4>
-    Hello 
+    Hello
     <a
       href="https://example.com/"
       rel="noopener noreferrer"
@@ -2974,7 +2974,7 @@ exports[`heading 3 plain: clipboard text 1`] = `"Hello world!"`;
 exports[`heading 3 strike: clipboard 1`] = `
 <div>
   <h4>
-    Hello 
+    Hello
     <del>
       world
     </del>
@@ -2997,7 +2997,7 @@ exports[`highlight 1`] = `
   <p
     class="content_paragraph"
   >
-    Hello 
+    Hello
     <mark
       class="content_highlightGreen"
       data-highlight-color="green"
@@ -3012,7 +3012,7 @@ exports[`highlight 1`] = `
 exports[`highlight: clipboard 1`] = `
 <div>
   <p>
-    Hello 
+    Hello
     <mark
       data-highlight-color="green"
     >
@@ -3037,7 +3037,7 @@ exports[`italic 1`] = `
   <p
     class="content_paragraph"
   >
-    Hello 
+    Hello
     <em
       class="content_italic"
     >
@@ -3051,7 +3051,7 @@ exports[`italic 1`] = `
 exports[`italic: clipboard 1`] = `
 <div>
   <p>
-    Hello 
+    Hello
     <em>
       world
     </em>
@@ -3074,7 +3074,7 @@ exports[`link (XSS vulnerability) 1`] = `
   <p
     class="content_paragraph"
   >
-    Hello 
+    Hello
     <a
       class="content_link"
       href="about:blank#blocked"
@@ -3100,7 +3100,7 @@ exports[`link 1`] = `
   <p
     class="content_paragraph"
   >
-    Hello 
+    Hello
     <a
       class="content_link"
       href="https://example.com/"
@@ -3117,7 +3117,7 @@ exports[`link 1`] = `
 exports[`link: clipboard 1`] = `
 <div>
   <p>
-    Hello 
+    Hello
     <a
       href="https://example.com/"
       rel="noopener noreferrer"
@@ -3186,7 +3186,7 @@ exports[`ordered list bold: clipboard 1`] = `
   <ol>
     <li>
       <p>
-        Hello 
+        Hello
         <strong>
           world
         </strong>
@@ -3204,7 +3204,7 @@ exports[`ordered list code: clipboard 1`] = `
   <ol>
     <li>
       <p>
-        Hello 
+        Hello
         <code>
           world
         </code>
@@ -3234,7 +3234,7 @@ exports[`ordered list highlight: clipboard 1`] = `
   <ol>
     <li>
       <p>
-        Hello 
+        Hello
         <mark
           data-highlight-color="green"
         >
@@ -3254,7 +3254,7 @@ exports[`ordered list italic: clipboard 1`] = `
   <ol>
     <li>
       <p>
-        Hello 
+        Hello
         <em>
           world
         </em>
@@ -3272,7 +3272,7 @@ exports[`ordered list link: clipboard 1`] = `
   <ol>
     <li>
       <p>
-        Hello 
+        Hello
         <a
           href="https://example.com/"
           rel="noopener noreferrer"
@@ -3332,7 +3332,7 @@ exports[`ordered list strike: clipboard 1`] = `
   <ol>
     <li>
       <p>
-        Hello 
+        Hello
         <del>
           world
         </del>
@@ -3665,7 +3665,7 @@ Item 3"
 exports[`paragraph bold: clipboard 1`] = `
 <div>
   <p>
-    Hello 
+    Hello
     <strong>
       world
     </strong>
@@ -3679,7 +3679,7 @@ exports[`paragraph bold: clipboard text 1`] = `"Hello world!"`;
 exports[`paragraph code: clipboard 1`] = `
 <div>
   <p>
-    Hello 
+    Hello
     <code>
       world
     </code>
@@ -3701,7 +3701,7 @@ exports[`paragraph empty: clipboard text 1`] = `""`;
 exports[`paragraph highlight: clipboard 1`] = `
 <div>
   <p>
-    Hello 
+    Hello
     <mark
       data-highlight-color="green"
     >
@@ -3717,7 +3717,7 @@ exports[`paragraph highlight: clipboard text 1`] = `"Hello world!"`;
 exports[`paragraph italic: clipboard 1`] = `
 <div>
   <p>
-    Hello 
+    Hello
     <em>
       world
     </em>
@@ -3731,7 +3731,7 @@ exports[`paragraph italic: clipboard text 1`] = `"Hello world!"`;
 exports[`paragraph link: clipboard 1`] = `
 <div>
   <p>
-    Hello 
+    Hello
     <a
       href="https://example.com/"
       rel="noopener noreferrer"
@@ -3776,7 +3776,7 @@ exports[`paragraph plain: clipboard text 1`] = `"Hello world!"`;
 exports[`paragraph strike: clipboard 1`] = `
 <div>
   <p>
-    Hello 
+    Hello
     <del>
       world
     </del>
@@ -3791,7 +3791,7 @@ exports[`quote bold: clipboard 1`] = `
 <div>
   <blockquote>
     <p>
-      Hello 
+      Hello
       <strong>
         world
       </strong>
@@ -3807,7 +3807,7 @@ exports[`quote code: clipboard 1`] = `
 <div>
   <blockquote>
     <p>
-      Hello 
+      Hello
       <code>
         world
       </code>
@@ -3833,7 +3833,7 @@ exports[`quote highlight: clipboard 1`] = `
 <div>
   <blockquote>
     <p>
-      Hello 
+      Hello
       <mark
         data-highlight-color="green"
       >
@@ -3851,7 +3851,7 @@ exports[`quote italic: clipboard 1`] = `
 <div>
   <blockquote>
     <p>
-      Hello 
+      Hello
       <em>
         world
       </em>
@@ -3867,7 +3867,7 @@ exports[`quote link: clipboard 1`] = `
 <div>
   <blockquote>
     <p>
-      Hello 
+      Hello
       <a
         href="https://example.com/"
         rel="noopener noreferrer"
@@ -3920,7 +3920,7 @@ exports[`quote strike: clipboard 1`] = `
 <div>
   <blockquote>
     <p>
-      Hello 
+      Hello
       <del>
         world
       </del>
@@ -3944,7 +3944,7 @@ exports[`strike 1`] = `
   <p
     class="content_paragraph"
   >
-    Hello 
+    Hello
     <del
       class="content_strike"
     >
@@ -3958,7 +3958,7 @@ exports[`strike 1`] = `
 exports[`strike: clipboard 1`] = `
 <div>
   <p>
-    Hello 
+    Hello
     <del>
       world
     </del>
