@@ -2079,8 +2079,11 @@ function ContentEditor<Content extends ContentWithReferences>(
                           }
                         : null;
 
+                    // NOTE: This if branch will only be executed if drop target is present
+                    // that indicates we are dragging a single file.
+                    // hence in the current slice only file will be present, so we can
+                    // ignore other edge cases where slice may contain other nodes.
                     if (fileDropTarget) {
-                        console.log("fileDropTarget", fileDropTarget.action?.pos);
                         if (slice.size === 0) return;
 
                         assert(fileDropTarget.action);
@@ -2166,7 +2169,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                         slice.openEnd,
                                     );
                                 }
-
+                                //  Empty paragraph after cursor
                                 if (
                                     $pos.nodeAfter?.type.name === "paragraph" &&
                                     $pos.nodeAfter.content.size === 0
@@ -2179,6 +2182,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                         )
                                         .scrollIntoView();
                                 } else if (
+                                    // Empty paragraph before cursor
                                     $pos.nodeBefore?.type.name === "paragraph" &&
                                     $pos.nodeBefore.content.size === 0
                                 ) {
@@ -2190,6 +2194,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                         )
                                         .scrollIntoView();
                                 } else {
+                                    // No empty paragraphs adjacent
                                     transaction.insert(pos, slice.content);
 
                                     transaction
@@ -2262,39 +2267,23 @@ function ContentEditor<Content extends ContentWithReferences>(
                             case "InsertFileIntoTableCell": {
                                 assert(slice.size > 0);
 
-                                // Get parent node at the target position to confirm it's a table cell
-                                const $targetPos = transaction.doc.resolve(pos);
-
-                                const parentNode = $targetPos.parent;
-                                // Extract all file nodes from the slice
-                                const fileNodes: Array<Node> = [];
                                 const isSourceFileTable =
                                     slice.content.content.length === 1 &&
                                     slice.content.content[0]!.type.name === "fileTable";
 
-                                // Case 1: Moving a fileTable node (already suitable for tables)
-                                if (isSourceFileTable) {
-                                    const fileTableNode = slice.content.content[0]!;
-                                    const cellStart = $targetPos.start();
+                                let fileTableNode: Node | null = null;
 
-                                    // Insert the fileTableNode at the beginning of the cell
-                                    transaction.replaceRangeWith(
-                                        cellStart,
-                                        cellStart,
-                                        fileTableNode,
-                                    );
-                                }
-                                // Case 2: Moving a fileRow or fileFloat that needs conversion to fileTable
-                                else {
+                                if (isSourceFileTable) {
+                                    fileTableNode = slice.content.content[0]!;
+                                } else {
+                                    const fileNodes: Array<Node> = [];
                                     for (const sourceNode of slice.content.content) {
                                         if (sourceNode.type.name === "fileRow") {
-                                            // Extract files from fileRow
                                             for (const fileNode of sourceNode.content.content) {
                                                 assert(fileNode.type.name === "file");
                                                 fileNodes.push(fileNode);
                                             }
                                         } else if (sourceNode.type.name === "fileFloat") {
-                                            // Extract files from fileFloat
                                             for (const fileNode of sourceNode.content.content) {
                                                 assert(fileNode.type.name === "file");
                                                 fileNodes.push(fileNode);
@@ -2305,42 +2294,41 @@ function ContentEditor<Content extends ContentWithReferences>(
                                             fileNodes.push(sourceNode);
                                         }
                                     }
-
-                                    assert(fileNodes.length > 0, "No file nodes found in slice");
-
-                                    // Create a new fileTable node with the collected files
-                                    // We'll use the first file node as the content of the fileTable
-                                    // (You may need to adjust the schema or structure based on your fileTable implementation)
-                                    const fileTableNode = schema.node("fileTable", {}, [
-                                        fileNodes[0]!,
-                                    ]);
-                                    // Replace the content of the cell with the new fileTable
-
-                                    //NOCOMMIT: replacing the whole content is not the right way to perfrom
-                                    // this insertion. Improvise on this!
-                                    transaction.replaceWith(
-                                        pos,
-                                        pos + parentNode.content.size,
-                                        fileTableNode,
-                                    );
-
-                                    // NOCOMMIT: multiple files copy paste needs to be handled differently
-                                    // If there are additional files that didn't fit, you might handle them differently
-                                    // For example, you could add them to adjacent cells or create a new row
-                                    // if (fileNodes.length > 1) {
-                                    //     // Additional handling for extra files if needed
-                                    //     console.log(
-                                    //         "Multiple files dropped into table cell - using only the first one",
-                                    //     );
-                                    // }
+                                    fileTableNode = schema.node("fileTable", {}, [...fileNodes]);
                                 }
+                                assert(fileTableNode);
 
-                                // Update the selection to the newly inserted content and scroll into view
-                                // NOCOMMIT: this is not needed because we're replacing the content of the cell
-                                // const $newPos = transaction.doc.resolve(pos);
-                                // transaction
-                                //     .setSelection(new NodeSelection($newPos))
-                                //     .scrollIntoView();
+                                // Same logic as `InsertFileRow` statement
+                                if (
+                                    $pos.nodeAfter?.type.name === "paragraph" &&
+                                    $pos.nodeAfter.content.size === 0
+                                ) {
+                                    transaction.replaceRangeWith(pos, pos + 2, fileTableNode);
+                                    transaction
+                                        .setSelection(
+                                            new NodeSelection(transaction.doc.resolve(pos + 1)),
+                                        )
+                                        .scrollIntoView();
+                                } else if (
+                                    // Empty paragraph before cursor
+                                    $pos.nodeBefore?.type.name === "paragraph" &&
+                                    $pos.nodeBefore.content.size === 0
+                                ) {
+                                    transaction.replaceRangeWith(pos - 2, pos, fileTableNode);
+                                    transaction
+                                        .setSelection(
+                                            new NodeSelection(transaction.doc.resolve(pos - 1)),
+                                        )
+                                        .scrollIntoView();
+                                } else {
+                                    // No empty paragraphs adjacent
+                                    transaction.insert(pos, fileTableNode);
+                                    transaction
+                                        .setSelection(
+                                            new NodeSelection(transaction.doc.resolve(pos + 1)),
+                                        )
+                                        .scrollIntoView();
+                                }
 
                                 break;
                             }
@@ -2379,9 +2367,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                     const beforeInsert = transaction.doc;
                     // if single node, use `replaceRangeWith`
                     if (isNode) transaction.replaceRangeWith(pos, pos, slice.content.firstChild!);
-                    // if not single node, use `replaceRange`
+                    // if we need to replace by a slice, use `replaceRange`
                     else transaction.replaceRange(pos, pos, slice);
-                    // NOCOMMIT: can this be replaced with assert(transaction.doc.eq(beforeInsert))??
                     if (transaction.doc.eq(beforeInsert)) return;
 
                     const $pos = transaction.doc.resolve(pos);
@@ -5361,9 +5348,8 @@ class ContentEditorFileDragState {
         const topBlockIndex = $pos.index(0);
         const spacingScale = getSpacingScaleWithoutListening();
 
-        // Recompute drop targets if the mouse moved over a new top block or anything
-        // changed that may have updated the layout of our content (e.g. `viewWidth`
-        // resizing changes how text flows).
+        // Recompute drop targets if the mouse moved over a new top block
+        // or a new table cell content block
         if (
             viewWidth !== this._lastDropTargets?.viewWidth ||
             viewHeight !== this._lastDropTargets.viewHeight ||

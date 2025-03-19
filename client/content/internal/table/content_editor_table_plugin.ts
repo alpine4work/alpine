@@ -60,6 +60,7 @@ import {plusIconSvg} from "~/client/icons/plus_icon_svg.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {colorSchemeVars, contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {
+    fileClassName,
     tableWrapper2ClassName,
     tableWrapper3ClassName,
     tableWrapperClassName,
@@ -1181,6 +1182,11 @@ function handleDraggingCellSelectionMouseDown(view: EditorView, startEvent: Mous
         return false;
     }
 
+    // NOTE: To prevent default mouse down behavior of table which dragging files(fileTable)
+    // we use this check.
+    if ((startEvent.target as HTMLElement).closest(`.${fileClassName}`)) {
+        return false;
+    }
     // Create and dispatch a cell selection between the given anchor and
     // the position under the mouse.
     function setCellSelection($anchor: ResolvedPos, event: MouseEvent): void {

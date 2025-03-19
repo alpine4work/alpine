@@ -29,7 +29,7 @@ export type ContentEditorFileDropTarget = {
           }
         | {
               readonly type: "InsertFileIntoTableCell";
-              readonly indicator: "Top";
+              readonly indicator: "Top" | "Bottom";
               readonly pos: number;
           }
         | null;
@@ -500,6 +500,10 @@ function getContentEditorTableFileDropTargets(
     const spacingScale = getSpacingScaleWithoutListening();
     const remPx = remPxBySpacingScale[spacingScale];
     const tableMap = ContentTableMap.get(tableNode);
+
+    // Define a gap size for spacing between node drop targets
+    const dropTargetGap = contentStyles.fileRowGapWidthRem * remPx;
+
     for (let row = 0; row < tableMap.height; row++) {
         for (let col = 0; col < tableMap.width; col++) {
             const relativeCellPos = tableMap.positionAt(row, col, tableNode);
@@ -519,32 +523,82 @@ function getContentEditorTableFileDropTargets(
             if (!(cellElement instanceof HTMLElement)) continue;
             const cellRect = cellElement.getBoundingClientRect();
 
-            dropTargets.push({
-                offsetParent: tableElement.offsetParent,
-                rect: {
-                    left:
-                        tableElement.offsetLeft +
-                        (cellRect.left - tableRect.left) +
-                        contentStyles.fileRowGapWidthRem * remPx,
-                    right:
-                        tableElement.offsetLeft +
-                        (cellRect.right - tableRect.left) -
-                        contentStyles.fileRowGapWidthRem * remPx,
-                    top:
-                        tableElement.offsetTop +
-                        (cellRect.top - tableRect.top) +
-                        contentStyles.fileRowGapWidthRem * remPx,
-                    bottom:
-                        tableElement.offsetTop +
-                        (cellRect.bottom - tableRect.top) -
-                        contentStyles.fileRowGapWidthRem * remPx,
-                },
-                action: {
-                    type: "InsertFileIntoTableCell",
-                    indicator: "Top",
-                    pos: absoluteCellPos,
-                },
-            });
+            // Add a drop target for the entire cell (as fallback and for empty cells)
+            // dropTargets.push({
+            //     offsetParent: tableElement.offsetParent,
+            //     rect: {
+            //         left:
+            //             tableElement.offsetLeft + (cellRect.left - tableRect.left) + dropTargetGap,
+            //         right:
+            //             tableElement.offsetLeft + (cellRect.right - tableRect.left) - dropTargetGap,
+            //         top: tableElement.offsetTop + (cellRect.top - tableRect.top) + dropTargetGap,
+            //         bottom:
+            //             tableElement.offsetTop + (cellRect.bottom - tableRect.top) - dropTargetGap,
+            //     },
+            //     action: {
+            //         type: "InsertFileIntoTableCell",
+            //         indicator: "Top",
+            //         pos: absoluteCellPos,
+            //     },
+            // });
+
+            const rowNode = tableNode.content.content[row];
+            assert(rowNode && rowNode.type.name === "tableRow");
+            const cellNode = rowNode.content.content[col];
+            if (!cellNode) continue;
+            assert(cellNode && cellNode.type.name === "tableCell");
+
+            const cellContentNode = cellNode.content;
+            if (!cellContentNode || !cellContentNode.content || cellContentNode.content.length <= 1)
+                continue;
+
+            const contentNodes = Array.from(cellElement.children);
+            let cellContentOffset = absoluteCellPos;
+
+            // Modified: Create drop targets at the top of each node rather than between nodes
+            for (let i = 0; i < cellContentNode.content.length; i++) {
+                const currentNode = cellContentNode.content[i];
+                if (!currentNode) continue;
+
+                // Position is at the start of the current node
+                const dropTargetPos = cellContentOffset;
+
+                const currentDOMNode = contentNodes[i];
+                if (!(currentDOMNode instanceof HTMLElement)) continue;
+
+                const currentRect = currentDOMNode.getBoundingClientRect();
+
+                // Calculate position at the top of the current node
+                const dropTargetY =
+                    tableElement.offsetTop + (currentRect.top - tableRect.top) - dropTargetGap / 2;
+
+                dropTargets.push({
+                    offsetParent: tableElement.offsetParent,
+                    rect: {
+                        left:
+                            tableElement.offsetLeft +
+                            (cellRect.left - tableRect.left) +
+                            dropTargetGap,
+                        right:
+                            tableElement.offsetLeft +
+                            (cellRect.right - tableRect.left) -
+                            dropTargetGap,
+                        top: dropTargetY,
+                        bottom: dropTargetY,
+                    },
+                    action: {
+                        type: "InsertFileIntoTableCell",
+                        indicator: "Top",
+                        pos: dropTargetPos,
+                    },
+                });
+
+                // Move to next node position
+                const currentNodeSize = currentNode.nodeSize;
+
+                // add the size of the current node to the cell content offset
+                cellContentOffset += currentNodeSize;
+            }
         }
     }
 }
