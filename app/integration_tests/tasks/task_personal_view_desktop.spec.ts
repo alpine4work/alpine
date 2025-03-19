@@ -1351,6 +1351,9 @@ test("no sections in personal view", async ({page, context: browserContext}) => 
 });
 
 test("interactions across all sections", async ({page, context: browserContext}) => {
+    // Give this test a long timeout, it does a lot of stuff...
+    test.setTimeout(1000 * 60 * 3);
+
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
