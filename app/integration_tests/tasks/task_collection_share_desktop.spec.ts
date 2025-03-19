@@ -850,11 +850,9 @@ test("anonymous accounts can see task collection shared with url grant", async (
         .first()
         .click();
 
-    await expect(page2.getByRole("textbox", {name: "Notes"})).toHaveText(
-        "Hello, world! Hello, @Sara!",
-    );
+    await expect(page2.getByLabel("Notes")).toHaveText("Hello, world! Hello, @Sara!");
     await expect(
-        page2.getByRole("textbox", {name: "Notes"}).getByTestId("ContentFilePreview:image/png"),
+        page2.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeVisible();
 
     await page2.getByTestId("PeekStackOverlay").getByRole("button", {name: "Close"}).click();
@@ -868,13 +866,11 @@ test("anonymous accounts can see task collection shared with url grant", async (
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeHidden();
 
-    await expect(page1.getByRole("textbox", {name: "Notes"})).toBeHidden();
+    await expect(page1.getByLabel("Notes")).toBeHidden();
     await expect(
-        page1.getByRole("textbox", {name: "Notes"}).getByTestId("ContentFilePreview:image/png"),
+        page1.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeHidden();
-    await expect(
-        page1.getByRole("textbox", {name: "Notes"}).locator("[data-comment]"),
-    ).toBeHidden();
+    await expect(page1.getByLabel("Notes").locator("[data-comment]")).toBeHidden();
 
     await expect(
         page2.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
@@ -917,11 +913,9 @@ test("anonymous accounts can see task collection shared with url grant", async (
     await expect(page1.getByText("Couldn’t open task")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
-    await expect(page1.getByRole("textbox", {name: "Notes"})).toHaveText(
-        "Hello, world! Hello, @Sara!",
-    );
+    await expect(page1.getByLabel("Notes")).toHaveText("Hello, world! Hello, @Sara!");
     await expect(
-        page1.getByRole("textbox", {name: "Notes"}).getByTestId("ContentFilePreview:image/png"),
+        page1.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeVisible();
 
     await page2.getByTestId("ShareOverlayUrlGrant").getByRole("button", {name: "can view"}).click();
@@ -949,13 +943,11 @@ test("anonymous accounts can see task collection shared with url grant", async (
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeHidden();
 
-    await expect(page1.getByRole("textbox", {name: "Notes"})).toBeHidden();
+    await expect(page1.getByLabel("Notes")).toBeHidden();
     await expect(
-        page1.getByRole("textbox", {name: "Notes"}).getByTestId("ContentFilePreview:image/png"),
+        page1.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeHidden();
-    await expect(
-        page1.getByRole("textbox", {name: "Notes"}).locator("[data-comment]"),
-    ).toBeHidden();
+    await expect(page1.getByLabel("Notes").locator("[data-comment]")).toBeHidden();
 
     await browserContext1.close();
 });
@@ -1021,11 +1013,9 @@ test("accounts from another space can see task collection shared with url grant"
         .first()
         .click();
 
-    await expect(page2.getByRole("textbox", {name: "Notes"})).toHaveText(
-        "Hello, world! Hello, @Sara!",
-    );
+    await expect(page2.getByLabel("Notes")).toHaveText("Hello, world! Hello, @Sara!");
     await expect(
-        page2.getByRole("textbox", {name: "Notes"}).getByTestId("ContentFilePreview:image/png"),
+        page2.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeVisible();
 
     await page2.getByTestId("PeekStackOverlay").getByRole("button", {name: "Close"}).click();
@@ -1039,13 +1029,11 @@ test("accounts from another space can see task collection shared with url grant"
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeHidden();
 
-    await expect(page1.getByRole("textbox", {name: "Notes"})).toBeHidden();
+    await expect(page1.getByLabel("Notes")).toBeHidden();
     await expect(
-        page1.getByRole("textbox", {name: "Notes"}).getByTestId("ContentFilePreview:image/png"),
+        page1.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeHidden();
-    await expect(
-        page1.getByRole("textbox", {name: "Notes"}).locator("[data-comment]"),
-    ).toBeHidden();
+    await expect(page1.getByLabel("Notes").locator("[data-comment]")).toBeHidden();
 
     await expect(
         page2.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
@@ -1088,11 +1076,9 @@ test("accounts from another space can see task collection shared with url grant"
     await expect(page1.getByText("Couldn’t open task")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
-    await expect(page1.getByRole("textbox", {name: "Notes"})).toHaveText(
-        "Hello, world! Hello, @Sara!",
-    );
+    await expect(page1.getByLabel("Notes")).toHaveText("Hello, world! Hello, @Sara!");
     await expect(
-        page1.getByRole("textbox", {name: "Notes"}).getByTestId("ContentFilePreview:image/png"),
+        page1.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeVisible();
 
     await page2.getByTestId("ShareOverlayUrlGrant").getByRole("button", {name: "can view"}).click();
@@ -1120,13 +1106,11 @@ test("accounts from another space can see task collection shared with url grant"
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeHidden();
 
-    await expect(page1.getByRole("textbox", {name: "Notes"})).toBeHidden();
+    await expect(page1.getByLabel("Notes")).toBeHidden();
     await expect(
-        page1.getByRole("textbox", {name: "Notes"}).getByTestId("ContentFilePreview:image/png"),
+        page1.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeHidden();
-    await expect(
-        page1.getByRole("textbox", {name: "Notes"}).locator("[data-comment]"),
-    ).toBeHidden();
+    await expect(page1.getByLabel("Notes").locator("[data-comment]")).toBeHidden();
 
     await browserContext1.close();
 });
@@ -1190,11 +1174,9 @@ test("accounts from same space can see task collection shared with url grant", a
         .first()
         .click();
 
-    await expect(page2.getByRole("textbox", {name: "Notes"})).toHaveText(
-        "Hello, world! Hello, @Sara!",
-    );
+    await expect(page2.getByLabel("Notes")).toHaveText("Hello, world! Hello, @Sara!");
     await expect(
-        page2.getByRole("textbox", {name: "Notes"}).getByTestId("ContentFilePreview:image/png"),
+        page2.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeVisible();
 
     await page2.getByTestId("PeekStackOverlay").getByRole("button", {name: "Close"}).click();
@@ -1208,13 +1190,11 @@ test("accounts from same space can see task collection shared with url grant", a
     await expect(page1.getByRole("button", {name: "Search"})).toBeVisible();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
 
-    await expect(page1.getByRole("textbox", {name: "Notes"})).toBeHidden();
+    await expect(page1.getByLabel("Notes")).toBeHidden();
     await expect(
-        page1.getByRole("textbox", {name: "Notes"}).getByTestId("ContentFilePreview:image/png"),
+        page1.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeHidden();
-    await expect(
-        page1.getByRole("textbox", {name: "Notes"}).locator("[data-comment]"),
-    ).toBeHidden();
+    await expect(page1.getByLabel("Notes").locator("[data-comment]")).toBeHidden();
 
     await expect(
         page2.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
@@ -1257,11 +1237,9 @@ test("accounts from same space can see task collection shared with url grant", a
     await expect(page1.getByText("Couldn’t open task")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
-    await expect(page1.getByRole("textbox", {name: "Notes"})).toHaveText(
-        "Hello, world! Hello, @Sara!",
-    );
+    await expect(page1.getByLabel("Notes")).toHaveText("Hello, world! Hello, @Sara!");
     await expect(
-        page1.getByRole("textbox", {name: "Notes"}).getByTestId("ContentFilePreview:image/png"),
+        page1.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeVisible();
 
     await page2.getByTestId("ShareOverlayUrlGrant").getByRole("button", {name: "can view"}).click();
@@ -1289,13 +1267,11 @@ test("accounts from same space can see task collection shared with url grant", a
     await expect(page1.getByRole("button", {name: "Search"})).toBeVisible();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
 
-    await expect(page1.getByRole("textbox", {name: "Notes"})).toBeHidden();
+    await expect(page1.getByLabel("Notes")).toBeHidden();
     await expect(
-        page1.getByRole("textbox", {name: "Notes"}).getByTestId("ContentFilePreview:image/png"),
+        page1.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeHidden();
-    await expect(
-        page1.getByRole("textbox", {name: "Notes"}).locator("[data-comment]"),
-    ).toBeHidden();
+    await expect(page1.getByLabel("Notes").locator("[data-comment]")).toBeHidden();
 
     await browserContext1.close();
 });
@@ -1365,11 +1341,9 @@ test("account that used to be a member of space but was removed can see task col
         .first()
         .click();
 
-    await expect(page2.getByRole("textbox", {name: "Notes"})).toHaveText(
-        "Hello, world! Hello, @Sara!",
-    );
+    await expect(page2.getByLabel("Notes")).toHaveText("Hello, world! Hello, @Sara!");
     await expect(
-        page2.getByRole("textbox", {name: "Notes"}).getByTestId("ContentFilePreview:image/png"),
+        page2.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeVisible();
 
     await page2.getByTestId("PeekStackOverlay").getByRole("button", {name: "Close"}).click();
@@ -1383,13 +1357,11 @@ test("account that used to be a member of space but was removed can see task col
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeHidden();
 
-    await expect(page1.getByRole("textbox", {name: "Notes"})).toBeHidden();
+    await expect(page1.getByLabel("Notes")).toBeHidden();
     await expect(
-        page1.getByRole("textbox", {name: "Notes"}).getByTestId("ContentFilePreview:image/png"),
+        page1.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeHidden();
-    await expect(
-        page1.getByRole("textbox", {name: "Notes"}).locator("[data-comment]"),
-    ).toBeHidden();
+    await expect(page1.getByLabel("Notes").locator("[data-comment]")).toBeHidden();
 
     await expect(
         page2.getByRole("button", {name: "Toggle sharing"}).getByRole("img"),
@@ -1432,11 +1404,9 @@ test("account that used to be a member of space but was removed can see task col
     await expect(page1.getByText("Couldn’t open task")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
-    await expect(page1.getByRole("textbox", {name: "Notes"})).toHaveText(
-        "Hello, world! Hello, @Sara!",
-    );
+    await expect(page1.getByLabel("Notes")).toHaveText("Hello, world! Hello, @Sara!");
     await expect(
-        page1.getByRole("textbox", {name: "Notes"}).getByTestId("ContentFilePreview:image/png"),
+        page1.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeVisible();
 
     await page2.getByTestId("ShareOverlayUrlGrant").getByRole("button", {name: "can view"}).click();
@@ -1464,13 +1434,11 @@ test("account that used to be a member of space but was removed can see task col
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeHidden();
     await expect(page1.getByRole("button", {name: "Search"})).toBeHidden();
 
-    await expect(page1.getByRole("textbox", {name: "Notes"})).toBeHidden();
+    await expect(page1.getByLabel("Notes")).toBeHidden();
     await expect(
-        page1.getByRole("textbox", {name: "Notes"}).getByTestId("ContentFilePreview:image/png"),
+        page1.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeHidden();
-    await expect(
-        page1.getByRole("textbox", {name: "Notes"}).locator("[data-comment]"),
-    ).toBeHidden();
+    await expect(page1.getByLabel("Notes").locator("[data-comment]")).toBeHidden();
 
     await browserContext1.close();
 });
