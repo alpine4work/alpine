@@ -1,4 +1,5 @@
-import {useCallback, useEffect, useState} from "react";
+import {parseAbsolute, toCalendarDate} from "@internationalized/date";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {flushSync} from "react-dom";
 import {ShouldRevalidateFunction, useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
@@ -11,6 +12,7 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getInitialAppRenderPlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -22,6 +24,7 @@ import {
     TaskClientStoreUndoManager,
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
+import {TaskQueryNormalizedFiltersInitialFieldsModel} from "~/client/tasks/core/task_query_normalized_filters_initial_fields_model.js";
 import {unknownTaskQueryFromServerRetentionPeriodMs} from "~/client/tasks/core/task_realtime_client.js";
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/tasks/core/task_realtime_client_context_provider.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
@@ -29,23 +32,31 @@ import {TaskDetailAndCommentsView} from "~/client/tasks/task_detail_and_comments
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {authorizeSpaceAccessIfPossible} from "~/server/spaces/spaces_table.js";
+import {authorizeSpaceAccessIfPossible, getAccount} from "~/server/spaces/spaces_table.js";
 import {
     getTaskNotesContentAndOptionalInitialComments,
     getTaskNotesContentIfExists,
 } from "~/server/tasks/data/task_table.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {NotFoundError} from "~/shared/error/error.js";
+import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {roundDateToHour} from "~/shared/helpers/date/round_date_to_hour.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {iterableWithIndex} from "~/shared/helpers/iterable/iterable_with_index.js";
+import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
 import {isId} from "~/shared/id/id.js";
-import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
@@ -55,11 +66,19 @@ import {
     TaskNotesContentWithReferencesSchema,
     emptyTaskNotesContentWithReferences,
 } from "~/shared/tasks/task_notes_content_schema.js";
-import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
+import {deserializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
+import {
+    TaskQueryNormalizedFilters,
+    normalizeTaskQueryFilters,
+} from "~/shared/tasks/task_query_normalized_filters.js";
+import {
+    TaskQueryNormalizedFiltersInitialFields,
+    getTaskQueryNormalizedFiltersInitialFields,
+} from "~/shared/tasks/task_query_normalized_filters_initial_fields.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskRealtimeUpdateEventBackfillTask} from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskRealtimeLoadQueriesOutput} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
-import {addFallbackToTaskTitle} from "~/shared/tasks/task_title.js";
+import {addFallbackToTaskTitle, emptyTaskTitleModel} from "~/shared/tasks/task_title.js";
 
 const LoaderSchema = Schema.object({
     initialMetaTitleText: Schema.string,
@@ -73,14 +92,15 @@ const LoaderSchema = Schema.object({
         otherReferencedComments: Schema.array(TaskCommentModel.schema()),
     }).nullable(),
     inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
+    initialFieldsAssignee: AccountModel.schema.nullable(),
 });
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {initialMetaTitleText}}) => [
     {title: addFallbackToTaskTitle(initialMetaTitleText)},
 ]);
 
-export async function loader({params, context: _context, request}: LoaderArgs) {
-    const context = await _context.actor.authenticate();
+export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
+    const context = await unauthenticatedContext.actor.authenticate();
     const taskId = Schema.id<TaskId>().deserialize(params.taskId ?? null);
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
 
@@ -91,7 +111,8 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
 
     const isSpaceAccessAuthorized = (await authorizeSpaceAccessIfPossible(context, spaceId)).ok;
 
-    const isCreatingTask = url.searchParams.get("create") === "";
+    const createSearchParam = url.searchParams.get("create");
+    const isCreatingTask = createSearchParam !== null;
     const showComments = !isCreatingTask && url.searchParams.get("comments") === "show";
     const showInboxEntry = url.searchParams.get("inbox") === "show";
 
@@ -132,7 +153,44 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
             : undefined,
     };
 
-    const [loadQueriesOutputResult, task, inboxEntry] = await runAllPromises([
+    let initialFields: TaskQueryNormalizedFiltersInitialFields | null = null;
+    if (createSearchParam !== null && createSearchParam.length > 0) {
+        const initialTime = context.loader.getInitialTime();
+
+        const currentTimeRoundedToHour = roundDateToHour(initialTime);
+        const currentDate = toCalendarDate(
+            parseAbsolute(
+                currentTimeRoundedToHour.toISOString(),
+                context.loader.getClientInfo().timeZone,
+            ),
+        );
+
+        const filters = deserializeTaskQueryFiltersSearchParam(createSearchParam);
+
+        const normalizedFiltersResult = normalizeTaskQueryFilters(filters, {
+            currentDate,
+            currentAccountId:
+                context.actor.type === "Session" ? context.actor.getAccountId() : null,
+        });
+        if (normalizedFiltersResult.type === "Possible") {
+            initialFields = getTaskQueryNormalizedFiltersInitialFields(
+                normalizedFiltersResult.normalizedFilters,
+                {
+                    currentDate,
+                    currentAccountId:
+                        context.actor.type === "Session" ? context.actor.getAccountId() : null,
+                },
+            );
+        }
+    }
+
+    const [
+        loadQueriesOutputResult,
+        task,
+        inboxEntry,
+        initialFieldsAssignee,
+        initialFieldsLoadCollectionsResult,
+    ] = await runAllPromises([
         captureResultPromise(
             context.tasks.loadQueries(spaceId, {
                 queries: [childrenQuery],
@@ -157,6 +215,16 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
             ? getInboxEntry(context.actor.authorizeSession(), {
                   spaceId,
                   key: {type: "Task", taskId},
+              })
+            : null,
+
+        // Load data needed for initial fields.
+        initialFields?.assigneeId ? getAccount(context, spaceId, initialFields.assigneeId) : null,
+        initialFields && initialFields.collectionIds.size > 0
+            ? context.tasks.loadQueries(spaceId, {
+                  queries: [],
+                  taskIds: [],
+                  collectionIds: Array.from(initialFields.collectionIds),
               })
             : null,
     ]);
@@ -197,6 +265,7 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
             notesContent: task?.notes.content ?? emptyTaskNotesContentWithReferences,
             initialComments: task?.initialComments ?? null,
             inboxEntry,
+            initialFieldsAssignee,
         },
         {
             propagateEventData: {
@@ -216,6 +285,13 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
                       taskIds: [taskId],
                       collectionIds: [],
                       updateEvent: loadQueriesOutput.updateEvent,
+                  }
+                : initialFields && initialFields.collectionIds.size > 0
+                ? {
+                      queries: [],
+                      taskIds: [],
+                      collectionIds: Array.from(initialFields.collectionIds),
+                      updateEvent: assertExists(initialFieldsLoadCollectionsResult).updateEvent,
                   }
                 : undefined,
         },
@@ -249,12 +325,14 @@ export default function TaskRoute() {
     const clientInfo = useClientInfo();
     const context = useAppContext();
     const {currentAccount} = useSpaceContext();
+    const currentDate = useCurrentDate();
     const {taskId, spaceId} = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     assert(taskId && isId<TaskId>(taskId));
     assert(spaceId && isId<SpaceId>(spaceId));
 
-    const isCreatingTask = searchParams.get("create") === "";
+    const createSearchParam = searchParams.get("create");
+    const isCreatingTask = createSearchParam !== null;
     const showComments = !isCreatingTask && searchParams.get("comments") === "show";
 
     const [shouldInitiallyFocus] = useState(searchParams.get("focus") === "");
@@ -265,11 +343,13 @@ export default function TaskRoute() {
         notesContent: initialNotesContent,
         initialComments,
         inboxEntry,
+        initialFieldsAssignee,
     } = useLoaderDataWithSchema(LoaderSchema);
     const {
         store,
         queries: [childrenQueryFromLoader = null],
         taskSubscriptions: [taskSubscriptionFromLoader = null],
+        collectionSubscriptions: initialFieldsCollectionSubscriptions,
     } = useTaskStoreLoaderDataWithoutRetaining();
 
     const [
@@ -422,6 +502,127 @@ export default function TaskRoute() {
         }
     }, [routeLayout, showComments, taskId]);
 
+    const defaultInitialFields = useMemo(
+        (): TaskQueryNormalizedFiltersInitialFields => ({
+            status: "Open",
+            collectionIds: emptySet,
+            priority: null,
+            title: "",
+            assigneeId: currentAccount?.id ?? null,
+            assigneeStatus: "Inactive",
+            dueDate: null,
+        }),
+        [currentAccount?.id],
+    );
+
+    const initialFields = useMemo((): TaskQueryNormalizedFiltersInitialFields => {
+        // By default, if initial fields weren't specified then we set the `assigneeId`
+        // to the current account and that's it.
+        //
+        // That way the new task shows up in the "My tasks" view.
+        if (
+            childrenQuery ||
+            taskSubscription ||
+            !createSearchParam ||
+            createSearchParam.length === 0
+        ) {
+            return defaultInitialFields;
+        }
+
+        const filters = deserializeTaskQueryFiltersSearchParam(createSearchParam);
+
+        const normalizedFiltersResult = normalizeTaskQueryFilters(filters, {
+            currentDate,
+            currentAccountId: currentAccount?.id ?? null,
+        });
+        if (normalizedFiltersResult.type === "Impossible") return defaultInitialFields;
+
+        return getTaskQueryNormalizedFiltersInitialFields(
+            normalizedFiltersResult.normalizedFilters,
+            {
+                currentDate,
+                currentAccountId: currentAccount?.id ?? null,
+            },
+        );
+    }, [
+        childrenQuery,
+        createSearchParam,
+        currentAccount?.id,
+        currentDate,
+        defaultInitialFields,
+        taskSubscription,
+    ]);
+
+    const initialFieldsCollectionSubscriptionById = useMemo(
+        () =>
+            new Map(
+                initialFieldsCollectionSubscriptions.map(collectionSubscription => [
+                    collectionSubscription.collectionId,
+                    collectionSubscription,
+                ]),
+            ),
+        [initialFieldsCollectionSubscriptions],
+    );
+
+    // Retain the collection subscriptions from `initialFields.collectionIds`. So
+    // we keep those collections up-to-date in realtime.
+    useEffect(() => {
+        for (const collectionId of initialFields.collectionIds) {
+            const collectionSubscription = assertExists(
+                initialFieldsCollectionSubscriptionById.get(collectionId),
+            );
+
+            collectionSubscription.retain();
+        }
+
+        return () => {
+            // Release after a microtask in case the effect re-runs in which case we'll
+            // synchronously call `retain()` again.
+            scheduleMicrotask(() => {
+                for (const collectionId of initialFields.collectionIds) {
+                    const collectionSubscription = assertExists(
+                        initialFieldsCollectionSubscriptionById.get(collectionId),
+                    );
+
+                    collectionSubscription.release();
+                }
+            });
+        };
+    }, [initialFields.collectionIds, initialFieldsCollectionSubscriptionById]);
+
+    const initialFieldsModel = useMemo((): TaskQueryNormalizedFiltersInitialFieldsModel => {
+        return {
+            status: initialFields.status,
+            collectionIds: initialFields.collectionIds,
+            priority: initialFields.priority,
+            titleUpdate:
+                initialFields.title.length > 0
+                    ? emptyTaskTitleModel.get().replace(0, 0, initialFields.title)
+                    : null,
+            assignee:
+                initialFields.assigneeId === currentAccount?.id
+                    ? currentAccount
+                    : initialFieldsAssignee,
+            assigneeStatus: initialFields.assigneeStatus,
+            dueDate: initialFields.dueDate,
+            getReferencedCollectionEntryStore: collectionId => {
+                return assertExists(initialFieldsCollectionSubscriptionById.get(collectionId))
+                    .collectionEntryStore;
+            },
+        };
+    }, [
+        currentAccount,
+        initialFields.assigneeId,
+        initialFields.assigneeStatus,
+        initialFields.collectionIds,
+        initialFields.dueDate,
+        initialFields.priority,
+        initialFields.status,
+        initialFields.title,
+        initialFieldsAssignee,
+        initialFieldsCollectionSubscriptionById,
+    ]);
+
     const commitActionTransactionAndCreateIfNeeded = useEvent(
         (
             getActions: () => Iterable<TaskActionModel>,
@@ -453,13 +654,12 @@ export default function TaskRoute() {
                 return batchStoreUpdates(() => {
                     disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
 
-                    const time1 = store.clock.now();
-                    const time2 = store.clock.now();
+                    const createTime = store.clock.now();
 
                     const actions: Array<TaskActionModel> = [
                         {
                             type: "UpdateTask",
-                            time: time1,
+                            time: createTime,
                             taskId,
                             taskAction: {
                                 type: "Create",
@@ -467,26 +667,16 @@ export default function TaskRoute() {
                                 creatorTimeZone: clientInfo.timeZone,
                             },
                         },
-                        // When we create a ghost task from detail view we automatically assign the
-                        // ghost task to the current account. That way the new task shows up in the
-                        // "My tasks" view.
-                        {
-                            type: "UpdateTask",
-                            time: time2,
-                            taskId,
-                            taskAction: {
-                                type: "UpdateAssignee",
-                                assignee: {
-                                    assigneeId: currentAccount.id,
-                                    assignerId: currentAccount.id,
-                                    assignedTime: new TaskFilterableTime({
-                                        absoluteTime: time2,
-                                        setterTimeZone: clientInfo.timeZone,
-                                    }),
-                                },
-                            },
-                        },
                     ];
+
+                    pushTaskQueryNormalizedFiltersInitialFieldsActions(
+                        clientInfo.timeZone,
+                        currentAccount.id,
+                        store.clock,
+                        taskId,
+                        initialFieldsModel,
+                        actions,
+                    );
 
                     const undoableSliceStartIndex = actions.length;
 
@@ -554,6 +744,7 @@ export default function TaskRoute() {
             taskSubscription={taskSubscription}
             childrenQuery={childrenQuery}
             initialChildrenGridViewExpansionState={initialChildrenGridViewExpansionState}
+            initialFields={initialFieldsModel}
             initialNotesVersion={initialNotesVersion}
             initialNotesContent={initialNotesContent}
             commitActionTransactionAndCreateIfNeeded={commitActionTransactionAndCreateIfNeeded}
@@ -565,4 +756,152 @@ export default function TaskRoute() {
             initialScrollToCommentIndex={initialScrollToCommentIndex}
         />,
     );
+}
+
+function pushTaskQueryNormalizedFiltersInitialFieldsActions(
+    timeZone: TimeZone,
+    currentAccountId: AccountId,
+    clock: HybridLogicalClock,
+    taskId: TaskId,
+    initialFields: TaskQueryNormalizedFiltersInitialFieldsModel,
+    actions: Array<TaskActionModel>,
+) {
+    switch (initialFields.status) {
+        case "Open":
+            break;
+        case "Closed": {
+            const time = clock.now();
+
+            actions.push({
+                type: "UpdateTask",
+                time,
+                taskId,
+                taskAction: {
+                    type: "UpdateStatus",
+                    status: {
+                        type: "Closed",
+                        closerId: currentAccountId,
+                        closedTime: new TaskFilterableTime({
+                            absoluteTime: time,
+                            setterTimeZone: timeZone,
+                        }),
+                    },
+                },
+            });
+            break;
+        }
+        default:
+            throw exhaustive(initialFields.status);
+    }
+
+    if (initialFields.assignee !== null) {
+        const time = clock.now();
+
+        actions.push({
+            type: "UpdateTask",
+            time,
+            taskId,
+            taskAction: {
+                type: "UpdateAssignee",
+                assignee: {
+                    assigneeId: initialFields.assignee.id,
+                    assignerId: currentAccountId,
+                    assignedTime: new TaskFilterableTime({
+                        absoluteTime: time,
+                        setterTimeZone: timeZone,
+                    }),
+                },
+            },
+        });
+    }
+
+    switch (initialFields.assigneeStatus) {
+        case "Inactive":
+            break;
+        case "Active": {
+            const time = clock.now();
+
+            actions.push({
+                type: "UpdateTask",
+                time,
+                taskId,
+                taskAction: {
+                    type: "UpdateAssigneeStatus",
+                    assigneeStatus: {
+                        type: "Active",
+                        activatedTime: new TaskFilterableTime({
+                            absoluteTime: time,
+                            setterTimeZone: timeZone,
+                        }),
+                    },
+                },
+            });
+            break;
+        }
+        default:
+            throw exhaustive(initialFields.assigneeStatus);
+    }
+
+    const collectionOrderKeys = generateOrderKeysBetween(
+        null,
+        null,
+        initialFields.collectionIds.size,
+    );
+
+    for (const [collectionId, collectionIndex] of iterableWithIndex(initialFields.collectionIds)) {
+        const time = clock.now();
+
+        actions.push({
+            type: "UpdateTask",
+            time,
+            taskId,
+            taskAction: {
+                type: "AddCollection",
+                collectionId,
+                orderKey: collectionOrderKeys[collectionIndex]!,
+            },
+        });
+    }
+
+    if (initialFields.priority !== null) {
+        const time = clock.now();
+
+        actions.push({
+            type: "UpdateTask",
+            time,
+            taskId,
+            taskAction: {
+                type: "UpdatePriority",
+                priority: initialFields.priority,
+            },
+        });
+    }
+
+    if (initialFields.dueDate !== null) {
+        const time = clock.now();
+
+        actions.push({
+            type: "UpdateTask",
+            time,
+            taskId,
+            taskAction: {
+                type: "UpdateDueDate",
+                dueDate: initialFields.dueDate,
+            },
+        });
+    }
+
+    if (initialFields.titleUpdate !== null) {
+        const time = clock.now();
+
+        actions.push({
+            type: "UpdateTask",
+            time,
+            taskId,
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: initialFields.titleUpdate,
+            },
+        });
+    }
 }

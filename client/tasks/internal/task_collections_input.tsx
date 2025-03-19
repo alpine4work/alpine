@@ -49,9 +49,10 @@ import {
     taskCollectionChipHeight,
     taskCollectionChipPaddingY,
 } from "~/client/styles/tasks_shared_styles.js";
-import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
-import {TaskClientReadonlyStore} from "~/client/tasks/core/task_client_store.js";
-import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
+import {
+    TaskClientReadonlyStore,
+    TaskClientStoreCollectionEntry,
+} from "~/client/tasks/core/task_client_store.js";
 import {createDisplayTaskCollectionsStore} from "~/client/tasks/internal/create_display_task_collections_store.js";
 import {
     TaskCollectionChip,
@@ -78,8 +79,8 @@ import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {emptyArrayStore} from "~/shared/store/const_store.js";
+import {Store} from "~/shared/store/store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
-import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 
 type TaskDetailCollectionsFieldInputState =
@@ -105,7 +106,7 @@ function TaskCollectionsInput(
     {
         store,
         referencesSubscription,
-        task,
+        collections,
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
         isReadOnly = false,
@@ -119,8 +120,12 @@ function TaskCollectionsInput(
         commitActionTransaction,
     }: {
         store: TaskClientReadonlyStore;
-        referencesSubscription: TaskClientQuery | TaskClientTaskSubscription | null;
-        task: TaskModel | null;
+        referencesSubscription: {
+            getReferencedCollectionEntryStore(
+                collectionId: TaskCollectionId,
+            ): Store<TaskClientStoreCollectionEntry>;
+        } | null;
+        collections: TaskCollectionSet;
         "aria-label"?: string;
         "aria-labelledby"?: string;
         isReadOnly?: boolean;
@@ -160,8 +165,6 @@ function TaskCollectionsInput(
         }),
         [],
     );
-
-    const collections = task?.getCollections() ?? TaskCollectionSet.empty;
 
     // Preload task collections the account has an affinity for in case they open
     // the collections dropdown.

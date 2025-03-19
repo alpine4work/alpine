@@ -33,8 +33,8 @@ import {
 } from "~/client/styles/styles.js";
 import {
     taskGridViewColumnHeaderHeight,
+    taskGridViewPaddingBottomWithNext,
     taskRowViewMinHeight,
-    taskRowViewPaddingBottom,
 } from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
@@ -43,6 +43,7 @@ import {
     TaskClientStoreUndoManager,
 } from "~/client/tasks/core/task_client_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
+import {TaskFloatingCreateButton} from "~/client/tasks/internal/task_floating_create_button.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewColumnHeader} from "~/client/tasks/internal/task_grid_view_column_header.js";
 import {TaskGridViewHasDndContext} from "~/client/tasks/internal/task_grid_view_has_dnd_context.js";
@@ -1638,6 +1639,8 @@ export function TaskPersonalView({
 
     return (
         <Box
+            position="relative"
+            zIndex="0"
             flexGrow="1"
             width="full"
             overflow="hidden"
@@ -1883,6 +1886,7 @@ export function TaskPersonalView({
                     extraChildren={navigationBar}
                 />
             </GlobalKeyDownEvent>
+            <TaskFloatingCreateButton />
         </Box>
     );
 }
@@ -2324,7 +2328,7 @@ function useTaskPersonalViewHeaderAnimations(gridViewResult: {
                     // shouldn't have a column header so it's safe to assume all non-state items
                     // have a height of `taskRowViewMinHeight`.
                     parseRemLength(taskRowViewMinHeight) * -nonStateItemCountDifference +
-                    parseRemLength(taskRowViewPaddingBottom);
+                    parseRemLength(taskGridViewPaddingBottomWithNext);
 
                 return [
                     ...previousAnimations,
@@ -2348,7 +2352,7 @@ function useTaskPersonalViewHeaderAnimations(gridViewResult: {
                     // shouldn't have a column header so it's safe to assume all non-state items
                     // have a height of `taskRowViewMinHeight`.
                     parseRemLength(taskRowViewMinHeight) * nonStateItemCountDifference +
-                    parseRemLength(taskRowViewPaddingBottom);
+                    parseRemLength(taskGridViewPaddingBottomWithNext);
 
                 return [
                     ...previousAnimations,

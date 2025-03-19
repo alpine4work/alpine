@@ -90,7 +90,8 @@ export const taskRowTitleInputPaddingYPx = createObjectFromKeys(
         2,
 );
 
-export const taskRowViewPaddingBottom = "6";
+export const taskGridViewPaddingBottomWithNext = "6";
+export const taskGridViewPaddingBottomWithoutNext = "12";
 
 export const taskCardViewMinHeight = "5.375rem";
 export const taskCardViewMaxWidth = "96";

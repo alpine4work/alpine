@@ -31,8 +31,9 @@ import {
     spinAnimationClassName,
 } from "~/client/styles/styles.js";
 import {
+    taskGridViewPaddingBottomWithNext,
+    taskGridViewPaddingBottomWithoutNext,
     taskRowViewMinHeight,
-    taskRowViewPaddingBottom,
 } from "~/client/styles/tasks_shared_styles.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
@@ -288,12 +289,16 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
                 {withPaddingBottom && (
                     <Box
                         width="full"
-                        height={taskRowViewPaddingBottom}
+                        height={
+                            hasNextGridView
+                                ? taskGridViewPaddingBottomWithNext
+                                : taskGridViewPaddingBottomWithoutNext
+                        }
                         pointerEvents="none"
                         style={{
                             height:
                                 platform === "mobile" && !hasNextGridView
-                                    ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[taskRowViewPaddingBottom]})`
+                                    ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[taskGridViewPaddingBottomWithoutNext]})`
                                     : undefined,
                         }}
                     />

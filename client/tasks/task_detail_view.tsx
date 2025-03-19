@@ -62,6 +62,7 @@ import {
     TaskClientStoreUndoManager,
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
+import {TaskQueryNormalizedFiltersInitialFieldsModel} from "~/client/tasks/core/task_query_normalized_filters_initial_fields_model.js";
 import {
     TaskAccess,
     computeTaskEntryAccess,
@@ -102,17 +103,21 @@ import {hasAccessLevel} from "~/shared/access/access_policy.js";
 import {Context} from "~/shared/context/context.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
+import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {computeStore} from "~/shared/store/compute_store.js";
-import {ConstStore, falseStore, trueStore} from "~/shared/store/const_store.js";
+import {ConstStore, trueStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
@@ -131,6 +136,7 @@ export function TaskDetailView({
     taskSubscription,
     childrenQuery,
     initialChildrenGridViewExpansionState,
+    initialFields,
     notesEditorStateStore,
     onNotesEditorStateChange,
     reconnectNotesClient,
@@ -146,6 +152,7 @@ export function TaskDetailView({
     taskSubscription: TaskClientTaskSubscription | null;
     childrenQuery: TaskClientQuery | null;
     initialChildrenGridViewExpansionState: TaskGridViewExpansionState;
+    initialFields: TaskQueryNormalizedFiltersInitialFieldsModel;
     notesEditorStateStore: Store<TaskNotesContentEditorState>;
     onNotesEditorStateChange: Memo<
         (state: ContentEditorState<TaskNotesContentWithReferences>) => void
@@ -452,24 +459,31 @@ export function TaskDetailView({
             (): Store<TaskDisplayStatus> =>
                 taskSubscription?.taskEntryStore.map(
                     ({task}) => task?.getDisplayStatus() ?? "OpenInactive",
-                ) ?? new ConstStore("OpenInactive"),
-            [taskSubscription?.taskEntryStore],
+                ) ??
+                new ConstStore(
+                    initialFields.status === "Closed"
+                        ? "Closed"
+                        : initialFields.assigneeStatus === "Active"
+                        ? "OpenActive"
+                        : "OpenInactive",
+                ),
+            [initialFields.assigneeStatus, initialFields.status, taskSubscription?.taskEntryStore],
         ),
     );
     const isPriorityDefined = useStore(
         useMemo(
             () =>
                 taskSubscription?.taskEntryStore.map(({task}) => !!task?.getPriority()) ??
-                falseStore,
-            [taskSubscription?.taskEntryStore],
+                new ConstStore(initialFields.priority !== null),
+            [initialFields.priority, taskSubscription?.taskEntryStore],
         ),
     );
     const isDueDateDefined = useStore(
         useMemo(
             () =>
                 taskSubscription?.taskEntryStore.map(({task}) => !!task?.getDueDate()) ??
-                falseStore,
-            [taskSubscription?.taskEntryStore],
+                new ConstStore(initialFields.dueDate !== null),
+            [initialFields.dueDate, taskSubscription?.taskEntryStore],
         ),
     );
 
@@ -561,7 +575,7 @@ export function TaskDetailView({
         if (!shouldInitiallyFocus) return;
 
         return scheduleAfterNavigationAnimation(() => {
-            titleInput.focus();
+            titleInput.focusAll();
         });
     }, [shouldInitiallyFocus, titleInputRef]);
 
@@ -700,11 +714,7 @@ export function TaskDetailView({
                     store,
                     displayStatus,
                     getAssigneeAccountIdSnapshot: () => {
-                        // If this is a ghost task then we show the current account as the task
-                        // assignee.
-                        if (!taskSubscription) {
-                            return currentAccount?.id ?? null;
-                        }
+                        if (!taskSubscription) return initialFields.assignee?.id ?? null;
 
                         return (
                             taskSubscription.taskEntryStore.getSnapshot().task?.getAssignee()
@@ -815,6 +825,7 @@ export function TaskDetailView({
         focusDueDateInput,
         focusPriorityInput,
         hasEditAccessLevel,
+        initialFields.assignee?.id,
         isAppleDevice,
         navigate,
         onShowCommentsChange,
@@ -844,6 +855,7 @@ export function TaskDetailView({
                 size={taskDetailViewStatusButtonSize[platformRouteLayout]}
                 store={store}
                 taskSubscription={taskSubscription}
+                initialFields={initialFields}
                 isReadOnly={!hasEditAccessLevel}
                 contextMenuActions={contextMenuActions}
                 commitActionTransaction={commitActionTransaction}
@@ -911,6 +923,7 @@ export function TaskDetailView({
                                             possiblyGhostTaskId={taskId}
                                             store={store}
                                             taskSubscription={taskSubscription}
+                                            initialFields={initialFields}
                                             undoManager={undoManager}
                                             affinityManager={affinityManager}
                                             showSubtasks={showSubtasks}
@@ -948,6 +961,7 @@ export function TaskDetailView({
                             taskId,
                             store,
                             taskSubscription,
+                            initialFields,
                             undoManager,
                             affinityManager,
                             showSubtasks,
@@ -1043,6 +1057,7 @@ function TaskDetailViewMain(
         possiblyGhostTaskId,
         store,
         taskSubscription,
+        initialFields,
         undoManager,
         affinityManager,
         showSubtasks,
@@ -1071,6 +1086,7 @@ function TaskDetailViewMain(
         possiblyGhostTaskId: TaskId;
         store: TaskClientStore;
         taskSubscription: TaskClientTaskSubscription | null;
+        initialFields: TaskQueryNormalizedFiltersInitialFieldsModel;
         undoManager: TaskClientStoreUndoManager;
         affinityManager: TaskClientStoreSearchAffinityManager;
         showSubtasks: boolean;
@@ -1111,18 +1127,50 @@ function TaskDetailViewMain(
     const {currentAccount} = useSpaceContext();
 
     const task = useStore(taskSubscription?.taskEntryStore ?? null)?.task ?? null;
-    const assigneeAccountStore =
-        !taskSubscription && currentAccount
-            ? // If this is a ghost task (`taskSubscription` is null) then we automatically set the
-              // current account as the assignee so the new task appears in the account's "My tasks"
-              // view.
-              accountClientStore.getAccountStore(currentAccount)
-            : task
-            ? store.getTaskAssigneeAccountStore(task)
-            : null;
+
+    const assigneeAccountStore = !taskSubscription
+        ? initialFields.assignee !== null
+            ? assertExists(accountClientStore.getAccountStore(initialFields.assignee))
+            : null
+        : task
+        ? store.getTaskAssigneeAccountStore(task)
+        : null;
     const assigneeAccountData = useStore(assigneeAccountStore);
-    const priority = task?.getPriority() ?? null;
-    const dueDate = task?.getDueDate() ?? null;
+
+    const priority = !taskSubscription ? initialFields.priority : task?.getPriority() ?? null;
+    const dueDate = !taskSubscription ? initialFields.dueDate : task?.getDueDate() ?? null;
+
+    const title = useMemo(() => {
+        if (!taskSubscription) {
+            if (initialFields.titleUpdate === null) return emptyTaskTitleModel.get();
+
+            return initialFields.titleUpdate.newTitle;
+        }
+
+        return task?.getTitle() ?? emptyTaskTitleModel.get();
+    }, [initialFields.titleUpdate, task, taskSubscription]);
+
+    const collections = useMemo(() => {
+        if (!taskSubscription) {
+            const collectionOrderKeys = generateOrderKeysBetween(
+                null,
+                null,
+                initialFields.collectionIds.size,
+            );
+
+            return TaskCollectionSet.from(
+                mapIterable(initialFields.collectionIds, (collectionId, collectionIndex) => [
+                    collectionId,
+                    new TaskCollectionSet.ValueRegister(
+                        collectionOrderKeys[collectionIndex]!,
+                        zeroHybridLogicalTime,
+                    ),
+                ]),
+            );
+        }
+
+        return task?.getCollections() ?? TaskCollectionSet.empty;
+    }, [initialFields.collectionIds, task, taskSubscription]);
 
     const titleCommitStateRef = useRef<{
         pendingActionTransactionBuilder: {
@@ -1268,6 +1316,7 @@ function TaskDetailViewMain(
                                         size={taskDetailViewStatusButtonSize.mobileNarrow}
                                         store={store}
                                         taskSubscription={taskSubscription}
+                                        initialFields={initialFields}
                                         isReadOnly={!hasEditAccessLevel}
                                         commitActionTransaction={commitActionTransaction}
                                     />
@@ -1282,7 +1331,7 @@ function TaskDetailViewMain(
                             ref={titleInputRef}
                             elementRef={titleInputElementRef}
                             isReadOnly={!hasEditAccessLevel}
-                            title={task?.getTitle() ?? emptyTaskTitleModel.get()}
+                            title={title}
                             onTitleChange={onTitleChange}
                             placeholder={taskFallbackTitle}
                         />
@@ -1343,8 +1392,8 @@ function TaskDetailViewMain(
                             <TaskCollectionsInput
                                 ref={collectionsInputRef}
                                 store={store}
-                                referencesSubscription={taskSubscription}
-                                task={task}
+                                referencesSubscription={taskSubscription ?? initialFields}
+                                collections={collections}
                                 aria-labelledby={ariaLabelledBy}
                                 isReadOnly={!hasEditAccessLevel}
                                 shouldAlignWithDetailViewInputsIfEmpty={true}
@@ -1747,6 +1796,7 @@ function TaskDetailViewStatusButton({
     size,
     store,
     taskSubscription,
+    initialFields,
     isReadOnly,
     elementRef,
     contextMenuActions,
@@ -1755,6 +1805,7 @@ function TaskDetailViewStatusButton({
     size: "6" | "7";
     store: TaskClientStore;
     taskSubscription: TaskClientTaskSubscription | null;
+    initialFields: TaskQueryNormalizedFiltersInitialFieldsModel;
     isReadOnly: boolean;
     elementRef: RefObject<HTMLElement>;
     contextMenuActions?: ReadonlyArray<ReadonlyArray<MenuAction>>;
@@ -1770,6 +1821,7 @@ function TaskDetailViewStatusButton({
             size={size}
             store={store}
             task={task}
+            initialFields={initialFields}
             isDisabled={isReadOnly}
             commitActionTransaction={commitActionTransaction}
         />

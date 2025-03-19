@@ -46,6 +46,7 @@ import {
     TaskCollectionViewDesktopHeaderName,
     TaskCollectionViewDesktopHeaderNameRef,
 } from "~/client/tasks/internal/task_collection_view_desktop_header_name.js";
+import {TaskFloatingCreateButton} from "~/client/tasks/internal/task_floating_create_button.js";
 import {
     isTaskQueryManuallySorted,
     useTaskGridViewVirtualizedList,
@@ -211,25 +212,27 @@ export function TaskCollectionView({
         },
     });
 
+    const allFilters = useMemo(
+        (): ReadonlyArray<TaskQueryFilter> => [
+            {
+                type: "Collections",
+                operation: {type: "IncludesOneOf", collectionIds: new Set([collectionId])},
+            },
+            ...filters,
+        ],
+        [collectionId, filters],
+    );
+
     const normalizedFiltersResult = useMemo(() => {
         // Don't execute a query if our subscription hasn't been established yet.
         if (!collectionSubscription) return null;
 
         // Always include collection filter in our list of filters.
-        return normalizeTaskQueryFilters(
-            [
-                {
-                    type: "Collections",
-                    operation: {type: "IncludesOneOf", collectionIds: new Set([collectionId])},
-                },
-                ...filters,
-            ],
-            {
-                currentDate,
-                currentAccountId: currentAccount?.id ?? null,
-            },
-        );
-    }, [collectionId, collectionSubscription, currentAccount?.id, currentDate, filters]);
+        return normalizeTaskQueryFilters(allFilters, {
+            currentDate,
+            currentAccountId: currentAccount?.id ?? null,
+        });
+    }, [allFilters, collectionSubscription, currentAccount?.id, currentDate]);
 
     // If no filters or sorts have been explicitly set then the user can manually
     // sort by collection position.
@@ -823,6 +826,8 @@ export function TaskCollectionView({
 
     return (
         <Box
+            position="relative"
+            zIndex="0"
             flexGrow="1"
             width="full"
             overflow="hidden"
@@ -890,6 +895,7 @@ export function TaskCollectionView({
                     extraChildren={navigationBar}
                 />
             </GlobalKeyDownEvent>
+            <TaskFloatingCreateButton filters={allFilters} />
             {editNameMobileModalState && (
                 <MobileFullScreenModal onClose={() => setEditNameMobileModalState(null)}>
                     {({onCloseWithAnimation}) => (

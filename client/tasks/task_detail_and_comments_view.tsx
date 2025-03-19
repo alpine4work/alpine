@@ -17,6 +17,7 @@ import {
     TaskClientStoreUndoManager,
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
+import {TaskQueryNormalizedFiltersInitialFieldsModel} from "~/client/tasks/core/task_query_normalized_filters_initial_fields_model.js";
 import {
     TaskAccess,
     createTaskEntryAccessStore,
@@ -51,6 +52,7 @@ export function TaskDetailAndCommentsView({
     taskSubscription,
     childrenQuery,
     initialChildrenGridViewExpansionState,
+    initialFields,
     initialNotesVersion,
     initialNotesContent,
     commitActionTransactionAndCreateIfNeeded,
@@ -66,6 +68,7 @@ export function TaskDetailAndCommentsView({
     taskSubscription: TaskClientTaskSubscription | null;
     childrenQuery: TaskClientQuery | null;
     initialChildrenGridViewExpansionState: TaskGridViewExpansionState;
+    initialFields: TaskQueryNormalizedFiltersInitialFieldsModel;
     initialNotesVersion: number;
     initialNotesContent: TaskNotesContentWithReferences;
     commitActionTransactionAndCreateIfNeeded: Memo<
@@ -369,6 +372,7 @@ export function TaskDetailAndCommentsView({
                         initialChildrenGridViewExpansionState={
                             initialChildrenGridViewExpansionState
                         }
+                        initialFields={initialFields}
                         notesEditorStateStore={notesEditorStateStore}
                         onNotesEditorStateChange={onNotesEditorStateChange}
                         reconnectNotesClient={reconnectNotesClient}
