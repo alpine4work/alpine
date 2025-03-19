@@ -7,8 +7,6 @@ import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collecti
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 
-const modifier = process.platform === "darwin" ? "Meta" : "Control";
-
 const {context, services} = createTestServices();
 
 test("can paste a formatted list and it will create tasks in empty collection", async ({
@@ -71,7 +69,7 @@ test("can paste a formatted list and it will create tasks in empty collection", 
         ]);
     });
 
-    await page.keyboard.press(`${modifier}+v`);
+    await page.keyboard.press("ControlOrMeta+v");
 
     await expectTaskGridView(page, [
         [
@@ -119,16 +117,16 @@ test("can paste a formatted list and it will create tasks in empty collection", 
     await expect(page.getByText("Task X")).toBeVisible();
     await expect(page.getByText("Task 4")).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expect(page.getByText("Task 4")).toBeVisible();
     await expect(page.getByText("Task X")).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, []);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [
         [
@@ -224,7 +222,7 @@ test("can paste a formatted list and it will create tasks at the end of the coll
         ]);
     });
 
-    await page.keyboard.press(`${modifier}+v`);
+    await page.keyboard.press("ControlOrMeta+v");
 
     await expectTaskGridView(page, [
         [true, "Task A"],
@@ -249,7 +247,7 @@ test("can paste a formatted list and it will create tasks at the end of the coll
         [true, "Task 4"],
     ]);
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [
         [true, "Task A"],
@@ -257,7 +255,7 @@ test("can paste a formatted list and it will create tasks at the end of the coll
         [true, "Task C"],
     ]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [
         [true, "Task A"],
@@ -352,7 +350,7 @@ test("can paste a formatted list and it will create tasks in the middle of a col
         ]);
     });
 
-    await page.keyboard.press(`${modifier}+v`);
+    await page.keyboard.press("ControlOrMeta+v");
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -404,12 +402,12 @@ test("can paste a formatted list and it will create tasks in the middle of a col
     await expect(page.getByText("Task X")).toBeVisible();
     await expect(page.getByText("Task 4")).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expect(page.getByText("Task 4")).toBeVisible();
     await expect(page.getByText("Task X")).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -417,7 +415,7 @@ test("can paste a formatted list and it will create tasks in the middle of a col
         [true, "AFTER"],
     ]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -514,7 +512,7 @@ test("can paste a formatted list and it will create tasks in the middle of a col
         ]);
     });
 
-    await page.keyboard.press(`${modifier}+v`);
+    await page.keyboard.press("ControlOrMeta+v");
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -566,12 +564,12 @@ test("can paste a formatted list and it will create tasks in the middle of a col
     await expect(page.getByText("Task X")).toBeVisible();
     await expect(page.getByText("Task 4")).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expect(page.getByText("Task 4")).toBeVisible();
     await expect(page.getByText("Task X")).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -579,7 +577,7 @@ test("can paste a formatted list and it will create tasks in the middle of a col
         [true, "AFTER"],
     ]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -685,7 +683,7 @@ test("can paste a formatted list and it will create tasks in an already nested t
         ]);
     });
 
-    await page.keyboard.press(`${modifier}+v`);
+    await page.keyboard.press("ControlOrMeta+v");
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -714,7 +712,7 @@ test("can paste a formatted list and it will create tasks in an already nested t
         [true, "AFTER"],
     ]);
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -722,7 +720,7 @@ test("can paste a formatted list and it will create tasks in an already nested t
         [true, "AFTER"],
     ]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -840,7 +838,7 @@ test("can paste a formatted list and it will create tasks when last pasted task 
         ]);
     });
 
-    await page.keyboard.press(`${modifier}+v`);
+    await page.keyboard.press("ControlOrMeta+v");
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -890,12 +888,12 @@ test("can paste a formatted list and it will create tasks when last pasted task 
     await expect(page.getByText("Task 3.1.X")).toBeVisible();
     await expect(page.getByText("Task 3.1.1")).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expect(page.getByText("Task 3.1.1")).toBeVisible();
     await expect(page.getByText("Task 3.1.X")).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -903,7 +901,7 @@ test("can paste a formatted list and it will create tasks when last pasted task 
         [true, "AFTER"],
     ]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -1012,7 +1010,7 @@ test("can paste a formatted list and it will create tasks in an already nested t
         ]);
     });
 
-    await page.keyboard.press(`${modifier}+v`);
+    await page.keyboard.press("ControlOrMeta+v");
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -1072,12 +1070,12 @@ test("can paste a formatted list and it will create tasks in an already nested t
     await expect(page.getByText("Task 3.1.X")).toBeVisible();
     await expect(page.getByText("Task 3.1.1")).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expect(page.getByText("Task 3.1.1")).toBeVisible();
     await expect(page.getByText("Task 3.1.X")).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -1085,7 +1083,7 @@ test("can paste a formatted list and it will create tasks in an already nested t
         [true, "AFTER"],
     ]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [
         [true, "BEFORE"],
@@ -1173,7 +1171,7 @@ test("can paste a formatted list and it will create tasks in a detail view's sub
         ]);
     });
 
-    await page.keyboard.press(`${modifier}+v`);
+    await page.keyboard.press("ControlOrMeta+v");
 
     await expectTaskGridView(
         page,
@@ -1229,16 +1227,16 @@ test("can paste a formatted list and it will create tasks in a detail view's sub
     await expect(page.getByText("Task X")).toBeVisible();
     await expect(page.getByText("Task 4")).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expect(page.getByText("Task 4")).toBeVisible();
     await expect(page.getByText("Task X")).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, []);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(
         page,

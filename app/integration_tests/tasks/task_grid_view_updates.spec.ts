@@ -10,8 +10,6 @@ import {wait} from "~/shared/helpers/async/wait.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {serializeTaskQueryFilters} from "~/shared/tasks/task_query_filter.js";
 
-const modifier = process.platform === "darwin" ? "Meta" : "Control";
-
 const {context, services} = createTestServices();
 
 test("can update title", async ({page, context: browserContext}) => {
@@ -30,7 +28,7 @@ test("can update title", async ({page, context: browserContext}) => {
     await expectTaskGridView(page, [[true, "test"]]);
 
     await page.getByTestId(`TaskRowView:${task.id}`).getByRole("textbox", {name: "Title"}).click();
-    await page.keyboard.press(`${modifier}+ArrowRight`);
+    await page.keyboard.press("ControlOrMeta+ArrowRight");
 
     await page.keyboard.type(" abc");
 
@@ -46,23 +44,23 @@ test("can update title", async ({page, context: browserContext}) => {
 
     await page.getByTestId(`TaskRowView:${task.id}`).getByRole("textbox", {name: "Title"}).blur();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, "test abc"]]);
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, "test"]]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [[true, "test abc"]]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [[true, "test abc def"]]);
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, "test abc"]]);
 
@@ -72,7 +70,7 @@ test("can update title", async ({page, context: browserContext}) => {
 
     await expectTaskGridView(page, [[true, "test abc ghi"]]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [[true, "test abc ghi"]]);
 });
@@ -112,11 +110,11 @@ test("can delete", async ({page, context: browserContext}) => {
 
     await expectTaskGridView(page, []);
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, "test"]]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, []);
 });
@@ -179,7 +177,7 @@ test("can delete when title input is focused with backspace", async ({
 
     await expectTaskGridView(page, [[true, "test"]]);
 
-    await page.keyboard.press(`${modifier}+a`);
+    await page.keyboard.press("ControlOrMeta+a");
     await page.keyboard.press("Backspace");
 
     await expectTaskGridView(page, [[true, ""]]);
@@ -194,11 +192,11 @@ test("can delete when title input is focused with backspace", async ({
 
     await expect(page.getByRole("alertdialog", {name: "Delete task?"})).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, ""]]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, []);
 });
@@ -243,11 +241,11 @@ test("can delete when title cell is focused with backspace", async ({
 
     await expect(page.getByRole("alertdialog", {name: "Delete task?"})).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, ""]]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, []);
 });
@@ -272,7 +270,7 @@ test("can delete when title input is focused with backspace (with children)", as
 
     await page.getByTestId(`TaskRowView:${task.id}`).getByRole("textbox", {name: "Title"}).click();
 
-    await page.keyboard.press(`${modifier}+ArrowRight`);
+    await page.keyboard.press("ControlOrMeta+ArrowRight");
     await page.keyboard.press("Enter");
     await page.keyboard.press("Tab");
     await page.keyboard.type("child task 1");
@@ -291,7 +289,7 @@ test("can delete when title input is focused with backspace (with children)", as
 
     await page.keyboard.press("ArrowUp");
     await page.keyboard.press("ArrowUp");
-    await page.keyboard.press(`${modifier}+a`);
+    await page.keyboard.press("ControlOrMeta+a");
     await page.keyboard.press("Backspace");
 
     await expectTaskGridView(page, [
@@ -329,7 +327,7 @@ test("can delete when title input is focused with backspace (with children)", as
 
     await expectTaskGridView(page, []);
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [
         [
@@ -341,7 +339,7 @@ test("can delete when title input is focused with backspace (with children)", as
         ],
     ]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, []);
 });
@@ -366,7 +364,7 @@ test("can delete when title cell is focused with backspace (with children)", asy
 
     await page.getByTestId(`TaskRowView:${task.id}`).getByRole("textbox", {name: "Title"}).click();
 
-    await page.keyboard.press(`${modifier}+ArrowRight`);
+    await page.keyboard.press("ControlOrMeta+ArrowRight");
     await page.keyboard.press("Enter");
     await page.keyboard.press("Tab");
     await page.keyboard.type("child task 1");
@@ -425,7 +423,7 @@ test("can delete when title cell is focused with backspace (with children)", asy
 
     await expectTaskGridView(page, []);
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [
         [
@@ -437,7 +435,7 @@ test("can delete when title cell is focused with backspace (with children)", asy
         ],
     ]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, []);
 });
@@ -510,31 +508,31 @@ test("can update assignee", async ({page, context: browserContext}) => {
     await expect(page.getByRole("option", {name: "Test1"})).toBeHidden();
     await expect(page.getByRole("option", {name: "Test2"})).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, "test", "Test2"]]);
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, "test", "Test1"]]);
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, "test"]]);
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, "test"]]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [[true, "test", "Test1"]]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [[true, "test", "Test2"]]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [[true, "test"]]);
 });
@@ -604,31 +602,31 @@ test("can update priority", async ({page, context: browserContext}) => {
     await expect(page.getByRole("option", {name: "Low"})).toBeHidden();
     await expect(page.getByRole("option", {name: "Medium"})).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, "test", "", "Medium"]]);
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, "test", "", "Low"]]);
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, "test"]]);
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, "test"]]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [[true, "test", "", "Low"]]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [[true, "test", "", "Medium"]]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [[true, "test"]]);
 });
@@ -688,27 +686,27 @@ test("can update due date", async ({page, context: browserContext}) => {
 
     await expectTaskGridView(page, [[true, "test"]]);
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, "test", "", "", "7/12/2000"]]);
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, "test", "", "", "7/12/1999"]]);
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, "test", "", "", "7/12/1998"]]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [[true, "test", "", "", "7/12/1999"]]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [[true, "test", "", "", "7/12/2000"]]);
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [[true, "test"]]);
 });
@@ -792,25 +790,25 @@ test("can change status", async ({page, context: browserContext}) => {
         hasGhostTaskRow: false,
     });
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [["Closed", "test", "Testerson"]], {hasGhostTaskRow: false});
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [["OpenInactive", "test", "Testerson"]], {
         hasGhostTaskRow: false,
     });
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [["OpenActive", "test", "Testerson"]], {hasGhostTaskRow: false});
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [["OpenInactive", "test"]], {hasGhostTaskRow: false});
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [["OpenActive", "test", "Testerson"]], {hasGhostTaskRow: false});
 
@@ -818,7 +816,7 @@ test("can change status", async ({page, context: browserContext}) => {
 
     await expectTaskGridView(page, [["Closed", "test", "Testerson"]], {hasGhostTaskRow: false});
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, [["Closed", "test", "Testerson"]], {hasGhostTaskRow: false});
 });
@@ -940,7 +938,7 @@ test("can update collections", async ({page, context: browserContext}) => {
     await expect(overlayLocator.getByText("test2")).toBeHidden();
     await expect(overlayLocator.getByText("test3")).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, "test"]]);
 
@@ -948,19 +946,19 @@ test("can update collections", async ({page, context: browserContext}) => {
     await expect(overlayLocator.getByText("test2")).toBeHidden();
     await expect(overlayLocator.getByText("test3")).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expect(overlayLocator.getByText("test1")).toBeVisible();
     await expect(overlayLocator.getByText("test2")).toBeHidden();
     await expect(overlayLocator.getByText("test3")).toBeVisible();
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expect(overlayLocator.getByText("test1")).toBeVisible();
     await expect(overlayLocator.getByText("test2")).toBeHidden();
     await expect(overlayLocator.getByText("test3")).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expectTaskGridView(page, []);
 
@@ -968,7 +966,7 @@ test("can update collections", async ({page, context: browserContext}) => {
     await expect(overlayLocator.getByText("test2")).toBeHidden();
     await expect(overlayLocator.getByText("test3")).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expectTaskGridView(page, [[true, "test"]]);
 
@@ -976,25 +974,25 @@ test("can update collections", async ({page, context: browserContext}) => {
     await expect(overlayLocator.getByText("test2")).toBeHidden();
     await expect(overlayLocator.getByText("test3")).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expect(overlayLocator.getByText("test1")).toBeVisible();
     await expect(overlayLocator.getByText("test2")).toBeHidden();
     await expect(overlayLocator.getByText("test3")).toBeVisible();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expect(overlayLocator.getByText("test1")).toBeVisible();
     await expect(overlayLocator.getByText("test2")).toBeVisible();
     await expect(overlayLocator.getByText("test3")).toBeVisible();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expect(overlayLocator.getByText("test1")).toBeVisible();
     await expect(overlayLocator.getByText("test2")).toBeVisible();
     await expect(overlayLocator.getByText("test3")).toBeHidden();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expect(overlayLocator.getByText("test1")).toBeVisible();
     await expect(overlayLocator.getByText("test2")).toBeHidden();

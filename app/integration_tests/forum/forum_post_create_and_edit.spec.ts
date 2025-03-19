@@ -6,8 +6,6 @@ import {createChannel, createPost} from "~/server/forum/data/forum_table.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
-const modifier = process.platform === "darwin" ? "Meta" : "Control";
-
 const {context, services} = createTestServices();
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space);
@@ -84,12 +82,7 @@ test("can create multiline formatted posts", async ({page, context: browserConte
     await expect(page.getByRole("heading", {name: "Test heading"})).toBeVisible();
 });
 
-test("can edit a post in a channel", async ({
-    page,
-    context: browserContext,
-    isMobile,
-    viewport,
-}) => {
+test("can edit a post in a channel", async ({page, context: browserContext, viewport}) => {
     assert(viewport);
 
     const channel = await createChannel(context.action(session1), {
@@ -140,7 +133,7 @@ test("can edit a post in a channel", async ({
     await page.getByLabel("Post", {exact: true}).press("End");
     await page.getByLabel("Post", {exact: true}).press("Backspace");
     await page.getByLabel("Post", {exact: true}).type("3");
-    await page.getByLabel("Post", {exact: true}).press(`${isMobile ? "Meta" : modifier}+Enter`);
+    await page.getByLabel("Post", {exact: true}).press("ControlOrMeta+Enter");
 
     await expect(page.getByRole("button", {name: "Save"})).toBeHidden();
     await expect(page.getByText("Test post content 2")).toBeHidden();
@@ -183,7 +176,7 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
 
         // TODO(calebmer): We should open a `<MobileModal>` on mobile when editing a
         // post so we can have a save button in the header.
-        await page.getByLabel("Post", {exact: true}).press(`${isMobile ? "Meta" : modifier}+Enter`);
+        await page.getByLabel("Post", {exact: true}).press("ControlOrMeta+Enter");
     }
 
     await expect(page.getByRole("button", {name: "Save"})).toBeHidden();
@@ -200,7 +193,7 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
     await page.getByLabel("Post", {exact: true}).press("End");
     await page.getByLabel("Post", {exact: true}).press("Backspace");
     await page.getByLabel("Post", {exact: true}).type("3");
-    await page.getByLabel("Post", {exact: true}).press(`${isMobile ? "Meta" : modifier}+Enter`);
+    await page.getByLabel("Post", {exact: true}).press("ControlOrMeta+Enter");
 
     await expect(page.getByRole("button", {name: "Save"})).toBeHidden();
     await expect(page.getByText("Test post content 2")).toBeHidden();

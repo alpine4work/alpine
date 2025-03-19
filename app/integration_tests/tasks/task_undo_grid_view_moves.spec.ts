@@ -19,8 +19,6 @@ import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_fi
 import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 import {createTaskTitleFromText} from "~/shared/tasks/task_title.js";
 
-const modifier = process.platform === "darwin" ? "Meta" : "Control";
-
 const {context, services} = createTestServices();
 
 let space: TestSpace;
@@ -205,7 +203,7 @@ test("undo/redo can move a task between positions", async ({page, context: brows
     await expect(taskLocator3.getByTestId("TaskRowPriorityCell")).not.toBeFocused();
     await expect(taskLocator5.getByTestId("TaskRowPriorityCell")).not.toBeFocused();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expect(taskLocator3.getByTestId("TaskRowPriorityCell")).toBeFocused();
     await expect(taskLocator5.getByTestId("TaskRowPriorityCell")).not.toBeFocused();
@@ -230,7 +228,7 @@ test("undo/redo can move a task between positions", async ({page, context: brows
     await expect(taskLocator8.getByRole("textbox", {name: "Title"})).toHaveText("Task 8");
     await expect(taskLocator9.getByRole("textbox", {name: "Title"})).toHaveText("Task 9");
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expect(taskLocator3.getByTestId("TaskRowPriorityCell")).not.toBeFocused();
     await expect(taskLocator5.getByTestId("TaskRowPriorityCell")).toBeFocused();
@@ -255,7 +253,7 @@ test("undo/redo can move a task between positions", async ({page, context: brows
     await expect(taskLocator8.getByRole("textbox", {name: "Title"})).toHaveText("Task 8");
     await expect(taskLocator9.getByRole("textbox", {name: "Title"})).toHaveText("Task 9");
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expect(taskLocator3.getByTestId("TaskRowPriorityCell")).toBeFocused();
     await expect(taskLocator5.getByTestId("TaskRowPriorityCell")).not.toBeFocused();
@@ -371,7 +369,7 @@ test("undo/redo can recover a task that leaves the loaded range", async ({
 
     await expect(taskLocator3.getByTestId("TaskRowPriorityCell")).not.toBeFocused();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expect(taskLocator3.getByTestId("TaskRowPriorityCell")).toBeFocused();
 
@@ -395,7 +393,7 @@ test("undo/redo can recover a task that leaves the loaded range", async ({
     await expect(taskLocator8.getByRole("textbox", {name: "Title"})).toHaveText("Task 8");
     await expect(taskLocator9.getByRole("textbox", {name: "Title"})).toHaveText("Task 9");
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expect(taskLocator3.getByTestId("TaskRowPriorityCell")).not.toBeFocused();
 
@@ -419,7 +417,7 @@ test("undo/redo can recover a task that leaves the loaded range", async ({
     await expect(taskLocator8.getByRole("textbox", {name: "Title"})).toHaveText("Task 9");
     await expect(taskLocator9.getByRole("textbox", {name: "Title"})).toHaveText("Task 10");
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expect(taskLocator3.getByTestId("TaskRowPriorityCell")).toBeFocused();
 
@@ -529,7 +527,7 @@ test("undo/redo can bring back a task you lost access to with a lease", async ({
 
     await expect(taskLocator3.getByTestId("TaskRowCollectionsCell")).not.toBeFocused();
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expect(taskLocator3.getByTestId("TaskRowCollectionsCell")).toBeFocused();
 
@@ -553,7 +551,7 @@ test("undo/redo can bring back a task you lost access to with a lease", async ({
     await expect(taskLocator8.getByRole("textbox", {name: "Title"})).toHaveText("Task 8");
     await expect(taskLocator9.getByRole("textbox", {name: "Title"})).toHaveText("Task 9");
 
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.keyboard.press("ControlOrMeta+Shift+z");
 
     await expect(taskLocator3.getByTestId("TaskRowCollectionsCell")).not.toBeFocused();
 
@@ -577,7 +575,7 @@ test("undo/redo can bring back a task you lost access to with a lease", async ({
     await expect(taskLocator8.getByRole("textbox", {name: "Title"})).toHaveText("Task 9");
     await expect(taskLocator9.getByRole("textbox", {name: "Title"})).toHaveText("Task 10");
 
-    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press("ControlOrMeta+z");
 
     await expect(taskLocator3.getByTestId("TaskRowCollectionsCell")).toBeFocused();
 
