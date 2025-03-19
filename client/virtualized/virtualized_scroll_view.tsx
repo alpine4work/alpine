@@ -221,21 +221,6 @@ export type VirtualizedScrollViewRef = {
     getScrollOffset(): number;
 
     /**
-     * Within the `<VirtualizedScrollView>` we have a `lastScrollTopRef` that
-     * tracks the last scroll position our component has seen. We use this in cases
-     * where the browser might have synchronously adjusted the scroll offset but we
-     * haven't received a scroll event yet. In these cases we don't want the
-     * browser's new sneaky scroll offset but rather the scroll offset from the
-     * last scroll event we've seen.
-     *
-     * We expose this value in case you're implementing some behavior that's
-     * plagued by an unexpected browser scroll offset update. If you call this
-     * function you should understand how the internals of our virtualized scroll
-     * view work and document why this is necessary.
-     */
-    _getInternalLastScrollOffset(): number;
-
-    /**
      * Set the scroll offset to a new value.
      */
     setScrollOffset(scrollOffset: number, options?: {behavior?: "instant" | "smooth"}): void;
@@ -431,6 +416,7 @@ function VirtualizedScrollView(
         onRenderedRangeChange,
         onRenderedRangeLayoutChange,
         onScroll,
+        onStateChange,
         // `elementRef` is a common variable name in this component so let's
         // disambiguate the name.
         elementRef: elementRefProp,
@@ -518,6 +504,15 @@ function VirtualizedScrollView(
          * scroll position.
          */
         onScroll?: (scrollOffset: number) => void;
+
+        /**
+         * Called whenever the scroll view's internal state changes. This callback may
+         * be redundant with `onRenderedRangeChange` and `onScroll`. A case where this
+         * function will be called but `onRenderedRangeChange` and `onScroll` won't be
+         * called is if an item changes height and the height change does not trigger a
+         * rendered range change because the same item indexes are rendered.
+         */
+        onStateChange?: () => void;
 
         /**
          * If you want to attach a ref to the scroll view DOM element instead of
@@ -1456,15 +1451,6 @@ function VirtualizedScrollView(
                 //    the page and jump to that message. Scroll anchor adjustments *should* be
                 //    applied to make sure while data loads around the anchored message the
                 //    anchored message stays centered.
-                //
-                // 3. In task notepad view in mobile mode, drag down the first task so the view
-                //    scrolls a little then drop. Scroll anchor adjustments *should NOT* be
-                //    applied because the scroll anchor (the first task) moved in the DOM so
-                //    its new position should not effect the scroll.
-                //
-                //    If you scroll enough that the second task becomes the scroll anchor then
-                //    drop the scroll anchor adjustments *should* be applied since while the
-                //    first task moved in the DOM, the second task did not.
                 if (
                     nextPosition.nextElementSibling === "ignore" ||
                     nextPosition.previousElementSibling === "ignore" ||
@@ -1522,6 +1508,18 @@ function VirtualizedScrollView(
         setActualState(newActualState);
     }, [getItemWithoutRender, itemCount, actualState, state]);
 
+    // Effect to report the rendered range back to our callback.
+    const events = useEvents({
+        onRenderedRangeChange: onRenderedRangeChange ?? noop,
+        onRenderedRangeLayoutChange: onRenderedRangeLayoutChange ?? noop,
+        onStateChange: onStateChange ?? noop,
+    });
+    const renderedRangeRef = useRef(
+        renderedRange
+            ? {startIndex: renderedRange.startIndex, endIndex: renderedRange.endIndex}
+            : null,
+    );
+
     // Optimization: Record the last rendered height for all our items so we don't
     // need to set the height again on every update.
     useEffect(() => {
@@ -1529,7 +1527,11 @@ function VirtualizedScrollView(
             const position = state.getPositionByKeyIfExists(key);
             if (position) elementRef.lastRenderedHeight = position.height;
         }
-    }, [state]);
+
+        // We call `onStateChange()` here since we already depend on `state`
+        // exclusively as a dependency for this effect.
+        events.onStateChange();
+    }, [events, state]);
 
     // Watch size changes to the view element to make sure we update the height.
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -1559,17 +1561,6 @@ function VirtualizedScrollView(
             removeResizeListenerForElement(scrollElement, handleResize);
         };
     }, []);
-
-    // Effect to report the rendered range back to our callback.
-    const events = useEvents({
-        onRenderedRangeChange: onRenderedRangeChange ?? noop,
-        onRenderedRangeLayoutChange: onRenderedRangeLayoutChange ?? noop,
-    });
-    const renderedRangeRef = useRef(
-        renderedRange
-            ? {startIndex: renderedRange.startIndex, endIndex: renderedRange.endIndex}
-            : null,
-    );
 
     useLayoutEffectWithoutServerSideWarning(() => {
         // Make sure we only take effect dependencies on the start and end index. We
@@ -1751,9 +1742,6 @@ function VirtualizedScrollView(
                 },
                 getScrollOffset: () => {
                     return assertExists(scrollRef.current).scrollTop;
-                },
-                _getInternalLastScrollOffset: () => {
-                    return lastScrollTopRef.current ?? assertExists(scrollRef.current).scrollTop;
                 },
                 setScrollOffset: (scrollOffset, {behavior = "instant"} = {}) => {
                     const scrollElement = assertExists(scrollRef.current);
@@ -2094,7 +2082,7 @@ function getElementPosition(
     const scrollRect = scrollElement.getBoundingClientRect();
     const rect = element.getBoundingClientRect();
 
-    const offset =
+    let offset =
         rect.top -
         scrollRect.top +
         scrollElement.scrollTop +
@@ -2102,15 +2090,39 @@ function getElementPosition(
         // reflected in `scrollElement.scrollTop` during the scroll.
         (scrollAnchorAdjustmentDuringMobileWebKitScroll ?? 0);
 
-    // Development debug warning. We want the offset we return to be equivalent to
-    // `offsetTop` but with subpixel accuracy. If it's not equal, something's
-    // going wrong!
-    if (process.env.NODE_ENV !== "production" && Math.abs(offset - element.offsetTop) >= 1) {
-        // eslint-disable-next-line no-console
-        console.warn(
-            "`<VirtualizedScrollView>` expected offset computed from element to be within 1px of `offsetTop`",
-            {actual: offset, expected: element.offsetTop},
-        );
+    if (Math.abs(offset - element.offsetTop) >= 1) {
+        // Fallback to `element.offsetTop` if the calculated `offset` based on bounding
+        // client rects is incorrect. We'll lose sub-pixel accuracy but get the right
+        // result. This happens if `element` is animating with a CSS animation (e.g.
+        // task grid view animates virtualized scroll view elements).
+        offset = element.offsetTop;
+
+        // Development debug warning. We want the offset we return to be equivalent to
+        // `offsetTop` but with subpixel accuracy. If it's not equal, something's
+        // going wrong!
+        if (process.env.NODE_ENV !== "production") {
+            let hasAnimations = false;
+
+            let parentElement: HTMLElement | null = element;
+            while (parentElement !== null) {
+                if (parentElement.getAnimations().length > 0) {
+                    hasAnimations = true;
+                    break;
+                }
+                parentElement = parentElement.parentElement;
+            }
+
+            // Don't log if we call `element.getAnimations()` and there are some
+            // animations. It's expected that we'll need to reset `offset` back to
+            // `element.offsetTop` if there are animations.
+            if (!hasAnimations) {
+                // eslint-disable-next-line no-console
+                console.warn(
+                    "`<VirtualizedScrollView>` expected offset computed from element to be within 1px of `offsetTop`",
+                    {actual: offset, expected: element.offsetTop},
+                );
+            }
+        }
     }
 
     return {

@@ -8,8 +8,6 @@ import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
-const modifier = process.platform === "darwin" ? "Meta" : "Control";
-
 const {context, services} = createTestServices();
 
 test("can drop files into document", async ({context: browserContext, page}) => {
@@ -1011,7 +1009,7 @@ test("can copy/paste a file within the same space", async ({
     }, clipboardHtml);
 
     await page2.getByRole("textbox", {name: "Document"}).focus();
-    await page2.getByRole("textbox", {name: "Document"}).press(`${modifier}+v`);
+    await page2.getByRole("textbox", {name: "Document"}).press("ControlOrMeta+v");
 
     await expect(page2.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
 
@@ -1110,7 +1108,7 @@ test("can copy/paste a file across spaces", async ({
     }, clipboardHtml);
 
     await page2.getByRole("textbox", {name: "Document"}).focus();
-    await page2.getByRole("textbox", {name: "Document"}).press(`${modifier}+v`);
+    await page2.getByRole("textbox", {name: "Document"}).press("ControlOrMeta+v");
 
     await expect(page2.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
 

@@ -7,7 +7,7 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {pointerEventsNoneNotInheritedClassName, tasksStyles} from "~/client/styles/styles.js";
-import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientReadonlyStore} from "~/client/tasks/core/task_client_store.js";
 import {TaskAssigneeInput} from "~/client/tasks/internal/task_assignee_input.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
@@ -16,7 +16,7 @@ import {RemLength, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 
@@ -32,24 +32,24 @@ export {TaskRowViewDenseFieldsForwardRef as TaskRowViewDenseFields};
 function TaskRowViewDenseFields(
     {
         isReadOnly,
+        withoutAssigneeField,
         store,
         task,
         marginLeft,
         focusTitleStart,
         focusTitleEnd,
         focusTitleAll,
-        commitActionTransactionEvenIfGhost,
+        commitActionTransaction,
     }: {
         isReadOnly: boolean;
-        store: TaskClientStore;
+        withoutAssigneeField: boolean;
+        store: TaskClientReadonlyStore;
         task: TaskModel | null;
         marginLeft: RemLength;
         focusTitleEnd: () => void;
         focusTitleStart: () => void;
         focusTitleAll: () => void;
-        commitActionTransactionEvenIfGhost: (
-            getActions: (taskId: TaskId) => Array<TaskAction>,
-        ) => void;
+        commitActionTransaction: (getActions: (taskId: TaskId) => Array<TaskActionModel>) => void;
     },
     ref: Ref<TaskRowViewDenseFieldsRef>,
 ) {
@@ -69,21 +69,22 @@ function TaskRowViewDenseFields(
     const [assigneeInputState, setAssigneeInputState] = useState<
         {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
     >(
-        assigneeAccountData
+        !withoutAssigneeField && assigneeAccountData
             ? {isVisible: true, shouldFocus: false, isFocused: false}
             : {isVisible: false},
     );
 
     if (
         assigneeInputState.isVisible &&
-        !assigneeInputState.isFocused &&
-        !assigneeInputState.shouldFocus &&
-        !assigneeAccountData
+        (withoutAssigneeField ||
+            (!assigneeInputState.isFocused &&
+                !assigneeInputState.shouldFocus &&
+                !assigneeAccountData))
     ) {
         setAssigneeInputState({isVisible: false});
     }
 
-    if (!assigneeInputState.isVisible && assigneeAccountData) {
+    if (!withoutAssigneeField && !assigneeInputState.isVisible && assigneeAccountData) {
         setAssigneeInputState({isVisible: true, shouldFocus: false, isFocused: false});
     }
 
@@ -170,6 +171,8 @@ function TaskRowViewDenseFields(
         ref,
         () => ({
             focusAssigneeInput: () => {
+                if (withoutAssigneeField) return;
+
                 if (assigneeInputState.isVisible) {
                     assertExists(
                         getNextFocusableElementIfExists(null, {
@@ -215,7 +218,12 @@ function TaskRowViewDenseFields(
                 }
             },
         }),
-        [assigneeInputState.isVisible, dueDateInputState.isVisible, priorityInputState.isVisible],
+        [
+            assigneeInputState.isVisible,
+            dueDateInputState.isVisible,
+            priorityInputState.isVisible,
+            withoutAssigneeField,
+        ],
     );
 
     const gap = "5";
@@ -298,7 +306,7 @@ function TaskRowViewDenseFields(
 
                                 const time = store.clock.now();
 
-                                commitActionTransactionEvenIfGhost(taskId => [
+                                commitActionTransaction(taskId => [
                                     {
                                         type: "UpdateTask",
                                         time,
@@ -357,7 +365,7 @@ function TaskRowViewDenseFields(
                             withoutBlurAfterSelection={platform === "mobile"}
                             priority={priority}
                             onPriorityChange={priority => {
-                                commitActionTransactionEvenIfGhost(taskId => [
+                                commitActionTransaction(taskId => [
                                     {
                                         type: "UpdateTask",
                                         time: store.clock.now(),
@@ -405,7 +413,7 @@ function TaskRowViewDenseFields(
                             shouldFormatAroundToday={true}
                             color="grey-60"
                             onDateChange={dueDate => {
-                                commitActionTransactionEvenIfGhost(taskId => [
+                                commitActionTransaction(taskId => [
                                     {
                                         type: "UpdateTask",
                                         time: store.clock.now(),

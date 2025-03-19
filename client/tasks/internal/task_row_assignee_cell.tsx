@@ -24,7 +24,7 @@ import {
     taskRowViewColumnWidth,
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
-import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientReadonlyStore} from "~/client/tasks/core/task_client_store.js";
 import {
     TaskAssigneeInput,
     TaskAssigneeInputRef,
@@ -35,7 +35,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 
@@ -98,10 +98,10 @@ function TaskRowAssigneeCell(
         onCellKeyDownCapture,
         focusNextCell,
         focusPreviousCell,
-        commitActionTransactionEvenIfGhost,
+        commitActionTransaction,
     }: {
         isReadOnly: boolean;
-        store: TaskClientStore;
+        store: TaskClientReadonlyStore;
         task: TaskModel | null;
         disableExpensiveFeaturesDuringScroll: boolean;
         isFirstRow: boolean;
@@ -109,8 +109,8 @@ function TaskRowAssigneeCell(
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
-        commitActionTransactionEvenIfGhost: Memo<
-            (getActions: (taskId: TaskId) => Array<TaskAction>) => void
+        commitActionTransaction: Memo<
+            (getActions: (taskId: TaskId) => Array<TaskActionModel>) => void
         >;
     },
     ref: Ref<TaskRowAssigneeCellRef>,
@@ -184,7 +184,7 @@ function TaskRowAssigneeCell(
         // permission level of `urlGrant` is `View`.
         assert(currentAccount);
 
-        commitActionTransactionEvenIfGhost(taskId => {
+        commitActionTransaction(taskId => {
             const time = store.clock.now();
 
             return [

@@ -76,6 +76,18 @@ export class Rectangle {
     }
 
     /**
+     * Does this rectangle contain the provided point?
+     */
+    public containsPoint(point: {x: number; y: number}): boolean {
+        return (
+            this.x <= point.x &&
+            point.x <= this.x + this.width &&
+            this.y <= point.y &&
+            point.y <= this.y + this.height
+        );
+    }
+
+    /**
      * Does this rectangle intersect with the provided rectangle?
      */
     public intersects(other: Rectangle): boolean {

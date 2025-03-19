@@ -310,10 +310,9 @@ function getSearchResultTypeDisplay(resultId: SearchResultId): SearchResultTypeD
         case "CreateTaskView": {
             return {icon: <TaskQueryBrandIcon />};
         }
-        case "TaskNotepad": {
-            // We label the task notepad as a task "collection" since it is a collection of
-            // tasks. We need some label and ideally it's not "Task notepad" since that's
-            // the same as the title.
+        case "TaskPersonal": {
+            // We label the "My tasks" view as a task "collection" since it is a collection
+            // of tasks.
             return getSearchResultTypeDisplayForEntity("TaskCollection");
         }
         case "TaskQueryFilteredToCreatorIsCurrentAccount":

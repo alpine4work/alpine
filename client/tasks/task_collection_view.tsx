@@ -46,6 +46,7 @@ import {
     TaskCollectionViewDesktopHeaderName,
     TaskCollectionViewDesktopHeaderNameRef,
 } from "~/client/tasks/internal/task_collection_view_desktop_header_name.js";
+import {TaskFloatingCreateButton} from "~/client/tasks/internal/task_floating_create_button.js";
 import {
     isTaskQueryManuallySorted,
     useTaskGridViewVirtualizedList,
@@ -78,7 +79,7 @@ import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/tasks/task_error_messages.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
@@ -109,7 +110,6 @@ export function TaskCollectionView({
     initialSorts,
     onSortsChange,
     createCollection,
-    shouldInitiallyShowTopGhostTask,
 }: {
     store: TaskClientStore;
     collectionId: TaskCollectionId;
@@ -128,7 +128,6 @@ export function TaskCollectionView({
     initialSorts: ReadonlyArray<TaskQuerySort>;
     onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
     createCollection: Memo<(name: string) => Promise<void>>;
-    shouldInitiallyShowTopGhostTask: boolean;
 }) {
     const context = useAppContext();
     const navigate = useNavigate();
@@ -211,25 +210,27 @@ export function TaskCollectionView({
         },
     });
 
+    const allFilters = useMemo(
+        (): ReadonlyArray<TaskQueryFilter> => [
+            {
+                type: "Collections",
+                operation: {type: "IncludesOneOf", collectionIds: new Set([collectionId])},
+            },
+            ...filters,
+        ],
+        [collectionId, filters],
+    );
+
     const normalizedFiltersResult = useMemo(() => {
         // Don't execute a query if our subscription hasn't been established yet.
         if (!collectionSubscription) return null;
 
         // Always include collection filter in our list of filters.
-        return normalizeTaskQueryFilters(
-            [
-                {
-                    type: "Collections",
-                    operation: {type: "IncludesOneOf", collectionIds: new Set([collectionId])},
-                },
-                ...filters,
-            ],
-            {
-                currentDate,
-                currentAccountId: currentAccount?.id ?? null,
-            },
-        );
-    }, [collectionId, collectionSubscription, currentAccount?.id, currentDate, filters]);
+        return normalizeTaskQueryFilters(allFilters, {
+            currentDate,
+            currentAccountId: currentAccount?.id ?? null,
+        });
+    }, [allFilters, collectionSubscription, currentAccount?.id, currentDate]);
 
     // If no filters or sorts have been explicitly set then the user can manually
     // sort by collection position.
@@ -565,6 +566,7 @@ export function TaskCollectionView({
                     hasMultilineTitle: false,
                     hasDenseFields: false,
                     hasColumns: true,
+                    withoutAssigneeField: false,
                 };
             } else {
                 return {
@@ -573,6 +575,7 @@ export function TaskCollectionView({
                     hasMultilineTitle: true,
                     hasDenseFields: true,
                     hasColumns: false,
+                    withoutAssigneeField: false,
                 };
             }
         }, [hasEditAccessLevel, routeLayout]),
@@ -580,8 +583,8 @@ export function TaskCollectionView({
         store,
         query: queryState.activeQuery.query,
         affinityManager,
-        initiallyWithTopGhostTaskRow: shouldInitiallyShowTopGhostTask,
-        getMoveTaskToQueryActions: (taskId, position): Array<TaskAction> => {
+        withoutBorderTopIfFirstRow: routeLayout !== "narrow",
+        getMoveTaskToQueryActions: (taskId, position): Array<TaskActionModel> => {
             assert(collectionSubscription && queryState.activeQuery.isAvailable);
 
             const query = queryState.activeQuery.query.query;
@@ -820,6 +823,8 @@ export function TaskCollectionView({
 
     return (
         <Box
+            position="relative"
+            zIndex="0"
             flexGrow="1"
             width="full"
             overflow="hidden"
@@ -887,6 +892,7 @@ export function TaskCollectionView({
                     extraChildren={navigationBar}
                 />
             </GlobalKeyDownEvent>
+            <TaskFloatingCreateButton filters={allFilters} />
             {editNameMobileModalState && (
                 <MobileFullScreenModal onClose={() => setEditNameMobileModalState(null)}>
                     {({onCloseWithAnimation}) => (
@@ -909,7 +915,7 @@ export function TaskCollectionView({
                                     [
                                         ...(hasNameChanged
                                             ? [
-                                                  cast<TaskAction>({
+                                                  cast<TaskActionModel>({
                                                       type: "UpdateCollection",
                                                       time: store.clock.now(),
                                                       collectionId,
@@ -922,7 +928,7 @@ export function TaskCollectionView({
                                             : []),
                                         ...(hasColorChanged
                                             ? [
-                                                  cast<TaskAction>({
+                                                  cast<TaskActionModel>({
                                                       type: "UpdateCollection",
                                                       time: store.clock.now(),
                                                       collectionId,

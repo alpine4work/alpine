@@ -4,7 +4,7 @@ import {Spacing} from "~/shared/design/core/spacing.js";
 
 export const touchSlopBySpacing: {
     readonly [Key in Platform]: {
-        readonly [Key in "4" | "5" | "6" | "7" | "8" | "full"]: {
+        readonly [Key in "4" | "5" | "6" | "7" | "8" | "9" | "10" | "full"]: {
             readonly slop: Spacing;
             readonly sizeWithSlop: Spacing | "full";
         };
@@ -12,6 +12,8 @@ export const touchSlopBySpacing: {
 } = {
     // On desktop, we want button hit size to be 24x24 or larger.
     desktop: {
+        "10": {slop: "0", sizeWithSlop: "10"},
+        "9": {slop: "0", sizeWithSlop: "9"},
         "8": {slop: "0", sizeWithSlop: "8"},
         "7": {slop: "0", sizeWithSlop: "7"},
         "6": {slop: "0", sizeWithSlop: "6"},
@@ -22,6 +24,8 @@ export const touchSlopBySpacing: {
 
     // On mobile, we want button hit size to be 44x44 or larger.
     mobile: {
+        "10": {slop: "0", sizeWithSlop: "10"},
+        "9": {slop: "0", sizeWithSlop: "9"},
         "8": {slop: "0.5", sizeWithSlop: "9"},
         "7": {slop: "1", sizeWithSlop: "9"},
         "6": {slop: "1.5", sizeWithSlop: "9"},
@@ -46,7 +50,9 @@ type MaybeWithPlatform<T> = T | {mobile: T; desktop: T};
  *
  * [1]: https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
  */
-export function useTouchSlop(spacing: MaybeWithPlatform<"4" | "5" | "6" | "7" | "8" | "full">): {
+export function useTouchSlop(
+    spacing: MaybeWithPlatform<"4" | "5" | "6" | "7" | "8" | "9" | "10" | "full">,
+): {
     slop: Spacing;
     sizeWithSlop: Spacing | "full";
 } {

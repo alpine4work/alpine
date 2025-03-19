@@ -1,5 +1,5 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..aada05987b0823f358818b7e100a97f4d0a5a9e2 100644
+index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..ebd1eb90f35fab83a431698b9a9e858d2c77fa40 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
 @@ -181,8 +181,32 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -151,18 +151,32 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..aada05987b0823f358818b7e100a97f4
    }
  
    _createClass(EditorView, [{
-@@ -5792,3 +5862,6 @@ exports.EditorView = EditorView;
+@@ -5792,3 +5862,7 @@ exports.EditorView = EditorView;
  exports.__endComposition = __endComposition;
  exports.__parseFromClipboard = __parseFromClipboard;
  exports.__serializeForClipboard = __serializeForClipboard;
 +
 +// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
 +exports.serializeForClipboard = serializeForClipboard;
++exports.parseFromClipboard = parseFromClipboard;
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index 52ee8840c754562f9ae4d9891f61682035b092e7..3325e68126d5fc261fe290dc6af1579d2f26eac3 100644
+index 52ee8840c754562f9ae4d9891f61682035b092e7..e0cc3c2404e7bd8766f7c7c4ac96cd250c15d439 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
-@@ -649,7 +649,7 @@ interface EditorProps<P = any> {
+@@ -543,7 +543,11 @@ declare class EditorView {
+     This method is bound to the view instance, so that it can be
+     easily passed around.
+     */
+-    dispatch(tr: Transaction): void;
++    // NOTE(calebmer): Adding `this: void` allows us to pass around
++    // `view.dispatch` like `doSomething(view.dispatch)` without
++    // `@typescript-eslint/unbound-method` warnings. It's safe since `EditorView`
++    // binds `this` in the constructor.
++    dispatch(this: void, tr: Transaction): void;
+ }
+ /**
+ The type of function [provided](https://prosemirror.net/docs/ref/#view.ViewProps.nodeViews) to
+@@ -649,7 +653,7 @@ interface EditorProps<P = any> {
      true if this drop moves from the current selection (which should
      thus be deleted).
      */
@@ -171,7 +185,7 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..3325e68126d5fc261fe290dc6af1579d
      /**
      Called when the view, after updating its state, tries to scroll
      the selection into view. A handler function may return false to
-@@ -657,6 +657,13 @@ interface EditorProps<P = any> {
+@@ -657,6 +661,13 @@ interface EditorProps<P = any> {
      handlers or the default behavior should be tried.
      */
      handleScrollToSelection?: (this: P, view: EditorView) => boolean;
@@ -185,7 +199,7 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..3325e68126d5fc261fe290dc6af1579d
      /**
      Can be used to override the way a selection is created when
      reading a DOM selection between the given anchor and head.
-@@ -674,6 +681,10 @@ interface EditorProps<P = any> {
+@@ -674,6 +685,10 @@ interface EditorProps<P = any> {
      for example to clean it up.
      */
      transformPastedHTML?: (this: P, html: string) => string;
@@ -196,7 +210,7 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..3325e68126d5fc261fe290dc6af1579d
      /**
      The [parser](https://prosemirror.net/docs/ref/#model.DOMParser) to use when reading content from
      the clipboard. When not given, the value of the
-@@ -831,6 +842,17 @@ interface DirectEditorProps extends EditorProps {
+@@ -831,6 +846,24 @@ interface DirectEditorProps extends EditorProps {
      the view instance as its `this` binding.
      */
      dispatchTransaction?: (tr: Transaction) => void;
@@ -214,8 +228,15 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..3325e68126d5fc261fe290dc6af1579d
 +    dom: HTMLDivElement;
 +    text: string;
 +};
++export function parseFromClipboard(
++    view: EditorView,
++    text: string,
++    html: string | null,
++    plainText: boolean,
++    $context: ResolvedPos,
++): Slice | null;
 diff --git a/dist/index.js b/dist/index.js
-index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..bebcee770348d2a7fd28a3487bd0b58e6bbb2043 100644
+index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..5281f46920ccc595b8e140002da63b66ec0d13c7 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -141,14 +141,36 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -382,7 +403,7 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..bebcee770348d2a7fd28a3487bd0b58e
  export { Decoration, DecorationSet, EditorView, __endComposition, __parseFromClipboard, __serializeForClipboard };
 +
 +// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
-+export { serializeForClipboard };
++export { serializeForClipboard, parseFromClipboard };
 diff --git a/src/clipboard.ts b/src/clipboard.ts
 index 2f0f8f415b999bffd29c3164d80cd970f4f4f209..825dce61ebc82e1d5a1e927ea862dc1dfc429a9c 100644
 --- a/src/clipboard.ts
@@ -495,7 +516,7 @@ index 77da09098cecde7b3cf5c34ca7a532fa21e5a22c..2616c1df549bf81e175d8b6aee07b868
  
    setCurSelection() {
 diff --git a/src/index.ts b/src/index.ts
-index f28002967d6ff175430efdd8c2389924211c35ce..163bef19c665b7f1e9e3d772e774ff6ebb85831b 100644
+index f28002967d6ff175430efdd8c2389924211c35ce..76b0e0febb5127597017f6b5aa85dec0d7b87e48 100644
 --- a/src/index.ts
 +++ b/src/index.ts
 @@ -25,6 +25,9 @@ export const __parseFromClipboard = parseFromClipboard
@@ -503,7 +524,7 @@ index f28002967d6ff175430efdd8c2389924211c35ce..163bef19c665b7f1e9e3d772e774ff6e
  export const __endComposition = endComposition
  
 +// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
-+export {serializeForClipboard};
++export {serializeForClipboard, parseFromClipboard};
 +
  /// An editor view manages the DOM structure that represents an
  /// editable document. Its state and behavior are determined by its

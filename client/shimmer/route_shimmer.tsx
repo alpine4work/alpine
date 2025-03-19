@@ -85,7 +85,6 @@ import {
     tasksStyles,
 } from "~/client/styles/styles.js";
 import {
-    taskCardViewMaxWidth,
     taskCommentsHeaderNavigationBarSpacing,
     taskDetailNotesFieldLabelPaddingBottom,
     taskDetailViewCommentSidebarWidth,
@@ -97,14 +96,8 @@ import {
     taskDetailViewStatusButtonSize,
     taskDetailViewSubtasksFieldLabelPaddingBottom,
     taskDetailViewTitleFontSize,
-    taskGridViewColumnHeaderExtraPaddingBottomPx,
+    taskDetailViewTitleLineHeight,
     taskGridViewColumnHeaderHeight,
-    taskNotepadViewActiveSectionActualMarginBottom,
-    taskNotepadViewActiveSectionCardGap,
-    taskNotepadViewActiveSectionInstructionalPlaceholderCardHeight,
-    taskNotepadViewActiveSectionMarginTop,
-    taskNotepadViewActiveSectionPaddingY,
-    taskNotepadViewActiveSectionTitleFontSize,
     taskQueryViewCustomizationMobileLayoutMarginTop,
     taskQueryViewCustomizationMobileSectionGap,
     taskQueryViewCustomizationMobileSectionHeaderFontSize,
@@ -125,7 +118,6 @@ import {
 import {
     Spacing,
     convertRemLengthToPx,
-    parseRemLength,
     screenPaddingX,
     screenPaddingXRem,
     spacing,
@@ -188,14 +180,14 @@ const shimmerOptionsByRouteId: {
     },
     "routes/s.$spaceId.posts.new.$draftId": {component: NewPostRouteShimmer},
     "routes/s.$spaceId.search": {component: SearchRouteShimmer},
+    "routes/s.$spaceId.tasks._index": {component: TaskPersonalRouteShimmer},
     // TODO: `inboxBannerMaxWidth` for this route.
     "routes/s.$spaceId.tasks.$taskId._index": {component: TaskDetailRouteShimmer},
     "routes/s.$spaceId.tasks.$taskId.comments": {
         inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: TaskCommentsRouteShimmer,
     },
-    "routes/s.$spaceId.tasks._index": {component: TaskNotepadRouteShimmer},
-    "routes/s.$spaceId.tasks.collections.$collectionId": {component: TaskGridRouteShimmer},
+    "routes/s.$spaceId.tasks.collections.$collectionId": {component: TaskCollectionRouteShimmer},
     "routes/s.$spaceId.tasks.view": {component: TaskQueryRouteShimmer},
 
     // TODO(calebmer): We don't currently have a design for these routes. Once we
@@ -1479,7 +1471,13 @@ function TaskDetailRouteShimmer({searchParams}: {searchParams: URLSearchParams})
                             />
                         </Box>
                     )}
-                    <TextShimmer fontSize={taskDetailViewTitleFontSize} width="64" />
+                    <TextShimmer
+                        fontSize={{
+                            fontSize: fontSizes[taskDetailViewTitleFontSize].fontSize,
+                            lineHeight: spacing[taskDetailViewTitleLineHeight],
+                        }}
+                        width="64"
+                    />
                     <Box height={taskDetailViewSectionGap} />
                     <Box display="flex" alignItems="center" gap={taskDetailViewDenseFieldGap}>
                         <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="16" />
@@ -1495,7 +1493,7 @@ function TaskDetailRouteShimmer({searchParams}: {searchParams: URLSearchParams})
                     <Box height={taskDetailNotesFieldLabelPaddingBottom} />
                     <Box
                         style={{
-                            height: tasksStyles.detailNotesContentEditorMinHeight[spacingScale],
+                            height: tasksStyles.detailNotesContentEditorMinHeightPx[spacingScale],
                         }}
                     />
                     <Box height={taskDetailViewSectionGap} />
@@ -1576,11 +1574,11 @@ export function TaskCommentsViewShimmer({withNavigationBar}: {withNavigationBar?
 
 function TaskGridRouteShimmer({
     titleWidth,
-    notepadActiveSection,
+    titlePaddingLeft,
     customizationBar,
 }: {
-    titleWidth?: Spacing;
-    notepadActiveSection?: ReactNode;
+    titleWidth: Spacing;
+    titlePaddingLeft?: Spacing;
     customizationBar?: ReactNode;
 }) {
     const platform = usePlatform();
@@ -1589,7 +1587,7 @@ function TaskGridRouteShimmer({
     return (
         <Box width="full" height="full" overflow="hidden">
             <Box height="safe-area-inset-top" />
-            {notepadActiveSection && platform === "mobile" && (
+            {platform === "mobile" ? (
                 <Box
                     height={navigationBarHeight}
                     display="flex"
@@ -1601,55 +1599,23 @@ function TaskGridRouteShimmer({
                     <TextShimmer fontSize="100" width="24" />
                     <MobileBackButtonSpacer />
                 </Box>
-            )}
-            {notepadActiveSection}
-            {!notepadActiveSection || platform !== "mobile" ? (
+            ) : (
                 <Box
                     height={navigationBarHeight}
                     display="flex"
-                    justifyContent={
-                        !notepadActiveSection && platform === "mobile" ? "space-between" : undefined
-                    }
                     alignItems="center"
-                    paddingX={
-                        !notepadActiveSection && platform === "mobile"
-                            ? navigationBarMobileGap
-                            : screenPaddingX
-                    }
+                    paddingLeft={titlePaddingLeft ?? screenPaddingX}
+                    paddingRight={screenPaddingX}
                 >
-                    {!notepadActiveSection && platform === "mobile" && <MobileBackButton />}
-                    <TextShimmer
-                        fontSize="200"
-                        width={titleWidth ?? (platform === "mobile" ? "24" : "48")}
-                    />
-                    {!notepadActiveSection && platform === "mobile" && <MobileBackButtonSpacer />}
-                </Box>
-            ) : (
-                <Box paddingY="2">
-                    <Box height="7" />
+                    <TextShimmer fontSize="200" width={titleWidth} />
                 </Box>
             )}
             <Box position="relative" paddingX={screenPaddingX}>
                 {customizationBar}
-                {routeLayout === "narrow" && notepadActiveSection && platform !== "mobile" && (
-                    <Box style={{height: taskGridViewColumnHeaderExtraPaddingBottomPx}} />
-                )}
-                <Box
-                    position="absolute"
-                    bottom="0"
-                    left={screenPaddingX}
-                    right={screenPaddingX}
-                    borderBottom={routeLayout === "narrow" ? "grey-5" : undefined}
-                />
+                <Box position="absolute" bottom="0" left={screenPaddingX} right={screenPaddingX} />
             </Box>
             {routeLayout !== "narrow" && (
-                <Box
-                    paddingRight={screenPaddingX}
-                    borderBottom="grey-5"
-                    style={{
-                        height: `calc(${spacing[taskGridViewColumnHeaderHeight]} + ${taskGridViewColumnHeaderExtraPaddingBottomPx}px)`,
-                    }}
-                >
+                <Box height={taskGridViewColumnHeaderHeight} paddingRight={screenPaddingX}>
                     <Box height={taskGridViewColumnHeaderHeight} display="flex" alignItems="center">
                         <Box
                             flexGrow="1"
@@ -1718,12 +1684,29 @@ function TaskGridRouteShimmer({
     );
 }
 
+function TaskPersonalRouteShimmer() {
+    const routeLayout = useRouteLayout();
+
+    return (
+        <TaskGridRouteShimmer
+            titleWidth="20"
+            titlePaddingLeft={routeLayout !== "narrow" ? "10" : undefined}
+        />
+    );
+}
+
+function TaskCollectionRouteShimmer() {
+    return <TaskGridRouteShimmer titleWidth="48" />;
+}
+
 function TaskQueryRouteShimmer() {
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
 
     return (
         <TaskGridRouteShimmer
+            titleWidth="48"
+            titlePaddingLeft={routeLayout !== "narrow" ? "10" : undefined}
             customizationBar={
                 routeLayout === "narrow" &&
                 (platform === "mobile" ? (
@@ -1782,84 +1765,6 @@ function TaskQueryRouteShimmer() {
                         </Box>
                     </Box>
                 ))
-            }
-        />
-    );
-}
-
-function TaskNotepadRouteShimmer() {
-    const platform = usePlatform();
-    const routeLayout = useRouteLayout();
-
-    // Fake the spacing for 3 cards.
-    const cardCount = 3;
-
-    // There's less horizontal space on mobile for cards than in peeks on desktop.
-    const cardCountAboveTheFold = platform === "mobile" ? 1 : routeLayout === "narrow" ? 2 : 3;
-
-    const cardWidthStyle = `calc(${(1 / cardCountAboveTheFold) * 100}% - ${
-        parseRemLength(taskNotepadViewActiveSectionCardGap) *
-            ((cardCountAboveTheFold - 1) / cardCountAboveTheFold) +
-        (Math.max(cardCount, cardCountAboveTheFold) > cardCountAboveTheFold
-            ? parseRemLength(cardCountAboveTheFold <= 1 ? "16" : "4")
-            : 0)
-    }rem)`;
-
-    return (
-        <TaskGridRouteShimmer
-            titleWidth="20"
-            notepadActiveSection={
-                <>
-                    <Box height={taskNotepadViewActiveSectionMarginTop} />
-                    <Box paddingX={screenPaddingX}>
-                        <TextShimmer
-                            fontSize={taskNotepadViewActiveSectionTitleFontSize[platform]}
-                            width="20"
-                        />
-                    </Box>
-                    <Box
-                        overflow="hidden"
-                        display="flex"
-                        gap={taskNotepadViewActiveSectionCardGap}
-                        paddingX={screenPaddingX}
-                        paddingY={taskNotepadViewActiveSectionPaddingY}
-                    >
-                        <Box
-                            flexShrink="0"
-                            maxWidth={taskCardViewMaxWidth}
-                            border="grey-5"
-                            borderRadius="2"
-                            style={{
-                                width: cardWidthStyle,
-                                height: taskNotepadViewActiveSectionInstructionalPlaceholderCardHeight,
-                            }}
-                        />
-                        <Box
-                            flexShrink="0"
-                            maxWidth={taskCardViewMaxWidth}
-                            border="grey-5"
-                            borderRadius="2"
-                            style={{
-                                width: cardWidthStyle,
-                                height: taskNotepadViewActiveSectionInstructionalPlaceholderCardHeight,
-                            }}
-                        />
-                        <Box
-                            flexShrink="0"
-                            maxWidth={taskCardViewMaxWidth}
-                            border="grey-5"
-                            borderRadius="2"
-                            style={{
-                                width: cardWidthStyle,
-                                height: taskNotepadViewActiveSectionInstructionalPlaceholderCardHeight,
-                            }}
-                        />
-                    </Box>
-                    <Box
-                        style={{height: taskNotepadViewActiveSectionActualMarginBottom[platform]}}
-                    />
-                    <Box height="safe-area-inset-top" />
-                </>
             }
         />
     );

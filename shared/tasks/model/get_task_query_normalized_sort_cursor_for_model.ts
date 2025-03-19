@@ -2,6 +2,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskDisplayStatusIntegerMapping} from "~/shared/tasks/task_display_status.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskPriorityIntegerMapping} from "~/shared/tasks/task_priority.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {
@@ -90,35 +91,28 @@ function getTaskQueryNormalizedSortCursorValueForModel(
                 return [version[0], version[1], initialOrderKey];
             }
         }
-        case "NotepadPagePosition": {
-            const position = task.rawData.positionByAccountIdAndNotepadPageId.get(
-                `${sort.accountId}-${sort.notepadPageId}`,
-            );
-            if (!position) {
-                return null;
-            } else {
-                return [position.orderTime[0], position.orderTime[1], position.orderKey];
-            }
-        }
-        case "AssigneeActivePosition": {
-            const status = task.getStatus();
+        case "AssigneePosition": {
             const assignee = task.getAssignee();
 
-            if (status.type !== "Open" || !assignee || task.getAssigneeStatus().type !== "Active") {
+            if (!assignee) {
                 return null;
             } else {
-                const assigneeActivePosition = (task.rawData.assigneeActivePosition.value
-                    ?.accountId === assignee.assignee.accountId
-                    ? task.rawData.assigneeActivePosition.value.position
-                    : null) ?? {
-                    orderTime: task.rawData.assigneeStatus.version,
-                    orderKey: initialOrderKey,
-                };
+                let assigneePosition: TaskPosition;
+                if (
+                    task.rawData.assigneePosition.value?.accountId === assignee.assignee.accountId
+                ) {
+                    assigneePosition = task.rawData.assigneePosition.value.position;
+                } else {
+                    assigneePosition = {
+                        orderTime: task.rawData.assignee.version,
+                        orderKey: initialOrderKey,
+                    };
+                }
 
                 return [
-                    assigneeActivePosition.orderTime[0],
-                    assigneeActivePosition.orderTime[1],
-                    assigneeActivePosition.orderKey,
+                    assigneePosition.orderTime[0],
+                    assigneePosition.orderTime[1],
+                    assigneePosition.orderKey,
                 ];
             }
         }

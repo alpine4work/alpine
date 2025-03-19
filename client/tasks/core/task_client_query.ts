@@ -1,6 +1,6 @@
 import createTree, {Tree} from "functional-red-black-tree";
 import {
-    TaskClientStore,
+    TaskClientReadonlyStore,
     TaskClientStoreCollectionEntry,
     TaskClientStoreInternal,
     TaskClientStoreTaskEntry,
@@ -67,7 +67,17 @@ const previousTaskByIdByQueryForTest =
  * code/patterns between this class and `TaskRealtimeQuerySubscription`.
  */
 export class TaskClientQuery {
-    public readonly store: TaskClientStore;
+    /**
+     * A readonly reference to the task store.
+     *
+     * If you want to write you should have a full `TaskClientStore` instance.
+     * This allows code to carefully control write access. For example,
+     * `<TaskRowView>` has a `TaskClientReadonlyStore` and `TaskClientQuery`.
+     * `<TaskRowView>` must make mutations through a `commitActionTransaction` prop
+     * since it doesn't have types that allow write access.
+     */
+    public readonly store: TaskClientReadonlyStore;
+
     public readonly filters: TaskQueryNormalizedFilters;
     public readonly sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     private readonly _internal: TaskClientQueryInternal;

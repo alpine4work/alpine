@@ -3,7 +3,8 @@
  */
 // Adapted from:
 // https://stackoverflow.com/a/52181275/1568890
-export function areUint8ArraysEqual(array1: Uint8Array, array2: Uint8Array) {
+export function areUint8ArraysEqual(array1: Uint8Array, array2: Uint8Array): boolean {
+    if (array1 === array2) return true;
     if (array1.byteLength != array2.byteLength) return false;
 
     let a: Uint8Array | Uint16Array | Uint32Array = array1;

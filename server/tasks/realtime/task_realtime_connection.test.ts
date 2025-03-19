@@ -51,15 +51,13 @@ import {
     TaskParentTaskIdRegister,
 } from "~/shared/tasks/actions/task_task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
-import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
+import {TaskAssigneePositionRegister} from "~/shared/tasks/task_assignee_position.js";
 import {TaskAssigneeStatusRegister} from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskPositionRegister} from "~/shared/tasks/task_position.js";
-import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
 import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
 import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
@@ -78,7 +76,7 @@ import {
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
-import {emptyTaskTitle} from "~/shared/tasks/task_title.js";
+import {TaskTitleModel, emptyTaskTitle} from "~/shared/tasks/task_title.js";
 
 const context = createTestContext({shouldStartOpensearch: true});
 
@@ -16141,8 +16139,6 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
                                 version: addCollectionTime,
                             }),
                             positionByCollectionId: TaskPositionByCollectionIdMap.empty,
-                            positionByAccountIdAndNotepadPageId:
-                                TaskPositionByAccountIdAndNotepadPageIdMap.empty,
                             status: new TaskStatusWithSortableAccountRegister(
                                 {
                                     type: "Closed",
@@ -16181,11 +16177,11 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
                                 {type: "Inactive"},
                                 updateAssigneeTime1,
                             ),
-                            assigneeActivePosition: new TaskAssigneeActivePositionRegister(
+                            assigneePosition: new TaskAssigneePositionRegister(
                                 null,
-                                updateAssigneeTime1,
+                                task.createdTime,
                             ),
-                            title: TaskTitleModel.new(emptyTaskTitle.get()),
+                            title: new TaskTitleModel(emptyTaskTitle.get()),
                             dueDate: new TaskDueDateRegister(null, task.createdTime),
                             priority: new TaskPriorityRegister(null, task.createdTime),
                         }),
@@ -16261,8 +16257,6 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
                                 version: addCollectionTime,
                             }),
                             positionByCollectionId: TaskPositionByCollectionIdMap.empty,
-                            positionByAccountIdAndNotepadPageId:
-                                TaskPositionByAccountIdAndNotepadPageIdMap.empty,
                             status: new TaskStatusWithSortableAccountRegister(
                                 {
                                     type: "Closed",
@@ -16301,11 +16295,11 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
                                 {type: "Inactive"},
                                 updateAssigneeTime2,
                             ),
-                            assigneeActivePosition: new TaskAssigneeActivePositionRegister(
+                            assigneePosition: new TaskAssigneePositionRegister(
                                 null,
-                                updateAssigneeTime2,
+                                task.createdTime,
                             ),
-                            title: TaskTitleModel.new(emptyTaskTitle.get()),
+                            title: new TaskTitleModel(emptyTaskTitle.get()),
                             dueDate: new TaskDueDateRegister(null, task.createdTime),
                             priority: new TaskPriorityRegister(null, task.createdTime),
                         }),

@@ -6,7 +6,7 @@
  * Capabilities and variants are two different code styles for configuring a
  * component that renders in many different contexts. For variants you
  * enumerate what contexts the component renders in (detail view subtasks,
- * collection view, query view, notepad view). For capabilities you enumerate
+ * collection view, query view, my tasks view). For capabilities you enumerate
  * the features that change across contexts and let the contexts enable/disable
  * features.
  *
@@ -23,13 +23,16 @@ export type TaskGridViewCapabilities = {
     | {
           hasDenseFields: false;
           hasColumns: false;
+          withoutAssigneeField: false;
       }
     | {
           hasDenseFields: true;
           hasColumns: false;
+          withoutAssigneeField: boolean;
       }
     | {
           hasDenseFields: false;
           hasColumns: true;
+          withoutAssigneeField: boolean;
       }
 );

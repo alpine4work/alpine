@@ -266,6 +266,12 @@ export function SpaceLayoutSideBarInboxButton({
                 description="Inbox"
                 tooltipPlacement="right"
                 pressErrorTitle="Couldn’t open inbox"
+                // Don't focus the button on press since pressing will open the overlay and
+                // should focus the overlay.
+                //
+                // TODO(calebmer): Find a way to automate this instead of setting this prop
+                // manually on every `<Button>` wrapped in an `<OverlayTriggerButton>`.
+                withoutFocusOnPress={true}
             >
                 <Bell />
                 {inbox.model.loudNotificationCount > 0 ? (

@@ -48,7 +48,7 @@ export function ContentEditorLinkInput({
 
         assert(viewRef.current);
         const {state} = viewRef.current;
-        const dispatch = viewRef.current.dispatch.bind(viewRef.current);
+        const dispatch = viewRef.current.dispatch;
 
         // If the URL the user typed does not have a protocol then add `https://`.
         const finalUrl = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url) ? url : `https://${url}`;
@@ -65,7 +65,7 @@ export function ContentEditorLinkInput({
     const clear = () => {
         assert(viewRef.current);
         const {state} = viewRef.current;
-        const dispatch = viewRef.current.dispatch.bind(viewRef.current);
+        const dispatch = viewRef.current.dispatch;
         const linkMarkType = assertExists(state.doc.type.schema.marks.link);
 
         dispatch(state.tr.removeMark(range.from, range.to, linkMarkType));

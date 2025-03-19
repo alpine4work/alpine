@@ -300,7 +300,7 @@ function Overlay(
     const fallbackPlacements = useStableJsonValue(unstableFallbackPlacements ?? null);
 
     const overlayRef = useRef<HTMLDivElement>(null);
-    const popperRef = useRef<Instance | null>(null);
+    const popperRef = useRef<(Instance & {maybeStartAnimationLoop(): void}) | null>(null);
     const blockingCoverRef = useRef<OverlayBlockingCoverRef>(null);
 
     useImperativeHandle(
@@ -385,6 +385,8 @@ function Overlay(
             );
 
             if (!isVisible || !portalElement) return;
+
+            let isDestroyed = false;
 
             assert(
                 overlayRef.current && overlayRef.current instanceof HTMLElement,
@@ -615,11 +617,81 @@ function Overlay(
 
             let isCreatingPopper = true;
             try {
+                let isAnimationLoopRunning = false;
+
+                // This function checks to see if `targetElement` or any of its parents has a
+                // running animation. If there is a running animation then we setup a
+                // `requestAnimationFrame()` loop to update our popper position every animation
+                // frame. We call this once when the lifecycle ref initializes and check after
+                // our current set of animations finishes (in case a new set of animations
+                // started afterwards).
+                //
+                // Test case for this:
+                //
+                // 1. Go into a task collection
+                // 2. Copy a bullet list from a document (optionally with indentation)
+                // 3. Paste the bullet list
+                // 4. Undo the paste (cmd-z)
+                // 5. Redo the paste (cmd-shift-z)
+                // 6. Undo the paste (cmd-z)
+                //
+                // At step 6 the task title should be focused and it should be animating up.
+                // Since we run task movement animations on undo/redo. We need to update the
+                // position of the `<FocusRing>` (which renders an `<Overlay>`) in this
+                // animation loop.
+                const maybeStartAnimationLoop = () => {
+                    if (isDestroyed) return;
+                    if (isAnimationLoopRunning) return;
+
+                    const animationFinishedPromises: Array<Promise<unknown>> = [];
+
+                    let targetParentElement: HTMLElement | null = targetElement;
+                    while (targetParentElement !== null) {
+                        for (const animation of targetParentElement.getAnimations()) {
+                            animationFinishedPromises.push(animation.finished);
+                        }
+                        targetParentElement = targetParentElement.parentElement;
+                    }
+
+                    if (animationFinishedPromises.length === 0) return;
+
+                    isAnimationLoopRunning = true;
+
+                    const runAnimationLoop = () => {
+                        requestAnimationFrame(() => {
+                            if (isDestroyed) return;
+
+                            popper.forceUpdate();
+
+                            // When `isAnimationLoopRunning` is `false` we want to run
+                            // `popper.forceUpdate()` once last time before finishing the loop.
+                            //
+                            // Once our animation loop finishes running (since the previous set of
+                            // animations has finished) then try to start the animation loop again if
+                            // there's a new set of animations on our target element.
+                            if (isAnimationLoopRunning) {
+                                runAnimationLoop();
+                            } else {
+                                maybeStartAnimationLoop();
+                            }
+                        });
+                    };
+
+                    runAnimationLoop();
+
+                    void Promise.allSettled(animationFinishedPromises).finally(() => {
+                        isAnimationLoopRunning = false;
+                    });
+                };
+
                 // The Popper library was deprecated and replaced with Floating UI.
                 // Functionality-wise, Popper is still working great for us. The Popper
                 // documentation lives on here:
                 // https://popper.js.org/docs/v2/
-                const popper = createPopper(targetElement, overlayElement, getOptions());
+                const popper = Object.assign(
+                    createPopper(targetElement, overlayElement, getOptions()),
+                    {maybeStartAnimationLoop},
+                );
 
                 popperRef.current = popper;
 
@@ -644,6 +716,8 @@ function Overlay(
                 ) {
                     addSuppressResizeLoopErrorNotificationForElement(targetElement);
                 }
+
+                maybeStartAnimationLoop();
 
                 const originalTargetElementId = targetElement.id;
                 const originalOverlayElementId = overlayElement.id;
@@ -689,6 +763,7 @@ function Overlay(
                     });
 
                 return () => {
+                    isDestroyed = true;
                     popperRef.current = null;
                     popper.destroy();
                     removeResizeListenerForElement(targetElement, handleResize);
@@ -701,6 +776,7 @@ function Overlay(
                     ) {
                         removeSuppressResizeLoopErrorNotificationForElement(targetElement);
                     }
+                    isAnimationLoopRunning = false;
                     cleanupTargetElementAttributes();
                     cleanupOverlayElementAttributes();
                     cleanupBlockingCoverElementAttributes?.();
@@ -747,6 +823,22 @@ function Overlay(
         // popper position.
         scheduleMicrotask(() => {
             popperRef.current?.forceUpdate();
+
+            // Try starting the animation loop as well in case any animations were started
+            // in a layout effect.
+            popperRef.current?.maybeStartAnimationLoop();
+        });
+    });
+
+    useEffect(() => {
+        if (!isVisible) return;
+
+        // Run in a microtask so that parent effects run before we update the
+        // popper position.
+        scheduleMicrotask(() => {
+            // Try starting the animation loop as well in case any animations were started
+            // in an effect.
+            popperRef.current?.maybeStartAnimationLoop();
         });
     });
 

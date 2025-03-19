@@ -5,6 +5,7 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useReporter} from "~/client/design/reporter.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -25,6 +26,7 @@ export function ShareSwitch({
     onAccessPolicyChange: (accessPolicy: AccessPolicyAction) => void;
     isReadOnly: boolean;
 }) {
+    const isInitialAppRender = useIsInitialAppRender();
     const spacingScale = useSpacingScale();
     const reporter = useReporter();
     const {space} = useSpaceContext();
@@ -105,7 +107,7 @@ export function ShareSwitch({
                     // so in total the knob is 4px smaller than the well giving us our border.
                     height: `calc(${spacing["6"]} + 2px)`,
                     margin: -1,
-                    transition: "background-color 150ms linear",
+                    transition: !isInitialAppRender ? "background-color 150ms linear" : undefined,
                 }}
             >
                 <Box
@@ -116,7 +118,7 @@ export function ShareSwitch({
                         padding: 2,
                         transform:
                             icon !== "Lock" ? `translateX(calc(${spacing["6"]} - 2px))` : undefined,
-                        transition: "transform 150ms linear",
+                        transition: !isInitialAppRender ? "transform 150ms linear" : undefined,
                     }}
                 >
                     <Box
@@ -139,7 +141,9 @@ export function ShareSwitch({
                                 isPressed && icon !== "Lock"
                                     ? `translateX(-${spacing["1"]})`
                                     : undefined,
-                            transition: "width 50ms linear, transform 50ms linear",
+                            transition: !isInitialAppRender
+                                ? "width 50ms linear, transform 50ms linear"
+                                : undefined,
                         }}
                     >
                         <Box
@@ -167,7 +171,11 @@ export function ShareSwitch({
                             alignItems="center"
                             backgroundColor="grey-0-const"
                             opacity={icon !== "Lock" ? "100" : "0"}
-                            style={{transition: "opacity 100ms linear"}}
+                            style={{
+                                transition: !isInitialAppRender
+                                    ? "opacity 100ms linear"
+                                    : undefined,
+                            }}
                         >
                             <BuildingsIcon
                                 size={spacing["4"]}
@@ -185,7 +193,11 @@ export function ShareSwitch({
                             alignItems="center"
                             backgroundColor="grey-0-const"
                             opacity={icon !== "Lock" && icon !== "Buildings" ? "100" : "0"}
-                            style={{transition: "opacity 100ms linear"}}
+                            style={{
+                                transition: !isInitialAppRender
+                                    ? "opacity 100ms linear"
+                                    : undefined,
+                            }}
                         >
                             <Globe
                                 size={spacing["4"]}

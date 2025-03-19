@@ -25,6 +25,7 @@ import {
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -2290,7 +2291,7 @@ test("references from optimistic task can be removed", async () => {
         taskAction: action1.taskAction,
     });
 
-    const action2: TaskAction = {
+    const action2: TaskActionModel = {
         type: "UpdateTask",
         time: store.clock.now(),
         taskId: task4.id,
@@ -2300,7 +2301,7 @@ test("references from optimistic task can be removed", async () => {
         },
     };
 
-    const action3: TaskAction = {
+    const action3: TaskActionModel = {
         type: "UpdateTask",
         time: store.clock.now(),
         taskId: task4.id,
@@ -2311,7 +2312,7 @@ test("references from optimistic task can be removed", async () => {
         },
     };
 
-    const action4: TaskAction = {
+    const action4: TaskActionModel = {
         type: "UpdateTask",
         time: store.clock.now(),
         taskId: task4.id,
@@ -4481,11 +4482,10 @@ test("peek task over collection initial load scenario", () => {
                             [collection1Id, {value: null, version: "111292211367378944"}],
                         ],
                         positionByCollectionId: [],
-                        positionByAccountIdAndNotepadPageId: [],
                         status: {value: {type: "Open"}, version: "111292192539475968"},
                         assignee: {value: null, version: "111296379693105152"},
                         assigneeStatus: {value: {type: "Inactive"}, version: "111296379693105152"},
-                        assigneeActivePosition: {value: null, version: "111296379693105152"},
+                        assigneePosition: {value: null, version: "111292192539475968"},
                         title: "AAAG3f6e6hwRAwADDwAFBwAEAIQZFWRvY3dpdGggc29tZSBjaGlsZHJlbgNBEAMBAAABBgABEwAA",
                         dueDate: {value: null, version: "111292192539475968"},
                         priority: {value: "Medium", version: "111296380828516352"},
@@ -4518,11 +4518,10 @@ test("peek task over collection initial load scenario", () => {
                             [collection1Id, {value: "a0", version: "111268357449383936"}],
                         ],
                         positionByCollectionId: [],
-                        positionByAccountIdAndNotepadPageId: [],
                         status: {value: {type: "Open"}, version: "111137674037297152"},
                         assignee: {value: null, version: "111137674037297152"},
                         assigneeStatus: {value: {type: "Inactive"}, version: "111137674037297152"},
-                        assigneeActivePosition: {value: null, version: "111137674037297152"},
+                        assigneePosition: {value: null, version: "111137674037297152"},
                         title: "AAAGyq/iiA0NAwADCwAFBwAEAIQVEWRvY3RoaXMgaXMgYSB0YXNrA0EMAwEAAAEGAAEPAAA=",
                         dueDate: {value: null, version: "111137674037297152"},
                         priority: {value: null, version: "111137674037297152"},
@@ -4593,11 +4592,10 @@ test("peek task over collection initial load scenario", () => {
                         removedClosedChildTaskCount: 0,
                         collections: [],
                         positionByCollectionId: [],
-                        positionByAccountIdAndNotepadPageId: [],
                         status: {value: {type: "Open"}, version: "111296386826108928"},
                         assignee: {value: null, version: "111296386826108928"},
                         assigneeStatus: {value: {type: "Inactive"}, version: "111296386826108928"},
-                        assigneeActivePosition: {value: null, version: "111296386826108928"},
+                        assigneePosition: {value: null, version: "111296386826108928"},
                         title: "AAAG6vD8wBgWAwADFAAFBwAEAIQeGmRvY3RoaXMgaXMgYW5vdGhlciBzdWJ0YXNrA0EVAwEAAAEGAAEYAAA=",
                         dueDate: {value: null, version: "111296386826108928"},
                         priority: {value: null, version: "111296386826108928"},
@@ -4630,11 +4628,10 @@ test("peek task over collection initial load scenario", () => {
                             [collection1Id, {value: "a0", version: "111268357449383936"}],
                         ],
                         positionByCollectionId: [],
-                        positionByAccountIdAndNotepadPageId: [],
                         status: {value: {type: "Open"}, version: "111137674037297152"},
                         assignee: {value: null, version: "111137674037297152"},
                         assigneeStatus: {value: {type: "Inactive"}, version: "111137674037297152"},
-                        assigneeActivePosition: {value: null, version: "111137674037297152"},
+                        assigneePosition: {value: null, version: "111137674037297152"},
                         title: "AAAGyq/iiA0NAwADCwAFBwAEAIQVEWRvY3RoaXMgaXMgYSB0YXNrA0EMAwEAAAEGAAEPAAA=",
                         dueDate: {value: null, version: "111137674037297152"},
                         priority: {value: null, version: "111137674037297152"},
@@ -4667,11 +4664,10 @@ test("peek task over collection initial load scenario", () => {
                             [collection1Id, {value: null, version: "111292211367378944"}],
                         ],
                         positionByCollectionId: [],
-                        positionByAccountIdAndNotepadPageId: [],
                         status: {value: {type: "Open"}, version: "111292192539475968"},
                         assignee: {value: null, version: "111296379693105152"},
                         assigneeStatus: {value: {type: "Inactive"}, version: "111296379693105152"},
-                        assigneeActivePosition: {value: null, version: "111296379693105152"},
+                        assigneePosition: {value: null, version: "111292192539475968"},
                         title: "AAAG3f6e6hwRAwADDwAFBwAEAIQZFWRvY3dpdGggc29tZSBjaGlsZHJlbgNBEAMBAAABBgABEwAA",
                         dueDate: {value: null, version: "111292192539475968"},
                         priority: {value: "Medium", version: "111296380828516352"},

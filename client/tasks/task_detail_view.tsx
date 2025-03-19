@@ -9,13 +9,16 @@ import {
     forwardRef,
     memo,
     useCallback,
+    useEffect,
     useId,
     useImperativeHandle,
     useMemo,
     useRef,
     useState,
 } from "react";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {ContentEditorRef} from "~/client/content/content_editor.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -23,6 +26,7 @@ import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
+import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useTouchSlop} from "~/client/design/use_touch_slop.js";
@@ -42,7 +46,9 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {
     taskDetailViewDenseFieldGap,
+    taskDetailViewDenseFieldMinHeight,
     taskDetailViewFieldLabelFontSize,
+    taskDetailViewMainMinHeightPx,
     taskDetailViewSectionGap,
     taskDetailViewStatusButtonMobilePaddingBottom,
     taskDetailViewStatusButtonMobilePaddingTop,
@@ -51,10 +57,12 @@ import {
 } from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
+    TaskClientStore,
     TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
+import {TaskQueryNormalizedFiltersInitialFieldsModel} from "~/client/tasks/core/task_query_normalized_filters_initial_fields_model.js";
 import {
     TaskAccess,
     computeTaskEntryAccess,
@@ -86,7 +94,7 @@ import {TaskGridViewVirtualizedListViewRef} from "~/client/tasks/internal/task_g
 import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_state.js";
-import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
+import {TaskNotesContentEditorState} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
@@ -95,42 +103,76 @@ import {hasAccessLevel} from "~/shared/access/access_policy.js";
 import {Context} from "~/shared/context/context.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
+import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {computeStore} from "~/shared/store/compute_store.js";
+import {ConstStore, trueStore} from "~/shared/store/const_store.js";
+import {Store} from "~/shared/store/store.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {
-    addFallbackToTaskTitle,
-    emptyTaskTitleModel,
-    taskFallbackTitle,
-} from "~/shared/tasks/model/task_title_model.js";
+import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
+import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
-import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
+import {
+    TaskTitleUpdateModel,
+    addFallbackToTaskTitle,
+    emptyTaskTitleModel,
+    taskFallbackTitle,
+} from "~/shared/tasks/task_title.js";
 
 export function TaskDetailView({
-    taskSubscription,
+    taskId,
+    store,
     taskAccess: access,
+    taskSubscription,
     childrenQuery,
-    affinityManager,
     initialChildrenGridViewExpansionState,
-    notesClient,
+    initialFields,
+    notesEditorStateStore,
+    onNotesEditorStateChange,
+    reconnectNotesClient,
+    affinityManager,
+    shouldInitiallyFocus,
     showComments,
     onShowCommentsChange,
+    commitActionTransactionAndCreateIfNeeded,
 }: {
-    taskSubscription: TaskClientTaskSubscription;
+    taskId: TaskId;
+    store: TaskClientStore;
     taskAccess: TaskAccess;
-    childrenQuery: TaskClientQuery;
-    affinityManager: TaskClientStoreSearchAffinityManager;
+    taskSubscription: TaskClientTaskSubscription | null;
+    childrenQuery: TaskClientQuery | null;
     initialChildrenGridViewExpansionState: TaskGridViewExpansionState;
-    notesClient: TaskDetailNotesContentEditorWebSocketClient;
+    initialFields: TaskQueryNormalizedFiltersInitialFieldsModel;
+    notesEditorStateStore: Store<TaskNotesContentEditorState>;
+    onNotesEditorStateChange: Memo<
+        (state: ContentEditorState<TaskNotesContentWithReferences>) => void
+    >;
+    reconnectNotesClient: Memo<() => void>;
+    affinityManager: TaskClientStoreSearchAffinityManager;
+    shouldInitiallyFocus: boolean;
     showComments: boolean;
     onShowCommentsChange: Memo<(showComments: boolean) => void>;
+    commitActionTransactionAndCreateIfNeeded: Memo<
+        (
+            getActions: () => Iterable<TaskActionModel>,
+            options: {
+                undoManager: TaskClientStoreUndoManager | null;
+                affinityManager: TaskClientStoreSearchAffinityManager;
+            },
+        ) => {
+            finally: (callback: () => void) => void;
+        }
+    >;
 }) {
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
@@ -142,14 +184,13 @@ export function TaskDetailView({
         space: {id: spaceId},
         currentAccount,
     } = useSpaceContext();
-    const {store, taskId, taskEntryStore} = taskSubscription;
 
     const mainRef = useRef<TaskDetailViewMainRef>(null);
 
     const showSubtasks = useStore(
         useMemo(
-            () => taskSubscription.taskEntryStore.map(({task}) => !task?.isDeleted()),
-            [taskSubscription.taskEntryStore],
+            () => taskSubscription?.taskEntryStore.map(({task}) => !task?.isDeleted()) ?? trueStore,
+            [taskSubscription?.taskEntryStore],
         ),
     );
 
@@ -220,6 +261,7 @@ export function TaskDetailView({
     );
 
     const {
+        spacingScale,
         stateKey: childrenGridViewStateKey,
         bufferedItemHeight: childrenGridViewBufferedItemHeight,
         modals: childrenGridViewModals,
@@ -231,12 +273,12 @@ export function TaskDetailView({
         scrollbarInsetTopItemIndex: scrollbarInsetTopChildrenGridViewItemIndex,
         onGlobalKeyDown: onChildrenGridViewGlobalKeyDown,
         focusStart: focusChildrenGridViewStart,
+        undo: undoWithoutMemo,
+        redo: redoWithoutMemo,
         // We use the grid view's undo stack as our full task detail view undo stack.
-        pushUndoStackEntry,
-        pushUndoStackEntryFromRedo,
-        pushRedoStackEntry,
-        undo,
-        redo,
+        pushUndoStackEntry: pushUndoStackEntryWithoutMemo,
+        pushUndoStackEntryFromRedo: pushUndoStackEntryFromRedoWithoutMemo,
+        pushRedoStackEntry: pushRedoStackEntryWithoutMemo,
     } = useTaskGridViewVirtualizedList({
         capabilities: useMemo(
             () => ({
@@ -245,35 +287,55 @@ export function TaskDetailView({
                 hasMultilineTitle: true,
                 hasDenseFields: true,
                 hasColumns: false,
+                withoutAssigneeField: false,
             }),
             [hasEditAccessLevel],
         ),
         store,
-        query: {
-            query: childrenQuery,
-            initialGridViewExpansionState: initialChildrenGridViewExpansionState,
-        },
+
+        // Even when `childrenQuery` is null we still want to show the bottom ghost
+        // task. If the user starts to type in the bottom ghost task then
+        // `commitActionTransaction` will be called which will create the task if
+        // needed.
+        //
+        // We also need to provide our own `stateKey` that doesn't change when
+        // `childrenQuery` switches between null and a proper value. That way our
+        // subtasks, undo state, and grid view expansion state don't change when we
+        // switch from `query: null` to the actual children query subscription.
+        stateKey: taskId,
+        query: childrenQuery
+            ? {
+                  query: childrenQuery,
+                  initialGridViewExpansionState: initialChildrenGridViewExpansionState,
+              }
+            : null,
+        withBottomGhostTaskIfNullQuery: !childrenQuery,
+        commitActionTransaction: !childrenQuery ? commitActionTransactionAndCreateIfNeeded : null,
+
         affinityManager,
         rowMaxWidth: contentStyles.contentMaxWidth,
         viewRef: childrenGridViewRef,
-        getMoveTaskToQueryActions: (taskId, position) => {
+        getMoveTaskToQueryActions: (childTaskId, position) => {
             const time1 = store.clock.now();
             const time2 = store.clock.now();
 
-            return [
+            const actions: Array<TaskActionModel> = [
                 {
                     type: "UpdateTask",
                     time: time1,
-                    taskId,
+                    taskId: childTaskId,
                     taskAction: {
                         type: "UpdateParentTaskId",
-                        parentTaskId: taskSubscription.taskId,
+                        parentTaskId: taskId,
                     },
                 },
-                {
+            ];
+
+            if (childrenQuery) {
+                actions.push({
                     type: "UpdateTask",
                     time: time2,
-                    taskId,
+                    taskId: childTaskId,
                     taskAction: {
                         type: "UpdateParentPosition",
                         parentPosition: getNewTaskPositionForQuerySortedByPosition(
@@ -282,8 +344,10 @@ export function TaskDetailView({
                             position,
                         ),
                     },
-                },
-            ];
+                });
+            }
+
+            return actions;
         },
         getMaybeRemoveTaskFromQueryActions: taskId => [
             {
@@ -294,30 +358,22 @@ export function TaskDetailView({
             },
         ],
         onApplyUndoStackEntry: ({type, target, entry, undoManager}) => {
-            if (target.taskId !== taskSubscription.taskId) return false;
+            if (target.taskId !== taskId) return {preventDefault: false};
 
             switch (entry.type) {
                 case "Actions": {
-                    store.commitTaskActionTransaction(context, entry.undoActions.get(store.clock), {
+                    store.commitTaskActionTransaction(context, entry.undoActions.get(store), {
                         undoManager,
                         affinityManager,
                         leaseId: entry.leaseId,
                     });
                     break;
                 }
-                case "YDoc": {
-                    if (type === "Undo") {
-                        entry.yUndoManager.undo();
-                    } else {
-                        entry.yUndoManager.redo();
-                    }
-                    break;
-                }
                 case "Notes": {
                     const contentEditor = entry.contentEditorRef.current;
 
                     // If the content editor has unmounted, we can't handle this entry.
-                    if (!contentEditor) return false;
+                    if (!contentEditor) return {preventDefault: false};
 
                     if (type === "Undo") {
                         contentEditor.undo();
@@ -348,7 +404,7 @@ export function TaskDetailView({
                         break;
                     }
                     case "Title": {
-                        assertExists(mainRef.current).focusTitleInput();
+                        assertExists(mainRef.current).focusAllTitleInput();
                         break;
                     }
                     case "Assignee": {
@@ -372,7 +428,7 @@ export function TaskDetailView({
                 }
             }
 
-            return true;
+            return {preventDefault: true};
         },
         getAnchorPosition: useCallback(() => {
             const main = assertExists(mainRef.current);
@@ -400,15 +456,35 @@ export function TaskDetailView({
 
     const displayStatus = useStore(
         useMemo(
-            () => taskEntryStore.map(({task}) => task?.getDisplayStatus() ?? "OpenInactive"),
-            [taskEntryStore],
+            (): Store<TaskDisplayStatus> =>
+                taskSubscription?.taskEntryStore.map(
+                    ({task}) => task?.getDisplayStatus() ?? "OpenInactive",
+                ) ??
+                new ConstStore(
+                    initialFields.status === "Closed"
+                        ? "Closed"
+                        : initialFields.assigneeStatus === "Active"
+                        ? "OpenActive"
+                        : "OpenInactive",
+                ),
+            [initialFields.assigneeStatus, initialFields.status, taskSubscription?.taskEntryStore],
         ),
     );
     const isPriorityDefined = useStore(
-        useMemo(() => taskEntryStore.map(({task}) => !!task?.getPriority()), [taskEntryStore]),
+        useMemo(
+            () =>
+                taskSubscription?.taskEntryStore.map(({task}) => !!task?.getPriority()) ??
+                new ConstStore(initialFields.priority !== null),
+            [initialFields.priority, taskSubscription?.taskEntryStore],
+        ),
     );
     const isDueDateDefined = useStore(
-        useMemo(() => taskEntryStore.map(({task}) => !!task?.getDueDate()), [taskEntryStore]),
+        useMemo(
+            () =>
+                taskSubscription?.taskEntryStore.map(({task}) => !!task?.getDueDate()) ??
+                new ConstStore(initialFields.dueDate !== null),
+            [initialFields.dueDate, taskSubscription?.taskEntryStore],
+        ),
     );
 
     const statusButtonRef = useRef<HTMLElement>(null);
@@ -489,9 +565,34 @@ export function TaskDetailView({
         }
     }, [dueDateInputState]);
 
-    const {undoEvent, redoEvent, focusPriorityInput, focusDueDateInput} = useEvents({
-        undoEvent: undo,
-        redoEvent: redo,
+    const hasInitiallyMountedRef = useRef(false);
+    useEffect(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
+        const titleInput = assertExists(titleInputRef.current);
+
+        if (!shouldInitiallyFocus) return;
+
+        return scheduleAfterNavigationAnimation(() => {
+            titleInput.focusAll();
+        });
+    }, [shouldInitiallyFocus, titleInputRef]);
+
+    const {
+        undo,
+        redo,
+        pushUndoStackEntry,
+        pushUndoStackEntryFromRedo,
+        pushRedoStackEntry,
+        focusPriorityInput,
+        focusDueDateInput,
+    } = useEvents({
+        undo: undoWithoutMemo,
+        redo: redoWithoutMemo,
+        pushUndoStackEntry: pushUndoStackEntryWithoutMemo,
+        pushUndoStackEntryFromRedo: pushUndoStackEntryFromRedoWithoutMemo,
+        pushRedoStackEntry: pushRedoStackEntryWithoutMemo,
 
         focusPriorityInput: ({preventScroll}: {preventScroll: boolean}) => {
             if (priorityInputState.isVisible) {
@@ -544,6 +645,7 @@ export function TaskDetailView({
                 pushUndoStackEntry({
                     type: "Actions",
                     rootParentTaskId: taskId,
+                    extra: null,
                     undoActions,
                     removedFromQueries,
                     leaseId,
@@ -554,6 +656,31 @@ export function TaskDetailView({
         [pushUndoStackEntry, taskId],
     );
 
+    const commitActionTransaction = useCallback(
+        (getActions: (taskId: TaskId) => Iterable<TaskActionModel>) => {
+            if (!childrenQuery) {
+                return commitActionTransactionAndCreateIfNeeded(() => getActions(taskId), {
+                    undoManager,
+                    affinityManager,
+                });
+            } else {
+                return store.commitTaskActionTransaction(context, getActions(taskId), {
+                    undoManager,
+                    affinityManager,
+                });
+            }
+        },
+        [
+            affinityManager,
+            childrenQuery,
+            commitActionTransactionAndCreateIfNeeded,
+            context,
+            store,
+            taskId,
+            undoManager,
+        ],
+    );
+
     const {menuActions, contextMenuActions} = useMemo(() => {
         const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
 
@@ -562,6 +689,17 @@ export function TaskDetailView({
                 label: "Copy link",
                 pressErrorTitle: "Couldn’t copy task link",
                 onPress: async () => {
+                    // If the user tries to copy the link of a ghost task, then make sure the task
+                    // is created before we write the URL to the clipboard.
+                    if (!taskSubscription) {
+                        await new Promise<void>(resolve =>
+                            commitActionTransactionAndCreateIfNeeded(() => [], {
+                                undoManager,
+                                affinityManager,
+                            }).finally(resolve),
+                        );
+                    }
+
                     const url = new URL(`/s/${spaceId}/tasks/${taskId}`, window.location.href);
                     await writeTextToClipboard(url.toString());
                 },
@@ -571,22 +709,27 @@ export function TaskDetailView({
         if (hasEditAccessLevel) {
             contextMenuActions.push(
                 getTaskStatusMenuActionsWithoutFullTask({
-                    context,
                     timeZone,
                     currentAccount,
                     store,
-                    undoManager,
-                    affinityManager,
-                    taskId,
                     displayStatus,
-                    getAssigneeSnapshot: () =>
-                        taskEntryStore.getSnapshot().task?.getAssignee() ?? null,
+                    getAssigneeAccountIdSnapshot: () => {
+                        if (!taskSubscription) return initialFields.assignee?.id ?? null;
+
+                        return (
+                            taskSubscription.taskEntryStore.getSnapshot().task?.getAssignee()
+                                ?.assignee.accountId ?? null
+                        );
+                    },
                     getOpenChildCountSnapshot: () =>
-                        taskEntryStore.getSnapshot().task?.getOpenChildTaskCount() ?? 0,
+                        taskSubscription?.taskEntryStore
+                            .getSnapshot()
+                            .task?.getOpenChildTaskCount() ?? 0,
 
                     onCloseConfirmationDialogueOpen: ({onConfirm}) => {
                         setTaskCloseConfirmationState({taskId, onConfirm});
                     },
+                    commitActionTransaction,
                 }),
             );
 
@@ -605,12 +748,12 @@ export function TaskDetailView({
                 {
                     label: "Undo",
                     keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
-                    onPress: undoEvent,
+                    onPress: undo,
                 },
                 {
                     label: "Redo",
                     keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
-                    onPress: redoEvent,
+                    onPress: redo,
                 },
             ]);
 
@@ -618,6 +761,12 @@ export function TaskDetailView({
                 {
                     label: "Delete",
                     onPress: () => {
+                        if (!taskSubscription) {
+                            // If the task is open in a peek this will close the peek.
+                            void navigate(-1);
+                            return;
+                        }
+
                         setTaskDeleteConfirmationState({
                             taskId,
                             onAfterDelete: () => {
@@ -640,6 +789,17 @@ export function TaskDetailView({
                     label: "Comments",
                     pressErrorTitle: "Couldn't open comments",
                     onPress: async () => {
+                        // If the user tries to open a task's comments, then make sure the task
+                        // is created before we open comments.
+                        if (!taskSubscription) {
+                            await new Promise<void>(resolve =>
+                                commitActionTransactionAndCreateIfNeeded(() => [], {
+                                    undoManager,
+                                    affinityManager,
+                                }).finally(resolve),
+                            );
+                        }
+
                         if (routeLayout === "narrow") {
                             await navigate(`/s/${spaceId}/tasks/${taskId}/comments?from=task`);
                         } else {
@@ -657,26 +817,28 @@ export function TaskDetailView({
     }, [
         access.level,
         affinityManager,
-        context,
+        commitActionTransaction,
+        commitActionTransactionAndCreateIfNeeded,
         currentAccount,
         displayStatus,
         dueDateInputState.isVisible,
         focusDueDateInput,
         focusPriorityInput,
         hasEditAccessLevel,
+        initialFields.assignee?.id,
         isAppleDevice,
         navigate,
         onShowCommentsChange,
         priorityInputState.isVisible,
-        redoEvent,
+        redo,
         routeLayout,
         showComments,
         spaceId,
         store,
-        taskEntryStore,
         taskId,
+        taskSubscription,
         timeZone,
-        undoEvent,
+        undo,
         undoManager,
     ]);
 
@@ -691,11 +853,12 @@ export function TaskDetailView({
             <TaskDetailViewStatusButton
                 elementRef={statusButtonRef}
                 size={taskDetailViewStatusButtonSize[platformRouteLayout]}
+                store={store}
                 taskSubscription={taskSubscription}
-                undoManager={undoManager}
-                affinityManager={affinityManager}
+                initialFields={initialFields}
                 isReadOnly={!hasEditAccessLevel}
                 contextMenuActions={contextMenuActions}
+                commitActionTransaction={commitActionTransaction}
             />
         ),
     });
@@ -753,11 +916,14 @@ export function TaskDetailView({
                                     // - Subtasks header
                                     //
                                     // Often the height is larger but never smaller.
-                                    minHeight: "19.9375rem",
+                                    minHeight: taskDetailViewMainMinHeightPx[spacingScale],
                                     node: (
                                         <TaskDetailViewMainMemo
                                             ref={mainRef}
+                                            possiblyGhostTaskId={taskId}
+                                            store={store}
                                             taskSubscription={taskSubscription}
+                                            initialFields={initialFields}
                                             undoManager={undoManager}
                                             affinityManager={affinityManager}
                                             showSubtasks={showSubtasks}
@@ -778,7 +944,10 @@ export function TaskDetailView({
                                             isDueDateInputVisible={dueDateInputState.isVisible}
                                             setDueDateInputState={setDueDateInputState}
                                             focusDueDateInput={focusDueDateInput}
-                                            notesClient={notesClient}
+                                            notesEditorStateStore={notesEditorStateStore}
+                                            onNotesEditorStateChange={onNotesEditorStateChange}
+                                            reconnectNotesClient={reconnectNotesClient}
+                                            commitActionTransaction={commitActionTransaction}
                                         />
                                     ),
                                 };
@@ -788,7 +957,11 @@ export function TaskDetailView({
                         },
                         [
                             renderChildrenGridViewItem,
+                            spacingScale,
+                            taskId,
+                            store,
                             taskSubscription,
+                            initialFields,
                             undoManager,
                             affinityManager,
                             showSubtasks,
@@ -802,7 +975,10 @@ export function TaskDetailView({
                             focusPriorityInput,
                             dueDateInputState.isVisible,
                             focusDueDateInput,
-                            notesClient,
+                            notesEditorStateStore,
+                            onNotesEditorStateChange,
+                            reconnectNotesClient,
+                            commitActionTransaction,
                         ],
                     )}
                     onRenderedRangeChange={range => {
@@ -867,7 +1043,7 @@ const initialVisibleTaskDetailViewInputState: TaskDetailViewInputState = {
 
 type TaskDetailViewMainRef = {
     focusStatusButton(): void;
-    focusTitleInput(): void;
+    focusAllTitleInput(): void;
     focusAssigneeInput(): void;
     focusCollectionsInput(): void;
     focusNotesInput(): void;
@@ -878,7 +1054,10 @@ const TaskDetailViewMainMemo = memo(forwardRef(TaskDetailViewMain));
 
 function TaskDetailViewMain(
     {
+        possiblyGhostTaskId,
+        store,
         taskSubscription,
+        initialFields,
         undoManager,
         affinityManager,
         showSubtasks,
@@ -899,9 +1078,15 @@ function TaskDetailViewMain(
         isDueDateInputVisible,
         setDueDateInputState,
         focusDueDateInput,
-        notesClient,
+        notesEditorStateStore,
+        onNotesEditorStateChange,
+        reconnectNotesClient,
+        commitActionTransaction,
     }: {
-        taskSubscription: TaskClientTaskSubscription;
+        possiblyGhostTaskId: TaskId;
+        store: TaskClientStore;
+        taskSubscription: TaskClientTaskSubscription | null;
+        initialFields: TaskQueryNormalizedFiltersInitialFieldsModel;
         undoManager: TaskClientStoreUndoManager;
         affinityManager: TaskClientStoreSearchAffinityManager;
         showSubtasks: boolean;
@@ -922,34 +1107,81 @@ function TaskDetailViewMain(
         isDueDateInputVisible: boolean;
         setDueDateInputState: (action: SetStateAction<TaskDetailViewInputState>) => void;
         focusDueDateInput: Memo<(options: {preventScroll: boolean}) => void>;
-        notesClient: TaskDetailNotesContentEditorWebSocketClient;
+        notesEditorStateStore: Store<TaskNotesContentEditorState>;
+        onNotesEditorStateChange: Memo<
+            (state: ContentEditorState<TaskNotesContentWithReferences>) => void
+        >;
+        reconnectNotesClient: Memo<() => void>;
+        commitActionTransaction: Memo<
+            (getActions: (taskId: TaskId) => ReadonlyArray<TaskActionModel>) => {
+                finally(listener: () => void): void;
+            }
+        >;
     },
     ref: Ref<TaskDetailViewMainRef>,
 ) {
     const context = useAppContext();
     const platform = usePlatform();
     const {timeZone} = useClientInfo();
+    const accountClientStore = useAccountClientStore();
     const {currentAccount} = useSpaceContext();
 
-    const {store, taskId, taskEntryStore} = taskSubscription;
-    const {task} = useStore(taskEntryStore);
-    const assigneeAccountStore = task ? store.getTaskAssigneeAccountStore(task) : null;
+    const task = useStore(taskSubscription?.taskEntryStore ?? null)?.task ?? null;
+
+    const assigneeAccountStore = !taskSubscription
+        ? initialFields.assignee !== null
+            ? assertExists(accountClientStore.getAccountStore(initialFields.assignee))
+            : null
+        : task
+        ? store.getTaskAssigneeAccountStore(task)
+        : null;
     const assigneeAccountData = useStore(assigneeAccountStore);
-    const priority = task?.getPriority() ?? null;
-    const dueDate = task?.getDueDate() ?? null;
+
+    const priority = !taskSubscription ? initialFields.priority : task?.getPriority() ?? null;
+    const dueDate = !taskSubscription ? initialFields.dueDate : task?.getDueDate() ?? null;
+
+    const title = useMemo(() => {
+        if (!taskSubscription) {
+            if (initialFields.titleUpdate === null) return emptyTaskTitleModel.get();
+
+            return initialFields.titleUpdate.newTitle;
+        }
+
+        return task?.getTitle() ?? emptyTaskTitleModel.get();
+    }, [initialFields.titleUpdate, task, taskSubscription]);
+
+    const collections = useMemo(() => {
+        if (!taskSubscription) {
+            const collectionOrderKeys = generateOrderKeysBetween(
+                null,
+                null,
+                initialFields.collectionIds.size,
+            );
+
+            return TaskCollectionSet.from(
+                mapIterable(initialFields.collectionIds, (collectionId, collectionIndex) => [
+                    collectionId,
+                    new TaskCollectionSet.ValueRegister(
+                        collectionOrderKeys[collectionIndex]!,
+                        zeroHybridLogicalTime,
+                    ),
+                ]),
+            );
+        }
+
+        return task?.getCollections() ?? TaskCollectionSet.empty;
+    }, [initialFields.collectionIds, task, taskSubscription]);
 
     const titleCommitStateRef = useRef<{
         pendingActionTransactionBuilder: {
-            add: (titleUpdate: TaskTitleUpdate) => void;
+            add: (titleUpdate: TaskTitleUpdateModel) => void;
             commit: (context: Context<{rpc: RpcContextModuleBase}>) => {
                 finally: (callback: () => void) => void;
             };
         } | null;
     } | null>(null);
 
-    const onTitleChange = (titleUpdate: TaskTitleUpdate) => {
-        if (!task) return;
-
+    const onTitleChange = (titleUpdate: TaskTitleUpdateModel) => {
         // When our commit promise finishes, commit the pending update title action if
         // there is one.
         const handleCommitPromise = (commitPromise: {finally: (callback: () => void) => void}) => {
@@ -980,30 +1212,29 @@ function TaskDetailViewMain(
                 titleCommitStateRef.current.pendingActionTransactionBuilder.add(titleUpdate);
             } else {
                 titleCommitStateRef.current.pendingActionTransactionBuilder =
-                    store.getTaskUpdateTitleActionTransactionBuilder(taskId, titleUpdate, {
-                        affinityManager,
-                    });
+                    store.getTaskUpdateTitleActionTransactionBuilder(
+                        possiblyGhostTaskId,
+                        titleUpdate,
+                        {
+                            undoManager,
+                            affinityManager,
+                        },
+                    );
             }
             return;
         }
 
-        const time = store.clock.now();
-
-        const commitPromise = store.commitTaskActionTransaction(
-            context,
-            [
-                {
-                    type: "UpdateTask",
-                    time,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateTitle",
-                        titleUpdate,
-                    },
+        const commitPromise = commitActionTransaction(taskId => [
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateTitle",
+                    titleUpdate,
                 },
-            ],
-            {undoManager, affinityManager},
-        );
+            },
+        ]);
 
         handleCommitPromise(commitPromise);
     };
@@ -1020,7 +1251,7 @@ function TaskDetailViewMain(
             focusStatusButton: () => {
                 assertExists(statusButtonRef.current).focus();
             },
-            focusTitleInput: () => {
+            focusAllTitleInput: () => {
                 const titleInput = assertExists(titleInputRef.current);
                 if (!titleInput.isFocused()) {
                     titleInput.focusAll();
@@ -1083,10 +1314,11 @@ function TaskDetailViewMain(
                                     <TaskDetailViewStatusButton
                                         elementRef={statusButtonRef}
                                         size={taskDetailViewStatusButtonSize.mobileNarrow}
+                                        store={store}
                                         taskSubscription={taskSubscription}
-                                        undoManager={undoManager}
-                                        affinityManager={affinityManager}
+                                        initialFields={initialFields}
                                         isReadOnly={!hasEditAccessLevel}
+                                        commitActionTransaction={commitActionTransaction}
                                     />
                                 )}
                             </Box>
@@ -1099,36 +1331,9 @@ function TaskDetailViewMain(
                             ref={titleInputRef}
                             elementRef={titleInputElementRef}
                             isReadOnly={!hasEditAccessLevel}
-                            title={task?.getTitle() ?? emptyTaskTitleModel.get()}
+                            title={title}
                             onTitleChange={onTitleChange}
                             placeholder={taskFallbackTitle}
-                            pushUndoStackYDocEntry={entry => {
-                                pushUndoStackEntry({
-                                    type: "YDoc",
-                                    rootParentTaskId: taskId,
-                                    taskId,
-                                    yUndoManager: entry.yUndoManager,
-                                    release: entry.release,
-                                });
-                            }}
-                            pushUndoStackYDocEntryFromRedo={entry => {
-                                pushUndoStackEntryFromRedo({
-                                    type: "YDoc",
-                                    rootParentTaskId: taskId,
-                                    taskId,
-                                    yUndoManager: entry.yUndoManager,
-                                    release: entry.release,
-                                });
-                            }}
-                            pushRedoStackYDocEntry={entry => {
-                                pushRedoStackEntry({
-                                    type: "YDoc",
-                                    rootParentTaskId: taskId,
-                                    taskId,
-                                    yUndoManager: entry.yUndoManager,
-                                    release: entry.release,
-                                });
-                            }}
                         />
                     </Box>
                 </ContextMenuActions>
@@ -1154,11 +1359,10 @@ function TaskDetailViewMain(
                                     // permission level of `urlGrant` is `View`.
                                     assert(currentAccount);
 
-                                    const time = store.clock.now();
+                                    commitActionTransaction(taskId => {
+                                        const time = store.clock.now();
 
-                                    store.commitTaskActionTransaction(
-                                        context,
-                                        [
+                                        return [
                                             {
                                                 type: "UpdateTask",
                                                 time,
@@ -1177,9 +1381,8 @@ function TaskDetailViewMain(
                                                         : null,
                                                 },
                                             },
-                                        ],
-                                        {undoManager, affinityManager},
-                                    );
+                                        ];
+                                    });
                                 }}
                             />
                         )}
@@ -1188,13 +1391,13 @@ function TaskDetailViewMain(
                         {({"aria-labelledby": ariaLabelledBy}) => (
                             <TaskCollectionsInput
                                 ref={collectionsInputRef}
-                                referencesSubscription={taskSubscription}
-                                undoManager={undoManager}
-                                affinityManager={affinityManager}
-                                task={task}
+                                store={store}
+                                referencesSubscription={taskSubscription ?? initialFields}
+                                collections={collections}
                                 aria-labelledby={ariaLabelledBy}
                                 isReadOnly={!hasEditAccessLevel}
                                 shouldAlignWithDetailViewInputsIfEmpty={true}
+                                commitActionTransaction={commitActionTransaction}
                             />
                         )}
                     </TaskDetailViewDenseField>
@@ -1240,21 +1443,17 @@ function TaskDetailViewMain(
                                         }
                                         priority={priority}
                                         onPriorityChange={priority => {
-                                            store.commitTaskActionTransaction(
-                                                context,
-                                                [
-                                                    {
-                                                        type: "UpdateTask",
-                                                        time: store.clock.now(),
-                                                        taskId,
-                                                        taskAction: {
-                                                            type: "UpdatePriority",
-                                                            priority,
-                                                        },
+                                            commitActionTransaction(taskId => [
+                                                {
+                                                    type: "UpdateTask",
+                                                    time: store.clock.now(),
+                                                    taskId,
+                                                    taskAction: {
+                                                        type: "UpdatePriority",
+                                                        priority,
                                                     },
-                                                ],
-                                                {undoManager, affinityManager},
-                                            );
+                                                },
+                                            ]);
                                         }}
                                         aria-labelledby={ariaLabelledBy}
                                     />
@@ -1300,21 +1499,17 @@ function TaskDetailViewMain(
                                         isReadOnly={!hasEditAccessLevel}
                                         date={dueDate}
                                         onDateChange={dueDate => {
-                                            store.commitTaskActionTransaction(
-                                                context,
-                                                [
-                                                    {
-                                                        type: "UpdateTask",
-                                                        time: store.clock.now(),
-                                                        taskId,
-                                                        taskAction: {
-                                                            type: "UpdateDueDate",
-                                                            dueDate,
-                                                        },
+                                            commitActionTransaction(taskId => [
+                                                {
+                                                    type: "UpdateTask",
+                                                    time: store.clock.now(),
+                                                    taskId,
+                                                    taskAction: {
+                                                        type: "UpdateDueDate",
+                                                        dueDate,
                                                     },
-                                                ],
-                                                {undoManager, affinityManager},
-                                            );
+                                                },
+                                            ]);
                                         }}
                                         shouldIncludeCalendarIcon={true}
                                         shouldWarnIfAfterDate={
@@ -1331,12 +1526,14 @@ function TaskDetailViewMain(
                 <Spacer space={taskDetailViewSectionGap} />
                 <TaskDetailNotesField
                     ref={notesFieldRef}
-                    taskId={taskId}
+                    taskId={possiblyGhostTaskId}
                     isReadOnly={!hasEditAccessLevel}
                     pushUndoStackEntry={pushUndoStackEntry}
                     pushUndoStackEntryFromRedo={pushUndoStackEntryFromRedo}
                     pushRedoStackEntry={pushRedoStackEntry}
-                    notesClient={notesClient}
+                    notesEditorStateStore={notesEditorStateStore}
+                    onNotesEditorStateChange={onNotesEditorStateChange}
+                    reconnectNotesClient={reconnectNotesClient}
                 />
                 {showSubtasks ? (
                     <>
@@ -1398,9 +1595,7 @@ function TaskDetailViewDenseField({
     const labelId = useId();
     const valueRef = useRef<HTMLDivElement>(null);
 
-    const minHeight = "4";
-
-    const touchSlop = useTouchSlop(minHeight);
+    const touchSlop = useTouchSlop(taskDetailViewDenseFieldMinHeight);
 
     return (
         // Doesn't have a parent to horizontally align elements since we layout fields
@@ -1410,7 +1605,7 @@ function TaskDetailViewDenseField({
                 className={sprinkles({
                     display: "block",
                     maxWidth: "24",
-                    minHeight,
+                    minHeight: taskDetailViewDenseFieldMinHeight,
                 })}
             >
                 <span
@@ -1447,7 +1642,7 @@ function TaskDetailViewDenseField({
                     {label}
                 </span>
             </span>
-            <Box ref={valueRef} minHeight={minHeight}>
+            <Box ref={valueRef} minHeight={taskDetailViewDenseFieldMinHeight}>
                 {typeof children === "function" ? children({"aria-labelledby": labelId}) : children}
             </Box>
         </>
@@ -1459,7 +1654,7 @@ function TaskDetailViewParentBreadcrumbs({
     taskSubscription,
 }: {
     task: TaskModel | null;
-    taskSubscription: TaskClientTaskSubscription;
+    taskSubscription: TaskClientTaskSubscription | null;
 }) {
     const navigate = useNavigate();
     const {currentAccount} = useSpaceContext();
@@ -1471,7 +1666,7 @@ function TaskDetailViewParentBreadcrumbs({
             let loopTask = task;
             while (loopTask !== null) {
                 const parent = loopTask.getParent();
-                if (parent === null) {
+                if (taskSubscription === null || parent === null) {
                     loopTask = null;
                     continue;
                 }
@@ -1589,10 +1784,9 @@ function TaskDetailViewParentBreadcrumbs({
 function TaskDetailViewNavigationBarTitle({
     taskSubscription,
 }: {
-    taskSubscription: TaskClientTaskSubscription;
+    taskSubscription: TaskClientTaskSubscription | null;
 }) {
-    const taskEntry = useStore(taskSubscription.taskEntryStore);
-    const {task} = taskEntry;
+    const task = useStore(taskSubscription?.taskEntryStore ?? null)?.task;
     const titleText = addFallbackToTaskTitle(task?.getTitle().getText() ?? "");
 
     return <>{titleText}</>;
@@ -1600,62 +1794,36 @@ function TaskDetailViewNavigationBarTitle({
 
 function TaskDetailViewStatusButton({
     size,
+    store,
     taskSubscription,
-    undoManager,
-    affinityManager,
+    initialFields,
     isReadOnly,
     elementRef,
     contextMenuActions,
+    commitActionTransaction,
 }: {
     size: "6" | "7";
-    taskSubscription: TaskClientTaskSubscription;
-    undoManager: TaskClientStoreUndoManager;
-    affinityManager: TaskClientStoreSearchAffinityManager;
+    store: TaskClientStore;
+    taskSubscription: TaskClientTaskSubscription | null;
+    initialFields: TaskQueryNormalizedFiltersInitialFieldsModel;
     isReadOnly: boolean;
     elementRef: RefObject<HTMLElement>;
     contextMenuActions?: ReadonlyArray<ReadonlyArray<MenuAction>>;
+    commitActionTransaction: Memo<
+        (getActions: (taskId: TaskId) => ReadonlyArray<TaskActionModel>) => void
+    >;
 }) {
-    const {store} = taskSubscription;
-    const taskEntry = useStore(taskSubscription.taskEntryStore);
-    const {task} = taskEntry;
+    const task = useStore(taskSubscription?.taskEntryStore ?? null)?.task ?? null;
 
-    // Checks if a user has confirmed a task can be completed
-    const [taskCloseConfirmationState, setTaskCloseConfirmationState] = useState<{
-        taskId: TaskId;
-        onConfirm: () => void;
-    } | null>(null);
-
-    let node = task ? (
-        <>
-            <TaskStatusButton
-                ref={elementRef}
-                size={size}
-                store={store}
-                undoManager={undoManager}
-                affinityManager={affinityManager}
-                task={task}
-                isDisabled={isReadOnly}
-                onCloseConfirmationDialogueOpen={({onConfirm}) => {
-                    setTaskCloseConfirmationState({taskId: task.id, onConfirm});
-                }}
-            />
-            {taskCloseConfirmationState && (
-                <TaskCloseConfirmationModalDialog
-                    store={store}
-                    taskId={taskCloseConfirmationState.taskId}
-                    onClose={() => setTaskCloseConfirmationState(null)}
-                    onConfirm={taskCloseConfirmationState.onConfirm}
-                />
-            )}
-        </>
-    ) : (
-        <Box
-            ref={elementRef as Ref<HTMLDivElement>}
-            width={size}
-            height={size}
-            borderRadius="full"
-            border="grey-10"
-            pointerEvents="none"
+    let node = (
+        <TaskStatusButton
+            ref={elementRef}
+            size={size}
+            store={store}
+            task={task}
+            initialFields={initialFields}
+            isDisabled={isReadOnly}
+            commitActionTransaction={commitActionTransaction}
         />
     );
 

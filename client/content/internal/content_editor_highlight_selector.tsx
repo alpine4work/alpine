@@ -71,7 +71,7 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
     const selectHighlightColor = (highlightColor: HighlightColor | null) => {
         assert(viewRef.current);
         const {state} = viewRef.current;
-        const dispatch = viewRef.current.dispatch.bind(viewRef.current);
+        const dispatch = viewRef.current.dispatch;
 
         if (highlightColor && (!mark || mark.attrs.color !== highlightColor)) {
             const range = trimSpacesFromProsemirrorRange(state.doc, state.selection);

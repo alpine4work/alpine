@@ -240,7 +240,6 @@
         "prosemirror-model": "^1.23.0",
         "prosemirror-schema-basic": "^1.2.0",
         "prosemirror-state": "1.4.2",
-        "prosemirror-tables": "^1.6.1",
         "prosemirror-transform": "^1.10.2",
         "prosemirror-view": "1.27.2",
         "punycode": "^2.3.1",
@@ -270,7 +269,7 @@
         "whatwg-mimetype": "^4.0.0",
         "wrangler": "^3.87.0",
         "ws": "^8.10.0",
-        "y-prosemirror": "^1.2.1",
+        "y-prosemirror": "1.2.1",
         "yaml": "^2.5.0",
         "yargs": "^17.6.2",
         "yjs": "^13.6.6"
@@ -360,7 +359,8 @@
             "prosemirror-state@1.4.2": "admin/patches/prosemirror-state@1.4.2.patch",
             "wrangler@3.87.0": "admin/patches/wrangler@3.87.0.patch",
             "@cloudflare/workers-types@4.20241112.0": "admin/patches/@cloudflare__workers-types@4.20241112.0.patch",
-            "@miniflare/shared@2.14.4": "admin/patches/@miniflare__shared@2.14.4.patch"
+            "@miniflare/shared@2.14.4": "admin/patches/@miniflare__shared@2.14.4.patch",
+            "yjs@13.6.6": "admin/patches/yjs@13.6.6.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

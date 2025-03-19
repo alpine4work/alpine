@@ -12,6 +12,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {
     TaskDisplayStatus,
@@ -42,7 +43,6 @@ assertEqualTypes<
     | "closedDateFilter"
     | "activatedDateFilter"
     | "parentFilter"
-    | "notepadPageFilter"
 >();
 
 type TaskIndexFlattenedKeys = OpensearchIndexTypeFlattenedKeysType<typeof TaskIndexDocType>;
@@ -398,29 +398,6 @@ function getTaskQueryNormalizedFiltersOpensearchFilterQueryClauses(
         });
     }
 
-    if (filters.notepadPageFilter) {
-        // A notepad page can only contain tasks your account created for permissions
-        // reasons. We can't let you add tasks to a notepad page that you later lose
-        // access to. Since we authorize task queries at execution time which means all
-        // tasks within the query should be visible.
-        //
-        // If you want to remove this condition you need to change
-        // `authorizeTaskQueryAccess()`.
-        filterQueryClauses.push({
-            term: {
-                "creator.accountId": new OpensearchQueryValue(filters.notepadPageFilter.accountId),
-            },
-        });
-
-        filterQueryClauses.push({
-            term: {
-                "notepadPages.ids": new OpensearchQueryValue(
-                    `${filters.notepadPageFilter.accountId}-${filters.notepadPageFilter.notepadPageId}`,
-                ),
-            },
-        });
-    }
-
     return filterQueryClauses;
 }
 
@@ -529,7 +506,10 @@ function getTaskQueryAccountNormalizedFilterOpensearchQueryClause(
 
 function getTaskQueryDateNormalizedFilterOpensearchQueryClause(
     fieldName: TaskIndexFlattenedKeys,
-    filter: TaskQueryDateNormalizedFilter | {type: "IsEmpty"},
+    filter:
+        | TaskQueryDateNormalizedFilter
+        | {readonly type: "IsEmpty"}
+        | Replace<TaskQueryDateNormalizedFilter, {readonly type: "RangeOrIsEmpty"}>,
 ): OpensearchQueryClause<TaskIndexFlattenedKeys> {
     switch (filter.type) {
         case "IsEmpty": {
@@ -553,5 +533,37 @@ function getTaskQueryDateNormalizedFilterOpensearchQueryClause(
                 },
             };
         }
+        case "RangeOrIsEmpty": {
+            return {
+                bool: {
+                    minimum_should_match: 1,
+                    should: [
+                        {bool: {must_not: {exists: {field: fieldName}}}},
+                        {
+                            range: {
+                                [fieldName]: {
+                                    gt: filter.exclusiveLowerBoundDate
+                                        ? new OpensearchQueryValue(
+                                              filter.exclusiveLowerBoundDate
+                                                  .toDate("UTC")
+                                                  .toISOString(),
+                                          )
+                                        : undefined,
+                                    lt: filter.exclusiveUpperBoundDate
+                                        ? new OpensearchQueryValue(
+                                              filter.exclusiveUpperBoundDate
+                                                  .toDate("UTC")
+                                                  .toISOString(),
+                                          )
+                                        : undefined,
+                                },
+                            },
+                        },
+                    ],
+                },
+            };
+        }
+        default:
+            throw exhaustive(filter);
     }
 }

@@ -394,20 +394,20 @@ export function NavigationBar({
                     if (lastIsNavigationBarTitleVisible !== null) {
                         if (isNavigationBarTitleVisible) {
                             navigationBarTitleElement.classList.remove(
-                                navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
+                                navigationBarStyles.titleFadeOutAnimationClassName,
                             );
                             if (!withScrollAway && !withoutDisappearingTitle) {
                                 navigationBarTitleElement.classList.add(
-                                    navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
+                                    navigationBarStyles.titleFadeInAnimationClassName,
                                 );
                             }
                         } else {
                             navigationBarTitleElement.classList.add(
-                                navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
+                                navigationBarStyles.titleFadeOutAnimationClassName,
                             );
                             if (!withScrollAway && !withoutDisappearingTitle) {
                                 navigationBarTitleElement.classList.remove(
-                                    navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
+                                    navigationBarStyles.titleFadeInAnimationClassName,
                                 );
                             }
                         }
@@ -591,20 +591,20 @@ export function NavigationBar({
 
                         if (isNavigationBarTitleVisible) {
                             navigationBarTitleElement.classList.remove(
-                                navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
+                                navigationBarStyles.titleFadeOutAnimationClassName,
                             );
                             if (!withScrollAway && !withoutDisappearingTitle) {
                                 navigationBarTitleElement.classList.add(
-                                    navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
+                                    navigationBarStyles.titleFadeInAnimationClassName,
                                 );
                             }
                         } else {
                             navigationBarTitleElement.classList.add(
-                                navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
+                                navigationBarStyles.titleFadeOutAnimationClassName,
                             );
                             if (!withScrollAway && !withoutDisappearingTitle) {
                                 navigationBarTitleElement.classList.remove(
-                                    navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
+                                    navigationBarStyles.titleFadeInAnimationClassName,
                                 );
                             }
                         }
@@ -717,11 +717,11 @@ export function NavigationBar({
                             navigationBarTitleElement.style.pointerEvents = "none";
 
                             navigationBarTitleElement.classList.add(
-                                navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
+                                navigationBarStyles.titleFadeOutAnimationClassName,
                             );
                             if (!withScrollAway && !withoutDisappearingTitle) {
                                 navigationBarTitleElement.classList.remove(
-                                    navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
+                                    navigationBarStyles.titleFadeInAnimationClassName,
                                 );
                             }
                         } else {
@@ -729,11 +729,11 @@ export function NavigationBar({
                             navigationBarTitleElement.style.pointerEvents = "auto";
 
                             navigationBarTitleElement.classList.remove(
-                                navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
+                                navigationBarStyles.titleFadeOutAnimationClassName,
                             );
                             if (!withScrollAway && !withoutDisappearingTitle) {
                                 navigationBarTitleElement.classList.add(
-                                    navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
+                                    navigationBarStyles.titleFadeInAnimationClassName,
                                 );
                             }
                         }
@@ -838,11 +838,11 @@ export function NavigationBar({
                             navigationBarTitleElement!.style.pointerEvents =
                                 nextIsNavigationBarTitleVisible ? "auto" : "none";
                             navigationBarTitleElement!.classList.remove(
-                                navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
+                                navigationBarStyles.titleFadeOutAnimationClassName,
                             );
                             if (!withScrollAway && !withoutDisappearingTitle) {
                                 navigationBarTitleElement!.classList.add(
-                                    navigationBarStyles.navigationBarTitleFadeInAnimationClassName,
+                                    navigationBarStyles.titleFadeInAnimationClassName,
                                 );
                             }
                         }

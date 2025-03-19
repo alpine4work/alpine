@@ -74,8 +74,8 @@ import {
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
+import {addFallbackToTaskTitle} from "~/shared/tasks/task_title.js";
 
 const searchEntityMajorContributorCutOff = 0.2;
 

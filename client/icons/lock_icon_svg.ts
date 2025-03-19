@@ -11,7 +11,7 @@ import {Lock} from "phosphor-react";
 Lock;
 
 export const lockIconSvg = ({
-    className,
+    className = "",
     weight = "regular",
 }: {className?: string; weight?: "bold" | "regular"} = {}) =>
     weight === "bold"

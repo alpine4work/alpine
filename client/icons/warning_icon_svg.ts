@@ -11,7 +11,7 @@ import {Warning} from "phosphor-react";
 Warning;
 
 export const warningIconSvg = ({
-    className,
+    className = "",
     weight = "regular",
 }: {className?: string; weight?: "bold" | "regular"} = {}) =>
     weight === "bold"

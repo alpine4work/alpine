@@ -28,6 +28,7 @@ import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indica
 import {useTouchSlop} from "~/client/design/use_touch_slop.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {assignRef} from "~/client/helpers/refs/assign_ref.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {
     Sprinkles,
     accentThemeBackgroundColor,
@@ -52,10 +53,11 @@ export type IconButtonVariant =
     | "quiet-above-grey-5-dark-background"
     | "quiet-above-content-file-viewer-modal"
     | "quiet-elevation-10"
+    | "quiet-elevation-20"
     | "neutral"
     | "outline";
 
-export type IconButtonSize = "lg" | "base" | "md" | "sm" | "xs";
+export type IconButtonSize = "xl" | "lg" | "base" | "md" | "sm" | "xs";
 
 /**
  * A button represented by a single icon.
@@ -136,6 +138,12 @@ function IconButton(
         withoutLoadingIndicator?: boolean;
 
         /**
+         * Don't focus the button when it's pressed. By default, this is true if
+         * `isFocusable` is false.
+         */
+        withoutFocusOnPress?: boolean;
+
+        /**
          * Should we show the pressed style even if the button isn't currently pressed?
          * Useful if there's some secondary press target for this icon button.
          */
@@ -150,6 +158,14 @@ function IconButton(
          * Manually override the button's background color.
          */
         backgroundColor?: Sprinkles["backgroundColor"];
+
+        /**
+         * Allow changing the button cursor. You should have a good reason to change
+         * this. See "[Buttons shouldn’t have a hand cursor][1]".
+         *
+         * [1]: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
+         */
+        cursor?: "default" | "pointer";
 
         /**
          * Don't show a tooltip when hovering over this icon button.
@@ -250,9 +266,11 @@ function IconButton(
         keyboardShortcutHint,
         isPending: isPendingFromProps,
         withoutLoadingIndicator = false,
+        withoutFocusOnPress = false,
         isPressed: isPressedFromProps,
         borderRadius = "full",
         backgroundColor: backgroundColorFromProps,
+        cursor = "default",
         children,
         isDisabled = false,
         withoutTooltip = false,
@@ -268,6 +286,7 @@ function IconButton(
         onKeyDownCapture,
     } = props;
     const localRef = useRef<HTMLElement | null>(null);
+    const platform = usePlatform();
     const reporter = useReporter();
 
     const [isPendingFromPress, setIsPendingFromPress] = useState(false);
@@ -322,9 +341,20 @@ function IconButton(
         {
             ...props,
             elementType: isFocusable ? "button" : "div",
-            isDisabled: isDisabled || isPending,
+            // NOTE(calebmer): Don't disable the button while it's pending. We don't want
+            // to run the press event handler again while the button is pending but we do
+            // still want the button to be interactive (`isPressed` should be true and we
+            // shouldn't set the `disabled` HTML property).
+            isDisabled,
             "aria-label": description,
             onPress: handlePress,
+            // We don't focus on press on mobile since if you press down a button the user
+            // might be scrolling! So if the keyboard is open we don't want to close the
+            // keyboard since the button is focused.
+            //
+            // @ts-expect-error: This prop exists but is undocumented
+            // https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/button/src/useButton.ts#L57-L58
+            preventFocusOnPress: withoutFocusOnPress || platform === "mobile" || !isFocusable,
         },
         localRef,
     );
@@ -441,10 +471,28 @@ function IconButton(
                 ? {
                       backgroundColor: isPressed ? "grey-5" : "grey-0",
                       color: isPressed ? "grey-80" : "grey-70",
+                      boxShadow: "elevation-10",
                   }
                 : {
                       backgroundColor: "grey-0",
                       color: "grey-30",
+                      boxShadow: "elevation-10",
+                  };
+            break;
+        }
+        case "quiet-elevation-20": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed ? "grey-5" : "grey-0",
+                      color: isPressed ? "grey-80" : "grey-70",
+                      boxShadow: "elevation-20",
+                  }
+                : {
+                      backgroundColor: "grey-0",
+                      color: "grey-30",
+                      boxShadow: "elevation-20",
                   };
             break;
         }
@@ -480,6 +528,10 @@ function IconButton(
     let iconSize: Spacing;
 
     switch (size) {
+        case "xl":
+            buttonSize = "10";
+            iconSize = "5";
+            break;
         case "lg":
             buttonSize = "8";
             iconSize = "5";
@@ -617,14 +669,6 @@ function IconButton(
                                 ? -1
                                 : buttonProps.tabIndex
                             : undefined,
-                        // Allow the button to maintain focus when pending. This way if a button is
-                        // used in a `useConfirmSaveAfterLosingFocus()` hook (like comment inputs in
-                        // `<DocumentContentEditor>`) and it enters a pending state we don't think the
-                        // parent element has lost focus.
-                        disabled:
-                            isPending && !isDisabled
-                                ? undefined
-                                : (buttonProps as {disabled?: boolean}).disabled,
                     },
                     <span
                         className={sprinkles({
@@ -636,13 +680,11 @@ function IconButton(
                             borderRadius,
                             // You may notice our button doesn't have a pointer cursor. See:
                             // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
-                            cursor: "default",
+                            cursor,
                             position: "relative",
                             zIndex: "0",
                             ...styles,
                             backgroundColor: backgroundColorFromProps ?? styles.backgroundColor,
-                            boxShadow:
-                                variant === "quiet-elevation-10" ? "elevation-10" : undefined,
                         })}
                         style={{
                             // Use a box-shadow for drawing the border so it doesn't affect layout.

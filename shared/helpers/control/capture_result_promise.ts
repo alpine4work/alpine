@@ -6,9 +6,11 @@ import {Result} from "~/shared/helpers/control/result.js";
  *
  * To replay a result use `unwrapResult()`.
  */
-export async function captureResultPromise<T>(action: () => Promise<T>): Promise<Result<T>> {
+export async function captureResultPromise<T>(
+    action: Promise<T> | (() => Promise<T>),
+): Promise<Result<T>> {
     try {
-        const value = await action();
+        const value = await (typeof action === "function" ? action() : action);
         return {ok: true, value};
     } catch (error) {
         return {ok: false, error};

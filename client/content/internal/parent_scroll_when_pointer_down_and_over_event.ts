@@ -19,6 +19,7 @@ export const parentScrollWhenPointerDownAndOverClassNames = [
     contentStyles.checkListItemCheckboxContainerClassName,
     contentStyles.codeBlockLanguagePickerClassName,
     contentStyles.codeBlockCopyButtonClassName,
+    contentStyles.tableAddRowBumperClassName,
     contentViewStyles.seeButtonClassName,
     contentFileVideoAndAudioPlayerControlsStyles.playButtonClassName,
     contentFileVideoAndAudioPlayerControlsStyles.playbackRateButtonClassName,

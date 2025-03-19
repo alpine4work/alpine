@@ -9,6 +9,7 @@ import {
     colorSchemeVars,
     darkColorSchemeSelector,
     desktopPlatformSelector,
+    elevationVars,
     emojiFontFamily,
     fontSizes,
     fontStyles,
@@ -59,9 +60,9 @@ import {
     paragraphClassName,
     quoteBlockClassName,
     strikeClassName,
-    tableCellClassName,
-    tableClassName,
-    tableHeaderClassName,
+    tableWrapper2ClassName,
+    tableWrapper3ClassName,
+    tableWrapperClassName,
     titleClassName,
     unorderedListItemClassName,
 } from "~/shared/content/content_styles.js";
@@ -71,6 +72,7 @@ import {colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
 import {invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {
+    RemLength,
     Spacing,
     addRemLengths,
     convertRemLengthToPx,
@@ -433,6 +435,16 @@ globalStyle(listItemClassName, {
     ...omitObject(blockStyles, ["clear"]),
     position: "relative",
     paddingLeft: `calc((${listItemIndentationVar} + 1) * ${listItemIndentation})`,
+    marginTop: standaloneBlockMargin,
+    marginBottom: standaloneBlockMargin,
+});
+
+globalStyle(`${listItemClassName} + ${listItemClassName}`, {
+    marginTop: 0,
+});
+
+globalStyle(`${listItemClassName}:has(+ ${listItemClassName})`, {
+    marginBottom: 0,
 });
 
 export const unorderedListItemBulletTop = createObjectFromKeys(
@@ -611,6 +623,7 @@ globalStyle(codeBlockWrapperClassName, {
     position: "relative",
     zIndex: "0",
     overflowX: "auto",
+    overflowY: "hidden",
     overscrollBehaviorX: "contain",
     marginTop: standaloneBlockMargin,
     marginBottom: standaloneBlockMargin,
@@ -709,7 +722,7 @@ globalStyle(`${codeBlockLineClassName}::before`, {
     position: "sticky",
     left: "0",
     marginLeft: `-${codeBlockLineOverscrollSlopX}`,
-    width: `calc(${listItemIndentation})`,
+    width: listItemIndentation,
     // Optically align code block numbers with ordered list item numbers.
     paddingRight: "0.75rem",
     textAlign: "right",
@@ -724,7 +737,7 @@ globalStyle(`${codeBlockLineClassName}::before`, {
 globalStyle(
     `${codeBlockWrapperClassName}${fileViewCodeBlockClassName} ${codeBlockLineClassName}::before`,
     {
-        width: `calc(${addRemLengths(fileViewCodeBlockMargin, listItemIndentation)})`,
+        width: addRemLengths(fileViewCodeBlockMargin, listItemIndentation),
     },
 );
 
@@ -1938,36 +1951,6 @@ export const mentionTextClassName = style({
     },
 });
 
-// Make sure the first child in our document never has top margin.
-const firstChildSelectors = [
-    `${docClassName} > *:first-child`,
-    `${docClassName} > ${listItemClassName}:first-child > *:first-child`,
-    `${docClassName} > ${listItemClassName}:first-child > ${checkListItemContentClassName} > *:first-child`,
-    `${docClassName} > ${quoteBlockClassName}:first-child > *:first-child`,
-    `${docClassName} > ${quoteBlockClassName}:first-child > ${listItemClassName}:first-child > *:first-child`,
-    `${docClassName} > ${quoteBlockClassName}:first-child > ${listItemClassName}:first-child > ${checkListItemContentClassName} > *:first-child`,
-];
-firstChildSelectors.forEach(selector => globalStyle(selector, {marginTop: 0}));
-
-// Make sure the last child in our document never has bottom margin.
-const lastChildSelectors = [
-    `${docClassName} > *:last-child`,
-    `${docClassName} > ${listItemClassName}:last-child > *:last-child`,
-    `${docClassName} > ${listItemClassName}:last-child > ${checkListItemContentClassName} > *:last-child`,
-    `${docClassName} > ${quoteBlockClassName}:last-child > *:last-child`,
-    `${docClassName} > ${quoteBlockClassName}:last-child > ${listItemClassName}:last-child > *:last-child`,
-    `${docClassName} > ${quoteBlockClassName}:last-child > ${listItemClassName}:last-child > ${checkListItemContentClassName} > *:last-child`,
-];
-lastChildSelectors.forEach(selector => globalStyle(selector, {marginBottom: 0}));
-
-const blockChildSelectors = [
-    `${listItemClassName} > ${paragraphClassName}`,
-    `${checkListItemContentClassName} > ${paragraphClassName}`,
-    `${quoteBlockClassName} > ${paragraphClassName}`,
-    `${quoteBlockClassName} > ${listItemClassName}`,
-];
-blockChildSelectors.forEach(selector => globalStyle(selector, {paddingRight: 0}));
-
 export const emptyTitleClassName = style({});
 
 globalStyle(`${emptyTitleClassName} > ${titleClassName}[data-placeholder]::before`, {
@@ -2005,68 +1988,420 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     zIndex: -10,
 });
 
-globalStyle(tableHeaderClassName, {
-    border: `1px solid ${colorSchemeVars["grey-20"]}`,
-    minWidth: spacing[20],
-    background: colorSchemeVars["grey-10"],
-});
-globalStyle(tableCellClassName, {
-    border: `1px solid ${colorSchemeVars["grey-20"]}`,
-    minWidth: spacing[20],
-});
+const tableOverflowGradientWidthSpacing = "5";
+export {tableOverflowGradientWidthSpacing as tableOverflowGradientWidth};
+const tableOverflowGradientWidth = spacing[tableOverflowGradientWidthSpacing];
 
-globalStyle(tableClassName, {
+const tableColumnResizeHandleWidthSpacing = "5";
+export {tableColumnResizeHandleWidthSpacing as tableColumnResizeHandleWidth};
+const tableColumnResizeHandleWidth = spacing[tableColumnResizeHandleWidthSpacing];
+
+const tableColumnResizeHandleIndicatorWidthPx = 3;
+
+const tableColumnResizeHandleHalfWidth: RemLength = `${
+    parseRemLength(tableColumnResizeHandleWidth) / 2
+}rem`;
+
+// We need more margin bottom than top to render the drop shadow on the
+// "Add row" button without clipping.
+const tableWrapper2MarginTop = tableColumnResizeHandleHalfWidth;
+const tableWrapper2MarginBottom = spacing["6"];
+
+globalStyle(tableWrapperClassName, {
+    ...omitObject(blockStyles, ["maxWidth", "marginLeft", "marginRight"]),
+    marginTop: standaloneBlockMargin,
+    marginBottom: standaloneBlockMargin,
     position: "relative",
-    minWidth: spacing[160],
-    margin: `${standaloneBlockMargin} auto`,
-    padding: spacing[5],
-    background: colorSchemeVars["grey-5"],
-    width: "fit-content",
-    maxWidth: "95%",
-    overflowX: "auto",
+    zIndex: "0",
+    // The padding top/bottom "freezes" the negative margin of our child
+    // `tableWrapper2ClassName` so it doesn't affect the margins of this parent
+    // element.
+    paddingTop: 1,
+    paddingBottom: 1,
 });
 
-globalStyle(`${tableClassName} table`, {
-    minWidth: blockMaxWidthVar,
-    width: spacing[160],
-    maxWidth: spacing[256],
-    textAlign: "left",
+globalStyle(`${tableWrapperClassName}::before`, {
+    content: '""',
+    pointerEvents: "none",
+    position: "absolute",
+    zIndex: "10",
+    top: `-${tableWrapper2MarginTop}`,
+    bottom: `-${tableWrapper2MarginBottom}`,
+    left: `-${tableOverflowGradientWidth}`,
+    width: tableOverflowGradientWidth,
+    background: `linear-gradient(to right, ${backgroundColorVar}, transparent ${spacing["3"]}, transparent)`,
+});
+
+// On mobile, we only have `spacing["3"]` margin. So render the gradient in
+// that space even though it covers row grips. Row grips won't be visible since
+// you can't hover on mobile.
+globalStyle(`${mobilePlatformSelector} ${tableWrapperClassName}::before`, {
+    background: `linear-gradient(to right, ${backgroundColorVar}, ${backgroundColorVar} ${spacing["3"]}, transparent)`,
+});
+
+globalStyle(`${tableWrapperClassName}::after`, {
+    content: '""',
+    pointerEvents: "none",
+    position: "absolute",
+    zIndex: "10",
+    top: `-${tableWrapper2MarginTop}`,
+    bottom: `-${tableWrapper2MarginBottom}`,
+    right: `-${tableOverflowGradientWidth}`,
+    width: tableOverflowGradientWidth,
+    background: `linear-gradient(to left, ${backgroundColorVar}, transparent ${spacing["3"]}, transparent)`,
+});
+
+// On mobile, we only have `spacing["3"]` margin. So render the gradient in
+// that space even though it covers row grips. Row grips won't be visible since
+// you can't hover on mobile.
+globalStyle(`${mobilePlatformSelector} ${tableWrapperClassName}::after`, {
+    background: `linear-gradient(to left, ${backgroundColorVar}, ${backgroundColorVar} ${spacing["3"]}, transparent)`,
+});
+
+globalStyle(tableWrapper2ClassName, {
+    position: "relative",
+    zIndex: "0",
+    overflowX: "auto",
+    overflowY: "hidden",
+    overscrollBehaviorX: "contain",
+    width: `calc(100% + (${tableOverflowGradientWidth} * 2))`,
+    marginLeft: `-${tableOverflowGradientWidth}`,
+    marginRight: `-${tableOverflowGradientWidth}`,
+    marginTop: `-${tableWrapper2MarginTop}`,
+    marginBottom: `-${tableWrapper2MarginBottom}`,
+});
+
+globalStyle(tableWrapper3ClassName, {
+    width: "100%",
+    maxWidth: `calc(${blockMaxWidthVar} + ${addRemLengths(
+        tableOverflowGradientWidth,
+        tableOverflowGradientWidth,
+    )})`,
+    margin: "0 auto",
+    paddingLeft: tableOverflowGradientWidth,
+    paddingRight: tableOverflowGradientWidth,
+    paddingTop: tableWrapper2MarginTop,
+    paddingBottom: tableWrapper2MarginBottom,
+});
+
+globalStyle(`${tableWrapperClassName} table`, {
+    pointerEvents: "auto",
+    display: "grid",
+    position: "relative",
+    zIndex: "0",
+    width: "100%",
     borderCollapse: "collapse",
     tableLayout: "fixed",
 });
 
-globalStyle(".resize-cursor", {
-    cursor: "col-resize",
+globalStyle(`${tableWrapperClassName} tbody`, {
+    display: "contents",
 });
 
-globalStyle(`${tableClassName} td, ${tableClassName} th`, {
-    border: `1px solid ${colorSchemeVars["grey-20"]}`,
-    padding: `${spacing[0.5]} ${spacing[1]}`,
-    verticalAlign: "top",
-    boxSizing: "border-box",
+globalStyle(`${tableWrapperClassName} tr`, {
+    display: "contents",
+});
+
+/**
+ * The minimum width of a column in absolute units. The table data structure
+ * may think the column is smaller but this is as small as we'll let the column
+ * actually render in practice.
+ *
+ * The minimum column width is one sixth of the block width on desktop. Even as
+ * we scale down this is still our minimum column width so we make sure content
+ * in columns are legible even at small sizes.
+ */
+export const tableColumnMinWidthRem = blockMaxWidthRem.desktop * (1 / 6);
+
+/**
+ * The maximum width of a column in absolute units. The table data structure
+ * may think the column is larger but this is as large as we'll let the column
+ * actually render in practice.
+ *
+ * The maximum column width is the width of the larger column in a two column
+ * table on desktop where one of the columns is the minimum width and the
+ * `tableWidth` is 1 (so about three fourths of the block width on desktop).
+ */
+export const tableColumnMaxWidthRem = blockMaxWidthRem.desktop - tableColumnMinWidthRem;
+
+/**
+ * The number of table columns up under which we'll try to maintain the table's
+ * width. After this many columns, adding a new column or resizing a column
+ * will change the table's width.
+ *
+ * When we add a new column (past this column count) we want the width of the
+ * new column to be the block width divided by this count.
+ */
+export const tableMaxColumnCountForMaintainingBlockWidth = 4;
+
+/**
+ * Snap factor for column resizing. By default, when resizing a column we
+ * snap the column width to `blockWidth / factor`. The column min width, column
+ * max width, and new column desired width should all be multiples of this
+ * increment when we have the max block width. So the user can easily create
+ * columns of those sizes and there will be harmony between the user's column
+ * sizes.
+ */
+export const tableColumnWidthBlockWidthSnapFactor = 12;
+
+globalStyle(`${tableWrapperClassName} td`, {
+    display: "block",
     position: "relative",
+    minWidth: `${tableColumnMinWidthRem}rem`,
+    maxWidth: `${tableColumnMaxWidthRem}rem`,
+    padding: `${spacing["3"]} ${spacing["4"]}`,
+    boxShadow: `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, 1px 0 0 0 ${colorSchemeVars["grey-10"]}`,
 });
 
-globalStyle(`${tableClassName} .selectedCell:after`, {
-    zIndex: 2,
-    position: "absolute",
-    content: '""',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    background: colorSchemeVars["theme-selection"],
+globalStyle(`${tableWrapperClassName} td:last-of-type`, {
+    // Minor detail: We want the right border on the last column to be inset within
+    // the cell instead of outside the cell. That way border-to-border the table
+    // width will be exactly equal to the block width at small table sizes down to
+    // the pixel.
+    boxShadow: `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, inset -1px 0 0 0 ${colorSchemeVars["grey-10"]}`,
+});
+
+export const tableCellSelectionClassName = style({
     pointerEvents: "none",
+    zIndex: "30",
+    position: "absolute",
+    width: "calc(100% + 1px)",
+    height: "calc(100% + 1px)",
+    border: `2px solid ${colorSchemeVars["theme-40-const"]}`,
 });
 
-globalStyle(`${tableClassName} .column-resize-handle`, {
+export const tableRightEdgeCellSelectionClassName = style({
+    selectors: {
+        [`${tableCellSelectionClassName}&`]: {
+            width: "100%",
+        },
+    },
+});
+
+export const tableColumnResizeHandleClassName = style({
+    zIndex: "40",
     position: "absolute",
-    right: `-${spacing[0.5]}`,
     top: 0,
-    bottom: `-${spacing[0.5]}`,
-    width: spacing[1],
-    backgroundColor: colorSchemeVars["theme-60"],
+    bottom: -1,
+    transform: "translateX(calc(-50% + 0.5px))",
+    width: tableColumnResizeHandleWidth,
     pointerEvents: "auto",
     cursor: "col-resize",
-    zIndex: 3,
+    selectors: {
+        "&::after": {
+            content: '""',
+            position: "absolute",
+            left: `calc(50% - ${tableColumnResizeHandleIndicatorWidthPx / 2}px)`,
+            top: 0,
+            bottom: 0,
+            width: tableColumnResizeHandleIndicatorWidthPx,
+            backgroundColor: colorSchemeVars["theme-40-const"],
+        },
+    },
 });
+
+export const tableRightEdgeColumnResizeHandleClassName = style({
+    selectors: {
+        [`${tableColumnResizeHandleClassName}&`]: {
+            transform: "translateX(calc(-50% - 0.5px))",
+        },
+    },
+});
+
+export const tableRowGripBaseClassName = style({
+    zIndex: "50",
+    position: "absolute",
+    left: "0",
+    height: "calc(100% + 1px)",
+    transform: "translateX(-50%)",
+    width: tableColumnResizeHandleWidth,
+    cursor: "grab",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+});
+
+export const tableRowGripClassName = style({});
+export const tableRowSelectionGripClassName = style({});
+
+globalStyle(`${tableRowGripBaseClassName} > svg`, {
+    pointerEvents: "none",
+    width: spacing["4"],
+    height: spacing["5"],
+    paddingTop: spacing["0.5"],
+    paddingBottom: spacing["0.5"],
+    backgroundColor: colorSchemeVars["grey-0"],
+    fill: colorSchemeVars["grey-70"],
+    boxShadow: elevationVars["elevation-20"],
+    borderRadius: spacing["0.5"],
+});
+
+export const tableColumnGripBaseClassName = style({
+    zIndex: "50",
+    position: "absolute",
+    left: "0",
+    width: "calc(100% + 1px)",
+    transform: "translateY(-50%)",
+    height: tableColumnResizeHandleWidth,
+    cursor: "grab",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+});
+
+export const tableRightEdgeColumnGripBaseClassName = style({
+    selectors: {
+        [`${tableColumnGripBaseClassName}&`]: {
+            width: "100%",
+        },
+    },
+});
+
+export const tableColumnGripClassName = style({});
+export const tableColumnSelectionGripClassName = style({});
+
+globalStyle(`${tableColumnGripBaseClassName} > svg`, {
+    pointerEvents: "none",
+    width: spacing["5"],
+    height: spacing["4"],
+    paddingLeft: spacing["0.5"],
+    paddingRight: spacing["0.5"],
+    backgroundColor: colorSchemeVars["grey-0"],
+    fill: colorSchemeVars["grey-70"],
+    boxShadow: elevationVars["elevation-20"],
+    borderRadius: spacing["0.5"],
+});
+
+export const tableDraggingGripRowDropTargetClassName = style({
+    pointerEvents: "none",
+    zIndex: "40",
+    position: "absolute",
+    left: 0,
+    right: 0,
+    transform: "translateY(calc(-50% + 0.5px))",
+    height: tableColumnResizeHandleIndicatorWidthPx,
+    backgroundColor: colorSchemeVars["grey-30"],
+});
+
+export const tableDraggingGripColumnDropTargetClassName = style({
+    pointerEvents: "none",
+    zIndex: "40",
+    position: "absolute",
+    top: 0,
+    bottom: -1,
+    transform: "translateX(calc(-50% + 0.5px))",
+    width: tableColumnResizeHandleIndicatorWidthPx,
+    backgroundColor: colorSchemeVars["grey-30"],
+});
+
+export const tableAddRowBumperPressedClassName = style({});
+
+export const tableAddRowBumperClassName = style({
+    position: "absolute",
+    zIndex: "50",
+    left: "0",
+    right: "0",
+    height: tableColumnResizeHandleWidth,
+    cursor: "pointer",
+    bottom: "0",
+    transform: "translateY(50%)",
+    selectors: {
+        "&::before": {
+            pointerEvents: "none",
+            content: '""',
+            position: "absolute",
+            zIndex: "10",
+            top: `calc(50% - ${tableColumnResizeHandleIndicatorWidthPx / 2 - 0.5}px)`,
+            left: "0",
+            right: "0",
+            height: tableColumnResizeHandleIndicatorWidthPx,
+            backgroundColor: colorSchemeVars["theme-40-const"],
+        },
+        [`&${tableAddRowBumperPressedClassName}::after`]: {
+            pointerEvents: "none",
+            content: '""',
+            position: "absolute",
+            zIndex: "20",
+            top: `calc(50% - ${tableColumnResizeHandleIndicatorWidthPx / 2 - 0.5}px)`,
+            left: "0",
+            right: "0",
+            height: tableColumnResizeHandleIndicatorWidthPx,
+            backgroundColor: colorSchemeVars["grey-100-const"],
+            opacity: buttonPressedOverlayOpacity,
+        },
+    },
+});
+
+export const tableAddRowBumperStickyClassName = style({
+    pointerEvents: "none",
+    userSelect: "none",
+    position: "sticky",
+    zIndex: "50",
+    width: "100%",
+    left: tableOverflowGradientWidth,
+    right: tableOverflowGradientWidth,
+    height: tableColumnResizeHandleWidth,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+});
+
+export const tableAddRowBumperIconButtonClassName = style({
+    overflow: "hidden",
+    position: "relative",
+    zIndex: "0",
+    transform: "translate(0.5px, 0.5px)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    width: spacing["5"],
+    height: spacing["5"],
+    borderRadius: borderRadius.full,
+    backgroundColor: colorSchemeVars["theme-40-const"],
+    selectors: {
+        [`${tableAddRowBumperClassName}${tableAddRowBumperPressedClassName} &::after`]: {
+            content: '""',
+            position: "absolute",
+            zIndex: "10",
+            inset: "0",
+            backgroundColor: colorSchemeVars["grey-100-const"],
+            opacity: buttonPressedOverlayOpacity,
+        },
+    },
+});
+
+globalStyle(`${tableAddRowBumperIconButtonClassName} > svg`, {
+    width: spacing["4"],
+    height: spacing["4"],
+    fill: colorSchemeVars["grey-0"],
+});
+
+function createChildSelectors(child: "first" | "last") {
+    const selectors1 = [
+        `${listItemClassName}:${child}-child > *:${child}-child`,
+        `${listItemClassName}:${child}-child > ${checkListItemContentClassName} > *:${child}-child`,
+    ];
+
+    const selectors2 = [
+        ...selectors1,
+        `${quoteBlockClassName}:${child}-child > *:${child}-child`,
+        ...selectors1.map(selector => `${quoteBlockClassName}:${child}-child > ${selector}`),
+    ];
+
+    const selectors3 = [
+        ...selectors2,
+        `${tableWrapperClassName} td > *:${child}-child`,
+        ...selectors2.map(selector => `${tableWrapperClassName} td > ${selector}`),
+    ];
+
+    return [
+        `${docClassName} > *:${child}-child`,
+        ...selectors3.map(selector => `${docClassName} > ${selector}`),
+    ];
+}
+
+// Make sure the first child in our document never has top margin.
+createChildSelectors("first").forEach(selector => globalStyle(selector, {marginTop: 0}));
+
+// Make sure the last child in our document never has bottom margin.
+createChildSelectors("last").forEach(selector => globalStyle(selector, {marginBottom: 0}));

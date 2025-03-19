@@ -57,6 +57,7 @@ export class TaskCollectionSet {
         }
     }
 
+    public static readonly ValueRegister = TaskCollectionSetEntries.ValueRegister;
     public static readonly empty = new TaskCollectionSet(TaskCollectionSetEntries.empty);
 
     public static readonly schema = TaskCollectionSetEntries.schema.transform<TaskCollectionSet>({

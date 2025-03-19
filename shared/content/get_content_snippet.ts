@@ -446,7 +446,6 @@ const lineBreakCountByNodeType: {
     // A table cell and header are treated as inline elements, so they do
     // not cause a line break.
     tableCell: 0,
-    tableHeader: 0,
 };
 
 /**
@@ -499,8 +498,7 @@ const dontCutLeadingChildrenByNodeType: {
     // content from the start of a cell doesn't affect the alignment or
     // structure of the table as a whole.
     //
-    // One more reason to `false` on tableCell and tableHeader is that the content
+    // One more reason to `false` on tableCell is that the content
     // these are nothing but tableBlock which we already handle above
     tableCell: false,
-    tableHeader: false,
 };

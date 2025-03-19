@@ -1035,7 +1035,7 @@ function ContentEditorPointerToolbarButton({
 }) {
     const onPress = () => {
         const view = assertExists(viewRef.current);
-        command(view.state, view.dispatch.bind(view), view);
+        command(view.state, view.dispatch, view);
     };
 
     const localRef = useRef<HTMLDivElement>(null);
@@ -1328,7 +1328,7 @@ function ContentEditorPointerToolbarHighlightButton({
                     command={() => {
                         assert(viewRef.current);
                         const {state} = viewRef.current;
-                        const dispatch = viewRef.current.dispatch.bind(viewRef.current);
+                        const dispatch = viewRef.current.dispatch;
 
                         assert(state.schema.marks.highlight);
 

@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {AnimationControls, animate, spring, timeline} from "motion";
 import {
     ArrowLeft,
@@ -222,7 +223,7 @@ export function DocumentContentEditor({
     } | null;
     initialScroll: DocumentContentEditorInitialScroll | null;
     shouldInitiallyFocus: boolean;
-    onCreate?: () => void;
+    onCreate: () => void;
     onContentChange?: (content: DocumentContent) => void;
     onContentLocalChange?: () => void;
     onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;
@@ -1656,66 +1657,118 @@ export function DocumentContentEditor({
             >
                 <OverlayScopeContextProvider>
                     <Box className={contentEditorStyles.containerClassName}>
-                        <ContentEditor
-                            ref={editorRef}
-                            state={editorState}
-                            onChange={(state, transaction) => {
-                                onEditorStateChange(state);
+                        <GlobalKeyDownEvent
+                            onGlobalKeyDown={event => {
+                                // Perform undo/redo on the document even if the document isn't focused. If the
+                                // document is focused and cmd-z is pressed then the document will handle the
+                                // event itself and call `event.preventDefault()` + `event.stopPropagation()`.
+                                switch (event.key) {
+                                    case "z": {
+                                        if (isAppleDevice ? event.metaKey : event.ctrlKey) {
+                                            event.preventDefault();
+                                            event.stopPropagation();
 
-                                const createCommentThread: {
-                                    commentThreadId: DocumentCommentThreadId;
-                                    initialCommentContent: MessageContentWithReferences;
-                                    initialCommentFileIds: ReadonlyArray<FileId>;
-                                    openCommentThreadPromiseRef?: {
-                                        current: Promise<void> | null;
-                                    };
-                                } | null =
-                                    transaction.getMeta(createContentCommentThreadMetaKey) ?? null;
+                                            if (event.shiftKey) {
+                                                assertExists(editorRef.current).redo();
+                                            } else if (
+                                                (isAppleDevice ? !event.ctrlKey : !event.metaKey) &&
+                                                !event.altKey
+                                            ) {
+                                                assertExists(editorRef.current).undo();
+                                            }
+                                            break;
+                                        }
+                                        break;
+                                    }
+                                    // https://en.wikipedia.org/wiki/Control-Y
+                                    case "y": {
+                                        if (isAppleDevice ? event.metaKey : event.ctrlKey) {
+                                            event.preventDefault();
+                                            event.stopPropagation();
 
-                                if (
-                                    createCommentThread &&
-                                    createCommentThread.openCommentThreadPromiseRef &&
-                                    sidebarState.isOpen &&
-                                    sidebarState.animationState !== "Closing"
-                                ) {
-                                    // `<ContentEditorCommentInput>` will wait on this promise before closing after
-                                    // creating a comment thread when it exists. If the sidebar is not already open
-                                    // then we rely on our document's global loading indicator to tell us when
-                                    // comments have successfully saved.
-                                    createCommentThread.openCommentThreadPromiseRef.current =
-                                        openCommentThread(createCommentThread.commentThreadId);
-                                }
-
-                                if (transaction.docChanged) {
-                                    onContentLocalChange?.();
+                                            if (
+                                                (isAppleDevice ? !event.ctrlKey : !event.metaKey) &&
+                                                !event.altKey &&
+                                                !event.shiftKey
+                                            ) {
+                                                assertExists(editorRef.current).redo();
+                                            }
+                                            break;
+                                        }
+                                        break;
+                                    }
                                 }
                             }}
-                            aria-label="Document"
-                            placeholder="Share your ideas…"
-                            accessLevel={accessLevel}
-                            // While the sidebar is open, don't render our document toolbar. It would be
-                            // weird for it to pop up when writing a comment.
-                            withoutMobileKeyboardToolbar={sidebarState.isOpen}
-                            className={documentContentStyles.documentContentClassName}
-                            phantomSelections={phantomSelections}
-                            fileAttachmentTarget={fileAttachmentTarget}
-                            commentFileAttachmentTarget={useMemo(
-                                () => ({type: "DocumentComments", documentId}),
-                                [documentId],
-                            )}
-                            onEnsureFileAttachmentTarget={ensureCreateDocument}
-                            openCommentThread={openCommentThread}
-                            onCommentThreadPressedChange={(commentThreadId, isHovered) => {
-                                setPressedCommentThreadId(pressedCommentThreadId => {
-                                    if (isHovered) return commentThreadId;
-                                    if (!isHovered && pressedCommentThreadId === commentThreadId)
-                                        return null;
-                                    return pressedCommentThreadId;
-                                });
-                            }}
-                            onSelectionLeave={onClearOurPresenceState}
-                            onSelectionEnter={onUnclearOurPresenceState}
-                        />
+                        >
+                            <ContentEditor
+                                ref={editorRef}
+                                state={editorState}
+                                onChange={(state, transaction) => {
+                                    onEditorStateChange(state);
+
+                                    const createCommentThread: {
+                                        commentThreadId: DocumentCommentThreadId;
+                                        initialCommentContent: MessageContentWithReferences;
+                                        initialCommentFileIds: ReadonlyArray<FileId>;
+                                        openCommentThreadPromiseRef?: {
+                                            current: Promise<void> | null;
+                                        };
+                                    } | null =
+                                        transaction.getMeta(createContentCommentThreadMetaKey) ??
+                                        null;
+
+                                    if (
+                                        createCommentThread &&
+                                        createCommentThread.openCommentThreadPromiseRef &&
+                                        sidebarState.isOpen &&
+                                        sidebarState.animationState !== "Closing"
+                                    ) {
+                                        // `<ContentEditorCommentInput>` will wait on this promise before closing after
+                                        // creating a comment thread when it exists. If the sidebar is not already open
+                                        // then we rely on our document's global loading indicator to tell us when
+                                        // comments have successfully saved.
+                                        createCommentThread.openCommentThreadPromiseRef.current =
+                                            openCommentThread(createCommentThread.commentThreadId);
+                                    }
+
+                                    if (transaction.docChanged) {
+                                        onContentLocalChange?.();
+                                    }
+                                }}
+                                aria-label="Document"
+                                placeholder="Share your ideas…"
+                                accessLevel={accessLevel}
+                                // While the sidebar is open, don't render our document toolbar. It would be
+                                // weird for it to pop up when writing a comment.
+                                withoutMobileKeyboardToolbar={sidebarState.isOpen}
+                                className={classNames(
+                                    documentContentStyles.contentClassName,
+                                    routeLayout === "wide" &&
+                                        documentContentStyles.contentWithWideRouteLayoutClassName,
+                                )}
+                                phantomSelections={phantomSelections}
+                                fileAttachmentTarget={fileAttachmentTarget}
+                                commentFileAttachmentTarget={useMemo(
+                                    () => ({type: "DocumentComments", documentId}),
+                                    [documentId],
+                                )}
+                                onEnsureFileAttachmentTarget={ensureCreateDocument}
+                                openCommentThread={openCommentThread}
+                                onCommentThreadPressedChange={(commentThreadId, isHovered) => {
+                                    setPressedCommentThreadId(pressedCommentThreadId => {
+                                        if (isHovered) return commentThreadId;
+                                        if (
+                                            !isHovered &&
+                                            pressedCommentThreadId === commentThreadId
+                                        )
+                                            return null;
+                                        return pressedCommentThreadId;
+                                    });
+                                }}
+                                onSelectionLeave={onClearOurPresenceState}
+                                onSelectionEnter={onUnclearOurPresenceState}
+                            />
+                        </GlobalKeyDownEvent>
                         {
                             // IMPORTANT: It's important that this element is below `<ContentEditor>` so
                             // that `<ContentEditor>` is first in the tab order! This matters when

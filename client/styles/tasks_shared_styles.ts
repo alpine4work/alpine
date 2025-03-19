@@ -1,4 +1,9 @@
-import {contentStyles, fontSizes, navigationBarStyles} from "~/client/styles/styles.js";
+import {
+    contentStyles,
+    fontSizes,
+    navigationBarStyles,
+    tasksStyles,
+} from "~/client/styles/styles.js";
 import {
     RemLength,
     Spacing,
@@ -14,7 +19,9 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export const taskDetailViewSectionGap = "10";
 export const taskDetailViewDenseFieldGap = "5";
+export const taskDetailViewDenseFieldMinHeight = "4";
 export const taskDetailViewTitleFontSize = "300";
+export const taskDetailViewTitleLineHeight = "6";
 export const taskDetailViewFieldLabelFontSize = "75";
 export const taskDetailViewCommentSidebarWidth = "96";
 export const taskDetailNotesFieldLabelPaddingBottom = "1";
@@ -28,13 +35,7 @@ export const taskDetailViewStatusButtonSize = {
 export const taskDetailViewStatusButtonMobilePaddingTop = "3";
 export const taskDetailViewStatusButtonMobilePaddingBottom = "2";
 
-export const taskGridViewColumnHeaderHeight = "5";
-
-// It takes 2px to render the bottom borders on our column header. 1px for the
-// border itself and 1px below that to avoid covering the first row's bottom
-// border. We don't want to take those 2px from the column header's height so
-// we need to add back some extra padding bottom height.
-export const taskGridViewColumnHeaderExtraPaddingBottomPx = 2;
+export const taskGridViewColumnHeaderHeight = "4";
 
 export const taskRowViewMinHeight = "10";
 
@@ -89,24 +90,11 @@ export const taskRowTitleInputPaddingYPx = createObjectFromKeys(
         2,
 );
 
-export const taskNotepadViewActiveSectionCardGap: Spacing = "3";
-
-// Height of a card with an extra field (e.g. assignee) and two lines of text
-// in the title.
-export const taskNotepadViewActiveSectionInstructionalPlaceholderCardHeight = "6.5rem";
+export const taskGridViewPaddingBottomWithNext = "6";
+export const taskGridViewPaddingBottomWithoutNext = "12";
 
 export const taskCardViewMinHeight = "5.375rem";
 export const taskCardViewMaxWidth = "96";
-
-export const taskNotepadViewActiveSectionMarginTop = {desktop: "4", mobile: "2"} as const;
-export const taskNotepadViewActiveSectionMarginBottom = "8";
-export const taskNotepadViewActiveSectionPaddingY = "2";
-export const taskNotepadViewActiveSectionTitleFontSize = {desktop: "200", mobile: "100"} as const;
-
-export const taskNotepadViewActiveSectionActualMarginBottom = {
-    desktop: `max(${spacing[taskNotepadViewActiveSectionMarginBottom]} - var(--safe-area-inset-top, 0px), 0px)`,
-    mobile: spacing[taskNotepadViewActiveSectionMarginBottom],
-};
 
 export const taskQueryViewCustomizationMobileSectionGap = "4";
 export const taskQueryViewCustomizationMobileSectionMarginBottom = "7";
@@ -124,27 +112,6 @@ export const taskCollectionChipHeight: {desktop: Spacing; mobile: Spacing} = {
 };
 export const taskCollectionChipPaddingY: Spacing = "0.5";
 export const taskCollectionChipBorderRadius = "1";
-
-export const taskNotepadViewActiveSectionMinHeight = {
-    desktop: addRemLengths(
-        taskNotepadViewActiveSectionMarginTop.desktop,
-        fontSizes[taskNotepadViewActiveSectionTitleFontSize.desktop].lineHeight,
-        taskNotepadViewActiveSectionPaddingY,
-        taskCardViewMinHeight,
-        taskNotepadViewActiveSectionPaddingY,
-        taskNotepadViewActiveSectionMarginBottom,
-    ),
-    mobile: addRemLengths(
-        taskNotepadViewActiveSectionMarginTop.mobile,
-        fontSizes[taskNotepadViewActiveSectionTitleFontSize.mobile].lineHeight,
-        taskNotepadViewActiveSectionPaddingY,
-        taskCardViewMinHeight,
-        taskNotepadViewActiveSectionPaddingY,
-        taskNotepadViewActiveSectionMarginBottom,
-    ),
-};
-
-export const taskNotepadViewPaginatorHeight = {desktop: "6", mobile: "7"} as const;
 
 export const newTaskCollectionNamePlaceholder = "New collection";
 export const defaultTaskQueryViewName = "New view";
@@ -168,3 +135,31 @@ export const taskQueryViewCustomizationBarDesktopMarginY: RemLength = `${
         parseRemLength(taskQueryFilterEditorDesktopHeight)) /
     2
 }rem`;
+
+export const taskDetailViewMainMinHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        convertRemLengthToPx(
+            addRemLengths(
+                navigationBarStyles.navigationBarHeight,
+                taskDetailViewTitleLineHeight,
+                taskDetailViewSectionGap,
+                taskDetailViewDenseFieldMinHeight,
+                taskDetailViewDenseFieldGap,
+                taskDetailViewDenseFieldMinHeight,
+                taskDetailViewSectionGap,
+                fontSizes[taskDetailViewFieldLabelFontSize].lineHeight,
+                taskDetailNotesFieldLabelPaddingBottom,
+            ),
+            spacingScale,
+        ) +
+        tasksStyles.detailNotesContentEditorMinHeightPx[spacingScale] +
+        convertRemLengthToPx(
+            addRemLengths(
+                taskDetailViewSectionGap,
+                fontSizes[taskDetailViewFieldLabelFontSize].lineHeight,
+                taskDetailViewSubtasksFieldLabelPaddingBottom,
+            ),
+            spacingScale,
+        ),
+);

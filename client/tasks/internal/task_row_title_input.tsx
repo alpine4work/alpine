@@ -2,12 +2,22 @@ import {setInteractionModality} from "@react-aria/interactions";
 import {useGlobalListeners} from "@react-aria/utils";
 import classNames from "classnames";
 import {CaretLeft, Lock} from "phosphor-react";
-import {AllSelection, EditorState, Selection, TextSelection} from "prosemirror-state";
+import {Fragment, Node, Schema as ProsemirrorSchema, Slice} from "prosemirror-model";
+import {
+    AllSelection,
+    EditorState,
+    Plugin,
+    PluginKey,
+    Selection,
+    TextSelection,
+} from "prosemirror-state";
+import {ReplaceStep} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {
     CSSProperties,
     Key,
     Memo,
+    MutableRefObject,
     Ref,
     forwardRef,
     useCallback,
@@ -19,18 +29,21 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
-import {ySyncPlugin, ySyncPluginKey, yUndoPlugin, yXmlFragmentToProsemirror} from "y-prosemirror";
-import * as Y from "yjs";
+import {isBrowserSpellcheckEnabled} from "~/client/content/is_browser_spellcheck_enabled.js";
+import {parseContentFromClipboard} from "~/client/content/parse_content_from_clipboard.js";
 import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/shared/build_shared_content_editor_input_rules_plugin.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useCanPrimaryInputHover} from "~/client/remix/platform_context.js";
+import {
+    getPlatformWithoutListening,
+    useCanPrimaryInputHover,
+} from "~/client/remix/platform_context.js";
 import {
     getSpacingScaleWithoutListening,
     useSpacingScale,
@@ -44,35 +57,63 @@ import {
     tasksStyles,
 } from "~/client/styles/styles.js";
 import {
+    taskGridViewColumnHeaderHeight,
     taskRowTitleInputPaddingYPx,
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
+import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
-import {TaskClientStoreTaskEntry} from "~/client/tasks/core/task_client_store.js";
+import {
+    TaskClientReadonlyStore,
+    TaskClientStoreTaskEntry,
+} from "~/client/tasks/core/task_client_store.js";
 import {buildTaskTitleInputKeymapPlugin} from "~/client/tasks/internal/build_task_title_input_keymap_plugin.js";
 import {createTaskEntryAccessStore} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
+import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {
     TaskRowTitleChildTasksButton,
     TaskRowTitleChildTasksButtonRef,
 } from "~/client/tasks/internal/task_row_title_child_tasks_button.js";
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
-import {RemLength, Spacing, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
-import {allSpacingScales, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {contentBaseProsemirrorSchemaSpec} from "~/shared/content/content_schema.js";
+import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {
+    RemLength,
+    Spacing,
+    addRemLengths,
+    convertRemLengthToPx,
+    parseRemLength,
+    spacing,
+} from "~/shared/design/core/spacing.js";
+import {
+    SpacingScale,
+    allSpacingScales,
+    remPxBySpacingScale,
+} from "~/shared/design/core/spacing_scale.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Store} from "~/shared/store/store.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {emptyTaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
+import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 import {
+    TaskTitleModel,
     TaskTitleProsemirrorSchema,
-    TaskTitleUpdate,
+    TaskTitleUpdateModel,
+    emptyTaskTitleModel,
     emptyTaskTitleProsemirrorNode,
 } from "~/shared/tasks/task_title.js";
 
@@ -96,6 +137,8 @@ const taskRowTitleInputAriaLabel = "Title";
 const taskRowTitleInputSingleLineClassName = `ProseMirror ${sprinkles({
     // Use an `inline-block` display so the `<div>` width is equal to our content width.
     display: "inline-block",
+    paddingLeft: tasksStyles.rowTitleInputSingleLineOverflowGradientMarginX,
+    paddingRight: tasksStyles.rowTitleInputSingleLineOverflowGradientMarginX,
     maxWidth: "full",
     height: taskRowTitleInputSingleLineHeight,
     overflowY: "hidden",
@@ -104,6 +147,11 @@ const taskRowTitleInputSingleLineClassName = `ProseMirror ${sprinkles({
     userSelect: "text",
 })}`;
 
+const taskRowTitleInputSingleLineMinWidth = `calc(1ch + ${addRemLengths(
+    tasksStyles.rowTitleInputSingleLineOverflowGradientMarginX,
+    tasksStyles.rowTitleInputSingleLineOverflowGradientMarginX,
+)})`;
+
 const taskRowTitleInputSingleLineStyle = createObjectFromKeys(
     allSpacingScales,
     (spacingScale): CSSProperties => ({
@@ -111,7 +159,7 @@ const taskRowTitleInputSingleLineStyle = createObjectFromKeys(
         paddingTop: `${taskRowTitleInputPaddingYPx[spacingScale]}px`,
         paddingBottom: `${taskRowTitleInputPaddingYPx[spacingScale]}px`,
         // Make sure we have room to render the cursor.
-        minWidth: "1ch",
+        minWidth: taskRowTitleInputSingleLineMinWidth,
         // Turn off text wrapping. This component emulates a single-line input.
         // https://developer.mozilla.org/en-US/docs/Web/CSS/white-space
         whiteSpace: "pre",
@@ -154,7 +202,6 @@ const taskRowTitleInputMultilineStyle = createObjectFromKeys(
 
 const rootClassName = sprinkles({
     display: "flex",
-    overflow: "hidden",
     position: "relative",
     zIndex: "0",
 });
@@ -162,10 +209,14 @@ const rootClassName = sprinkles({
 const containerClassName = sprinkles({
     position: "relative",
     zIndex: "0",
-    overflow: "hidden",
     minHeight: taskRowTitleInputSingleLineHeight,
     color: "grey-100",
 });
+
+const containerStyles: CSSProperties = {
+    // Make sure margin right can never completely hide the input text.
+    minWidth: "1ch",
+};
 
 const placeholderClassName = sprinkles({
     position: "absolute",
@@ -209,7 +260,6 @@ const parentTaskTitleClassName = sprinkles({
     alignItems: "center",
     gap: "0.5",
     maxWidth: "full",
-    overflow: "hidden",
 });
 
 const parentTaskTitleIconClassName = sprinkles({
@@ -238,14 +288,66 @@ export {TaskRowTitleInputForwardRef as TaskRowTitleInput};
 let scheduledDestroyTaskRowTitleInputEditorViewCallbacks: Array<() => void> | null = null;
 
 function TaskRowTitleInput(
-    {
+    props: {
+        capabilities: TaskGridViewCapabilities;
+        hasEditAccessLevel: boolean;
+        maxGridExpandableTaskDepth: number;
+        stateKey: Key | undefined;
+        store: TaskClientReadonlyStore;
+        query: TaskClientQuery | null;
+        isQueryManuallySorted: boolean;
+        task: TaskModel | null;
+        onTitleChange: (titleUpdate: TaskTitleUpdateModel) => void;
+        placeholder?: string;
+        indentation: number;
+        paddingRight: RemLength | undefined;
+        parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
+        parentTaskEntryStore: Store<TaskClientStoreTaskEntry> | null;
+        isGhostTask: boolean;
+        isFirstRow: boolean;
+        areChildTasksExpanded: boolean;
+        onAreChildTasksExpandedToggle: () => void;
+        createTaskAbove: () => void;
+        createTaskBelowAndFocus: () => void;
+        nestWithPreviousTaskRowIfExistsAndExpand: (selection: Selection) => void;
+        unnestTaskIfNestedRow: (selection: Selection) => void;
+        deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
+        focusNextTaskTitleCoord: (coord: number) => void;
+        focusPreviousTaskTitleCoord: (coord: number) => void;
+        preserveLastTaskTitleArrowNavigationCoord: () => void;
+        focusFirstVisibleTaskTitleStart: () => void;
+        focusLastVisibleTaskTitleEnd: () => void;
+        focusTaskTitleSelection: (gridKey: TaskGridViewTaskKey, selection: Selection) => void;
+        focusCell: Memo<(column: TaskGridViewColumn) => void>;
+        focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
+        focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
+        getMoveTaskToQueryActions: (
+            taskId: TaskId,
+            position:
+                | {type: "Start"}
+                | {type: "End"}
+                | {type: "Above"; taskId: TaskId}
+                | {type: "Below"; taskId: TaskId},
+        ) => Array<TaskActionModel>;
+        getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
+        commitActionTransaction: (
+            getActions:
+                | ((taskId: TaskId) => Iterable<TaskActionModel>)
+                | {
+                      getBeforeMoveTaskActions: (taskId: TaskId) => Iterable<TaskActionModel>;
+                      getAfterMoveTaskActions: (taskId: TaskId) => Iterable<TaskActionModel>;
+                  },
+        ) => void;
+    },
+    ref: Ref<TaskRowTitleInputRef>,
+) {
+    const {
         capabilities,
         hasEditAccessLevel,
         maxGridExpandableTaskDepth,
         stateKey,
         query,
         task,
-        onTitleChange,
         placeholder,
         indentation,
         paddingRight,
@@ -265,45 +367,8 @@ function TaskRowTitleInput(
         focusCell,
         focusNextCell,
         focusPreviousCell,
-        pushUndoStackYDocEntry,
-        pushUndoStackYDocEntryFromRedo,
-        pushRedoStackYDocEntry,
-    }: {
-        capabilities: TaskGridViewCapabilities;
-        hasEditAccessLevel: boolean;
-        maxGridExpandableTaskDepth: number;
-        stateKey: Key | undefined;
-        query: TaskClientQuery;
-        task: TaskModel | null;
-        onTitleChange: (titleUpdate: TaskTitleUpdate) => void;
-        placeholder?: string;
-        indentation: number;
-        paddingRight: RemLength | undefined;
-        parentTaskEntryStore: Store<TaskClientStoreTaskEntry> | null;
-        areChildTasksExpanded: boolean;
-        onAreChildTasksExpandedToggle: () => void;
-        createTaskAbove: () => void;
-        createTaskBelowAndFocus: () => void;
-        nestWithPreviousTaskRowIfExistsAndExpand: (selection: Selection) => void;
-        unnestTaskIfNestedRow: (selection: Selection) => void;
-        deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
-        focusNextTaskTitleCoord: (coord: number) => void;
-        focusPreviousTaskTitleCoord: (coord: number) => void;
-        preserveLastTaskTitleArrowNavigationCoord: () => void;
-        focusFirstVisibleTaskTitleStart: () => void;
-        focusLastVisibleTaskTitleEnd: () => void;
-        focusCell: Memo<(column: TaskGridViewColumn) => void>;
-        focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
-        focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
-        pushUndoStackYDocEntry: (entry: {yUndoManager: Y.UndoManager; release: () => void}) => void;
-        pushUndoStackYDocEntryFromRedo: (entry: {
-            yUndoManager: Y.UndoManager;
-            release: () => void;
-        }) => void;
-        pushRedoStackYDocEntry: (entry: {yUndoManager: Y.UndoManager; release: () => void}) => void;
-    },
-    ref: Ref<TaskRowTitleInputRef>,
-) {
+    } = props;
+
     // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
     // this component. It is critical for scroll performance that this component
     // renders fast. Use the `sprinkles()` function in the module body instead.
@@ -321,9 +386,10 @@ function TaskRowTitleInput(
     const sprinkles = null;
 
     const canPrimaryInputHover = useCanPrimaryInputHover();
-    const {isAppleDevice} = useClientInfo();
+    const {isAppleDevice, timeZone} = useClientInfo();
     const spacingScale = useSpacingScale();
     const isInitialAppRender = useIsInitialAppRender();
+    const {space, currentAccount} = useSpaceContext();
 
     // Title input is in dual modality mode if:
     //
@@ -344,14 +410,6 @@ function TaskRowTitleInput(
     const childTasksButtonRef = useRef<TaskRowTitleChildTasksButtonRef>(null);
 
     const title = task?.getTitle() ?? emptyTaskTitleModel.get();
-
-    const titleYDoc = useTaskTitleModelYDoc({
-        title,
-        onTitleChange,
-        pushUndoStackYDocEntry,
-        pushUndoStackYDocEntryFromRedo,
-        pushRedoStackYDocEntry,
-    });
 
     const handleKeyDown = (view: EditorView, event: KeyboardEvent) => {
         switch (event.key) {
@@ -510,17 +568,23 @@ function TaskRowTitleInput(
         }
     };
 
+    const propsRef = useRef(props);
     const titleRef = useRef(title);
     const handleKeyDownRef = useRef(handleKeyDown);
-    const hasEditAccessLevelRef = useRef(hasEditAccessLevel);
+    const timeZoneRef = useRef(timeZone);
     const spacingScaleRef = useRef(spacingScale);
     const isDualModalityRef = useRef(isDualModality);
+    const spaceIdRef = useRef(space.id);
+    const currentAccountIdRef = useRef(currentAccount?.id);
     useInsertionEffect(() => {
+        propsRef.current = props;
         titleRef.current = title;
         handleKeyDownRef.current = handleKeyDown;
-        hasEditAccessLevelRef.current = hasEditAccessLevel;
+        timeZoneRef.current = timeZone;
         spacingScaleRef.current = spacingScale;
         isDualModalityRef.current = isDualModality;
+        spaceIdRef.current = space.id;
+        currentAccountIdRef.current = currentAccount?.id;
     });
 
     const onNextLayoutEffectCallbacksRef = useRef<Array<() => void>>([]);
@@ -533,14 +597,13 @@ function TaskRowTitleInput(
         }
     });
 
+    const updateTitleStateRef = useRef<{
+        titleUpdate: TaskTitleUpdateModel;
+        titleState: EditorState;
+    } | null>(null);
+
     // eslint-disable-next-line @typescript-eslint/unbound-method
     const {addGlobalListener, removeAllGlobalListeners} = useGlobalListeners();
-
-    // We initially consider ourselves to be fully scrolled to the left and to the
-    // right. This means on server-render we won't see gradients. They will flash
-    // in when we can measure element widths.
-    const [isFullyScrolledLeft, setIsFullyScrolledLeft] = useState(true);
-    const [isFullyScrolledRight, setIsFullyScrolledRight] = useState(true);
 
     const shouldShowChildTasksButton = (task?.getChildTaskCount() ?? 0) > 0;
 
@@ -659,12 +722,6 @@ function TaskRowTitleInput(
             const containerElement = assertExists(rootElement.firstElementChild);
             assert(containerElement.childElementCount === 0);
 
-            const yXmlFragment = titleYDoc.getXmlFragment("doc");
-
-            // Make sure our undo manager sees transactions originating from our
-            // `EditorView`.
-            titleYDoc.getUndoManager().addTrackedOrigin(ySyncPluginKey);
-
             const viewElement = document.createElement("div");
             containerElement.appendChild(viewElement);
 
@@ -677,9 +734,7 @@ function TaskRowTitleInput(
             // perform a browser layout which is expensive.
             viewElement.ariaLabel = taskRowTitleInputAriaLabel;
             viewElement.className = capabilities.hasMultilineTitle
-                ? hasMultilineTitleAndShouldShowMarginRightContent
-                    ? `${taskRowTitleInputMultilineClassName} ${tasksStyles.rowTitleInputMultilineAfterClassName}`
-                    : taskRowTitleInputMultilineClassName
+                ? taskRowTitleInputMultilineClassName
                 : taskRowTitleInputSingleLineClassName;
             Object.assign(
                 viewElement.style,
@@ -692,24 +747,69 @@ function TaskRowTitleInput(
             viewElement.dataset.scrollbar = "false";
 
             const initialIsDualModality = isDualModalityRef.current;
-            const initialHasEditAccessLevel = hasEditAccessLevelRef.current;
+            const initialHasEditAccessLevel = propsRef.current.hasEditAccessLevel;
             const initialIsEditable = !initialIsDualModality && initialHasEditAccessLevel;
+
+            let lastPlatform: Platform | null = null;
+            let lastSpacingScale: SpacingScale | null = null;
+            let lastScrollMargin: {
+                top: number;
+                bottom: number;
+                left: number;
+                right: number;
+            } | null = null;
+
+            function getScrollMargin() {
+                const platform = getPlatformWithoutListening();
+                const spacingScale = getSpacingScaleWithoutListening();
+
+                if (
+                    lastScrollMargin !== null &&
+                    lastPlatform === platform &&
+                    lastSpacingScale === spacingScale
+                ) {
+                    return lastScrollMargin;
+                }
+
+                lastPlatform = platform;
+                lastSpacingScale = spacingScale;
+
+                const scrollMarginY =
+                    taskRowTitleInputPaddingYPx[spacingScale] +
+                    convertRemLengthToPx(spacing["4"], spacingScale);
+
+                const scrollMarginTop =
+                    scrollMarginY +
+                    (platform === "mobile"
+                        ? convertRemLengthToPx(navigationBarHeight, spacingScale)
+                        : convertRemLengthToPx(
+                              addRemLengths(navigationBarHeight, taskGridViewColumnHeaderHeight),
+                              spacingScale,
+                          ));
+
+                const scrollMarginX = convertRemLengthToPx(
+                    tasksStyles.rowTitleInputSingleLineOverflowGradientMarginX,
+                    spacingScale,
+                );
+
+                lastScrollMargin = {
+                    top: scrollMarginTop,
+                    bottom: scrollMarginY,
+                    left: scrollMarginX,
+                    right: scrollMarginX,
+                };
+
+                return lastScrollMargin;
+            }
 
             const view = new EditorView(
                 {mount: viewElement},
                 {
                     state: EditorState.create({
                         schema: TaskTitleProsemirrorSchema,
-                        // Make sure we start with the correct initial document. After this the
-                        // `ySyncPlugin` manages document state.
-                        doc: yXmlFragmentToProsemirror(TaskTitleProsemirrorSchema, yXmlFragment),
+                        doc: titleRef.current.getProsemirrorNode(),
                         plugins: [
-                            ySyncPlugin(yXmlFragment),
-
-                            // We install the Y.js undo plugin but we don't install the `undo`/`redo`
-                            // commands from `y-prosemirror` in a keymap. Instead `useTaskTitleModelYDoc()`
-                            // registers us with our global undo stack.
-                            yUndoPlugin({undoManager: titleYDoc.getUndoManager()}),
+                            taskTitlePlugin(titleRef.current),
 
                             buildSharedContentEditorInputRulesPlugin(),
                             buildTaskTitleInputKeymapPlugin(),
@@ -718,6 +818,13 @@ function TaskRowTitleInput(
                             sharedContentEditorTrackSelectionWithinPlugin(),
                         ],
                     }),
+
+                    get scrollThreshold() {
+                        return getScrollMargin();
+                    },
+                    get scrollMargin() {
+                        return getScrollMargin();
+                    },
 
                     // We add this prop to `prosemirror-view` with a patch. With this prop when the
                     // editor is focused we place focus where the browser places focus. So if the
@@ -757,7 +864,10 @@ function TaskRowTitleInput(
                         // spellings. But if we have our own right-click menu we can't show the correct
                         // spellings there so we only show a permanent red squiggle which is bad. I
                         // think the best answer here is to build our own spellchecker eventually.
-                        ...(!isMobileWebKit ? {spellcheck: "false"} : undefined),
+                        ...(!isMobileWebKit &&
+                        !isBrowserSpellcheckEnabled(currentAccountIdRef.current)
+                            ? {spellcheck: "false"}
+                            : undefined),
                     },
 
                     handleKeyDown: (view, event) => {
@@ -776,20 +886,72 @@ function TaskRowTitleInput(
                         return event.defaultPrevented;
                     },
 
+                    handleDOMEvents: {
+                        paste: (view, event) => {
+                            handleTaskRowTitleInputPaste(event, {
+                                store: propsRef.current.store,
+                                spaceId: spaceIdRef.current,
+                                currentAccountId: assertExists(currentAccountIdRef.current),
+                                timeZone: timeZoneRef.current,
+                                isQueryManuallySorted: propsRef.current.isQueryManuallySorted,
+                                parents: propsRef.current.parents,
+                                isGhostTask: propsRef.current.isGhostTask,
+                                isFirstRow: propsRef.current.isFirstRow,
+                                titleState: view.state,
+                                updateTitleStateRef,
+                                focusTaskTitleSelection: propsRef.current.focusTaskTitleSelection,
+                                getMoveTaskToQueryActions:
+                                    propsRef.current.getMoveTaskToQueryActions,
+                                getMaybeRemoveTaskFromQueryActions:
+                                    propsRef.current.getMaybeRemoveTaskFromQueryActions,
+                                commitActionTransaction: propsRef.current.commitActionTransaction,
+                            });
+
+                            return true;
+                        },
+                    },
+
                     dispatchTransaction: transaction => {
                         const oldTitleState = view.state;
-                        const newTitleState = oldTitleState.apply(transaction);
 
-                        updateEditorEmptyClass(newTitleState);
-
-                        view.updateState(newTitleState);
-
-                        if (hasMultilineTitleAndShouldShowMarginRightContent) {
-                            // Make sure React state updates render in the same paint as transaction.
-                            runWithImmediatePriority(() => {
-                                updateMultilineState(false);
-                            });
+                        if (!transaction.docChanged) {
+                            const newTitleState = oldTitleState.apply(transaction);
+                            view.updateState(newTitleState);
+                            return;
                         }
+
+                        const titleUpdate = titleRef.current.replaceMany(
+                            mapIterable(transaction.steps, step => {
+                                assert(step instanceof ReplaceStep);
+                                return step;
+                            }),
+                        );
+
+                        const newTitleState = oldTitleState.apply(
+                            transaction.setMeta(taskTitlePluginKey, titleUpdate.newTitle),
+                        );
+
+                        updateTitleStateRef.current = {
+                            titleUpdate,
+                            titleState: newTitleState,
+                        };
+
+                        // We must flush synchronously. Since ProseMirror preserves local DOM
+                        // state when we call `updateState()` synchronously but won't otherwise.
+                        //
+                        // See the "Efficient updating" section in the [editor view guide][1].
+                        // If we don't synchronously apply the transaction it is considered
+                        // cancelled. A quote from the guide:
+                        //
+                        // > When such a transaction is canceled or modified somehow, the view
+                        // > will undo the DOM change...
+                        //
+                        // [1]: https://prosemirror.net/docs/guide/#view
+                        flushSync(() => {
+                            propsRef.current.onTitleChange(titleUpdate);
+                        });
+
+                        updateTitleStateRef.current = null;
                     },
                 },
             );
@@ -797,149 +959,6 @@ function TaskRowTitleInput(
             if (!initialIsEditable) {
                 view.dom.classList.add(tasksStyles.rowTitleInputIsNotEditableClassName);
             }
-
-            const updateFullyScrolledState = (isInitialUpdate: boolean) => {
-                const isFullyScrolledLeft = view.dom.scrollLeft === 0;
-                const isFullyScrolledRight =
-                    Math.ceil(view.dom.scrollLeft + view.dom.clientWidth) + 1 >=
-                    view.dom.scrollWidth;
-
-                // NOTE(calebmer): For performance, it's important we call
-                // `setMultilineState()` instead of directly updating styles. This way React
-                // batches DOM writes. So we batch DOM reads in `useLayoutEffect()` then batch
-                // DOM writes with state updates. Otherwise we risk [layout thrashing][1].
-                //
-                // NOTE(calebmer): Unexpectedly, I've found calling `setState(state)` on the
-                // first render if `state` is the same as the hook's initial state triggers a
-                // React re-render. I would have expected React to noop calls that don't change
-                // state. Maybe it behaves differently on the first render? Anyway, avoid
-                // calling `setState(state)` on initial update if we can.
-                //
-                // [1]: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
-
-                if (!isInitialUpdate || !isFullyScrolledLeft) {
-                    setIsFullyScrolledLeft(isFullyScrolledLeft);
-                }
-
-                if (!isInitialUpdate || !isFullyScrolledRight) {
-                    setIsFullyScrolledRight(isFullyScrolledRight);
-                }
-            };
-
-            // This reads from the DOM (`scrollLeft`). We can't run this during React's
-            // insertion phase. It has to run in a layout effect.
-            onNextLayoutEffectCallbacksRef.current.push(() => {
-                if (view.isDestroyed) return;
-                updateFullyScrolledState(true);
-            });
-
-            view.dom.addEventListener("scroll", () => updateFullyScrolledState(false));
-
-            const updateEditorEmptyClass = (state: EditorState) => {
-                const addEmptyClassName = state.doc.childCount === 0;
-                if (
-                    addEmptyClassName &&
-                    !rootElement.classList.contains(
-                        tasksStyles.rowTitleInputEmptyContainerClassName,
-                    )
-                ) {
-                    rootElement.classList.add(tasksStyles.rowTitleInputEmptyContainerClassName);
-                }
-                if (
-                    !addEmptyClassName &&
-                    rootElement.classList.contains(tasksStyles.rowTitleInputEmptyContainerClassName)
-                ) {
-                    rootElement.classList.remove(tasksStyles.rowTitleInputEmptyContainerClassName);
-                }
-            };
-
-            // This mutates the DOM but does not read from the DOM in a way that triggers
-            // layout. It's ok to run during React's insertion phase.
-            updateEditorEmptyClass(view.state);
-
-            const updateMultilineState = (isInitialUpdate: boolean) => {
-                assert(hasMultilineTitleAndShouldShowMarginRightContent);
-                const {state} = view;
-
-                const rootRect = rootElement.getBoundingClientRect();
-                let newMultilineState: TaskRowTitleInputMultilineState | null = null;
-
-                const spacingScale = getSpacingScaleWithoutListening();
-                const remPx = remPxBySpacingScale[spacingScale];
-
-                if (
-                    state.doc.nodeSize > 2 &&
-                    // Make sure the input has more than one line...
-                    rootRect.height > taskRowTitleInputSingleLineHeightRem * remPx
-                ) {
-                    const endCoords = view.coordsAtPos(state.doc.nodeSize - 2, 1);
-                    const remainingWidth = rootRect.left + rootRect.width - endCoords.left;
-
-                    // If there's less width than our "after width" that means our after class will
-                    // have broken out a new line. So our margin right content should render at the
-                    // start of that new line.
-                    if (remainingWidth < taskRowTitleInputMultilineAfterWidthRem * remPx) {
-                        newMultilineState = {
-                            remainingWidth: rootRect.width,
-                            withoutMarginLeft: true,
-                        };
-                    } else {
-                        newMultilineState = {
-                            remainingWidth,
-                            withoutMarginLeft: false,
-                        };
-                    }
-                }
-
-                // NOTE(calebmer): For performance, it's important we call
-                // `setMultilineState()` instead of directly updating styles. This way React
-                // batches DOM writes. So we batch DOM reads in `useLayoutEffect()` then batch
-                // DOM writes with state updates. Otherwise we risk [layout thrashing][1].
-                //
-                // NOTE(calebmer): Unexpectedly, I've found calling `setState(state)` on the
-                // first render if `state` is the same as the hook's initial state triggers a
-                // React re-render. I would have expected React to noop calls that don't change
-                // state. Maybe it behaves differently on the first render? Anyway, avoid
-                // calling `setState(state)` on initial update if we can.
-                //
-                // [1]: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
-                if (!isInitialUpdate || newMultilineState !== null) {
-                    setMultilineState(multilineState => {
-                        if (newMultilineState === null) return newMultilineState;
-                        if (multilineState === null) return newMultilineState;
-
-                        if (
-                            multilineState.remainingWidth === newMultilineState.remainingWidth &&
-                            multilineState.withoutMarginLeft === newMultilineState.withoutMarginLeft
-                        ) {
-                            return multilineState;
-                        }
-
-                        return newMultilineState;
-                    });
-                }
-            };
-
-            if (hasMultilineTitleAndShouldShowMarginRightContent) {
-                // This reads from the DOM (`getBoundingClientRect`). We can't run this during
-                // React's insertion phase. It has to run in a layout effect.
-                onNextLayoutEffectCallbacksRef.current.push(() => {
-                    if (view.isDestroyed) return;
-                    updateMultilineState(true);
-                });
-            }
-
-            // When the window resizes, re-evaluate state that depends on task
-            // container size.
-            const handleWindowResize = () => {
-                updateFullyScrolledState(false);
-
-                if (hasMultilineTitleAndShouldShowMarginRightContent) {
-                    updateMultilineState(false);
-                }
-            };
-
-            window.addEventListener("resize", handleWindowResize);
 
             // NOTE(calebmer): The logic here is taken almost exactly from
             // `<ContentEditor>` since that component supports dual modality on mobile
@@ -1074,7 +1093,6 @@ function TaskRowTitleInput(
             }
 
             return () => {
-                window.removeEventListener("resize", handleWindowResize);
                 document.removeEventListener("selectionchange", handleDocumentSelectionChange);
 
                 viewRef.current = {isReady: false, callbacks: new Set()};
@@ -1108,14 +1126,205 @@ function TaskRowTitleInput(
             // careful about what you put in here. Ideally we never destroy the
             // `EditorView` while this component is mounted.
         },
-        [
-            capabilities.hasMultilineTitle,
-            isInitialAppRender,
-            titleYDoc,
-            hasMultilineTitleAndShouldShowMarginRightContent,
-            spacingScale,
-        ],
+        [capabilities.hasMultilineTitle, isInitialAppRender, spacingScale],
     );
+
+    // NOTE(calebmer): This used to be in the above `useInsertionEffect()` but we
+    // saw bugs since we were destroying the `EditorView` whenever
+    // `hasMultilineTitleAndShouldShowMarginRightContent` changes. See the
+    // integration test added by this commit for an example bug that moving this
+    // logic to its own effect fixes.
+    useInsertionEffect(
+        (rootElement?: HTMLDivElement) => {
+            if (isInitialAppRender) return;
+            if (!hasMultilineTitleAndShouldShowMarginRightContent) return;
+
+            let isDestroyed = false;
+
+            assert(rootElement);
+
+            assert(viewRef.current.isReady);
+            const {view} = viewRef.current;
+
+            view.dom.classList.add(tasksStyles.rowTitleInputMultilineAfterClassName);
+
+            const updateMultilineState = (isInitialUpdate: boolean) => {
+                assert(!isDestroyed);
+
+                const {state} = view;
+
+                const rootRect = rootElement.getBoundingClientRect();
+                let newMultilineState: TaskRowTitleInputMultilineState | null = null;
+
+                const spacingScale = getSpacingScaleWithoutListening();
+                const remPx = remPxBySpacingScale[spacingScale];
+
+                if (
+                    state.doc.nodeSize > 2 &&
+                    // Make sure the input has more than one line...
+                    rootRect.height > taskRowTitleInputSingleLineHeightRem * remPx
+                ) {
+                    const endCoords = view.coordsAtPos(state.doc.nodeSize - 2, 1);
+                    const remainingWidth = rootRect.left + rootRect.width - endCoords.left;
+
+                    // If there's less width than our "after width" that means our after class will
+                    // have broken out a new line. So our margin right content should render at the
+                    // start of that new line.
+                    if (remainingWidth < taskRowTitleInputMultilineAfterWidthRem * remPx) {
+                        newMultilineState = {
+                            remainingWidth: rootRect.width,
+                            withoutMarginLeft: true,
+                        };
+                    } else {
+                        newMultilineState = {
+                            remainingWidth,
+                            withoutMarginLeft: false,
+                        };
+                    }
+                }
+
+                // NOTE(calebmer): For performance, it's important we call
+                // `setMultilineState()` instead of directly updating styles. This way React
+                // batches DOM writes. So we batch DOM reads in `useLayoutEffect()` then batch
+                // DOM writes with state updates. Otherwise we risk [layout thrashing][1].
+                //
+                // NOTE(calebmer): Unexpectedly, I've found calling `setState(state)` on the
+                // first render if `state` is the same as the hook's initial state triggers a
+                // React re-render. I would have expected React to noop calls that don't change
+                // state. Maybe it behaves differently on the first render? Anyway, avoid
+                // calling `setState(state)` on initial update if we can.
+                //
+                // [1]: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
+                if (!isInitialUpdate || newMultilineState !== null) {
+                    setMultilineState(multilineState => {
+                        if (newMultilineState === null) return newMultilineState;
+                        if (multilineState === null) return newMultilineState;
+
+                        if (
+                            multilineState.remainingWidth === newMultilineState.remainingWidth &&
+                            multilineState.withoutMarginLeft === newMultilineState.withoutMarginLeft
+                        ) {
+                            return multilineState;
+                        }
+
+                        return newMultilineState;
+                    });
+                }
+            };
+
+            // This reads from the DOM (`getBoundingClientRect`). We can't run this during
+            // React's insertion phase. It has to run in a layout effect.
+            onNextLayoutEffectCallbacksRef.current.push(() => {
+                if (view.isDestroyed) return;
+                updateMultilineState(true);
+            });
+
+            // eslint-disable-next-line @typescript-eslint/unbound-method
+            const originalUpdateState = view.updateState;
+
+            // Modify `view.updateState()` to update multiline state whenever our editor
+            // state changes.
+            view.updateState = function (state: EditorState) {
+                originalUpdateState.call(this, state);
+
+                // Make sure React state updates render in the same paint as transaction.
+                updateMultilineState(false);
+            };
+
+            // When the window resizes, re-evaluate state that depends on task
+            // container size.
+            const handleWindowResize = () => {
+                updateMultilineState(false);
+            };
+
+            window.addEventListener("resize", handleWindowResize);
+
+            return () => {
+                isDestroyed = true;
+                view.dom.classList.remove(tasksStyles.rowTitleInputMultilineAfterClassName);
+                view.updateState = originalUpdateState;
+                window.removeEventListener("resize", handleWindowResize);
+            };
+        },
+        [hasMultilineTitleAndShouldShowMarginRightContent, isInitialAppRender],
+    );
+
+    // Reconcile our imperative `EditorView` state with state from React. If this
+    // is run by `dispatchTransaction()` (which updates state in `flushSync()`)
+    // then this should be flushed synchronously given this is a layout effect.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isInitialAppRender) return;
+
+        assert(viewRef.current.isReady);
+        const {view} = viewRef.current;
+        const {state} = view;
+
+        // Optimization: If the user is currently typing (in other words
+        // `dispatchTransaction` is called) then `updateTitleStateRef.current` will be
+        // populated with the new `EditorState` which'll have the correct selection.
+        if (updateTitleStateRef.current?.titleUpdate.newTitle === title) {
+            view.updateState(updateTitleStateRef.current.titleState);
+            return;
+        }
+
+        if (title.getProsemirrorNode() === state.doc) return;
+
+        const transaction = state.tr;
+
+        // If something externally changes the title (e.g. another user in realtime or
+        // an undo) then we completely replace the ProseMirror content with the new
+        // content. Then manually move the selection to its new position.
+        //
+        // This is the same approach [`y-prosemirror` uses][1]. This approach has
+        // [meaningful drawbacks][2]. Namely any decorations being maintained via
+        // `decorationSet.map()` will be wiped away by the full replace. We don't have
+        // any decorations on this editor currently so it's not an issue for us right
+        // now.
+        //
+        // It should be possible to compute a precise text diff between `oldTitle` and
+        // the new `title` using the Yjs CRDT structure. Then call
+        // `transaction.replace()` just for the changed text ranges. This would
+        // preserve anything that needs to be `map()`ed along by ProseMirror (like
+        // decorations for some plugins). However, such an algorithm would be
+        // challenging to write so we copy the dumb `y-prosemirror` strategy for now.
+        //
+        // [1]: https://github.com/yjs/y-prosemirror/blob/15a3862640d4a0d02eae8cbf895f4c9927413a9e/src/plugins/sync-plugin.js#L567-L571
+        // [2]: https://discuss.prosemirror.net/t/offline-peer-to-peer-collaborative-editing-using-yjs/2488
+        transaction.replace(
+            0,
+            state.doc.content.size,
+            new Slice(Fragment.from(title.getProsemirrorNode()), 0, 0),
+        );
+
+        // Move the selection to a new position using Yjs relative positions.
+        // The Yjs CRDT contains enough information to map positions on its own without
+        // needing the intermediate updates.
+        //
+        // TODO(calebmer): If this title update is from an undo ideally we'd reset the
+        // selection to whatever it was before the undo. This is the standard
+        // convention for text editors. Not implementing for now because wiring all the
+        // pieces up through the task undo system is annoying.
+        {
+            const oldTitle = assertExists(taskTitlePluginKey.getState(view.state));
+
+            const anchor = title.fromRelativePosition(
+                oldTitle.intoRelativePosition(state.selection.anchor),
+            );
+            const head = title.fromRelativePosition(
+                oldTitle.intoRelativePosition(state.selection.head),
+            );
+
+            if (state.selection instanceof AllSelection) {
+                transaction.setSelection(new AllSelection(transaction.doc));
+            } else if (anchor !== null && head !== null) {
+                transaction.setSelection(TextSelection.create(transaction.doc, anchor, head));
+            }
+        }
+
+        transaction.setMeta(taskTitlePluginKey, title);
+
+        view.updateState(state.apply(transaction));
+    }, [isInitialAppRender, title]);
 
     const [isFocused, setIsFocused] = useState(false);
 
@@ -1138,7 +1347,9 @@ function TaskRowTitleInput(
             // documentation on why we set these attributes.
             attributes: {
                 ...(isEditable ? {tabindex: "-1"} : {}),
-                ...(!isMobileWebKit ? {spellcheck: "false"} : undefined),
+                ...(!isMobileWebKit && !isBrowserSpellcheckEnabled(currentAccountIdRef.current)
+                    ? {spellcheck: "false"}
+                    : undefined),
             },
         });
 
@@ -1161,6 +1372,12 @@ function TaskRowTitleInput(
         };
 
         const handleBlur = () => {
+            // If `<TaskRowTitleInput>` is focused when `view.destroy()` is called then
+            // `handleBlur` will be called in a `useInsertionEffect()` cleanup which will
+            // cause React to log a warning. So don't change state if the view is
+            // destroyed.
+            if (!viewRef.current.isReady || viewRef.current.view !== view) return;
+
             setIsFocused(false);
         };
 
@@ -1225,7 +1442,7 @@ function TaskRowTitleInput(
                 return viewRef.current.view.dom === document.activeElement;
             },
             focusStart: () => {
-                if (!hasEditAccessLevelRef.current) {
+                if (!propsRef.current.hasEditAccessLevel) {
                     focusCell("Title");
                     return;
                 }
@@ -1244,7 +1461,7 @@ function TaskRowTitleInput(
                 });
             },
             focusEnd: () => {
-                if (!hasEditAccessLevelRef.current) {
+                if (!propsRef.current.hasEditAccessLevel) {
                     focusCell("Title");
                     return;
                 }
@@ -1263,7 +1480,7 @@ function TaskRowTitleInput(
                 });
             },
             focusAll: () => {
-                if (!hasEditAccessLevelRef.current) {
+                if (!propsRef.current.hasEditAccessLevel) {
                     focusCell("Title");
                     return;
                 }
@@ -1282,7 +1499,7 @@ function TaskRowTitleInput(
                 });
             },
             focusCoord: (coord: number, side: "top" | "bottom") => {
-                if (!hasEditAccessLevelRef.current) {
+                if (!propsRef.current.hasEditAccessLevel) {
                     focusCell("Title");
                     return;
                 }
@@ -1319,7 +1536,7 @@ function TaskRowTitleInput(
                 });
             },
             focusSelection: (selection: Selection) => {
-                if (!hasEditAccessLevelRef.current) {
+                if (!propsRef.current.hasEditAccessLevel) {
                     focusCell("Title");
                     return;
                 }
@@ -1392,25 +1609,17 @@ function TaskRowTitleInput(
         <div
             className={classNames(
                 rootClassName,
-                titleNodeForInitialAppRender &&
-                    titleNodeForInitialAppRender.childCount === 0 &&
-                    // We use a different class than `rowTitleInputEmptyContainerClassName` because
-                    // we don't want React removing the class managed by `updateEditorEmptyClass()`.
-                    tasksStyles.rowTitleInputInitialAppRenderEmptyContainerClassName,
+                title.getProsemirrorNode().childCount === 0 &&
+                    tasksStyles.rowTitleInputEmptyContainerClassName,
             )}
         >
             <div
                 className={classNames(
                     containerClassName,
-                    !isFullyScrolledLeft &&
-                        tasksStyles.rowTitleInputOverflowGradientLeftContainerClassName,
-                    !isFullyScrolledRight &&
-                        tasksStyles.rowTitleInputOverflowGradientRightContainerClassName,
+                    !capabilities.hasMultilineTitle &&
+                        tasksStyles.rowTitleInputSingleLineOverflowGradientContainerClassName,
                 )}
-                style={{
-                    // Make sure margin right can never completely hide the input text.
-                    minWidth: "1ch",
-                }}
+                style={containerStyles}
                 onBlur={() => {
                     runWhenViewIsReady(view => {
                         // Reset scroll position when focus leaves the input.
@@ -1641,11 +1850,31 @@ function TaskRowTitleInput(
     );
 }
 
+const taskTitlePluginKey = new PluginKey<TaskTitleModel>("taskTitle");
+
+function taskTitlePlugin(initialTaskTitle: TaskTitleModel) {
+    return new Plugin<TaskTitleModel>({
+        key: taskTitlePluginKey,
+        state: {
+            init: () => initialTaskTitle,
+            apply: (transaction, oldTitle) => {
+                const newTitle: TaskTitleModel | undefined =
+                    transaction.getMeta(taskTitlePluginKey);
+                if (newTitle) {
+                    return newTitle;
+                }
+
+                return oldTitle;
+            },
+        },
+    });
+}
+
 function TaskRowTitleParentTaskTitle({
     query,
     parentTaskEntryStore,
 }: {
-    query: TaskClientQuery;
+    query: TaskClientQuery | null;
     parentTaskEntryStore: Store<TaskClientStoreTaskEntry>;
 }) {
     // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
@@ -1668,7 +1897,14 @@ function TaskRowTitleParentTaskTitle({
 
     const access = useStore(
         useMemo(
-            () => createTaskEntryAccessStore(currentAccount?.id, query, parentTaskEntryStore),
+            () =>
+                createTaskEntryAccessStore(
+                    currentAccount?.id,
+                    // If `query` is null then we'll only ever render a ghost task. Ghost tasks
+                    // should never have a parent task.
+                    assertExists(query),
+                    parentTaskEntryStore,
+                ),
             [currentAccount?.id, parentTaskEntryStore, query],
         ),
     );
@@ -1704,4 +1940,385 @@ function TaskRowTitleParentTaskTitle({
             </div>
         );
     }, [access.type, parentTaskTitle]);
+}
+
+// Copied from ProseMirror:
+// https://github.com/ProseMirror/prosemirror-view/blob/7e97ca8b735cd5a38c126fb9b7cfa95201c05e31/src/input.ts#L635-L640
+function getClipboardDataText(clipboardData: DataTransfer) {
+    const text = clipboardData.getData("text/plain") || clipboardData.getData("Text");
+    if (text) return text;
+    const uris = clipboardData.getData("text/uri-list");
+    return uris ? uris.replace(/\r?\n/g, " ") : "";
+}
+
+function handleTaskRowTitleInputPaste(
+    event: ClipboardEvent,
+    {
+        store,
+        spaceId,
+        currentAccountId,
+        timeZone,
+        isQueryManuallySorted,
+        parents,
+        isGhostTask,
+        isFirstRow,
+        titleState,
+        updateTitleStateRef,
+        focusTaskTitleSelection,
+        getMoveTaskToQueryActions,
+        getMaybeRemoveTaskFromQueryActions,
+        commitActionTransaction,
+    }: {
+        store: TaskClientReadonlyStore;
+        spaceId: SpaceId;
+        currentAccountId: AccountId;
+        timeZone: TimeZone;
+        isQueryManuallySorted: boolean;
+        parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
+        isGhostTask: boolean;
+        isFirstRow: boolean;
+        titleState: EditorState;
+        updateTitleStateRef: MutableRefObject<{
+            titleUpdate: TaskTitleUpdateModel;
+            titleState: EditorState;
+        } | null>;
+        focusTaskTitleSelection: (gridKey: TaskGridViewTaskKey, selection: Selection) => void;
+        getMoveTaskToQueryActions: (
+            taskId: TaskId,
+            position:
+                | {type: "Start"}
+                | {type: "End"}
+                | {type: "Above"; taskId: TaskId}
+                | {type: "Below"; taskId: TaskId},
+        ) => Array<TaskActionModel>;
+        getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
+        commitActionTransaction: (
+            getActions:
+                | ((taskId: TaskId) => Iterable<TaskActionModel>)
+                | {
+                      getBeforeMoveTaskActions: (taskId: TaskId) => Iterable<TaskActionModel>;
+                      getAfterMoveTaskActions: (taskId: TaskId) => Iterable<TaskActionModel>;
+                  },
+        ) => void;
+    },
+) {
+    event.preventDefault();
+
+    const schema = new ProsemirrorSchema({
+        nodes: {
+            doc: contentBaseProsemirrorSchemaSpec.nodes.doc,
+            text: contentBaseProsemirrorSchemaSpec.nodes.text,
+            paragraph: contentBaseProsemirrorSchemaSpec.nodes.paragraph,
+            unorderedListItem: contentBaseProsemirrorSchemaSpec.nodes.unorderedListItem,
+            orderedListItem: contentBaseProsemirrorSchemaSpec.nodes.orderedListItem,
+        },
+    });
+
+    // Parse the pasted data using a custom ProseMirror content schema that can
+    // only parse paragraphs and list items. If we see indented list items we want
+    // to convert them into subtasks.
+    const slice =
+        parseContentFromClipboard(
+            spaceId,
+            schema,
+            null,
+            event.clipboardData ? getClipboardDataText(event.clipboardData) : "",
+            event.clipboardData?.getData("text/html") ?? null,
+            false,
+        ) ?? Slice.empty;
+
+    type PastedTask = {
+        title: string;
+        childTasks: Array<PastedTask>;
+    };
+
+    const pastedTasks: Array<PastedTask> = [];
+
+    const doesNodeHaveText = (node: Node): boolean => {
+        for (const childNode of node.content.content) {
+            if (childNode.isText) {
+                return childNode.nodeSize > 0;
+            } else if (doesNodeHaveText(childNode)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    for (const node of slice?.content.content ?? []) {
+        // Ignore empty nodes or non-text nodes (e.g. files and dividers).
+        if (!doesNodeHaveText(node)) continue;
+
+        const pastedTask: PastedTask = {
+            title: printContentSingleLineTextSnippet({
+                doc: schema.node("doc", {}, [node]),
+                references: emptyContentReferences,
+            }),
+            childTasks: [],
+        };
+
+        const indentation: number = node.type.groups.includes("listItem")
+            ? node.attrs.indent ?? 0
+            : 0;
+        let pastedParentChildTasks = pastedTasks;
+
+        for (let i = 0; i < indentation; i++) {
+            if (pastedParentChildTasks.length === 0) {
+                break;
+            } else {
+                pastedParentChildTasks =
+                    pastedParentChildTasks[pastedParentChildTasks.length - 1]!.childTasks;
+            }
+        }
+
+        pastedParentChildTasks.push(pastedTask);
+    }
+
+    if (pastedTasks.length === 0) return;
+
+    // Pasting a bullet list of tasks to create each task individually only makes
+    // sense in a manually sorted query. We don't have control of task order in an
+    // auto-sorted query.
+    //
+    // As a fallback, merge all pasted task titles together and paste them into the
+    // current task title.
+    //
+    // TODO(calebmer): Eventually we want to support pasting multiple tasks in an
+    // auto-sorted query too. We just need some "temporary floating task" state to
+    // make this work.
+    if (!isQueryManuallySorted) {
+        let combinedTitle = "";
+
+        const loop = (pastedTasks: Array<PastedTask>) => {
+            for (const pastedTask of pastedTasks) {
+                combinedTitle += pastedTask.title;
+                loop(pastedTask.childTasks);
+            }
+        };
+
+        loop(pastedTasks);
+
+        const titleUpdate = assertExists(taskTitlePluginKey.getState(titleState)).replace(
+            titleState.selection.from,
+            titleState.selection.to,
+            combinedTitle,
+        );
+
+        const transaction = titleState.tr.replace(
+            titleState.selection.from,
+            titleState.selection.to,
+            new Slice(Fragment.from(TaskTitleProsemirrorSchema.text(combinedTitle)), 0, 0),
+        );
+
+        // Set the selection to the end of the pasted content.
+        transaction.setSelection(
+            TextSelection.near(
+                transaction.doc.resolve(titleState.selection.from + combinedTitle.length),
+            ),
+        );
+
+        const newTitleState = titleState.apply(transaction);
+
+        updateTitleStateRef.current = {
+            titleUpdate,
+            titleState: newTitleState,
+        };
+
+        flushSync(() => {
+            commitActionTransaction(taskId => [
+                {
+                    type: "UpdateTask",
+                    time: store.clock.now(),
+                    taskId,
+                    taskAction: {
+                        type: "UpdateTitle",
+                        titleUpdate,
+                        // Don't allow merging title text updates that happen after the paste. So users
+                        // don't accidentally undo an entire paste when they wanted to only undo some
+                        // text they typed.
+                        withoutUndoMerge: true,
+                    },
+                },
+            ]);
+        });
+
+        updateTitleStateRef.current = null;
+        return;
+    }
+
+    indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint();
+
+    updateTitleStateRef.current = null;
+
+    let focusTaskTitleSelectionAfterCommit: {
+        gridKey: TaskGridViewTaskKey;
+        selection: Selection;
+    } | null = null;
+
+    const getActions = (lastPastedTaskId: TaskId) => {
+        const actions: Array<TaskActionModel> = [];
+
+        const loop = (
+            pastedParentTaskIds: ReadonlyArray<TaskId>,
+            pastedParentTaskId: TaskId | null,
+            isParentLastPastedTask: boolean,
+            pastedTasks: Array<PastedTask>,
+        ) => {
+            for (let i = 0; i < pastedTasks.length; i++) {
+                const pastedTask = pastedTasks[i]!;
+                const isLastPastedTask =
+                    isParentLastPastedTask &&
+                    i === pastedTasks.length - 1 &&
+                    pastedTask.childTasks.length === 0;
+
+                const pastedTaskId: TaskId = isLastPastedTask ? lastPastedTaskId : generateId();
+
+                if (!isLastPastedTask) {
+                    actions.push({
+                        type: "UpdateTask",
+                        time: store.clock.now(),
+                        taskId: pastedTaskId,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: currentAccountId,
+                            creatorTimeZone: timeZone,
+                        },
+                    });
+
+                    // If this task doesn't have a parent then we need to add it to the query so
+                    // it'll show up right where the user pasted.
+                    if (pastedParentTaskId === null) {
+                        for (const action of getMoveTaskToQueryActions(
+                            pastedTaskId,
+                            isGhostTask
+                                ? {type: isFirstRow ? "Start" : "End"}
+                                : {type: "Above", taskId: lastPastedTaskId},
+                        )) {
+                            actions.push(action);
+                        }
+                    }
+                }
+
+                if (pastedParentTaskId !== null) {
+                    // If this is the last pasted task and it's being made the child of another
+                    // pasted task then let's remove it from the query so it doesn't show up as both
+                    // a child and a task in the query.
+                    if (isLastPastedTask) {
+                        for (const action of getMaybeRemoveTaskFromQueryActions(pastedTaskId)) {
+                            actions.push(action);
+                        }
+                    }
+
+                    actions.push({
+                        type: "UpdateTask",
+                        time: store.clock.now(),
+                        taskId: pastedTaskId,
+                        taskAction: {
+                            type: "UpdateParentTaskId",
+                            parentTaskId: pastedParentTaskId,
+                        },
+                    });
+                }
+
+                // Don't allow merging title text updates that happen after the paste. So users
+                // don't accidentally undo an entire paste when they wanted to only undo some
+                // text they typed.
+                const withoutUndoMerge = true;
+
+                if (!isLastPastedTask) {
+                    actions.push({
+                        type: "UpdateTask",
+                        time: store.clock.now(),
+                        taskId: pastedTaskId,
+                        taskAction: {
+                            type: "UpdateTitle",
+                            titleUpdate: emptyTaskTitleModel.get().replace(0, 0, pastedTask.title),
+                            withoutUndoMerge,
+                        },
+                    });
+                }
+                // If this is the last pasted task then generate a `titleUpdate` that replaces
+                // text in the last task at the current selection.
+                else {
+                    const titleUpdate = assertExists(
+                        taskTitlePluginKey.getState(titleState),
+                    ).replace(titleState.selection.from, titleState.selection.to, pastedTask.title);
+
+                    const transaction = titleState.tr.replace(
+                        titleState.selection.from,
+                        titleState.selection.to,
+                        new Slice(
+                            Fragment.from(TaskTitleProsemirrorSchema.text(pastedTask.title)),
+                            0,
+                            0,
+                        ),
+                    );
+
+                    // Set the selection to the end of the pasted content.
+                    transaction.setSelection(
+                        TextSelection.near(
+                            transaction.doc.resolve(
+                                titleState.selection.from + pastedTask.title.length,
+                            ),
+                        ),
+                    );
+
+                    const newTitleState = titleState.apply(transaction);
+
+                    updateTitleStateRef.current = {
+                        titleUpdate,
+                        titleState: newTitleState,
+                    };
+
+                    actions.push({
+                        type: "UpdateTask",
+                        time: store.clock.now(),
+                        taskId: pastedTaskId,
+                        taskAction: {
+                            type: "UpdateTitle",
+                            titleUpdate,
+                            withoutUndoMerge,
+                        },
+                    });
+
+                    // If the task used to have no parents but after the paste will be indented then
+                    // we need to manually move focus into the new `<TaskRowView>` component since
+                    // child tasks have a key prefixed by their root parent task.
+                    if (parents.length === 0 && pastedParentTaskIds.length > 0) {
+                        focusTaskTitleSelectionAfterCommit = {
+                            gridKey: `${pastedParentTaskIds[0]!}-${pastedTaskId}`,
+                            selection: transaction.selection,
+                        };
+                    }
+                }
+
+                loop(
+                    [...pastedParentTaskIds, pastedTaskId],
+                    pastedTaskId,
+                    isParentLastPastedTask && i === pastedTasks.length - 1,
+                    pastedTask.childTasks,
+                );
+            }
+        };
+
+        loop(emptyArray, null, true, pastedTasks);
+
+        return actions;
+    };
+
+    // Synchronous flush to make sure `updateTitleStateRef` is used before it's
+    // reset to null at the end of this function.
+    flushSync(() => {
+        commitActionTransaction({
+            getBeforeMoveTaskActions: getActions,
+            getAfterMoveTaskActions: () => emptyArray,
+        });
+    });
+
+    updateTitleStateRef.current = null;
+
+    if (focusTaskTitleSelectionAfterCommit !== null) {
+        const {gridKey, selection} = focusTaskTitleSelectionAfterCommit;
+        focusTaskTitleSelection(gridKey, selection);
+    }
 }

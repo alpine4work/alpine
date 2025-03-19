@@ -19,12 +19,14 @@ import {PeekId} from "~/shared/id/types/id_types.js";
 export function PeekRemixEmbed({
     peekId,
     layout,
+    withinStack = false,
     withoutSearchAffinityViewInteraction = false,
     router: originalRouter,
     onGoBackOverflow,
 }: {
     peekId: PeekId;
     layout: RouteLayout;
+    withinStack?: boolean;
     withoutSearchAffinityViewInteraction?: boolean;
     router: PeekRemixEmbedRouter;
     onGoBackOverflow?: () => void;
@@ -84,9 +86,10 @@ export function PeekRemixEmbed({
                 () => ({
                     id: peekId,
                     layout,
+                    withinStack,
                     withoutSearchAffinityViewInteraction,
                 }),
-                [layout, peekId, withoutSearchAffinityViewInteraction],
+                [layout, peekId, withinStack, withoutSearchAffinityViewInteraction],
             )}
         >
             <UpdateMetaTitleContextProvider

@@ -12,7 +12,12 @@ import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_cl
 import {Context} from "~/shared/context/context.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyMap} from "~/shared/helpers/array/empty_map.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Clock} from "~/shared/helpers/clock/clock.js";
 import {
     HybridLogicalClock,
@@ -27,7 +32,9 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -53,6 +60,14 @@ import {
     TaskUpdateCollectionAction,
     TaskUpdateTaskAction,
 } from "~/shared/tasks/actions/task_action.js";
+import {
+    TaskActionMaybeModel,
+    TaskActionModel,
+    TaskUpdateTaskActionMaybeModel,
+    TaskUpdateTaskActionModel,
+    fromTaskActionModel,
+    fromTaskUpdateTaskActionModel,
+} from "~/shared/tasks/actions/task_action_model.js";
 import {collectReferencedAccountIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_account_ids_from_task_model_data.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -64,7 +79,7 @@ import {
     TaskRealtimeUpdateEvent,
 } from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
-import {TaskTitleUpdate, mergeTaskTitleUpdates} from "~/shared/tasks/task_title.js";
+import {TaskTitleUpdateModel, mergeTaskTitleUpdates} from "~/shared/tasks/task_title.js";
 
 export type TaskClientStoreTaskEntry =
     // Task initialized and known authorization state:
@@ -176,12 +191,12 @@ export type TaskClientStoreCollectionEntryOptimisticState = {
 };
 
 type TaskClientStorePendingAction = {
-    readonly action: TaskAction;
+    readonly action: TaskActionMaybeModel;
     readonly getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount;
 };
 
 type TaskClientStorePendingUpdateTaskAction = {
-    readonly action: TaskUpdateTaskAction | TaskUpdateAccountNameAction;
+    readonly action: TaskUpdateTaskActionMaybeModel | TaskUpdateAccountNameAction;
     readonly getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount;
 };
 
@@ -218,6 +233,7 @@ export type TaskClientStoreBatchUpdate = {
             readonly newCollectionEntry: TaskClientStoreCollectionEntry;
         }
     >;
+    readonly actions: ReadonlyArray<TaskActionMaybeModel>;
 };
 
 export interface TaskClientStoreUndoManager {
@@ -230,7 +246,7 @@ export interface TaskClientStoreUndoManager {
 }
 
 export type TaskClientStoreUpdateTitleActionTransactionBuilder = {
-    add(titleUpdate: TaskTitleUpdate): void;
+    add(titleUpdate: TaskTitleUpdateModel): void;
     commit(
         context: Context<{
             rpc: RpcContextModuleBase;
@@ -269,6 +285,34 @@ export interface TaskClientStoreSearchAffinityManager {
     // managers are created at a route level?
     addGlobalLoadingIndicator(promise: Promise<unknown>, indicator: GlobalLoadingIndicator): void;
 }
+
+/**
+ * `TaskClientStore` but without any methods that mutate task data. Notably,
+ * there's no `commitTaskActionTransaction()` function.
+ */
+export type TaskClientReadonlyStore = Pick<
+    TaskClientStore,
+    | "getTaskCountForTest"
+    | "getCollectionCountForTest"
+    | "accountStore"
+    | "spaceId"
+    | "currentAccountId"
+    | "clock"
+    | "getTaskEntryStoreIfExists"
+    | "getCollectionEntryStoreIfExists"
+    | "getTaskAssigneeAccountStore"
+    | "getReferencedAccountStoreIfExists"
+    | "getSubscriptionsStore"
+    | "subscribeToBatchUpdate"
+    | "waitForCommitTaskActionTransactions"
+    | "createAndRetainQuery"
+    | "createAndRetainQueries"
+    | "loadTasksIntoQuery"
+    | "ensureAndRetainTaskChildrenQuery"
+    | "getTaskChildrenQueryStore"
+    | "createAndRetainTaskSubscription"
+    | "createAndRetainCollectionSubscription"
+>;
 
 /**
  * The client model store holds all our task data for a space on the client.
@@ -359,12 +403,12 @@ export class TaskClientStore {
 
     public commitTaskActionTransaction(
         context: Context<{rpc: RpcContextModuleBase}>,
-        actions: ReadonlyArray<TaskAction>,
+        actions: Iterable<TaskActionModel>,
         options: {
             undoManager: TaskClientStoreUndoManager | null;
             affinityManager: TaskClientStoreSearchAffinityManager;
-            referencedCollections?: ReadonlyArray<TaskCollectionModel>;
             leaseId?: TaskActionTransactionLeaseId | null;
+            undoableSlice?: {startIndex: number | null; endIndex: number | null} | null;
         },
     ): {finally: (callback: () => void) => void} {
         return this._internal.commitTaskActionTransaction(context, actions, options);
@@ -372,14 +416,12 @@ export class TaskClientStore {
 
     public getTaskUpdateTitleActionTransactionBuilder(
         taskId: TaskId,
-        initialTitleUpdate: TaskTitleUpdate,
-        options: {affinityManager: TaskClientStoreSearchAffinityManager},
-    ): {
-        add: (titleUpdate: TaskTitleUpdate) => void;
-        commit: (context: Context<{rpc: RpcContextModuleBase}>) => {
-            finally: (callback: () => void) => void;
-        };
-    } {
+        initialTitleUpdate: TaskTitleUpdateModel,
+        options: {
+            undoManager: TaskClientStoreUndoManager | null;
+            affinityManager: TaskClientStoreSearchAffinityManager;
+        },
+    ): TaskClientStoreUpdateTitleActionTransactionBuilder {
         return this._internal.getTaskUpdateTitleActionTransactionBuilder(
             taskId,
             initialTitleUpdate,
@@ -830,8 +872,9 @@ export class TaskClientStoreInternal {
         // applying the action we avoid a warning.
         if (event.originClientId === this._clientId) {
             return action({
-                taskEntryUpdateById: new Map(),
-                collectionEntryUpdateById: new Map(),
+                taskEntryUpdateById: emptyMap,
+                collectionEntryUpdateById: emptyMap,
+                actions: emptyArray,
             });
         }
 
@@ -1478,12 +1521,11 @@ export class TaskClientStoreInternal {
                     });
                     continue;
                 }
-                case "UpdateNotepadPage": {
-                    // We don't maintain an account's notepad page list in realtime.
-                    break;
-                }
                 case "UpdateAccountName": {
                     updateAccountNameActions.push({action, getActionReferencedSortableAccount});
+                    break;
+                }
+                case "UpdateNotepadPage": {
                     break;
                 }
                 default:
@@ -1550,7 +1592,12 @@ export class TaskClientStoreInternal {
             }
         }
 
-        return this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, action);
+        return this._batchUpdateStore(
+            newTaskEntryById,
+            newCollectionEntryById,
+            event.actions,
+            action,
+        );
     }
 
     /**
@@ -1567,16 +1614,17 @@ export class TaskClientStoreInternal {
      *
      * If you are referencing some collections in your transaction that don't
      * already exist in the store then you need to provide the collections with
-     * `referencedCollections` so we can add their data to the store.
+     * `referencedCollection` in the `AddCollection` action so we can add their
+     * data to the store.
      */
     public commitTaskActionTransaction(
         context: Context<{rpc: RpcContextModuleBase}>,
-        actions: ReadonlyArray<TaskAction>,
+        actionsIterable: Iterable<TaskActionModel>,
         {
             undoManager,
             affinityManager,
-            referencedCollections = [],
             leaseId = null,
+            undoableSlice = null,
         }: {
             // This property is required to force callers to make a decision on whether or
             // not to pass in `undoManager`. Most of the time you want to pass in
@@ -1585,58 +1633,79 @@ export class TaskClientStoreInternal {
             // This property is required to force callers to pass down a `affinityManager`
             // object from the route component.
             affinityManager: TaskClientStoreSearchAffinityManager;
-            referencedCollections?: ReadonlyArray<TaskCollectionModel>;
             leaseId?: TaskActionTransactionLeaseId | null;
+            undoableSlice?: {startIndex: number | null; endIndex: number | null} | null;
         },
     ): {finally: (callback: () => void) => void} {
-        // We need to create undo actions before applying our actions to the store so
-        // we can read old task data from the store.
-        const undoActions = undoManager ? createTaskUndoActionsIfPossible(this, actions) : null;
+        const actions: ReadonlyArray<TaskActionModel> = isReadonlyArray(actionsIterable)
+            ? actionsIterable
+            : Array.from(actionsIterable);
 
-        assert(this.onQueryLoadedTaskRemove === null);
-        const removedFromQueries = new Set<TaskClientQuery>();
-        this.onQueryLoadedTaskRemove = (query: TaskClientQueryInternal) => {
-            removedFromQueries.add(query.external);
-        };
+        // Noop if there aren't any actions.
+        if (actions.length === 0) return {finally: callback => scheduleMicrotask(callback)};
 
+        const mutexLockedPromiseResolver = createPromiseResolver();
+        const mutexUnlockPromiseResolver = createPromiseResolver();
+
+        // Make sure we're immediately holding the action transaction mutex. In case
+        // any synchronous code between now and when we actually call
+        // `commitTaskActionTransaction()` runs some callback that needs to wait on the
+        // mutex.
+        //
+        // We've observed pasting a bulleted list with indentation like:
+        //
+        // ```
+        // - task 1
+        //     - task 2
+        // - task 3
+        // ```
+        //
+        // Needs this. Since `_applyUpdateEvent()` will run some code in
+        // `useTaskGridViewExpansionState()` that expands "task 1"'s children and
+        // creates a query subscription for "task 1"'s children. However, that query
+        // will fail if run before `commitTaskActionTransaction()` asynchronously
+        // finishes creating the task in DynamoDB.
+        if (!shouldDisableCommitTaskActionTransactionMutexForTest) {
+            void this._commitTaskActionTransactionMutex.withLock(() => {
+                mutexLockedPromiseResolver.resolve();
+                return mutexUnlockPromiseResolver.promise;
+            });
+        }
+
+        let undoActions: TaskUndoActions | null;
         let allPendingActions: Array<TaskClientStorePendingAction>;
-        let actuallyRelease: () => void;
+        let createLeaseIfLostAccessId: TaskActionTransactionLeaseId | null;
+        let release: () => void;
         try {
-            ({pendingActions: allPendingActions, release: actuallyRelease} = batchStoreUpdates(
-                () => {
-                    if (referencedCollections.length === 0) {
-                        const optimisticExtraActions = this._getOptimisticExtraActions(actions);
+            // We need to create undo actions before applying our actions to the store so
+            // we can read old task data from the store.
+            undoActions = undoManager
+                ? createTaskUndoActionsIfPossible(this, actions, undoableSlice)
+                : null;
 
-                        return this._applyOptimisticTaskActions(
-                            optimisticExtraActions.length > 0
-                                ? [...actions, ...optimisticExtraActions]
-                                : actions,
-                            update => {
-                                affinityManager.markLowIntentUpdateInteraction(update);
-                            },
-                        );
-                    }
+            assert(this.onQueryLoadedTaskRemove === null);
+            const removedFromQueries = new Set<TaskClientQuery>();
+            this.onQueryLoadedTaskRemove = (query: TaskClientQueryInternal) => {
+                removedFromQueries.add(query.external);
+            };
 
-                    // If we have some `referencedCollections` then we want to backfill it in the
-                    // store THEN apply our optimistic actions. We need to apply our optimistic
-                    // actions in the `onBatchUpdate` callback or else the backfilled collections
-                    // will be immediately released.
-                    return this._applyUpdateEvent(
-                        {
-                            type: "Update",
-                            actions: [],
-                            backfillTasks: [],
-                            backfillCollections: referencedCollections.map(collection => ({
-                                type: "Authorized",
-                                collection,
-                            })),
-                            // Any authorization state change from the server should override us.
-                            defaultAuthorizationStateVersion: zeroHybridLogicalTime,
-                            referencedAccounts: [],
-                            // Don't pass `this._clientId` in since we don't want to ignore this event.
-                            originClientId: null,
-                        },
-                        () => {
+            let actuallyRelease: () => void;
+            try {
+                ({pendingActions: allPendingActions, release: actuallyRelease} = batchStoreUpdates(
+                    () => {
+                        const referencedCollections: Array<TaskCollectionModel> = [];
+
+                        for (const action of actions) {
+                            if (
+                                action.type === "UpdateTask" &&
+                                action.taskAction.type === "AddCollection" &&
+                                action.taskAction.referencedCollection
+                            ) {
+                                referencedCollections.push(action.taskAction.referencedCollection);
+                            }
+                        }
+
+                        if (referencedCollections.length === 0) {
                             const optimisticExtraActions = this._getOptimisticExtraActions(actions);
 
                             return this._applyOptimisticTaskActions(
@@ -1647,67 +1716,121 @@ export class TaskClientStoreInternal {
                                     affinityManager.markLowIntentUpdateInteraction(update);
                                 },
                             );
-                        },
-                    );
-                },
-            ));
-        } finally {
-            this.onQueryLoadedTaskRemove = null;
-        }
+                        }
 
-        // We hold onto collections and tasks that become unreferenced after applying
-        // optimistic actions until both:
-        //
-        // 1. The action is commit (if it's reverted we need the collections/tasks back)
-        // 2. The undo stack corresponding to this action is applied or released
-        let referenceCount = 1;
+                        // If we have some `referencedCollections` then we want to backfill it in the
+                        // store THEN apply our optimistic actions. We need to apply our optimistic
+                        // actions in the `onBatchUpdate` callback or else the backfilled collections
+                        // will be immediately released.
+                        return this._applyUpdateEvent(
+                            {
+                                type: "Update",
+                                actions: [],
+                                backfillTasks: [],
+                                backfillCollections: referencedCollections.map(collection => ({
+                                    type: "Authorized",
+                                    collection,
+                                })),
+                                // Any authorization state change from the server should override us.
+                                defaultAuthorizationStateVersion: zeroHybridLogicalTime,
+                                referencedAccounts: [],
+                                // Don't pass `this._clientId` in since we don't want to ignore this event.
+                                originClientId: null,
+                            },
+                            () => {
+                                const optimisticExtraActions =
+                                    this._getOptimisticExtraActions(actions);
 
-        const release = () => {
-            referenceCount--;
-            if (referenceCount === 0) actuallyRelease?.();
-        };
+                                return this._applyOptimisticTaskActions(
+                                    optimisticExtraActions.length > 0
+                                        ? [...actions, ...optimisticExtraActions]
+                                        : actions,
+                                    update => {
+                                        affinityManager.markLowIntentUpdateInteraction(update);
+                                    },
+                                );
+                            },
+                        );
+                    },
+                ));
+            } finally {
+                this.onQueryLoadedTaskRemove = null;
+            }
 
-        // Leases allow us to temporarily add a task back to our query with undo
-        // actions even if we've lost access.
-        const createLeaseIfLostAccessId =
-            removedFromQueries.size > 0 && undoManager && undoActions
-                ? generateId<TaskActionTransactionLeaseId>()
-                : null;
+            // We hold onto collections and tasks that become unreferenced after applying
+            // optimistic actions until both:
+            //
+            // 1. The action is commit (if it's reverted we need the collections/tasks back)
+            // 2. The undo stack corresponding to this action is applied or released
+            let referenceCount = 1;
 
-        if (undoManager && undoActions) {
-            referenceCount++;
+            release = () => {
+                referenceCount--;
+                if (referenceCount === 0) actuallyRelease?.();
+            };
 
-            let isUndoEntryReleased = false;
+            // Leases allow us to temporarily add a task back to our query with undo
+            // actions even if we've lost access.
+            createLeaseIfLostAccessId =
+                removedFromQueries.size > 0 && undoManager && undoActions
+                    ? generateId<TaskActionTransactionLeaseId>()
+                    : null;
 
-            undoManager.pushUndoStackEntry({
-                undoActions,
-                removedFromQueries,
-                leaseId: createLeaseIfLostAccessId,
-                release: () => {
-                    assert(!isUndoEntryReleased);
-                    isUndoEntryReleased = true;
-                    release();
-                },
-            });
+            if (undoManager && undoActions) {
+                referenceCount++;
+
+                let isUndoEntryReleased = false;
+
+                undoManager.pushUndoStackEntry({
+                    undoActions,
+                    removedFromQueries,
+                    leaseId: createLeaseIfLostAccessId,
+                    release: () => {
+                        assert(!isUndoEntryReleased);
+                        isUndoEntryReleased = true;
+                        release();
+                    },
+                });
+            }
+        } catch (error) {
+            // Don't reject. We don't want unlocking the mutex to log some unhandled promise
+            // rejection warnings. We handle errors on `commitPromise` below.
+            mutexUnlockPromiseResolver.resolve();
+
+            throw error;
         }
 
         const run = () =>
             commitTaskActionTransaction(context, {
                 spaceId: this.spaceId,
-                actions,
+                actions: actions.map(fromTaskActionModel),
                 clientId: this._clientId,
                 leaseId: leaseId ?? undefined,
                 createLeaseIfLostAccess: createLeaseIfLostAccessId
                     ? {
                           id: createLeaseIfLostAccessId,
-                          actions: assertExists(undoActions).get(this.clock),
+                          actions: assertExists(undoActions)
+                              .get(this)
+                              .map(fromTaskUpdateTaskActionModel),
                       }
                     : undefined,
-            });
+            }).then(
+                output => {
+                    mutexUnlockPromiseResolver.resolve();
+                    return output;
+                },
+                error => {
+                    // Don't reject. We don't want unlocking the mutex to log some unhandled promise
+                    // rejection warnings. We handle errors on `commitPromise` below.
+                    mutexUnlockPromiseResolver.resolve();
+
+                    throw error;
+                },
+            );
 
         const commitPromise = shouldDisableCommitTaskActionTransactionMutexForTest
             ? run()
-            : this._commitTaskActionTransactionMutex.withLock(run);
+            : mutexLockedPromiseResolver.promise.then(run);
 
         // Will show a "Saving" indicator while we wait for the action transaction to
         // commit. Will also add a `beforeunload` listener that warns the user that we
@@ -1844,7 +1967,6 @@ export class TaskClientStoreInternal {
             error => {
                 const taskIds = new Set<TaskId>();
                 const collectionIds = new Set<TaskCollectionId>();
-                let notepadPageCount = 0;
 
                 for (const action of actions) {
                     switch (action.type) {
@@ -1856,13 +1978,12 @@ export class TaskClientStoreInternal {
                             collectionIds.add(action.collectionId);
                             break;
                         }
-                        case "UpdateNotepadPage": {
-                            notepadPageCount++;
-                            break;
-                        }
                         case "UpdateAccountName": {
                             // Generic error message if this fails. The client shouldn't be committing
                             // this anyway.
+                            break;
+                        }
+                        case "UpdateNotepadPage": {
                             break;
                         }
                         default:
@@ -1876,9 +1997,6 @@ export class TaskClientStoreInternal {
                 }
                 if (collectionIds.size > 0) {
                     failedNouns.push(collectionIds.size === 1 ? "collection" : "collections");
-                }
-                if (notepadPageCount > 0) {
-                    failedNouns.push("notepad");
                 }
 
                 this._onError({
@@ -1929,20 +2047,25 @@ export class TaskClientStoreInternal {
      * Under the hood this has the same logic as `commitTaskActionTransaction()`
      * but allows you to merge individual actions into a single action for the
      * server.
-     *
-     * Note that this method doesn't take an `undoManager`. That's because title
-     * undo/redo is handled by a Y.js `Y.UndoManager` class in
-     * `useTaskTitleModelYDoc()`.
      */
     public getTaskUpdateTitleActionTransactionBuilder(
         taskId: TaskId,
-        initialTitleUpdate: TaskTitleUpdate,
-        {affinityManager}: {affinityManager: TaskClientStoreSearchAffinityManager},
+        initialTitleUpdate: TaskTitleUpdateModel,
+        {
+            undoManager,
+            affinityManager,
+        }: {
+            // This property is required to force callers to make a decision on whether or
+            // not to pass in `undoManager`. Most of the time you want to pass in
+            // `undoManager`. If you pass in null the change can't be undone.
+            undoManager: TaskClientStoreUndoManager | null;
+            affinityManager: TaskClientStoreSearchAffinityManager;
+        },
     ): TaskClientStoreUpdateTitleActionTransactionBuilder {
         let isFinished = false;
-        let mergedTitleUpdate = initialTitleUpdate;
+        let mergedTitleUpdate = initialTitleUpdate.raw;
 
-        const individualActions: Array<TaskAction> = [];
+        const individualActions: Array<TaskActionModel> = [];
 
         // We hold onto collections and tasks that become unreferenced after applying
         // optimistic actions until both:
@@ -1961,8 +2084,8 @@ export class TaskClientStoreInternal {
             }
         };
 
-        const addTitleUpdate = (titleUpdate: TaskTitleUpdate) => {
-            const action: TaskAction = {
+        const addTitleUpdate = (titleUpdate: TaskTitleUpdateModel) => {
+            const action: TaskActionModel = {
                 type: "UpdateTask",
                 time: this.clock.now(),
                 taskId,
@@ -1974,22 +2097,58 @@ export class TaskClientStoreInternal {
 
             individualActions.push(action);
 
-            const {release: actuallyRelease} = this._applyOptimisticTaskActions(
-                [action],
-                update => {
-                    affinityManager.markLowIntentUpdateInteraction(update);
-                },
-            );
-            actualReleases.push(actuallyRelease);
+            // We need to create undo actions before applying our actions to the store so
+            // we can read old task data from the store.
+            const undoActions = undoManager
+                ? createTaskUndoActionsIfPossible(this, [action])
+                : null;
+
+            assert(this.onQueryLoadedTaskRemove === null);
+            const removedFromQueries = new Set<TaskClientQuery>();
+            this.onQueryLoadedTaskRemove = (query: TaskClientQueryInternal) => {
+                removedFromQueries.add(query.external);
+            };
+
+            try {
+                const {release: actuallyRelease} = this._applyOptimisticTaskActions(
+                    [action],
+                    update => {
+                        affinityManager.markLowIntentUpdateInteraction(update);
+                    },
+                );
+                actualReleases.push(actuallyRelease);
+            } finally {
+                this.onQueryLoadedTaskRemove = null;
+            }
+
+            if (undoManager && undoActions) {
+                referenceCount++;
+
+                let isUndoEntryReleased = false;
+
+                undoManager.pushUndoStackEntry({
+                    undoActions,
+                    removedFromQueries,
+                    // Changing the title can never remove the account's access to the task. Since
+                    // task access is determined by the creator, assignee, parent task, and
+                    // collections. So we'll never need to generate a lease.
+                    leaseId: null,
+                    release: () => {
+                        assert(!isUndoEntryReleased);
+                        isUndoEntryReleased = true;
+                        release();
+                    },
+                });
+            }
         };
 
         addTitleUpdate(initialTitleUpdate);
 
         return {
-            add: (titleUpdate: TaskTitleUpdate) => {
+            add: (titleUpdate: TaskTitleUpdateModel) => {
                 assert(!isFinished);
 
-                mergedTitleUpdate = mergeTaskTitleUpdates(mergedTitleUpdate, titleUpdate);
+                mergedTitleUpdate = mergeTaskTitleUpdates(mergedTitleUpdate, titleUpdate.raw);
                 addTitleUpdate(titleUpdate);
             },
             commit: context => {
@@ -2131,7 +2290,20 @@ export class TaskClientStoreInternal {
                 // We need to create undo actions before applying our actions to the store so
                 // we can read old task data from the store.
                 const undoActions = undoManager
-                    ? createTaskUndoActionsIfPossible(this, actions)
+                    ? createTaskUndoActionsIfPossible(
+                          this,
+                          mapIterable(actions, action => {
+                              if (
+                                  action.type === "UpdateTask" &&
+                                  action.taskAction.type === "UpdateTitle"
+                              ) {
+                                  throw new InternalError(
+                                      "Unexpected task title update when deleting task and all children",
+                                  );
+                              }
+                              return action as TaskActionModel;
+                          }),
+                      )
                     : null;
 
                 this.applyUpdateEvent({
@@ -2231,7 +2403,7 @@ export class TaskClientStoreInternal {
     }
 
     private _applyOptimisticTaskActions<Value>(
-        actions: ReadonlyArray<TaskAction>,
+        actions: ReadonlyArray<TaskActionModel>,
         action: (batchUpdate: TaskClientStoreBatchUpdate) => Value,
     ): {
         actionValue: Value;
@@ -2240,8 +2412,9 @@ export class TaskClientStoreInternal {
     } {
         if (actions.length === 0) {
             const actionValue = action({
-                taskEntryUpdateById: new Map(),
-                collectionEntryUpdateById: new Map(),
+                taskEntryUpdateById: emptyMap,
+                collectionEntryUpdateById: emptyMap,
+                actions: emptyArray,
             });
             return {actionValue, pendingActions: [], release: noop};
         }
@@ -2572,13 +2745,10 @@ export class TaskClientStoreInternal {
                     });
                     continue;
                 }
+                case "UpdateAccountName":
                 case "UpdateNotepadPage": {
-                    // We don't maintain an account's notepad page list in realtime.
-                    continue;
-                }
-                case "UpdateAccountName": {
                     throw new InternalError(
-                        "Can't optimistically apply `UpdateAccountName` action",
+                        quote`Can't optimistically apply ${action.type} action`,
                     );
                 }
                 default:
@@ -2601,7 +2771,12 @@ export class TaskClientStoreInternal {
 
         let actionValue;
         try {
-            actionValue = this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, action);
+            actionValue = this._batchUpdateStore(
+                newTaskEntryById,
+                newCollectionEntryById,
+                actions,
+                action,
+            );
         } finally {
             // Any tasks or collections that were released while updating our store, we
             // want to retain until the optimistic action is committed or rejected. Because
@@ -3003,13 +3178,10 @@ export class TaskClientStoreInternal {
                     });
                     continue;
                 }
+                case "UpdateAccountName":
                 case "UpdateNotepadPage": {
-                    // We don't maintain an account's notepad page list in realtime.
-                    continue;
-                }
-                case "UpdateAccountName": {
                     throw new InternalError(
-                        "Can't optimistically apply `UpdateAccountName` action",
+                        quote`Can't optimistically apply ${action.type} action`,
                     );
                 }
                 default:
@@ -3017,7 +3189,7 @@ export class TaskClientStoreInternal {
             }
         }
 
-        this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, noop);
+        this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, emptyArray, noop);
     }
 
     private _revertOptimisticTaskActions(pendingActions: Iterable<TaskClientStorePendingAction>) {
@@ -3468,13 +3640,10 @@ export class TaskClientStoreInternal {
                     }
                     continue;
                 }
+                case "UpdateAccountName":
                 case "UpdateNotepadPage": {
-                    // We don't maintain an account's notepad page list in realtime.
-                    continue;
-                }
-                case "UpdateAccountName": {
                     throw new InternalError(
-                        "Can't optimistically apply `UpdateAccountName` action",
+                        quote`Can't optimistically apply ${action.type} action`,
                     );
                 }
                 default:
@@ -3482,12 +3651,16 @@ export class TaskClientStoreInternal {
             }
         }
 
-        this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, noop);
+        this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, emptyArray, noop);
     }
 
     private _batchUpdateStore<Value>(
         newTaskEntryById: ReadonlyMap<TaskId, TaskClientStoreTaskEntry>,
         newCollectionEntryById: ReadonlyMap<TaskCollectionId, TaskClientStoreCollectionEntry>,
+        // If there were actions that contributed to this update then the actions are
+        // provided here. Not all task or collection updates will have an associated
+        // action.
+        actions: ReadonlyArray<TaskActionMaybeModel>,
         // This action is called after our updates have been applied to the store and
         // before we clean up any new tasks/collections with zero references. It lets
         // you "save" tasks/collections that were about to be released.
@@ -3682,6 +3855,7 @@ export class TaskClientStoreInternal {
                 const batchUpdate = {
                     taskEntryUpdateById,
                     collectionEntryUpdateById,
+                    actions,
                 };
 
                 const actionValue = action(batchUpdate);
@@ -3873,8 +4047,8 @@ export class TaskClientStoreInternal {
      * against our store since it needs to read old task values.
      */
     private _getOptimisticExtraActions(
-        actions: ReadonlyArray<TaskAction>,
-    ): Array<TaskUpdateTaskAction> {
+        actions: ReadonlyArray<TaskActionModel>,
+    ): Array<TaskUpdateTaskActionModel> {
         if (actions.length === 0) return [];
 
         let maxActionTime = actions[0]!.time;
@@ -4116,7 +4290,7 @@ export class TaskClientStoreInternal {
             }
         }
 
-        const extraActions: Array<TaskUpdateTaskAction> = [];
+        const extraActions: Array<TaskUpdateTaskActionModel> = [];
 
         for (const [parentTaskId, childTaskCounts] of childTaskCountsByParentTaskId) {
             extraActions.push({

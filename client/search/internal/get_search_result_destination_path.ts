@@ -46,7 +46,7 @@ export function getSearchResultDestinationPath({
             return `/s/${spaceId}/channels/${channelId}?create&focus=none`;
         }
         case "CreateDocument": {
-            // Make sure we use the same `channelId` consistently for the current search
+            // Make sure we use the same `documentId` consistently for the current search
             // result list.
             const documentId = unsafelyGenerateStableId(getStableRandom(), resultId);
 
@@ -64,9 +64,15 @@ export function getSearchResultDestinationPath({
         case "CreateTaskView": {
             return `/s/${spaceId}/tasks/view`;
         }
-        case "CreateTask":
-        case "TaskNotepad": {
-            return `/s/${spaceId}/tasks?show=new`;
+        case "CreateTask": {
+            // Make sure we use the same `taskId` consistently for the current search
+            // result list.
+            const taskId = unsafelyGenerateStableId(getStableRandom(), resultId);
+
+            return `/s/${spaceId}/tasks/${taskId}?create`;
+        }
+        case "TaskPersonal": {
+            return `/s/${spaceId}/tasks`;
         }
         case "TaskQueryFilteredToCreatorIsCurrentAccount": {
             const nameSearchParam = encodeURIComponent("Tasks I’ve created");
@@ -223,7 +229,7 @@ function getSearchEntityPath(
             return `/s/${spaceId}/tasks/${entityId.taskId}`;
         }
         case "TaskCollection": {
-            return `/s/${spaceId}/tasks/collections/${entityId.collectionId}?show=new`;
+            return `/s/${spaceId}/tasks/collections/${entityId.collectionId}`;
         }
         case "TaskComment": {
             return withDesktopLayout

@@ -394,7 +394,6 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
                     break;
                 }
                 case "UpdateNotepadPage": {
-                    // Ignore...
                     break;
                 }
                 default:

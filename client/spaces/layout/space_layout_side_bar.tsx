@@ -11,42 +11,12 @@ import {SpaceLayoutSideBarCreateButton} from "~/client/spaces/layout/internal/sp
 import {SpaceLayoutSideBarInboxButton} from "~/client/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
 import {SpaceLayoutSideBarSpaceButton} from "~/client/spaces/layout/internal/space_layout_side_bar_space_button.js";
 import {useIsFullWidthRoute} from "~/client/spaces/route_metadata.js";
-import {documentContentEditorSidebarWidth} from "~/client/styles/document_shared_styles.js";
-import {contentStyles, spaceLayoutStyles} from "~/client/styles/styles.js";
-import {parseRemLength} from "~/shared/design/core/spacing.js";
+import {spaceLayoutStyles} from "~/client/styles/styles.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {SearchResult} from "~/shared/search/search_result.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
-
-const spaceLayoutSidebarWidthRem = parseRemLength(spaceLayoutStyles.sideBarWidth);
-
-const spaceLayoutContainerWidthForMaxSidebarSpaceRem =
-    parseRemLength(contentStyles.contentMaxWidth) +
-    parseRemLength(documentContentEditorSidebarWidth) +
-    parseRemLength("48");
-
-const spaceLayoutMaxSidebarSpaceRem = spaceLayoutSidebarWidthRem;
-
-const spaceLayoutContainerWidthForMinSidebarSpaceRem =
-    spaceLayoutContainerWidthForMaxSidebarSpaceRem + spaceLayoutSidebarWidthRem;
-
-const spaceLayoutMinSidebarSpaceRem = 0;
-
-const spaceLayoutSidebarSpaceByContainerWidthRem =
-    (spaceLayoutMinSidebarSpaceRem - spaceLayoutMaxSidebarSpaceRem) /
-    (spaceLayoutContainerWidthForMinSidebarSpaceRem -
-        spaceLayoutContainerWidthForMaxSidebarSpaceRem);
-
-// On large screens we want to allocate 0 space for the sidebar. This will
-// cause content to be visually centered on the screen ignoring space from the
-// sidebar. But on smaller screens we need the sidebar to take up space in our
-// layout so we don't end up rendering content underneath the sidebar.
-//
-// This `calc()` expression calculates the amount of space to allocate the
-// sidebar based on the container width.
-export const spaceLayoutSidebarSpace = `clamp(${spaceLayoutMinSidebarSpaceRem}rem, ${spaceLayoutMaxSidebarSpaceRem}rem + (100% - ${spaceLayoutContainerWidthForMaxSidebarSpaceRem}rem) * ${spaceLayoutSidebarSpaceByContainerWidthRem}, ${spaceLayoutMaxSidebarSpaceRem}rem)`;
 
 export function SpaceLayoutSideBar({
     space,
@@ -85,7 +55,7 @@ export function SpaceLayoutSideBar({
                 // visually center content.
                 width: useIsFullWidthRoute()
                     ? spaceLayoutStyles.sideBarWidth
-                    : spaceLayoutSidebarSpace,
+                    : spaceLayoutStyles.sideBarSpace,
             }}
         >
             <Box
@@ -157,6 +127,7 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
                 {
                     icon: <SignOut />,
                     label: "Sign out",
+                    pressErrorTitle: "Couldn’t sign out",
                     onPress: () => rootNavigate("/sign-out"),
                 },
             ]}

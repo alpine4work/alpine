@@ -1,5 +1,5 @@
 import {
-    TaskClientStore,
+    TaskClientReadonlyStore,
     TaskClientStoreCollectionEntry,
     TaskClientStoreInternal,
 } from "~/client/tasks/core/task_client_store.js";
@@ -15,8 +15,18 @@ import {ValueStore} from "~/shared/store/value_store.js";
  * the collection's query.
  */
 export class TaskClientCollectionSubscription {
+    /**
+     * A readonly reference to the task store.
+     *
+     * If you want to write you should have a full `TaskClientStore` instance.
+     * This allows code to carefully control write access. For example,
+     * `<TaskRowView>` has a `TaskClientReadonlyStore` and `TaskClientQuery`.
+     * `<TaskRowView>` must make mutations through a `commitActionTransaction` prop
+     * since it doesn't have types that allow write access.
+     */
+    public readonly store: TaskClientReadonlyStore;
+
     private readonly _store: TaskClientStoreInternal;
-    public readonly store: TaskClientStore;
     public readonly collectionId: TaskCollectionId;
     private readonly _collectionEntryStoreWithoutError: Store<TaskClientStoreCollectionEntry>;
 

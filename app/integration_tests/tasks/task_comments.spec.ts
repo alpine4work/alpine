@@ -21,21 +21,18 @@ test("can navigate to task comments and add comment from peek", async ({
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}`);
+    await page.goto(`/s/${space.id}/tasks`);
 
-    await page.getByRole("button", {name: "Create"}).click();
+    await page.getByRole("button", {name: "Create", exact: true}).click();
     await page.getByRole("menuitem", {name: "Task"}).click();
 
     await expect(page.getByTestId("PeekStack")).toBeVisible();
 
-    await page.getByTestId("PeekStack").getByRole("textbox", {name: "Title"}).fill("new task");
-
     await page
         .getByTestId("PeekStack")
-        .getByTestId(/^TaskRowView:/)
-        .getByLabel("Open")
-        .first()
-        .click();
+        .getByTestId("TaskDetailViewMain")
+        .getByRole("textbox", {name: "Title"})
+        .fill("new task");
 
     await expect(
         page.getByTestId("PeekStackOverlay").getByTestId("TaskDetailViewMain").getByLabel("Title"),
@@ -79,20 +76,16 @@ test("expanding task from peek opens task detail view", async ({page, context: b
     await services.signIn(browserContext, session);
     await page.goto(`/s/${space.id}/tasks/${task.id}`);
 
-    await page.getByRole("button", {name: "Create"}).click();
+    await page.getByRole("button", {name: "Create", exact: true}).click();
     await page.getByRole("menuitem", {name: "Task"}).click();
 
     await expect(page.getByTestId("PeekStack")).toBeVisible();
-    await page.getByTestId("PeekStack").getByRole("textbox", {name: "Title"}).click();
-
-    await page.keyboard.type("new task");
 
     await page
         .getByTestId("PeekStack")
-        .getByTestId(/^TaskRowView:/)
-        .getByLabel("Open")
-        .first()
-        .click();
+        .getByTestId("TaskDetailViewMain")
+        .getByRole("textbox", {name: "Title"})
+        .fill("new task");
 
     await expect(page.getByTestId("TaskDetailViewMain").getByText("unique task 1")).toBeVisible();
 
@@ -108,7 +101,7 @@ test("expanding task from peek opens task detail view", async ({page, context: b
 
     await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
 
-    await page.getByRole("button", {name: "Create"}).click();
+    await page.getByRole("button", {name: "Create", exact: true}).click();
     await page.getByRole("menuitem", {name: "More"}).hover();
     await page.getByRole("menuitem", {name: "Task view"}).click();
 

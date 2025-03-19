@@ -129,7 +129,10 @@ export function SpaceLayoutSideBarCreateButton() {
                             withCustomLayout: true,
                             pressErrorTitle: "Couldn’t open tasks",
                             onPress: async () => {
-                                await peekStackContext.push(`/s/${space.id}/tasks?focus=new`);
+                                const taskId = generateId();
+                                await peekStackContext.push(
+                                    `/s/${space.id}/tasks/${taskId}?create&focus`,
+                                );
                             },
                             render: ({isPressed, shouldShowPendingSpinner}) => (
                                 <SpaceLayoutSideBarCreateButtonItem

@@ -18,7 +18,6 @@ import {
 } from "~/client/web_socket/web_socket_client.js";
 import {UnavailableError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -32,7 +31,7 @@ import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collabor
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
 
-type TaskNotesContentEditorState = CollaborativeContentEditorState<
+export type TaskNotesContentEditorState = CollaborativeContentEditorState<
     TaskNotesContentWithReferences,
     TaskNotesContentEditorExtraState
 >;
@@ -58,7 +57,7 @@ export type TaskDetailNotesContentEditorWebSocketClientProcedures = Pick<
     (typeof TaskDetailNotesContentEditorWebSocketClient.procedureNames)[number]
 >;
 
-const reduceCollaborativeContentEditorState = createCollaborativeContentEditorStateReducer<
+export const reduceTaskNotesContentEditorState = createCollaborativeContentEditorStateReducer<
     TaskNotesContentWithReferences,
     TaskNotesContentEditorExtraState,
     TaskNotesContentEditorExtraAction
@@ -70,6 +69,23 @@ const reduceCollaborativeContentEditorState = createCollaborativeContentEditorSt
 
     return state;
 });
+
+export function getInitialTaskNotesContentEditorState({
+    taskId,
+    initialNotesVersion,
+    initialNotesContent,
+}: {
+    taskId: TaskId;
+    initialNotesVersion: number;
+    initialNotesContent: TaskNotesContentWithReferences;
+}): TaskNotesContentEditorState {
+    return getInitialCollaborativeContentEditorState({
+        initialVersion: initialNotesVersion,
+        initialContent: initialNotesContent,
+        reduceReferences: reduceContentReferences,
+        extra: {taskId},
+    });
+}
 
 /**
  * Object representing our connection to the task notes collaboration service
@@ -96,7 +112,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
     private readonly _displayError: (title: string, error: unknown) => void;
     private readonly _getContext: () => AppContext;
     private readonly _addGlobalLoadingIndicator: (
-        promise: Promise<void>,
+        promise: Promise<unknown>,
         indicator: GlobalLoadingIndicator,
     ) => void;
     private readonly _client: WebSocketClient<typeof TaskNotesCollaborationProtocol>;
@@ -117,19 +133,17 @@ export class TaskDetailNotesContentEditorWebSocketClient {
         getContext,
         addGlobalLoadingIndicator,
         taskId,
-        initialNotesVersion,
-        initialNotesContent,
         displayError,
+        initialState,
     }: {
         getContext: () => AppContext;
         addGlobalLoadingIndicator: (
-            promise: Promise<void>,
+            promise: Promise<unknown>,
             indicator: GlobalLoadingIndicator,
         ) => void;
         taskId: TaskId;
-        initialNotesVersion: number;
-        initialNotesContent: TaskNotesContentWithReferences;
         displayError: (title: string, error: unknown) => void;
+        initialState: TaskNotesContentEditorState;
     }) {
         this.taskId = taskId;
         this._getContext = getContext;
@@ -140,14 +154,8 @@ export class TaskDetailNotesContentEditorWebSocketClient {
             TaskNotesCollaborationProtocol,
             `/api/durable-objects/task-notes/${taskId}`,
         );
-        this._state = new ValueStore(
-            getInitialCollaborativeContentEditorState({
-                initialVersion: initialNotesVersion,
-                initialContent: initialNotesContent,
-                reduceReferences: reduceContentReferences,
-                extra: {taskId},
-            }),
-        );
+        assert(initialState.extra.taskId === taskId);
+        this._state = new ValueStore(initialState);
         this._displayError = displayError;
 
         this.procedures = pickObject(
@@ -157,11 +165,11 @@ export class TaskDetailNotesContentEditorWebSocketClient {
     }
 
     private _dispatchBatch(actions: ReadonlyArray<TaskNotesContentEditorAction>) {
-        this._state.set(reduceCollaborativeContentEditorState(this._state.getSnapshot(), actions));
+        this._state.set(reduceTaskNotesContentEditorState(this._state.getSnapshot(), actions));
     }
 
     private _dispatch(action: TaskNotesContentEditorAction) {
-        this._state.set(reduceCollaborativeContentEditorState(this._state.getSnapshot(), [action]));
+        this._state.set(reduceTaskNotesContentEditorState(this._state.getSnapshot(), [action]));
     }
 
     public changeEditorState(editorState: ContentEditorState<TaskNotesContentWithReferences>) {
@@ -290,26 +298,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
             }
         });
 
-        let savingPromiseResolver: PromiseResolver<void> | null = null;
-
         const unsubscribeFromState = this._state.subscribe(() => {
-            const state = this._state.getSnapshot();
-
-            const isSaving =
-                state.pendingSendableSteps !== null ||
-                (state.lastReceivedSendableStepsVersion !== null &&
-                    state.lastReceivedSendableStepsVersion > state.persistedVersion);
-
-            if (savingPromiseResolver === null && isSaving) {
-                savingPromiseResolver = createPromiseResolver();
-                this._addGlobalLoadingIndicator(savingPromiseResolver.promise, {type: "Saving"});
-            }
-
-            if (savingPromiseResolver !== null && !isSaving) {
-                savingPromiseResolver.resolve();
-                savingPromiseResolver = null;
-            }
-
             maybeSendUpdatesToServer();
         });
 
@@ -344,7 +333,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
 
                 lastPendingSendableStepsVersionSentToServer = state.pendingSendableSteps.version;
 
-                this._client.procedures
+                const savingPromise = this._client.procedures
                     .updateNotesContent({
                         version: state.pendingSendableSteps.version,
                         steps: state.pendingSendableSteps.steps,
@@ -375,6 +364,8 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                             lastPendingSendableStepsVersionSentToServer = "SilentError";
                         }
                     });
+
+                this._addGlobalLoadingIndicator(savingPromise, {type: "Saving"});
             }
         };
 
@@ -383,26 +374,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
             unsubscribeFromClientMessages();
             unsubscribeFromState();
 
-            void this._client.disconnect().finally(() => {
-                // Only resolve our saving promise once the client actually disconnects. Since
-                // if we're soft closing the connection we want to wait for any
-                // `updateNotesContent` procedures to finish. Two downsides here:
-                //
-                // 1. If there are other pending procedures besides `updateNotesContent` we'll
-                //    have to wait for those to finish too.
-                //
-                // 2. Just because `updateNotesContent` finished doesn't mean our content has
-                //    persisted. A soft closed client won't receive a `PersistedContent`
-                //    message.
-                //
-                // A better approach is to leave a phantom WebSocket connection until we see a
-                // `PersistedContent` message and then disconnect. But that's complicated so
-                // I'm writing it like this for now.
-                if (savingPromiseResolver !== null) {
-                    savingPromiseResolver.resolve();
-                    savingPromiseResolver = null;
-                }
-            });
+            void this._client.disconnect();
         };
     }
 

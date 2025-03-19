@@ -39,20 +39,6 @@ export type CollaborativeContentEditorState<Content extends ContentWithReference
     } | null;
 
     /**
-     * The `version` from our server after applying the last
-     * `pendingSendableSteps`. `pendingSendableSteps` is considered "received"
-     * after a `ReceiveSteps` action that includes its steps.
-     *
-     * After the server receives the steps this will be updated to
-     * `pendingSendableSteps.version + pendingSendableSteps.steps.length` assuming
-     * there were no conflicting steps.
-     *
-     * Used to tell if all the steps from our client have been persisted. We
-     * show a saving indicator while this version is less than `persistedVersion`.
-     */
-    readonly lastReceivedSendableStepsVersion: number | null;
-
-    /**
      * The version that's been persisted in the database. The steps we receive
      * from the document collaboration service may be a bit ahead of what's durably
      * persisted in the database.
@@ -139,7 +125,6 @@ export function getInitialCollaborativeContentEditorState<
         pendingActions: [],
         editorState,
         pendingSendableSteps: null,
-        lastReceivedSendableStepsVersion: null,
         persistedVersion: initialVersion,
         errorState: {hasError: false},
         extra,
@@ -303,9 +288,6 @@ function actuallyReduceCollaborativeContentEditorState<
                     pendingSendableSteps: isReceivingPendingSendableSteps
                         ? null
                         : oldState.pendingSendableSteps,
-                    lastReceivedSendableStepsVersion: isReceivingPendingSendableSteps
-                        ? action.newVersion
-                        : oldState.lastReceivedSendableStepsVersion,
                 },
                 // Our custom reducer sees `ReceiveSteps` actions in-order and deduplicated.
                 // Unlike our base collaborative reducer implementation which handles

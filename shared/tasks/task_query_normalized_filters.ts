@@ -10,12 +10,12 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {ObjectSchema, Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 import {analyzeTaskTitleText} from "~/shared/tasks/analyze_task_title_text.js";
 import {CalendarDateSchema} from "~/shared/tasks/calendar_date_schema.js";
-import {TaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {
     TaskQueryCollectionsFilter,
@@ -67,13 +67,15 @@ export type TaskQueryNormalizedFilters = {
     readonly assigneeFilter?: TaskQueryAccountNormalizedFilter;
     readonly creatorFilter?: TaskQueryAccountNormalizedFilter;
     readonly assignerFilter?: TaskQueryAccountNormalizedFilter;
-    readonly dueDateFilter?: TaskQueryDateNormalizedFilter | {readonly type: "IsEmpty"};
+    readonly dueDateFilter?:
+        | TaskQueryDateNormalizedFilter
+        | {readonly type: "IsEmpty"}
+        | Replace<TaskQueryDateNormalizedFilter, {readonly type: "RangeOrIsEmpty"}>;
     readonly createdDateFilter?: TaskQueryDateNormalizedFilter;
     readonly assignedDateFilter?: TaskQueryDateNormalizedFilter;
     readonly closedDateFilter?: TaskQueryDateNormalizedFilter;
     readonly activatedDateFilter?: TaskQueryDateNormalizedFilter;
     readonly parentFilter?: TaskQueryParentNormalizedFilter;
-    readonly notepadPageFilter?: TaskQueryNotepadPageNormalizedFilter;
 };
 
 export const defaultTaskQueryNormalizedFilters: TaskQueryNormalizedFilters = {
@@ -292,11 +294,14 @@ export type TaskQueryDateNormalizedFilter =
           readonly exclusiveUpperBoundDate: CalendarDate | null;
       };
 
-const TaskQueryDateNormalizedFilterSchema = Schema.object({
-    type: Schema.value("Range"),
+const TaskQueryDateNormalizedFilterBaseSchema = Schema.object({
     exclusiveLowerBoundDate: CalendarDateSchema.nullable(),
     exclusiveUpperBoundDate: CalendarDateSchema.nullable(),
-}) as ObjectSchema<TaskQueryDateNormalizedFilter>;
+});
+
+const TaskQueryDateNormalizedFilterSchema = Schema.object({
+    type: Schema.value("Range"),
+}).merge(TaskQueryDateNormalizedFilterBaseSchema) as ObjectSchema<TaskQueryDateNormalizedFilter>;
 
 export type TaskQueryParentNormalizedFilter = {
     readonly parentTaskId: TaskId;
@@ -304,21 +309,6 @@ export type TaskQueryParentNormalizedFilter = {
 
 const TaskQueryParentNormalizedFilterSchema = Schema.object({
     parentTaskId: Schema.id<TaskId>(),
-});
-
-/**
- * The notepad page filter is not exposed in the UI to users but is instead
- * used when a user opens one of their notepad pages to just view the tasks in
- * that page.
- */
-export type TaskQueryNotepadPageNormalizedFilter = {
-    readonly accountId: AccountId;
-    readonly notepadPageId: TaskNotepadPageId;
-};
-
-const TaskQueryNotepadPageNormalizedFilterSchema = Schema.object({
-    accountId: Schema.id<AccountId>(),
-    notepadPageId: Schema.integer as any as Schema<TaskNotepadPageId>,
 });
 
 export const TaskQueryNormalizedFiltersSchema: Schema<TaskQueryNormalizedFilters> = Schema.object({
@@ -332,13 +322,15 @@ export const TaskQueryNormalizedFiltersSchema: Schema<TaskQueryNormalizedFilters
     dueDateFilter: Schema.union({
         Range: TaskQueryDateNormalizedFilterSchema,
         IsEmpty: Schema.object({type: Schema.value("IsEmpty")}),
+        RangeOrIsEmpty: Schema.object({type: Schema.value("RangeOrIsEmpty")}).merge(
+            TaskQueryDateNormalizedFilterBaseSchema,
+        ),
     }).optional(),
     createdDateFilter: TaskQueryDateNormalizedFilterSchema.optional(),
     assignedDateFilter: TaskQueryDateNormalizedFilterSchema.optional(),
     closedDateFilter: TaskQueryDateNormalizedFilterSchema.optional(),
     activatedDateFilter: TaskQueryDateNormalizedFilterSchema.optional(),
     parentFilter: TaskQueryParentNormalizedFilterSchema.optional(),
-    notepadPageFilter: TaskQueryNotepadPageNormalizedFilterSchema.optional(),
 });
 
 /**
@@ -552,23 +544,60 @@ export function normalizeTaskQueryFilters(
                 if (!normalizedFilters.dueDateFilter) {
                     normalizedFilters.dueDateFilter = normalizeResult.filter;
                 } else {
-                    const mergeResult:
+                    let mergeResult:
                         | {
                               type: "Filter";
-                              filter: TaskQueryDateNormalizedFilter | {type: "IsEmpty"};
+                              filter:
+                                  | TaskQueryDateNormalizedFilter
+                                  | {readonly type: "IsEmpty"}
+                                  | Replace<
+                                        TaskQueryDateNormalizedFilter,
+                                        {readonly type: "RangeOrIsEmpty"}
+                                    >;
                           }
-                        | {type: "AlwaysFalse"} =
-                        normalizedFilters.dueDateFilter.type === "IsEmpty" &&
-                        normalizeResult.filter.type === "IsEmpty"
-                            ? {type: "Filter", filter: {type: "IsEmpty"}}
-                            : normalizedFilters.dueDateFilter.type === "IsEmpty"
-                            ? {type: "AlwaysFalse"}
-                            : normalizeResult.filter.type === "IsEmpty"
-                            ? {type: "AlwaysFalse"}
-                            : mergeTaskQueryDateNormalizedFilters(
-                                  normalizedFilters.dueDateFilter,
-                                  normalizeResult.filter,
-                              );
+                        | {type: "AlwaysFalse"};
+
+                    switch (normalizedFilters.dueDateFilter.type) {
+                        case "Range": {
+                            if (normalizeResult.filter.type === "IsEmpty") {
+                                mergeResult = {type: "AlwaysFalse"};
+                                break;
+                            } else {
+                                mergeResult = mergeTaskQueryDateNormalizedFilters(
+                                    normalizedFilters.dueDateFilter,
+                                    normalizeResult.filter,
+                                );
+                                break;
+                            }
+                        }
+                        case "IsEmpty": {
+                            if (normalizeResult.filter.type === "IsEmpty") {
+                                mergeResult = {type: "Filter", filter: {type: "IsEmpty"}};
+                                break;
+                            } else {
+                                mergeResult = {type: "AlwaysFalse"};
+                                break;
+                            }
+                        }
+                        case "RangeOrIsEmpty": {
+                            if (normalizeResult.filter.type === "IsEmpty") {
+                                mergeResult = {type: "Filter", filter: {type: "IsEmpty"}};
+                                break;
+                            } else {
+                                mergeResult = mergeTaskQueryDateNormalizedFilters(
+                                    {
+                                        ...normalizedFilters.dueDateFilter,
+                                        type: "Range",
+                                    } as TaskQueryDateNormalizedFilter,
+                                    normalizeResult.filter,
+                                );
+                                break;
+                            }
+                        }
+                        default:
+                            throw exhaustive(normalizedFilters.dueDateFilter);
+                    }
+
                     if (mergeResult.type === "AlwaysFalse") return {type: "Impossible"};
 
                     normalizedFilters.dueDateFilter = mergeResult.filter;

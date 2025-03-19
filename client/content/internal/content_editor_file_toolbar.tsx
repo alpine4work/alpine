@@ -527,7 +527,7 @@ function ContentEditorFileToolbarButton({
 
     const onPress = () => {
         const view = assertExists(viewRef.current);
-        command(view.state, view.dispatch.bind(view), view);
+        command(view.state, view.dispatch, view);
     };
 
     const localRef = useRef<HTMLDivElement>(null);

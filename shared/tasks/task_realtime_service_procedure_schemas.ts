@@ -4,7 +4,7 @@ import {
     TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
@@ -21,6 +21,8 @@ export const TaskRealtimeApplyActionTransactionInputSchema = Schema.object({
     clientId: Schema.id<TaskRealtimeClientId>().nullable(),
 });
 
+export type TaskRealtimeLoadQueriesInput = SchemaType<typeof TaskRealtimeLoadQueriesInputSchema>;
+
 export const TaskRealtimeLoadQueriesInputSchema = Schema.object({
     queries: Schema.array(
         Schema.object({
@@ -33,6 +35,8 @@ export const TaskRealtimeLoadQueriesInputSchema = Schema.object({
     taskIds: Schema.array(Schema.id<TaskId>()),
     collectionIds: Schema.array(Schema.id<TaskCollectionId>()),
 });
+
+export type TaskRealtimeLoadQueriesOutput = SchemaType<typeof TaskRealtimeLoadQueriesOutputSchema>;
 
 export const TaskRealtimeLoadQueriesOutputSchema = Schema.object({
     ok: Schema.value(true),

@@ -1,4 +1,5 @@
 import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {ContentSelectionSchema} from "~/shared/content/content_selection_schema.js";
 import {DocumentContentReferencesSchema} from "~/shared/documents/document_content_references.js";
 import {DocumentContentStepSchema} from "~/shared/documents/document_content_schema.js";
 import {
@@ -18,7 +19,6 @@ import {
     MessagingTypingStateSchema,
     createMessagingRealtimeEventSchemas,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
-import {ProsemirrorSelectionSchema} from "~/shared/prosemirror/prosemirror_selection_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     WebSocketProtocolEventType,
@@ -31,7 +31,7 @@ export type DocumentCollaborationPresenceState = SchemaType<
 
 const DocumentCollaborationPresenceStateSchema = Schema.object({
     version: Schema.integer,
-    selection: ProsemirrorSelectionSchema,
+    selection: ContentSelectionSchema,
 });
 
 export type DocumentCollaborationEvent = WebSocketProtocolEventType<

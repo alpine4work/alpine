@@ -389,6 +389,6 @@ function MessageInputMobileKeyboardToolbarButton({
 function fromCommand(viewRef: RefObject<EditorView>, command: Command): () => void {
     return () => {
         const view = assertExists(viewRef.current);
-        command(view.state, view.dispatch.bind(view), view);
+        command(view.state, view.dispatch, view);
     };
 }

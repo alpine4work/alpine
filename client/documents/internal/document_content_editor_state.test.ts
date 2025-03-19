@@ -9,6 +9,7 @@ import {
     reduceDocumentContentEditorState,
     reduceDocumentContentReferences,
 } from "~/client/documents/internal/document_content_editor_state.js";
+import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
 import {
     DocumentContentWithReferences,
     emptyDocumentContentReferences,
@@ -21,7 +22,6 @@ import {
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, ContentEditorClientId} from "~/shared/id/types/id_types.js";
-import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema.js";
 
 const currentAccountId = generateId<AccountId>();
 
@@ -1084,7 +1084,6 @@ test("collaborative update scenario", () => {
                 }),
             ],
         },
-        lastReceivedSendableStepsVersion: null,
         errorState: {hasError: false},
         extra: {
             currentAccountId,
@@ -1134,7 +1133,7 @@ test("generates correct remembered steps", () => {
                     generateId(),
                     {
                         version: 10,
-                        selection: ProsemirrorSelectionWrapper.new(
+                        selection: ContentSelectionWrapper.new(
                             new TextSelection(doc.resolve(4), doc.resolve(4)),
                         ),
                     },

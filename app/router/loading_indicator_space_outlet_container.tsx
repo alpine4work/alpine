@@ -7,7 +7,6 @@ import {usePromise} from "~/client/helpers/use_promise.js";
 import {useInboxContext} from "~/client/inbox/inbox_context.js";
 import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {RouteShimmer} from "~/client/shimmer/route_shimmer.js";
-import {spaceLayoutSidebarSpace} from "~/client/spaces/layout/space_layout_side_bar.js";
 import {useIsFullWidthRoute} from "~/client/spaces/route_metadata.js";
 import {spaceLayoutStyles} from "~/client/styles/styles.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
@@ -110,7 +109,7 @@ function LoadingIndicatorDebugOverlay({
                 paddingLeft: hasSpaceLayoutSidebar
                     ? isFullWidthRoute
                         ? spaceLayoutStyles.sideBarWidth
-                        : spaceLayoutSidebarSpace
+                        : spaceLayoutStyles.sideBarSpace
                     : undefined,
             }}
         >

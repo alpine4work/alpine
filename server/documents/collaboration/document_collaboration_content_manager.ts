@@ -7,6 +7,7 @@ import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_c
 import {DocumentCollaborationStepCache} from "~/server/documents/collaboration/document_collaboration_step_cache.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {
     DocumentCollaborationEvent,
@@ -50,7 +51,6 @@ import {
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
-import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema.js";
 import {
     ProsemirrorVisitor,
     visitProsemirrorStep,
@@ -344,7 +344,7 @@ export class DocumentCollaborationContentManager {
                 newPresenceStateSelection
                     ? {
                           version: oldVersion + steps.length,
-                          selection: ProsemirrorSelectionWrapper.new(newPresenceStateSelection),
+                          selection: ContentSelectionWrapper.new(newPresenceStateSelection),
                       }
                     : null;
 

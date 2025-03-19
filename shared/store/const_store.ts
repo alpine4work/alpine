@@ -1,3 +1,4 @@
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {Store} from "~/shared/store/store.js";
 
 /**
@@ -30,3 +31,4 @@ export const nullStore = new ConstStore(null);
 export const undefinedStore = new ConstStore(undefined);
 export const trueStore = new ConstStore(true);
 export const falseStore = new ConstStore(false);
+export const emptyArrayStore = new ConstStore(emptyArray);

@@ -31,10 +31,7 @@ import {
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
-import {
-    TaskClientStoreSearchAffinityManager,
-    TaskClientStoreUndoManager,
-} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientReadonlyStore} from "~/client/tasks/core/task_client_store.js";
 import {createDisplayTaskCollectionsStore} from "~/client/tasks/internal/create_display_task_collections_store.js";
 import {TaskCollectionChip} from "~/client/tasks/internal/task_collection_chip.js";
 import {TaskRowCollectionsCellOverlay} from "~/client/tasks/internal/task_row_collections_cell_overlay.js";
@@ -44,7 +41,8 @@ import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {emptyArrayStore} from "~/shared/store/const_store.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
@@ -115,28 +113,23 @@ const extraCollectionsClassName = sprinkles({
 function TaskRowCollectionsCell(
     {
         isReadOnly,
+        store,
         query,
-        undoManager,
-        affinityManager,
         task,
         onCellKeyDown,
         onCellKeyDownCapture,
         focusPreviousCell,
-        commitActionTransactionEvenIfGhost,
+        commitActionTransaction,
     }: {
         isReadOnly: boolean;
-        query: TaskClientQuery;
-        undoManager: TaskClientStoreUndoManager;
-        affinityManager: TaskClientStoreSearchAffinityManager;
+        store: TaskClientReadonlyStore;
+        query: TaskClientQuery | null;
         task: TaskModel | null;
         onCellKeyDown: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
-        commitActionTransactionEvenIfGhost: Memo<
-            (
-                getActions: (taskId: TaskId) => Array<TaskAction>,
-                options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
-            ) => void
+        commitActionTransaction: Memo<
+            (getActions: (taskId: TaskId) => Array<TaskActionModel>) => void
         >;
     },
     ref: Ref<TaskRowCollectionsCellRef>,
@@ -166,20 +159,23 @@ function TaskRowCollectionsCell(
     const displayCollections = useStore(
         useMemo(
             () =>
-                createDisplayTaskCollectionsStore({
-                    currentAccount,
-                    referencesSubscription: query,
-                    collections,
-                }),
+                query !== null
+                    ? createDisplayTaskCollectionsStore({
+                          currentAccount,
+                          referencesSubscription: query,
+                          collections,
+                      })
+                    : emptyArrayStore,
             [collections, currentAccount, query],
         ),
     );
 
-    const queryFiltersRequiredCollectionIds = query.filters.collectionsFilter
-        ? taskQueryCollectionsNormalizedFilterRequiredIdsCache.getOrSetDefault(
-              query.filters.collectionsFilter,
-          )
-        : emptySet;
+    const queryFiltersRequiredCollectionIds =
+        query !== null && query.filters.collectionsFilter
+            ? taskQueryCollectionsNormalizedFilterRequiredIdsCache.getOrSetDefault(
+                  query.filters.collectionsFilter,
+              )
+            : emptySet;
 
     // We want to show collections that are not required by the query first, then
     // if we still have room show collections required by the query.
@@ -304,11 +300,11 @@ function TaskRowCollectionsCell(
                             event.stopPropagation();
 
                             if (!isReadOnly) {
-                                commitActionTransactionEvenIfGhost(taskId => {
-                                    const time = query.store.clock.now();
+                                commitActionTransaction(taskId => {
+                                    const time = store.clock.now();
 
                                     return displayCollections.map(
-                                        (collection): TaskAction => ({
+                                        (collection): TaskActionModel => ({
                                             type: "UpdateTask",
                                             time,
                                             taskId,
@@ -430,13 +426,11 @@ function TaskRowCollectionsCell(
                     ref={cellOverlayRef}
                     cellId={cellId}
                     isReadOnly={isReadOnly}
+                    store={store}
                     query={query}
-                    undoManager={undoManager}
-                    affinityManager={affinityManager}
                     task={task}
                     focusPreviousCell={() => focusPreviousCell("Collections")}
                     cellRef={cellRef}
-                    commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
                     onClose={() => {
                         assertExists(cellRef.current).blur();
 
@@ -444,6 +438,7 @@ function TaskRowCollectionsCell(
                         // `<TaskCollectionsInput>` won't put focus back on our cell.
                         flushSync(() => setIsFocusWithin(false));
                     }}
+                    commitActionTransaction={commitActionTransaction}
                 />
             )}
         </div>

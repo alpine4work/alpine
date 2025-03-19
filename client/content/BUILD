@@ -31,7 +31,6 @@ ts_project(
         "//:node_modules/prosemirror-state",
         "//:node_modules/prosemirror-transform",
         "//:node_modules/prosemirror-view",
-        "//:node_modules/prosemirror-tables",
         "//:node_modules/react",
         "//:node_modules/react-aria",
         "//:node_modules/react-router-dom",

@@ -58,16 +58,12 @@ export function mergeTaskModelData(task1: TaskModelData, task2: TaskModelData): 
         collections: task1.collections.merge(task2.collections),
         positionByCollectionId: task1.positionByCollectionId.merge(task2.positionByCollectionId),
 
-        positionByAccountIdAndNotepadPageId: task1.positionByAccountIdAndNotepadPageId.merge(
-            task2.positionByAccountIdAndNotepadPageId,
-        ),
-
         status: task1.status.merge(task2.status),
         assignee: task1.assignee.merge(task2.assignee),
         assigneeStatus: task1.assigneeStatus.merge(task2.assigneeStatus),
-        assigneeActivePosition: task1.assigneeActivePosition.merge(task2.assigneeActivePosition),
+        assigneePosition: task1.assigneePosition.merge(task2.assigneePosition),
 
-        title: task1.title.isEqual(task2.title) ? task1.title : task1.title.apply(task2.title.raw),
+        title: task1.title.isEqual(task2.title) ? task1.title : task1.title.apply(task2.title),
         dueDate: task1.dueDate.merge(task2.dueDate),
         priority: task1.priority.merge(task2.priority),
     };

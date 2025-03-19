@@ -560,40 +560,34 @@ http_archive(
     url = "https://github.com/openssl/openssl/releases/download/openssl-3.4.0/openssl-3.4.0.tar.gz",
 )
 
-# NOTE(calebmer, 2024-11-07): Unfortunately we're using the `zig` nightly
-# 0.14.0 build for now because it has a fix we need that's not in 0.13.0. `zig`
-# releases appear to be every 6 months so we should be able to update this
-# soon.
-#
-# https://github.com/ziglang/zig/issues/20493
 http_archive(
     name = "zig_macos_x86_64",
     build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-SRR/yUq2z2XchEUXD3nOBn5+IAL6bmWXlTyRuasejxk=",
-    strip_prefix = "zig-macos-x86_64-0.14.0-dev.3091+42e48b83b",
-    url = "https://ziglang.org/builds/zig-macos-x86_64-0.14.0-dev.3091+42e48b83b.tar.xz",
+    integrity = "sha256-aFgWFm8h8LjW/Hqmo26ROW3NgsplVt++PjKd7/wB/sM=",
+    strip_prefix = "zig-macos-x86_64-0.14.0",
+    url = "https://ziglang.org/download/0.14.0/zig-macos-x86_64-0.14.0.tar.xz",
 )
 
 http_archive(
     name = "zig_macos_aarch64",
     build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-OpDnAnoEzNXtYtko0vWAsdfX+ubSBM594OdIwL8TEMM=",
-    strip_prefix = "zig-macos-aarch64-0.14.0-dev.3091+42e48b83b",
-    url = "https://ziglang.org/builds/zig-macos-aarch64-0.14.0-dev.3091+42e48b83b.tar.xz",
+    integrity = "sha256-tx5LfEtL6ZU2V4d/f55vfuiRFMcW2nwHD0ojgiDpXX4=",
+    strip_prefix = "zig-macos-aarch64-0.14.0",
+    url = "https://ziglang.org/download/0.14.0/zig-macos-aarch64-0.14.0.tar.xz",
 )
 
 http_archive(
     name = "zig_linux_x86_64",
     build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-7WIUc/WHJQhgmtApLYPalVEbUGg8d7C/NHn0o5S1PII=",
-    strip_prefix = "zig-linux-x86_64-0.14.0-dev.3091+42e48b83b",
-    url = "https://ziglang.org/builds/zig-linux-x86_64-0.14.0-dev.3091+42e48b83b.tar.xz",
+    integrity = "sha256-Rz7CaAYTPPTRkYyvGkEPhAOhPZeXJqkEW0IbaFAxqYI=",
+    strip_prefix = "zig-linux-x86_64-0.14.0",
+    url = "https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz",
 )
 
 http_archive(
     name = "zig_linux_aarch64",
     build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-+uDrm4Pu4IFRPXfIBcRBBTZ5rk068Wr4Ov1YrQsmpXw=",
-    strip_prefix = "zig-linux-aarch64-0.14.0-dev.3091+42e48b83b",
-    url = "https://ziglang.org/builds/zig-linux-aarch64-0.14.0-dev.3091+42e48b83b.tar.xz",
+    integrity = "sha256-q2Tj6id/b8Xz1yPc2V2c4asoLI7Q9DG03ogNMN+JHk8=",
+    strip_prefix = "zig-linux-aarch64-0.14.0",
+    url = "https://ziglang.org/download/0.14.0/zig-linux-aarch64-0.14.0.tar.xz",
 )

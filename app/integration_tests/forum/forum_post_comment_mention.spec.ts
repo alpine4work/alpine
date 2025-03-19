@@ -5,8 +5,6 @@ import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js
 import {createChannel, createPost} from "~/server/forum/data/forum_table.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 
-const modifier = process.platform === "darwin" ? "Meta" : "Control";
-
 const {context, services} = createTestServices();
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space, {name: "Logan Roy"});
@@ -166,7 +164,7 @@ test("can undo to get the full mention when a short mention was inferred", async
         await expect(page.getByTestId("ContentEditorMentionFloater")).toBeHidden();
         await expect(page.getByText("Siobahn", {exact: true})).toBeVisible();
         await expect(page.getByText("Siobahn Roy", {exact: true})).toBeHidden();
-        await page.getByRole("textbox", {name: "New comment"}).press(`${modifier}+z`);
+        await page.getByRole("textbox", {name: "New comment"}).press("ControlOrMeta+z");
         await expect(page.getByText("Siobahn Roy", {exact: true})).toBeVisible();
         await expect(page.getByText("Siobahn", {exact: true})).toBeHidden();
         await expect(page.getByRole("button", {name: "Send comment"})).toBeEnabled();

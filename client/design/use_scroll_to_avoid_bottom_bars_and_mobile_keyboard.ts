@@ -535,8 +535,8 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 // If our scroll anchor won't be partially hidden by the visible rect changing
                 // then don't scroll.
                 //
-                // A test case: Tap on a `<TaskDateInput>` near the top of the task notepad.
-                // Trying to adjust the scroll will cancel out the animated scroll
+                // A test case: Tap on a `<TaskDateInput>` near the top of the task personal
+                // view. Trying to adjust the scroll will cancel out the animated scroll
                 // `<TaskDateInput>` starts since this hook tries to make a minor adjustment.
                 if (!isPartiallyHidden) {
                     fallbackScroll();

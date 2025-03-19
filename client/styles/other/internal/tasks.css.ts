@@ -8,9 +8,11 @@ import {
     mediumSpacingScaleSelector,
 } from "~/client/styles/core/styles_core.js";
 import {
+    docClassName,
     paragraphLineHeightPx,
     paragraphMargin,
 } from "~/client/styles/other/internal/content.css.js";
+import {containerClassName} from "~/client/styles/other/internal/content_editor.css.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -36,21 +38,14 @@ globalStyle(`${textCursorNotInherited2ClassName} > * > *`, {
 });
 
 export const rowTitleInputEmptyContainerClassName = style({});
-export const rowTitleInputInitialAppRenderEmptyContainerClassName = style({});
 
 export const rowTitleInputPlaceholderClassName = style({
     display: "none",
 });
 
-globalStyle(
-    [
-        `${rowTitleInputEmptyContainerClassName} ${rowTitleInputPlaceholderClassName}`,
-        `${rowTitleInputInitialAppRenderEmptyContainerClassName} ${rowTitleInputPlaceholderClassName}`,
-    ].join(", "),
-    {
-        display: "block",
-    },
-);
+globalStyle(`${rowTitleInputEmptyContainerClassName} ${rowTitleInputPlaceholderClassName}`, {
+    display: "block",
+});
 
 export const rowTitleInputIsNotEditableClassName = style({});
 
@@ -90,31 +85,32 @@ globalStyle(
     },
 );
 
-export const rowTitleInputOverflowGradientLeftContainerClassName = style({
+export const rowTitleInputSingleLineOverflowGradientMarginX = "1.5";
+
+export const rowTitleInputSingleLineOverflowGradientContainerClassName = style({
+    marginLeft: `-${spacing[rowTitleInputSingleLineOverflowGradientMarginX]}`,
+    marginRight: `-${spacing[rowTitleInputSingleLineOverflowGradientMarginX]}`,
     selectors: {
-        "&::before": {
+        [`:not(${rowTitleInputEmptyContainerClassName}) > &::before`]: {
+            pointerEvents: "none",
             content: '""',
             position: "absolute",
-            zIndex: 20,
+            zIndex: "20",
             top: 1, // Top 1px to avoid overlapping border.
             bottom: 0,
             left: 0,
-            width: spacing["3"],
+            width: spacing[rowTitleInputSingleLineOverflowGradientMarginX],
             background: `linear-gradient(to right, ${colorSchemeVars["grey-0"]}, transparent)`,
         },
-    },
-});
-
-export const rowTitleInputOverflowGradientRightContainerClassName = style({
-    selectors: {
-        "&::after": {
+        [`:not(${rowTitleInputEmptyContainerClassName}) > &::after`]: {
+            pointerEvents: "none",
             content: '""',
             position: "absolute",
-            zIndex: 20,
+            zIndex: "20",
             top: 1, // Top 1px to avoid overlapping border.
             bottom: 0,
             right: 0,
-            width: spacing["3"],
+            width: spacing[rowTitleInputSingleLineOverflowGradientMarginX],
             background: `linear-gradient(to left, ${colorSchemeVars["grey-0"]}, transparent)`,
         },
     },
@@ -177,7 +173,7 @@ export const rowTitleInputMultilineAfterClassName = style({
     },
 });
 
-export const detailNotesContentEditorMinHeight = mapObjectValues(
+export const detailNotesContentEditorMinHeightPx = mapObjectValues(
     paragraphLineHeightPx,
     (paragraphLineHeight, spacingScale) =>
         paragraphLineHeight * 2 + convertRemLengthToPx(paragraphMargin, spacingScale) * 1,
@@ -185,13 +181,19 @@ export const detailNotesContentEditorMinHeight = mapObjectValues(
 
 export const detailNotesContentEditorClassName = style({
     height: "100%",
-    minHeight: detailNotesContentEditorMinHeight.small,
     selectors: {
-        [`${mediumSpacingScaleSelector} &`]: {
-            minHeight: detailNotesContentEditorMinHeight.medium,
+        // We need the `${containerClassName} > ${docClassName}` selectors to make sure
+        // we override the `min-height: 100%` set with the same selector.
+        [`&, ${containerClassName} > ${docClassName}&`]: {
+            minHeight: detailNotesContentEditorMinHeightPx.small,
         },
-        [`${largeSpacingScaleSelector} &`]: {
-            minHeight: detailNotesContentEditorMinHeight.large,
-        },
+        [`${mediumSpacingScaleSelector} &, ${mediumSpacingScaleSelector} ${containerClassName} > ${docClassName}&`]:
+            {
+                minHeight: detailNotesContentEditorMinHeightPx.medium,
+            },
+        [`${largeSpacingScaleSelector} &, ${largeSpacingScaleSelector} ${containerClassName} > ${docClassName}&`]:
+            {
+                minHeight: detailNotesContentEditorMinHeightPx.large,
+            },
     },
 });

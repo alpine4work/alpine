@@ -241,8 +241,8 @@ export function TaskQueryCollectionsFilterOperationEditor({
                         assert(filter.operation.type !== "IsEmpty");
 
                         const addedCollectionIds = new Set(newCollectionIds);
-                        for (const accountId of filter.operation.collectionIds)
-                            addedCollectionIds.delete(accountId);
+                        for (const collectionId of filter.operation.collectionIds)
+                            addedCollectionIds.delete(collectionId);
 
                         const addedCollectionResultById = new Map<
                             TaskCollectionId,

@@ -1,31 +1,35 @@
 import {animate, spring, timeline} from "motion";
 import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {useReporter} from "~/client/design/reporter.js";
-import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
-import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {documentContentEditorSidebarWidth} from "~/client/styles/document_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {taskDetailViewCommentSidebarWidth} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
-import {TaskClientStoreSearchAffinityManager} from "~/client/tasks/core/task_client_store.js";
+import {
+    TaskClientStore,
+    TaskClientStoreSearchAffinityManager,
+    TaskClientStoreUndoManager,
+} from "~/client/tasks/core/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
-import {createTaskEntryAccessStore} from "~/client/tasks/internal/create_task_entry_access_store.js";
+import {TaskQueryNormalizedFiltersInitialFieldsModel} from "~/client/tasks/core/task_query_normalized_filters_initial_fields_model.js";
+import {
+    TaskAccess,
+    createTaskEntryAccessStore,
+    getPermissionGrantedTaskAccess,
+} from "~/client/tasks/internal/create_task_entry_access_store.js";
+import {useTaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/internal/use_task_detail_notes_content_editor_web_socket_client.js";
 import {
     TaskCommentsView,
     TaskCommentsViewInitialComments,
 } from "~/client/tasks/task_comments_view.js";
-import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {TaskDetailView} from "~/client/tasks/task_detail_view.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
-import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
 import {hasAccessLevel} from "~/shared/access/access_policy.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
@@ -34,30 +38,52 @@ import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/pro
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
-import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
+import {ConstStore} from "~/shared/store/const_store.js";
+import {Store} from "~/shared/store/store.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/tasks/task_error_messages.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 
 export function TaskDetailAndCommentsView({
+    taskId,
+    store,
     taskSubscription,
     childrenQuery,
-    affinityManager,
     initialChildrenGridViewExpansionState,
+    initialFields,
     initialNotesVersion,
     initialNotesContent,
+    commitActionTransactionAndCreateIfNeeded,
+    affinityManager,
+    shouldInitiallyFocus,
     showComments: showCommentsFromProps,
     onShowCommentsChange,
     initialComments,
     initialScrollToCommentIndex,
 }: {
-    taskSubscription: TaskClientTaskSubscription;
-    childrenQuery: TaskClientQuery;
-    affinityManager: TaskClientStoreSearchAffinityManager;
+    taskId: TaskId;
+    store: TaskClientStore;
+    taskSubscription: TaskClientTaskSubscription | null;
+    childrenQuery: TaskClientQuery | null;
     initialChildrenGridViewExpansionState: TaskGridViewExpansionState;
+    initialFields: TaskQueryNormalizedFiltersInitialFieldsModel;
     initialNotesVersion: number;
     initialNotesContent: TaskNotesContentWithReferences;
+    commitActionTransactionAndCreateIfNeeded: Memo<
+        (
+            getActions: () => Iterable<TaskActionModel>,
+            options: {
+                undoManager: TaskClientStoreUndoManager | null;
+                affinityManager: TaskClientStoreSearchAffinityManager;
+            },
+        ) => {
+            finally: (callback: () => void) => void;
+        }
+    >;
+    affinityManager: TaskClientStoreSearchAffinityManager;
+    shouldInitiallyFocus: boolean;
     showComments: boolean;
     onShowCommentsChange: Memo<(showComments: boolean) => void>;
     initialComments: TaskCommentsViewInitialComments | null;
@@ -71,26 +97,22 @@ export function TaskDetailAndCommentsView({
 
     const getCommentUrl = useCallback(
         (commentIndex: number) =>
-            new URL(
-                `/s/${space.id}/tasks/${taskSubscription.taskId}?comment=${commentIndex}`,
-                window.location.href,
-            ),
-        [space.id, taskSubscription.taskId],
+            new URL(`/s/${space.id}/tasks/${taskId}?comment=${commentIndex}`, window.location.href),
+        [space.id, taskId],
     );
-    const context = useAppContext();
-    const reporter = useReporter();
-    const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
 
     const taskAccess = useStore(
-        useMemo(
-            () =>
-                createTaskEntryAccessStore(
-                    currentAccount?.id,
-                    taskSubscription,
-                    taskSubscription.taskEntryStore,
-                ),
-            [currentAccount?.id, taskSubscription],
-        ),
+        useMemo((): Store<TaskAccess> => {
+            // If there's no task subscription that's because we're creating the task. The
+            // task creator always has edit access.
+            if (!taskSubscription) return new ConstStore(getPermissionGrantedTaskAccess("Edit"));
+
+            return createTaskEntryAccessStore(
+                currentAccount?.id,
+                taskSubscription,
+                taskSubscription.taskEntryStore,
+            );
+        }, [currentAccount?.id, taskSubscription]),
     );
 
     if (taskAccess.level === null) {
@@ -115,64 +137,21 @@ export function TaskDetailAndCommentsView({
         }
     }, [onShowCommentsChange, showComments, showCommentsFromProps]);
 
-    const events = useEvents({
-        getContext: () => context,
-        getReporter: () => reporter,
-        addGlobalLoadingIndicator,
+    const {
+        isConnected,
+        editorStateStore: notesEditorStateStore,
+        onEditorStateChange: onNotesEditorStateChange,
+        reconnect: reconnectNotesClient,
+        procedures: notesProcedures,
+        subscribeToCommentsEvents,
+    } = useTaskDetailNotesContentEditorWebSocketClient({
+        taskId,
+        taskSubscription,
+        initialNotesVersion,
+        initialNotesContent,
+        affinityManager,
+        commitActionTransactionAndCreateIfNeeded,
     });
-
-    const [notesClient, setNotesClient] = useState(() => {
-        return new TaskDetailNotesContentEditorWebSocketClient({
-            getContext: events.getContext,
-            addGlobalLoadingIndicator: events.addGlobalLoadingIndicator,
-            taskId: taskSubscription.taskId,
-            initialNotesVersion,
-            initialNotesContent,
-            displayError: (title, error) => events.getReporter().displayError(title, error),
-        });
-    });
-
-    // Re-initialize state if the `TaskId` changes.
-    if (notesClient.taskId !== taskSubscription.taskId) {
-        setNotesClient(() => {
-            return new TaskDetailNotesContentEditorWebSocketClient({
-                getContext: events.getContext,
-                addGlobalLoadingIndicator: events.addGlobalLoadingIndicator,
-                taskId: taskSubscription.taskId,
-                initialNotesVersion,
-                initialNotesContent,
-                displayError: (title, error) => events.getReporter().displayError(title, error),
-            });
-        });
-    }
-
-    const [shouldConnect] = useState(true);
-
-    useEffect(() => {
-        if (!shouldConnect) return;
-
-        // Accounts without space access aren't allowed to connect to our realtime
-        // service. We'd constantly get authorization errors.
-        if (!currentAccount) return;
-
-        notesClient.connect();
-        return () => {
-            notesClient.disconnect();
-        };
-    }, [currentAccount, notesClient, shouldConnect]);
-
-    const webSocketState = useStore(notesClient.webSocketState);
-
-    // Show the "Lost connection" error dialog if any error occurs in our WebSocket
-    // connection.
-    useWebSocketErrorDialog(notesClient, webSocketState);
-
-    const subscribeToCommentsEvents = useCallback(
-        (subscriber: (event: MessagingRealtimeEvent<TaskCommentModel>) => void) => {
-            return notesClient.subscribeToCommentEvents(subscriber);
-        },
-        [notesClient],
-    );
 
     const [commentsState, setCommentsState] = useState<
         | {type: "ClosedWaitingToOpen"; readyPromiseResolver: PromiseResolver<void>}
@@ -383,16 +362,25 @@ export function TaskDetailAndCommentsView({
             flexDirection="row"
         >
             <Box ref={detailRef} flexGrow="1" height="full" overflow="hidden">
-                <TaskGridViewDndContext store={taskSubscription.store}>
+                <TaskGridViewDndContext store={store}>
                     <TaskDetailView
-                        taskSubscription={taskSubscription}
+                        taskId={taskId}
+                        store={store}
                         taskAccess={taskAccess}
+                        taskSubscription={taskSubscription}
                         childrenQuery={childrenQuery}
-                        affinityManager={affinityManager}
                         initialChildrenGridViewExpansionState={
                             initialChildrenGridViewExpansionState
                         }
-                        notesClient={notesClient}
+                        initialFields={initialFields}
+                        notesEditorStateStore={notesEditorStateStore}
+                        onNotesEditorStateChange={onNotesEditorStateChange}
+                        reconnectNotesClient={reconnectNotesClient}
+                        commitActionTransactionAndCreateIfNeeded={
+                            commitActionTransactionAndCreateIfNeeded
+                        }
+                        affinityManager={affinityManager}
+                        shouldInitiallyFocus={shouldInitiallyFocus}
                         showComments={showComments}
                         onShowCommentsChange={onShowCommentsChange}
                     />
@@ -416,15 +404,15 @@ export function TaskDetailAndCommentsView({
                     overflow="hidden"
                 >
                     <TaskCommentsView
-                        taskId={taskSubscription.taskId}
+                        taskId={taskId}
                         initialComments={!hasUsedInitialComments ? initialComments : null}
                         initialScrollToCommentIndex={
                             !hasUsedInitialComments ? initialScrollToCommentIndex : null
                         }
                         onInitialCommentsAvailable={handleInitialCommentsAvailable}
                         getCommentUrl={getCommentUrl}
-                        isConnected={webSocketState.isConnected}
-                        procedures={notesClient.procedures}
+                        isConnected={isConnected}
+                        procedures={notesProcedures}
                         subscribeToEvents={subscribeToCommentsEvents}
                         // Provide the sidebar width for better layout results when previewing files.
                         fileLayoutScreenWidth={spacing[taskDetailViewCommentSidebarWidth]}

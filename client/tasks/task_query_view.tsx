@@ -31,6 +31,7 @@ import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/core/task_client_store.js";
+import {TaskFloatingCreateButton} from "~/client/tasks/internal/task_floating_create_button.js";
 import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskGridViewVirtualizedListViewRef} from "~/client/tasks/internal/task_grid_view_virtualized_list_types.js";
 import {TaskQueryMobileEditor} from "~/client/tasks/internal/task_query_mobile_editor.js";
@@ -381,6 +382,7 @@ export function TaskQueryView({
                     hasMultilineTitle: false,
                     hasDenseFields: false,
                     hasColumns: true,
+                    withoutAssigneeField: false,
                 };
             } else {
                 return {
@@ -389,6 +391,7 @@ export function TaskQueryView({
                     hasMultilineTitle: true,
                     hasDenseFields: true,
                     hasColumns: false,
+                    withoutAssigneeField: false,
                 };
             }
         }, [routeLayout]),
@@ -396,6 +399,7 @@ export function TaskQueryView({
         store,
         affinityManager,
         query: queryState.activeQuery.query,
+        withoutBorderTopIfFirstRow: routeLayout !== "narrow",
         // Don't render the three decorative ghost rows on mobile when we're rendering
         // the instructional view component. This allows us to visually center the new
         // view instructions.
@@ -573,6 +577,7 @@ export function TaskQueryView({
     return (
         <Box
             position="relative"
+            zIndex="0"
             flexGrow="1"
             width="full"
             overflow="hidden"
@@ -677,6 +682,10 @@ export function TaskQueryView({
                     )}
                 />
             </GlobalKeyDownEvent>
+            {(queryState.activeQuery.isAvailable ||
+                !queryState.activeQuery.isMissingRequiredFilters) && (
+                <TaskFloatingCreateButton filters={filters} />
+            )}
             {shouldShowEditNameMobileModal && (
                 <MobileFullScreenModal onClose={() => setShouldShowEditNameMobileModal(false)}>
                     {({onCloseWithAnimation}) => (

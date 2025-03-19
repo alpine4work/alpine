@@ -1,6 +1,5 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/data/evaluate_task_query_normalized_filters_for_index_doc.js";
 import {getTaskQueryNormalizedFiltersOpensearchQueryClause} from "~/server/tasks/data/internal/get_task_query_normalized_filters_opensearch_query_clause.js";
@@ -13,21 +12,20 @@ import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_al
 import {decodeBase64} from "~/shared/helpers/binary/base64.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskQueryFilter, TaskQueryFilterDateOperation} from "~/shared/tasks/task_query_filter.js";
 import {
     TaskQueryNormalizedFilters,
     defaultTaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,
 } from "~/shared/tasks/task_query_normalized_filters.js";
-import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
+import {TaskTitleModel, TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 import {
     sentenceTaskTitleTestScenario,
     wordTaskTitleTestScenario,
@@ -211,7 +209,17 @@ async function testQueryWithNormalizedFilters(
 
     // Make sure our JavaScript filter implementation for `TaskModel` matches
     // the OpenSearch filter implementation.
-    expect(queryTasks2).toEqual(expectedQueryTasks2);
+    expect(
+        queryTasks2.map(task => ({
+            ...omitObject(task.rawData, ["title"]),
+            title: task.rawData.title.getRaw(),
+        })),
+    ).toEqual(
+        expectedQueryTasks2.map(task => ({
+            ...omitObject(task.rawData, ["title"]),
+            title: task.rawData.title.getRaw(),
+        })),
+    );
 
     return queryTasks1.map(({id}) => id);
 }
@@ -234,12 +242,11 @@ function convertTaskIndexDocToModel(task: TaskIndexDoc): TaskModel {
         removedClosedChildTaskCount: task.removedClosedChildTaskCount,
         collections: task.collections.raw.collections,
         positionByCollectionId: task.collections.raw.positionById,
-        positionByAccountIdAndNotepadPageId: task.notepadPages.raw.positionById,
         status: task.status,
         assignee: task.assignee,
         assigneeStatus: task.rawAssigneeStatus,
-        assigneeActivePosition: task.rawAssigneeActivePosition,
-        title: TaskTitleModel.new(task.title.raw),
+        assigneePosition: task.rawAssigneePosition,
+        title: new TaskTitleModel(task.title.raw),
         dueDate: task.dueDate,
         priority: task.priority,
     });
@@ -9166,143 +9173,4 @@ test("can filter by parent task", async () => {
             parentFilter: {parentTaskId: parentTask2Id},
         }),
     ).toEqual([task3Id, task5Id]);
-});
-
-test("can filter by notepad page", async () => {
-    const space = await TestSpace.create(context);
-
-    const [session1, session2] = await runAllPromises([
-        space.createSession(),
-        space.createSession(),
-    ]);
-
-    const task1Id = generateId<TaskId>();
-    const task2Id = generateId<TaskId>();
-    const task3Id = generateId<TaskId>();
-    const task4Id = generateId<TaskId>();
-    const task5Id = generateId<TaskId>();
-
-    const notepadPage1Id = generateTaskNotepadPageId(testClock);
-    const notepadPage2Id = (notepadPage1Id + 1) as TaskNotepadPageId;
-
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task1Id,
-            taskAction: {
-                type: "Create",
-                creatorId: session1.account.id,
-                creatorTimeZone: defaultTimeZone,
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task2Id,
-            taskAction: {
-                type: "Create",
-                creatorId: session1.account.id,
-                creatorTimeZone: defaultTimeZone,
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task3Id,
-            taskAction: {
-                type: "Create",
-                creatorId: session1.account.id,
-                creatorTimeZone: defaultTimeZone,
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task4Id,
-            taskAction: {
-                type: "Create",
-                creatorId: session1.account.id,
-                creatorTimeZone: defaultTimeZone,
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task1Id,
-            taskAction: {
-                type: "UpdateNotepadPagePosition",
-                accountId: session1.account.id,
-                notepadPageId: notepadPage1Id,
-                position: {orderTime: clock.now(), orderKey: initialOrderKey},
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task2Id,
-            taskAction: {
-                type: "UpdateNotepadPagePosition",
-                accountId: session1.account.id,
-                notepadPageId: notepadPage1Id,
-                position: {orderTime: clock.now(), orderKey: initialOrderKey},
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task3Id,
-            taskAction: {
-                type: "UpdateNotepadPagePosition",
-                accountId: session1.account.id,
-                notepadPageId: notepadPage2Id,
-                position: {orderTime: clock.now(), orderKey: initialOrderKey},
-            },
-        },
-    ]);
-
-    await commitTaskActionTransaction(context.taskAction(session2), space.id, [
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task5Id,
-            taskAction: {
-                type: "Create",
-                creatorId: session2.account.id,
-                creatorTimeZone: defaultTimeZone,
-            },
-        },
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId: task5Id,
-            taskAction: {
-                type: "UpdateNotepadPagePosition",
-                accountId: session2.account.id,
-                notepadPageId: notepadPage2Id,
-                position: {orderTime: clock.now(), orderKey: initialOrderKey},
-            },
-        },
-    ]);
-
-    expect(
-        await testQueryWithNormalizedFilters(space, {
-            ...defaultTaskQueryNormalizedFilters,
-            notepadPageFilter: {accountId: session1.account.id, notepadPageId: notepadPage1Id},
-        }),
-    ).toEqual([task1Id, task2Id]);
-
-    expect(
-        await testQueryWithNormalizedFilters(space, {
-            ...defaultTaskQueryNormalizedFilters,
-            notepadPageFilter: {accountId: session1.account.id, notepadPageId: notepadPage2Id},
-        }),
-    ).toEqual([task3Id]);
-
-    expect(
-        await testQueryWithNormalizedFilters(space, {
-            ...defaultTaskQueryNormalizedFilters,
-            notepadPageFilter: {accountId: session2.account.id, notepadPageId: notepadPage2Id},
-        }),
-    ).toEqual([task5Id]);
 });

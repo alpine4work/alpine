@@ -11,7 +11,7 @@ import {Pause} from "phosphor-react";
 Pause;
 
 export const pauseIconSvg = ({
-    className,
+    className = "",
     weight = "regular",
 }: {className?: string; weight?: "fill" | "regular"} = {}) =>
     weight === "fill"

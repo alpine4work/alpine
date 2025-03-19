@@ -89,47 +89,10 @@ export function getTaskQueryNormalizedSortsOpensearchSortClause(
                         },
                     ];
                 }
-                case "NotepadPagePosition": {
-                    const missingValue =
-                        sort.direction === "Ascending"
-                            ? sort.missing === "Last"
-                                ? "~"
-                                : "#"
-                            : sort.missing === "Last"
-                            ? "#"
-                            : "~";
-
+                case "AssigneePosition": {
                     return [
-                        {
-                            _script: {
-                                type: "string",
-                                script: {
-                                    lang: "painless",
-                                    // Implementation notes:
-                                    //
-                                    // - If the task isn't present in the collection we're sorting by, we return
-                                    //   the string `missingValue`. It's either `#` (which has a low ASCII
-                                    //   value) or `~` (which has a high ASCII value).
-                                    // - The `number` sort context expects that a `double` is returned and doesn't
-                                    //   support `long`s. So we use a string sort context and pad our 64-bit
-                                    //   unsigned `long` with 0s so it sorts properly.
-                                    // - Because we are using a string context we can also append the order key.
-                                    //   Otherwise we'd need two sort contexts, one for the `orderTime` number and one
-                                    //   for the `orderKey` string.
-                                    source: `for (def position : doc["notepadPages.positions"]) { if (position.startsWith(params.accountIdAndNotepadPageId)) { return position.substring(params.accountIdAndNotepadPageId.length() + 1); } } return "${missingValue}";`,
-                                    params: {
-                                        accountIdAndNotepadPageId: `${sort.accountId}-${sort.notepadPageId}`,
-                                    },
-                                },
-                                order: item.order,
-                            },
-                        },
-                    ];
-                }
-                case "AssigneeActivePosition": {
-                    return [
-                        {"assigneeActivePosition.orderTime": item},
-                        {"assigneeActivePosition.orderKey": item},
+                        {"assigneePosition.orderTime": item},
+                        {"assigneePosition.orderKey": item},
                     ];
                 }
                 default:
@@ -166,7 +129,7 @@ const minInt64 = -(2n ** 63n);
  * - `getTaskQueryNormalizedSortsOpensearchSortClause()` is what creates our
  *   sort definition for OpenSearch. Sometimes it uses odd formats to satisfy
  *   OpenSearch (e.g. for `CollectionPosition`) or uses multiple values for one
- *   sort item (e.g. for `AssigneeActivePosition`).
+ *   sort item (e.g. for `AssigneePosition`).
  *
  * You need to look at both functions when implementing this one to produce the
  * right value.
@@ -292,8 +255,7 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
                 }
                 break;
             }
-            case "CollectionPosition":
-            case "NotepadPagePosition": {
+            case "CollectionPosition": {
                 if (sortValue === null) {
                     // The missing value for `CollectionPosition` is one of these symbols according
                     // to `getTaskQueryNormalizedSortsOpensearchSortClause()`.
@@ -329,7 +291,7 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
                 }
                 break;
             }
-            case "AssigneeActivePosition": {
+            case "AssigneePosition": {
                 if (sortValue === null) {
                     // OpenSearch returns the max/min value for a numeric type in the cursor when
                     // it's missing instead of null.
