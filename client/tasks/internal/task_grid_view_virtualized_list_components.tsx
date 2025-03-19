@@ -1214,6 +1214,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             affinityManager={affinityManager}
             cursor={cursor}
             ghostTaskId={ghostTaskId}
+            onGhostTaskCreated={events.onBottomGhostTaskCreated}
             parents={parents}
             rowMaxWidth={rowMaxWidth}
             disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
