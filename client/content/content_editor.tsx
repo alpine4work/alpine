@@ -4785,10 +4785,29 @@ function transformPastedForContentTable(
                 break;
             }
 
+            case "file":
             case "fileRow":
             case "fileFloat": {
-                // File related nodes go into remainingContent to be inserted after table
-                remainingContent.push(node);
+                const fileNodes: Array<Node> = [];
+                for (const sourceNode of slice.content.content) {
+                    if (sourceNode.type.name === "fileRow") {
+                        for (const fileNode of sourceNode.content.content) {
+                            assert(fileNode.type.name === "file");
+                            fileNodes.push(fileNode);
+                        }
+                    } else if (sourceNode.type.name === "fileFloat") {
+                        for (const fileNode of sourceNode.content.content) {
+                            assert(fileNode.type.name === "file");
+                            fileNodes.push(fileNode);
+                        }
+                    } else if (sourceNode.type.name === "file") {
+                        // very unlikely to happen
+                        // Direct file node
+                        fileNodes.push(sourceNode);
+                    }
+                }
+                const fileTableNode = schema.node("fileTable", {}, [...fileNodes]);
+                primaryContent.push(fileTableNode);
                 break;
             }
 
