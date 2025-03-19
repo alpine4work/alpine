@@ -1,6 +1,5 @@
 import {Node} from "prosemirror-model";
 import {EditorView} from "prosemirror-view";
-import {selectedContentTableRect} from "~/client/content/internal/table/content_table_client_util.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";

@@ -18,7 +18,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
-// NOCOMMIT: do one more iteration of the file table node view
 export function createContentEditorFileTableNodeViewConstructor({
     getSpaceId,
     getLayoutScreenWidth,

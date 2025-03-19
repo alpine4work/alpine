@@ -6,7 +6,6 @@ import {
     computeContentFileTableLayout,
 } from "~/client/content/internal/content_file_layout_computations.js";
 import {createCachedFunction} from "~/client/content/internal/helpers/create_cached_function.js";
-import {isInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {InternalError} from "~/shared/error/error.js";

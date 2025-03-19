@@ -292,7 +292,7 @@ export const createContentFileTableProsemirrorNodeSpecs = ({
             selectable: false,
             marks: fileMarks,
             attrs: {},
-            toDOM: node => [
+            toDOM: () => [
                 "div",
                 {
                     // same classes being uised for fileRow and fileTable
