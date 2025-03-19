@@ -2,8 +2,7 @@ import classNames from "classnames";
 import {Plus} from "phosphor-react";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {usePlatform} from "~/client/remix/platform_context.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {usePeekContext} from "~/client/remix/peek_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -18,18 +17,16 @@ import {
 
 export function TaskFloatingCreateButton({filters}: {filters?: ReadonlyArray<TaskQueryFilter>}) {
     const navigate = useNavigate();
-    const platform = usePlatform();
-    const routeLayout = useRouteLayout();
     const {space} = useSpaceContext();
 
-    // Don't show the floating create button on narrow layouts. This avoids the
-    // case where you have a task collection open then another task collection in a
-    // peek and the floating create buttons appear to overlap which looks weird.
+    const peekContext = usePeekContext();
+
+    // Don't render the floating create button when inside the peek stack. Since if
+    // you render a task collection view peek on top of a task collection, it would
+    // be weird to see two create buttons next to each other.
     //
-    // We do render the floating create button on mobile, though. Since it's handy
-    // to quickly create a task on mobile and there are no peeks to create visual
-    // conflicts.
-    if (platform !== "mobile" && routeLayout === "narrow") return null;
+    // We do want to show the floating create button in search, though.
+    if (peekContext?.withinStack) return null;
 
     return (
         <Box
