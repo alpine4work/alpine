@@ -306,15 +306,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      *
      * [1]: https://en.wikipedia.org/wiki/IEEE_754
      */
-    public static float = new Schema<number>({
-        getDescription: () => ({type: "Float"}),
-        serialize: value => value,
-        deserialize: value => {
-            if (typeof value !== "number") throw new SchemaDeserializationError("Expected number");
-            return value;
-        },
-        validate: null,
-    });
+    public static float: FloatSchema;
 
     /**
      * Accept any integer value.
@@ -2108,6 +2100,115 @@ export class StringSchema extends Schema<string> {
 
 // Avoid circular dependency between `Schema` and `StringSchema`.
 Schema.string = StringSchema.string;
+
+// Needs to be exported so `.d.ts` generation can find it.
+export class FloatSchema extends Schema<number> {
+    public static override float = new FloatSchema({
+        getDescription: () => ({type: "Float"}),
+        serialize: value => value,
+        deserialize: value => {
+            if (typeof value !== "number") throw new SchemaDeserializationError("Expected number");
+            return value;
+        },
+        validate: null,
+    });
+
+    private _transformNumber({
+        serialize,
+        deserialize,
+        validate: newValidate,
+    }: {
+        serialize: (value: number) => number;
+        deserialize: (value: number) => number;
+        validate: ((value: number) => void) | null;
+    }): FloatSchema {
+        const {validate: oldValidate} = this;
+
+        return new FloatSchema({
+            getDescription: () => this.getDescription(),
+            serialize: newValue => {
+                const value = serialize(newValue);
+                return this.serialize(value);
+            },
+            deserialize: unknownValue => {
+                const value = this.deserialize(unknownValue);
+                return deserialize(value);
+            },
+            validate:
+                newValidate || oldValidate
+                    ? value => {
+                          oldValidate?.(value);
+                          newValidate?.(value);
+                      }
+                    : null,
+        });
+    }
+
+    /**
+     * Verifies that a float is greater than or equal to the provided value.
+     */
+    // TODO(calebmer): Backwards compatibility validation?
+    public min(number: number): FloatSchema {
+        return this._transformNumber({
+            serialize: value => {
+                if (value < number)
+                    throw new InvalidArgumentError(
+                        `Expected float to be greater than or equal to ${number}`,
+                    );
+
+                return value;
+            },
+            deserialize: value => {
+                if (value < number)
+                    throw new SchemaDeserializationError(
+                        `Expected float to be greater than or equal to ${number}`,
+                    );
+
+                return value;
+            },
+            validate: value => {
+                if (value < number)
+                    throw new InvalidArgumentError(
+                        `Expected float to be greater than or equal to ${number}`,
+                    );
+            },
+        });
+    }
+
+    /**
+     * Verifies that a float is less than or equal to the provided value.
+     */
+    // TODO(calebmer): Backwards compatibility validation?
+    public max(number: number): FloatSchema {
+        return this._transformNumber({
+            serialize: value => {
+                if (value > number)
+                    throw new InvalidArgumentError(
+                        `Expected float to be less than or equal to ${number}`,
+                    );
+
+                return value;
+            },
+            deserialize: value => {
+                if (value > number)
+                    throw new SchemaDeserializationError(
+                        `Expected float to be less than or equal to ${number}`,
+                    );
+
+                return value;
+            },
+            validate: value => {
+                if (value > number)
+                    throw new InvalidArgumentError(
+                        `Expected float to be less than or equal to ${number}`,
+                    );
+            },
+        });
+    }
+}
+
+// Avoid circular dependency between `Schema` and `FloatSchema`.
+Schema.float = FloatSchema.float;
 
 // Needs to be exported so `.d.ts` generation can find it.
 export class IntegerSchema extends Schema<number> {
