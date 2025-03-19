@@ -31,7 +31,9 @@ import {TaskAction, getTaskActionLabel} from "~/shared/tasks/actions/task_action
 import {
     TaskRealtimeApplyActionTransactionInputSchema,
     TaskRealtimeGetTaskWithoutDependenciesOutputSchema,
+    TaskRealtimeLoadQueriesInput,
     TaskRealtimeLoadQueriesInputSchema,
+    TaskRealtimeLoadQueriesOutput,
     TaskRealtimeLoadQueriesOutputSchema,
 } from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
@@ -282,8 +284,8 @@ export class TaskContextModule extends TaskContextModuleBase {
                 actor: DynamoActorContextModule;
             }>,
         spaceId: SpaceId,
-        input: SchemaType<typeof TaskRealtimeLoadQueriesInputSchema>,
-    ): Promise<SchemaType<typeof TaskRealtimeLoadQueriesOutputSchema>> {
+        input: TaskRealtimeLoadQueriesInput,
+    ): Promise<TaskRealtimeLoadQueriesOutput> {
         const [host, token] = await runAllPromises([
             this._context.actor.type === "Session"
                 ? this.router.getStickySessionHost(

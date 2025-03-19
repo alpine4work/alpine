@@ -14,10 +14,7 @@ import {
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
-import {
-    TaskClientStoreSearchAffinityManager,
-    TaskClientStoreUndoManager,
-} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientReadonlyStore} from "~/client/tasks/core/task_client_store.js";
 import {TaskCollectionsInput} from "~/client/tasks/internal/task_collections_input.js";
 import {addRemLengths, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -32,27 +29,25 @@ function TaskRowCollectionsCellOverlay(
     {
         cellId,
         isReadOnly,
+        store,
         query,
-        undoManager,
-        affinityManager,
         task,
         focusPreviousCell,
         cellRef,
-        commitActionTransactionEvenIfGhost,
         onClose,
+        commitActionTransaction,
     }: {
         cellId: string;
         isReadOnly: boolean;
-        query: TaskClientQuery;
-        undoManager: TaskClientStoreUndoManager;
-        affinityManager: TaskClientStoreSearchAffinityManager;
+        store: TaskClientReadonlyStore;
+        query: TaskClientQuery | null;
         task: TaskModel | null;
         focusPreviousCell: () => void;
         cellRef: RefObject<HTMLDivElement>;
-        commitActionTransactionEvenIfGhost: Memo<
+        onClose: () => void;
+        commitActionTransaction: Memo<
             (getActions: (taskId: TaskId) => Array<TaskActionModel>) => void
         >;
-        onClose: () => void;
     },
     outerRef: Ref<HTMLDivElement>,
 ) {
@@ -65,7 +60,7 @@ function TaskRowCollectionsCellOverlay(
 
     const [isChildFocusRingVisible, childFocusRingTargetRef] = useIsChildFocusRingVisible();
 
-    const taskOrder = useStore(query.taskOrderStore);
+    const taskOrder = useStore(query?.taskOrderStore ?? null);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         // We want this effect to re-execute when `query.taskOrderStore` updates. Since
@@ -130,9 +125,8 @@ function TaskRowCollectionsCellOverlay(
                 <TaskCollectionsInput
                     isReadOnly={isReadOnly}
                     aria-label="Collections"
+                    store={store}
                     referencesSubscription={query}
-                    undoManager={undoManager}
-                    affinityManager={affinityManager}
                     task={task}
                     areMarginsClickable={true}
                     paddingX="3"
@@ -146,7 +140,7 @@ function TaskRowCollectionsCellOverlay(
                     onReturnFocus={() => {
                         assertExists(cellRef.current).focus();
                     }}
-                    commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
+                    commitActionTransaction={commitActionTransaction}
                 />
             </Box>
         </Box>,

@@ -24,6 +24,7 @@ process.env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
 const honeycombApiKey = env.HONEYCOMB_API_KEY;
 
 const dynamoLocalPort = parsePort(env.DYNAMO_LOCAL_PORT);
+const opensearchLocalPort = parsePort(env.OPENSEARCH_LOCAL_PORT);
 const sqsLocalPort = parsePort(env.SQS_LOCAL_PORT);
 
 const ensureLocalCachePath = joinPath(devEnvPaths.cache, "ensure");
@@ -36,7 +37,9 @@ const subprocess = spawn(
         `--migration=${migrationName}`,
         `--ensureLocalCachePath=${ensureLocalCachePath}`,
         `--dynamoLocalPort=${dynamoLocalPort}`,
+        `--opensearchLocalPort=${opensearchLocalPort}`,
         `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
+        `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
         ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
     ],
     {

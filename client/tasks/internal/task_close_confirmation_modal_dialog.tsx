@@ -2,7 +2,7 @@ import {useMemo} from "react";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientReadonlyStore} from "~/client/tasks/core/task_client_store.js";
 import {printPrettyNumber} from "~/shared/design/print_pretty_number.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 
@@ -12,14 +12,14 @@ export function TaskCloseConfirmationModalDialog({
     onClose,
     onConfirm,
 }: {
-    store: TaskClientStore;
-    taskId: TaskId;
+    store: TaskClientReadonlyStore;
+    taskId: TaskId | null;
     onClose: () => void;
     onConfirm: () => void;
 }) {
     const {locale} = useClientInfo();
 
-    const taskEntryStore = store.getTaskEntryStoreIfExists(taskId);
+    const taskEntryStore = taskId !== null ? store.getTaskEntryStoreIfExists(taskId) : null;
     const taskEntry = useStore(taskEntryStore);
     const childTaskCount = taskEntry?.task?.getOpenChildTaskCount() ?? 0;
 

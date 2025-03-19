@@ -70,7 +70,16 @@ export function ShareButton({
                     return {allowDefault: true};
                 }}
             >
-                <Button height="6" paddingX="2">
+                <Button
+                    height="6"
+                    paddingX="2"
+                    // Don't focus the button on press since pressing will open the overlay and
+                    // should focus the overlay.
+                    //
+                    // TODO(calebmer): Find a way to automate this instead of setting this prop
+                    // manually on every `<Button>` wrapped in an `<OverlayTriggerButton>`.
+                    withoutFocusOnPress={true}
+                >
                     Share
                 </Button>
             </OverlayTriggerButton>

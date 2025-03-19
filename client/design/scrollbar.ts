@@ -164,10 +164,10 @@ const appleIosMobilePlatforms = new Set(["iPhone Simulator", "iPod Simulator", "
  * additional inset for the scrollbar. This is great in our `<MessageInput>`
  * component where the scrollbar is in a container with some aggressive
  * `border-radius`. This is also useful for some views in our task product
- * where after you scroll for a bit you get a sticky header (e.g. the notepad
- * view where you scroll past the active task section). In a view like that we
- * don't want the scrollbar to cover the sticky header. That breaks the sticky
- * header physical material analogy.
+ * where after you scroll for a bit you get a sticky header (e.g. the personal
+ * task view where you scroll past the active task section). In a view like
+ * that we don't want the scrollbar to cover the sticky header. That breaks the
+ * sticky header physical material analogy.
  *
  * We use a lot of virtual scroll views for data heavy screens. Scrollbars and
  * virtualized views are tricky since content is being loaded/resized while you

@@ -141,8 +141,6 @@ export function ShareSwitch({
                                 isPressed && icon !== "Lock"
                                     ? `translateX(-${spacing["1"]})`
                                     : undefined,
-                            // Disable transitions during initial render so we don't animate the `width`
-                            // change due to a spacing scale adjustment on initial render.
                             transition: !isInitialAppRender
                                 ? "width 50ms linear, transform 50ms linear"
                                 : undefined,

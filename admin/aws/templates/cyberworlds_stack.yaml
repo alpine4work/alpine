@@ -3894,8 +3894,11 @@ Resources:
                               - Ref: SqsJobQueue62388F96
                               - " --fileProcessorJobQueueUrl="
                               - Ref: SqsFileProcessorJobQueue551DBCF8
-                              - " --honeycombApiKey=$HONEYCOMB_API_KEY --migration=$MIGRATION
-                                --segmentIndex=$SEGMENT_INDEX
+                              - " --honeycombApiKey=$HONEYCOMB_API_KEY --opensearchHost="
+                              - Fn::GetAtt:
+                                    - OpensearchDomainCED7C974
+                                    - DomainEndpoint
+                              - " --migration=$MIGRATION --segmentIndex=$SEGMENT_INDEX
                                 --totalSegmentCount=$TOTAL_SEGMENT_COUNT"
                   Environment:
                       - Name: NODE_ENV

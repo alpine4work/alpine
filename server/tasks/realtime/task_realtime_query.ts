@@ -21,7 +21,6 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -683,11 +682,6 @@ export class TaskRealtimeQuery {
                         }
                         break;
                     }
-                    case "UpdateNotepadPage": {
-                        cast<"Create">(action.notepadPageAction.type);
-                        // Doesn't affect query
-                        break;
-                    }
                     case "UpdateAccountName": {
                         for (const {taskEntry: freshTaskEntry} of freshTaskEntryById.values()) {
                             const oldTask = freshTaskEntry.task;
@@ -706,6 +700,9 @@ export class TaskRealtimeQuery {
                         // `UpdateAccountName` doesn't change whether a hidden task is now visible in
                         // our query. It can only change a task's position in a query. So we don't need
                         // to add anything to `maybeAddVisibleTaskIdsToLoad`.
+                        break;
+                    }
+                    case "UpdateNotepadPage": {
                         break;
                     }
                     default:

@@ -1,6 +1,7 @@
 import {Selection} from "prosemirror-state";
 import {Key} from "react";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
+import {TaskClientStoreUndoManager} from "~/client/tasks/core/task_client_store.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {TaskGridViewVirtualizedListState} from "~/client/tasks/internal/task_grid_view_virtualized_list_state.js";
 import {TaskGridViewColumn, TaskRowViewRef} from "~/client/tasks/internal/task_row_view.js";
@@ -48,8 +49,6 @@ export type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly getState: () => TaskGridViewVirtualizedListState;
     readonly getItemCountBeforeState: () => number;
     readonly pushUndoStackEntry: (entry: TaskUndoStackEntry) => void;
-    readonly pushUndoStackEntryFromRedo: (entry: TaskUndoStackEntry) => void;
-    readonly pushRedoStackEntry: (entry: TaskUndoStackEntry) => void;
     readonly onTopGhostTaskCreated: () => void;
     readonly onBottomGhostTaskCreated: () => void;
     readonly getTaskRowByIndexIfExists: (index: number) => TaskRowViewRef | null;
@@ -79,6 +78,20 @@ export type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly focusLastVisibleTaskTitleEnd: () => void;
     readonly focusLastVisibleTaskCell: (column: TaskGridViewColumn) => void;
     readonly scrollLastVisiblePageDownTaskIntoView: () => Promise<TaskRowViewRef | null>;
+    readonly focusLastTaskTitleStart: () => void;
+    readonly focusLastTaskTitleEnd: () => void;
+    readonly focusLastTaskTitleAll: () => void;
+    readonly focusLastTaskTitleCoord: (coord: number) => void;
+    readonly focusLastTaskCell: (column: TaskGridViewColumn) => void;
+    readonly focusFirstTaskTitleStart: () => void;
+    readonly focusFirstTaskTitleCoord: (coord: number) => void;
+    readonly focusFirstTaskCell: (column: TaskGridViewColumn) => void;
     readonly setTaskRowZIndex: (gridKey: TaskGridViewTaskKey, zIndex: number) => () => void;
     readonly scrollToAnchorPosition: () => void;
+    readonly commitActionTransaction: (
+        getActions: () => Iterable<TaskActionModel>,
+        options: {undoManager: TaskClientStoreUndoManager},
+    ) => {
+        finally(listener: () => void): void;
+    };
 }>;

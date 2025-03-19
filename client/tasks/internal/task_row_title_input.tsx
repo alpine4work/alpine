@@ -33,13 +33,17 @@ import {isBrowserSpellcheckEnabled} from "~/client/content/is_browser_spellcheck
 import {parseContentFromClipboard} from "~/client/content/parse_content_from_clipboard.js";
 import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/shared/build_shared_content_editor_input_rules_plugin.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useCanPrimaryInputHover} from "~/client/remix/platform_context.js";
+import {
+    getPlatformWithoutListening,
+    useCanPrimaryInputHover,
+} from "~/client/remix/platform_context.js";
 import {
     getSpacingScaleWithoutListening,
     useSpacingScale,
@@ -53,12 +57,16 @@ import {
     tasksStyles,
 } from "~/client/styles/styles.js";
 import {
+    taskGridViewColumnHeaderHeight,
     taskRowTitleInputPaddingYPx,
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
 import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
-import {TaskClientStore, TaskClientStoreTaskEntry} from "~/client/tasks/core/task_client_store.js";
+import {
+    TaskClientReadonlyStore,
+    TaskClientStoreTaskEntry,
+} from "~/client/tasks/core/task_client_store.js";
 import {buildTaskTitleInputKeymapPlugin} from "~/client/tasks/internal/build_task_title_input_keymap_plugin.js";
 import {createTaskEntryAccessStore} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
@@ -72,6 +80,7 @@ import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_b
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {contentBaseProsemirrorSchemaSpec} from "~/shared/content/content_schema.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {
     RemLength,
     Spacing,
@@ -284,7 +293,8 @@ function TaskRowTitleInput(
         hasEditAccessLevel: boolean;
         maxGridExpandableTaskDepth: number;
         stateKey: Key | undefined;
-        query: TaskClientQuery;
+        store: TaskClientReadonlyStore;
+        query: TaskClientQuery | null;
         isQueryManuallySorted: boolean;
         task: TaskModel | null;
         onTitleChange: (titleUpdate: TaskTitleUpdateModel) => void;
@@ -320,7 +330,7 @@ function TaskRowTitleInput(
                 | {type: "Below"; taskId: TaskId},
         ) => Array<TaskActionModel>;
         getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
-        commitActionTransactionEvenIfGhost: (
+        commitActionTransaction: (
             getActions:
                 | ((taskId: TaskId) => Iterable<TaskActionModel>)
                 | {
@@ -740,21 +750,54 @@ function TaskRowTitleInput(
             const initialHasEditAccessLevel = propsRef.current.hasEditAccessLevel;
             const initialIsEditable = !initialIsDualModality && initialHasEditAccessLevel;
 
+            let lastPlatform: Platform | null = null;
             let lastSpacingScale: SpacingScale | null = null;
-            let lastScrollMargin: number | null = null;
+            let lastScrollMargin: {
+                top: number;
+                bottom: number;
+                left: number;
+                right: number;
+            } | null = null;
 
             function getScrollMargin() {
+                const platform = getPlatformWithoutListening();
                 const spacingScale = getSpacingScaleWithoutListening();
 
-                if (lastScrollMargin !== null && lastSpacingScale === spacingScale)
+                if (
+                    lastScrollMargin !== null &&
+                    lastPlatform === platform &&
+                    lastSpacingScale === spacingScale
+                ) {
                     return lastScrollMargin;
+                }
 
+                lastPlatform = platform;
                 lastSpacingScale = spacingScale;
 
-                lastScrollMargin = convertRemLengthToPx(
+                const scrollMarginY =
+                    taskRowTitleInputPaddingYPx[spacingScale] +
+                    convertRemLengthToPx(spacing["4"], spacingScale);
+
+                const scrollMarginTop =
+                    scrollMarginY +
+                    (platform === "mobile"
+                        ? convertRemLengthToPx(navigationBarHeight, spacingScale)
+                        : convertRemLengthToPx(
+                              addRemLengths(navigationBarHeight, taskGridViewColumnHeaderHeight),
+                              spacingScale,
+                          ));
+
+                const scrollMarginX = convertRemLengthToPx(
                     tasksStyles.rowTitleInputSingleLineOverflowGradientMarginX,
                     spacingScale,
                 );
+
+                lastScrollMargin = {
+                    top: scrollMarginTop,
+                    bottom: scrollMarginY,
+                    left: scrollMarginX,
+                    right: scrollMarginX,
+                };
 
                 return lastScrollMargin;
             }
@@ -846,7 +889,7 @@ function TaskRowTitleInput(
                     handleDOMEvents: {
                         paste: (view, event) => {
                             handleTaskRowTitleInputPaste(event, {
-                                store: propsRef.current.query.store,
+                                store: propsRef.current.store,
                                 spaceId: spaceIdRef.current,
                                 currentAccountId: assertExists(currentAccountIdRef.current),
                                 timeZone: timeZoneRef.current,
@@ -861,8 +904,7 @@ function TaskRowTitleInput(
                                     propsRef.current.getMoveTaskToQueryActions,
                                 getMaybeRemoveTaskFromQueryActions:
                                     propsRef.current.getMaybeRemoveTaskFromQueryActions,
-                                commitActionTransactionEvenIfGhost:
-                                    propsRef.current.commitActionTransactionEvenIfGhost,
+                                commitActionTransaction: propsRef.current.commitActionTransaction,
                             });
 
                             return true;
@@ -1832,7 +1874,7 @@ function TaskRowTitleParentTaskTitle({
     query,
     parentTaskEntryStore,
 }: {
-    query: TaskClientQuery;
+    query: TaskClientQuery | null;
     parentTaskEntryStore: Store<TaskClientStoreTaskEntry>;
 }) {
     // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
@@ -1855,7 +1897,14 @@ function TaskRowTitleParentTaskTitle({
 
     const access = useStore(
         useMemo(
-            () => createTaskEntryAccessStore(currentAccount?.id, query, parentTaskEntryStore),
+            () =>
+                createTaskEntryAccessStore(
+                    currentAccount?.id,
+                    // If `query` is null then we'll only ever render a ghost task. Ghost tasks
+                    // should never have a parent task.
+                    assertExists(query),
+                    parentTaskEntryStore,
+                ),
             [currentAccount?.id, parentTaskEntryStore, query],
         ),
     );
@@ -1918,9 +1967,9 @@ function handleTaskRowTitleInputPaste(
         focusTaskTitleSelection,
         getMoveTaskToQueryActions,
         getMaybeRemoveTaskFromQueryActions,
-        commitActionTransactionEvenIfGhost,
+        commitActionTransaction,
     }: {
-        store: TaskClientStore;
+        store: TaskClientReadonlyStore;
         spaceId: SpaceId;
         currentAccountId: AccountId;
         timeZone: TimeZone;
@@ -1943,7 +1992,7 @@ function handleTaskRowTitleInputPaste(
                 | {type: "Below"; taskId: TaskId},
         ) => Array<TaskActionModel>;
         getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
-        commitActionTransactionEvenIfGhost: (
+        commitActionTransaction: (
             getActions:
                 | ((taskId: TaskId) => Iterable<TaskActionModel>)
                 | {
@@ -2076,7 +2125,7 @@ function handleTaskRowTitleInputPaste(
         };
 
         flushSync(() => {
-            commitActionTransactionEvenIfGhost(taskId => [
+            commitActionTransaction(taskId => [
                 {
                     type: "UpdateTask",
                     time: store.clock.now(),
@@ -2260,7 +2309,7 @@ function handleTaskRowTitleInputPaste(
     // Synchronous flush to make sure `updateTitleStateRef` is used before it's
     // reset to null at the end of this function.
     flushSync(() => {
-        commitActionTransactionEvenIfGhost({
+        commitActionTransaction({
             getBeforeMoveTaskActions: getActions,
             getAfterMoveTaskActions: () => emptyArray,
         });

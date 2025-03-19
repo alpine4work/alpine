@@ -565,6 +565,7 @@ export function TaskCollectionView({
                     hasMultilineTitle: false,
                     hasDenseFields: false,
                     hasColumns: true,
+                    withoutAssigneeField: false,
                 };
             } else {
                 return {
@@ -573,6 +574,7 @@ export function TaskCollectionView({
                     hasMultilineTitle: true,
                     hasDenseFields: true,
                     hasColumns: false,
+                    withoutAssigneeField: false,
                 };
             }
         }, [hasEditAccessLevel, routeLayout]),
@@ -580,7 +582,8 @@ export function TaskCollectionView({
         store,
         query: queryState.activeQuery.query,
         affinityManager,
-        initiallyWithTopGhostTaskRow: shouldInitiallyShowTopGhostTask,
+        initiallyWithTopGhostTask: shouldInitiallyShowTopGhostTask,
+        withoutBorderTopIfFirstRow: routeLayout !== "narrow",
         getMoveTaskToQueryActions: (taskId, position): Array<TaskActionModel> => {
             assert(collectionSubscription && queryState.activeQuery.isAvailable);
 

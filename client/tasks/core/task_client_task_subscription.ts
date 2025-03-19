@@ -1,5 +1,5 @@
 import {
-    TaskClientStore,
+    TaskClientReadonlyStore,
     TaskClientStoreInternal,
     TaskClientStoreTaskEntry,
 } from "~/client/tasks/core/task_client_store.js";
@@ -15,7 +15,17 @@ import {ValueStore} from "~/shared/store/value_store.js";
  * task visible in the detail view.
  */
 export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscriptionBase {
-    public readonly store: TaskClientStore;
+    /**
+     * A readonly reference to the task store.
+     *
+     * If you want to write you should have a full `TaskClientStore` instance.
+     * This allows code to carefully control write access. For example,
+     * `<TaskRowView>` has a `TaskClientReadonlyStore` and `TaskClientQuery`.
+     * `<TaskRowView>` must make mutations through a `commitActionTransaction` prop
+     * since it doesn't have types that allow write access.
+     */
+    public readonly store: TaskClientReadonlyStore;
+
     private readonly _store: TaskClientStoreInternal;
     public readonly taskId: TaskId;
     private readonly _taskEntryStoreWithoutError: Store<TaskClientStoreTaskEntry>;
@@ -206,6 +216,7 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
         try {
             for (const taskId of updatedOriginalReferencedTaskIds) {
                 if (alreadyUpdatedReferencedTaskIds.has(taskId)) continue;
+                alreadyUpdatedReferencedTaskIds.add(taskId);
 
                 const taskEntryUpdate = taskEntryUpdateById.get(taskId);
                 if (!taskEntryUpdate) continue;

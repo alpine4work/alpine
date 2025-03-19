@@ -26,7 +26,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeHybridLogicalTime} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
@@ -34,7 +34,6 @@ import {TaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeStatus} from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
@@ -56,11 +55,10 @@ export type TaskTestInterface = {
     removedClosedChildTaskCount: number;
     collections: TaskCollectionSet;
     collectionPositions: Map<TaskCollectionId, TaskPosition>;
-    notepadPagePositions: Map<`${AccountId}-${TaskNotepadPageId}`, TaskPosition>;
     status: TaskStatusWithSortableAccount;
     assignee: TaskAssigneeWithSortableAccount | null;
     assigneeStatus: TaskAssigneeStatus;
-    assigneeActivePosition: TaskPosition | null;
+    assigneePosition: TaskPosition | null;
     title: TaskTitle;
     dueDate: CalendarDate | null;
     priority: TaskPriority | null;
@@ -910,7 +908,7 @@ const taskTaskActionTestCases: Array<{
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
-                    assigneeActivePosition: {orderTime: time4, orderKey: initialOrderKey},
+                    assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                 },
             };
         },
@@ -951,6 +949,7 @@ const taskTaskActionTestCases: Array<{
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
+                    assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                 },
             };
         },
@@ -1044,7 +1043,7 @@ const taskTaskActionTestCases: Array<{
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
-                    assigneeActivePosition: {orderTime: time2, orderKey: initialOrderKey},
+                    assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                 },
             };
         },
@@ -1104,10 +1103,7 @@ const taskTaskActionTestCases: Array<{
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
-                    assigneeActivePosition: {
-                        orderTime: time3,
-                        orderKey: initialOrderKey,
-                    },
+                    assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                 },
             };
         },
@@ -1167,6 +1163,7 @@ const taskTaskActionTestCases: Array<{
                         }),
                     },
                     assigneeStatus: {type: "Inactive"},
+                    assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                 },
             };
         },
@@ -1241,6 +1238,7 @@ const taskTaskActionTestCases: Array<{
                         }),
                     },
                     assigneeStatus: {type: "Inactive"},
+                    assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                 },
             };
         },
@@ -1300,6 +1298,7 @@ const taskTaskActionTestCases: Array<{
                         }),
                     },
                     assigneeStatus: {type: "Inactive"},
+                    assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                 },
             };
         },
@@ -1366,6 +1365,7 @@ const taskTaskActionTestCases: Array<{
                         }),
                     },
                     assigneeStatus: {type: "Inactive"},
+                    assigneePosition: {orderTime: time4, orderKey: initialOrderKey},
                 },
             };
         },
@@ -1432,12 +1432,13 @@ const taskTaskActionTestCases: Array<{
                         }),
                     },
                     assigneeStatus: {type: "Inactive"},
+                    assigneePosition: {orderTime: time4, orderKey: initialOrderKey},
                 },
             };
         },
     },
     {
-        name: "update assignee active position",
+        name: "update assignee position",
         create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
@@ -1476,7 +1477,7 @@ const taskTaskActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateAssigneeActivePosition",
+                        type: "UpdateAssigneePosition",
                         time: time4,
                         accountId: account2.accountId,
                         position: {orderTime: time3, orderKey: assertOrderKey("a2")},
@@ -1498,13 +1499,13 @@ const taskTaskActionTestCases: Array<{
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
-                    assigneeActivePosition: {orderTime: time3, orderKey: assertOrderKey("a2")},
+                    assigneePosition: {orderTime: time3, orderKey: assertOrderKey("a2")},
                 },
             };
         },
     },
     {
-        name: "update assignee active position with the wrong account",
+        name: "update assignee position with the wrong account",
         create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
@@ -1543,7 +1544,7 @@ const taskTaskActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateAssigneeActivePosition",
+                        type: "UpdateAssigneePosition",
                         time: time4,
                         accountId: creator.accountId,
                         position: {orderTime: time3, orderKey: assertOrderKey("a2")},
@@ -1565,13 +1566,13 @@ const taskTaskActionTestCases: Array<{
                             setterTimeZone: defaultTimeZone,
                         }),
                     },
-                    assigneeActivePosition: {orderTime: time3, orderKey: initialOrderKey},
+                    assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                 },
             };
         },
     },
     {
-        name: "updating status resets assignee active position",
+        name: "updating status doesn't reset assignee position",
         create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
@@ -1611,7 +1612,7 @@ const taskTaskActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateAssigneeActivePosition",
+                        type: "UpdateAssigneePosition",
                         time: time4,
                         accountId: account2.accountId,
                         position: {orderTime: time3, orderKey: assertOrderKey("a2")},
@@ -1647,13 +1648,13 @@ const taskTaskActionTestCases: Array<{
                         }),
                     },
                     assigneeStatus: {type: "Inactive"},
-                    assigneeActivePosition: null,
+                    assigneePosition: {orderTime: time3, orderKey: assertOrderKey("a2")},
                 },
             };
         },
     },
     {
-        name: "updating assignee resets assignee active position",
+        name: "updating assignee resets assignee position",
         create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
@@ -1693,7 +1694,7 @@ const taskTaskActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateAssigneeActivePosition",
+                        type: "UpdateAssigneePosition",
                         time: time4,
                         accountId: account2.accountId,
                         position: {orderTime: time3, orderKey: assertOrderKey("a2")},
@@ -1721,13 +1722,13 @@ const taskTaskActionTestCases: Array<{
                         }),
                     },
                     assigneeStatus: {type: "Inactive"},
-                    assigneeActivePosition: null,
+                    assigneePosition: {orderTime: time5, orderKey: initialOrderKey},
                 },
             };
         },
     },
     {
-        name: "updating assignee status resets assignee active position",
+        name: "updating assignee status doesn't resets assignee position",
         create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
             const time2 = getNextTime();
@@ -1767,7 +1768,7 @@ const taskTaskActionTestCases: Array<{
                         },
                     },
                     {
-                        type: "UpdateAssigneeActivePosition",
+                        type: "UpdateAssigneePosition",
                         time: time4,
                         accountId: account2.accountId,
                         position: {orderTime: time3, orderKey: assertOrderKey("a2")},
@@ -1788,7 +1789,7 @@ const taskTaskActionTestCases: Array<{
                         }),
                     },
                     assigneeStatus: {type: "Inactive"},
-                    assigneeActivePosition: null,
+                    assigneePosition: {orderTime: time3, orderKey: assertOrderKey("a2")},
                 },
             };
         },
@@ -2019,315 +2020,6 @@ const taskActionTestCases: Array<{
             },
         };
     }),
-    {
-        name: "add task to notepad page",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
-            const taskId = generateId<TaskId>();
-            const notepadPageId = generateTaskNotepadPageId(unsynchronizedSystemClock);
-            const time1 = getNextTime();
-            const time2 = getNextTime();
-            const time3 = getNextTime();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateNotepadPage",
-                        time: time1,
-                        accountId: creator.accountId,
-                        notepadPageId,
-                        notepadPageAction: {
-                            type: "Create",
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time2,
-                        taskId,
-                        taskAction: {
-                            type: "Create",
-                            creatorId: creator.accountId,
-                            creatorTimeZone: defaultTimeZone,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time3,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateNotepadPagePosition",
-                            accountId: creator.accountId,
-                            notepadPageId,
-                            position: {orderTime: time3, orderKey: initialOrderKey},
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        taskId,
-                        task: {
-                            notepadPagePositions: new Map([
-                                [
-                                    `${creator.accountId}-${notepadPageId}` as const,
-                                    {orderTime: time3, orderKey: initialOrderKey},
-                                ],
-                            ]),
-                        },
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "add then remove task from notepad page",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
-            const taskId = generateId<TaskId>();
-            const notepadPageId = generateTaskNotepadPageId(unsynchronizedSystemClock);
-            const time1 = getNextTime();
-            const time2 = getNextTime();
-            const time3 = getNextTime();
-            const time4 = getNextTime();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateNotepadPage",
-                        time: time1,
-                        accountId: creator.accountId,
-                        notepadPageId,
-                        notepadPageAction: {
-                            type: "Create",
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time2,
-                        taskId,
-                        taskAction: {
-                            type: "Create",
-                            creatorId: creator.accountId,
-                            creatorTimeZone: defaultTimeZone,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time3,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateNotepadPagePosition",
-                            accountId: creator.accountId,
-                            notepadPageId,
-                            position: {orderTime: time3, orderKey: initialOrderKey},
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time4,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateNotepadPagePosition",
-                            accountId: creator.accountId,
-                            notepadPageId,
-                            position: null,
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        taskId,
-                        task: {},
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "remove then add task from notepad page",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
-            const taskId = generateId<TaskId>();
-            const notepadPageId = generateTaskNotepadPageId(unsynchronizedSystemClock);
-            const time1 = getNextTime();
-            const time2 = getNextTime();
-            const time3 = getNextTime();
-            const time4 = getNextTime();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateNotepadPage",
-                        time: time1,
-                        accountId: creator.accountId,
-                        notepadPageId,
-                        notepadPageAction: {
-                            type: "Create",
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time2,
-                        taskId,
-                        taskAction: {
-                            type: "Create",
-                            creatorId: creator.accountId,
-                            creatorTimeZone: defaultTimeZone,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time3,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateNotepadPagePosition",
-                            accountId: creator.accountId,
-                            notepadPageId,
-                            position: null,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time4,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateNotepadPagePosition",
-                            accountId: creator.accountId,
-                            notepadPageId,
-                            position: {orderTime: time4, orderKey: initialOrderKey},
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        taskId,
-                        task: {
-                            notepadPagePositions: new Map([
-                                [
-                                    `${creator.accountId}-${notepadPageId}` as const,
-                                    {orderTime: time4, orderKey: initialOrderKey},
-                                ],
-                            ]),
-                        },
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "only remove task from notepad page",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
-            const taskId = generateId<TaskId>();
-            const notepadPageId = generateTaskNotepadPageId(unsynchronizedSystemClock);
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateNotepadPage",
-                        time: getNextTime(),
-                        accountId: creator.accountId,
-                        notepadPageId,
-                        notepadPageAction: {
-                            type: "Create",
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: getNextTime(),
-                        taskId,
-                        taskAction: {
-                            type: "Create",
-                            creatorId: creator.accountId,
-                            creatorTimeZone: defaultTimeZone,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: getNextTime(),
-                        taskId,
-                        taskAction: {
-                            type: "UpdateNotepadPagePosition",
-                            accountId: creator.accountId,
-                            notepadPageId,
-                            position: null,
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        taskId,
-                        task: {},
-                    },
-                ],
-            };
-        },
-    },
-    {
-        name: "change task position in notepad page",
-        create: ({creator, getNextTime}): TaskActionTestArtifacts => {
-            const taskId = generateId<TaskId>();
-            const notepadPageId = generateTaskNotepadPageId(unsynchronizedSystemClock);
-            const time1 = getNextTime();
-            const time2 = getNextTime();
-            const time3 = getNextTime();
-            const time4 = getNextTime();
-
-            return {
-                actions: [
-                    {
-                        type: "UpdateNotepadPage",
-                        time: time1,
-                        accountId: creator.accountId,
-                        notepadPageId,
-                        notepadPageAction: {
-                            type: "Create",
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time2,
-                        taskId,
-                        taskAction: {
-                            type: "Create",
-                            creatorId: creator.accountId,
-                            creatorTimeZone: defaultTimeZone,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time3,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateNotepadPagePosition",
-                            accountId: creator.accountId,
-                            notepadPageId,
-                            position: {orderTime: time3, orderKey: initialOrderKey},
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time4,
-                        taskId,
-                        taskAction: {
-                            type: "UpdateNotepadPagePosition",
-                            accountId: creator.accountId,
-                            notepadPageId,
-                            position: {orderTime: time3, orderKey: assertOrderKey("a42")},
-                        },
-                    },
-                ],
-                expect: [
-                    {
-                        taskId,
-                        task: {
-                            notepadPagePositions: new Map([
-                                [
-                                    `${creator.accountId}-${notepadPageId}` as const,
-                                    {orderTime: time3, orderKey: assertOrderKey("a42")},
-                                ],
-                            ]),
-                        },
-                    },
-                ],
-            };
-        },
-    },
     {
         name: "delete collection",
         create: ({getNextTime}): TaskActionTestArtifacts => {
@@ -4083,6 +3775,7 @@ const taskActionTestCases: Array<{
                                 assigner: creator,
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                 ],
@@ -4155,6 +3848,7 @@ const taskActionTestCases: Array<{
                                 },
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                 ],
@@ -4242,6 +3936,7 @@ const taskActionTestCases: Array<{
                                 assigner: creator,
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                     {
@@ -4256,6 +3951,7 @@ const taskActionTestCases: Array<{
                                 assigner: creator,
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                 ],
@@ -4343,6 +4039,7 @@ const taskActionTestCases: Array<{
                                 assigner: creator,
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                     {
@@ -4353,6 +4050,7 @@ const taskActionTestCases: Array<{
                                 assigner: creator,
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                 ],
@@ -4416,6 +4114,7 @@ const taskActionTestCases: Array<{
                                 },
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                 ],
@@ -4503,6 +4202,7 @@ const taskActionTestCases: Array<{
                                 },
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                     {
@@ -4517,6 +4217,7 @@ const taskActionTestCases: Array<{
                                 },
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                 ],
@@ -4604,6 +4305,7 @@ const taskActionTestCases: Array<{
                                 },
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                     {
@@ -4614,6 +4316,7 @@ const taskActionTestCases: Array<{
                                 assigner: creator,
                                 assignedTime: TaskFilterableTime.test(time2),
                             },
+                            assigneePosition: {orderTime: time2, orderKey: initialOrderKey},
                         },
                     },
                 ],
@@ -4844,11 +4547,10 @@ export function testTaskActionPermutations({
                                                     },
                                                 ]),
                                         ),
-                                        notepadPagePositions: new Map(),
                                         status: {type: "Open"},
                                         assignee: null,
                                         assigneeStatus: {type: "Inactive"},
-                                        assigneeActivePosition: null,
+                                        assigneePosition: null,
                                         title: emptyTaskTitle.get(),
                                         dueDate: null,
                                         priority: null,

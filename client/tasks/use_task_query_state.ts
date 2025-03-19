@@ -44,10 +44,6 @@ export function isTaskQueryMissingRequiredFilters(
         ) {
             return false;
         }
-
-        if (filters.notepadPageFilter?.accountId === currentAccountId) {
-            return false;
-        }
     }
 
     // Assume that if the user filtered on a collection that they have access to

@@ -20,7 +20,7 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  *
  * - Ordering of subtasks
  * - Ordering of tasks in a collection
- * - Ordering of tasks in a notepad
+ * - Ordering of tasks in the "my tasks" screen
  * - Ordering of tasks in the active tasks section
  */
 export type TaskPosition = SchemaType<typeof TaskPositionSchema>;

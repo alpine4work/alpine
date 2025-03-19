@@ -1,3 +1,4 @@
+import {CalendarDate} from "@internationalized/date";
 import {Fragment, Node, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {
@@ -364,6 +365,24 @@ export class TestTask extends TestCommentRoomBase {
                 taskAction: {
                     type: "UpdatePriority",
                     priority,
+                },
+            },
+        ]);
+    }
+
+    public async updateDueDate(
+        session: TestSpaceSession,
+        dueDate: CalendarDate | null,
+        {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
+    ) {
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateTask",
+                time,
+                taskId: this.id,
+                taskAction: {
+                    type: "UpdateDueDate",
+                    dueDate,
                 },
             },
         ]);

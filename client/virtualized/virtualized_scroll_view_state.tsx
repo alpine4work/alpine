@@ -743,10 +743,12 @@ export class VirtualizedScrollViewState {
 
                 const expectedIndex = indexByKey.get(item.key);
                 if (expectedIndex === undefined) indexByKey.set(item.key, index);
-                assert(
-                    expectedIndex === undefined || expectedIndex === index,
-                    "Must have a unique item key for every index",
-                );
+
+                if (expectedIndex !== undefined && expectedIndex !== index) {
+                    throw new InternalError(
+                        quote`Must have a unique item key for every index (duplicate key ${item.key} at index ${expectedIndex} and ${index})`,
+                    );
+                }
 
                 return item;
             };
@@ -1467,8 +1469,10 @@ export class VirtualizedScrollViewState {
                 const expectedIndex = indexByKey.get(item.key);
                 if (expectedIndex === undefined) {
                     indexByKey.set(item.key, index);
-                } else {
-                    assert(expectedIndex === index, "Must have a unique item key for every index");
+                } else if (expectedIndex !== index) {
+                    throw new InternalError(
+                        quote`Must have a unique item key for every index (duplicate key ${item.key} at index ${expectedIndex} and ${index})`,
+                    );
                 }
 
                 return item;

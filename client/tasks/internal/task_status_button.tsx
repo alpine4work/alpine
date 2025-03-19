@@ -1,6 +1,5 @@
-import {KeyboardEvent, Ref, forwardRef, useRef} from "react";
+import {KeyboardEvent, Ref, forwardRef, useRef, useState} from "react";
 import {mergeProps, useButton} from "react-aria";
-import {useAppContext} from "~/client/context/app_context.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {TaskDisplayStatusCircle} from "~/client/design/task_display_status_circle.js";
 import {touchSlopBySpacing} from "~/client/design/use_touch_slop.js";
@@ -10,16 +9,18 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
-import {
-    TaskClientStore,
-    TaskClientStoreSearchAffinityManager,
-    TaskClientStoreUndoManager,
-} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientReadonlyStore} from "~/client/tasks/core/task_client_store.js";
+import {TaskCloseConfirmationModalDialog} from "~/client/tasks/internal/task_close_confirmation_modal_dialog.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {TaskStatus} from "~/shared/tasks/task_status.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -56,8 +57,6 @@ const classNameBySize = mapObjectValues(touchSlopBySpacing, touchSlopBySpacing =
 function TaskStatusButton(
     {
         store,
-        undoManager,
-        affinityManager,
         task,
         size = "4",
         isDisabled = false,
@@ -67,12 +66,10 @@ function TaskStatusButton(
         onKeyDown,
         onKeyDownCapture,
         shouldShowClosedStatusWhenPressed,
-        onCloseConfirmationDialogueOpen,
+        commitActionTransaction,
     }: {
-        store: TaskClientStore;
-        undoManager: TaskClientStoreUndoManager;
-        affinityManager: TaskClientStoreSearchAffinityManager;
-        task: TaskModel;
+        store: TaskClientReadonlyStore;
+        task: TaskModel | null;
         size?: "4" | "5" | "6" | "7";
         isDisabled?: boolean;
         isDisabledButStillFocusable?: boolean;
@@ -81,7 +78,9 @@ function TaskStatusButton(
         onKeyDown?: (event: KeyboardEvent) => void;
         onKeyDownCapture?: (event: KeyboardEvent) => void;
         shouldShowClosedStatusWhenPressed?: boolean;
-        onCloseConfirmationDialogueOpen: (options: {onConfirm: () => void}) => void;
+        commitActionTransaction: (
+            getActions: (taskId: TaskId) => ReadonlyArray<TaskActionModel>,
+        ) => void;
     },
     ref: Ref<HTMLElement>,
 ) {
@@ -101,12 +100,16 @@ function TaskStatusButton(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
-    const context = useAppContext();
     const {timeZone} = useClientInfo();
     const platform = usePlatform();
     const {currentAccount} = useSpaceContext();
     const buttonRef = useRef<HTMLElement | null>(null);
     const mergedButtonRef = useMergedRefs(ref, buttonRef);
+
+    const [closeConfirmationState, setCloseConfirmationState] = useState<{
+        taskId: TaskId | null;
+        onConfirm: () => void;
+    } | null>(null);
 
     const {isPressed: isPressedFromHook, buttonProps} = useButton(
         {
@@ -119,34 +122,30 @@ function TaskStatusButton(
                 // permission level of `urlGrant` is `View`.
                 assert(currentAccount);
 
-                const time = store.clock.now();
-                const status = task.getStatus();
+                const status = task?.getStatus() ?? cast<TaskStatus>({type: "Open"});
 
                 if (status.type === "Closed") {
-                    store.commitTaskActionTransaction(
-                        context,
-                        [
-                            {
-                                type: "UpdateTask",
-                                time,
-                                taskId: task.id,
-                                taskAction: {
-                                    type: "UpdateStatus",
-                                    status: {type: "Open"},
-                                },
+                    commitActionTransaction(taskId => [
+                        {
+                            type: "UpdateTask",
+                            time: store.clock.now(),
+                            taskId,
+                            taskAction: {
+                                type: "UpdateStatus",
+                                status: {type: "Open"},
                             },
-                        ],
-                        {undoManager, affinityManager},
-                    );
+                        },
+                    ]);
                 } else {
                     const runCommitTaskActionTransaction = () => {
-                        store.commitTaskActionTransaction(
-                            context,
-                            [
+                        commitActionTransaction(taskId => {
+                            const time = store.clock.now();
+
+                            return [
                                 {
                                     type: "UpdateTask",
                                     time,
-                                    taskId: task.id,
+                                    taskId,
                                     taskAction: {
                                         type: "UpdateStatus",
                                         status: {
@@ -159,15 +158,15 @@ function TaskStatusButton(
                                         },
                                     },
                                 },
-                            ],
-                            {undoManager, affinityManager},
-                        );
+                            ];
+                        });
                     };
 
                     // Checks if there are any open subtasks
                     // if there are then open warning dialogue
-                    if (task.getOpenChildTaskCount() !== 0) {
-                        onCloseConfirmationDialogueOpen({
+                    if (task && task.getOpenChildTaskCount() !== 0) {
+                        setCloseConfirmationState({
+                            taskId: task?.id ?? null,
                             onConfirm: runCommitTaskActionTransaction,
                         });
                     } else {
@@ -185,7 +184,7 @@ function TaskStatusButton(
 
     const isPressed = isPressedFromHook && !isDisabledButStillFocusable;
 
-    let displayStatus = task.getDisplayStatus();
+    let displayStatus: TaskDisplayStatus = task?.getDisplayStatus() ?? "OpenInactive";
 
     if (shouldShowClosedStatusWhenPressed && isPressed && displayStatus !== "Closed") {
         displayStatus = "Closed";
@@ -194,43 +193,53 @@ function TaskStatusButton(
     const className = classNameBySize[platform][size];
 
     return (
-        <FocusRing inset={touchSlopBySpacing[platform][size].slop}>
-            {isFocusable ? (
-                <button
-                    {...mergeProps(buttonProps, {onKeyDownCapture})}
-                    ref={mergedButtonRef as any}
-                    data-testid={
-                        process.env.NODE_ENV !== "production" ? "TaskStatusButton" : undefined
-                    }
-                    tabIndex={!isTabbable ? -1 : undefined}
-                    className={className}
-                >
-                    <TaskDisplayStatusCircle
-                        displayStatus={displayStatus}
-                        size={size}
-                        isPressed={isPressed}
-                    />
-                </button>
-            ) : (
-                <div
-                    {...mergeProps(buttonProps, {onKeyDownCapture})}
-                    ref={mergedButtonRef as any}
-                    // TODO(calebmer, #swc-transform): Consider writing a plugin that removes
-                    // `data-testid` attributes in production build modes.
-                    data-testid={
-                        process.env.NODE_ENV !== "production" ? "TaskStatusButton" : undefined
-                    }
-                    // Remove `tabIndex` from button props if this button is not focusable.
-                    tabIndex={undefined}
-                    className={className}
-                >
-                    <TaskDisplayStatusCircle
-                        displayStatus={displayStatus}
-                        size={size}
-                        isPressed={isPressed}
-                    />
-                </div>
+        <>
+            <FocusRing inset={touchSlopBySpacing[platform][size].slop}>
+                {isFocusable ? (
+                    <button
+                        {...mergeProps(buttonProps, {onKeyDownCapture})}
+                        ref={mergedButtonRef as any}
+                        data-testid={
+                            process.env.NODE_ENV !== "production" ? "TaskStatusButton" : undefined
+                        }
+                        tabIndex={!isTabbable ? -1 : undefined}
+                        className={className}
+                    >
+                        <TaskDisplayStatusCircle
+                            displayStatus={displayStatus}
+                            size={size}
+                            isPressed={isPressed}
+                        />
+                    </button>
+                ) : (
+                    <div
+                        {...mergeProps(buttonProps, {onKeyDownCapture})}
+                        ref={mergedButtonRef as any}
+                        // TODO(calebmer, #swc-transform): Consider writing a plugin that removes
+                        // `data-testid` attributes in production build modes.
+                        data-testid={
+                            process.env.NODE_ENV !== "production" ? "TaskStatusButton" : undefined
+                        }
+                        // Remove `tabIndex` from button props if this button is not focusable.
+                        tabIndex={undefined}
+                        className={className}
+                    >
+                        <TaskDisplayStatusCircle
+                            displayStatus={displayStatus}
+                            size={size}
+                            isPressed={isPressed}
+                        />
+                    </div>
+                )}
+            </FocusRing>
+            {closeConfirmationState && (
+                <TaskCloseConfirmationModalDialog
+                    store={store}
+                    taskId={closeConfirmationState.taskId}
+                    onClose={() => setCloseConfirmationState(null)}
+                    onConfirm={closeConfirmationState.onConfirm}
+                />
             )}
-        </FocusRing>
+        </>
     );
 }

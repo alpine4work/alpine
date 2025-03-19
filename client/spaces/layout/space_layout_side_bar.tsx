@@ -136,6 +136,7 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
                 {
                     icon: <SignOut />,
                     label: "Sign out",
+                    pressErrorTitle: "Couldn’t sign out",
                     onPress: () => rootNavigate("/sign-out"),
                 },
             ]}

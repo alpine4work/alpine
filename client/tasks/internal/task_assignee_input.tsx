@@ -543,6 +543,7 @@ function TaskAssigneeInput(
 
     return (
         <div
+            data-testid={process.env.NODE_ENV !== "production" ? "TaskAssigneeInput" : undefined}
             className={sprinkles({
                 // Height of 9 for 45px on mobile to meet the [minimum recommended touch hit
                 // target size][1].

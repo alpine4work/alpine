@@ -1,19 +1,16 @@
 import {TaskIndexDocBase} from "~/server/tasks/data/task_index_doc.js";
 import {TaskAuthorizationActor} from "~/server/tasks/data/task_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {maxHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
-import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
+import {TaskAssigneePositionRegister} from "~/shared/tasks/task_assignee_position.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
-import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
 import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
@@ -121,25 +118,6 @@ export async function prepareTaskForClient(
             ),
         ),
 
-        // Account is only allowed to see the positions of tasks in their own notepad
-        // pages. The session account never changes so this doesn't need to respond in
-        // realtime.
-        positionByAccountIdAndNotepadPageId: reduceIterable(
-            filterIterable(
-                task.notepadPages.raw.positionById.actualEntries(),
-                ([key]) =>
-                    actor.type === "System" ||
-                    (actor.type === "Session" && key.startsWith(actor.getAccountId())),
-            ),
-            (positionById, [key, {value, version}]) =>
-                value !== null
-                    ? positionById.apply({type: "Set", key, value, version})
-                    : // It's important that we also add deleted values to the map so if an event is
-                      // a position update is received out-of-order the delete wins.
-                      positionById.apply({type: "Delete", key, version}),
-            TaskPositionByAccountIdAndNotepadPageIdMap.empty,
-        ),
-
         status: isSpaceAccessAuthorized
             ? task.status
             : new TaskStatusWithSortableAccountRegister(
@@ -173,20 +151,13 @@ export async function prepareTaskForClient(
         // replace with a register you'd get on position reset from status, assignee,
         // or assignee status change. This effectively un-applies any actions you
         // aren't allowed to see.
-        assigneeActivePosition:
-            task.rawAssigneeActivePosition.value &&
+        assigneePosition:
+            task.rawAssigneePosition.value &&
             (actor.type === "System" ||
                 (actor.type === "Session" &&
-                    task.rawAssigneeActivePosition.value.accountId !== actor.getAccountId()))
-                ? new TaskAssigneeActivePositionRegister(
-                      null,
-                      maxHybridLogicalTime(
-                          task.status.version,
-                          task.assignee.version,
-                          task.rawAssigneeStatus.version,
-                      ),
-                  )
-                : task.rawAssigneeActivePosition,
+                    task.rawAssigneePosition.value.accountId !== actor.getAccountId()))
+                ? new TaskAssigneePositionRegister(null, task.assignee.version)
+                : task.rawAssigneePosition,
 
         title: new TaskTitleModel(task.title.raw),
         dueDate: task.dueDate,

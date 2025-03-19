@@ -381,6 +381,7 @@ export function TaskQueryView({
                     hasMultilineTitle: false,
                     hasDenseFields: false,
                     hasColumns: true,
+                    withoutAssigneeField: false,
                 };
             } else {
                 return {
@@ -389,6 +390,7 @@ export function TaskQueryView({
                     hasMultilineTitle: true,
                     hasDenseFields: true,
                     hasColumns: false,
+                    withoutAssigneeField: false,
                 };
             }
         }, [routeLayout]),
@@ -396,6 +398,7 @@ export function TaskQueryView({
         store,
         affinityManager,
         query: queryState.activeQuery.query,
+        withoutBorderTopIfFirstRow: routeLayout !== "narrow",
         // Don't render the three decorative ghost rows on mobile when we're rendering
         // the instructional view component. This allows us to visually center the new
         // view instructions.

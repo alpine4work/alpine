@@ -23,6 +23,7 @@ import {CrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
+    zeroHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -43,7 +44,7 @@ import {
     TaskParentTaskIdRegister,
 } from "~/shared/tasks/actions/task_task_action.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
-import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
+import {TaskAssigneePositionRegister} from "~/shared/tasks/task_assignee_position.js";
 import {
     TaskAssigneeStatus,
     TaskAssigneeStatusRegister,
@@ -58,13 +59,11 @@ import {
     TaskFilterableTime,
     getTaskFilterableTimeSetterDate,
 } from "~/shared/tasks/task_filterable_time.js";
-import {TaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 import {
     TaskPosition,
     TaskPositionRegister,
     TaskPositionSchema,
 } from "~/shared/tasks/task_position.js";
-import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_position_by_account_id_and_notepad_page_id.js";
 import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
 import {
     TaskPriority,
@@ -228,56 +227,6 @@ const TaskIndexCollectionsType = OpensearchIndexObjectType.new({
                     .toString()
                     .padStart(20, "0")}-${orderKey}`;
             }),
-        }),
-    },
-});
-
-/**
- * Indexes the notepad pages a task is in and the position of the task in those
- * notepad pages. Uses roughly the same layout as `TaskIndexCollectionsType` so
- * see the documentation on that type.
- */
-// NOTE(calebmer, 2023-08-22): When I started writing this code any account
-// could add a task to their notepad. Hence why this map is keyed by
-// `${AccountId}-${TaskNotepadPageId}`. However, later I constrained notepad
-// pages to only include tasks created by the page's owner. With this
-// restriction I could drop `AccountId` from the key but I'll keep it for now
-// to avoid a refactor and allow, hopefully, any task to be added to an
-// account's notepad in the future.
-const TaskIndexNotepadPagesType = OpensearchIndexObjectType.new({
-    fields: {
-        raw: new OpensearchIndexIgnoredObjectType(
-            Schema.object({
-                positionById: TaskPositionByAccountIdAndNotepadPageIdMap.schema,
-            }),
-        ),
-    },
-    computed: {
-        fields: {
-            ids: new OpensearchIndexArrayType(
-                new OpensearchIndexKeywordType({
-                    isFilterable: true,
-                }).validate((value): value is `${AccountId}-${TaskNotepadPageId}` => {
-                    const [value1 = "", value2 = ""] = value.split("-", 2);
-                    return isId(value1) && !isNaN(parseInt(value2, 10));
-                }),
-            ),
-            // Store a map of `${AccountId}-${TaskNotepadPageId}` to `TaskPosition` in a
-            // string array. This is used by a script to sort tasks.
-            positions: new OpensearchIndexArrayType(
-                new OpensearchIndexKeywordType({isUsableInScripts: true}),
-            ),
-        },
-        compute: ({raw: {positionById}}) => ({
-            ids: Array.from(positionById.keys()),
-            positions: Array.from(
-                positionById.entries(),
-                ([accountIdAndNotepadPageId, {orderTime, orderKey}]) => {
-                    return `${accountIdAndNotepadPageId}:${serializeHybridLogicalTime(orderTime)
-                        .toString()
-                        .padStart(20, "0")}-${orderKey}`;
-                },
-            ),
         }),
     },
 });
@@ -610,7 +559,6 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
         removedClosedChildTaskCount: new OpensearchIndexIntegerType(),
 
         collections: TaskIndexCollectionsType,
-        notepadPages: TaskIndexNotepadPagesType,
 
         status: TaskIndexStatusType,
         assignee: TaskIndexAssigneeType,
@@ -627,14 +575,13 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
             deserialize: register =>
                 new TaskAssigneeStatusRegister(register.value, register.version),
         }),
-        // The actual value of this register on the task is null if the task is closed,
-        // inactive, or there is no assignee. Additionally if the `AccountId` in this
-        // register is different from the assignee then the value is also null.
+        // The actual value of this register on the task is null if the `AccountId` in
+        // this register is different from the assignee then the value is also null.
         //
-        // However, if the actual value of this register is null and the task is active
-        // then we default the position to be based on the assignee status register's
+        // However, if the actual value of this register is null and the task is
+        // assigned then we default the position to be based on the assignee register's
         // `version`.
-        rawAssigneeActivePosition: new OpensearchIndexIgnoredObjectType(
+        rawAssigneePosition: new OpensearchIndexIgnoredObjectType(
             Schema.object({
                 value: Schema.object({
                     accountId: Schema.id<AccountId>(),
@@ -642,11 +589,15 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
                 }).nullable(),
                 version: HybridLogicalTimeSchema,
             }),
-        ).transform<TaskAssigneeActivePositionRegister>({
-            serialize: register => register,
-            deserialize: register =>
-                new TaskAssigneeActivePositionRegister(register.value, register.version),
-        }),
+        )
+            .transform<TaskAssigneePositionRegister>({
+                serialize: register => register,
+                deserialize: register =>
+                    new TaskAssigneePositionRegister(register.value, register.version),
+            })
+            // NOTE(calebmer, 2025-03-10): This property didn't exist on tasks until this
+            // date. Provide a default that can be overridden by any action.
+            .default(new TaskAssigneePositionRegister(null, zeroHybridLogicalTime)),
 
         title: TaskIndexTitleType,
         dueDate: TaskIndexDueDateType,
@@ -726,7 +677,7 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
             isDeleted: new OpensearchIndexBooleanType({isFilterable: true, isSortable: true}),
             displayStatus: TaskIndexDisplayStatusType,
             assigneeStatus: TaskIndexAssigneeStatusType.nullable(),
-            assigneeActivePosition: TaskIndexPositionType.nullable(),
+            assigneePosition: TaskIndexPositionType.nullable(),
         },
         compute: task => {
             return {
@@ -736,7 +687,7 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
                     task.status.value.type === "Open" && task.assignee.value
                         ? task.rawAssigneeStatus
                         : null,
-                assigneeActivePosition: getTaskIndexDocAssigneeActivePosition(task),
+                assigneePosition: getTaskIndexDocAssigneePosition(task),
             };
         },
     },
@@ -775,17 +726,13 @@ export function getTaskIndexDocAssigneeStatus(task: {
         : {type: "Inactive"};
 }
 
-export function getTaskIndexDocAssigneeActivePosition(task: {
-    status: TaskStatusWithSortableAccountRegister;
+export function getTaskIndexDocAssigneePosition(task: {
     assignee: TaskAssigneeWithSortableAccountRegister;
-    rawAssigneeStatus: TaskAssigneeStatusRegister;
-    rawAssigneeActivePosition: TaskAssigneeActivePositionRegister;
+    rawAssigneePosition: TaskAssigneePositionRegister;
 }): TaskPosition | null {
-    return task.status.value.type === "Open" &&
-        task.assignee.value &&
-        task.rawAssigneeStatus?.value.type === "Active"
-        ? task.rawAssigneeActivePosition.value?.accountId === task.assignee.value.assignee.accountId
-            ? task.rawAssigneeActivePosition.value.position
-            : {orderTime: task.rawAssigneeStatus.version, orderKey: initialOrderKey}
+    return task.assignee.value
+        ? task.rawAssigneePosition.value?.accountId === task.assignee.value.assignee.accountId
+            ? task.rawAssigneePosition.value.position
+            : {orderTime: task.assignee.version, orderKey: initialOrderKey}
         : null;
 }

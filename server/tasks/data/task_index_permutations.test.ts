@@ -10,7 +10,7 @@ import {
     indexTaskActionTransactionAssumingItsCommitted,
 } from "~/server/tasks/data/task_index.js";
 import {
-    getTaskIndexDocAssigneeActivePosition,
+    getTaskIndexDocAssigneePosition,
     isTaskIndexDocDeleted,
 } from "~/server/tasks/data/task_index_doc.js";
 import {NotFoundError} from "~/shared/error/error.js";
@@ -124,14 +124,13 @@ testTaskActionPermutations({
                     },
                 ]),
             ),
-            notepadPagePositions: new Map(task.notepadPages.raw.positionById),
             status: task.status.value,
             assignee: task.assignee.value,
             assigneeStatus:
                 task.status.value.type === "Open" && task.assignee.value
                     ? task.rawAssigneeStatus.value
                     : {type: "Inactive"},
-            assigneeActivePosition: getTaskIndexDocAssigneeActivePosition(task),
+            assigneePosition: getTaskIndexDocAssigneePosition(task),
             title: task.title.raw,
             dueDate: task.dueDate.value,
             priority: task.priority.value,

@@ -18,7 +18,7 @@ import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_curso
 
 /**
  * Get the `TaskPosition` for a new task in a query that's sorted by
- * `TaskPosition`s (e.g. a notepad page or child task query).
+ * `TaskPosition`s (e.g. the my tasks view or child task query).
  *
  * This function is to help implement the `getMoveTaskToQueryActions()` prop
  * of `useTaskGridViewVirtualizedList()`.
@@ -37,8 +37,7 @@ export function getNewTaskPositionForQuerySortedByPosition(
     assert(
         firstQuerySort.type === "ParentPosition" ||
             firstQuerySort.type === "CollectionPosition" ||
-            firstQuerySort.type === "NotepadPagePosition" ||
-            firstQuerySort.type === "AssigneeActivePosition",
+            firstQuerySort.type === "AssigneePosition",
         "Query is not sorted by `TaskPosition`",
     );
 

@@ -186,7 +186,6 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         peekId: Schema.id(),
         taskId: Schema.id(),
         taskCollectionId: Schema.id(),
-        taskNotepadPageId: Schema.integer,
         documentId: Schema.id(),
         channelId: Schema.id(),
         postId: Schema.id(),

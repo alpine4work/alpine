@@ -12,8 +12,12 @@ import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_cl
 import {Context} from "~/shared/context/context.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyMap} from "~/shared/helpers/array/empty_map.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Clock} from "~/shared/helpers/clock/clock.js";
 import {
     HybridLogicalClock,
@@ -30,6 +34,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -228,6 +233,7 @@ export type TaskClientStoreBatchUpdate = {
             readonly newCollectionEntry: TaskClientStoreCollectionEntry;
         }
     >;
+    readonly actions: ReadonlyArray<TaskActionMaybeModel>;
 };
 
 export interface TaskClientStoreUndoManager {
@@ -279,6 +285,34 @@ export interface TaskClientStoreSearchAffinityManager {
     // managers are created at a route level?
     addGlobalLoadingIndicator(promise: Promise<unknown>, indicator: GlobalLoadingIndicator): void;
 }
+
+/**
+ * `TaskClientStore` but without any methods that mutate task data. Notably,
+ * there's no `commitTaskActionTransaction()` function.
+ */
+export type TaskClientReadonlyStore = Pick<
+    TaskClientStore,
+    | "getTaskCountForTest"
+    | "getCollectionCountForTest"
+    | "accountStore"
+    | "spaceId"
+    | "currentAccountId"
+    | "clock"
+    | "getTaskEntryStoreIfExists"
+    | "getCollectionEntryStoreIfExists"
+    | "getTaskAssigneeAccountStore"
+    | "getReferencedAccountStoreIfExists"
+    | "getSubscriptionsStore"
+    | "subscribeToBatchUpdate"
+    | "waitForCommitTaskActionTransactions"
+    | "createAndRetainQuery"
+    | "createAndRetainQueries"
+    | "loadTasksIntoQuery"
+    | "ensureAndRetainTaskChildrenQuery"
+    | "getTaskChildrenQueryStore"
+    | "createAndRetainTaskSubscription"
+    | "createAndRetainCollectionSubscription"
+>;
 
 /**
  * The client model store holds all our task data for a space on the client.
@@ -369,11 +403,12 @@ export class TaskClientStore {
 
     public commitTaskActionTransaction(
         context: Context<{rpc: RpcContextModuleBase}>,
-        actions: ReadonlyArray<TaskActionModel>,
+        actions: Iterable<TaskActionModel>,
         options: {
             undoManager: TaskClientStoreUndoManager | null;
             affinityManager: TaskClientStoreSearchAffinityManager;
             leaseId?: TaskActionTransactionLeaseId | null;
+            undoableSlice?: {startIndex: number | null; endIndex: number | null} | null;
         },
     ): {finally: (callback: () => void) => void} {
         return this._internal.commitTaskActionTransaction(context, actions, options);
@@ -837,8 +872,9 @@ export class TaskClientStoreInternal {
         // applying the action we avoid a warning.
         if (event.originClientId === this._clientId) {
             return action({
-                taskEntryUpdateById: new Map(),
-                collectionEntryUpdateById: new Map(),
+                taskEntryUpdateById: emptyMap,
+                collectionEntryUpdateById: emptyMap,
+                actions: emptyArray,
             });
         }
 
@@ -1485,12 +1521,11 @@ export class TaskClientStoreInternal {
                     });
                     continue;
                 }
-                case "UpdateNotepadPage": {
-                    // We don't maintain an account's notepad page list in realtime.
-                    break;
-                }
                 case "UpdateAccountName": {
                     updateAccountNameActions.push({action, getActionReferencedSortableAccount});
+                    break;
+                }
+                case "UpdateNotepadPage": {
                     break;
                 }
                 default:
@@ -1557,7 +1592,12 @@ export class TaskClientStoreInternal {
             }
         }
 
-        return this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, action);
+        return this._batchUpdateStore(
+            newTaskEntryById,
+            newCollectionEntryById,
+            event.actions,
+            action,
+        );
     }
 
     /**
@@ -1579,11 +1619,12 @@ export class TaskClientStoreInternal {
      */
     public commitTaskActionTransaction(
         context: Context<{rpc: RpcContextModuleBase}>,
-        actions: ReadonlyArray<TaskActionModel>,
+        actionsIterable: Iterable<TaskActionModel>,
         {
             undoManager,
             affinityManager,
             leaseId = null,
+            undoableSlice = null,
         }: {
             // This property is required to force callers to make a decision on whether or
             // not to pass in `undoManager`. Most of the time you want to pass in
@@ -1593,8 +1634,16 @@ export class TaskClientStoreInternal {
             // object from the route component.
             affinityManager: TaskClientStoreSearchAffinityManager;
             leaseId?: TaskActionTransactionLeaseId | null;
+            undoableSlice?: {startIndex: number | null; endIndex: number | null} | null;
         },
     ): {finally: (callback: () => void) => void} {
+        const actions: ReadonlyArray<TaskActionModel> = isReadonlyArray(actionsIterable)
+            ? actionsIterable
+            : Array.from(actionsIterable);
+
+        // Noop if there aren't any actions.
+        if (actions.length === 0) return {finally: callback => scheduleMicrotask(callback)};
+
         const mutexLockedPromiseResolver = createPromiseResolver();
         const mutexUnlockPromiseResolver = createPromiseResolver();
 
@@ -1630,7 +1679,9 @@ export class TaskClientStoreInternal {
         try {
             // We need to create undo actions before applying our actions to the store so
             // we can read old task data from the store.
-            undoActions = undoManager ? createTaskUndoActionsIfPossible(this, actions) : null;
+            undoActions = undoManager
+                ? createTaskUndoActionsIfPossible(this, actions, undoableSlice)
+                : null;
 
             assert(this.onQueryLoadedTaskRemove === null);
             const removedFromQueries = new Set<TaskClientQuery>();
@@ -1916,7 +1967,6 @@ export class TaskClientStoreInternal {
             error => {
                 const taskIds = new Set<TaskId>();
                 const collectionIds = new Set<TaskCollectionId>();
-                let notepadPageCount = 0;
 
                 for (const action of actions) {
                     switch (action.type) {
@@ -1928,13 +1978,12 @@ export class TaskClientStoreInternal {
                             collectionIds.add(action.collectionId);
                             break;
                         }
-                        case "UpdateNotepadPage": {
-                            notepadPageCount++;
-                            break;
-                        }
                         case "UpdateAccountName": {
                             // Generic error message if this fails. The client shouldn't be committing
                             // this anyway.
+                            break;
+                        }
+                        case "UpdateNotepadPage": {
                             break;
                         }
                         default:
@@ -1948,9 +1997,6 @@ export class TaskClientStoreInternal {
                 }
                 if (collectionIds.size > 0) {
                     failedNouns.push(collectionIds.size === 1 ? "collection" : "collections");
-                }
-                if (notepadPageCount > 0) {
-                    failedNouns.push("notepad");
                 }
 
                 this._onError({
@@ -2366,8 +2412,9 @@ export class TaskClientStoreInternal {
     } {
         if (actions.length === 0) {
             const actionValue = action({
-                taskEntryUpdateById: new Map(),
-                collectionEntryUpdateById: new Map(),
+                taskEntryUpdateById: emptyMap,
+                collectionEntryUpdateById: emptyMap,
+                actions: emptyArray,
             });
             return {actionValue, pendingActions: [], release: noop};
         }
@@ -2698,13 +2745,10 @@ export class TaskClientStoreInternal {
                     });
                     continue;
                 }
+                case "UpdateAccountName":
                 case "UpdateNotepadPage": {
-                    // We don't maintain an account's notepad page list in realtime.
-                    continue;
-                }
-                case "UpdateAccountName": {
                     throw new InternalError(
-                        "Can't optimistically apply `UpdateAccountName` action",
+                        quote`Can't optimistically apply ${action.type} action`,
                     );
                 }
                 default:
@@ -2727,7 +2771,12 @@ export class TaskClientStoreInternal {
 
         let actionValue;
         try {
-            actionValue = this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, action);
+            actionValue = this._batchUpdateStore(
+                newTaskEntryById,
+                newCollectionEntryById,
+                actions,
+                action,
+            );
         } finally {
             // Any tasks or collections that were released while updating our store, we
             // want to retain until the optimistic action is committed or rejected. Because
@@ -3129,13 +3178,10 @@ export class TaskClientStoreInternal {
                     });
                     continue;
                 }
+                case "UpdateAccountName":
                 case "UpdateNotepadPage": {
-                    // We don't maintain an account's notepad page list in realtime.
-                    continue;
-                }
-                case "UpdateAccountName": {
                     throw new InternalError(
-                        "Can't optimistically apply `UpdateAccountName` action",
+                        quote`Can't optimistically apply ${action.type} action`,
                     );
                 }
                 default:
@@ -3143,7 +3189,7 @@ export class TaskClientStoreInternal {
             }
         }
 
-        this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, noop);
+        this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, emptyArray, noop);
     }
 
     private _revertOptimisticTaskActions(pendingActions: Iterable<TaskClientStorePendingAction>) {
@@ -3594,13 +3640,10 @@ export class TaskClientStoreInternal {
                     }
                     continue;
                 }
+                case "UpdateAccountName":
                 case "UpdateNotepadPage": {
-                    // We don't maintain an account's notepad page list in realtime.
-                    continue;
-                }
-                case "UpdateAccountName": {
                     throw new InternalError(
-                        "Can't optimistically apply `UpdateAccountName` action",
+                        quote`Can't optimistically apply ${action.type} action`,
                     );
                 }
                 default:
@@ -3608,12 +3651,16 @@ export class TaskClientStoreInternal {
             }
         }
 
-        this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, noop);
+        this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, emptyArray, noop);
     }
 
     private _batchUpdateStore<Value>(
         newTaskEntryById: ReadonlyMap<TaskId, TaskClientStoreTaskEntry>,
         newCollectionEntryById: ReadonlyMap<TaskCollectionId, TaskClientStoreCollectionEntry>,
+        // If there were actions that contributed to this update then the actions are
+        // provided here. Not all task or collection updates will have an associated
+        // action.
+        actions: ReadonlyArray<TaskActionMaybeModel>,
         // This action is called after our updates have been applied to the store and
         // before we clean up any new tasks/collections with zero references. It lets
         // you "save" tasks/collections that were about to be released.
@@ -3808,6 +3855,7 @@ export class TaskClientStoreInternal {
                 const batchUpdate = {
                     taskEntryUpdateById,
                     collectionEntryUpdateById,
+                    actions,
                 };
 
                 const actionValue = action(batchUpdate);

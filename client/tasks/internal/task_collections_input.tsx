@@ -15,7 +15,6 @@ import {
 import {useComboBox} from "react-aria";
 import {flushSync} from "react-dom";
 import {ComboBoxStateOptions, useComboBoxState} from "react-stately";
-import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
@@ -51,10 +50,7 @@ import {
     taskCollectionChipPaddingY,
 } from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
-import {
-    TaskClientStoreSearchAffinityManager,
-    TaskClientStoreUndoManager,
-} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientReadonlyStore} from "~/client/tasks/core/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
 import {createDisplayTaskCollectionsStore} from "~/client/tasks/internal/create_display_task_collections_store.js";
 import {
@@ -81,6 +77,7 @@ import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {emptyArrayStore} from "~/shared/store/const_store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
@@ -106,9 +103,8 @@ export {TaskCollectionsInputForwardRef as TaskCollectionsInput};
 
 function TaskCollectionsInput(
     {
+        store,
         referencesSubscription,
-        undoManager,
-        affinityManager,
         task,
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
@@ -119,12 +115,11 @@ function TaskCollectionsInput(
         isTabbable = true,
         onArrowLeftLeaveKeyDown,
         onReturnFocus,
-        commitActionTransactionEvenIfGhost: _commitActionTransactionEvenIfGhost,
         shouldAlignWithDetailViewInputsIfEmpty = false,
+        commitActionTransaction,
     }: {
-        referencesSubscription: TaskClientQuery | TaskClientTaskSubscription;
-        undoManager: TaskClientStoreUndoManager;
-        affinityManager: TaskClientStoreSearchAffinityManager;
+        store: TaskClientReadonlyStore;
+        referencesSubscription: TaskClientQuery | TaskClientTaskSubscription | null;
         task: TaskModel | null;
         "aria-label"?: string;
         "aria-labelledby"?: string;
@@ -136,19 +131,15 @@ function TaskCollectionsInput(
         isTabbable?: boolean;
         onArrowLeftLeaveKeyDown?: () => void;
         onReturnFocus?: () => void;
-        commitActionTransactionEvenIfGhost?: (
-            getActions: (taskId: TaskId) => Array<TaskActionModel>,
-        ) => void;
         shouldAlignWithDetailViewInputsIfEmpty?: boolean;
+        commitActionTransaction: (getActions: (taskId: TaskId) => Array<TaskActionModel>) => void;
     },
     ref: Ref<TaskCollectionsInputRef>,
 ) {
     const platform = usePlatform();
     const {isAppleDevice} = useClientInfo();
-    const context = useAppContext();
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContext();
-    const {store} = referencesSubscription;
 
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -172,16 +163,6 @@ function TaskCollectionsInput(
 
     const collections = task?.getCollections() ?? TaskCollectionSet.empty;
 
-    const commitActionTransactionEvenIfGhost =
-        _commitActionTransactionEvenIfGhost ??
-        ((getActions: (taskId: TaskId) => Array<TaskActionModel>) => {
-            if (!task) return;
-            store.commitTaskActionTransaction(context, getActions(task.id), {
-                undoManager,
-                affinityManager,
-            });
-        });
-
     // Preload task collections the account has an affinity for in case they open
     // the collections dropdown.
     usePreloadSearchTaskCollectionsByAffinity({isDisabled: isReadOnly});
@@ -191,11 +172,13 @@ function TaskCollectionsInput(
     const displayCollections = useStore(
         useMemo(
             () =>
-                createDisplayTaskCollectionsStore({
-                    currentAccount,
-                    referencesSubscription,
-                    collections,
-                }),
+                referencesSubscription
+                    ? createDisplayTaskCollectionsStore({
+                          currentAccount,
+                          referencesSubscription,
+                          collections,
+                      })
+                    : emptyArrayStore,
             [collections, currentAccount, referencesSubscription],
         ),
     );
@@ -207,7 +190,7 @@ function TaskCollectionsInput(
     });
 
     const {shouldShowSearchLoadingIndicator, items} = useTaskCollectionComboBoxSearchState({
-        store: referencesSubscription.store,
+        store,
         inputValue: inputState.value,
         // Only load items when our overlay is open.
         shouldLoadItems,
@@ -328,7 +311,7 @@ function TaskCollectionsInput(
                         assertExists(inputRef.current).blur();
                     }
 
-                    commitActionTransactionEvenIfGhost(taskId => [
+                    commitActionTransaction(taskId => [
                         {
                             type: "UpdateTask",
                             time: store.clock.now(),
@@ -383,7 +366,7 @@ function TaskCollectionsInput(
                             assertExists(inputRef.current).blur();
                         }
 
-                        commitActionTransactionEvenIfGhost(taskId => [
+                        commitActionTransaction(taskId => [
                             {
                                 type: "UpdateCollection",
                                 time: store.clock.now(),
@@ -438,6 +421,8 @@ function TaskCollectionsInput(
             "aria-labelledby": ariaLabelledBy,
             onKeyDown: event => {
                 assert(event.currentTarget instanceof HTMLInputElement);
+                assert(event.target instanceof Element);
+
                 switch (event.key) {
                     case "ArrowDown":
                     case "Home":
@@ -459,7 +444,7 @@ function TaskCollectionsInput(
 
                             const collection = displayCollections[displayCollections.length - 1]!;
 
-                            commitActionTransactionEvenIfGhost(taskId => [
+                            commitActionTransaction(taskId => [
                                 {
                                     type: "UpdateTask",
                                     time: store.clock.now(),
@@ -682,7 +667,7 @@ function TaskCollectionsInput(
 
                     setInteractionModality("keyboard");
 
-                    commitActionTransactionEvenIfGhost(taskId => [
+                    commitActionTransaction(taskId => [
                         {
                             type: "UpdateTask",
                             time: store.clock.now(),
@@ -913,7 +898,7 @@ function TaskCollectionsInput(
 
                         setInteractionModality("keyboard");
 
-                        commitActionTransactionEvenIfGhost(taskId => [
+                        commitActionTransaction(taskId => [
                             {
                                 type: "UpdateTask",
                                 time: store.clock.now(),
@@ -960,7 +945,7 @@ function TaskCollectionsInput(
                         onRemove={
                             !isReadOnly
                                 ? () => {
-                                      commitActionTransactionEvenIfGhost(taskId => [
+                                      commitActionTransaction(taskId => [
                                           {
                                               type: "UpdateTask",
                                               time: store.clock.now(),
@@ -1070,7 +1055,7 @@ function TaskCollectionsInput(
 
                             const collectionId = generateId<TaskCollectionId>();
 
-                            commitActionTransactionEvenIfGhost(taskId => [
+                            commitActionTransaction(taskId => [
                                 {
                                     type: "UpdateCollection",
                                     time: store.clock.now(),
@@ -1208,6 +1193,8 @@ function TaskCollectionsInput(
                                 if (event.key === "Escape") {
                                     event.preventDefault();
                                     event.stopPropagation();
+
+                                    assert(event.target instanceof HTMLElement);
                                     event.target.blur();
                                     return;
                                 }
