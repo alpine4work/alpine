@@ -13,10 +13,12 @@ import {getChatAndInitialMessages} from "~/server/chat/data/chat_table.js";
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {isSearchAffinityFavorite} from "~/server/search/data/table/search_entity_table.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -29,6 +31,7 @@ const LoaderSchema = Schema.object({
     initialMessages: Schema.array(ChatMessageModel.schema()),
     initialOtherReferencedMessages: Schema.array(ChatMessageModel.schema()),
     inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
+    isFavorite: Schema.boolean,
 });
 
 export async function loader({context: unauthenticatedContext, request, params}: LoaderArgs) {
@@ -38,18 +41,45 @@ export async function loader({context: unauthenticatedContext, request, params}:
 
     const url = new URL(request.url);
 
-    const [{chat, initialMessages, initialOtherReferencedMessages}, inboxEntry] =
+    const chatPromiseResolver = createPromiseResolver<ChatModel>();
+
+    const [{chat, initialMessages, initialOtherReferencedMessages}, inboxEntry, isFavorite] =
         await runAllPromises([
             getChatAndInitialMessages(context.actor.authorizeSession(), {
                 chatId,
                 messagesLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
-            }),
+                // Immediately resolve `chatPromiseResolver` once the chat is loaded. This
+                // function may take longer to return as it loads messages from the chat.
+                onChat: chatPromiseResolver.resolve,
+            }).then(
+                result => {
+                    chatPromiseResolver.resolve(result.chat);
+                    return result;
+                },
+                error => {
+                    chatPromiseResolver.reject(error);
+                    throw error;
+                },
+            ),
             url.searchParams.get("inbox") === "show"
                 ? getInboxEntry(context, {
                       spaceId,
                       key: {type: "Chat", chatId},
                   })
                 : null,
+            chatPromiseResolver.promise.then(chat =>
+                isSearchAffinityFavorite(context, {
+                    spaceId,
+                    affinityId:
+                        chat.accounts.length === 2
+                            ? `Account:${
+                                  chat.accounts.filter(
+                                      account => account.id !== context.actor.getAccountId(),
+                                  )[0]!.id
+                              }`
+                            : `Chat:${chat.id}`,
+                }),
+            ),
         ]);
 
     const propagateEventData: TracerEventData = {
@@ -60,7 +90,7 @@ export async function loader({context: unauthenticatedContext, request, params}:
 
     return jsonWithSchema(
         LoaderSchema,
-        {chat, initialMessages, initialOtherReferencedMessages, inboxEntry},
+        {chat, initialMessages, initialOtherReferencedMessages, inboxEntry, isFavorite},
         {propagateEventData},
     );
 }
@@ -93,7 +123,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentDa
 
 export default function ChatRoute() {
     const [searchParams] = useSearchParams();
-    const {chat, initialMessages, initialOtherReferencedMessages, inboxEntry} =
+    const {chat, initialMessages, initialOtherReferencedMessages, inboxEntry, isFavorite} =
         useLoaderDataWithSchema(LoaderSchema);
 
     const {currentAccount} = useSpaceContext();
@@ -123,6 +153,7 @@ export default function ChatRoute() {
                 initialMessages={initialMessages}
                 initialOtherReferencedMessages={initialOtherReferencedMessages}
                 initialScrollToMessageIndex={messageIndex}
+                initialIsFavorite={isFavorite}
             />
         </Box>
     );

@@ -1594,6 +1594,29 @@ export async function unfavoriteSearchAffinity(
 }
 
 /**
+ * Is the provided `affinityId` one of the session actor's favorites?
+ */
+export async function isSearchAffinityFavorite(
+    context: ServerSessionActionContext,
+    {spaceId, affinityId}: {spaceId: SpaceId; affinityId: SearchAffinityId},
+): Promise<boolean> {
+    // Optimization: We don't authorize whether the actor has access to the entity.
+    // Since this is a personal favorite list it doesn't really matter if the user
+    // favorites an entity they don't have access to.
+    await authorizeSpaceAccess(context, spaceId);
+
+    const item = await SearchEntityTable.getItemIfExists(context, {
+        partitionType: "Account",
+        sortRangeType: "SearchEntityAffinity",
+        spaceId,
+        accountId: context.actor.getAccountId(),
+        entityId: affinityId,
+    });
+
+    return !!item?.favoriteOrderKey;
+}
+
+/**
  * Get an account's favorites in the manually sorted order specified by the
  * user.
  *

@@ -111,3 +111,21 @@ export const searchTaskCollectionsByAffinity = defineRpc({
         ),
     },
 });
+
+export const favoriteSearchAffinity = defineRpc({
+    name: "favoriteSearchAffinity",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        affinityId: SearchAffinityIdSchema,
+    },
+    output: {},
+});
+
+export const unfavoriteSearchAffinity = defineRpc({
+    name: "unfavoriteSearchAffinity",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        affinityId: SearchAffinityIdSchema,
+    },
+    output: {},
+});

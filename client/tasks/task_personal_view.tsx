@@ -1,5 +1,5 @@
 import {useDndContext} from "@dnd-kit/core";
-import {DotsThreeVertical, Link as LinkIcon, Star} from "phosphor-react";
+import {DotsThreeVertical, Link as LinkIcon} from "phosphor-react";
 import {
     Memo,
     Ref,
@@ -28,6 +28,7 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {useSearchAffinityFavoriteMenuAction} from "~/client/search/core/use_search_affinity_favorite_menu_action.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {
     grey5SemiTransparentColorVar,
@@ -113,6 +114,7 @@ export function TaskPersonalView({
     dueSoonQuery,
     remainingQuery,
     affinityManager,
+    initialIsFavorite,
 }: {
     store: TaskClientStore;
     activeQuery: {
@@ -136,6 +138,7 @@ export function TaskPersonalView({
         initialGridViewExpansionState: TaskGridViewExpansionState;
     };
     affinityManager: TaskClientStoreSearchAffinityManager;
+    initialIsFavorite: boolean;
 }) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
@@ -473,6 +476,11 @@ export function TaskPersonalView({
      *                               Navigation Bar                               *
     \* ========================================================================== */
 
+    const favoriteMenuAction = useSearchAffinityFavoriteMenuAction(
+        "TaskPersonal",
+        initialIsFavorite,
+    );
+
     const navigationBarMenuActions = useMemo(
         (): ReadonlyArray<MenuAction> => [
             {
@@ -485,17 +493,9 @@ export function TaskPersonalView({
                     await writeTextToClipboard(url.toString());
                 },
             },
-            {
-                label: "Favorite",
-                icon: <Star />,
-                iconPlacement: "end",
-                pressErrorTitle: "Couldn’t add to favorites",
-                onPress: () => {
-                    // NOCOMMIT: Implement
-                },
-            },
+            ...(favoriteMenuAction ? [favoriteMenuAction] : []),
         ],
-        [space.id],
+        [favoriteMenuAction, space.id],
     );
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({

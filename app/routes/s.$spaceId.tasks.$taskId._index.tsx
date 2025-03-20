@@ -32,6 +32,7 @@ import {TaskDetailAndCommentsView} from "~/client/tasks/task_detail_and_comments
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {isSearchAffinityFavorite} from "~/server/search/data/table/search_entity_table.js";
 import {authorizeSpaceAccessIfPossible, getAccount} from "~/server/spaces/spaces_table.js";
 import {
     getTaskNotesContentAndOptionalInitialComments,
@@ -92,6 +93,7 @@ const LoaderSchema = Schema.object({
         otherReferencedComments: Schema.array(TaskCommentModel.schema()),
     }).nullable(),
     inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
+    isFavorite: Schema.boolean,
     initialFieldsAssignee: AccountModel.schema.nullable(),
 });
 
@@ -188,6 +190,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
         loadQueriesOutputResult,
         task,
         inboxEntry,
+        isFavorite,
         initialFieldsAssignee,
         initialFieldsLoadCollectionsResult,
     ] = await runAllPromises([
@@ -217,6 +220,12 @@ export async function loader({params, context: unauthenticatedContext, request}:
                   key: {type: "Task", taskId},
               })
             : null,
+        context.actor.type === "Session"
+            ? isSearchAffinityFavorite(context.actor.authorizeSession(), {
+                  spaceId,
+                  affinityId: `Task:${taskId}`,
+              })
+            : false,
 
         // Load data needed for initial fields.
         initialFields?.assigneeId ? getAccount(context, spaceId, initialFields.assigneeId) : null,
@@ -265,6 +274,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
             notesContent: task?.notes.content ?? emptyTaskNotesContentWithReferences,
             initialComments: task?.initialComments ?? null,
             inboxEntry,
+            isFavorite,
             initialFieldsAssignee,
         },
         {
@@ -343,6 +353,7 @@ export default function TaskRoute() {
         notesContent: initialNotesContent,
         initialComments,
         inboxEntry,
+        isFavorite: initialIsFavorite,
         initialFieldsAssignee,
     } = useLoaderDataWithSchema(LoaderSchema);
     const {
@@ -745,6 +756,7 @@ export default function TaskRoute() {
             childrenQuery={childrenQuery}
             initialChildrenGridViewExpansionState={initialChildrenGridViewExpansionState}
             initialFields={initialFieldsModel}
+            initialIsFavorite={initialIsFavorite}
             initialNotesVersion={initialNotesVersion}
             initialNotesContent={initialNotesContent}
             commitActionTransactionAndCreateIfNeeded={commitActionTransactionAndCreateIfNeeded}

@@ -7,7 +7,11 @@ import {
     searchChannelsByKeywords,
     searchTaskCollectionsByAffinity,
 } from "~/server/search/data/index/search_entity_index.js";
-import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {
+    favoriteSearchAffinity,
+    markSearchAffinityInteraction,
+    unfavoriteSearchAffinity,
+} from "~/server/search/data/table/search_entity_table.js";
 import * as definitions from "~/shared/rpc/search_rpc_definitions.js";
 
 export default implementRpcs(definitions, {
@@ -64,6 +68,22 @@ export default implementRpcs(definitions, {
                 input,
             );
             return {results};
+        },
+    },
+
+    favoriteSearchAffinity: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await favoriteSearchAffinity(context.actor.authorizeSession(), input);
+            return {};
+        },
+    },
+
+    unfavoriteSearchAffinity: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await unfavoriteSearchAffinity(context.actor.authorizeSession(), input);
+            return {};
         },
     },
 });

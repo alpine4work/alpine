@@ -1,5 +1,5 @@
 import {setInteractionModality} from "@react-aria/interactions";
-import {CaretRight, ChatCircleDots, Link as LinkIcon, Lock, Star} from "phosphor-react";
+import {CaretRight, ChatCircleDots, Link as LinkIcon, Lock} from "phosphor-react";
 import {
     Memo,
     ReactNode,
@@ -42,6 +42,7 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {getPlatformRouteLayout, useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSearchAffinityFavoriteMenuAction} from "~/client/search/core/use_search_affinity_favorite_menu_action.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {
@@ -137,6 +138,7 @@ export function TaskDetailView({
     childrenQuery,
     initialChildrenGridViewExpansionState,
     initialFields,
+    initialIsFavorite,
     notesEditorStateStore,
     onNotesEditorStateChange,
     reconnectNotesClient,
@@ -153,6 +155,7 @@ export function TaskDetailView({
     childrenQuery: TaskClientQuery | null;
     initialChildrenGridViewExpansionState: TaskGridViewExpansionState;
     initialFields: TaskQueryNormalizedFiltersInitialFieldsModel;
+    initialIsFavorite: boolean;
     notesEditorStateStore: Store<TaskNotesContentEditorState>;
     onNotesEditorStateChange: Memo<
         (state: ContentEditorState<TaskNotesContentWithReferences>) => void
@@ -681,6 +684,11 @@ export function TaskDetailView({
         ],
     );
 
+    const favoriteMenuAction = useSearchAffinityFavoriteMenuAction(
+        `Task:${taskId}`,
+        initialIsFavorite,
+    );
+
     const {menuActions, contextMenuActions} = useMemo(() => {
         const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
 
@@ -788,6 +796,12 @@ export function TaskDetailView({
                 {
                     icon: <ChatCircleDots />,
                     iconPlacement: "end",
+                    // NOTE(calebmer, 2025-03-20): Design-wise, I'm currently trying to start
+                    // everything in the more menu with a verb. Which is why the label for this is
+                    // "Open comments" instead of "Comments". The "Favorite" item is partially an
+                    // exception. "Favorite" itself can be interpreted as a verb but after you press
+                    // the favorite option, pressing again will unfavorite. So the verb name doesn't
+                    // match the action.
                     label: showComments ? "Close comments" : "Open comments",
                     pressErrorTitle: showComments
                         ? "Couldn't close comments"
@@ -813,18 +827,9 @@ export function TaskDetailView({
                 },
             ]);
 
-            menuActions[1] = [
-                ...assertExists(menuActions[1]),
-                {
-                    label: "Favorite",
-                    icon: <Star />,
-                    iconPlacement: "end",
-                    pressErrorTitle: "Couldn’t add to favorites",
-                    onPress: () => {
-                        // NOCOMMIT: Implement
-                    },
-                },
-            ];
+            if (favoriteMenuAction) {
+                menuActions[1] = [...assertExists(menuActions[1]), favoriteMenuAction];
+            }
         }
 
         return {menuActions, contextMenuActions} as any as {
@@ -839,6 +844,7 @@ export function TaskDetailView({
         currentAccount,
         displayStatus,
         dueDateInputState.isVisible,
+        favoriteMenuAction,
         focusDueDateInput,
         focusPriorityInput,
         hasEditAccessLevel,

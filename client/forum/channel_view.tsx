@@ -23,6 +23,7 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSearchAffinityFavoriteMenuAction} from "~/client/search/core/use_search_affinity_favorite_menu_action.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     channelViewAsidePostFileCount,
@@ -54,9 +55,11 @@ import {
 export function ChannelView({
     initialChannelResult,
     initialPostsResult,
+    initialIsFavorite,
 }: {
     initialChannelResult: DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>;
     initialPostsResult: DynamoGeneralRealtimeIndexQueryResult<PostModel>;
+    initialIsFavorite: boolean;
 }) {
     const context = useAppContext();
     const platform = usePlatform();
@@ -187,6 +190,11 @@ export function ChannelView({
     if (editNameAndDescriptionMobileModalState && platform !== "mobile")
         setEditNameAndDescriptionMobileModalState(null);
 
+    const favoriteMenuAction = useSearchAffinityFavoriteMenuAction(
+        `Channel:${channelId}`,
+        initialIsFavorite,
+    );
+
     const navigationBar = useNavigationBar({
         withoutDisappearingTitle: true,
         title: isEditingNameInline ? (
@@ -246,15 +254,7 @@ export function ChannelView({
                         await writeTextToClipboard(url.toString());
                     },
                 },
-                {
-                    label: "Favorite",
-                    icon: <Star />,
-                    iconPlacement: "end",
-                    pressErrorTitle: "Couldn’t add to favorites",
-                    onPress: () => {
-                        // NOCOMMIT: Implement
-                    },
-                },
+                ...(favoriteMenuAction ? [favoriteMenuAction] : []),
             ],
             [
                 {

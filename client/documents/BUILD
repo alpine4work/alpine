@@ -20,6 +20,7 @@ ts_project(
         "//client/messaging",
         "//client/navigation",
         "//client/remix",
+        "//client/search/core",
         "//client/styles",
         "//client/virtualized",
         "//client/web_socket",

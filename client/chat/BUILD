@@ -17,6 +17,7 @@ ts_project(
         "//client/helpers",
         "//client/messaging",
         "//client/rpc",
+        "//client/search/core",
         "//client/spaces",
         "//client/styles",
         "//client/virtualized",

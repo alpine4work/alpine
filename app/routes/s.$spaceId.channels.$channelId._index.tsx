@@ -32,6 +32,7 @@ import {
 } from "~/server/forum/data/forum_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {isSearchAffinityFavorite} from "~/server/search/data/table/search_entity_table.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
@@ -65,6 +66,7 @@ const LoaderSchema = Schema.object({
             type: Schema.value("Exists"),
             channelResult: createDynamoGeneralRealtimeQuerySchema(ChannelOrMetadataModelSchema),
             postsResult: createDynamoGeneralRealtimeIndexQuerySchema(PostModel.schema()),
+            isFavorite: Schema.boolean,
         }),
     }),
 });
@@ -128,7 +130,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
 
     const clientInfo = context.loader.getClientInfo();
 
-    const [channelResult, postsResult] = await runAllPromises([
+    const [channelResult, postsResult, isFavorite] = await runAllPromises([
         getDynamoGeneralRealtimeItem
             ? runAllPromises([
                   getDynamoGeneralRealtimeItem(context),
@@ -171,6 +173,12 @@ export async function loader({request, params, context: unauthenticatedContext}:
             ),
             beforeCursor: null,
         }),
+        context.actor.type === "Session"
+            ? isSearchAffinityFavorite(context.actor.authorizeSession(), {
+                  spaceId,
+                  affinityId: `Channel:${channelId}`,
+              })
+            : false,
     ]);
 
     const propagateEventData: TracerEventData = {
@@ -184,6 +192,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 type: "Exists",
                 channelResult,
                 postsResult,
+                isFavorite,
             },
         },
         {propagateEventData},
@@ -269,6 +278,7 @@ export default function ChannelRoute() {
                     key={channelId}
                     initialChannelResult={channelState.channelResult}
                     initialPostsResult={channelState.postsResult}
+                    initialIsFavorite={channelState.isFavorite}
                 />
             ) : platform === "mobile" ? (
                 <ChannelMobileEditor

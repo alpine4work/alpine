@@ -1,4 +1,4 @@
-import {ArrowLeft, DotsThreeVertical, Link as LinkIcon, Star} from "phosphor-react";
+import {ArrowLeft, DotsThreeVertical, Link as LinkIcon} from "phosphor-react";
 import {useCallback, useEffect, useMemo, useRef} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
@@ -18,6 +18,7 @@ import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js"
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSearchAffinityFavoriteMenuAction} from "~/client/search/core/use_search_affinity_favorite_menu_action.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {chatViewTopBarWithInboxBannerAdjustmentY} from "~/client/styles/chat_shared_styles.js";
 import {
@@ -43,16 +44,22 @@ export function ChatView({
     initialMessages,
     initialOtherReferencedMessages,
     initialScrollToMessageIndex,
+    initialIsFavorite,
 }: {
     withInboxBanner: boolean;
     chat: ChatModel;
     initialMessages: ReadonlyArray<ChatMessageModel>;
     initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
     initialScrollToMessageIndex: number | null;
+    initialIsFavorite: boolean;
 }) {
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
-            <ChatViewTopBar withInboxBanner={withInboxBanner} chat={chat} />
+            <ChatViewTopBar
+                withInboxBanner={withInboxBanner}
+                chat={chat}
+                initialIsFavorite={initialIsFavorite}
+            />
             <ChatMessagingView
                 chat={chat}
                 initialMessages={initialMessages}
@@ -63,7 +70,15 @@ export function ChatView({
     );
 }
 
-function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat: ChatModel}) {
+function ChatViewTopBar({
+    withInboxBanner,
+    chat,
+    initialIsFavorite,
+}: {
+    withInboxBanner: boolean;
+    chat: ChatModel;
+    initialIsFavorite: boolean;
+}) {
     assert(chat.accounts.length > 0);
 
     const platform = usePlatform();
@@ -76,6 +91,13 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
         chat.accounts.length === 1 && chat.accounts[0]!.id === currentAccount?.id
             ? [currentAccount]
             : chat.accounts.filter(account => account.id !== currentAccount?.id);
+
+    const favoriteMenuAction = useSearchAffinityFavoriteMenuAction(
+        currentAccount && chat.accounts.length === 2
+            ? `Account:${chat.accounts.filter(account => account.id !== currentAccount.id)[0]!.id}`
+            : `Chat:${chat.id}`,
+        initialIsFavorite,
+    );
 
     return (
         <Box
@@ -192,17 +214,9 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
                                         await writeTextToClipboard(url.toString());
                                     },
                                 },
-                                {
-                                    label: "Favorite",
-                                    icon: <Star />,
-                                    iconPlacement: "end",
-                                    pressErrorTitle: "Couldn’t add to favorites",
-                                    onPress: () => {
-                                        // NOCOMMIT: Implement
-                                    },
-                                },
+                                ...(favoriteMenuAction ? [favoriteMenuAction] : []),
                             ],
-                            [chat.id, space.id],
+                            [chat.id, favoriteMenuAction, space.id],
                         )}
                     >
                         <IconButton

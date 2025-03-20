@@ -1815,7 +1815,15 @@ export function deleteChatMessage(
  */
 export function getChatAndInitialMessages(
     context: ServerContentSessionActionContext,
-    {chatId, messagesLimit}: {chatId: ChatId; messagesLimit: number},
+    {
+        chatId,
+        messagesLimit,
+        onChat,
+    }: {
+        chatId: ChatId;
+        messagesLimit: number;
+        onChat?: (chat: ChatModel) => void;
+    },
 ): Promise<{
     chat: ChatModel;
     initialMessages: ReadonlyArray<ChatMessageModel>;
@@ -1824,12 +1832,21 @@ export function getChatAndInitialMessages(
     return actuallyGetChatAndInitialMessages(context, {
         result: {type: "FoundIdOnly", chatId},
         messagesLimit,
+        onChat,
     });
 }
 
 async function actuallyGetChatAndInitialMessages(
     context: ServerContentSessionActionContext,
-    {result, messagesLimit}: {result: ChatForAccountsResult; messagesLimit: number},
+    {
+        result,
+        messagesLimit,
+        onChat,
+    }: {
+        result: ChatForAccountsResult;
+        messagesLimit: number;
+        onChat?: (chat: ChatModel) => void;
+    },
 ): Promise<{
     chat: ChatModel;
     initialMessages: ReadonlyArray<ChatMessageModel>;
@@ -1854,7 +1871,10 @@ async function actuallyGetChatAndInitialMessages(
     }
 
     const [chat, {messages, otherReferencedMessages}] = await runAllPromises([
-        chatPromise,
+        chatPromise.then(chat => {
+            onChat?.(chat);
+            return chat;
+        }),
         getChatMessagesFromEndAssumingAuthorizedChat(context, {
             chatId: result.chatId,
             getSpaceId: () => chatPromise.then(({spaceId}) => spaceId),

@@ -18,6 +18,7 @@ import {
 } from "~/server/documents/data/documents_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {isSearchAffinityFavorite} from "~/server/search/data/table/search_entity_table.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {
     DocumentCommentModel,
@@ -28,7 +29,7 @@ import {
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
@@ -39,18 +40,20 @@ const LoaderSchema = Schema.object({
         initialComments: Schema.array(DocumentCommentModel.schema()),
         initialOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
     }).nullable(),
+    isFavorite: Schema.boolean,
 });
 
 export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
     const context = await unauthenticatedContext.actor.authenticate();
 
     const url = new URL(request.url);
+    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
     const documentId = Schema.id<DocumentId>().deserialize(params.documentId ?? null);
     const commentThreadId = Schema.id<DocumentCommentThreadId>()
         .nullable()
         .deserialize(url.searchParams.get("comments"));
 
-    const [document, commentThreadResult] = await runAllPromises([
+    const [document, commentThreadResult, isFavorite] = await runAllPromises([
         getDocumentWithOptionalCommentsIfExists(context, documentId),
         commentThreadId
             ? getDocumentCommentThreadAndInitialComments(context, {
@@ -59,6 +62,12 @@ export async function loader({params, context: unauthenticatedContext, request}:
                   limit: getInitialLoadMessageCount(context.loader.getClientInfo()),
               })
             : null,
+        context.actor.type === "Session"
+            ? isSearchAffinityFavorite(context.actor.authorizeSession(), {
+                  spaceId,
+                  affinityId: `Document:${documentId}`,
+              })
+            : false,
     ]);
 
     // Must have the `create` search param to load a document that doesn't exist.
@@ -70,7 +79,11 @@ export async function loader({params, context: unauthenticatedContext, request}:
         context: {documentId},
     };
 
-    return jsonWithSchema(LoaderSchema, {document, commentThreadResult}, {propagateEventData});
+    return jsonWithSchema(
+        LoaderSchema,
+        {document, commentThreadResult, isFavorite},
+        {propagateEventData},
+    );
 }
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) => [
@@ -116,7 +129,11 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 // Ideally we'd have a special code path that uses `<body>` scrolling just for
 // documents shared via URL.
 export default function DocumentRoute() {
-    const {document: initialDocument, commentThreadResult} = useLoaderDataWithSchema(LoaderSchema);
+    const {
+        document: initialDocument,
+        commentThreadResult: initialCommentThreadResult,
+        isFavorite: initialIsFavorite,
+    } = useLoaderDataWithSchema(LoaderSchema);
     const params = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     const updateMetaTitle = useUpdateMetaTitle();
@@ -178,7 +195,8 @@ export default function DocumentRoute() {
             key={documentId}
             documentId={documentId}
             initialDocument={initialDocument}
-            initialCommentThreadResult={commentThreadResult}
+            initialCommentThreadResult={initialCommentThreadResult}
+            initialIsFavorite={initialIsFavorite}
             initialScroll={initialScroll}
             shouldInitiallyFocus={shouldInitiallyFocus}
             onCreate={() => setIsCreating(false)}
