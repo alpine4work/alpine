@@ -46,9 +46,10 @@ const actuallyLayoutContentFileParent = createCachedFunction(
                 ];
             }
             case "fileTable": {
-                // in the `insertFiles` in `content_editor.tsx` we already insured that
-                // the selection is a table cell selection so we don't need to check
-                // for that here
+                // NOTE(rohit): In the `insertFiles` in `content_editor.tsx` we already
+                // insured that the selection is a table cell selection so we don't need
+                // to check for that here. But for the sake of clarity we'll assert that
+                // the fileTable node contains exactly one file node.
                 assert(node.content.childCount === 1, "fileTable must contain exactly one file");
                 const fileNode = node.content.firstChild!;
                 assert(fileNode.type.name === "file", "fileTable child must be a file node");

@@ -2293,11 +2293,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     slice.content.content.length === 1 &&
                                     slice.content.content[0]!.type.name === "fileTable";
 
-                                let fileTableNode: Node | null = null;
+                                let fileTableNode: Slice | null = slice;
 
-                                if (isSourceFileTable) {
-                                    fileTableNode = slice.content.content[0]!;
-                                } else {
+                                if (!isSourceFileTable) {
                                     const fileNodes: Array<Node> = [];
                                     for (const sourceNode of slice.content.content) {
                                         if (sourceNode.type.name === "fileRow") {
@@ -2316,7 +2314,15 @@ function ContentEditor<Content extends ContentWithReferences>(
                                             fileNodes.push(sourceNode);
                                         }
                                     }
-                                    fileTableNode = schema.node("fileTable", {}, [...fileNodes]);
+                                    fileTableNode = new Slice(
+                                        Fragment.from(
+                                            fileNodes.map(fileNode =>
+                                                schema.node("fileTable", {}, [fileNode]),
+                                            ),
+                                        ),
+                                        0,
+                                        0,
+                                    );
                                 }
                                 assert(fileTableNode);
 
@@ -2325,7 +2331,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     $pos.nodeAfter?.type.name === "paragraph" &&
                                     $pos.nodeAfter.content.size === 0
                                 ) {
-                                    transaction.replaceRangeWith(pos, pos + 2, fileTableNode);
+                                    transaction.replaceRange(pos, pos + 2, fileTableNode);
                                     transaction
                                         .setSelection(
                                             new NodeSelection(transaction.doc.resolve(pos + 1)),
@@ -2336,7 +2342,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     $pos.nodeBefore?.type.name === "paragraph" &&
                                     $pos.nodeBefore.content.size === 0
                                 ) {
-                                    transaction.replaceRangeWith(pos - 2, pos, fileTableNode);
+                                    transaction.replaceRange(pos - 2, pos, fileTableNode);
                                     transaction
                                         .setSelection(
                                             new NodeSelection(transaction.doc.resolve(pos - 1)),
@@ -2344,7 +2350,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                         .scrollIntoView();
                                 } else {
                                     // No empty paragraphs adjacent
-                                    transaction.insert(pos, fileTableNode);
+                                    transaction.insert(pos, fileTableNode.content);
                                     transaction
                                         .setSelection(
                                             new NodeSelection(transaction.doc.resolve(pos + 1)),
@@ -4889,8 +4895,10 @@ function transformPastedForContentTable(
                         fileNodes.push(sourceNode);
                     }
                 }
-                const fileTableNode = schema.node("fileTable", {}, [...fileNodes]);
-                primaryContent.push(fileTableNode);
+                fileNodes.forEach(fileNode => {
+                    const fileTableNode = schema.node("fileTable", {}, [fileNode]);
+                    primaryContent.push(fileTableNode);
+                });
                 break;
             }
 
