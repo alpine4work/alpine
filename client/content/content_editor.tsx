@@ -4786,9 +4786,59 @@ function transformPastedForContentTable(
         }
 
         switch (node.type.name) {
+            case "tableRow": {
+                // NOCOMMIT: get clarification on this. there can be two options:
+
+                // 1. either we add another table cell and then add it inside the
+                // table where the uset is tryig to paste
+
+                // 2. either we add another table cell and then add it in remaining
+                // content which will be pasted outside of the table.
+
+                // if the node is table row then we need to check if
+                // table row only has one cell, which is not allowed.
+                //
+                // valid tableRow node is {content: "tableCell{2,}"}
+                // which is minimum 2 tableCells in it's content.
+                //
+                // if it only has one tableCell node in it's content
+                // then add an empty tableCell node to the content.
+                if (node.content.content.length === 1) {
+                    const tableCell = schema.node("tableCell", {}, [schema.node("paragraph")]);
+                    // Create a new array with existing content plus a new cell
+                    const newContent = [...node.content.content, tableCell];
+
+                    // check if new node has fileRow or
+                    // Create a new node with the updated content
+                    node = node.type.create(node.attrs, Fragment.from(newContent));
+                }
+                primaryContent.push(node);
+
+                break;
+            }
             case "table": {
+                if (
+                    node.content.content.length === 1 && // only one tableRow is present
+                    node.content.content[0]!.type.name === "tableRow" && // that node is a tableRow
+                    node.content.content[0]!.content.content.length === 1 // only one tableCell is present in the tableRow
+                ) {
+                    const tableRow = node.content.content[0]!;
+                    const tableCell = schema.node("tableCell", {}, [schema.node("paragraph")]);
+
+                    // Create a new tableRow with two cells
+                    const newTableRowContent = [...tableRow.content.content, tableCell];
+                    const newTableRow = tableRow.type.create(
+                        tableRow.attrs,
+                        Fragment.from(newTableRowContent),
+                    );
+
+                    // Create a new table with the updated tableRow
+                    node = node.type.create(node.attrs, Fragment.from([newTableRow]));
+                }
+
+                // NOCOMMIT: get clarification on wether this goes into the remaining content or primary content
                 // Tables go into remainingContent to be inserted after the current table
-                remainingContent.push(node);
+                primaryContent.push(node);
                 break;
             }
 
