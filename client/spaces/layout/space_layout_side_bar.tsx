@@ -1,5 +1,4 @@
 import {House, MagnifyingGlass, SignOut} from "phosphor-react";
-import {useMemo} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -14,7 +13,6 @@ import {useIsFullWidthRoute} from "~/client/spaces/route_metadata.js";
 import {spaceLayoutStyles} from "~/client/styles/styles.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
-import {SearchResult} from "~/shared/search/search_result.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
@@ -22,13 +20,11 @@ export function SpaceLayoutSideBar({
     space,
     currentAccount,
     initialInbox,
-    initialSearchByAffinityResults,
     onSearchPress,
 }: {
     space: SpaceModel;
     currentAccount: AccountModel;
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
-    initialSearchByAffinityResults: ReadonlyArray<SearchResult> | null;
     onSearchPress: () => void;
 }) {
     const rootNavigate = useRootNavigate();
@@ -36,13 +32,11 @@ export function SpaceLayoutSideBar({
 
     // Preload affinitive search entities so they're ready when the search modal
     // opens. We expect search to be the primary way users navigate around the
-    // product.
-    usePreloadSearchByAffinity(
-        useMemo(() => {
-            if (!initialSearchByAffinityResults) return undefined;
-            return {initialOutput: {results: initialSearchByAffinityResults}};
-        }, [initialSearchByAffinityResults]),
-    );
+    // product so the search modal should open immediately.
+    //
+    // NOCOMMIT: Make sure if we open the home page that satisfies this preload and
+    // we don't make another request.
+    usePreloadSearchByAffinity();
 
     return (
         <Box

@@ -41,7 +41,6 @@ import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_rend
 import {useLocalStorage} from "~/client/helpers/use_local_storage.js";
 import {PeekStackContextProvider, PeekStackContextProviderRef} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
@@ -108,7 +107,6 @@ import {
     SearchOptionsSchema,
     standardSearchOptions,
 } from "~/shared/search/search_options.js";
-import {SearchResultSchema} from "~/shared/search/search_result.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
@@ -126,14 +124,6 @@ export const LoaderSchema = Schema.union({
         space: SpaceModel.schema(),
         currentAccountWithoutSpace: AccountModelWithoutSpace.schema.nullable(),
     }),
-});
-
-export const HomeRouteLoaderSchema = Schema.object({
-    affinityResults: Schema.array(SearchResultSchema),
-});
-
-export const SearchRouteLoaderSchema = Schema.object({
-    affinityResults: Schema.array(SearchResultSchema),
 });
 
 export function links(): Array<LinkDescriptor> {
@@ -780,23 +770,6 @@ function SpaceLayoutRouteOutlet({
 
     const globalLoadingIndicatorForMobile = platform === "mobile" ? globalLoadingIndicator : null;
 
-    // Some routes load `searchByAffinity()` on the server. For these routes, we
-    // don't want to idly preload `searchByAffinity()` since that would be
-    // wasteful. So detect those routes, parse out the initial search results, and
-    // we'll put that in the RPC cache.
-    const initialSearchByAffinityResults =
-        dataRouterStateContext.loaderData["routes/s.$spaceId._index"] !== undefined
-            ? getLoaderDataWithSchema(
-                  HomeRouteLoaderSchema,
-                  dataRouterStateContext.loaderData["routes/s.$spaceId._index"],
-              ).affinityResults
-            : dataRouterStateContext.loaderData["routes/s.$spaceId.search"] !== undefined
-            ? getLoaderDataWithSchema(
-                  SearchRouteLoaderSchema,
-                  dataRouterStateContext.loaderData["routes/s.$spaceId.search"],
-              ).affinityResults
-            : null;
-
     const nodes = useMemo(() => {
         const nodes = [];
 
@@ -855,7 +828,6 @@ function SpaceLayoutRouteOutlet({
                                     space={loaderData.space}
                                     currentAccount={loaderData.currentAccount}
                                     initialInbox={loaderData.inbox}
-                                    initialSearchByAffinityResults={initialSearchByAffinityResults}
                                     onSearchPress={() => setSearchQueryText("")}
                                 />
                             )}
@@ -987,7 +959,6 @@ function SpaceLayoutRouteOutlet({
     }, [
         context.tracer,
         globalLoadingIndicatorForMobile,
-        initialSearchByAffinityResults,
         isInert,
         loaderData,
         nativeMobileRouterState,

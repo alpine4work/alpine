@@ -20,6 +20,7 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {addSumOperandToOpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
+import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 import {SearchCommandId, searchCommandIndex} from "~/shared/search/search_commands.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
@@ -210,7 +211,7 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
  * are immediately available when the search modal opens.
  */
 export function usePreloadSearchByAffinity(options?: {
-    initialOutput?: {results: ReadonlyArray<SearchResult>};
+    initialOutput?: RpcDefinitionOutputType<typeof searchByAffinity>;
 }) {
     const {space} = useSpaceContext();
 
@@ -253,19 +254,18 @@ export function useSearchState({
 
     const lazyLoadAffinityOutput = useLazyLoadRpc(
         searchByAffinity,
-        !affinityResultsFromProps
-            ? {
-                  spaceId: space.id,
-                  limit: affinitySearchResultLimit,
-              }
-            : null,
+        !affinityResultsFromProps ? {spaceId: space.id} : null,
     );
 
     const affinityOutput: {
         isLoading: boolean;
         isValidating: boolean;
-        output: {results: ReadonlyArray<SearchResult>} | null;
+        output: {
+            favoriteResults: ReadonlyArray<SearchResult>;
+            results: ReadonlyArray<SearchResult>;
+        } | null;
     } = useMemo(() => {
+        // NOCOMMIT: Could this be `initialOutput` instead?
         if (affinityResultsFromProps) {
             return {
                 isLoading: false,
@@ -280,12 +280,16 @@ export function useSearchState({
     const affinityResultById = useMemo(() => {
         const affinityResultById = new Map<SearchResultId, SearchResult>();
 
+        for (const result of affinityOutput.output?.favoriteResults ?? []) {
+            affinityResultById.set(result.id, result);
+        }
+
         for (const result of affinityOutput.output?.results ?? []) {
             affinityResultById.set(result.id, result);
         }
 
         return affinityResultById;
-    }, [affinityOutput.output?.results]);
+    }, [affinityOutput.output?.favoriteResults, affinityOutput.output?.results]);
 
     const [searchState, dispatch] = useReducer(
         reduceSearchState,

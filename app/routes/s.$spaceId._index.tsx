@@ -1,12 +1,8 @@
-import {
-    HomeRouteLoaderSchema as LoaderSchema,
-    LoaderSchema as SpaceRouteLoaderSchema,
-} from "~/app/routes/s.$spaceId.js";
+import {LoaderSchema as SpaceRouteLoaderSchema} from "~/app/routes/s.$spaceId.js";
 import {Box} from "~/client/design/box.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {SearchResultView, searchResultSideBarWidth} from "~/client/search/search_result_view.js";
-import {affinitySearchResultLimit} from "~/client/search/use_search_state.js";
 import {
     searchResultViewDefaultMarginX,
     searchResultViewDefaultPaddingX,
@@ -16,16 +12,18 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {searchByAffinity} from "~/server/search/data/index/search_entity_index.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {SearchResultSchema} from "~/shared/search/search_result.js";
+
+const LoaderSchema = Schema.object({
+    affinityResults: Schema.array(SearchResultSchema),
+});
 
 export async function loader({context, params}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? "");
 
     const {results} = await searchByAffinity(
         (await context.actor.authenticate()).actor.authorizeSession(),
-        {
-            spaceId,
-            limit: affinitySearchResultLimit,
-        },
+        spaceId,
     );
 
     return jsonWithSchema(LoaderSchema, {
