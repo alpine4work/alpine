@@ -85,6 +85,7 @@ async function addAwsResources(
     });
 
     new AwsMigrationService(stack, {
+        vpc,
         ecsCluster,
         dynamo,
         opensearch,

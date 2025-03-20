@@ -312,6 +312,24 @@ Resources:
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
                 CyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99:443
+    OpensearchDomainSecurityGroupfromCyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A4430010912C:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: from CyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A:443
+            FromPort: 443
+            GroupId:
+                Fn::GetAtt:
+                    - OpensearchDomainSecurityGroup046A436D
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - MigrationServiceInstanceSecurityGroup8D73B232
+                    - GroupId
+            ToPort: 443
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
+                CyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A:443
     OpensearchDomainSlowSearchLogsCB6C5516:
         Type: AWS::Logs::LogGroup
         Properties:
@@ -662,6 +680,7 @@ Resources:
             - OpensearchDomainCED7C974
             - OpensearchDomainSecurityGroupfromCyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8443FA2B2481
             - OpensearchDomainSecurityGroupfromCyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99443AA73F37F
+            - OpensearchDomainSecurityGroupfromCyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A4430010912C
             - OpensearchDomainSecurityGroupfromCyberworldsStackOpensearchDeployScriptSecurityGroup1B79613E443C3C732FE
             - OpensearchDomainSecurityGroupfromCyberworldsStackTaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupF50D110E443E8DC0D69
             - OpensearchDomainSecurityGroup046A436D
@@ -4006,6 +4025,18 @@ Resources:
                 - Ref: MigrationServiceTaskDefinitionExecutionRole96CABBE6
         Metadata:
             aws:cdk:path: CyberworldsStack/MigrationService/TaskDefinition/ExecutionRole/DefaultPolicy/Resource
+    MigrationServiceInstanceSecurityGroup8D73B232:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: CyberworldsStack/MigrationService/InstanceSecurityGroup
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/MigrationService/InstanceSecurityGroup/Resource
     FileProcessorServiceAutoScalingGroupInstanceSecurityGroup7CE67433:
         Type: AWS::EC2::SecurityGroup
         Properties:

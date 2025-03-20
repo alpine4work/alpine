@@ -1,3 +1,4 @@
+import {SecurityGroup} from "aws-cdk-lib/aws-ec2";
 import {
     ContainerImage,
     CpuArchitecture,
@@ -10,22 +11,25 @@ import {Construct} from "constructs";
 import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
-import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
+import {AwsOpensearchWithConnections} from "~/admin/aws/internal/aws_opensearch.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
+import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 
 export class AwsMigrationService extends Construct {
     constructor(
         parentConstruct: Construct,
         {
+            vpc,
             ecsCluster,
             dynamo,
             opensearch,
             sqs,
         }: {
+            vpc: AwsVpc;
             ecsCluster: AwsEcsCluster;
             dynamo: AwsDynamo;
-            opensearch: AwsOpensearch;
+            opensearch: AwsOpensearchWithConnections;
             sqs: AwsSqs;
         },
     ) {
@@ -91,5 +95,21 @@ export class AwsMigrationService extends Construct {
 
         opensearch.grantReadWriteData(taskDefinition.taskRole);
         sqs.grantSendJobQueueMessages(taskDefinition.taskRole);
+
+        // Create a security group for migration service. This security group's ID must
+        // be explicitly provided to the [ECS `RunTask`][1] action used to start a
+        // migration service instance under `networkConfiguration`.
+        //
+        // The name `InstanceSecurityGroup` is based on the [default `AutoScalingGroup`
+        // security group name][2].
+        //
+        // [1]: https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_RunTask.html
+        // [2]: https://github.com/aws/aws-cdk/blob/b93b7e3fe30aead82d9cb6458036c62541c493ff/packages/aws-cdk-lib/aws-autoscaling/lib/auto-scaling-group.ts#L1410-L1413
+        const securityGroup = new SecurityGroup(this, "InstanceSecurityGroup", {
+            vpc,
+            allowAllOutbound: true,
+        });
+
+        opensearch.allowConnectionsFrom(securityGroup);
     }
 }
