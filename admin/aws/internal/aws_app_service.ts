@@ -306,8 +306,6 @@ export class AwsAppService extends Construct {
             ],
         });
 
-        opensearch.allowConnectionsFrom(service.connections);
-
         // NOTE(calebmer, 2024-11-13): This is `LoadBalancer2` because we had an old
         // `LoadBalancer` with an automatically generated `loadBalancerName`. When we
         // switched to an opinionated `loadBalancerName` in order to do a zero downtime

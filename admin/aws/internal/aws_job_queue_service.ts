@@ -293,7 +293,7 @@ export class AwsJobQueueService extends Construct {
             }),
         );
 
-        const service = new Ec2Service(this, "Service", {
+        new Ec2Service(this, "Service", {
             cluster: ecsCluster.cluster,
             taskDefinition,
             desiredCount: 1,
@@ -307,7 +307,5 @@ export class AwsJobQueueService extends Construct {
                 },
             ],
         });
-
-        opensearch.allowConnectionsFrom(service.connections);
     }
 }
