@@ -3933,6 +3933,9 @@ Resources:
             NetworkMode: awsvpc
             RequiresCompatibilities:
                 - FARGATE
+            RuntimePlatform:
+                CpuArchitecture: ARM64
+                OperatingSystemFamily: LINUX
             TaskRoleArn:
                 Fn::GetAtt:
                     - MigrationServiceTaskDefinitionTaskRole781D9E98

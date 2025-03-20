@@ -1,4 +1,10 @@
-import {ContainerImage, Secret as EcsSecret, FargateTaskDefinition} from "aws-cdk-lib/aws-ecs";
+import {
+    ContainerImage,
+    CpuArchitecture,
+    Secret as EcsSecret,
+    FargateTaskDefinition,
+    OperatingSystemFamily,
+} from "aws-cdk-lib/aws-ecs";
 import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {Construct} from "constructs";
 import {join as joinPath} from "path";
@@ -28,6 +34,10 @@ export class AwsMigrationService extends Construct {
         const secrets = Secret.fromSecretNameV2(this, "SecretsImport", "MigrationServiceSecrets");
 
         const taskDefinition = new FargateTaskDefinition(this, "TaskDefinition", {
+            runtimePlatform: {
+                operatingSystemFamily: OperatingSystemFamily.LINUX,
+                cpuArchitecture: CpuArchitecture.ARM64,
+            },
             // Smallest CPU and memory. Migration service isn't doing much work itself.
             cpu: 256,
             memoryLimitMiB: 512,
