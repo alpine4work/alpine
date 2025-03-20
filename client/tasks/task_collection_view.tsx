@@ -1,3 +1,4 @@
+import {Link as LinkIcon, Star} from "phosphor-react";
 import {
     Memo,
     RefObject,
@@ -321,8 +322,19 @@ export function TaskCollectionView({
         menuActions.push([
             {
                 label: "Copy link",
+                icon: <LinkIcon />,
+                iconPlacement: "end",
                 pressErrorTitle: "Couldn’t copy collection link",
                 onPress: copyLink,
+            },
+            {
+                label: "Favorite",
+                icon: <Star />,
+                iconPlacement: "end",
+                pressErrorTitle: "Couldn’t add to favorites",
+                onPress: () => {
+                    // NOCOMMIT: Implement
+                },
             },
         ]);
 

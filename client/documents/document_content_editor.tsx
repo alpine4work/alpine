@@ -7,9 +7,11 @@ import {
     CaretLeft,
     CaretRight,
     CaretUp,
+    Link as LinkIcon,
     Play,
     Plus,
     SpinnerGap,
+    Star,
     X,
 } from "phosphor-react";
 import {
@@ -1534,8 +1536,19 @@ export function DocumentContentEditor({
                 [
                     {
                         label: "Copy link",
+                        icon: <LinkIcon />,
+                        iconPlacement: "end",
                         pressErrorTitle: "Couldn’t copy link",
                         onPress: onCopyLink,
+                    },
+                    {
+                        label: "Favorite",
+                        icon: <Star />,
+                        iconPlacement: "end",
+                        pressErrorTitle: "Couldn’t add to favorites",
+                        onPress: () => {
+                            // NOCOMMIT: Implement
+                        },
                     },
                 ],
                 ...(hasAccessLevel(accessLevel, "Edit")

@@ -1,3 +1,4 @@
+import {Link as LinkIcon} from "phosphor-react";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -15,6 +16,8 @@ export function getPostMoreActions({
         [
             {
                 label: "Copy link",
+                icon: <LinkIcon />,
+                iconPlacement: "end",
                 pressErrorTitle: "Couldn’t copy post link",
                 onPress: async () => {
                     const url = new URL(

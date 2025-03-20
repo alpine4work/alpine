@@ -1,5 +1,5 @@
 import {setInteractionModality} from "@react-aria/interactions";
-import {CaretRight, ChatCircleDots, Lock} from "phosphor-react";
+import {CaretRight, ChatCircleDots, Link as LinkIcon, Lock, Star} from "phosphor-react";
 import {
     Memo,
     ReactNode,
@@ -687,6 +687,8 @@ export function TaskDetailView({
         contextMenuActions.push([
             {
                 label: "Copy link",
+                icon: <LinkIcon />,
+                iconPlacement: "end",
                 pressErrorTitle: "Couldn’t copy task link",
                 onPress: async () => {
                     // If the user tries to copy the link of a ghost task, then make sure the task
@@ -786,8 +788,10 @@ export function TaskDetailView({
                 {
                     icon: <ChatCircleDots />,
                     iconPlacement: "end",
-                    label: "Comments",
-                    pressErrorTitle: "Couldn't open comments",
+                    label: showComments ? "Close comments" : "Open comments",
+                    pressErrorTitle: showComments
+                        ? "Couldn't close comments"
+                        : "Couldn't open comments",
                     onPress: async () => {
                         // If the user tries to open a task's comments, then make sure the task
                         // is created before we open comments.
@@ -808,6 +812,19 @@ export function TaskDetailView({
                     },
                 },
             ]);
+
+            menuActions[1] = [
+                ...assertExists(menuActions[1]),
+                {
+                    label: "Favorite",
+                    icon: <Star />,
+                    iconPlacement: "end",
+                    pressErrorTitle: "Couldn’t add to favorites",
+                    onPress: () => {
+                        // NOCOMMIT: Implement
+                    },
+                },
+            ];
         }
 
         return {menuActions, contextMenuActions} as any as {

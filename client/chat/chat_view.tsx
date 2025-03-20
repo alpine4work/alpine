@@ -1,4 +1,4 @@
-import {ArrowLeft} from "phosphor-react";
+import {ArrowLeft, DotsThreeVertical, Link as LinkIcon, Star} from "phosphor-react";
 import {useCallback, useEffect, useMemo, useRef} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
@@ -7,9 +7,14 @@ import {chatMessagingViewHeaderItem} from "~/client/chat/internal/chat_messaging
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
+import {MenuActions} from "~/client/design/menu.js";
+import {MenuButton} from "~/client/design/menu_button.js";
+import {
+    navigationBarHeight,
+    navigationBarMobileGap,
+} from "~/client/design/navigation_bar_helpers.js";
 import {PrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
-import {Spacer} from "~/client/design/spacer.js";
+import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
@@ -62,7 +67,7 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
     assert(chat.accounts.length > 0);
 
     const platform = usePlatform();
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
     const navigate = useNavigate();
 
     // Exclude the current user from the list of accounts we display on top of the
@@ -118,7 +123,7 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
                 }
             >
                 {platform === "mobile" && (
-                    <Box flexShrink="0" paddingLeft="3">
+                    <Box flexShrink="0" paddingLeft={navigationBarMobileGap}>
                         <IconButton
                             size="base"
                             description="Go back"
@@ -166,7 +171,49 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
                         )}
                     </h1>
                 </Box>
-                {platform === "mobile" && <Spacer space="10" />}
+                <Box
+                    flexShrink="0"
+                    paddingRight={platform === "mobile" ? navigationBarMobileGap : "5"}
+                >
+                    <MenuButton
+                        placement="bottom-end"
+                        actions={useMemo(
+                            (): MenuActions => [
+                                {
+                                    label: "Copy link",
+                                    icon: <LinkIcon />,
+                                    iconPlacement: "end",
+                                    pressErrorTitle: "Couldn’t copy link",
+                                    onPress: async () => {
+                                        const url = new URL(
+                                            `/s/${space.id}/chat/${chat.id}`,
+                                            window.location.href,
+                                        );
+                                        await writeTextToClipboard(url.toString());
+                                    },
+                                },
+                                {
+                                    label: "Favorite",
+                                    icon: <Star />,
+                                    iconPlacement: "end",
+                                    pressErrorTitle: "Couldn’t add to favorites",
+                                    onPress: () => {
+                                        // NOCOMMIT: Implement
+                                    },
+                                },
+                            ],
+                            [chat.id, space.id],
+                        )}
+                    >
+                        <IconButton
+                            size={platform === "mobile" ? "base" : "md"}
+                            description="More"
+                            withoutTooltip={true}
+                        >
+                            <DotsThreeVertical />
+                        </IconButton>
+                    </MenuButton>
+                </Box>
             </Box>
         </Box>
     );

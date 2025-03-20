@@ -1,3 +1,4 @@
+import {Link as LinkIcon, Star} from "phosphor-react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -234,6 +235,8 @@ export function ChannelView({
             [
                 {
                     label: "Copy link",
+                    icon: <LinkIcon />,
+                    iconPlacement: "end",
                     pressErrorTitle: "Couldn’t copy channel link",
                     onPress: async () => {
                         const url = new URL(
@@ -241,6 +244,15 @@ export function ChannelView({
                             window.location.href,
                         );
                         await writeTextToClipboard(url.toString());
+                    },
+                },
+                {
+                    label: "Favorite",
+                    icon: <Star />,
+                    iconPlacement: "end",
+                    pressErrorTitle: "Couldn’t add to favorites",
+                    onPress: () => {
+                        // NOCOMMIT: Implement
                     },
                 },
             ],

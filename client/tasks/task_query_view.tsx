@@ -1,4 +1,4 @@
-import {Plus} from "phosphor-react";
+import {Link as LinkIcon, Plus} from "phosphor-react";
 import {useCallback, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
@@ -223,6 +223,8 @@ export function TaskQueryView({
         menuActions.push([
             {
                 label: "Copy link",
+                icon: <LinkIcon />,
+                iconPlacement: "end",
                 pressErrorTitle: "Couldn’t copy view link",
                 onPress: async () => {
                     const url = new URL(`/s/${space.id}/tasks/view`, window.location.href);

@@ -1,3 +1,4 @@
+import {Link as LinkIcon, Star} from "phosphor-react";
 import {useCallback, useMemo} from "react";
 import {ChannelViewNameEditor} from "~/client/forum/internal/channel_view_name_editor.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
@@ -61,6 +62,15 @@ export function ChannelDesktopCreator({
             [
                 {
                     label: "Copy link",
+                    icon: <LinkIcon />,
+                    iconPlacement: "end",
+                    isDisabled: true,
+                    onPress: () => {},
+                },
+                {
+                    label: "Favorite",
+                    icon: <Star />,
+                    iconPlacement: "end",
                     isDisabled: true,
                     onPress: () => {},
                 },
