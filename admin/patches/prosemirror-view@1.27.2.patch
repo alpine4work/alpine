@@ -1,5 +1,5 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..ebd1eb90f35fab83a431698b9a9e858d2c77fa40 100644
+index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..0902478b8ff85e84b2d6b972b1c69b7e1878e5d9 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
 @@ -181,8 +181,32 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -46,7 +46,18 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..ebd1eb90f35fab83a431698b9a9e858d
    }
  }
  
-@@ -2967,6 +2991,12 @@ function parseFromClipboard(view, text, html, plainText, $context) {
+@@ -2887,6 +2911,10 @@ function captureKeyDown(view, event) {
+ }
+ 
+ function serializeForClipboard(view, slice) {
++  // NOTE(calebmer): Backport `transformCopied` hook that was added in 1.28.0.
++  // https://github.com/ProseMirror/prosemirror-view/commit/6ade8448a10b3076b845fa0d460ee9c8f85c2731
++  view.someProp("transformCopied", f => { slice = f(slice) });
++
+   var context = [],
+       content = slice.content,
+       openStart = slice.openStart,
+@@ -2967,6 +2995,12 @@ function parseFromClipboard(view, text, html, plainText, $context) {
        html = f(html);
      });
      dom = readHTML(html);
@@ -59,7 +70,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..ebd1eb90f35fab83a431698b9a9e858d
      if (webkit) restoreReplacedSpaces(dom);
    }
  
-@@ -3847,7 +3877,9 @@ editHandlers.drop = function (view, _event) {
+@@ -3847,7 +3881,9 @@ editHandlers.drop = function (view, _event) {
    var move = !!(dragging && !event[dragCopyModifier]);
  
    if (view.someProp("handleDrop", function (f) {
@@ -70,7 +81,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..ebd1eb90f35fab83a431698b9a9e858d
    })) {
      event.preventDefault();
      return;
-@@ -3888,9 +3920,33 @@ handlers.focus = function (view) {
+@@ -3888,9 +3924,33 @@ handlers.focus = function (view) {
      view.dom.classList.add("ProseMirror-focused");
      view.domObserver.start();
      view.focused = true;
@@ -107,7 +118,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..ebd1eb90f35fab83a431698b9a9e858d
    }
  };
  
-@@ -4710,6 +4766,7 @@ var DOMObserver = function () {
+@@ -4710,6 +4770,7 @@ var DOMObserver = function () {
      this.currentSelection = new SelectionState();
      this.onCharData = null;
      this.suppressingSelectionUpdates = false;
@@ -115,7 +126,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..ebd1eb90f35fab83a431698b9a9e858d
      this.observer = window.MutationObserver && new window.MutationObserver(function (mutations) {
        for (var i = 0; i < mutations.length; i++) {
          _this11.queue.push(mutations[i]);
-@@ -4813,7 +4870,13 @@ var DOMObserver = function () {
+@@ -4813,7 +4874,13 @@ var DOMObserver = function () {
    }, {
      key: "onSelectionChange",
      value: function onSelectionChange() {
@@ -130,7 +141,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..ebd1eb90f35fab83a431698b9a9e858d
        if (this.suppressingSelectionUpdates) return selectionToDOM(this.view);
  
        if (ie && ie_version <= 11 && !this.view.state.selection.empty) {
-@@ -4822,6 +4885,11 @@ var DOMObserver = function () {
+@@ -4822,6 +4889,11 @@ var DOMObserver = function () {
        }
  
        this.flush();
@@ -142,7 +153,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..ebd1eb90f35fab83a431698b9a9e858d
      }
    }, {
      key: "setCurSelection",
-@@ -5392,6 +5460,8 @@ var EditorView = function () {
+@@ -5392,6 +5464,8 @@ var EditorView = function () {
      this.domObserver.start();
      initInput(this);
      this.updatePluginViews();
@@ -151,7 +162,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..ebd1eb90f35fab83a431698b9a9e858d
    }
  
    _createClass(EditorView, [{
-@@ -5792,3 +5862,7 @@ exports.EditorView = EditorView;
+@@ -5792,3 +5866,7 @@ exports.EditorView = EditorView;
  exports.__endComposition = __endComposition;
  exports.__parseFromClipboard = __parseFromClipboard;
  exports.__serializeForClipboard = __serializeForClipboard;
@@ -160,7 +171,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..ebd1eb90f35fab83a431698b9a9e858d
 +exports.serializeForClipboard = serializeForClipboard;
 +exports.parseFromClipboard = parseFromClipboard;
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index 52ee8840c754562f9ae4d9891f61682035b092e7..e0cc3c2404e7bd8766f7c7c4ac96cd250c15d439 100644
+index 52ee8840c754562f9ae4d9891f61682035b092e7..7a87c7ad89084bf2054a6913e2c7ea55a9d365b7 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
 @@ -543,7 +543,11 @@ declare class EditorView {
@@ -210,7 +221,17 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..e0cc3c2404e7bd8766f7c7c4ac96cd25
      /**
      The [parser](https://prosemirror.net/docs/ref/#model.DOMParser) to use when reading content from
      the clipboard. When not given, the value of the
-@@ -831,6 +846,24 @@ interface DirectEditorProps extends EditorProps {
+@@ -700,6 +715,9 @@ interface EditorProps<P = any> {
+     before it is applied to the document.
+     */
+     transformPasted?: (this: P, slice: Slice) => Slice;
++    // NOTE(calebmer): Backport `transformCopied` hook that was added in 1.28.0.
++    // https://github.com/ProseMirror/prosemirror-view/commit/6ade8448a10b3076b845fa0d460ee9c8f85c2731
++    transformCopied?: (this: P, slice: Slice) => Slice
+     /**
+     Allows you to pass custom rendering and behavior logic for
+     nodes. Should map node names to constructor functions that
+@@ -831,6 +849,24 @@ interface DirectEditorProps extends EditorProps {
      the view instance as its `this` binding.
      */
      dispatchTransaction?: (tr: Transaction) => void;
@@ -236,7 +257,7 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..e0cc3c2404e7bd8766f7c7c4ac96cd25
 +    $context: ResolvedPos,
 +): Slice | null;
 diff --git a/dist/index.js b/dist/index.js
-index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..5281f46920ccc595b8e140002da63b66ec0d13c7 100644
+index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..ab04bd0b573f82b79e0ff4fc84aa1269a9417163 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -141,14 +141,36 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -293,7 +314,18 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..5281f46920ccc595b8e140002da63b66
              break;
      }
  }
-@@ -2589,6 +2611,10 @@ function parseFromClipboard(view, text, html, plainText, $context) {
+@@ -2532,6 +2554,10 @@ function captureKeyDown(view, event) {
+ }
+ 
+ function serializeForClipboard(view, slice) {
++    // NOTE(calebmer): Backport `transformCopied` hook that was added in 1.28.0.
++    // https://github.com/ProseMirror/prosemirror-view/commit/6ade8448a10b3076b845fa0d460ee9c8f85c2731
++    view.someProp("transformCopied", f => { slice = f(slice) });
++
+     let context = [], { content, openStart, openEnd } = slice;
+     while (openStart > 1 && openEnd > 1 && content.childCount == 1 && content.firstChild.childCount == 1) {
+         openStart--;
+@@ -2589,6 +2615,10 @@ function parseFromClipboard(view, text, html, plainText, $context) {
      else {
          view.someProp("transformPastedHTML", f => { html = f(html); });
          dom = readHTML(html);
@@ -304,7 +336,7 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..5281f46920ccc595b8e140002da63b66
          if (webkit)
              restoreReplacedSpaces(dom);
      }
-@@ -3418,7 +3444,9 @@ editHandlers.drop = (view, _event) => {
+@@ -3418,7 +3448,9 @@ editHandlers.drop = (view, _event) => {
          slice = parseFromClipboard(view, event.dataTransfer.getData(brokenClipboardAPI ? "Text" : "text/plain"), brokenClipboardAPI ? null : event.dataTransfer.getData("text/html"), false, $mouse);
      }
      let move = !!(dragging && !event[dragCopyModifier]);
@@ -315,7 +347,7 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..5281f46920ccc595b8e140002da63b66
          event.preventDefault();
          return;
      }
-@@ -3460,10 +3488,34 @@ handlers.focus = view => {
+@@ -3460,10 +3492,34 @@ handlers.focus = view => {
          view.dom.classList.add("ProseMirror-focused");
          view.domObserver.start();
          view.focused = true;
@@ -354,7 +386,7 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..5281f46920ccc595b8e140002da63b66
      }
  };
  handlers.blur = (view, _event) => {
-@@ -4218,6 +4270,7 @@ class DOMObserver {
+@@ -4218,6 +4274,7 @@ class DOMObserver {
          this.currentSelection = new SelectionState;
          this.onCharData = null;
          this.suppressingSelectionUpdates = false;
@@ -362,7 +394,7 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..5281f46920ccc595b8e140002da63b66
          this.observer = window.MutationObserver &&
              new window.MutationObserver(mutations => {
                  for (let i = 0; i < mutations.length; i++)
-@@ -4285,8 +4338,13 @@ class DOMObserver {
+@@ -4285,8 +4342,13 @@ class DOMObserver {
          setTimeout(() => this.suppressingSelectionUpdates = false, 50);
      }
      onSelectionChange() {
@@ -377,7 +409,7 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..5281f46920ccc595b8e140002da63b66
          if (this.suppressingSelectionUpdates)
              return selectionToDOM(this.view);
          // Deletions on IE11 fire their events in the wrong order, giving
-@@ -4299,6 +4357,10 @@ class DOMObserver {
+@@ -4299,6 +4361,10 @@ class DOMObserver {
                  return this.flushSoon();
          }
          this.flush();
@@ -388,7 +420,7 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..5281f46920ccc595b8e140002da63b66
      }
      setCurSelection() {
          this.currentSelection.set(this.view.domSelection());
-@@ -4879,6 +4941,8 @@ class EditorView {
+@@ -4879,6 +4945,8 @@ class EditorView {
          this.domObserver.start();
          initInput(this);
          this.updatePluginViews();
@@ -397,7 +429,7 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..5281f46920ccc595b8e140002da63b66
      }
      /**
      Holds `true` when a
-@@ -5304,3 +5368,6 @@ function checkStateComponent(plugin) {
+@@ -5304,3 +5372,6 @@ function checkStateComponent(plugin) {
  }
  
  export { Decoration, DecorationSet, EditorView, __endComposition, __parseFromClipboard, __serializeForClipboard };
@@ -405,10 +437,21 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..5281f46920ccc595b8e140002da63b66
 +// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
 +export { serializeForClipboard, parseFromClipboard };
 diff --git a/src/clipboard.ts b/src/clipboard.ts
-index 2f0f8f415b999bffd29c3164d80cd970f4f4f209..825dce61ebc82e1d5a1e927ea862dc1dfc429a9c 100644
+index 2f0f8f415b999bffd29c3164d80cd970f4f4f209..008b771bef87f67e709d8be757056974a18c66d3 100644
 --- a/src/clipboard.ts
 +++ b/src/clipboard.ts
-@@ -61,6 +61,10 @@ export function parseFromClipboard(view: EditorView, text: string, html: string
+@@ -3,6 +3,10 @@ import * as browser from "./browser"
+ import {EditorView} from "./index"
+ 
+ export function serializeForClipboard(view: EditorView, slice: Slice) {
++  // NOTE(calebmer): Backport `transformCopied` hook that was added in 1.28.0.
++  // https://github.com/ProseMirror/prosemirror-view/commit/6ade8448a10b3076b845fa0d460ee9c8f85c2731
++  view.someProp("transformCopied", f => { slice = f(slice!) })
++
+   let context = [], {content, openStart, openEnd} = slice
+   while (openStart > 1 && openEnd > 1 && content.childCount == 1 && content.firstChild!.childCount == 1) {
+     openStart--
+@@ -61,6 +65,10 @@ export function parseFromClipboard(view: EditorView, text: string, html: string
    } else {
      view.someProp("transformPastedHTML", f => { html = f(html!) })
      dom = readHTML(html!)
@@ -516,7 +559,7 @@ index 77da09098cecde7b3cf5c34ca7a532fa21e5a22c..2616c1df549bf81e175d8b6aee07b868
  
    setCurSelection() {
 diff --git a/src/index.ts b/src/index.ts
-index f28002967d6ff175430efdd8c2389924211c35ce..76b0e0febb5127597017f6b5aa85dec0d7b87e48 100644
+index f28002967d6ff175430efdd8c2389924211c35ce..124ee23a6e6aece6ed091b0aa9b06554ce72a2ba 100644
 --- a/src/index.ts
 +++ b/src/index.ts
 @@ -25,6 +25,9 @@ export const __parseFromClipboard = parseFromClipboard
@@ -583,7 +626,18 @@ index f28002967d6ff175430efdd8c2389924211c35ce..76b0e0febb5127597017f6b5aa85dec0
    /// The [parser](#model.DOMParser) to use when reading content from
    /// the clipboard. When not given, the value of the
    /// [`domParser`](#view.EditorProps.domParser) prop is used.
-@@ -734,4 +754,9 @@ export interface DirectEditorProps extends EditorProps {
+@@ -636,6 +656,10 @@ export interface EditorProps<P = any> {
+   /// before it is applied to the document.
+   transformPasted?: (this: P, slice: Slice) => Slice
+ 
++  // NOTE(calebmer): Backport `transformCopied` hook that was added in 1.28.0.
++  // https://github.com/ProseMirror/prosemirror-view/commit/6ade8448a10b3076b845fa0d460ee9c8f85c2731
++  transformCopied?: (this: P, slice: Slice) => Slice
++
+   /// Allows you to pass custom rendering and behavior logic for
+   /// nodes. Should map node names to constructor functions that
+   /// produce a [`NodeView`](#view.NodeView) object implementing the
+@@ -734,4 +758,9 @@ export interface DirectEditorProps extends EditorProps {
    /// [applied](#state.EditorState.apply). The callback will be bound to have
    /// the view instance as its `this` binding.
    dispatchTransaction?: (tr: Transaction) => void
