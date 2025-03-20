@@ -2364,6 +2364,17 @@ function ContentEditor<Content extends ContentWithReferences>(
                         return;
                     }
 
+                    // NOTE(rohit): This is a hack to ensure that the slice is transformed for the
+                    // content table. This happens when you drag and drop a slice which may or may
+                    // not contain any file nodes.
+                    //
+                    // While file drag and drop only generated drop indications when we drag single file.
+                    // Although a user can select multiple nodes including multiple files and then they can
+                    // drag the whole slice and drop in the `content_table`
+                    // To ensure that we still are able to convert the fileRow/ fileFloat nodes into
+                    // fileTable nodes we transform the slice here.
+                    slice = transformPastedForContentTable(schema, slice)[0];
+
                     // Implement the same logic as ProseMirror's `drop` function:
                     // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L674-L707
                     //
@@ -4742,7 +4753,7 @@ function handlePasteAfterResolvingReferences(
 }
 
 /**
- * If pasting into a table, transform pasted content to make sure it matches
+ * If pasting/dropping content into a table, transform pasted content to make sure it matches
  * the expected content type for a table.
  */
 function transformPastedForContentTable(
