@@ -2169,6 +2169,28 @@ function ContentEditor<Content extends ContentWithReferences>(
                                         slice.openEnd,
                                     );
                                 }
+
+                                // If we are draging a fileTable node from the table and dropping
+                                // it outside of the table then we need to convert the fileTable
+                                // into a fileRow, otherwise we will end up with a fileTable node
+                                // inside a `content_document`.
+                                if (
+                                    slice.content.content.length === 1 &&
+                                    slice.content.content[0]!.type.name === "fileTable"
+                                ) {
+                                    slice = new Slice(
+                                        Fragment.from(
+                                            schema.node(
+                                                "fileRow",
+                                                {},
+                                                slice.content.content[0]!.content,
+                                            ),
+                                        ),
+                                        slice.openStart,
+                                        slice.openEnd,
+                                    );
+                                }
+
                                 //  Empty paragraph after cursor
                                 if (
                                     $pos.nodeAfter?.type.name === "paragraph" &&
