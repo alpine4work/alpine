@@ -2,7 +2,12 @@ import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
 import {Sparkle} from "phosphor-react";
 import {Box} from "~/client/design/box.js";
-import {inputPlaceholderStyles, sprinkles} from "~/client/styles/styles.js";
+import {
+    colorSchemeVars,
+    contentStyles,
+    inputPlaceholderStyles,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {
     listItemClassName,
     listItemIndentationVar,
@@ -19,7 +24,12 @@ export function SearchInstructionalPlaceholder() {
             width="full"
             style={{fontWeight: inputPlaceholderStyles.fontWeight}}
         >
-            <Box display="flex" alignItems="center" gap="2" paddingBottom="3">
+            <Box
+                display="flex"
+                alignItems="center"
+                gap="2"
+                paddingBottom={contentStyles.standaloneBlockMargin}
+            >
                 <Sparkle
                     size={spacing["4"]}
                     className={sprinkles({
@@ -29,7 +39,7 @@ export function SearchInstructionalPlaceholder() {
                 />
                 <Box>Try advanced searches like…</Box>
             </Box>
-            <Box>
+            <Box className={contentStyles.docClassName} style={{color: colorSchemeVars["grey-40"]}}>
                 {[
                     "my documents",
                     "messages from alex last week",
