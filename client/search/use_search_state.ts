@@ -29,14 +29,6 @@ import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
-/**
- * The maximum number of affinity search results we look for. When the user has
- * not entered a search query we show affinity search results. If when the user
- * searches a result matches something from their affinity list we boost that
- * result to the top.
- */
-export const affinitySearchResultLimit = 30;
-
 const searchWordTypingDebounceMs = {
     /**
      * The debounce timeout before we'll send a new search request. Picked so that
@@ -222,14 +214,7 @@ export function usePreloadSearchByAffinity(options?: {
 }) {
     const {space} = useSpaceContext();
 
-    useIdlyPreloadRpc(
-        searchByAffinity,
-        {
-            spaceId: space.id,
-            limit: affinitySearchResultLimit,
-        },
-        options,
-    );
+    useIdlyPreloadRpc(searchByAffinity, {spaceId: space.id}, options);
 }
 
 /**

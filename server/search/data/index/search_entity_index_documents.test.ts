@@ -998,12 +998,7 @@ test("newly created documents will be visible in search even before indexing", a
         body: null,
     });
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         results: [
             {
                 id: `Document:${document.id}`,
@@ -1015,12 +1010,7 @@ test("newly created documents will be visible in search even before indexing", a
         ],
     });
 
-    expect(
-        await searchByAffinity(session2.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session2.action(), space.id)).toEqual({
         results: [
             {
                 id: `Document:${document.id}`,
@@ -1041,12 +1031,7 @@ test("newly created documents will be visible in search even before indexing", a
         body: null,
     });
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         results: [
             {
                 id: `Document:${document.id}`,
@@ -1058,12 +1043,7 @@ test("newly created documents will be visible in search even before indexing", a
         ],
     });
 
-    expect(
-        await searchByAffinity(session2.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session2.action(), space.id)).toEqual({
         results: [
             {
                 id: `Document:${document.id}`,
@@ -1077,12 +1057,7 @@ test("newly created documents will be visible in search even before indexing", a
 
     await document.access.revokeDefault(session1);
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         results: [
             {
                 id: `Document:${document.id}`,
@@ -1094,12 +1069,7 @@ test("newly created documents will be visible in search even before indexing", a
         ],
     });
 
-    expect(
-        await searchByAffinity(session2.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session2.action(), space.id)).toEqual({
         results: [],
     });
 
@@ -1114,12 +1084,7 @@ test("newly created documents will be visible in search even before indexing", a
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         results: [
             {
                 id: `Document:${document.id}`,
@@ -1131,12 +1096,7 @@ test("newly created documents will be visible in search even before indexing", a
         ],
     });
 
-    expect(
-        await searchByAffinity(session2.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session2.action(), space.id)).toEqual({
         results: [
             {
                 id: `Document:${document.id}`,
@@ -1150,12 +1110,7 @@ test("newly created documents will be visible in search even before indexing", a
 
     await document.access.revokeDefault(session1);
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         results: [
             {
                 id: `Document:${document.id}`,
@@ -1167,12 +1122,7 @@ test("newly created documents will be visible in search even before indexing", a
         ],
     });
 
-    expect(
-        await searchByAffinity(session2.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session2.action(), space.id)).toEqual({
         results: [
             {
                 id: `Document:${document.id}`,
@@ -1187,12 +1137,7 @@ test("newly created documents will be visible in search even before indexing", a
     import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         results: [
             {
                 id: `Document:${document.id}`,
@@ -1204,12 +1149,7 @@ test("newly created documents will be visible in search even before indexing", a
         ],
     });
 
-    expect(
-        await searchByAffinity(session2.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session2.action(), space.id)).toEqual({
         results: [],
     });
 

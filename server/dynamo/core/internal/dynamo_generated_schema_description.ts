@@ -7658,6 +7658,15 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "favoriteOrderKey": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "String"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "activeTaskAssignee": {
                                         "valueSchema": {
                                             "type": "Object",
@@ -7693,7 +7702,10 @@ export const dynamoGeneratedSchemaDescription: {
                                     },
                                     "expirationTime": {
                                         "valueSchema": {
-                                            "type": "Integer"
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Integer"
+                                            }
                                         },
                                         "optional": false
                                     }
@@ -7745,6 +7757,13 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Integer"
                                         },
                                         "optional": false
+                                    },
+                                    "favoriteOrderKey": {
+                                        "valueSchema": {
+                                            "type": "Value",
+                                            "value": null
+                                        },
+                                        "optional": true
                                     },
                                     "updateLockVersion": {
                                         "valueSchema": {
@@ -7806,6 +7825,13 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Integer"
                                         },
                                         "optional": false
+                                    },
+                                    "favoriteOrderKey": {
+                                        "valueSchema": {
+                                            "type": "Value",
+                                            "value": null
+                                        },
+                                        "optional": true
                                     },
                                     "updateLockVersion": {
                                         "valueSchema": {
@@ -7905,6 +7931,43 @@ export const dynamoGeneratedSchemaDescription: {
                             "sortKeyAttributeByKey": {
                                 "pointsBucket": {
                                     "type": "Integer"
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "projection": "KeysOnly",
+                    "partitionKeyBehavior": {
+                        "type": "Reused",
+                        "partitionType": "Account"
+                    },
+                    "overloadByName": {
+                        "AccountSearchAffinityFavorites": {
+                            "itemTypes": [
+                                {
+                                    "partitionType": "Account",
+                                    "sortRangeType": "SearchEntityAffinity"
+                                }
+                            ],
+                            "partitionKeyAttributeByKey": {
+                                "spaceId": {
+                                    "type": "Id"
+                                },
+                                "accountId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "sortKeyAttributeByKey": {
+                                "favoriteOrderKey": {
+                                    "type": "Nullable",
+                                    "nullsOrder": "First",
+                                    "schema": {
+                                        "type": "OrderKey"
+                                    }
+                                },
+                                "entityId": {
+                                    "type": "LabelString"
                                 }
                             }
                         }

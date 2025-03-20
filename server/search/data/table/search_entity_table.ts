@@ -11,11 +11,19 @@ import {authorizeOwnAccountAccess, authorizeSpaceAccess} from "~/server/spaces/s
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {filterAsyncIterableIterator} from "~/shared/helpers/iterable/filter_async_iterable_iterator.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+import {
+    OrderKey,
+    generateOrderKeyBetween,
+    initialOrderKey,
+} from "~/shared/helpers/sort/order_key.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {Id, assertId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -25,6 +33,7 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
+import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchAffinityId} from "~/shared/search/search_affinity_id.js";
 import {SearchAffinityInteraction} from "~/shared/search/search_affinity_interaction.js";
@@ -51,7 +60,7 @@ const SearchEntityTable = DynamoTableSchema.new({
                         entityId:
                             DynamoKeyAttributeSchema.labelString as DynamoKeyAttributeSchema<SearchAffinityId>,
                     },
-                    withExpirationTime: "Required",
+                    withExpirationTime: "RequiredNullable",
                     attributes: Schema.object({
                         /**
                          * The number of affinity points this account has.
@@ -90,6 +99,17 @@ const SearchEntityTable = DynamoTableSchema.new({
                          * viewed. Useful for showing the user a "last opened" date.
                          */
                         lastViewedTime: Schema.date.nullable().default(null),
+
+                        /**
+                         * If this is non-null then the search entity is in the account's favorites
+                         * list. The favorites list is ordered by `OrderKey`. We create an index on
+                         * this table that's ordered by this `OrderKey` to efficiently access an
+                         * account's favorites list.
+                         *
+                         * If `favoriteOrderKey` is non-null then this item should never expire.
+                         * `expirationTime` will be set to null even if `points` is less than 0.05.
+                         */
+                        favoriteOrderKey: OrderKeySchema.nullable().default(null),
 
                         /**
                          * If this is a task search entity that's been marked as active and the account
@@ -151,6 +171,14 @@ const SearchEntityTable = DynamoTableSchema.new({
                          * to apply to `points`.
                          */
                         lastUpdatedTime: Schema.integer,
+
+                        /**
+                         * We add this key for type compatibility with account search affinity items.
+                         * Some functions that operate on both account search affinity items and space
+                         * search affinity items look for this property so we make it available but
+                         * it's always set to null.
+                         */
+                        favoriteOrderKey: Schema.value(null).default(null),
                     }),
                 },
             ],
@@ -193,6 +221,14 @@ const SearchEntityTable = DynamoTableSchema.new({
                          * to apply to `points`.
                          */
                         lastUpdatedTime: Schema.integer,
+
+                        /**
+                         * We add this key for type compatibility with account search affinity items.
+                         * Some functions that operate on both account search affinity items and space
+                         * search affinity items look for this property so we make it available but
+                         * it's always set to null.
+                         */
+                        favoriteOrderKey: Schema.value(null).default(null),
                     }),
                 },
             ],
@@ -200,11 +236,11 @@ const SearchEntityTable = DynamoTableSchema.new({
     ],
 });
 
-// NOTE(calebmer, 2024-03-19): Would love to rename this sort range
-// `AccountSearchAffinity` instead of `AccountAffinitiveSearchEntities` but
-// can't rename since data is already stored in the database with this sort
-// range type.
-const AccountAffinitiveSearchEntitiesIndex = SearchEntityTable.addExpensiveFullIndex({
+const AccountSearchAffinitiesIndex = SearchEntityTable.addExpensiveFullIndex({
+    // NOTE(calebmer, 2024-03-19): Would love to rename this index
+    // `AccountSearchAffinities` instead of `AccountAffinitiveSearchEntities` but
+    // can't rename since data is already stored in the database with this sort
+    // range type.
     name: "AccountAffinitiveSearchEntities",
     itemTypes: [{partitionType: "Account", sortRangeType: "SearchEntityAffinity"}],
     partitionKeyAttributes: {
@@ -216,7 +252,11 @@ const AccountAffinitiveSearchEntitiesIndex = SearchEntityTable.addExpensiveFullI
     },
 });
 
-const SpaceChannelsSearchAffinityIndex = SearchEntityTable.addExpensiveFullIndex({
+const SpaceChannelSearchAffinitiesIndex = SearchEntityTable.addExpensiveFullIndex({
+    // NOTE(calebmer, 2025-02-27): Would love to rename this index
+    // `SpaceChannelSearchAffinities` instead of `SpaceChannelsSearchAffinity` but
+    // can't rename since data is already stored in the database with this sort
+    // range type.
     name: "SpaceChannelsSearchAffinity",
     itemTypes: [{partitionType: "SpaceChannels", sortRangeType: "SearchAffinity"}],
     partitionKeyAttributes: {
@@ -227,7 +267,11 @@ const SpaceChannelsSearchAffinityIndex = SearchEntityTable.addExpensiveFullIndex
     },
 });
 
-const SpaceTaskCollectionsSearchAffinityIndex = SearchEntityTable.addExpensiveFullIndex({
+const SpaceTaskCollectionSearchAffinitiesIndex = SearchEntityTable.addExpensiveFullIndex({
+    // NOTE(calebmer, 2025-02-27): Would love to rename this index
+    // `SpaceTaskCollectionSearchAffinities` instead of
+    // `SpaceTaskCollectionsSearchAffinity` but can't rename since data is already
+    // stored in the database with this sort range type.
     name: "SpaceTaskCollectionsSearchAffinity",
     itemTypes: [{partitionType: "SpaceTaskCollections", sortRangeType: "SearchAffinity"}],
     partitionKeyAttributes: {
@@ -236,6 +280,30 @@ const SpaceTaskCollectionsSearchAffinityIndex = SearchEntityTable.addExpensiveFu
     sortKeyAttributes: {
         pointsBucket: DynamoKeyAttributeSchema.integer,
     },
+});
+
+// NOTE(calebmer): Another design for this could be to combine
+// `AccountSearchAffinityFavoritesIndex` and `AccountSearchAffinitiesIndex`.
+// Favorited entities are sorted above other entities. Then you could load
+// favorites and affinities with one query. You also wouldn't need to filter
+// out favorites from `AccountSearchAffinitiesIndex` because they'd already be
+// sorted to the top.
+const AccountSearchAffinityFavoritesIndex = SearchEntityTable.addIndex({
+    name: "AccountSearchAffinityFavorites",
+    itemTypes: [{partitionType: "Account", sortRangeType: "SearchEntityAffinity"}],
+    partitionKeyAttributes: {
+        spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+    },
+    sortKeyAttributes: {
+        favoriteOrderKey: DynamoKeyAttributeSchema.orderKey.nullable(),
+        // Include the `entityId` in the index sort keys so if two items have the
+        // same `favoriteOrderKey` we'll still get consistent ordering.
+        entityId:
+            DynamoKeyAttributeSchema.labelString as DynamoKeyAttributeSchema<SearchAffinityId>,
+    },
+    // Only include favorited items in this index.
+    filter: item => typeof item.favoriteOrderKey === "string",
 });
 
 export function getSearchEntityTableForTest() {
@@ -398,12 +466,49 @@ export function getSearchAffinityExpirationDuration({
     points: number;
     erosion: number;
 }): number {
+    // Anything less than expiration points is a negative number.
+    if (points <= searchAffinityExpirationPoints) return 0;
+
     const erosionFactor = clamp(0, erosion / 10, 1);
 
     return (
         (Math.log(points / searchAffinityExpirationPoints) / (3 * erosionFactor + 3)) *
         monthDurationMs
     );
+}
+
+/**
+ * Mutably assigns the computed properties `pointsBucket` and `expirationTime`
+ * to an item object. Exported for tests.
+ */
+export function assignSearchAffinityDerivedAttributes<
+    const Item extends {
+        points: number;
+        erosion: number;
+        lastUpdatedTime: number;
+        favoriteOrderKey: OrderKey | null;
+    },
+>(
+    item: Item,
+): Item & {
+    pointsBucket: number;
+    expirationTime: Date | null;
+} {
+    const pointsBucket = getSearchAffinityPointsBucket(item.points);
+
+    if (item.favoriteOrderKey !== null) {
+        return Object.assign(item, {
+            pointsBucket,
+            expirationTime: null,
+        });
+    } else {
+        return Object.assign(item, {
+            pointsBucket,
+            expirationTime: new Date(
+                item.lastUpdatedTime + Math.ceil(getSearchAffinityExpirationDuration(item)),
+            ),
+        });
+    }
 }
 
 function getSearchAffinityInteractionPoints(interaction: SearchAffinityInteraction): number {
@@ -577,14 +682,7 @@ async function addSearchAffinityPoints(
                 const erosion =
                     Math.max(0, (affinityItem?.erosion ?? 0) - pointsIncrement) + erosionIncrement;
 
-                const expirationDuration = Math.ceil(
-                    getSearchAffinityExpirationDuration({points, erosion}),
-                );
-                const expirationTime = new Date(currentTime + expirationDuration);
-
-                const pointsBucket = getSearchAffinityPointsBucket(points);
-
-                return {
+                return assignSearchAffinityDerivedAttributes({
                     ...affinityItem,
                     partitionType: "Account",
                     sortRangeType: "SearchEntityAffinity",
@@ -592,14 +690,13 @@ async function addSearchAffinityPoints(
                     accountId,
                     entityId: affinityId,
                     points,
-                    pointsBucket,
                     erosion,
                     lastUpdatedTime: currentTime,
                     lastViewedTime: isViewInteraction
                         ? new Date(currentTime)
                         : affinityItem?.lastViewedTime ?? null,
-                    expirationTime,
-                };
+                    favoriteOrderKey: affinityItem?.favoriteOrderKey ?? null,
+                });
             },
         ),
 
@@ -636,29 +733,17 @@ async function addSearchAffinityPoints(
                       // `erosionIncrement` is 0.
                       assert(erosion === 0);
 
-                      const expirationDuration = Math.ceil(
-                          getSearchAffinityExpirationDuration({
-                              points: points,
-                              erosion: erosion,
-                          }),
-                      );
-                      const expirationTime = new Date(currentTime + expirationDuration);
-
-                      const pointsBucket = getSearchAffinityPointsBucket(points);
-
-                      return {
+                      return assignSearchAffinityDerivedAttributes({
                           ...affinityItem,
                           partitionType: "SpaceChannels",
                           sortRangeType: "SearchAffinity",
                           spaceId,
-                          accountId,
                           channelId,
                           points,
-                          pointsBucket,
                           erosion,
                           lastUpdatedTime: currentTime,
-                          expirationTime,
-                      };
+                          favoriteOrderKey: null,
+                      });
                   },
               )
             : null,
@@ -695,29 +780,17 @@ async function addSearchAffinityPoints(
                       // `erosionIncrement` is 0.
                       assert(erosion === 0);
 
-                      const expirationDuration = Math.ceil(
-                          getSearchAffinityExpirationDuration({
-                              points: points,
-                              erosion: erosion,
-                          }),
-                      );
-                      const expirationTime = new Date(currentTime + expirationDuration);
-
-                      const pointsBucket = getSearchAffinityPointsBucket(points);
-
-                      return {
+                      return assignSearchAffinityDerivedAttributes({
                           ...affinityItem,
                           partitionType: "SpaceTaskCollections",
                           sortRangeType: "SearchAffinity",
                           spaceId,
-                          accountId,
                           collectionId,
                           points,
-                          pointsBucket,
                           erosion,
                           lastUpdatedTime: currentTime,
-                          expirationTime,
-                      };
+                          favoriteOrderKey: null,
+                      });
                   },
               )
             : null,
@@ -783,27 +856,23 @@ export async function addSearchAffinityActiveTaskAssigneePoints(
         if (!item) {
             await SearchEntityTable.createItem(
                 context,
-                {
+                assignSearchAffinityDerivedAttributes({
                     partitionType: "Account",
                     sortRangeType: "SearchEntityAffinity",
                     spaceId,
                     accountId: assigneeId,
                     entityId: `Task:${taskId}`,
                     points,
-                    pointsBucket: getSearchAffinityPointsBucket(points),
                     erosion,
                     lastUpdatedTime: currentTime,
                     lastViewedTime: null,
-                    expirationTime: new Date(
-                        currentTime +
-                            Math.ceil(getSearchAffinityExpirationDuration({points, erosion})),
-                    ),
+                    favoriteOrderKey: null,
                     activeTaskAssignee: {
                         points: pointsIncrement,
                         erosion,
                         lastUpdatedTime: currentTime,
                     },
-                },
+                }),
                 {isConditionCheckErrorRetriable: true},
             );
         } else if (item.activeTaskAssignee) {
@@ -826,21 +895,20 @@ export async function addSearchAffinityActiveTaskAssigneePoints(
                 ),
             ]);
         } else {
-            await SearchEntityTable.directlyUpdateItem(context, {
-                ...item,
-                points,
-                pointsBucket: getSearchAffinityPointsBucket(points),
-                erosion,
-                lastUpdatedTime: currentTime,
-                expirationTime: new Date(
-                    currentTime + Math.ceil(getSearchAffinityExpirationDuration({points, erosion})),
-                ),
-                activeTaskAssignee: {
-                    points: pointsIncrement,
+            await SearchEntityTable.directlyUpdateItem(
+                context,
+                assignSearchAffinityDerivedAttributes({
+                    ...item,
+                    points,
                     erosion,
                     lastUpdatedTime: currentTime,
-                },
-            });
+                    activeTaskAssignee: {
+                        points: pointsIncrement,
+                        erosion,
+                        lastUpdatedTime: currentTime,
+                    },
+                }),
+            );
         }
     });
 }
@@ -924,25 +992,22 @@ export async function removeSearchAffinityActiveTaskAssigneePoints(
                 getCurrentSearchAffinityPoints(currentTime, item) -
                 getCurrentSearchAffinityPoints(currentTime, item.activeTaskAssignee);
 
-            if (points <= searchAffinityExpirationPoints) {
+            if (
+                points <= searchAffinityExpirationPoints &&
+                // Don't delete the affinity item if it's a favorite.
+                typeof item.favoriteOrderKey !== "string"
+            ) {
                 await SearchEntityTable.deleteItem(context, item);
             } else {
-                await SearchEntityTable.directlyUpdateItem(context, {
-                    ...item,
-                    points,
-                    pointsBucket: getSearchAffinityPointsBucket(points),
-                    lastUpdatedTime: currentTime,
-                    expirationTime: new Date(
-                        currentTime +
-                            Math.ceil(
-                                getSearchAffinityExpirationDuration({
-                                    points,
-                                    erosion: item.erosion,
-                                }),
-                            ),
-                    ),
-                    activeTaskAssignee: undefined,
-                });
+                await SearchEntityTable.directlyUpdateItem(
+                    context,
+                    assignSearchAffinityDerivedAttributes({
+                        ...item,
+                        points,
+                        lastUpdatedTime: currentTime,
+                        activeTaskAssignee: undefined,
+                    }),
+                );
             }
         }
     });
@@ -961,14 +1026,19 @@ export const searchAffinityQueryPageLimit = 100;
 export const getSearchAffinitiesEarlyReturnTestCounter = new TestCounter<AccountId>();
 
 /**
- * Get `SearchEntityId`s that are meaningful to the actor.
+ * Get `SearchAffinityId`s that are meaningful to the actor.
  *
  * Labeled "internal" since you should be calling `searchByAffinity()`. This
  * function returns affinitive entities along with extra information about them
  * like the entity's title. This function also doesn't filter out entities the
  * account has lost access to! While this function isn't unsafe with regards to
- * permissions (it's fine to know the `SearchEntityId` of something you used to
- * have access to) it isn't the most convenient function.
+ * permissions (it's fine to know the `SearchAffinityId` of something you used
+ * to have access to) it isn't the most convenient function so we label it
+ * "internal" but not "dangerous".
+ *
+ * This function does not change entity ranking based on whether an entity is
+ * in the actor's affinity list or not. It's expected that `searchByAffinity()`
+ * will re-rank using the actor's favorite list.
  */
 export async function internalGetSearchAffinities(
     context: ServerSessionActionContext,
@@ -987,7 +1057,7 @@ export async function internalGetSearchAffinities(
         limit,
         queryItems: () =>
             filterAsyncIterableIterator(
-                AccountAffinitiveSearchEntitiesIndex.query(context, {
+                AccountSearchAffinitiesIndex.query(context, {
                     partitionKey: {
                         accountId,
                         spaceId,
@@ -1004,7 +1074,10 @@ export async function internalGetSearchAffinities(
                     // remove this.
                     (item as any).entityId !== "TaskNotepad",
             ),
-        deleteItem: item => SearchEntityTable.deleteItem(context, item),
+        deleteItem: item => {
+            assert(typeof item.favoriteOrderKey !== "string");
+            return SearchEntityTable.deleteItem(context, item);
+        },
         directlyUpdateItem: (item, newAttributes) =>
             SearchEntityTable.directlyUpdateItem(context, {...item, ...newAttributes}),
     });
@@ -1039,15 +1112,24 @@ export async function internalDangerouslyGetSpaceChannelSearchAffinities(
         spaceId,
         limit,
         queryItems: () =>
-            SpaceChannelsSearchAffinityIndex.query(context, {
+            SpaceChannelSearchAffinitiesIndex.query(context, {
                 partitionKey: {spaceId},
                 descending: true,
                 limit: "All",
                 pageLimit: searchAffinityQueryPageLimit,
             }),
-        deleteItem: item => SearchEntityTable.deleteItem(context, item),
+        deleteItem: item => {
+            assert(typeof item.favoriteOrderKey !== "string");
+            return SearchEntityTable.deleteItem(context, item);
+        },
         directlyUpdateItem: (item, newAttributes) =>
-            SearchEntityTable.directlyUpdateItem(context, {...item, ...newAttributes}),
+            SearchEntityTable.directlyUpdateItem(context, {
+                ...item,
+                ...newAttributes,
+                // `expirationTime` will only be null if `favoriteOrderKey` is non-null.
+                // `favoriteOrderKey` is always null for space-level channel search affinities.
+                expirationTime: assertExists(newAttributes.expirationTime),
+            }),
     });
 }
 
@@ -1075,15 +1157,25 @@ export async function internalDangerouslyGetSpaceTaskCollectionSearchAffinities(
         spaceId,
         limit,
         queryItems: () =>
-            SpaceTaskCollectionsSearchAffinityIndex.query(context, {
+            SpaceTaskCollectionSearchAffinitiesIndex.query(context, {
                 partitionKey: {spaceId},
                 descending: true,
                 limit: "All",
                 pageLimit: searchAffinityQueryPageLimit,
             }),
-        deleteItem: item => SearchEntityTable.deleteItem(context, item),
+        deleteItem: item => {
+            assert(typeof item.favoriteOrderKey !== "string");
+            return SearchEntityTable.deleteItem(context, item);
+        },
         directlyUpdateItem: (item, newAttributes) =>
-            SearchEntityTable.directlyUpdateItem(context, {...item, ...newAttributes}),
+            SearchEntityTable.directlyUpdateItem(context, {
+                ...item,
+                ...newAttributes,
+                // `expirationTime` will only be null if `favoriteOrderKey` is non-null.
+                // `favoriteOrderKey` is always null for space-level task collection search
+                // affinities.
+                expirationTime: assertExists(newAttributes.expirationTime),
+            }),
     });
 }
 
@@ -1103,6 +1195,7 @@ async function internalGetSearchAffinitiesBase<
         pointsBucket: number;
         erosion: number;
         lastUpdatedTime: number;
+        favoriteOrderKey: OrderKey | null;
     },
 >(
     context: ServerSessionActionContext,
@@ -1123,7 +1216,7 @@ async function internalGetSearchAffinitiesBase<
                 points: number;
                 pointsBucket: number;
                 lastUpdatedTime: number;
-                expirationTime: Date;
+                expirationTime: Date | null;
             },
         ) => Promise<unknown>;
     },
@@ -1187,21 +1280,22 @@ async function internalGetSearchAffinitiesBase<
         ) {
             context.process.waitUntil(async () => {
                 try {
-                    if (currentPoints <= searchAffinityExpirationPoints) {
+                    if (
+                        currentPoints <= searchAffinityExpirationPoints &&
+                        // Don't delete the affinity item if it's a favorite.
+                        typeof item.favoriteOrderKey !== "string"
+                    ) {
                         await deleteItem(item);
                     } else {
-                        await directlyUpdateItem(item, {
-                            points: currentPoints,
-                            pointsBucket: currentPointsBucket,
-                            lastUpdatedTime: currentTime,
-                            expirationTime: new Date(
-                                currentTime +
-                                    getSearchAffinityExpirationDuration({
-                                        points: currentPoints,
-                                        erosion: item.erosion,
-                                    }),
-                            ),
-                        });
+                        await directlyUpdateItem(
+                            item,
+                            assignSearchAffinityDerivedAttributes({
+                                points: currentPoints,
+                                erosion: item.erosion,
+                                lastUpdatedTime: currentTime,
+                                favoriteOrderKey: item.favoriteOrderKey,
+                            }),
+                        );
                     }
                 } catch (error) {
                     // If a concurrent writer updated the item before we could, don't bother
@@ -1215,7 +1309,27 @@ async function internalGetSearchAffinitiesBase<
     }
 
     candidateItems.sort((a, b) => b.points - a.points);
-    return candidateItems.slice(0, limit);
+
+    const items = candidateItems.slice(0, limit);
+
+    // Remove items with points less than `searchAffinityExpirationPoints`. We may
+    // have these items in the database before expiration removes them or if the
+    // user has a favorite that never expires but has low points.
+    let endIndex = items.length;
+    for (let i = items.length - 1; i >= 0; i--) {
+        const item = items[i]!;
+        if (item.points <= searchAffinityExpirationPoints) {
+            endIndex--;
+        } else {
+            break;
+        }
+    }
+
+    if (endIndex === items.length) {
+        return items;
+    } else {
+        return items.slice(0, endIndex);
+    }
 }
 
 type GetSearchEntityAffinityIdType<
@@ -1251,20 +1365,59 @@ async function querySessionActorSearchEntityAffinities<IdType extends Id>(
                 limit: "All",
             }),
             item => ({
-                entityId: item.entityId,
+                affinityId: item.entityId,
                 points: getCurrentSearchAffinityPoints(currentTime, item),
+                favoriteOrderKey: item.favoriteOrderKey,
             }),
         ),
     );
 
-    items.sort((a, b) => b.points - a.points);
+    const topFavoriteItems = Array.from(
+        filterIterable(items, item => item.favoriteOrderKey !== null),
+    )
+        .sort((item1, item2) => {
+            assert(item1.favoriteOrderKey !== null);
+            assert(item2.favoriteOrderKey !== null);
+
+            return (
+                defaultCompareStrings(item1.favoriteOrderKey, item2.favoriteOrderKey) ||
+                defaultCompareStrings(item1.affinityId, item2.affinityId)
+            );
+        })
+        .slice(0, 3);
+
+    items.sort((item1, item2) => {
+        const topFavoriteIndex1 =
+            item1.favoriteOrderKey !== null
+                ? topFavoriteItems.findIndex(otherItem => otherItem.affinityId === item1.affinityId)
+                : -1;
+
+        const topFavoriteIndex2 =
+            item2.favoriteOrderKey !== null
+                ? topFavoriteItems.findIndex(otherItem => otherItem.affinityId === item2.affinityId)
+                : -1;
+
+        // The top 3 favorite items are put at the top of the list. After which we sort
+        // items by points. This way the user has some explicit control over their
+        // type-specific affinity list through favorites but you can't completely
+        // override our machine intelligence by having a lot of favorites.
+        //
+        // We expect our affinity system to generally produce better results for the
+        // user then looking through a sorted list of 10+ favorites.
+        if (topFavoriteIndex1 >= 0 && topFavoriteIndex2 >= 0)
+            return topFavoriteIndex1 - topFavoriteIndex2;
+        if (topFavoriteIndex1 >= 0) return -1;
+        if (topFavoriteIndex2 >= 0) return 1;
+
+        return item2.points - item1.points;
+    });
 
     // NOTE(calebmer): We don't delete items below 0.05 points or update items that
     // moved point buckets in this function. That's because the DynamoDB TTL should
     // automatically expire items (so we don't have to) and the points bucket
     // doesn't matter for the performance of this function. So spare the points
     // bucket update cost.
-    return items.map(item => item.entityId.slice(affinityType.length + 1) as IdType);
+    return items.map(item => item.affinityId.slice(affinityType.length + 1) as IdType);
 }
 
 /**
@@ -1274,6 +1427,9 @@ async function querySessionActorSearchEntityAffinities<IdType extends Id>(
  *
  * `AccountId`s in the returned array may no longer be a part of the space.
  * Hence the name "possibly stale".
+ *
+ * If the actor has some favorited accounts then we'll put up to three of their
+ * favorited accounts at the start of the array.
  */
 export async function getPossiblyStaleAccountSearchAffinityIds(
     context: ServerSessionActionContext,
@@ -1291,6 +1447,9 @@ export async function getPossiblyStaleAccountSearchAffinityIds(
  * had access at some point in time in order to collect affinity points but you
  * need to make sure the actor currently has access before returning
  * `ChannelId`s to them. Hence the name "possibly stale".
+ *
+ * If the actor has some favorited channels then we'll put up to three of their
+ * favorited channels at the start of the array.
  */
 export async function getPossiblyStaleChannelSearchAffinityIds(
     context: ServerSessionActionContext,
@@ -1308,6 +1467,9 @@ export async function getPossiblyStaleChannelSearchAffinityIds(
  * probably had access at some point in time in order to collect affinity
  * points but you need to make sure the actor currently has access before
  * returning `TaskCollectionId`s to them. Hence the name "possibly stale".
+ *
+ * If the actor has some favorited task collections then we'll put up to three
+ * of their favorited task collections at the start of the array.
  */
 export async function getPossiblyStaleTaskCollectionSearchAffinityIds(
     context: ServerSessionActionContext,
@@ -1317,5 +1479,149 @@ export async function getPossiblyStaleTaskCollectionSearchAffinityIds(
         context,
         spaceId,
         "TaskCollection",
+    );
+}
+
+/**
+ * Adds a search entity to the end of the session actor's favorites list. If
+ * the entity is already in the session actor's favorites list then we won't
+ * move the entity.
+ */
+export async function favoriteSearchAffinity(
+    context: ServerSessionActionContext,
+    {spaceId, affinityId}: {spaceId: SpaceId; affinityId: SearchAffinityId},
+): Promise<{orderKey: OrderKey}> {
+    // Optimization: We don't authorize whether the actor has access to the entity.
+    // Since this is a personal favorite list it doesn't really matter if the user
+    // favorites an entity they don't have access to.
+    await authorizeSpaceAccess(context, spaceId);
+
+    const lastFavorites = await arrayFromAsyncIterable(
+        AccountSearchAffinityFavoritesIndex.query(context, {
+            partitionKey: {
+                spaceId,
+                accountId: context.actor.getAccountId(),
+            },
+            descending: true,
+            limit: 1,
+        }),
+    );
+
+    let orderKey =
+        lastFavorites.length > 0
+            ? generateOrderKeyBetween(
+                  // We should filter items out of `AccountSearchAffinityFavoritesIndex` that
+                  // have a null `favoriteOrderKey`.
+                  assertExists(lastFavorites[lastFavorites.length - 1]!.favoriteOrderKey),
+                  null,
+              )
+            : initialOrderKey;
+
+    await SearchEntityTable.updateItem(
+        context,
+        {
+            partitionType: "Account",
+            sortRangeType: "SearchEntityAffinity",
+            spaceId,
+            accountId: context.actor.getAccountId(),
+            entityId: affinityId,
+        },
+        item => {
+            // We've already favorited this item!
+            if (typeof item?.favoriteOrderKey === "string") {
+                orderKey = item.favoriteOrderKey;
+                return item;
+            }
+
+            if (item) {
+                return assignSearchAffinityDerivedAttributes({
+                    ...item,
+                    favoriteOrderKey: orderKey,
+                });
+            }
+
+            return assignSearchAffinityDerivedAttributes({
+                partitionType: "Account",
+                sortRangeType: "SearchEntityAffinity",
+                spaceId,
+                accountId: context.actor.getAccountId(),
+                entityId: affinityId,
+                points: 0,
+                erosion: 0,
+                lastUpdatedTime: Date.now(),
+                lastViewedTime: null,
+                favoriteOrderKey: orderKey,
+            });
+        },
+    );
+
+    return {orderKey};
+}
+
+/**
+ * Remove a search entity from the account's favorites list.
+ */
+export async function unfavoriteSearchAffinity(
+    context: ServerSessionActionContext,
+    {spaceId, affinityId}: {spaceId: SpaceId; affinityId: SearchAffinityId},
+) {
+    // Optimization: We don't authorize whether the actor has access to the entity.
+    // Since this is a personal favorite list it doesn't really matter if the user
+    // favorites an entity they don't have access to.
+    await authorizeSpaceAccess(context, spaceId);
+
+    await SearchEntityTable.updateItem(
+        context,
+        {
+            partitionType: "Account",
+            sortRangeType: "SearchEntityAffinity",
+            spaceId,
+            accountId: context.actor.getAccountId(),
+            entityId: affinityId,
+        },
+        item => {
+            // We've already unfavorited this item!
+            if (typeof item?.favoriteOrderKey !== "string") {
+                return item;
+            }
+
+            return assignSearchAffinityDerivedAttributes({
+                ...item,
+                favoriteOrderKey: null,
+            });
+        },
+    );
+}
+
+/**
+ * Get an account's favorites in the manually sorted order specified by the
+ * user.
+ *
+ * Labeled "internal" since you should be calling `searchByAffinity()`. This
+ * function only returns `SearchAffinityId`s. This function also doesn't filter
+ * out entities the account has lost access to! While this function isn't
+ * unsafe with regards to permissions (it's fine to know the `SearchAffinityId`
+ * of something you used to have access to) it isn't the most convenient
+ * function so we label it "internal" but not "dangerous".
+ */
+export async function internalGetSearchAffinityFavorites(
+    context: ServerSessionActionContext,
+    {spaceId, limit}: {spaceId: SpaceId; limit: number},
+): Promise<Array<{affinityId: SearchAffinityId; orderKey: OrderKey}>> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    return arrayFromAsyncIterable(
+        AccountSearchAffinityFavoritesIndex.query(context, {
+            partitionKey: {
+                spaceId,
+                accountId: context.actor.getAccountId(),
+            },
+            limit,
+        }),
+        item => ({
+            affinityId: item.entityId,
+            // The favorites index should filter out all null `favoriteOrderKey`s.
+            orderKey: assertExists(item.favoriteOrderKey),
+        }),
     );
 }

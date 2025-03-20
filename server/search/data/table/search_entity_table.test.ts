@@ -3,17 +3,22 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     addSearchAffinityActiveTaskAssigneePoints,
+    assignSearchAffinityDerivedAttributes,
+    favoriteSearchAffinity,
     getCurrentSearchAffinityPoints,
+    getPossiblyStaleAccountSearchAffinityIds,
     getSearchAffinitiesEarlyReturnTestCounter,
     getSearchAffinityExpirationDuration,
     getSearchAffinityPointsBucket,
     getSearchEntityTableForTest,
     internalGetSearchAffinities,
+    internalGetSearchAffinityFavorites,
     markSearchAffinityCreateDocumentInteraction,
     markSearchAffinityInteraction,
     monthDurationMs,
     removeSearchAffinityActiveTaskAssigneePoints,
     searchAffinityQueryPageLimit,
+    unfavoriteSearchAffinity,
 } from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
@@ -291,16 +296,20 @@ test("can figure out the correct expiration duration with erosion", () => {
                     erosion,
                 });
 
-                expect(
-                    getCurrentSearchAffinityPoints(
-                        addDays(currentTime, days).getTime() + expirationDuration,
-                        {
-                            points: decayedPoints,
-                            erosion,
-                            lastUpdatedTime: addDays(currentTime, days).getTime(),
-                        },
-                    ),
-                ).toBeCloseTo(0.05, 12);
+                if (decayedPoints <= 0.05) {
+                    expect(expirationDuration).toEqual(0);
+                } else {
+                    expect(
+                        getCurrentSearchAffinityPoints(
+                            addDays(currentTime, days).getTime() + expirationDuration,
+                            {
+                                points: decayedPoints,
+                                erosion,
+                                lastUpdatedTime: addDays(currentTime, days).getTime(),
+                            },
+                        ),
+                    ).toBeCloseTo(0.05, 12);
+                }
             }
         }
     }
@@ -362,6 +371,7 @@ test("can't read affinitive items for the wrong space", async () => {
                     erosion: 0,
                     lastUpdatedTime: currentTime,
                     lastViewedTime: null,
+                    favoriteOrderKey: null,
                     expirationTime: new Date(
                         currentTime + getSearchAffinityExpirationDuration({points, erosion: 0}),
                     ),
@@ -387,6 +397,7 @@ test("can't read affinitive items for the wrong space", async () => {
                     erosion: 0,
                     lastUpdatedTime: currentTime,
                     lastViewedTime: null,
+                    favoriteOrderKey: null,
                     expirationTime: new Date(
                         currentTime +
                             getSearchAffinityExpirationDuration({points: points2, erosion: 0}),
@@ -404,6 +415,7 @@ test("can't read affinitive items for the wrong space", async () => {
                     erosion: 0,
                     lastUpdatedTime: currentTime,
                     lastViewedTime: null,
+                    favoriteOrderKey: null,
                     expirationTime: new Date(
                         currentTime +
                             getSearchAffinityExpirationDuration({points: points1, erosion: 0}),
@@ -508,6 +520,7 @@ test(
                         erosion: 0,
                         lastUpdatedTime,
                         lastViewedTime: null,
+                        favoriteOrderKey: null,
                         expirationTime: new Date(
                             currentTime +
                                 getSearchAffinityExpirationDuration({
@@ -723,6 +736,7 @@ test(
                         erosion: 0,
                         lastUpdatedTime,
                         lastViewedTime: null,
+                        favoriteOrderKey: null,
                         expirationTime: new Date(
                             currentTime +
                                 getSearchAffinityExpirationDuration({
@@ -924,6 +938,7 @@ test(
                         erosion: 0,
                         lastUpdatedTime: currentTime,
                         lastViewedTime: null,
+                        favoriteOrderKey: null,
                         expirationTime: new Date(
                             currentTime + getSearchAffinityExpirationDuration({points, erosion: 0}),
                         ),
@@ -1360,6 +1375,485 @@ test("marking create document interaction adds erosion to affinity item", async 
         erosion: 10,
         lastUpdatedTime: expect.any(Number),
         lastViewedTime: null,
+        favoriteOrderKey: null,
         expirationTime: expect.any(Date),
     });
+});
+
+test("can favorite and unfavorite search entities", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    expect(
+        await internalGetSearchAffinityFavorites(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual([]);
+
+    const document1 = await TestDocument.create(session1);
+    await document1.access.grantDefault(session1);
+    const document2 = await TestDocument.create(session1);
+    await document2.access.grantDefault(session1);
+    const document3 = await TestDocument.create(session1);
+    await document3.access.grantDefault(session1);
+
+    expect(
+        await internalGetSearchAffinityFavorites(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual([]);
+
+    await unfavoriteSearchAffinity(session2.action(), {
+        spaceId: space.id,
+        affinityId: `Document:${document3.id}`,
+    });
+
+    expect(
+        await internalGetSearchAffinityFavorites(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual([]);
+
+    await favoriteSearchAffinity(session2.action(), {
+        spaceId: space.id,
+        affinityId: `Document:${document3.id}`,
+    });
+
+    expect(
+        await internalGetSearchAffinityFavorites(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual([
+        {
+            affinityId: `Document:${document3.id}`,
+            orderKey: "a0",
+        },
+    ]);
+
+    await favoriteSearchAffinity(session2.action(), {
+        spaceId: space.id,
+        affinityId: `Document:${document1.id}`,
+    });
+
+    expect(
+        await internalGetSearchAffinityFavorites(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual([
+        {
+            affinityId: `Document:${document3.id}`,
+            orderKey: "a0",
+        },
+        {
+            affinityId: `Document:${document1.id}`,
+            orderKey: "a1",
+        },
+    ]);
+
+    await favoriteSearchAffinity(session2.action(), {
+        spaceId: space.id,
+        affinityId: `Document:${document2.id}`,
+    });
+
+    expect(
+        await internalGetSearchAffinityFavorites(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual([
+        {
+            affinityId: `Document:${document3.id}`,
+            orderKey: "a0",
+        },
+        {
+            affinityId: `Document:${document1.id}`,
+            orderKey: "a1",
+        },
+        {
+            affinityId: `Document:${document2.id}`,
+            orderKey: "a2",
+        },
+    ]);
+
+    await favoriteSearchAffinity(session2.action(), {
+        spaceId: space.id,
+        affinityId: `Document:${document1.id}`,
+    });
+
+    expect(
+        await internalGetSearchAffinityFavorites(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual([
+        {
+            affinityId: `Document:${document3.id}`,
+            orderKey: "a0",
+        },
+        {
+            affinityId: `Document:${document1.id}`,
+            orderKey: "a1",
+        },
+        {
+            affinityId: `Document:${document2.id}`,
+            orderKey: "a2",
+        },
+    ]);
+
+    await unfavoriteSearchAffinity(session2.action(), {
+        spaceId: space.id,
+        affinityId: `Document:${document3.id}`,
+    });
+
+    expect(
+        await internalGetSearchAffinityFavorites(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual([
+        {
+            affinityId: `Document:${document1.id}`,
+            orderKey: "a1",
+        },
+        {
+            affinityId: `Document:${document2.id}`,
+            orderKey: "a2",
+        },
+    ]);
+
+    await favoriteSearchAffinity(session2.action(), {
+        spaceId: space.id,
+        affinityId: `Document:${document1.id}`,
+    });
+
+    expect(
+        await internalGetSearchAffinityFavorites(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual([
+        {
+            affinityId: `Document:${document1.id}`,
+            orderKey: "a1",
+        },
+        {
+            affinityId: `Document:${document2.id}`,
+            orderKey: "a2",
+        },
+    ]);
+
+    await unfavoriteSearchAffinity(session2.action(), {
+        spaceId: space.id,
+        affinityId: `Document:${document1.id}`,
+    });
+
+    expect(
+        await internalGetSearchAffinityFavorites(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual([
+        {
+            affinityId: `Document:${document2.id}`,
+            orderKey: "a2",
+        },
+    ]);
+
+    await unfavoriteSearchAffinity(session2.action(), {
+        spaceId: space.id,
+        affinityId: `Document:${document1.id}`,
+    });
+
+    expect(
+        await internalGetSearchAffinityFavorites(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual([
+        {
+            affinityId: `Document:${document2.id}`,
+            orderKey: "a2",
+        },
+    ]);
+
+    await favoriteSearchAffinity(session2.action(), {
+        spaceId: space.id,
+        affinityId: `Document:${document1.id}`,
+    });
+
+    expect(
+        await internalGetSearchAffinityFavorites(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual([
+        {
+            affinityId: `Document:${document2.id}`,
+            orderKey: "a2",
+        },
+        {
+            affinityId: `Document:${document1.id}`,
+            orderKey: "a3",
+        },
+    ]);
+});
+
+test("will show top three favorites at the start of affinity list when querying specific entities", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3, session4, session5, session6] = await space.createSessions(
+        6,
+    );
+
+    const currentTime = Date.now();
+
+    await runAllPromises([
+        SearchEntityTable.createOrReplaceItem(
+            context,
+            assignSearchAffinityDerivedAttributes({
+                partitionType: "Account",
+                sortRangeType: "SearchEntityAffinity",
+                spaceId: space.id,
+                accountId: session1.account.id,
+                entityId: `Account:${session2.account.id}`,
+                points: 600,
+                erosion: 0,
+                lastUpdatedTime: currentTime,
+                lastViewedTime: null,
+                favoriteOrderKey: null,
+            }),
+        ),
+        SearchEntityTable.createOrReplaceItem(
+            context,
+            assignSearchAffinityDerivedAttributes({
+                partitionType: "Account",
+                sortRangeType: "SearchEntityAffinity",
+                spaceId: space.id,
+                accountId: session1.account.id,
+                entityId: `Account:${session3.account.id}`,
+                points: 500,
+                erosion: 0,
+                lastUpdatedTime: currentTime,
+                lastViewedTime: null,
+                favoriteOrderKey: null,
+            }),
+        ),
+        SearchEntityTable.createOrReplaceItem(
+            context,
+            assignSearchAffinityDerivedAttributes({
+                partitionType: "Account",
+                sortRangeType: "SearchEntityAffinity",
+                spaceId: space.id,
+                accountId: session1.account.id,
+                entityId: `Account:${session4.account.id}`,
+                points: 400,
+                erosion: 0,
+                lastUpdatedTime: currentTime,
+                lastViewedTime: null,
+                favoriteOrderKey: null,
+            }),
+        ),
+        SearchEntityTable.createOrReplaceItem(
+            context,
+            assignSearchAffinityDerivedAttributes({
+                partitionType: "Account",
+                sortRangeType: "SearchEntityAffinity",
+                spaceId: space.id,
+                accountId: session1.account.id,
+                entityId: `Account:${session5.account.id}`,
+                points: 300,
+                erosion: 0,
+                lastUpdatedTime: currentTime,
+                lastViewedTime: null,
+                favoriteOrderKey: null,
+            }),
+        ),
+        SearchEntityTable.createOrReplaceItem(
+            context,
+            assignSearchAffinityDerivedAttributes({
+                partitionType: "Account",
+                sortRangeType: "SearchEntityAffinity",
+                spaceId: space.id,
+                accountId: session1.account.id,
+                entityId: `Account:${session6.account.id}`,
+                points: 200,
+                erosion: 0,
+                lastUpdatedTime: currentTime,
+                lastViewedTime: null,
+                favoriteOrderKey: null,
+            }),
+        ),
+    ]);
+
+    expect(
+        await internalGetSearchAffinityFavorites(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual([]);
+
+    expect(
+        await internalGetSearchAffinities(session1.action(), {spaceId: space.id, limit: 100}),
+    ).toEqual([
+        {
+            affinityId: `Account:${session2.account.id}`,
+            points: expect.closeTo(600),
+            lastViewedTime: null,
+        },
+        {
+            affinityId: `Account:${session3.account.id}`,
+            points: expect.closeTo(500),
+            lastViewedTime: null,
+        },
+        {
+            affinityId: `Account:${session4.account.id}`,
+            points: expect.closeTo(400),
+            lastViewedTime: null,
+        },
+        {
+            affinityId: `Account:${session5.account.id}`,
+            points: expect.closeTo(300),
+            lastViewedTime: null,
+        },
+        {
+            affinityId: `Account:${session6.account.id}`,
+            points: expect.closeTo(200),
+            lastViewedTime: null,
+        },
+    ]);
+
+    expect(await getPossiblyStaleAccountSearchAffinityIds(session1.action(), space.id)).toEqual([
+        session2.account.id,
+        session3.account.id,
+        session4.account.id,
+        session5.account.id,
+        session6.account.id,
+    ]);
+
+    await favoriteSearchAffinity(session1.action(), {
+        spaceId: space.id,
+        affinityId: `Account:${session6.account.id}`,
+    });
+
+    expect(await getPossiblyStaleAccountSearchAffinityIds(session1.action(), space.id)).toEqual([
+        session6.account.id,
+        session2.account.id,
+        session3.account.id,
+        session4.account.id,
+        session5.account.id,
+    ]);
+
+    await favoriteSearchAffinity(session1.action(), {
+        spaceId: space.id,
+        affinityId: `Account:${session5.account.id}`,
+    });
+
+    expect(await getPossiblyStaleAccountSearchAffinityIds(session1.action(), space.id)).toEqual([
+        session6.account.id,
+        session5.account.id,
+        session2.account.id,
+        session3.account.id,
+        session4.account.id,
+    ]);
+
+    await favoriteSearchAffinity(session1.action(), {
+        spaceId: space.id,
+        affinityId: `Account:${session4.account.id}`,
+    });
+
+    expect(await getPossiblyStaleAccountSearchAffinityIds(session1.action(), space.id)).toEqual([
+        session6.account.id,
+        session5.account.id,
+        session4.account.id,
+        session2.account.id,
+        session3.account.id,
+    ]);
+
+    await favoriteSearchAffinity(session1.action(), {
+        spaceId: space.id,
+        affinityId: `Account:${session3.account.id}`,
+    });
+
+    expect(await getPossiblyStaleAccountSearchAffinityIds(session1.action(), space.id)).toEqual([
+        session6.account.id,
+        session5.account.id,
+        session4.account.id,
+        session2.account.id,
+        session3.account.id,
+    ]);
+
+    await favoriteSearchAffinity(session1.action(), {
+        spaceId: space.id,
+        affinityId: `Account:${session2.account.id}`,
+    });
+
+    expect(
+        await internalGetSearchAffinityFavorites(session1.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual([
+        {
+            affinityId: `Account:${session6.account.id}`,
+            orderKey: "a0",
+        },
+        {
+            affinityId: `Account:${session5.account.id}`,
+            orderKey: "a1",
+        },
+        {
+            affinityId: `Account:${session4.account.id}`,
+            orderKey: "a2",
+        },
+        {
+            affinityId: `Account:${session3.account.id}`,
+            orderKey: "a3",
+        },
+        {
+            affinityId: `Account:${session2.account.id}`,
+            orderKey: "a4",
+        },
+    ]);
+
+    expect(
+        await internalGetSearchAffinities(session1.action(), {spaceId: space.id, limit: 100}),
+    ).toEqual([
+        {
+            affinityId: `Account:${session2.account.id}`,
+            points: expect.closeTo(600),
+            lastViewedTime: null,
+        },
+        {
+            affinityId: `Account:${session3.account.id}`,
+            points: expect.closeTo(500),
+            lastViewedTime: null,
+        },
+        {
+            affinityId: `Account:${session4.account.id}`,
+            points: expect.closeTo(400),
+            lastViewedTime: null,
+        },
+        {
+            affinityId: `Account:${session5.account.id}`,
+            points: expect.closeTo(300),
+            lastViewedTime: null,
+        },
+        {
+            affinityId: `Account:${session6.account.id}`,
+            points: expect.closeTo(200),
+            lastViewedTime: null,
+        },
+    ]);
+
+    expect(await getPossiblyStaleAccountSearchAffinityIds(session1.action(), space.id)).toEqual([
+        session6.account.id,
+        session5.account.id,
+        session4.account.id,
+        session2.account.id,
+        session3.account.id,
+    ]);
 });
