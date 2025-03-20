@@ -46,7 +46,7 @@ import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 //     --task-definition CyberworldsStackMigrationServiceTaskDefinition8D9EC5A4 \
 //     --count 1 \
 //     --launch-type FARGATE \
-//     --network-configuration '{"awsvpcConfiguration":{"subnets": ["subnet-0c30df1482954b4c2", "subnet-0f36625ac7e01c458"], "securityGroups": ["sg-057affad4076bd72a"], "assignPublicIp": "ENABLED"}}' \
+//     --network-configuration '{"awsvpcConfiguration":{"subnets": ["subnet-0c30df1482954b4c2", "subnet-0f36625ac7e01c458"], "securityGroups": ["sg-01e7a96e5206eb5bd"], "assignPublicIp": "ENABLED"}}' \
 //     --overrides '{"containerOverrides":[{"name": "Container", "environment": [{"name": "MIGRATION", "value": "IndexEverySearchEntity"}, {"name": "SEGMENT_INDEX", "value": "0"}, {"name": "TOTAL_SEGMENT_COUNT", "value": "1"}]}]}'
 // ```
 
