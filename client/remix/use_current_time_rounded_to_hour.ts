@@ -5,10 +5,10 @@ import {
     CurrentDateContext,
     CurrentTimeRoundedToHour,
     CurrentTimeRoundedToNearestTenMinutes,
-    roundDateToHour,
 } from "~/client/remix/internal/current_time_context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {roundDateToHour} from "~/shared/helpers/date/round_date_to_hour.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 const currentTimeRoundedToNearestTenMinutesForTest = import.meta.jest

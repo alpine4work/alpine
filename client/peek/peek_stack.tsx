@@ -1670,6 +1670,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                             <PeekRemixEmbed
                                 peekId={entry.id}
                                 layout="narrow"
+                                withinStack={true}
                                 router={routerResult.value}
                                 onGoBackOverflow={() => dispatch({type: "Pop"})}
                             />

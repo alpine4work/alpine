@@ -9,6 +9,7 @@ import {
     getSearchAffinityPointsBucket,
     getSearchEntityTableForTest,
     internalGetSearchAffinities,
+    markSearchAffinityCreateDocumentInteraction,
     markSearchAffinityInteraction,
     monthDurationMs,
     removeSearchAffinityActiveTaskAssigneePoints,
@@ -23,6 +24,8 @@ import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
 import {randomFloat} from "~/shared/helpers/number/random_float.js";
+import {generateId} from "~/shared/id/id.js";
+import {DocumentId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext();
 
@@ -101,6 +104,7 @@ test("search entity account affinity points decay exponentially", () => {
     expect(
         getCurrentSearchAffinityPoints(time4.getTime(), {
             points: 1,
+            erosion: 0,
             lastUpdatedTime: time1.getTime(),
         }),
     ).toEqual(0.049787068367863944);
@@ -108,6 +112,7 @@ test("search entity account affinity points decay exponentially", () => {
     expect(
         getCurrentSearchAffinityPoints(time4.getTime(), {
             points: 1,
+            erosion: 0,
             lastUpdatedTime: time2.getTime(),
         }),
     ).toEqual(0.1353352832366127);
@@ -115,6 +120,7 @@ test("search entity account affinity points decay exponentially", () => {
     expect(
         getCurrentSearchAffinityPoints(time4.getTime(), {
             points: 1,
+            erosion: 0,
             lastUpdatedTime: time3.getTime(),
         }),
     ).toEqual(0.36787944117144233);
@@ -122,6 +128,7 @@ test("search entity account affinity points decay exponentially", () => {
     expect(
         getCurrentSearchAffinityPoints(time3.getTime(), {
             points: 0.36787944117144233,
+            erosion: 0,
             lastUpdatedTime: time2.getTime(),
         }),
     ).toEqual(0.1353352832366127);
@@ -129,6 +136,7 @@ test("search entity account affinity points decay exponentially", () => {
     expect(
         getCurrentSearchAffinityPoints(time3.getTime(), {
             points: 0.36787944117144233,
+            erosion: 0,
             lastUpdatedTime: time1.getTime(),
         }),
     ).toEqual(0.04978706836786395);
@@ -136,6 +144,7 @@ test("search entity account affinity points decay exponentially", () => {
     expect(
         getCurrentSearchAffinityPoints(time2.getTime(), {
             points: 0.1353352832366127,
+            erosion: 0,
             lastUpdatedTime: time1.getTime(),
         }),
     ).toEqual(0.04978706836786395);
@@ -146,16 +155,19 @@ test("can determine when search entity account affinity points will expire", () 
     const time2 = addDays(time1, 30);
     const monthDuration = time2.getTime() - time1.getTime();
 
-    // Reference for the numbers returned below.
-    expect(monthDuration * 1).toEqual(2592000000);
-    expect(monthDuration * 2).toEqual(5184000000);
-    expect(monthDuration * 3).toEqual(7776000000);
+    expect(getSearchAffinityExpirationDuration({points: 1, erosion: 0}) / monthDuration).toEqual(
+        0.9985774245179969,
+    );
 
-    expect(Math.ceil(getSearchAffinityExpirationDuration(1))).toEqual(7764938054);
+    expect(
+        getSearchAffinityExpirationDuration({points: 0.36787944117144233, erosion: 0}) /
+            monthDuration,
+    ).toEqual(0.6652440911846637);
 
-    expect(Math.ceil(getSearchAffinityExpirationDuration(0.36787944117144233))).toEqual(5172938054);
-
-    expect(Math.ceil(getSearchAffinityExpirationDuration(0.1353352832366127))).toEqual(2580938054);
+    expect(
+        getSearchAffinityExpirationDuration({points: 0.1353352832366127, erosion: 0}) /
+            monthDuration,
+    ).toEqual(0.33191075785133034);
 });
 
 // This tests the core idea behind `addSearchAffinityActiveTaskAssigneePoints()`
@@ -173,16 +185,19 @@ test("can increment by some point value and decrement by the decayed point value
 
     const points2a = getCurrentSearchAffinityPoints(time2.getTime(), {
         points: points1,
+        erosion: 0,
         lastUpdatedTime: time1.getTime(),
     });
 
     const points3a = getCurrentSearchAffinityPoints(time3.getTime(), {
         points: points1,
+        erosion: 0,
         lastUpdatedTime: time1.getTime(),
     });
 
     const points4a = getCurrentSearchAffinityPoints(time4.getTime(), {
         points: points1,
+        erosion: 0,
         lastUpdatedTime: time1.getTime(),
     });
 
@@ -195,11 +210,13 @@ test("can increment by some point value and decrement by the decayed point value
 
     const points3b = getCurrentSearchAffinityPoints(time3.getTime(), {
         points: points2b,
+        erosion: 0,
         lastUpdatedTime: time2.getTime(),
     });
 
     const points4b = getCurrentSearchAffinityPoints(time4.getTime(), {
         points: points2b,
+        erosion: 0,
         lastUpdatedTime: time2.getTime(),
     });
 
@@ -208,6 +225,7 @@ test("can increment by some point value and decrement by the decayed point value
 
     const points3cDecrement = getCurrentSearchAffinityPoints(time3.getTime(), {
         points: points2bIncrement,
+        erosion: 0,
         lastUpdatedTime: time2.getTime(),
     });
 
@@ -222,6 +240,7 @@ test("can increment by some point value and decrement by the decayed point value
         expect(
             getCurrentSearchAffinityPoints(time3.getTime(), {
                 points: points2a,
+                erosion: 0,
                 lastUpdatedTime: time2.getTime(),
             }),
         ).toBeCloseTo(points3a, 10);
@@ -229,6 +248,7 @@ test("can increment by some point value and decrement by the decayed point value
         expect(
             getCurrentSearchAffinityPoints(time4.getTime(), {
                 points: points2a,
+                erosion: 0,
                 lastUpdatedTime: time2.getTime(),
             }),
         ).toBeCloseTo(points4a, 10);
@@ -236,6 +256,7 @@ test("can increment by some point value and decrement by the decayed point value
         expect(
             getCurrentSearchAffinityPoints(time4.getTime(), {
                 points: points3a,
+                erosion: 0,
                 lastUpdatedTime: time3.getTime(),
             }),
         ).toBeCloseTo(points4a, 10);
@@ -243,9 +264,45 @@ test("can increment by some point value and decrement by the decayed point value
         expect(
             getCurrentSearchAffinityPoints(time4.getTime(), {
                 points: points3b,
+                erosion: 0,
                 lastUpdatedTime: time3.getTime(),
             }),
         ).toBeCloseTo(points4b, 10);
+    }
+});
+
+test("can figure out the correct expiration duration with erosion", () => {
+    const currentTime = new Date();
+
+    for (const erosion of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+        for (const points of [1, 10, 60]) {
+            for (const days of [0, 1, 2, 3, 7, 14, 30]) {
+                const decayedPoints = getCurrentSearchAffinityPoints(
+                    addDays(currentTime, days).getTime(),
+                    {
+                        points,
+                        erosion,
+                        lastUpdatedTime: currentTime.getTime(),
+                    },
+                );
+
+                const expirationDuration = getSearchAffinityExpirationDuration({
+                    points: decayedPoints,
+                    erosion,
+                });
+
+                expect(
+                    getCurrentSearchAffinityPoints(
+                        addDays(currentTime, days).getTime() + expirationDuration,
+                        {
+                            points: decayedPoints,
+                            erosion,
+                            lastUpdatedTime: addDays(currentTime, days).getTime(),
+                        },
+                    ),
+                ).toBeCloseTo(0.05, 12);
+            }
+        }
     }
 });
 
@@ -302,10 +359,11 @@ test("can't read affinitive items for the wrong space", async () => {
                     entityId: `Document:${document.id}`,
                     points,
                     pointsBucket: getSearchAffinityPointsBucket(points),
+                    erosion: 0,
                     lastUpdatedTime: currentTime,
                     lastViewedTime: null,
                     expirationTime: new Date(
-                        currentTime + getSearchAffinityExpirationDuration(points),
+                        currentTime + getSearchAffinityExpirationDuration({points, erosion: 0}),
                     ),
                 });
             });
@@ -326,10 +384,12 @@ test("can't read affinitive items for the wrong space", async () => {
                     entityId: `Document:${document.id}`,
                     points: points2,
                     pointsBucket: getSearchAffinityPointsBucket(points2),
+                    erosion: 0,
                     lastUpdatedTime: currentTime,
                     lastViewedTime: null,
                     expirationTime: new Date(
-                        currentTime + getSearchAffinityExpirationDuration(points2),
+                        currentTime +
+                            getSearchAffinityExpirationDuration({points: points2, erosion: 0}),
                     ),
                 });
 
@@ -341,10 +401,12 @@ test("can't read affinitive items for the wrong space", async () => {
                     entityId: `Document:${document.id}`,
                     points: points1,
                     pointsBucket: getSearchAffinityPointsBucket(points1),
+                    erosion: 0,
                     lastUpdatedTime: currentTime,
                     lastViewedTime: null,
                     expirationTime: new Date(
-                        currentTime + getSearchAffinityExpirationDuration(points1),
+                        currentTime +
+                            getSearchAffinityExpirationDuration({points: points1, erosion: 0}),
                     ),
                 });
             });
@@ -428,6 +490,7 @@ test(
 
                     const actualDecayedPoints = getCurrentSearchAffinityPoints(currentTime, {
                         points: actualPoints,
+                        erosion: 0,
                         lastUpdatedTime,
                     });
 
@@ -442,10 +505,15 @@ test(
                         entityId: `Document:${document.id}`,
                         points: actualPoints,
                         pointsBucket: getSearchAffinityPointsBucket(actualPoints),
+                        erosion: 0,
                         lastUpdatedTime,
                         lastViewedTime: null,
                         expirationTime: new Date(
-                            currentTime + getSearchAffinityExpirationDuration(actualPoints),
+                            currentTime +
+                                getSearchAffinityExpirationDuration({
+                                    points: actualPoints,
+                                    erosion: 0,
+                                }),
                         ),
                     });
                 });
@@ -637,6 +705,7 @@ test(
 
                     const actualDecayedPoints = getCurrentSearchAffinityPoints(currentTime, {
                         points: actualPoints,
+                        erosion: 0,
                         lastUpdatedTime,
                     });
 
@@ -651,10 +720,15 @@ test(
                         entityId: `Document:${document.id}`,
                         points: actualPoints,
                         pointsBucket: getSearchAffinityPointsBucket(actualPoints),
+                        erosion: 0,
                         lastUpdatedTime,
                         lastViewedTime: null,
                         expirationTime: new Date(
-                            currentTime + getSearchAffinityExpirationDuration(actualPoints),
+                            currentTime +
+                                getSearchAffinityExpirationDuration({
+                                    points: actualPoints,
+                                    erosion: 0,
+                                }),
                         ),
                     });
                 });
@@ -847,10 +921,11 @@ test(
                         entityId: `Document:${document.id}`,
                         points,
                         pointsBucket: getSearchAffinityPointsBucket(points),
+                        erosion: 0,
                         lastUpdatedTime: currentTime,
                         lastViewedTime: null,
                         expirationTime: new Date(
-                            currentTime + getSearchAffinityExpirationDuration(points),
+                            currentTime + getSearchAffinityExpirationDuration({points, erosion: 0}),
                         ),
                     });
                 });
@@ -1253,4 +1328,38 @@ test("can add, remove, and add again search affinity task assignee points to a t
     });
 
     expect(await getTaskSearchAffinityPoints()).toBeCloseTo(6);
+});
+
+test("marking create document interaction adds erosion to affinity item", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const documentId = generateId<DocumentId>();
+
+    await markSearchAffinityCreateDocumentInteraction(session.action(), {
+        spaceId: space.id,
+        documentId,
+    });
+
+    expect(
+        await SearchEntityTable.getItem(context, {
+            partitionType: "Account",
+            sortRangeType: "SearchEntityAffinity",
+            spaceId: space.id,
+            accountId: session.account.id,
+            entityId: `Document:${documentId}`,
+        }),
+    ).toEqual({
+        partitionType: "Account",
+        sortRangeType: "SearchEntityAffinity",
+        spaceId: space.id,
+        accountId: session.account.id,
+        entityId: `Document:${documentId}`,
+        points: 60,
+        pointsBucket: getSearchAffinityPointsBucket(60),
+        erosion: 10,
+        lastUpdatedTime: expect.any(Number),
+        lastViewedTime: null,
+        expirationTime: expect.any(Date),
+    });
 });

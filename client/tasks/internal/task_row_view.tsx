@@ -45,6 +45,8 @@ import {
     tasksStyles,
 } from "~/client/styles/styles.js";
 import {
+    taskGridViewPaddingBottomWithNext,
+    taskGridViewPaddingBottomWithoutNext,
     taskRowViewDragHandleWidth,
     taskRowViewDragHandleWidthRem,
     taskRowViewExpandButtonWidth,
@@ -52,7 +54,6 @@ import {
     taskRowViewFirstColumnExtraPaddingLeft,
     taskRowViewIndentationRem,
     taskRowViewMinHeight,
-    taskRowViewPaddingBottom,
     taskRowViewStatusButtonWidth,
     taskRowViewStatusButtonWidthRem,
 } from "~/client/styles/tasks_shared_styles.js";
@@ -284,9 +285,14 @@ const titleCellClassName = sprinkles({
     pointerEvents: "none",
 });
 
-const paddingBottomClassName = sprinkles({
+const paddingBottomWithNextGridViewClassName = sprinkles({
     width: "full",
-    height: taskRowViewPaddingBottom,
+    height: taskGridViewPaddingBottomWithNext,
+});
+
+const paddingBottomWithoutNextGridViewClassName = sprinkles({
+    width: "full",
+    height: taskGridViewPaddingBottomWithoutNext,
 });
 
 function TaskRowView(
@@ -1659,7 +1665,12 @@ function TaskRowView(
                                     handleCellKeyDownCapture("ExpandButton", event)
                                 }
                             >
-                                <ArrowsOutSimple />
+                                {isHovered || isExpandButtonFocused ? (
+                                    // Optimization: Only render this component when necessary. We've seen this
+                                    // component show up as expensive in the React profiler when rendering a task
+                                    // grid view.
+                                    <ArrowsOutSimple />
+                                ) : null}
                             </IconButton>
                         </div>
                     ) : (
@@ -1673,6 +1684,7 @@ function TaskRowView(
                                 store={store}
                                 size={platform === "mobile" ? "5" : "4"}
                                 task={task}
+                                initialFields={null}
                                 // Disable the ability to tab to this button. Since there are so many tasks and
                                 // the `Tab` keyboard shortcut indents a task, we don't rely on `Tab` for focus
                                 // navigation.
@@ -2144,12 +2156,16 @@ function TaskRowViewPaddingBottom({
 
     return (
         <div
-            className={paddingBottomClassName}
+            className={
+                hasNextGridView
+                    ? paddingBottomWithNextGridViewClassName
+                    : paddingBottomWithoutNextGridViewClassName
+            }
             style={{
                 cursor: hasEditAccessLevel ? "text" : undefined,
                 height:
                     platform === "mobile" && !hasNextGridView
-                        ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[taskRowViewPaddingBottom]})`
+                        ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[taskGridViewPaddingBottomWithoutNext]})`
                         : undefined,
             }}
             {...useOutOfBoundsClickSelection({

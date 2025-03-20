@@ -229,7 +229,7 @@ function getSearchEntityPath(
             return `/s/${spaceId}/tasks/${entityId.taskId}`;
         }
         case "TaskCollection": {
-            return `/s/${spaceId}/tasks/collections/${entityId.collectionId}?show=new`;
+            return `/s/${spaceId}/tasks/collections/${entityId.collectionId}`;
         }
         case "TaskComment": {
             return withDesktopLayout

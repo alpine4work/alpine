@@ -53,10 +53,11 @@ export type IconButtonVariant =
     | "quiet-above-grey-5-dark-background"
     | "quiet-above-content-file-viewer-modal"
     | "quiet-elevation-10"
+    | "quiet-elevation-20"
     | "neutral"
     | "outline";
 
-export type IconButtonSize = "lg" | "base" | "md" | "sm" | "xs";
+export type IconButtonSize = "xl" | "lg" | "base" | "md" | "sm" | "xs";
 
 /**
  * A button represented by a single icon.
@@ -157,6 +158,14 @@ function IconButton(
          * Manually override the button's background color.
          */
         backgroundColor?: Sprinkles["backgroundColor"];
+
+        /**
+         * Allow changing the button cursor. You should have a good reason to change
+         * this. See "[Buttons shouldn’t have a hand cursor][1]".
+         *
+         * [1]: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
+         */
+        cursor?: "default" | "pointer";
 
         /**
          * Don't show a tooltip when hovering over this icon button.
@@ -261,6 +270,7 @@ function IconButton(
         isPressed: isPressedFromProps,
         borderRadius = "full",
         backgroundColor: backgroundColorFromProps,
+        cursor = "default",
         children,
         isDisabled = false,
         withoutTooltip = false,
@@ -461,10 +471,28 @@ function IconButton(
                 ? {
                       backgroundColor: isPressed ? "grey-5" : "grey-0",
                       color: isPressed ? "grey-80" : "grey-70",
+                      boxShadow: "elevation-10",
                   }
                 : {
                       backgroundColor: "grey-0",
                       color: "grey-30",
+                      boxShadow: "elevation-10",
+                  };
+            break;
+        }
+        case "quiet-elevation-20": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed ? "grey-5" : "grey-0",
+                      color: isPressed ? "grey-80" : "grey-70",
+                      boxShadow: "elevation-20",
+                  }
+                : {
+                      backgroundColor: "grey-0",
+                      color: "grey-30",
+                      boxShadow: "elevation-20",
                   };
             break;
         }
@@ -500,6 +528,10 @@ function IconButton(
     let iconSize: Spacing;
 
     switch (size) {
+        case "xl":
+            buttonSize = "10";
+            iconSize = "5";
+            break;
         case "lg":
             buttonSize = "8";
             iconSize = "5";
@@ -648,13 +680,11 @@ function IconButton(
                             borderRadius,
                             // You may notice our button doesn't have a pointer cursor. See:
                             // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
-                            cursor: "default",
+                            cursor,
                             position: "relative",
                             zIndex: "0",
                             ...styles,
                             backgroundColor: backgroundColorFromProps ?? styles.backgroundColor,
-                            boxShadow:
-                                variant === "quiet-elevation-10" ? "elevation-10" : undefined,
                         })}
                         style={{
                             // Use a box-shadow for drawing the border so it doesn't affect layout.

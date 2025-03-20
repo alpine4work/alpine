@@ -8,12 +8,14 @@ import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {authorizeOwnAccountAccess, authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {filterAsyncIterableIterator} from "~/shared/helpers/iterable/filter_async_iterable_iterator.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 import {Id, assertId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -66,6 +68,18 @@ const SearchEntityTable = DynamoTableSchema.new({
                         pointsBucket: Schema.integer,
 
                         /**
+                         * How quickly the points for this item erode. If 0 then points decay at a
+                         * normal rate. If more than 0 then we'll decay points faster. Whenever we add
+                         * points to an item, we decrease `erosion` by the same amount. Erosion is our
+                         * way of adding items that rocket to the top of the search affinity list but
+                         * quickly fall down if they receive no further interaction. This way if a user
+                         * adds a quick "Untitled" document to write something inherently transient
+                         * down, that document won't sit at the top of the affinity list for the next
+                         * week or so.
+                         */
+                        erosion: Schema.float.min(0).default(0),
+
+                        /**
                          * The last time we updated `points`. Used to determine how much decay we need
                          * to apply to `points`.
                          */
@@ -92,6 +106,7 @@ const SearchEntityTable = DynamoTableSchema.new({
                          */
                         activeTaskAssignee: Schema.object({
                             points: Schema.float,
+                            erosion: Schema.value(0).default(0),
                             lastUpdatedTime: Schema.integer,
                         }).optional(),
                     }),
@@ -124,6 +139,12 @@ const SearchEntityTable = DynamoTableSchema.new({
                          * See `getSearchAffinityPointsBucket()`.
                          */
                         pointsBucket: Schema.integer,
+
+                        /**
+                         * This property exists for compatibility with account affinities. Erosion
+                         * will always be 0 (which has no effect).
+                         */
+                        erosion: Schema.value(0).default(0),
 
                         /**
                          * The last time we updated `points`. Used to determine how much decay we need
@@ -160,6 +181,12 @@ const SearchEntityTable = DynamoTableSchema.new({
                          * See `getSearchAffinityPointsBucket()`.
                          */
                         pointsBucket: Schema.integer,
+
+                        /**
+                         * This property exists for compatibility with account affinities. Erosion
+                         * will always be 0 (which has no effect).
+                         */
+                        erosion: Schema.value(0).default(0),
 
                         /**
                          * The last time we updated `points`. Used to determine how much decay we need
@@ -261,24 +288,65 @@ const searchAffinityExpirationPoints = 0.05;
 const searchAffinityActiveTaskAssigneePoints = 150;
 
 /**
+ * How much to add to a document's search affinity erosion when the document is
+ * first created. The points for newly created documents decay faster so if the
+ * user creates a document to demonstrate something quickly, types a couple
+ * characters, then closes it, the document won't show up at the top of their
+ * affinity list for weeks.
+ *
+ * This value is picked so that after ~40min of continuous editing erosion will
+ * be 0. 40min is longer than a short, 40min meeting. So meeting notes from a
+ * 40min meeting will have non-zero erosion. But a user will likely spend more
+ * than 40min on an important work artifact.
+ *
+ * Let's go through the math:
+ *
+ * - `useSearchAffinityViewInteraction()` is configured to send a `View`
+ *   interaction which adds 1 point every 5 minutes.
+ *
+ * - `markSearchAffinityLowIntentUpdateInteraction()` is configured to send a
+ *   `VeryLowIntentUpdate` interaction which adds 0.0625 points every 24
+ *   seconds (0.8 minutes).
+ *
+ * View interaction points after 30 minutes is 8 (1 * 40 / 5). Update
+ * interaction points after 30 minutes is 3.125 (0.0625 * 40 / 0.8). Sum those
+ * up and you get 11.125. We lower that to a clean number, 10, since in
+ * document editing cases users are rarely viewing or typing continuously for
+ * 40min so we need some grace.
+ */
+const searchAffinityDocumentCreatorErosion = 10;
+
+/**
  * The number of points to add to a document's search affinity score when the
  * document is first created. We want documents to be at the top of the
- * document creator's affinity list for two to three days. So the creator can
- * easily get back to the documents they just created.
+ * document creator's affinity list for two to three days if they have enough
+ * edits to get to 0 erosion and only one day if they're still at a max erosion
+ * of 10 (see `searchAffinityDocumentCreatorErosion`). This way the creator can
+ * easily get back to the documents they recently created without small one off
+ * documents dominating the affinity list.
  *
  * As of 2025-02-21 the points of the top five entities in my (@calebmer's)
  * search affinity list are 71.47, 67.26, 51.62, 42.65, and 36.91. So after
  * three days this point value needs to decay to something between 71.47 and
- * 42.65.
+ * 42.65 (when erosion is 0).
  *
- * 60 fits this criteria:
+ * 60 fits this criteria. Here's a table of what 60 points decays to with
+ * various erosion values.
  *
- * - After  1 day  it's 54.29
- * - After  2 days it's 49.12
- * - After  3 days it's 44.45
- * - After  7 days it's 29.80
- * - After 14 days it's 14.80
- * - After 30 days it's  3.00
+ * |---------------|------------|------------|------------|------------|
+ * |               |  Erosion 0 |  Erosion 2 |  Erosion 5 | Erosion 10 |
+ * |---------------|------------|------------|------------|------------|
+ * | After  1 day  |      54.29 |      52.16 |      49.12 |      44.45 |
+ * | After  2 days |      49.12 |      45.35 |      40.22 |      32.93 |
+ * | After  3 days |      44.45 |      39.42 |      32.93 |      24.39 |
+ * | After  7 days |      29.80 |      22.52 |      14.80 |       7.35 |
+ * | After 14 days |      14.80 |       8.45 |       3.65 |       0.90 |
+ * | After 30 days |       2.99 |       0.90 |       0.15 |       0.01 |
+ * |---------------|------------|------------|------------|------------|
+ *
+ * [Script used to generate this table][1].
+ *
+ * [1]: https://gist.github.com/calebmer/9f9c96ef90bb9aff2a16c711e2867257
  */
 const searchAffinityDocumentCreatorPoints = 60;
 
@@ -286,27 +354,56 @@ const searchAffinityDocumentCreatorPoints = 60;
  * Apply our exponential decay function to figure out how many affinity points
  * we currently have.
  *
- * Our function is `f(t) = e^-3t` where `t` is measured in months. This function
- * will decay 1 point to 0.05 (which we round down to 0) in 1 month.
+ * Our base function is `f(t) = e^-3t` where `t` is measured in months. This
+ * function will decay 1 point to 0.05 (which we round down to 0) in 1 month.
+ *
+ * Adding erosion to the function we get `f(t) = e^-(3(1 + r))t` where `r`
+ * represents erosion and is between 0 and 1. If erosion is at its max, 1, then
+ * we decay twice as fast. It only takes 1 point 0.5 months to decay to 0.05.
+ * `r` is computed by `clamp(0, erosion / 10, 1)`. 10 is a magic constant
+ * picked to equal `searchAffinityDocumentCreatorErosion`. It doesn't have to
+ * equal `searchAffinityDocumentCreatorErosion` but we're starting there so max
+ * document erosion is also max erosion for the purposes of this function.
  */
 export function getCurrentSearchAffinityPoints(
     currentTime: number,
-    {points, lastUpdatedTime}: {points: number; lastUpdatedTime: number},
+    {
+        points,
+        erosion,
+        lastUpdatedTime,
+    }: {
+        points: number;
+        erosion: number;
+        lastUpdatedTime: number;
+    },
 ): number {
     const elapsedTime = currentTime - lastUpdatedTime;
+    const erosionFactor = clamp(0, erosion / 10, 1);
 
-    return points * Math.exp(-(3 * (elapsedTime / monthDurationMs)));
+    return points * Math.exp(-(3 * (1 + erosionFactor) * (elapsedTime / monthDurationMs)));
 }
 
 /**
- * Return the time in milliseconds for `points` to decay to 0.05 (which we
+ * Return the duration in milliseconds for `points` to decay to 0.05 (which we
  * round down to 0). We set an expiration time on our item with this number.
+ *
+ * We get this function by putting `p = e^-(3(1 + r))t` into an algebra solver
+ * and asking it to solve for `t`. Since `p` is 0.05. What we get is
+ * `t = log(1 / p) / (3r + 3)`.
  */
-export function getSearchAffinityExpirationDuration(points: number): number {
-    // Any number less than this is negative.
-    assert(points > searchAffinityExpirationPoints);
+export function getSearchAffinityExpirationDuration({
+    points,
+    erosion,
+}: {
+    points: number;
+    erosion: number;
+}): number {
+    const erosionFactor = clamp(0, erosion / 10, 1);
 
-    return Math.log(points / searchAffinityExpirationPoints) * monthDurationMs;
+    return (
+        (Math.log(points / searchAffinityExpirationPoints) / (3 * erosionFactor + 3)) *
+        monthDurationMs
+    );
 }
 
 function getSearchAffinityInteractionPoints(interaction: SearchAffinityInteraction): number {
@@ -416,6 +513,7 @@ export function markSearchAffinityCreateDocumentInteraction(
         accountId: context.actor.getAccountId(),
         affinityId: `Document:${documentId}`,
         points: searchAffinityDocumentCreatorPoints,
+        erosion: searchAffinityDocumentCreatorErosion,
         isViewInteraction: false,
     });
 }
@@ -426,13 +524,15 @@ async function addSearchAffinityPoints(
         spaceId,
         accountId,
         affinityId,
-        points,
+        points: pointsIncrement,
+        erosion: erosionIncrement = 0,
         isViewInteraction,
     }: {
         spaceId: SpaceId;
         accountId: AccountId;
         affinityId: SearchAffinityId;
         points: number;
+        erosion?: number;
         isViewInteraction: boolean;
     },
 ) {
@@ -441,6 +541,12 @@ async function addSearchAffinityPoints(
     // themselves affinity points to an entity they don't have access to.
 
     await authorizeOwnAccountAccess(context, accountId);
+
+    // Make sure increments are positive and finite.
+    if (pointsIncrement < 0 || isNaN(pointsIncrement) || !Number.isFinite(pointsIncrement))
+        throw new InvalidArgumentError("Search affinity points increment must be a positive");
+    if (erosionIncrement < 0 || isNaN(erosionIncrement) || !Number.isFinite(erosionIncrement))
+        throw new InvalidArgumentError("Search affinity erosion increment must be positive");
 
     const currentTime = Date.now();
 
@@ -462,18 +568,21 @@ async function addSearchAffinityPoints(
                 entityId: affinityId,
             },
             affinityItem => {
-                let newPoints = affinityItem
+                let points = affinityItem
                     ? getCurrentSearchAffinityPoints(currentTime, affinityItem)
                     : 0;
 
-                newPoints += points;
+                points += pointsIncrement;
+
+                const erosion =
+                    Math.max(0, (affinityItem?.erosion ?? 0) - pointsIncrement) + erosionIncrement;
 
                 const expirationDuration = Math.ceil(
-                    getSearchAffinityExpirationDuration(newPoints),
+                    getSearchAffinityExpirationDuration({points, erosion}),
                 );
                 const expirationTime = new Date(currentTime + expirationDuration);
 
-                const newPointsBucket = getSearchAffinityPointsBucket(newPoints);
+                const pointsBucket = getSearchAffinityPointsBucket(points);
 
                 return {
                     ...affinityItem,
@@ -482,8 +591,9 @@ async function addSearchAffinityPoints(
                     spaceId,
                     accountId,
                     entityId: affinityId,
-                    points: newPoints,
-                    pointsBucket: newPointsBucket,
+                    points,
+                    pointsBucket,
+                    erosion,
                     lastUpdatedTime: currentTime,
                     lastViewedTime: isViewInteraction
                         ? new Date(currentTime)
@@ -510,18 +620,31 @@ async function addSearchAffinityPoints(
                       channelId,
                   },
                   affinityItem => {
-                      let newPoints = affinityItem
+                      let points = affinityItem
                           ? getCurrentSearchAffinityPoints(currentTime, affinityItem)
                           : 0;
 
-                      newPoints += points;
+                      points += pointsIncrement;
+
+                      assert(erosionIncrement === 0);
+
+                      const erosion =
+                          Math.max(0, (affinityItem?.erosion ?? 0) - pointsIncrement) +
+                          erosionIncrement;
+
+                      // `erosion` should always be zero since the previous erosion is 0 and
+                      // `erosionIncrement` is 0.
+                      assert(erosion === 0);
 
                       const expirationDuration = Math.ceil(
-                          getSearchAffinityExpirationDuration(newPoints),
+                          getSearchAffinityExpirationDuration({
+                              points: points,
+                              erosion: erosion,
+                          }),
                       );
                       const expirationTime = new Date(currentTime + expirationDuration);
 
-                      const newPointsBucket = getSearchAffinityPointsBucket(newPoints);
+                      const pointsBucket = getSearchAffinityPointsBucket(points);
 
                       return {
                           ...affinityItem,
@@ -530,8 +653,9 @@ async function addSearchAffinityPoints(
                           spaceId,
                           accountId,
                           channelId,
-                          points: newPoints,
-                          pointsBucket: newPointsBucket,
+                          points,
+                          pointsBucket,
+                          erosion,
                           lastUpdatedTime: currentTime,
                           expirationTime,
                       };
@@ -555,18 +679,31 @@ async function addSearchAffinityPoints(
                       collectionId,
                   },
                   affinityItem => {
-                      let newPoints = affinityItem
+                      let points = affinityItem
                           ? getCurrentSearchAffinityPoints(currentTime, affinityItem)
                           : 0;
 
-                      newPoints += points;
+                      points += pointsIncrement;
+
+                      assert(erosionIncrement === 0);
+
+                      const erosion =
+                          Math.max(0, (affinityItem?.erosion ?? 0) - pointsIncrement) +
+                          erosionIncrement;
+
+                      // `erosion` should always be zero since the previous erosion is 0 and
+                      // `erosionIncrement` is 0.
+                      assert(erosion === 0);
 
                       const expirationDuration = Math.ceil(
-                          getSearchAffinityExpirationDuration(newPoints),
+                          getSearchAffinityExpirationDuration({
+                              points: points,
+                              erosion: erosion,
+                          }),
                       );
                       const expirationTime = new Date(currentTime + expirationDuration);
 
-                      const newPointsBucket = getSearchAffinityPointsBucket(newPoints);
+                      const pointsBucket = getSearchAffinityPointsBucket(points);
 
                       return {
                           ...affinityItem,
@@ -575,8 +712,9 @@ async function addSearchAffinityPoints(
                           spaceId,
                           accountId,
                           collectionId,
-                          points: newPoints,
-                          pointsBucket: newPointsBucket,
+                          points,
+                          pointsBucket,
+                          erosion,
                           lastUpdatedTime: currentTime,
                           expirationTime,
                       };
@@ -639,6 +777,9 @@ export async function addSearchAffinityActiveTaskAssigneePoints(
         const points =
             (item ? getCurrentSearchAffinityPoints(currentTime, item) : 0) + pointsIncrement;
 
+        // Marking a task as active sets erosion to 0 even if it was non-zero before.
+        const erosion = 0;
+
         if (!item) {
             await SearchEntityTable.createItem(
                 context,
@@ -650,13 +791,16 @@ export async function addSearchAffinityActiveTaskAssigneePoints(
                     entityId: `Task:${taskId}`,
                     points,
                     pointsBucket: getSearchAffinityPointsBucket(points),
+                    erosion,
                     lastUpdatedTime: currentTime,
                     lastViewedTime: null,
                     expirationTime: new Date(
-                        currentTime + Math.ceil(getSearchAffinityExpirationDuration(points)),
+                        currentTime +
+                            Math.ceil(getSearchAffinityExpirationDuration({points, erosion})),
                     ),
                     activeTaskAssignee: {
                         points: pointsIncrement,
+                        erosion,
                         lastUpdatedTime: currentTime,
                     },
                 },
@@ -686,12 +830,14 @@ export async function addSearchAffinityActiveTaskAssigneePoints(
                 ...item,
                 points,
                 pointsBucket: getSearchAffinityPointsBucket(points),
+                erosion,
                 lastUpdatedTime: currentTime,
                 expirationTime: new Date(
-                    currentTime + Math.ceil(getSearchAffinityExpirationDuration(points)),
+                    currentTime + Math.ceil(getSearchAffinityExpirationDuration({points, erosion})),
                 ),
                 activeTaskAssignee: {
                     points: pointsIncrement,
+                    erosion,
                     lastUpdatedTime: currentTime,
                 },
             });
@@ -787,7 +933,13 @@ export async function removeSearchAffinityActiveTaskAssigneePoints(
                     pointsBucket: getSearchAffinityPointsBucket(points),
                     lastUpdatedTime: currentTime,
                     expirationTime: new Date(
-                        currentTime + Math.ceil(getSearchAffinityExpirationDuration(points)),
+                        currentTime +
+                            Math.ceil(
+                                getSearchAffinityExpirationDuration({
+                                    points,
+                                    erosion: item.erosion,
+                                }),
+                            ),
                     ),
                     activeTaskAssignee: undefined,
                 });
@@ -949,6 +1101,7 @@ async function internalGetSearchAffinitiesBase<
     Item extends {
         points: number;
         pointsBucket: number;
+        erosion: number;
         lastUpdatedTime: number;
     },
 >(
@@ -1042,7 +1195,11 @@ async function internalGetSearchAffinitiesBase<
                             pointsBucket: currentPointsBucket,
                             lastUpdatedTime: currentTime,
                             expirationTime: new Date(
-                                currentTime + getSearchAffinityExpirationDuration(currentPoints),
+                                currentTime +
+                                    getSearchAffinityExpirationDuration({
+                                        points: currentPoints,
+                                        erosion: item.erosion,
+                                    }),
                             ),
                         });
                     }

@@ -21,6 +21,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 
 const TaskRowCollectionsCellOverlayForwardRef = forwardRef(TaskRowCollectionsCellOverlay);
 export {TaskRowCollectionsCellOverlayForwardRef as TaskRowCollectionsCellOverlay};
@@ -127,7 +128,7 @@ function TaskRowCollectionsCellOverlay(
                     aria-label="Collections"
                     store={store}
                     referencesSubscription={query}
-                    task={task}
+                    collections={task?.getCollections() ?? TaskCollectionSet.empty}
                     areMarginsClickable={true}
                     paddingX="3"
                     paddingY="3"

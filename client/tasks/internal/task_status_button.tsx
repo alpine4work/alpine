@@ -10,9 +10,9 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {TaskClientReadonlyStore} from "~/client/tasks/core/task_client_store.js";
+import {TaskQueryNormalizedFiltersInitialFieldsModel} from "~/client/tasks/core/task_query_normalized_filters_initial_fields_model.js";
 import {TaskCloseConfirmationModalDialog} from "~/client/tasks/internal/task_close_confirmation_modal_dialog.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -20,7 +20,6 @@ import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-import {TaskStatus} from "~/shared/tasks/task_status.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -58,6 +57,7 @@ function TaskStatusButton(
     {
         store,
         task,
+        initialFields,
         size = "4",
         isDisabled = false,
         isDisabledButStillFocusable = false,
@@ -70,6 +70,7 @@ function TaskStatusButton(
     }: {
         store: TaskClientReadonlyStore;
         task: TaskModel | null;
+        initialFields: TaskQueryNormalizedFiltersInitialFieldsModel | null;
         size?: "4" | "5" | "6" | "7";
         isDisabled?: boolean;
         isDisabledButStillFocusable?: boolean;
@@ -122,9 +123,9 @@ function TaskStatusButton(
                 // permission level of `urlGrant` is `View`.
                 assert(currentAccount);
 
-                const status = task?.getStatus() ?? cast<TaskStatus>({type: "Open"});
+                const status = task?.getStatus().type ?? initialFields?.status ?? "Open";
 
-                if (status.type === "Closed") {
+                if (status === "Closed") {
                     commitActionTransaction(taskId => [
                         {
                             type: "UpdateTask",
@@ -184,7 +185,13 @@ function TaskStatusButton(
 
     const isPressed = isPressedFromHook && !isDisabledButStillFocusable;
 
-    let displayStatus: TaskDisplayStatus = task?.getDisplayStatus() ?? "OpenInactive";
+    let displayStatus: TaskDisplayStatus =
+        task?.getDisplayStatus() ??
+        (initialFields?.status === "Closed"
+            ? "Closed"
+            : initialFields?.assigneeStatus === "Active"
+            ? "OpenActive"
+            : "OpenInactive");
 
     if (shouldShowClosedStatusWhenPressed && isPressed && displayStatus !== "Closed") {
         displayStatus = "Closed";

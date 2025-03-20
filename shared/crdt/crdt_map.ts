@@ -1,4 +1,4 @@
-import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
+import {CrdtRegister, CrdtRegisterClass, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {
     HybridLogicalClock,
     HybridLogicalTime,
@@ -9,6 +9,7 @@ import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_ti
 import {Schema} from "~/shared/schema/schema.js";
 
 export type CrdtMapClass<Key extends string | number, Value extends {}> = {
+    readonly ValueRegister: CrdtRegisterClass<Value | null>;
     readonly empty: CrdtMap<Key, Value>;
     readonly schema: Schema<CrdtMap<Key, Value>>;
     readonly actionSchema: Schema<CrdtMapAction<Key, Value>>;
@@ -151,7 +152,8 @@ export function createCrdtMap<Key extends string | number, Value extends {}>(
             this._map = map;
         }
 
-        public static empty = new CrdtMap(ImmutableMap.empty());
+        public static readonly ValueRegister = CrdtMapValueRegister;
+        public static readonly empty = new CrdtMap(ImmutableMap.empty());
 
         public static readonly schema = Schema.map(
             keySchema,

@@ -2,8 +2,6 @@ import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 
-const modifier = process.platform === "darwin" ? "Meta" : "Control";
-
 const {context, services} = createTestServices();
 
 test("can create a channel and edit the name/description", async ({
@@ -86,7 +84,7 @@ test("can create a channel and edit the name/description", async ({
     await existingChannelDescriptionLocator.fill("The quick brown fox jumps over the lazy dog.");
 
     if (!isMobile) {
-        await existingChannelDescriptionLocator.press(`${modifier}+Enter`);
+        await existingChannelDescriptionLocator.press("ControlOrMeta+Enter");
     } else {
         await page.getByText("Save").click();
     }

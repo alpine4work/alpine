@@ -31,8 +31,9 @@ import {
     spinAnimationClassName,
 } from "~/client/styles/styles.js";
 import {
+    taskGridViewPaddingBottomWithNext,
+    taskGridViewPaddingBottomWithoutNext,
     taskRowViewMinHeight,
-    taskRowViewPaddingBottom,
 } from "~/client/styles/tasks_shared_styles.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
@@ -288,12 +289,16 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
                 {withPaddingBottom && (
                     <Box
                         width="full"
-                        height={taskRowViewPaddingBottom}
+                        height={
+                            hasNextGridView
+                                ? taskGridViewPaddingBottomWithNext
+                                : taskGridViewPaddingBottomWithoutNext
+                        }
                         pointerEvents="none"
                         style={{
                             height:
                                 platform === "mobile" && !hasNextGridView
-                                    ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[taskRowViewPaddingBottom]})`
+                                    ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[taskGridViewPaddingBottomWithoutNext]})`
                                     : undefined,
                         }}
                     />
@@ -470,7 +475,6 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     gridKey,
     cursor,
     ghostTaskId,
-    isTopGhostTask,
     parents,
     rowMaxWidth,
     disableExpensiveFeaturesDuringScroll,
@@ -506,7 +510,6 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     gridKey: TaskGridViewTaskKey;
     cursor: TaskQuerySortCursor | null;
     ghostTaskId?: TaskId | null;
-    isTopGhostTask?: boolean;
     parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
     rowMaxWidth: Spacing | null;
     disableExpensiveFeaturesDuringScroll: boolean;
@@ -643,14 +646,6 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
         // auto-sorted query.
         if (!isQueryManuallySorted) return;
 
-        // Can't create a task above our top ghost task. So always create a task below
-        // and focus it since the user expects their cursor to move down when enter is
-        // pressed.
-        if (!taskId && isTopGhostTask) {
-            createTaskBelowAndFocus();
-            return;
-        }
-
         // Currently, accounts without space access can't edit tasks. The max
         // permission level of `urlGrant` is `View`.
         assert(currentAccount);
@@ -691,11 +686,6 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
         assert(currentAccount);
 
         if (!taskId) {
-            // This method doesn't support bottom ghost tasks. You can't create a task
-            // below the bottom ghost task. Bottom ghost tasks should be using
-            // `createTaskAbove()`.
-            if (!isTopGhostTask) return;
-
             const newTaskId = generateId<TaskId>();
 
             disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
@@ -1224,9 +1214,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             affinityManager={affinityManager}
             cursor={cursor}
             ghostTaskId={ghostTaskId}
-            onGhostTaskCreated={
-                isTopGhostTask ? events.onTopGhostTaskCreated : events.onBottomGhostTaskCreated
-            }
+            onGhostTaskCreated={events.onBottomGhostTaskCreated}
             parents={parents}
             rowMaxWidth={rowMaxWidth}
             disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
