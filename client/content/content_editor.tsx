@@ -1394,6 +1394,48 @@ function ContentEditor<Content extends ContentWithReferences>(
                 () => propsRef.current.state.getContent().references,
             );
 
+        // This function is called when the user copies content from the editor.
+        viewProps.transformCopied = slice => {
+            const isCellSelection =
+                view.state.selection.constructor.name === "ContentTableCellSelection";
+
+            const isTableContent =
+                slice.content.firstChild &&
+                (slice.content.firstChild.type.name === "table" ||
+                    slice.content.firstChild.type.name === "tableRow" ||
+                    slice.content.firstChild.type.name === "tableCell");
+
+            // NOTE(rohit): Override ProseMirror's default copy behavior for table content.
+            //
+            // Problem: When copying from a table cell, ProseMirror includes the entire
+            // table structure in the slice, even when the user only selected content
+            // within a cell (not using CellSelection).
+            //
+            // Solution: If table nodes appear in the slice without an explicit
+            // CellSelection, extract just the cell's content and remove the table
+            // structure.
+            if (isTableContent && !isCellSelection) {
+                // recursive function to get the content from `tableCell` node
+                const extractCellContent = (node: Node): Fragment | null => {
+                    if (node.type.name === "table" || node.type.name === "tableRow") {
+                        return node.content.firstChild
+                            ? extractCellContent(node.content.firstChild)
+                            : null;
+                    } else if (node.type.name === "tableCell") {
+                        return node.content.childCount > 0 ? node.content : null;
+                    }
+                    return node.content;
+                };
+
+                const cellContent = extractCellContent(slice.content.firstChild);
+
+                if (cellContent) {
+                    return new Slice(cellContent, slice.openStart, slice.openEnd);
+                }
+            }
+
+            return slice;
+        };
         viewProps.transformPasted = slice => {
             // When pasting a slice that starts with a heading and has some other nodes,
             // make sure we always use an `openStart` of 0 so the heading doesn't merge
@@ -4804,29 +4846,22 @@ function transformPastedForContentTable(
 
         switch (node.type.name) {
             case "tableRow": {
-                // NOCOMMIT: get clarification on this. there can be two options:
-
-                // 1. either we add another table cell and then add it inside the
-                // table where the uset is tryig to paste
-
-                // 2. either we add another table cell and then add it in remaining
-                // content which will be pasted outside of the table.
-
-                // if the node is table row then we need to check if
-                // table row only has one cell, which is not allowed.
+                // Validate and fix table rows with insufficient cells
                 //
-                // valid tableRow node is {content: "tableCell{2,}"}
-                // which is minimum 2 tableCells in it's content.
+                // Schema constraint: tableRow requires at least 2 cells
+                // (content: "tableCell{2,}")
                 //
-                // if it only has one tableCell node in it's content
-                // then add an empty tableCell node to the content.
+                // If a pasted tableRow contains only 1 cell:
+                // 1. Create an empty tableCell with a paragraph
+                // 2. Append it to the row's content
+                // 3. Reconstruct the node with updated content
+                //
+                // This ensures all table rows meet our schema requirements
+                // before inserting them into the document.
                 if (node.content.content.length === 1) {
                     const tableCell = schema.node("tableCell", {}, [schema.node("paragraph")]);
-                    // Create a new array with existing content plus a new cell
                     const newContent = [...node.content.content, tableCell];
 
-                    // check if new node has fileRow or
-                    // Create a new node with the updated content
                     node = node.type.create(node.attrs, Fragment.from(newContent));
                 }
                 primaryContent.push(node);
@@ -4834,27 +4869,24 @@ function transformPastedForContentTable(
                 break;
             }
             case "table": {
+                // Same logic as applied for tableRow switch case.
                 if (
-                    node.content.content.length === 1 && // only one tableRow is present
-                    node.content.content[0]!.type.name === "tableRow" && // that node is a tableRow
-                    node.content.content[0]!.content.content.length === 1 // only one tableCell is present in the tableRow
+                    node.content.content.length === 1 &&
+                    node.content.content[0]!.type.name === "tableRow" &&
+                    node.content.content[0]!.content.content.length === 1
                 ) {
                     const tableRow = node.content.content[0]!;
                     const tableCell = schema.node("tableCell", {}, [schema.node("paragraph")]);
 
-                    // Create a new tableRow with two cells
                     const newTableRowContent = [...tableRow.content.content, tableCell];
                     const newTableRow = tableRow.type.create(
                         tableRow.attrs,
                         Fragment.from(newTableRowContent),
                     );
 
-                    // Create a new table with the updated tableRow
                     node = node.type.create(node.attrs, Fragment.from([newTableRow]));
                 }
 
-                // NOCOMMIT: get clarification on wether this goes into the remaining content or primary content
-                // Tables go into remainingContent to be inserted after the current table
                 primaryContent.push(node);
                 break;
             }
