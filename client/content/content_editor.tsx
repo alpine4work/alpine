@@ -2421,7 +2421,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     // drag the whole slice and drop in the `content_table`
                     // To ensure that we still are able to convert the fileRow/ fileFloat nodes into
                     // fileTable nodes we transform the slice here.
-                    slice = transformPastedForContentTable(schema, slice)[0];
+                    slice = transformPastedForContentTable(schema, slice, selection)[0];
 
                     // Implement the same logic as ProseMirror's `drop` function:
                     // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L674-L707
@@ -4694,7 +4694,11 @@ function handlePasteAfterResolvingReferences(
                 }
             });
             if (hasNonTableContent) {
-                [slice, remainingSlice] = transformPastedForContentTable(doc.type.schema, slice);
+                [slice, remainingSlice] = transformPastedForContentTable(
+                    doc.type.schema,
+                    slice,
+                    selection,
+                );
 
                 // Validate remainingSlice exists and has content before proceeding
                 if (remainingSlice && remainingSlice.content && remainingSlice.content.size > 0) {
@@ -4807,10 +4811,14 @@ function handlePasteAfterResolvingReferences(
 function transformPastedForContentTable(
     schema: ProsemirrorSchema,
     slice: Slice,
+    selection: Selection,
 ): [slice: Slice, remainingSlice: Slice] {
     const remainingContent: Array<Node> = []; // paste outside of table in next position
     const primaryContent: Array<Node> = []; // paste inside of table / table cell with modifications
 
+    if (!isSelectionInContentTable(selection)) {
+        return [slice, Slice.empty];
+    }
     slice.content.content.forEach(node => {
         // NOTE(rohit): It is recommended that once we add one node to remainingContent, all
         // future nodes in the slice should be remainingContent. The reason being if you paste
