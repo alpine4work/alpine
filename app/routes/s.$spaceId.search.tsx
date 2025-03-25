@@ -5,11 +5,11 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {searchByAffinity} from "~/server/search/data/index/search_entity_index.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import * as searchRpcDefinitions from "~/shared/rpc/search_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {SearchResultSchema} from "~/shared/search/search_result.js";
 
 const LoaderSchema = Schema.object({
-    affinityResults: Schema.array(SearchResultSchema),
+    affinitySearch: searchRpcDefinitions.searchByAffinity.outputSchema,
 });
 
 export function meta() {
@@ -19,16 +19,16 @@ export function meta() {
 export async function loader({context, params}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? "");
 
-    const {results} = await searchByAffinity(
+    const affinitySearch = await searchByAffinity(
         (await context.actor.authenticate()).actor.authorizeSession(),
         spaceId,
     );
 
-    return jsonWithSchema(LoaderSchema, {affinityResults: results});
+    return jsonWithSchema(LoaderSchema, {affinitySearch});
 }
 
 export default function SearchRoute() {
-    const {affinityResults} = useLoaderDataWithSchema(LoaderSchema);
+    const {affinitySearch} = useLoaderDataWithSchema(LoaderSchema);
 
-    return <SearchMobileView affinityResults={affinityResults} />;
+    return <SearchMobileView initialAffinitySearch={affinitySearch} />;
 }

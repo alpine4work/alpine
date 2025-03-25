@@ -210,12 +210,10 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
  * Preload affinitive search entities when we have some idle time so that they
  * are immediately available when the search modal opens.
  */
-export function usePreloadSearchByAffinity(options?: {
-    initialOutput?: RpcDefinitionOutputType<typeof searchByAffinity>;
-}) {
+export function usePreloadSearchByAffinity() {
     const {space} = useSpaceContext();
 
-    useIdlyPreloadRpc(searchByAffinity, {spaceId: space.id}, options);
+    useIdlyPreloadRpc(searchByAffinity, {spaceId: space.id});
 }
 
 /**
@@ -228,13 +226,13 @@ export function usePreloadSearchByAffinity(options?: {
 export function useSearchState({
     isSearchParamControlled,
     debugOptions,
-    affinityResults: affinityResultsFromProps,
+    initialAffinitySearch,
 }: {
     isSearchParamControlled: boolean;
     debugOptions: SearchOptions | null;
-    affinityResults?: ReadonlyArray<SearchResult>;
+    initialAffinitySearch?: RpcDefinitionOutputType<typeof searchByAffinity>;
 }): {
-    output: ExecuteSearchOutput & {readonly key: string; readonly queryTime: Date};
+    output: SearchStateExecutionOutput;
     queryText: string;
     onQueryTextChange: Memo<(queryText: string) => void>;
 } {
@@ -252,44 +250,25 @@ export function useSearchState({
 
     const options = debugOptions ?? standardSearchOptions;
 
-    const lazyLoadAffinityOutput = useLazyLoadRpc(
+    const affinitySearch = useLazyLoadRpc(
         searchByAffinity,
-        !affinityResultsFromProps ? {spaceId: space.id} : null,
+        {spaceId: space.id},
+        {initialOutput: initialAffinitySearch},
     );
-
-    const affinityOutput: {
-        isLoading: boolean;
-        isValidating: boolean;
-        output: {
-            favoriteResults: ReadonlyArray<SearchResult>;
-            results: ReadonlyArray<SearchResult>;
-        } | null;
-    } = useMemo(() => {
-        // NOCOMMIT: Could this be `initialOutput` instead?
-        if (affinityResultsFromProps) {
-            return {
-                isLoading: false,
-                isValidating: false,
-                output: {results: affinityResultsFromProps},
-            };
-        }
-
-        return lazyLoadAffinityOutput;
-    }, [affinityResultsFromProps, lazyLoadAffinityOutput]);
 
     const affinityResultById = useMemo(() => {
         const affinityResultById = new Map<SearchResultId, SearchResult>();
 
-        for (const result of affinityOutput.output?.favoriteResults ?? []) {
+        for (const result of affinitySearch.output?.favoriteResults ?? []) {
             affinityResultById.set(result.id, result);
         }
 
-        for (const result of affinityOutput.output?.results ?? []) {
+        for (const result of affinitySearch.output?.results ?? []) {
             affinityResultById.set(result.id, result);
         }
 
         return affinityResultById;
-    }, [affinityOutput.output?.favoriteResults, affinityOutput.output?.results]);
+    }, [affinitySearch.output?.favoriteResults, affinitySearch.output?.results]);
 
     const [searchState, dispatch] = useReducer(
         reduceSearchState,
@@ -349,13 +328,14 @@ export function useSearchState({
             !queryOutput.isError &&
             (!queryOutput.results || queryOutput.results.length === 0)
         ) {
-            if (!affinityOutput.output) {
+            if (!affinitySearch.output) {
                 return {
                     key: "searchByAffinity",
                     queryText: queryOutput.queryText,
                     queryTime: queryOutput.queryTime,
                     isPending: true,
                     isError: false,
+                    favorites: null,
                     results: null,
                 };
             } else {
@@ -364,11 +344,15 @@ export function useSearchState({
                     queryText: queryOutput.queryText,
                     queryTime: queryOutput.queryTime,
                     isPending:
-                        affinityOutput.isLoading ||
-                        affinityOutput.isValidating ||
+                        affinitySearch.isLoading ||
+                        affinitySearch.isValidating ||
                         queryOutput.isPending,
                     isError: false,
-                    results: affinityOutput.output.results,
+                    favorites: {
+                        hasMoreResults: affinitySearch.output.hasMoreFavoriteResults,
+                        results: affinitySearch.output.favoriteResults,
+                    },
+                    results: affinitySearch.output.results,
                 };
             }
         } else if (queryOutput.results && affinityResultById.size > 0) {
@@ -467,9 +451,9 @@ export function useSearchState({
     }, [
         queryOutput,
         affinityResultById,
-        affinityOutput.output,
-        affinityOutput.isLoading,
-        affinityOutput.isValidating,
+        affinitySearch.output,
+        affinitySearch.isLoading,
+        affinitySearch.isValidating,
         options.affinityToKeywordScoreInterpolation,
     ]);
 
@@ -537,6 +521,10 @@ type SearchStateExecutionOutput = ExecuteSearchOutput & {
     readonly key: string;
     readonly queryText: string;
     readonly queryTime: Date;
+    readonly favorites: {
+        readonly hasMoreResults: boolean;
+        readonly results: ReadonlyArray<SearchResult>;
+    } | null;
 };
 
 function createSearchStateExecution({
@@ -557,6 +545,7 @@ function createSearchStateExecution({
                 key,
                 queryText,
                 queryTime,
+                favorites: null,
             }),
             {
                 queryText,
@@ -639,6 +628,7 @@ function createSearchStateExecution({
             key,
             queryText,
             queryTime,
+            favorites: null,
         })),
         {
             queryText,

@@ -1,5 +1,6 @@
 import {AppContext} from "~/client/context/app_context.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {pendingPromiseState} from "~/shared/helpers/async/promise_state.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
@@ -70,7 +71,7 @@ export const pendingExecuteSearchOutput: ExecuteSearchOutput = {
 export const emptyExecuteSearchOutput: ExecuteSearchOutput = {
     isPending: false,
     isError: false,
-    results: [],
+    results: emptyArray,
 };
 
 /**

@@ -17,6 +17,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {usePress} from "react-aria";
 import {To, createPath} from "react-router";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -49,10 +50,13 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
     minSearchResultViewHeightPx,
+    searchResultViewDefaultMarginX,
+    searchResultViewDefaultPaddingX,
     searchResultViewPaddingY,
 } from "~/client/styles/search_shared_styles.js";
 import {
     contentStyles,
+    fontSizes,
     grey5SemiTransparentColorVar,
     spinAnimationClassName,
     sprinkles,
@@ -64,6 +68,7 @@ import {
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {Spacing, addRemLengths, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
@@ -119,6 +124,9 @@ export function SearchModal({
         resultId: SearchResultId;
     }>({
         // Reset our peek state if the search response changes.
+        //
+        // NOCOMMIT: Consider removing this? Or only clear if the new result isn't in
+        // the search list. Maybe also avoid remounting?
         key: output.key,
         initialPeekData: null,
     });
@@ -231,18 +239,69 @@ export function SearchModal({
                             // Data hasn't loaded yet, we can't select anything.
                             if (!output.results) break;
 
-                            const index = selectedPeek
-                                ? output.results.findIndex(
-                                      result => result.id === selectedPeek.extra.resultId,
-                                  )
-                                : -1;
+                            let result: SearchResult | undefined;
 
-                            const result =
-                                index !== -1
-                                    ? output.results[
-                                          event.key === "ArrowUp" ? index - 1 : index + 1
-                                      ]
-                                    : output.results[0];
+                            if (!selectedPeek) {
+                                if (output.favorites && output.favorites.results.length > 0) {
+                                    result = output.favorites.results[0]!;
+                                } else if (output.results.length > 0) {
+                                    result = output.results[0]!;
+                                }
+                            } else if (event.key === "ArrowUp") {
+                                let found = false;
+
+                                if (output.favorites) {
+                                    for (let i = 0; i < output.favorites.results.length; i++) {
+                                        const nextResult = output.favorites.results[i]!;
+                                        if (nextResult.id === selectedPeek.extra.resultId) {
+                                            found = true;
+                                            break;
+                                        }
+                                        result = nextResult;
+                                    }
+                                }
+
+                                if (!found) {
+                                    for (let i = 0; i < output.results.length; i++) {
+                                        const nextResult = output.results[i]!;
+                                        if (nextResult.id === selectedPeek.extra.resultId) {
+                                            found = true;
+                                            break;
+                                        }
+                                        result = nextResult;
+                                    }
+                                }
+
+                                if (!found) {
+                                    result = undefined;
+                                }
+                            } else {
+                                let found = false;
+
+                                for (let i = output.results.length - 1; i >= 0; i--) {
+                                    const previousResult = output.results[i]!;
+                                    if (previousResult.id === selectedPeek.extra.resultId) {
+                                        found = true;
+                                        break;
+                                    }
+                                    result = previousResult;
+                                }
+
+                                if (!found && output.favorites) {
+                                    for (let i = output.favorites.results.length - 1; i >= 0; i--) {
+                                        const previousResult = output.favorites.results[i]!;
+                                        if (previousResult.id === selectedPeek.extra.resultId) {
+                                            found = true;
+                                            break;
+                                        }
+                                        result = previousResult;
+                                    }
+                                }
+
+                                if (!found) {
+                                    result = undefined;
+                                }
+                            }
 
                             // There is no next item. Do nothing. Don't loop around since we may have many
                             // items so looping would be disorienting.
@@ -256,6 +315,7 @@ export function SearchModal({
                                 withDesktopLayout: false,
                             });
 
+                            // NOCOMMIT: We're not scrolling anymore? When did that break?
                             void switchPeek({
                                 spacePath: destinationPath,
                                 extra: {resultId: result.id},
@@ -403,6 +463,7 @@ export function SearchModal({
                                         <SearchModalResultList
                                             searchKey={output.key}
                                             searchTime={output.queryTime}
+                                            favorites={output.favorites}
                                             results={output.results}
                                             selectedPeek={selectedPeek}
                                             switchPeek={switchPeek}
@@ -573,6 +634,7 @@ const SearchModalInput = forwardRef(function SearchModalInput(
 function SearchModalResultList({
     searchKey,
     searchTime,
+    favorites,
     results,
     selectedPeek,
     switchPeek,
@@ -581,6 +643,10 @@ function SearchModalResultList({
 }: {
     searchKey: string;
     searchTime: Date;
+    favorites: {
+        hasMoreResults: boolean;
+        results: ReadonlyArray<SearchResult>;
+    } | null;
     results: ReadonlyArray<SearchResult>;
     selectedPeek: PeekSwitcherStatePeekBase<{resultId: SearchResultId}> | null;
     switchPeek: Memo<
@@ -651,15 +717,129 @@ function SearchModalResultList({
         }
     });
 
+    const hasFavorites = !!favorites;
+    // NOCOMMIT: Use this
+    const hasMoreFavoriteResults = favorites?.hasMoreResults ?? false;
+    const favoriteResults = favorites?.results ?? emptyArray;
+
     const renderItem = useCallback(
         (index: number): VirtualizedScrollViewItem => {
+            if (hasFavorites) {
+                if (index === 0) {
+                    const fontSize = "75";
+                    const paddingBottom = "1";
+
+                    return {
+                        key: "FavoritesHeader",
+                        minHeight: addRemLengths(
+                            searchResultViewDefaultMarginX,
+                            searchResultViewDefaultPaddingX,
+                            fontSizes[fontSize].lineHeight,
+                            paddingBottom,
+                        ),
+                        node: (
+                            <Box
+                                paddingX={searchResultViewDefaultMarginX}
+                                paddingBottom={paddingBottom}
+                                style={{
+                                    paddingTop: addRemLengths(
+                                        searchResultViewDefaultMarginX,
+                                        searchResultViewDefaultPaddingX,
+                                    ),
+                                }}
+                            >
+                                <Box
+                                    paddingX={searchResultViewDefaultPaddingX}
+                                    color="grey-50"
+                                    fontSize={fontSize}
+                                >
+                                    Favorites
+                                </Box>
+                            </Box>
+                        ),
+                    };
+                }
+
+                index -= 1;
+
+                if (index < favoriteResults.length) {
+                    const result = favoriteResults[index]!;
+
+                    return {
+                        key: result.id,
+                        minHeight: minSearchResultViewHeightPx[spacingScale],
+                        node: (
+                            <SearchResultView
+                                result={result}
+                                isSelected={result.id === selectedPeek?.extra.resultId}
+                                // We use `onPressStart` to select so the selected style is applied immediately.
+                                // We use the selected style to indicate interaction to the user instead of an
+                                // `isPressed` style. The benefit of using selection is the previous item loses
+                                // its style.
+                                onPressStart={() => {
+                                    if (result.id !== selectedPeek?.extra.resultId) {
+                                        const destinationPath = getSearchResultDestinationPath({
+                                            spaceId: space.id,
+                                            resultId: result.id,
+                                            searchKey,
+                                            searchTime,
+                                            withDesktopLayout: false,
+                                        });
+
+                                        void switchPeek({
+                                            spacePath: destinationPath,
+                                            extra: {resultId: result.id},
+                                        });
+                                    }
+                                }}
+                                onDoubleClick={() => handleDoubleClick(result)}
+                            />
+                        ),
+                    };
+                }
+
+                index -= favoriteResults.length;
+
+                if (index === 0) {
+                    const fontSize = "75";
+                    const paddingBottom = "1";
+                    const paddingTop = "4";
+
+                    return {
+                        key: "SuggestedHeader",
+                        minHeight: addRemLengths(
+                            paddingTop,
+                            fontSizes[fontSize].lineHeight,
+                            paddingBottom,
+                        ),
+                        node: (
+                            <Box
+                                paddingX={searchResultViewDefaultMarginX}
+                                paddingTop={paddingTop}
+                                paddingBottom={paddingBottom}
+                            >
+                                <Box
+                                    color="grey-50"
+                                    fontSize={fontSize}
+                                    paddingX={searchResultViewDefaultPaddingX}
+                                >
+                                    Suggested
+                                </Box>
+                            </Box>
+                        ),
+                    };
+                }
+
+                index -= 1;
+            }
+
             const result = results[index]!;
 
-            const isFirstItem = index === 0;
+            const isFirstItem = !hasFavorites && index === 0;
             const isLastItem = index === results.length - 1;
 
             return {
-                key: `Loaded:${result.id}`,
+                key: result.id,
                 minHeight: minSearchResultViewHeightPx[spacingScale],
                 node: (
                     <SearchResultView
@@ -693,7 +873,9 @@ function SearchModalResultList({
             };
         },
         [
+            favoriteResults,
             handleDoubleClick,
+            hasFavorites,
             results,
             searchKey,
             searchTime,
@@ -707,7 +889,7 @@ function SearchModalResultList({
     return (
         <VirtualizedScrollView
             ref={viewRef}
-            itemCount={results.length}
+            itemCount={(hasFavorites ? 2 : 0) + results.length}
             bufferedItemHeight={minSearchResultViewHeightPx[spacingScale]}
             renderItem={renderItem}
             extraChildrenOutsideContentElement={({contentHeight}) => (

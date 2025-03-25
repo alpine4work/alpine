@@ -38,12 +38,14 @@ import {
 import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
+import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 import {SearchResult} from "~/shared/search/search_result.js";
 
 export function SearchMobileView({
-    affinityResults,
+    initialAffinitySearch,
 }: {
-    affinityResults: ReadonlyArray<SearchResult>;
+    initialAffinitySearch: RpcDefinitionOutputType<typeof searchByAffinity>;
 }) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
@@ -53,10 +55,11 @@ export function SearchMobileView({
 
     const maxWidth = platform !== "mobile" ? "96" : undefined;
 
+    // NOCOMMIT: Show favorites
     const {output, queryText, onQueryTextChange} = useSearchState({
         isSearchParamControlled: false,
         debugOptions: null,
-        affinityResults,
+        initialAffinitySearch,
     });
 
     const results = output.results ?? emptyArray;

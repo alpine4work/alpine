@@ -1688,6 +1688,10 @@ export async function getSearchEntitiesTitleAndMediaIfExist(
  * Unlike other search functions this one doesn't provide a `queryText`
  * filter. The actor has the same set of affinitive entities regardless of what
  * they're currently searching for.
+ *
+ * Will return unique `SearchResult`s. No two `SearchResult`s will have the
+ * same ID. Even across `results` and `favoriteResults`. If an ID exists in
+ * `favoriteResults` then it won't exist in `results` and vice versa.
  */
 export async function searchByAffinity(
     context: SearchSessionActionContext,
@@ -1802,9 +1806,15 @@ export async function searchByAffinity(
                 };
             }
 
+            if (favoriteResultById.has(result.id)) {
+                throw new InternalError("Expected favorite search affinities to be unique");
+            }
+
             favoriteResultById.set(result.id, result);
         }
     }
+
+    const resultIds = new Set<SearchResultId>();
 
     for (const affinity of affinities) {
         // If this affinity was a favorite then set the affinity points as the result
@@ -1814,6 +1824,11 @@ export async function searchByAffinity(
             favoriteResult.score = affinity.points;
             continue;
         }
+
+        if (resultIds.has(affinity.affinityId) || favoriteResultById.has(affinity.affinityId)) {
+            throw new InternalError("Expected search affinities to be unique");
+        }
+        resultIds.add(affinity.affinityId);
 
         let result: SearchResult;
         if (affinity.affinityId === "TaskPersonal") {
@@ -1829,7 +1844,7 @@ export async function searchByAffinity(
             if (!entityTitleAndMedia) continue;
 
             result = {
-                id: entityTitleAndMedia.id,
+                id: affinity.affinityId,
                 score: affinity.points,
                 title: entityTitleAndMedia.title,
                 bodyTextSnippet: emptyArray,
