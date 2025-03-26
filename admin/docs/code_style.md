@@ -373,13 +373,13 @@ myFunction({foo: true, bar: myVariable, qux: 42, buz: "hello", baz: null});
 myFunction({x: 2, y: 0, z: 8});
 
 // Boolean argument
-myFunction({foo: 42, foo: true});
+myFunction({foo: 42, bar: true});
 ```
 
 You can also mix positional and named arguments like this:
 
 ```ts
-myFunction(42, {foo: true});
+myFunction(42, {bar: true});
 ```
 
 **Why?** Named arguments help when reading code. When looking at a function's call site it's easier
