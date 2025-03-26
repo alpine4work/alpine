@@ -473,7 +473,6 @@ Based on this recommendation, these functions with positional arguments are acce
 
 ```ts
 // ✅ Yes
-
 myFunction(42);
 myFunction(42, "hello");
 ```
