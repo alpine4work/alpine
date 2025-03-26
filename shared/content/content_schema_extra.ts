@@ -280,26 +280,24 @@ export const createContentFileFloatProsemirrorNodeSpecs = ({
         },
     });
 
-export const createContentFileTableProsemirrorNodeSpecs = ({
-    fileMarks,
-}: {fileMarks?: string} = {}) =>
+export const createContentFileTableProsemirrorNodeSpecs = ({fileMarks}: {fileMarks?: string} = {}) =>
     createProsemirrorNodesSpec({
         fileTable: {
-            group: "block tableBlock",
+            group: "tableBlock",
             content: "file",
             defining: true,
             isolating: true,
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but
+            // there's only a small number of nodes (e.g. `divider`) we actually want to
+            // let be selectable.
             selectable: false,
+            // Allow any marks available on `file` nodes on `fileTable`s (e.g. comment marks
+            // in documents). Comments should never appear on `fileTable`. Only on `file`. We
+            // validate this is the case in `get_collaboratively_update_content_result.ts`.
             marks: fileMarks,
             attrs: {},
-            toDOM: () => [
-                "div",
-                {
-                    // same classes being uised for fileRow and fileTable
-                    class: fileRowBaseClassName,
-                },
-                0,
-            ],
+            // same classes being used for fileRow and fileTable
+            toDOM: () => ["div", {class: fileRowBaseClassName}, 0],
             parseDOM: [
                 {
                     tag: "div[style*=file-table]",
