@@ -53,6 +53,7 @@ functions should not return null when nothing is found they should throw.
 An example, instead of this:
 
 ```ts
+// ❌ No
 function getFullName(accountId) {
     const account = getAccount(accountId);
     if (!account) {
@@ -74,6 +75,7 @@ function getFullName(accountId) {
 Write this:
 
 ```ts
+// ✅ Yes
 function getFullName(accountId) {
     const account = getAccount(accountId);
 
@@ -316,6 +318,8 @@ most. Not the function with the simplest implementation.
 The most common example of this is null returning functions. Do not write this:
 
 ```ts
+// ❌ No
+
 // Returns null if the account does not exist
 function getAccount(accountId: AccountId): AccountModel | null {
     /* ... */
@@ -332,6 +336,8 @@ function getAccountOrThrow(accountId: AccountId): AccountModel {
 Instead write this:
 
 ```ts
+// ✅ Yes
+
 // Returns null if the account does not exist
 function getAccountIfExists(accountId: AccountId): AccountModel | null {
     /* ... */
@@ -436,6 +442,7 @@ When calling a function with positional arguments there's no context on what the
 the function call site:
 
 ```ts
+// ❌ No
 myFunction(42, true, "hi");
 ```
 
@@ -443,12 +450,14 @@ When calling a function with named arguments there is context on what the argume
 function call site:
 
 ```ts
+// ✅ Yes
 myFunction({foo: 42, bar: true, qux: "hi"});
 ```
 
 You may also sometimes mix positional arguments and named arguments:
 
 ```ts
+// ✅ Yes
 myFunction(context, null, {foo: 42, bar: true, qux: "hi"});
 ```
 
@@ -463,6 +472,8 @@ This is a recommendation, use your judgement of what's best for your function.
 Based on this recommendation, these functions with positional arguments are acceptable:
 
 ```ts
+// ✅ Yes
+
 myFunction(42);
 myFunction(42, "hello");
 ```
@@ -471,6 +482,8 @@ But these functions are not. One has more than four arguments and the other has 
 of the same type (`number`):
 
 ```ts
+// ❌ No
+
 // Five arguments
 myFunction(true, myVariable, 42, "hello", null);
 
@@ -484,6 +497,8 @@ myFunction(42, true);
 Instead write:
 
 ```ts
+// ✅ Yes
+
 // Five arguments
 myFunction({foo: true, bar: myVariable, qux: 42, buz: "hello", baz: null});
 
@@ -497,6 +512,7 @@ myFunction({foo: 42, bar: true});
 You can also mix positional and named arguments like this:
 
 ```ts
+// ✅ Yes
 myFunction(42, {bar: true});
 ```
 
@@ -507,6 +523,7 @@ confusion when you have multiple arguments of the same type.
 For an example of how named arguments help code readability, consider the following code:
 
 ```ts
+// ❌ No
 getSearchResultDestinationPath(result, false);
 ```
 
@@ -514,6 +531,7 @@ What does the `false` mean here? You have no idea without looking at the definit
 `getSearchResultDestinationPath()`. But with a named argument:
 
 ```ts
+// ✅ Yes
 getSearchResultDestinationPath(result, {withDesktopLayout: false});
 ```
 
@@ -523,6 +541,7 @@ For an example of how named arguments help prevent confusion, consider the follo
 accept two arguments of the same type (`AccountId`):
 
 ```ts
+// ❌ No
 commitAssignTaskAction(selectedAccount.id, currentAccount.id);
 ```
 
@@ -532,6 +551,7 @@ TypeScript will happily accept whatever order you pass the arguments in. Named a
 clearly confirm you’re passing `AccountId`s in correctly:
 
 ```ts
+// ✅ Yes
 commitAssignTaskAction({
     assigneeId: selectedAccount.id,
     assignerId: currentAccount.id,
@@ -542,6 +562,7 @@ A popular pattern in our codebase is to use positional arguments for the first 2
 arguments then use an options object. For example, many functions in our backend use this pattern:
 
 ```ts
+// ✅ Yes
 async function getPost(
     context: ServerActionContext,
     id: PostId,
@@ -572,7 +593,7 @@ Here is a comment with two levels of indentation (8 spaces). We make sure the co
 characters wide.
 
 ```ts
-// Right
+// ✅ Yes
 
 class C {
     f() {
@@ -586,7 +607,7 @@ class C {
 We don't wrap a comment with two levels of indentation at the file-wide 80 character mark.
 
 ```ts
-// Wrong
+// ❌ No
 
 class C {
     f() {
@@ -619,6 +640,8 @@ If you are writing a comment where the audience is some consumer of that code, u
 block comment (`/**`).
 
 ```ts
+// ✅ Yes
+
 /**
  * This documents how to use the function.
  */
@@ -630,6 +653,8 @@ exports. A block comment on a private variable usually doesn't make sense becaus
 which declares it can access it.
 
 ```ts
+// ❌ No
+
 function f() {
     /**
      * A block comment doesn't make sense here because `x` is private to `f`.
@@ -642,6 +667,8 @@ If you are writing a comment to explain the implementation of some code to a fut
 use an inline comment (`//`).
 
 ```ts
+// ✅ Yes
+
 function f() {
     // This explains how the function is implemented.
 }
@@ -651,6 +678,8 @@ Sometimes you want a documentation comment and implementation commentary for the
 In that case put implementation commentary second.
 
 ```ts
+// ✅ Yes
+
 /**
  * This documents how to use the function.
  */
@@ -837,6 +866,8 @@ small and focused.
 Instead of:
 
 ```ts
+// ❌ No
+
 abstract class Animal {
     doSomething() {
         // ...
@@ -861,6 +892,8 @@ class Dog extends Animal {
 Write something like:
 
 ```ts
+// ✅ Yes
+
 type Animal =
     | {
           type: "Cat";
@@ -924,6 +957,8 @@ mutability? You're free to mutate objects in the scope which they are created. U
 example, this is ok:
 
 ```ts
+// ✅ Yes
+
 function MyComponent1() {
     const items = [];
 
@@ -941,6 +976,8 @@ filling in the variable with data.
 These examples are not ok:
 
 ```ts
+// ❌ No
+
 const items = [];
 
 function MyComponent2() {
@@ -953,6 +990,8 @@ function MyComponent2() {
 ```
 
 ```ts
+// ❌ No
+
 function MyComponent3({items}) {
     for (const item of iterator) {
         items.push(/* ... */);
@@ -983,6 +1022,8 @@ functionality. (Explained later.)
 So instead of components like this:
 
 ```tsx
+// ❌ No
+
 const TimelineContext = createContext();
 
 function Timeline() {
@@ -1025,6 +1066,8 @@ function TimelineEntryInput() {
 Write your components like this:
 
 ```tsx
+// ✅ Yes
+
 function Timeline() {
     const [state, dispatch] = useReducer();
 
@@ -1180,6 +1223,8 @@ consider applying this recommendation for any other resource consuming side effe
 For example:
 
 ```ts
+// ✅ Yes
+
 const lastTimeZoneRef = useRef(null);
 
 useEffect(() => {
@@ -1201,6 +1246,8 @@ Another example is if you only want to run your network request on initial mount
 effect's dependency array to `[]`, instead use a ref:
 
 ```ts
+// ✅ Yes
+
 const hasInitiallyMountedRef = useRef(null);
 
 useEffect(() => {
