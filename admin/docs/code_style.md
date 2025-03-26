@@ -143,6 +143,124 @@ Some more good resources on this topic:
 -   [“The WET Codebase”](https://overreacted.io/the-wet-codebase/) a talk by Dan Abramov (WET is a
     play on the acronym [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself))
 
+### Put the smallest branch of the condition first and return early if possible
+
+When you’re writing an `if` condition, ideally one of the branches should be very short (one to five
+lines of code) and that branch should be put first.
+
+Let’s consider a simplified `isDeepEqual()` function.
+
+```ts
+// ❌ No
+function isDeepEqual(value1, value2) {
+    if (value1 !== value2) {
+        if (isObject(value1) && isObject(value2)) {
+            const value1Keys = new Set(Object.keys(value1));
+
+            for (const key of Object.keys(value2)) {
+                if (value1Keys.has(key)) {
+                    value1Keys.delete(key);
+
+                    if (!isDeepEqual(value1[key], value2[key])) {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
+
+            return value1Keys.size === 0;
+        } else {
+            return false;
+        }
+    } else {
+        return true;
+    }
+}
+```
+
+Here we’re putting the shorter condition (`return true` or `return false`) second. This hurts the
+readability of the function as you need to read the entire condition to understand what it does.
+Let’s see what happens when we reverse the order of the conditions:
+
+```ts
+// ✅ Better
+function isDeepEqual(value1, value2) {
+    if (value1 === value2) {
+        return true;
+    } else {
+        if (!isObject(value1) || !isObject(value2)) {
+            return false;
+        } else {
+            const value1Keys = new Set(Object.keys(value1));
+
+            for (const key of Object.keys(value2)) {
+                if (!value1Keys.has(key)) {
+                    return false;
+                } else {
+                    value1Keys.delete(key);
+
+                    if (!isDeepEqual(value1[key], value2[key])) {
+                        return false;
+                    }
+                }
+            }
+
+            return value1Keys.size === 0;
+        }
+    }
+}
+```
+
+This is much easier to read because we see the condition, see what happens in the easy case, then
+can we go on to evaluate the harder case without needing to remember what the condition was.
+
+The first part of our recommendation is to put the smallest branch of the condition first. The
+second part of our recommendation is to use early returns to reduce the amount of indentation in the
+function if possible. Here our simple cases return at the end. Therefore, we don’t need an `else`
+block at all:
+
+```ts
+// ✅ Best
+function isDeepEqual(value1, value2) {
+    if (value1 === value2) {
+        return true;
+    }
+
+    if (!isObject(value1) || !isObject(value2)) {
+        return false;
+    }
+
+    const value1Keys = new Set(Object.keys(value1));
+
+    for (const key of Object.keys(value2)) {
+        if (!value1Keys.has(key)) {
+            return false;
+        }
+
+        value1Keys.delete(key);
+
+        if (!isDeepEqual(value1[key], value2[key])) {
+            return false;
+        }
+    }
+
+    return value1Keys.size === 0;
+}
+```
+
+By removing the `else` blocks we’ve simplified the function by removing a lot of unnecessary
+indentation. Now, when reading this code you can read linearly instead of having to navigate nested
+if/else blocks.
+
+**Why?** It’s easier to read code written this way. When you read code you need to keep a
+[control flow graph](https://en.wikipedia.org/wiki/Control-flow_graph) representing the different
+states of the function in your head. You build the graph in your head as you read the function line
+by line (since as humans we read top to bottom). When you have multiple nested if/else blocks this
+graph gets pretty complex. But if you put shorter conditions first and those shorter conditions
+early return you can safely forget about the condition as you move forward in the function! Since
+you know for sure that condition has finished executing.
+
 ## Naming
 
 ### File names should be snake case
@@ -605,6 +723,104 @@ unrelated code in a single file will bloat frontend bundle sizes.
 -   If you're looking for the definition of a particular helper function you may use the fuzzy file
     search feature in your editor and search for the function's name. If the function is in a
     `_utils.ts` file you won't be able to find it with this method.
+
+### Prefer function declarations for module scope functions
+
+When writing a function you can either use function declaration syntax or you can use arrow function
+syntax.
+
+Function declaration syntax:
+
+```ts
+function getSomething() {
+    /* ... */
+}
+```
+
+Arrow function syntax:
+
+```ts
+const getSomething = () => {
+    /* ... */
+};
+```
+
+When writing functions at the top level of a module (module scoped) prefer function declaration
+syntax. This is preferred:
+
+```ts
+// ✅ Yes
+function foo() {
+    /* ... */
+}
+
+// ✅ Yes
+export function bar() {
+    /* ... */
+}
+```
+
+…to this:
+
+```ts
+// ✅ Yes
+function foo() {
+    /* ... */
+}
+
+// ❌ No
+export const bar = () => {
+    /* ... */
+};
+```
+
+…or this:
+
+```ts
+// ❌ No
+const foo = () => {
+    /* ... */
+};
+
+// ❌ No
+export const bar = () => {
+    /* ... */
+};
+```
+
+Nested functions can use whatever syntax you'd like. For example:
+
+```ts
+function foo() {
+    const bar = () => {
+        /* ... */
+    };
+}
+```
+
+This applies to React components to:
+
+```ts
+// ✅ Yes
+function MyComponent() {
+    /* ... */
+}
+
+// ❌ No
+const MyComponent = () => {
+    /* ... */
+};
+```
+
+**Why?** We prefer function declarations purely for consistency. There’s very little practical
+difference between the two syntaxes.
+[Function declarations can be hoisted](https://developer.mozilla.org/en-US/docs/Glossary/Hoisting)
+which makes then slightly more capable but it’s a weak reason to prefer them to function
+declarations. We started using function declarations in our backend since it looks consistent with
+functions in other popular backend languages (e.g. [Go](https://go.dev/tour/basics/4)) and we prefer
+how async functions look (`async function f() {}` vs `const f = async () => {};`). Since we have a
+reason to prefer function declarations in the backend, we’ve chose to consistently use function
+declarations everywhere.
 
 ### Avoid classes
 
