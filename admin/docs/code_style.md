@@ -38,7 +38,7 @@ stand for. Acronyms are alao often ambiguous. For example, does IR mean Incident
 Intermediate Representation? Generally avoid acronyms and abbreviations in written communication as
 well.
 
-**Why?** Variable names are visible not just at the point where you declare the variable but also
+**💡 Why?** Variable names are visible not just at the point where you declare the variable but also
 everywhere you use the variable. Meaning you put in a variable name can not be missed by future
 developers using that variable.
 
@@ -103,8 +103,8 @@ for end users. Only use this style when actually dealing with impossible states.
 where the error is able to communicate to the user what happened. (Like throwing a `NotFoundError`
 resulting in a 404.) An assertion error presented to the user is not an acceptable user experience.
 
-**Why?** This style of code is easier to read and reduces the complexity of your code. If you have a
-bunch of ill-thought out edge cases in your function have you tested every one? Is there an
+**💡 Why?** This style of code is easier to read and reduces the complexity of your code. If you
+have a bunch of ill-thought out edge cases in your function have you tested every one? Is there an
 automated test to make sure it works? It’s better to keep the program in known good states and
 panic/crash when we find ourselves not in a good state then to put the user in a program in an
 untested state.
@@ -253,7 +253,7 @@ By removing the `else` blocks we’ve simplified the function by removing a lot 
 indentation. Now, when reading this code you can read linearly instead of having to navigate nested
 if/else blocks.
 
-**Why?** It’s easier to read code written this way. When you read code you need to keep a
+**💡 Why?** It’s easier to read code written this way. When you read code you need to keep a
 [control flow graph](https://en.wikipedia.org/wiki/Control-flow_graph) representing the different
 states of the function in your head. You build the graph in your head as you read the function line
 by line (since as humans we read top to bottom). When you have multiple nested if/else blocks this
@@ -281,7 +281,7 @@ defining SQL queries called `server/sql/query.ts` instead consider naming it
 
 The exception to this rule is the Remix `app` directory.
 
-**Why?** Many tools for navigating codebases provide a fuzzy global file name match. For example,
+**💡 Why?** Many tools for navigating codebases provide a fuzzy global file name match. For example,
 VSCode has a fuzzy file matcher accessible through cmd+p and GitHub has a fuzzy file matcher
 accessible through the "find files" button. Globally unique file names make code easier to recall
 using one of these tools.
@@ -298,7 +298,7 @@ When you export a name from a TypeScript module, the name should be globally uni
 One strategy to make your names more globally unique is adding a namespace at the beginning of a
 related group of names.
 
-**Why?** This helps when doing analysis across the codebase. You can do a global search for a
+**💡 Why?** This helps when doing analysis across the codebase. You can do a global search for a
 globally unique name and find all the places it appears. If an exported name is reused you need to
 sift through all usages to figure out which ones you care about. TypeScript also provides an
 auto-import feature which works best with global names. As you start typing a name it will give you
@@ -404,10 +404,10 @@ Some examples:
     -   Super-class: `Action`
     -   Member: n/a
 
-**Why?** By using this naming convention, readers of your code can reliably predict the relationship
-between multiple types. We put a namespace first because 1) related types will be displayed together
-when sorted alphabetically, 2) auto-import is more powerful when your functions/types have unique
-names.
+**💡 Why?** By using this naming convention, readers of your code can reliably predict the
+relationship between multiple types. We put a namespace first because 1) related types will be
+displayed together when sorted alphabetically, 2) auto-import is more powerful when your
+functions/types have unique names.
 
 ### Variable names and type names should mirror each other
 
@@ -422,10 +422,10 @@ systems you're working with within a function implementation so the namespace do
 value. If you are exporting the variable and want it's name to be globally unique then include the
 namespace.
 
-**Why?** The variable name is not just seen where the variable is declared but also everywhere the
-variable is used. You don't write the type of the variable where it's used, just the name. If you
-include some of the type name in the variable name it is clear wherever the variable is used what
-type of thing you're interacting with.
+**💡 Why?** The variable name is not just seen where the variable is declared but also everywhere
+the variable is used. You don't write the type of the variable where it's used, just the name. If
+you include some of the type name in the variable name it is clear wherever the variable is used
+what type of thing you're interacting with.
 
 ### Prefer named arguments over positional arguments beyond four arguments
 
@@ -500,8 +500,8 @@ You can also mix positional and named arguments like this:
 myFunction(42, {bar: true});
 ```
 
-**Why?** Named arguments help when reading code. When looking at a function's call site it's easier
-to interpret what the purpose of each argument is with named arguments. It also helps reduce
+**💡 Why?** Named arguments help when reading code. When looking at a function's call site it's
+easier to interpret what the purpose of each argument is with named arguments. It also helps reduce
 confusion when you have multiple arguments of the same type.
 
 For an example of how named arguments help code readability, consider the following code:
@@ -597,8 +597,8 @@ class C {
 }
 ```
 
-**Why?** If we instead wrapped comments at the 100 character print width, whenever you indented or
-dedented code with a comment you'd need to reformat the comment around your print width. At 80
+**💡 Why?** If we instead wrapped comments at the 100 character print width, whenever you indented
+or dedented code with a comment you'd need to reformat the comment around your print width. At 80
 characters, you can freely add indentation without reformatting the comment. 80 character long prose
 is also better for legibility than 100 character long prose.
 
@@ -658,12 +658,12 @@ In that case put implementation commentary second.
 function f() {}
 ```
 
-**Why?** JSDoc style block comments (`/**`) are used by some tools to generate documentation for a
-function. For example, in an IDE TypeScript may expose a JSDoc style block comment (`/**`) when you
-hover over a function or see it in autocomplete to aid developers. In the future we might generate
-an internal website which collects all the JSDoc style block documentation comments in our codebase
-and renders them in an easy to explore way. So it's useful to intentionally use two styles of
-comment based on the intended audience.
+**💡 Why?** JSDoc style block comments (`/**`) are used by some tools to generate documentation for
+a function. For example, in an IDE TypeScript may expose a JSDoc style block comment (`/**`) when
+you hover over a function or see it in autocomplete to aid developers. In the future we might
+generate an internal website which collects all the JSDoc style block documentation comments in our
+codebase and renders them in an easy to explore way. So it's useful to intentionally use two styles
+of comment based on the intended audience.
 
 This is the same style as
 [plain Rust comments (`//`) vs documentation comments (`///`)](https://doc.rust-lang.org/rust-by-example/meta/doc.html).
@@ -712,7 +712,7 @@ A good heuristic is if you have multiple functions in a file which don't call ea
 multiple functions in a file whose implementation details aren't coupled then you may be better
 served by putting those functions in different files.
 
-**Why?** Files with unrelated helper functions can be difficult to discover both when you need to
+**💡 Why?** Files with unrelated helper functions can be difficult to discover both when you need to
 add a new helper function and when you need to find the file a helper function is defined in. Also,
 unrelated code in a single file will bloat frontend bundle sizes.
 
@@ -812,7 +812,7 @@ const MyComponent = () => {
 };
 ```
 
-**Why?** We prefer function declarations purely for consistency. There’s very little practical
+**💡 Why?** We prefer function declarations purely for consistency. There’s very little practical
 difference between the two syntaxes.
 [Function declarations can be hoisted](https://developer.mozilla.org/en-US/docs/Glossary/Hoisting)
 which makes then slightly more capable but it’s a weak reason to prefer them to function
@@ -894,10 +894,10 @@ function doSomething(animal: Animal) {
 Our `exhaustive()` helper will generate a TypeScript error if a new variant is added in the future
 and you forgot to handle it. Helping maintainability.
 
-**Why?** Classes fundamentally bundle data with behavior. With a class, you can't write a function
-on all your variants in a separate file. For large classes this can lead to bundle bloat. By putting
-the behavior for each of your variants in a single function and composing shared logic, it makes the
-behavior code easier to follow and organize.
+**💡 Why?** Classes fundamentally bundle data with behavior. With a class, you can't write a
+function on all your variants in a separate file. For large classes this can lead to bundle bloat.
+By putting the behavior for each of your variants in a single function and composing shared logic,
+it makes the behavior code easier to follow and organize.
 
 ### When using classes, only extend abstract classes
 
@@ -905,7 +905,7 @@ If you are going to use classes, the super class should be abstract. If you want
 instantiate then create a special, simple, sub-class. As a convention, add `Base` to the end of your
 super class's name. Don't extend from a non-abstract class.
 
-**Why?**
+**💡 Why?**
 [Kotlin syntactically forces this convention](https://kotlinlang.org/docs/inheritance.html). It
 makes it much easier to reason about your class if you don't have to constantly think about "will
 this be extended or not". If a class is meant to be extended, it's `abstract`.
@@ -966,8 +966,8 @@ In both examples, `items` is created outside of `MyComponent`'s scope. We don't 
 created or how other code will be consuming it. We should treat `items` as immutable. You can use
 the `ReadonlyArray<T>` type in this case if you want to ensure that's the case.
 
-**Why?** Immutable objects are generally easier to reason about than mutable objects. It's easier to
-reason about how data flows through a program and easier to think about how sharing a value may
+**💡 Why?** Immutable objects are generally easier to reason about than mutable objects. It's easier
+to reason about how data flows through a program and easier to think about how sharing a value may
 behave.
 
 ## React
@@ -1058,8 +1058,8 @@ function TimelineEntryInput({state}) {
 }
 ```
 
-**Why?** React context creates an implicit dependency between a component and some data or state. By
-explicitly passing that data/state down through props you explicitly document what the component
+**💡 Why?** React context creates an implicit dependency between a component and some data or state.
+By explicitly passing that data/state down through props you explicitly document what the component
 needs to run. TypeScript will then check that the component actually receives the data/state it
 needs to.
 
@@ -1099,8 +1099,8 @@ The `<GlobalKeyDownEvent>` component is what we recommend using for global keybo
 component respects `event.stopPropagation()`. Once any event handler calls this function, no other
 handler may respond to the event.
 
-**Why?** We recommend against `event.stopPropagation()` in general (see below). However, creating an
-abstraction that spans all `keydown` listeners in our app is impractical.
+**💡 Why?** We recommend against `event.stopPropagation()` in general (see below). However, creating
+an abstraction that spans all `keydown` listeners in our app is impractical.
 
 Some keyboard shortcuts should be handled locally by the interactive element with focus. For
 example, when you focus a menu button pressing the down arrow key should open the menu. Some
@@ -1124,7 +1124,7 @@ Don’t use `event.stopPropagation()` unless you are handling a `keydown` event.
 `keydown` event always use `event.stopPropagation()`. See the above section for more context on our
 `keydown` event guidance.
 
-**Why?** For many events, parents depend on event propagation to implement some system level
+**💡 Why?** For many events, parents depend on event propagation to implement some system level
 behavior. For example:
 
 -   A parent component may listen for a `mouseenter` event to apply a hover style or a tooltip
@@ -1155,7 +1155,7 @@ component which contains the two element’s whose z-order you’re trying to in
 
 We typically use `<Box position="relative" zIndex="0">` to create a new stacking context.
 
-**Why?** Creating a new stacking context allows you to reason about z-order locally and use small
+**💡 Why?** Creating a new stacking context allows you to reason about z-order locally and use small
 values like 10, 20, and 30 instead of trying to find the highest z-index globally like 999999 or
 `Number.MAX_SAFE_INTEGER` as used in some CSS. It also reduces the chance of their being bugs as
 adjacent components evolve since their z-order should be isolated from your component’s z-order.
@@ -1166,7 +1166,7 @@ Don’t look for elements with some `data-testid` attribute outside of unit test
 tests. They’re only used as a way to programmatically find elements that aren’t annotated in an
 accessibility friendly way.
 
-**Why?** `data-testid` attributes add unnecessary bloat to the DOM. Someday we’d like to write an
+**💡 Why?** `data-testid` attributes add unnecessary bloat to the DOM. Someday we’d like to write an
 SWC plugin that strips `data-testid` attributes away in non-production builds. Today we sometimes
 manually check that `NODE_ENV` is not production when assigning `data-testid`.
 
@@ -1213,7 +1213,7 @@ useEffect(() => {
 }, [context, clientInfo.timeZone]);
 ```
 
-**Why?** React may re-run an effect at any time. In
+**💡 Why?** React may re-run an effect at any time. In
 [strict mode each effect runs twice](https://react.dev/reference/react/StrictMode#fixing-bugs-found-by-re-running-effects-in-development)
 as a way to help you find bugs. Even outside of strict mode you may have a dependency on a value
 that changes frequently. Even if all the values in your dependency array don't change frequently
