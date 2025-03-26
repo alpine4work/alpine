@@ -1,4 +1,5 @@
 import {Link as LinkIcon} from "phosphor-react";
+import {MenuAction} from "~/client/design/menu.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -11,7 +12,7 @@ export function getPostMoreActions({
     currentAccount: AccountModel | null;
     post: PostModel;
     onStartEditingPost: () => void;
-}) {
+}): Array<Array<MenuAction>> {
     return [
         [
             {

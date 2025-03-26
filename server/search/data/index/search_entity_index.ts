@@ -79,6 +79,7 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -95,11 +96,13 @@ import {
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
+import {SearchAffinityId} from "~/shared/search/search_affinity_id.js";
 import {
     SearchEntityId,
     parseSearchEntityId,
@@ -1617,10 +1620,13 @@ export async function getSearchEntitiesTitleAndMediaIfExist(
             }),
     );
 
-    const docs = await context.opensearch.multiGetDocsIfExist(commands);
+    const docsByIdByIndex = await context.opensearch.multiGetDocByIdByIndexIfExist(commands);
+    const docsById = docsByIdByIndex.get(SearchEntityKeywordIndex) ?? emptyMap;
 
     return runAllPromises(
-        docs.map(async (doc, index) => {
+        commands.map(async (command, index) => {
+            const doc = docsById.get(command.id);
+
             if (!doc || doc.routing !== spaceId) {
                 const entityId = commands[index]!.id;
                 const entityIdObject = parseSearchEntityId(entityId);
@@ -2152,4 +2158,71 @@ export async function searchTaskCollectionsByAffinity(
     );
 
     return collections.filter(isNonNullable).slice(0, limit);
+}
+
+/**
+ * Get all of the session actor's favorite search entities ordered by
+ * `OrderKey`.
+ */
+export async function getAllSearchAffinityFavorites(
+    context: SearchSessionActionContext,
+    spaceId: SpaceId,
+): Promise<
+    ReadonlyArray<{
+        id: SearchAffinityId;
+        title: string | null;
+        media: SearchResultMedia | null;
+        orderKey: OrderKey;
+    }>
+> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    const affinityFavorites = await internalGetSearchAffinityFavorites(context, {
+        spaceId,
+        limit: "All",
+    });
+
+    const entityIds: Array<SearchEntityId> = [];
+    for (const affinityFavorite of affinityFavorites) {
+        if (affinityFavorite.affinityId === "TaskPersonal") continue;
+        entityIds.push(affinityFavorite.affinityId);
+    }
+
+    const entitiesTitleAndMedia = await getSearchEntitiesTitleAndMediaIfExist(context, {
+        spaceId,
+        entityIds,
+    });
+
+    const results: Array<{
+        id: SearchAffinityId;
+        title: string | null;
+        media: SearchResultMedia | null;
+        orderKey: OrderKey;
+    }> = [];
+
+    let entitiesTitleAndMediaIndex = 0;
+    for (const affinityFavorite of affinityFavorites) {
+        if (affinityFavorite.affinityId === "TaskPersonal") {
+            results.push({
+                id: affinityFavorite.affinityId,
+                title: "My tasks",
+                media: null,
+                orderKey: assertExists(affinityFavorite.orderKey),
+            });
+        } else {
+            const entityTitleAndMedia = entitiesTitleAndMedia[entitiesTitleAndMediaIndex++];
+            if (!entityTitleAndMedia) continue;
+
+            assert(entityTitleAndMedia.id === affinityFavorite.affinityId);
+
+            results.push({
+                id: affinityFavorite.affinityId,
+                title: entityTitleAndMedia.title,
+                media: entityTitleAndMedia.media,
+                orderKey: assertExists(affinityFavorite.orderKey),
+            });
+        }
+    }
+
+    return results;
 }

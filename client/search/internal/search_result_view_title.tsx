@@ -1,15 +1,16 @@
 import {IconContext} from "phosphor-react";
-import {ReactNode} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {Box} from "~/client/design/box.js";
 import {TaskDisplayStatusCircle} from "~/client/design/task_display_status_circle.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {SearchResultTypeDisplay} from "~/client/search/internal/search_result_type_display.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
 import {
     searchResultViewMediaSize,
     searchResultViewTitleFontSize,
+    searchResultViewTitleTypeDisplayGap,
 } from "~/client/styles/search_shared_styles.js";
 import {contentStyles, searchStyles} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
@@ -18,13 +19,15 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SearchResultMedia} from "~/shared/search/search_result.js";
 
 export function SearchResultViewTitle({
-    icon,
+    typeDisplay,
     title,
     media,
+    lineClamp = 2,
 }: {
-    icon: ReactNode;
-    title: string;
+    typeDisplay: SearchResultTypeDisplay;
+    title: string | null;
     media: SearchResultMedia | null;
+    lineClamp?: number;
 }) {
     const spacingScale = useSpacingScale();
 
@@ -35,12 +38,12 @@ export function SearchResultViewTitle({
             style={{
                 minHeight: contentStyles.paragraphLineHeightPx[spacingScale],
                 lineHeight: `${contentStyles.paragraphLineHeightPx[spacingScale]}px`,
-                // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
+                // Truncate after 2 lines of text. Unofficial syntax that works in all browsers
                 // except IE.
                 // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
                 display: "-webkit-box",
-                WebkitLineClamp: 2,
-                lineClamp: 2,
+                WebkitLineClamp: lineClamp,
+                lineClamp,
                 WebkitBoxOrient: "vertical",
                 textOverflow: "ellipsis",
                 // Render contextual alternate glyphs. Particularly important that we render
@@ -48,17 +51,17 @@ export function SearchResultViewTitle({
                 fontFeatureSettings: '"calt" on',
             }}
         >
-            <SearchResultViewTitlePrefix icon={icon} media={media} />
-            {renderTextWithEmojiFontFamily(title)}
+            <SearchResultViewTitlePrefix typeDisplay={typeDisplay} media={media} />
+            {title !== null ? renderTextWithEmojiFontFamily(title) : null}
         </Box>
     );
 }
 
 export function SearchResultViewTitlePrefix({
-    icon,
+    typeDisplay,
     media,
 }: {
-    icon: ReactNode;
+    typeDisplay: SearchResultTypeDisplay;
     media: SearchResultMedia | null;
 }) {
     const spacingScale = useSpacingScale();
@@ -70,7 +73,7 @@ export function SearchResultViewTitlePrefix({
                 display="inline-flex"
                 justifyContent="center"
                 alignItems="center"
-                marginRight="1.5"
+                marginRight={searchResultViewTitleTypeDisplayGap}
                 style={{
                     height: contentStyles.paragraphLineHeightPx[spacingScale],
                     verticalAlign: "top",
@@ -90,7 +93,7 @@ export function SearchResultViewTitlePrefix({
                         size: spacing[searchResultViewMediaSize],
                     }}
                 >
-                    {icon}
+                    {typeDisplay.icon}
                 </IconContext.Provider>
             </Box>
             {media && <SearchResultMediaView media={media} />}
@@ -171,8 +174,8 @@ function SearchResultMediaView({media}: {media: SearchResultMedia}) {
                 <Box
                     display="inline-flex"
                     alignItems="center"
-                    marginLeft="1"
-                    marginRight="2"
+                    marginLeft="0.5"
+                    marginRight="1.5"
                     style={{
                         height: contentStyles.paragraphLineHeightPx[spacingScale],
                         verticalAlign: "top",

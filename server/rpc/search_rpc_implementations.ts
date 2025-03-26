@@ -10,6 +10,7 @@ import {
 import {
     favoriteSearchAffinity,
     markSearchAffinityInteraction,
+    moveSearchAffinityFavorite,
     unfavoriteSearchAffinity,
 } from "~/server/search/data/table/search_entity_table.js";
 import * as definitions from "~/shared/rpc/search_rpc_definitions.js";
@@ -83,6 +84,14 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         execute: async (context, input) => {
             await unfavoriteSearchAffinity(context.actor.authorizeSession(), input);
+            return {};
+        },
+    },
+
+    moveSearchAffinityFavorite: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await moveSearchAffinityFavorite(context.actor.authorizeSession(), input);
             return {};
         },
     },

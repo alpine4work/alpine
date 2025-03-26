@@ -1,3 +1,4 @@
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {unsafelyGenerateStableChronologicalId} from "~/shared/id/chronological_id.js";
@@ -11,17 +12,17 @@ import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort
 export function getSearchResultDestinationPath({
     spaceId,
     resultId,
-    searchKey,
-    searchTime,
-    withDesktopLayout,
+    randomSeed,
+    currentTime,
+    routeLayout,
 }: {
     spaceId: SpaceId;
     resultId: SearchResultId;
-    searchKey: string;
-    searchTime: Date;
-    withDesktopLayout: boolean;
+    randomSeed: string;
+    currentTime: Date;
+    routeLayout: RouteLayout;
 }): string {
-    const getStableRandom = () => new StableRandom(`getSearchResultDestinationPath:${searchKey}`);
+    const getStableRandom = () => new StableRandom(`getSearchResultDestinationPath:${randomSeed}`);
 
     switch (resultId) {
         case "CreateChatMessage": {
@@ -33,7 +34,7 @@ export function getSearchResultDestinationPath({
             const draftId = unsafelyGenerateStableChronologicalId(
                 getStableRandom(),
                 resultId,
-                searchTime.getTime(),
+                currentTime.getTime(),
             );
 
             return `/s/${spaceId}/posts/new/${draftId}`;
@@ -185,7 +186,7 @@ export function getSearchResultDestinationPath({
         }
         default: {
             const entityIdObject = parseSearchEntityId(resultId);
-            return getSearchEntityPath(spaceId, entityIdObject, withDesktopLayout);
+            return getSearchEntityPath(spaceId, entityIdObject, routeLayout);
         }
     }
 }
@@ -193,7 +194,7 @@ export function getSearchResultDestinationPath({
 function getSearchEntityPath(
     spaceId: SpaceId,
     entityId: SearchEntityIdObject,
-    withDesktopLayout: boolean,
+    routeLayout: RouteLayout,
 ): string {
     switch (entityId.type) {
         case "Account": {
@@ -232,9 +233,12 @@ function getSearchEntityPath(
             return `/s/${spaceId}/tasks/collections/${entityId.collectionId}`;
         }
         case "TaskComment": {
-            return withDesktopLayout
-                ? `/s/${spaceId}/tasks/${entityId.taskId}`
-                : `/s/${spaceId}/tasks/${entityId.taskId}/comments?comment=${entityId.commentIndex}`;
+            // NOCOMMIT: Shouldn't we set `comments=show` and `comment=commentIndex` here?
+            if (routeLayout !== "narrow") {
+                return `/s/${spaceId}/tasks/${entityId.taskId}`;
+            } else {
+                return `/s/${spaceId}/tasks/${entityId.taskId}/comments?comment=${entityId.commentIndex}`;
+            }
         }
         default:
             throw exhaustive(entityId);

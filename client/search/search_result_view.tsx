@@ -1,26 +1,17 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import escapeHtml from "escape-html";
-import {Fragment, ReactNode, useMemo} from "react";
+import {Fragment, useMemo} from "react";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
-import {ChannelBrandIcon} from "~/client/icons/brand/channel_brand_icon.js";
-import {ChatBrandIcon} from "~/client/icons/brand/chat_brand_icon.js";
-import {DocumentBrandIcon} from "~/client/icons/brand/document_brand_icon.js";
-import {DocumentCommentBrandIcon} from "~/client/icons/brand/document_comment_brand_icon.js";
-import {PostBrandIcon} from "~/client/icons/brand/post_brand_icon.js";
-import {PostCommentBrandIcon} from "~/client/icons/brand/post_comment_brand_icon.js";
-import {TaskBrandIcon} from "~/client/icons/brand/task_brand_icon.js";
-import {TaskCollectionBrandIcon} from "~/client/icons/brand/task_collection_brand_icon.js";
-import {TaskCommentBrandIcon} from "~/client/icons/brand/task_comment_brand_icon.js";
-import {TaskQueryBrandIcon} from "~/client/icons/brand/task_query_brand_icon.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {getSearchResultTypeDisplay} from "~/client/search/internal/search_result_type_display.js";
 import {
     SearchResultViewTitle,
     SearchResultViewTitlePrefix,
-} from "~/client/search/search_result_view_title.js";
+} from "~/client/search/internal/search_result_view_title.js";
 import {
     minSearchResultViewBodyTextSnippetHeight,
     minSearchResultViewHeightPx,
@@ -39,12 +30,10 @@ import {
     sprinkles,
 } from "~/client/styles/styles.js";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
-import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
-import {SearchResult, SearchResultId} from "~/shared/search/search_result.js";
+import {SearchResult} from "~/shared/search/search_result.js";
 
 export const searchResultSideBarWidth = "96";
 
@@ -138,7 +127,7 @@ export function SearchResultView({
                     {result.title !== null && (
                         <>
                             <SearchResultViewTitle
-                                icon={typeDisplay.icon}
+                                typeDisplay={typeDisplay}
                                 title={result.title}
                                 media={result.media}
                             />
@@ -176,7 +165,7 @@ export function SearchResultView({
                     >
                         {result.title === null && (
                             <SearchResultViewTitlePrefix
-                                icon={typeDisplay.icon}
+                                typeDisplay={typeDisplay}
                                 media={result.media}
                             />
                         )}
@@ -218,118 +207,6 @@ export function SearchResultView({
             </Box>
         </Box>
     );
-}
-
-/**
- * Configures how we display results of various types in `<SearchResultView>`.
- *
- * - `name`: The name we present this search entity with.
- * - `isAccountMediaAuthor`: If the `SearchResult` object has a `media` object
- *   with type `Account` then consider this account as the author of the search
- *   entity. Visually we end up putting the author name next to the search
- *   result body snippet to communicate authorship.
- */
-type SearchResultTypeDisplay = {
-    icon: ReactNode;
-    isAccountMediaAuthor?: boolean;
-};
-
-// NOTE(calebmer): The icons used here for create actions are the same icons
-// used in `<SpaceLayoutSideBarCreateButton/>`. If you change an icon here you
-// should also change it there.
-function getSearchResultTypeDisplay(resultId: SearchResultId): SearchResultTypeDisplay {
-    switch (resultId) {
-        case "CreateChatMessage": {
-            return {icon: <ChatBrandIcon />};
-        }
-        case "CreatePost": {
-            return {icon: <PostBrandIcon />};
-        }
-        case "CreateDocument": {
-            return {icon: <DocumentBrandIcon />};
-        }
-        case "CreateTask": {
-            return {icon: <TaskBrandIcon />};
-        }
-        case "CreateChannel": {
-            return {icon: <ChannelBrandIcon />};
-        }
-        case "CreateTaskCollection": {
-            return {icon: <TaskCollectionBrandIcon />};
-        }
-        case "CreateTaskView": {
-            return {icon: <TaskQueryBrandIcon />};
-        }
-        case "TaskPersonal": {
-            // We label the "My tasks" view as a task "collection" since it is a collection
-            // of tasks.
-            return getSearchResultTypeDisplayForEntity("TaskCollection");
-        }
-        case "TaskQueryFilteredToCreatorIsCurrentAccount":
-        case "TaskQueryFilteredToAssigneeIsCurrentAccount":
-        case "TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive":
-        case "TaskQueryFilteredToAssignerIsCurrentAccount": {
-            return {icon: <TaskQueryBrandIcon />};
-        }
-        default: {
-            const entityIdObject = parseSearchEntityId(resultId);
-            return getSearchResultTypeDisplayForEntity(entityIdObject.type);
-        }
-    }
-}
-
-function getSearchResultTypeDisplayForEntity(
-    type: SearchEntityIdObject["type"],
-): SearchResultTypeDisplay {
-    switch (type) {
-        case "Account": {
-            return {icon: <ChatBrandIcon />};
-        }
-        case "Document": {
-            return {icon: <DocumentBrandIcon />};
-        }
-        case "DocumentComment": {
-            return {
-                icon: <DocumentCommentBrandIcon />,
-                isAccountMediaAuthor: true,
-            };
-        }
-        case "Channel": {
-            return {icon: <ChannelBrandIcon />};
-        }
-        case "Post": {
-            return {
-                icon: <PostBrandIcon />,
-                isAccountMediaAuthor: true,
-            };
-        }
-        case "PostComment": {
-            return {
-                icon: <PostCommentBrandIcon />,
-                isAccountMediaAuthor: true,
-            };
-        }
-        case "Chat": {
-            return {icon: <ChatBrandIcon />};
-        }
-        case "ChatMessage": {
-            return {
-                icon: <ChatBrandIcon />,
-                isAccountMediaAuthor: true,
-            };
-        }
-        case "Task": {
-            return {icon: <TaskBrandIcon />};
-        }
-        case "TaskCollection": {
-            return {icon: <TaskCollectionBrandIcon />};
-        }
-        case "TaskComment": {
-            return {icon: <TaskCommentBrandIcon />, isAccountMediaAuthor: true};
-        }
-        default:
-            throw exhaustive(type);
-    }
 }
 
 function SearchResultViewExplainDebugWidget({

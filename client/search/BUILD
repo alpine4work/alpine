@@ -7,6 +7,8 @@ ts_project(
         "//client/spaces/layout:__pkg__",
     ],
     deps = [
+        "//:node_modules/@dnd-kit/core",
+        "//:node_modules/@dnd-kit/sortable",
         "//:node_modules/@types/react",
         "//:node_modules/@types/scheduler",
         "//:node_modules/react",

@@ -66,3 +66,5 @@ export const minSearchResultViewHeightPx = createObjectFromKeys(
         minSearchResultViewHeightWithoutPaddingYPx[spacingScale] +
         convertRemLengthToPx(searchResultViewPaddingY, spacingScale) * 2,
 );
+
+export const searchResultViewTitleTypeDisplayGap = "1.5";

@@ -294,9 +294,9 @@ function SearchMobileViewResult({
                 getSearchResultDestinationPath({
                     spaceId: spaceId,
                     resultId: result.id,
-                    searchKey,
-                    searchTime,
-                    withDesktopLayout: false,
+                    randomSeed: searchKey,
+                    currentTime: searchTime,
+                    routeLayout: "narrow",
                 }),
             );
         },

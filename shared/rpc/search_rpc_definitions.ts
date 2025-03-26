@@ -1,6 +1,7 @@
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
+import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchAffinityIdSchema} from "~/shared/search/search_affinity_id.js";
@@ -126,6 +127,16 @@ export const unfavoriteSearchAffinity = defineRpc({
     input: {
         spaceId: Schema.id<SpaceId>(),
         affinityId: SearchAffinityIdSchema,
+    },
+    output: {},
+});
+
+export const moveSearchAffinityFavorite = defineRpc({
+    name: "moveSearchAffinityFavorite",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        affinityId: SearchAffinityIdSchema,
+        orderKey: OrderKeySchema,
     },
     output: {},
 });

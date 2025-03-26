@@ -17,7 +17,6 @@ import {
     useRef,
     useState,
 } from "react";
-import {usePress} from "react-aria";
 import {To, createPath} from "react-router";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -47,7 +46,7 @@ import {SearchResultView, searchResultSideBarWidth} from "~/client/search/search
 import {useSearchState} from "~/client/search/use_search_state.js";
 import {SearchResultShimmer} from "~/client/shimmer/search_result_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
+import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
     minSearchResultViewHeightPx,
     searchResultViewDefaultMarginX,
@@ -111,8 +110,8 @@ export function SearchModal({
 
         const inputElement = assertExists(inputRef.current);
 
-        inputElement.select();
         inputElement.focus();
+        inputElement.select();
     }, []);
 
     const {output, queryText, onQueryTextChange} = useSearchState({
@@ -166,7 +165,7 @@ export function SearchModal({
     return (
         <Modal
             aria-label="Search"
-            maxWidth={addRemLengths(searchResultSideBarWidth, peekMobileLayoutWidth)}
+            maxWidth={addRemLengths(searchResultSideBarWidth, peekNarrowLayoutWidth)}
             height="full"
             maxHeight={searchModalMaxHeight}
             borderRadius="2.5"
@@ -310,9 +309,9 @@ export function SearchModal({
                             const destinationPath = getSearchResultDestinationPath({
                                 spaceId: space.id,
                                 resultId: result.id,
-                                searchKey: output.key,
-                                searchTime: output.queryTime,
-                                withDesktopLayout: false,
+                                randomSeed: output.key,
+                                currentTime: output.queryTime,
+                                routeLayout: "narrow",
                             });
 
                             // NOCOMMIT: We're not scrolling anymore? When did that break?
@@ -408,7 +407,7 @@ export function SearchModal({
                                 >
                                     {output.isError ? (
                                         <Box
-                                            maxWidth={peekMobileLayoutWidth}
+                                            maxWidth={peekNarrowLayoutWidth}
                                             marginX="auto"
                                             padding="8"
                                             paddingTop="16"
@@ -488,7 +487,7 @@ export function SearchModal({
                             () => (
                                 <Box
                                     flexShrink="0"
-                                    width={peekMobileLayoutWidth}
+                                    width={peekNarrowLayoutWidth}
                                     height="full"
                                     overflow="hidden"
                                     style={{
@@ -685,9 +684,9 @@ function SearchModalResultList({
             const destinationPath = getSearchResultDestinationPath({
                 spaceId: space.id,
                 resultId: result.id,
-                searchKey,
-                searchTime,
-                withDesktopLayout: true,
+                randomSeed: searchKey,
+                currentTime: searchTime,
+                routeLayout: "wide",
             });
 
             // If the user double clicked there may be an ongoing pending transition
@@ -781,9 +780,9 @@ function SearchModalResultList({
                                         const destinationPath = getSearchResultDestinationPath({
                                             spaceId: space.id,
                                             resultId: result.id,
-                                            searchKey,
-                                            searchTime,
-                                            withDesktopLayout: false,
+                                            randomSeed: searchKey,
+                                            currentTime: searchTime,
+                                            routeLayout: "narrow",
                                         });
 
                                         void switchPeek({
@@ -856,9 +855,9 @@ function SearchModalResultList({
                                 const destinationPath = getSearchResultDestinationPath({
                                     spaceId: space.id,
                                     resultId: result.id,
-                                    searchKey,
-                                    searchTime,
-                                    withDesktopLayout: false,
+                                    randomSeed: searchKey,
+                                    currentTime: searchTime,
+                                    routeLayout: "narrow",
                                 });
 
                                 void switchPeek({

@@ -11,14 +11,13 @@ import {
 } from "@dnd-kit/core";
 import {SortableContext, arrayMove, useSortable} from "@dnd-kit/sortable";
 import {CaretDown, DotsSixVertical, X} from "phosphor-react";
-import {Fragment, Key, ReactNode} from "react";
-import {mergeProps} from "react-aria";
+import {Fragment, Key, ReactNode, useMemo} from "react";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
 import {TaskMissingAccountAvatar} from "~/client/tasks/internal/task_missing_account_avatar.js";
 import {spacing} from "~/shared/design/core/spacing.js";
@@ -33,11 +32,11 @@ export function TaskQuerySortsEditor({
     onSortsWithIdChange,
     defaultOrderSentence,
 }: {
-    sortsWithId: Array<{id: number; sort: TaskQuerySort}>;
-    onSortsWithIdChange: (sorts: Array<{id: number; sort: TaskQuerySort}>) => void;
+    sortsWithId: ReadonlyArray<{id: number; sort: TaskQuerySort}>;
+    onSortsWithIdChange: (sorts: ReadonlyArray<{id: number; sort: TaskQuerySort}>) => void;
     defaultOrderSentence: string;
 }) {
-    const routeLayout = useRouteLayout();
+    const platform = usePlatform();
 
     // By default `<DndContext>` uses `PointerSensor` and `KeyboardSensor` but
     // `PointerSensor` can't stop scroll when dragging with touch. So instead we
@@ -49,7 +48,7 @@ export function TaskQuerySortsEditor({
     );
 
     return sortsWithId.length === 0 ? (
-        routeLayout !== "narrow" ? (
+        platform !== "mobile" ? (
             <Box color="grey-50">No sorts. {defaultOrderSentence}</Box>
         ) : (
             <Box
@@ -71,18 +70,15 @@ export function TaskQuerySortsEditor({
             collisionDetection={closestCenter}
             onDragEnd={event => {
                 const {active, over} = event;
+                if (!over || active.id === over.id) return;
 
-                if (over && active.id !== over.id) {
-                    const oldIndex = sortsWithId.findIndex(
-                        sortWithId => sortWithId.id === active.id,
-                    );
-                    const newIndex = sortsWithId.findIndex(sortWithId => sortWithId.id === over.id);
+                const oldIndex = sortsWithId.findIndex(sortWithId => sortWithId.id === active.id);
+                const newIndex = sortsWithId.findIndex(sortWithId => sortWithId.id === over.id);
 
-                    assert(oldIndex >= 0);
-                    assert(newIndex >= 0);
+                assert(oldIndex >= 0);
+                assert(newIndex >= 0);
 
-                    onSortsWithIdChange(arrayMove(sortsWithId, oldIndex, newIndex));
-                }
+                onSortsWithIdChange(arrayMove(sortsWithId, oldIndex, newIndex));
             }}
         >
             <SortableContext items={sortsWithId}>
@@ -90,13 +86,13 @@ export function TaskQuerySortsEditor({
                 <Box
                     position="relative"
                     zIndex="0"
-                    marginY={routeLayout !== "narrow" ? "-2" : undefined}
-                    marginX={routeLayout !== "narrow" ? "-2.5" : undefined}
+                    marginY={platform !== "mobile" ? "-2" : undefined}
+                    marginX={platform !== "mobile" ? "-2.5" : undefined}
                 >
                     {sortsWithId.map(({sort, id}, index) => (
                         <Fragment key={id}>
                             {index !== 0 &&
-                                (routeLayout === "narrow" ? (
+                                (platform === "mobile" ? (
                                     <Box
                                         position="relative"
                                         zIndex="10" // Renders under rows
@@ -136,12 +132,20 @@ export function TaskQuerySortsEditor({
 function TaskQuerySortsEditorDragPortals({
     sortsWithId,
 }: {
-    sortsWithId: Array<{id: Key; sort: TaskQuerySort}>;
+    sortsWithId: ReadonlyArray<{id: Key; sort: TaskQuerySort}>;
 }) {
     const {active, activatorEvent} = useDndContext();
 
     const isPointerDragging =
         active && (activatorEvent instanceof PointerEvent || activatorEvent instanceof MouseEvent);
+
+    const activeSortWithId = useMemo(
+        () =>
+            active
+                ? assertExists(sortsWithId.find(sortWithId => sortWithId.id === active.id))
+                : null,
+        [active, sortsWithId],
+    );
 
     return (
         <>
@@ -150,16 +154,12 @@ function TaskQuerySortsEditorDragPortals({
                     <Box position="absolute" inset="0" zIndex="80" cursor="grabbing" />,
                     document.body,
                 )}
-            {active &&
+            {activeSortWithId &&
                 createPortal(
                     <DragOverlay zIndex={70}>
                         <TaskQuerySortsEditorRow
-                            id={active.id}
-                            sort={
-                                assertExists(
-                                    sortsWithId.find(sortWithId => sortWithId.id === active.id),
-                                ).sort
-                            }
+                            id={activeSortWithId.id}
+                            sort={activeSortWithId.sort}
                             isDragOverlay={true}
                             onSortChange={noop}
                             onSortDelete={noop}
@@ -348,7 +348,7 @@ function TaskQuerySortsEditorRowBase({
     isDragOverlay: boolean;
     children?: ReactNode;
 }) {
-    const routeLayout = useRouteLayout();
+    const platform = usePlatform();
 
     const {
         attributes: sortableAttributes,
@@ -365,19 +365,19 @@ function TaskQuerySortsEditorRowBase({
             className={greyElevated2ClassName}
             position="relative"
             zIndex="20" // Renders over dividers
-            paddingLeft={routeLayout === "narrow" ? "3" : "2.5"}
-            paddingRight={routeLayout === "narrow" ? "1.5" : "2.5"}
+            paddingLeft={platform === "mobile" ? "3" : "2.5"}
+            paddingRight={platform === "mobile" ? "1.5" : "2.5"}
             display="flex"
             alignItems="center"
             backgroundColor={isDragOverlay ? "grey-0" : undefined}
             boxShadow={
                 isDragOverlay
-                    ? routeLayout === "narrow"
+                    ? platform === "mobile"
                         ? "elevation-20-with-grey-10-border"
                         : "elevation-30"
                     : undefined
             }
-            borderRadius={routeLayout === "narrow" || isDragOverlay ? "1" : undefined}
+            borderRadius={platform === "mobile" || isDragOverlay ? "1" : undefined}
             style={{
                 transform: sortableTransform
                     ? `translate(${sortableTransform.x}px, ${sortableTransform.y}px)`
@@ -386,48 +386,48 @@ function TaskQuerySortsEditorRowBase({
                 opacity: isDragging ? 0 : undefined,
 
                 height:
-                    routeLayout === "narrow"
+                    platform === "mobile"
                         ? spacing["9"]
                         : // Add 2px of height when this is a drag overlay so it covers the dividers.
                         isDragOverlay
                         ? `calc(${spacing["8"]} + 2px)`
                         : spacing["8"],
-                marginTop: isDragOverlay && routeLayout !== "narrow" ? -1 : 0,
+                marginTop: isDragOverlay && platform !== "mobile" ? -1 : 0,
 
                 boxShadow:
-                    routeLayout === "narrow" && !isDragOverlay
+                    platform === "mobile" && !isDragOverlay
                         ? `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`
                         : undefined,
             }}
         >
             <Box flexShrink="0">{name}</Box>
-            {routeLayout !== "narrow" && <Box flexGrow="1" />}
+            {platform !== "mobile" && <Box flexGrow="1" />}
             {children && (
                 <Box
                     flexShrink="0"
-                    paddingLeft={routeLayout === "narrow" ? "1" : "2"}
+                    paddingLeft={platform === "mobile" ? "1" : "2"}
                     style={{
-                        height:
-                            routeLayout === "narrow" ? `calc(${spacing["9"]} - 4px)` : undefined,
+                        height: platform === "mobile" ? `calc(${spacing["9"]} - 4px)` : undefined,
                     }}
                 >
                     {children}
                 </Box>
             )}
-            {routeLayout === "narrow" && <Box flexGrow="1" />}
+            {platform === "mobile" && <Box flexGrow="1" />}
             <Box
                 flexShrink="0"
                 display="flex"
                 alignItems="center"
-                gap={routeLayout === "narrow" ? "1" : "0.5"}
+                gap={platform === "mobile" ? "1" : "0.5"}
                 paddingLeft="3"
             >
                 <button
-                    {...mergeProps(sortableAttributes, sortableListeners ?? {})}
+                    {...sortableAttributes}
+                    {...sortableListeners}
                     className={sprinkles({
-                        width: routeLayout === "narrow" ? "9" : "4",
-                        height: routeLayout === "narrow" ? "9" : "4",
-                        margin: routeLayout === "narrow" ? "-1.5" : undefined,
+                        width: platform === "mobile" ? "9" : "4",
+                        height: platform === "mobile" ? "9" : "4",
+                        margin: platform === "mobile" ? "-1.5" : undefined,
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
@@ -439,11 +439,11 @@ function TaskQuerySortsEditorRowBase({
                     // not done with tab navigation.
                     tabIndex={-1}
                 >
-                    <DotsSixVertical size={spacing[routeLayout === "narrow" ? "4" : "3"]} />
+                    <DotsSixVertical size={spacing[platform === "mobile" ? "4" : "3"]} />
                 </button>
                 <IconButton
-                    size={routeLayout === "narrow" ? "md" : "xs"}
-                    borderRadius={routeLayout === "narrow" ? "0.5" : undefined}
+                    size={platform === "mobile" ? "md" : "xs"}
+                    borderRadius={platform === "mobile" ? "0.5" : undefined}
                     description="Delete"
                     withoutTooltip={true}
                     onPress={onDelete}
@@ -462,7 +462,7 @@ function TaskQuerySortsEditorRowStatusDirection({
     direction: "Ascending" | "Descending";
     onDirectionChange: (direction: "Ascending" | "Descending") => void;
 }) {
-    const routeLayout = useRouteLayout();
+    const platform = usePlatform();
 
     const ascendingLabel = "Open → Closed";
     const descendingLabel = "Closed → Open";
@@ -484,8 +484,8 @@ function TaskQuerySortsEditorRowStatusDirection({
         >
             <Button
                 variant="quieter"
-                height={routeLayout === "narrow" ? "full" : "5"}
-                paddingX={routeLayout === "narrow" ? "2" : "1.5"}
+                height={platform === "mobile" ? "full" : "5"}
+                paddingX={platform === "mobile" ? "2" : "1.5"}
                 icon={<CaretDown />}
                 iconPlacement="end"
             >
@@ -502,7 +502,7 @@ function TaskQuerySortsEditorRowPriorityDirection({
     direction: "Ascending" | "Descending";
     onDirectionChange: (direction: "Ascending" | "Descending") => void;
 }) {
-    const routeLayout = useRouteLayout();
+    const platform = usePlatform();
 
     const ascendingLabel = "Low → High";
     const descendingLabel = "High → Low";
@@ -524,8 +524,8 @@ function TaskQuerySortsEditorRowPriorityDirection({
         >
             <Button
                 variant="quieter"
-                height={routeLayout === "narrow" ? "full" : "5"}
-                paddingX={routeLayout === "narrow" ? "2" : "1.5"}
+                height={platform === "mobile" ? "full" : "5"}
+                paddingX={platform === "mobile" ? "2" : "1.5"}
                 icon={<CaretDown />}
                 iconPlacement="end"
             >
@@ -542,7 +542,7 @@ function TaskQuerySortsEditorRowAccountMissing({
     missing: "First" | "Last";
     onMissingChange: (missing: "First" | "Last") => void;
 }) {
-    const routeLayout = useRouteLayout();
+    const platform = usePlatform();
 
     return (
         <MenuButton
@@ -561,8 +561,8 @@ function TaskQuerySortsEditorRowAccountMissing({
         >
             <Button
                 variant="quieter"
-                height={routeLayout === "narrow" ? "full" : "5"}
-                paddingX={routeLayout === "narrow" ? "2" : "1.5"}
+                height={platform === "mobile" ? "full" : "5"}
+                paddingX={platform === "mobile" ? "2" : "1.5"}
                 icon={<CaretDown />}
                 iconPlacement="end"
             >
@@ -582,7 +582,7 @@ function TaskQuerySortsEditorRowDateDirection({
     direction: "Ascending" | "Descending";
     onDirectionChange: (direction: "Ascending" | "Descending") => void;
 }) {
-    const routeLayout = useRouteLayout();
+    const platform = usePlatform();
 
     const ascendingLabel = "Jan 1 → Dec 31";
     const descendingLabel = "Dec 31 → Jan 1";
@@ -604,8 +604,8 @@ function TaskQuerySortsEditorRowDateDirection({
         >
             <Button
                 variant="quieter"
-                height={routeLayout === "narrow" ? "full" : "5"}
-                paddingX={routeLayout === "narrow" ? "2" : "1.5"}
+                height={platform === "mobile" ? "full" : "5"}
+                paddingX={platform === "mobile" ? "2" : "1.5"}
                 icon={<CaretDown />}
                 iconPlacement="end"
             >

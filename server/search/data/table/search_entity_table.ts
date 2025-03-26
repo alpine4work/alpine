@@ -1594,6 +1594,50 @@ export async function unfavoriteSearchAffinity(
 }
 
 /**
+ * Move the already favorited search entity to a new `OrderKey`. If the entity
+ * is not favorited then this does nothing.
+ */
+export async function moveSearchAffinityFavorite(
+    context: ServerSessionActionContext,
+    {
+        spaceId,
+        affinityId,
+        orderKey,
+    }: {
+        spaceId: SpaceId;
+        affinityId: SearchAffinityId;
+        orderKey: OrderKey;
+    },
+) {
+    // Optimization: We don't authorize whether the actor has access to the entity.
+    // Since this is a personal favorite list it doesn't really matter if the user
+    // favorites an entity they don't have access to.
+    await authorizeSpaceAccess(context, spaceId);
+
+    await SearchEntityTable.updateItem(
+        context,
+        {
+            partitionType: "Account",
+            sortRangeType: "SearchEntityAffinity",
+            spaceId,
+            accountId: context.actor.getAccountId(),
+            entityId: affinityId,
+        },
+        item => {
+            // This item is not favorited!
+            if (typeof item?.favoriteOrderKey !== "string") {
+                return item;
+            }
+
+            return assignSearchAffinityDerivedAttributes({
+                ...item,
+                favoriteOrderKey: orderKey,
+            });
+        },
+    );
+}
+
+/**
  * Is the provided `affinityId` one of the session actor's favorites?
  */
 export async function isSearchAffinityFavorite(
@@ -1629,7 +1673,7 @@ export async function isSearchAffinityFavorite(
  */
 export async function internalGetSearchAffinityFavorites(
     context: ServerSessionActionContext,
-    {spaceId, limit}: {spaceId: SpaceId; limit: number},
+    {spaceId, limit}: {spaceId: SpaceId; limit: number | "All"},
 ): Promise<Array<{affinityId: SearchAffinityId; orderKey: OrderKey}>> {
     await authorizeSpaceAccess(context, spaceId);
 

@@ -72,7 +72,9 @@ export function ChannelDesktopCreator({
                     icon: <Star />,
                     iconPlacement: "end",
                     isDisabled: true,
-                    onPress: () => {},
+                    onPress: () => {
+                        // NOCOMMIT: Implement!
+                    },
                 },
             ],
             [

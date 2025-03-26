@@ -17,6 +17,7 @@ import {
     markSearchAffinityCreateDocumentInteraction,
     markSearchAffinityInteraction,
     monthDurationMs,
+    moveSearchAffinityFavorite,
     removeSearchAffinityActiveTaskAssigneePoints,
     searchAffinityQueryPageLimit,
     unfavoriteSearchAffinity,
@@ -30,6 +31,7 @@ import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
 import {randomFloat} from "~/shared/helpers/number/random_float.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 
@@ -1584,6 +1586,45 @@ test("can favorite and unfavorite search entities", async () => {
         ),
     ).toEqual([false, false, false, true, true, true]);
 
+    await moveSearchAffinityFavorite(session2.action(), {
+        spaceId: space.id,
+        affinityId: `Document:${document2.id}`,
+        orderKey: assertOrderKey("a0V"),
+    });
+
+    expect(
+        await internalGetSearchAffinityFavorites(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual([
+        {
+            affinityId: `Document:${document3.id}`,
+            orderKey: "a0",
+        },
+        {
+            affinityId: `Document:${document2.id}`,
+            orderKey: "a0V",
+        },
+        {
+            affinityId: `Document:${document1.id}`,
+            orderKey: "a1",
+        },
+    ]);
+
+    expect(
+        await runAllPromises(
+            [session1, session2].flatMap(session =>
+                [document1, document2, document3].flatMap(document =>
+                    isSearchAffinityFavorite(session.action(), {
+                        spaceId: space.id,
+                        affinityId: `Document:${document.id}`,
+                    }),
+                ),
+            ),
+        ),
+    ).toEqual([false, false, false, true, true, true]);
+
     await unfavoriteSearchAffinity(session2.action(), {
         spaceId: space.id,
         affinityId: `Document:${document3.id}`,
@@ -1596,12 +1637,12 @@ test("can favorite and unfavorite search entities", async () => {
         }),
     ).toEqual([
         {
-            affinityId: `Document:${document1.id}`,
-            orderKey: "a1",
+            affinityId: `Document:${document2.id}`,
+            orderKey: "a0V",
         },
         {
-            affinityId: `Document:${document2.id}`,
-            orderKey: "a2",
+            affinityId: `Document:${document1.id}`,
+            orderKey: "a1",
         },
     ]);
 
@@ -1630,12 +1671,12 @@ test("can favorite and unfavorite search entities", async () => {
         }),
     ).toEqual([
         {
-            affinityId: `Document:${document1.id}`,
-            orderKey: "a1",
+            affinityId: `Document:${document2.id}`,
+            orderKey: "a0V",
         },
         {
-            affinityId: `Document:${document2.id}`,
-            orderKey: "a2",
+            affinityId: `Document:${document1.id}`,
+            orderKey: "a1",
         },
     ]);
 
@@ -1665,7 +1706,7 @@ test("can favorite and unfavorite search entities", async () => {
     ).toEqual([
         {
             affinityId: `Document:${document2.id}`,
-            orderKey: "a2",
+            orderKey: "a0V",
         },
     ]);
 
@@ -1695,7 +1736,7 @@ test("can favorite and unfavorite search entities", async () => {
     ).toEqual([
         {
             affinityId: `Document:${document2.id}`,
-            orderKey: "a2",
+            orderKey: "a0V",
         },
     ]);
 
@@ -1725,11 +1766,46 @@ test("can favorite and unfavorite search entities", async () => {
     ).toEqual([
         {
             affinityId: `Document:${document2.id}`,
-            orderKey: "a2",
+            orderKey: "a0V",
         },
         {
             affinityId: `Document:${document1.id}`,
-            orderKey: "a3",
+            orderKey: "a1",
+        },
+    ]);
+
+    expect(
+        await runAllPromises(
+            [session1, session2].flatMap(session =>
+                [document1, document2, document3].flatMap(document =>
+                    isSearchAffinityFavorite(session.action(), {
+                        spaceId: space.id,
+                        affinityId: `Document:${document.id}`,
+                    }),
+                ),
+            ),
+        ),
+    ).toEqual([false, false, false, true, true, false]);
+
+    await moveSearchAffinityFavorite(session2.action(), {
+        spaceId: space.id,
+        affinityId: `Document:${document3.id}`,
+        orderKey: assertOrderKey("a4"),
+    });
+
+    expect(
+        await internalGetSearchAffinityFavorites(session2.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual([
+        {
+            affinityId: `Document:${document2.id}`,
+            orderKey: "a0V",
+        },
+        {
+            affinityId: `Document:${document1.id}`,
+            orderKey: "a1",
         },
     ]);
 

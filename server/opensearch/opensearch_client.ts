@@ -38,6 +38,7 @@ import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_al
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
@@ -155,6 +156,20 @@ export interface OpensearchClientInterface {
     ): Promise<{
         -readonly [K in keyof Commands]: OpensearchMultiGetDocCommandOutputType<Commands[K]> | null;
     }>;
+
+    /**
+     * Gets multiple documents in one network request using the [multi-get
+     * documents API][1].
+     *
+     * This method is slightly more efficient than `multiGetDocsIfExist()` since
+     * `multiGetDocsIfExist()` calls this method and turns the map into an array.
+     *
+     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/multi-get/
+     */
+    multiGetDocByIdByIndexIfExist<Index extends OpensearchIndex<any, any, any, any, any>, Output>(
+        tracer: TracerBase,
+        commands: ReadonlyArray<OpensearchMultiGetDocCommandBase<Index, Output>>,
+    ): Promise<Map<Index, Map<OpensearchIndexDocIdType<Index>, Output>>>;
 
     /**
      * Indexes a single document using the [index document API][1].
@@ -1294,24 +1309,65 @@ export class OpensearchClient implements OpensearchClientInterface {
     ): Promise<{
         -readonly [K in keyof Commands]: OpensearchMultiGetDocCommandOutputType<Commands[K]> | null;
     }> {
+        const docByIdByIndex = await this.multiGetDocByIdByIndexIfExist(tracer, commands);
+
+        return commands.map(command => {
+            const doc = docByIdByIndex.get(command.index)?.get(command.id);
+            if (!doc) return null;
+            return doc;
+        }) as any;
+    }
+
+    /**
+     * Gets multiple documents in one network request using the [multi-get
+     * documents API][1].
+     *
+     * This method is slightly more efficient than `multiGetDocsIfExist()` since
+     * `multiGetDocsIfExist()` calls this method and turns the map into an array.
+     *
+     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/multi-get/
+     */
+    public async multiGetDocByIdByIndexIfExist<
+        Index extends OpensearchIndex<any, any, any, any, any>,
+        Output,
+    >(
+        tracer: TracerBase,
+        commands: ReadonlyArray<OpensearchMultiGetDocCommandBase<Index, Output>>,
+    ): Promise<Map<Index, Map<OpensearchIndexDocIdType<Index>, Output>>> {
         if (commands.length === 0) return [] as any;
 
-        const indexes = new Set<OpensearchIndex<any, any, any, any, any>>();
+        const indexByName = new Map<string, OpensearchIndex<any, any, any, any, any>>();
+        const commandByIdByIndex = new Map<
+            OpensearchIndex<any, any, any, any, any>,
+            Map<OpensearchIndexDocIdType<any>, OpensearchMultiGetDocCommandBase<any, any>>
+        >();
         const routings = new Set<string>();
+
         for (const command of commands) {
-            indexes.add(command.index);
+            const existingIndex = indexByName.get(command.index.name);
+            assert(!existingIndex || existingIndex === command.index);
+            indexByName.set(command.index.name, command.index);
+
+            getOrSetDefaultMapValue(commandByIdByIndex, command.index, () => new Map()).set(
+                command.id,
+                command,
+            );
+
             routings.add(command.routing);
         }
 
         if (process.env.NODE_ENV !== "production") {
             await runAllPromises(
-                mapIterable(indexes, index => this.ensureLocalIndex(tracer, index)),
+                mapIterable(commandByIdByIndex.keys(), index =>
+                    this.ensureLocalIndex(tracer, index),
+                ),
             );
         }
 
-        const singularIndex = indexes.size === 1 ? Array.from(indexes)[0]! : null;
+        const singularIndex =
+            commandByIdByIndex.size === 1 ? iterableFirst(commandByIdByIndex.keys())! : null;
         const singularRouting =
-            singularIndex && routings.size === 1 ? Array.from(routings)[0]! : null;
+            singularIndex && routings.size === 1 ? iterableFirst(routings)! : null;
 
         const url = new URL(singularIndex ? `/${singularIndex.name}/_mget` : "/_mget", this._url);
 
@@ -1378,25 +1434,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             },
         );
 
-        const docByIdByIndex = new Map<
-            string,
-            Map<
-                string,
-                {
-                    _index: string;
-                    _id: string;
-                    _seq_no: number;
-                    _primary_term: number;
-                } & (
-                    | {found?: false; error?: OpensearchError}
-                    | {
-                          found: true;
-                          _source?: JsonValue;
-                          fields?: {[key: string]: Array<JsonValue>};
-                      }
-                )
-            >
-        >();
+        const docByIdByIndex = new Map<Index, Map<OpensearchIndexDocIdType<Index>, Output>>();
 
         for (const bodyDoc of body.docs) {
             if (!bodyDoc.found) {
@@ -1411,17 +1449,16 @@ export class OpensearchClient implements OpensearchClientInterface {
                 continue;
             }
 
-            getOrSetDefaultMapValue(docByIdByIndex, bodyDoc._index, () => new Map()).set(
-                bodyDoc._id,
-                bodyDoc,
+            const index = assertExists(indexByName.get(bodyDoc._index));
+            const command = assertExists(commandByIdByIndex.get(index)?.get(bodyDoc._id));
+
+            getOrSetDefaultMapValue(docByIdByIndex, index as Index, () => new Map()).set(
+                bodyDoc._id as OpensearchIndexDocIdType<Index>,
+                command.deserialize(bodyDoc),
             );
         }
 
-        return commands.map(command => {
-            const doc = docByIdByIndex.get(command.index.name)?.get(command.id);
-            if (!doc) return null;
-            return command.deserialize(doc);
-        }) as any;
+        return docByIdByIndex;
     }
 
     /**
@@ -2244,6 +2281,10 @@ export class TestDisabledOpensearchClient implements OpensearchClientInterface {
     }
 
     public multiGetDocsIfExist(): never {
+        throw this._newUnavailableError();
+    }
+
+    public multiGetDocByIdByIndexIfExist(): never {
         throw this._newUnavailableError();
     }
 

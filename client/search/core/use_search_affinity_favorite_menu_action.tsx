@@ -11,6 +11,14 @@ import {
 } from "~/shared/rpc/search_rpc_definitions.js";
 import {SearchAffinityId} from "~/shared/search/search_affinity_id.js";
 
+// This orange looks much nicer for the favorites color than yellow. It's warm
+// and easier to read on a white background than yellow.
+export const searchAffinityFavoriteIconColor = "orange-30-const";
+export const searchAffinityFavoriteIconPressedColor = {
+    light: "orange-40-const",
+    dark: "orange-20-const",
+} as const;
+
 export function useSearchAffinityFavoriteMenuAction(
     affinityId: SearchAffinityId,
     initialIsFavorite: boolean,
@@ -35,12 +43,10 @@ export function useSearchAffinityFavoriteMenuAction(
                 <Star
                     weight={isFavorite ? "fill" : undefined}
                     className={sprinkles({
-                        // This orange looks much nicer for the favorites color than yellow. It's warm
-                        // and easier to read on a white background than yellow.
                         fill: isFavorite
                             ? isPressed
-                                ? {light: "orange-40-const", dark: "orange-20-const"}
-                                : "orange-30-const"
+                                ? searchAffinityFavoriteIconPressedColor
+                                : searchAffinityFavoriteIconColor
                             : undefined,
                     })}
                 />
