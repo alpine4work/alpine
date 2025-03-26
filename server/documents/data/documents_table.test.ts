@@ -2976,7 +2976,7 @@ test("can't add comment mark to `fileRow` node in a document", async () => {
     });
 });
 
-test("can add comment mark to `file` node in a document", async () => {
+test("can add comment mark to `file` node in a document with `fileRow` as a parent node", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -3050,6 +3050,174 @@ test("can add comment mark to `file` node in a document", async () => {
                         [schema.mark("comment", {commentThreadId})],
                     ),
                     schema.node("file", {fileId: file2.id}),
+                ]),
+            ])
+            .toJSON(),
+    });
+});
+
+test("can't add comment mark to `fileTable` node in a document", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const document = await TestDocument.create(session);
+
+    // Create and attach a single file
+    const file = await TestFile.create(session);
+    await attachFileAsUploader(
+        session.action(),
+        space.id,
+        file.id,
+        FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
+    );
+
+    await updateDocumentContent(session.action(), {
+        id: document.id,
+        version: 0,
+        steps: [
+            new ReplaceStep(
+                2,
+                4,
+                new Slice(
+                    Fragment.from(
+                        schema.node("table", {}, [
+                            schema.node("tableRow", {}, [
+                                schema.node("tableCell", {}, [
+                                    schema.node("fileTable", {}, [
+                                        schema.node("file", {fileId: file.id}),
+                                    ]),
+                                ]),
+                                // Table requires at least 2 cells per row
+                                schema.node("tableCell", {}, [schema.node("paragraph", {})]),
+                            ]),
+                        ]),
+                    ),
+                    0,
+                    0,
+                ),
+            ),
+        ],
+        clientId: generateId(),
+    });
+
+    const commentThreadId = generateId<DocumentCommentThreadId>();
+    await expect(
+        updateDocumentContent(session.action(), {
+            id: document.id,
+            version: 1,
+            steps: [new AddNodeMarkStep(3, schema.marks.comment.create({commentThreadId}))],
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test comment"),
+                    initialCommentFileIds: [],
+                },
+            ],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            "Couldn't apply step to content: Invalid content for node table: <comment(tableRow(tableCell(fileTable(file)), tabl",
+        ),
+    );
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 1,
+        content: schema
+            .node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title", {}),
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("fileTable", {}, [schema.node("file", {fileId: file.id})]),
+                        ]),
+                        schema.node("tableCell", {}, [schema.node("paragraph", {})]),
+                    ]),
+                ]),
+            ])
+            .toJSON(),
+    });
+});
+
+test("can add comment mark to `file` node in a document with `fileTable` as a parent node", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const document = await TestDocument.create(session);
+    const file = await TestFile.create(session);
+
+    await attachFileAsUploader(
+        session.action(),
+        space.id,
+        file.id,
+        FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
+    );
+
+    // First update: Create table structure with fileTable
+    await updateDocumentContent(session.action(), {
+        id: document.id,
+        version: 0,
+        steps: [
+            new ReplaceStep(
+                2,
+                4,
+                new Slice(
+                    Fragment.from([
+                        schema.node("table", {}, [
+                            schema.node("tableRow", {}, [
+                                schema.node("tableCell", {}, [
+                                    schema.node("fileTable", {}, [
+                                        schema.node("file", {fileId: file.id}),
+                                    ]),
+                                ]),
+                                schema.node("tableCell", {}, [schema.node("paragraph", {})]),
+                            ]),
+                        ]),
+                    ]),
+                    0,
+                    0,
+                ),
+            ),
+        ],
+        clientId: generateId(),
+    });
+
+    const commentThreadId = generateId<DocumentCommentThreadId>();
+
+    // Second update: Add comment mark
+    await updateDocumentContent(session.action(), {
+        id: document.id,
+        version: 1,
+        steps: [new AddNodeMarkStep(6, schema.marks.comment.create({commentThreadId}))],
+        createCommentThreads: [
+            {
+                commentThreadId,
+                initialCommentContent: createSimpleMessageContent("Test comment"),
+                initialCommentFileIds: [],
+            },
+        ],
+        clientId: generateId(),
+    });
+
+    // Verify the document structure
+    const doc = await document.get();
+    expect(massageDocument(doc)).toEqual({
+        version: 2,
+        content: schema
+            .node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title", {}),
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("fileTable", {}, [
+                                schema.node(
+                                    "file",
+                                    {fileId: file.id},
+                                    [],
+                                    [schema.mark("comment", {commentThreadId})],
+                                ),
+                            ]),
+                        ]),
+                        schema.node("tableCell", {}, [schema.node("paragraph", {})]),
+                    ]),
                 ]),
             ])
             .toJSON(),
