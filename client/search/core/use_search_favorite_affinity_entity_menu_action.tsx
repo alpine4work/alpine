@@ -5,21 +5,18 @@ import {MenuAction} from "~/client/design/menu.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {
-    favoriteSearchAffinityEntity,
-    unfavoriteSearchAffinityEntity,
-} from "~/shared/rpc/search_rpc_definitions.js";
+import {favoriteSearchEntity, unfavoriteSearchEntity} from "~/shared/rpc/search_rpc_definitions.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
 // This orange looks much nicer for the favorites color than yellow. It's warm
 // and easier to read on a white background than yellow.
-export const searchAffinityEntityFavoriteIconColor = "orange-30-const";
-export const searchAffinityEntityFavoriteIconPressedColor = {
+export const searchFavoriteEntityIconColor = "orange-30-const";
+export const searchFavoriteEntityIconPressedColor = {
     light: "orange-40-const",
     dark: "orange-20-const",
 } as const;
 
-export function useSearchFavoriteAffinityEntityMenuAction(
+export function useSearchFavoriteEntityMenuAction(
     entityId: SearchAffinityEntityId,
     initialIsFavorite: boolean,
 ): Memo<MenuAction> | null {
@@ -45,8 +42,8 @@ export function useSearchFavoriteAffinityEntityMenuAction(
                     className={sprinkles({
                         fill: isFavorite
                             ? isPressed
-                                ? searchAffinityEntityFavoriteIconPressedColor
-                                : searchAffinityEntityFavoriteIconColor
+                                ? searchFavoriteEntityIconPressedColor
+                                : searchFavoriteEntityIconColor
                             : undefined,
                     })}
                 />
@@ -68,7 +65,7 @@ export function useSearchFavoriteAffinityEntityMenuAction(
                         setIsFavorite(false);
 
                         try {
-                            await unfavoriteSearchAffinityEntity(context, {
+                            await unfavoriteSearchEntity(context, {
                                 spaceId: space.id,
                                 entityId,
                             });
@@ -83,7 +80,7 @@ export function useSearchFavoriteAffinityEntityMenuAction(
                         setIsFavorite(true);
 
                         try {
-                            await favoriteSearchAffinityEntity(context, {
+                            await favoriteSearchEntity(context, {
                                 spaceId: space.id,
                                 entityId,
                             });

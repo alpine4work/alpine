@@ -26,9 +26,9 @@ import {
     searchBySemantics,
 } from "~/server/search/data/index/search_entity_index.js";
 import {
-    favoriteSearchAffinityEntity,
+    favoriteSearchEntity,
     markSearchAffinityEntityInteraction,
-    unfavoriteSearchAffinityEntity,
+    unfavoriteSearchEntity,
 } from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
@@ -2614,7 +2614,7 @@ test("search by affinity can include the task personal view in favorites", async
         interaction: {type: "View"},
     });
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: "TaskPersonal",
     });
@@ -2670,7 +2670,7 @@ test("search by affinity can include the task personal view in favorites even if
         interaction: {type: "View"},
     });
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: "TaskPersonal",
     });
@@ -2791,7 +2791,7 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document3.id}`,
     });
@@ -2837,7 +2837,7 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document4.id}`,
     });
@@ -2883,7 +2883,7 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document5.id}`,
     });
@@ -2936,7 +2936,7 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await unfavoriteSearchAffinityEntity(session1.action(), {
+    await unfavoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document4.id}`,
     });
@@ -2989,7 +2989,7 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document4.id}`,
     });
@@ -3042,12 +3042,12 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await unfavoriteSearchAffinityEntity(session1.action(), {
+    await unfavoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document5.id}`,
     });
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document5.id}`,
     });
@@ -3100,7 +3100,7 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document6.id}`,
     });
@@ -3160,7 +3160,7 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document7.id}`,
     });
@@ -3227,7 +3227,7 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document8.id}`,
     });
@@ -3294,7 +3294,7 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document9.id}`,
     });
@@ -3700,27 +3700,27 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document10.id}`,
     });
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document11.id}`,
     });
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document12.id}`,
     });
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document13.id}`,
     });
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document14.id}`,
     });

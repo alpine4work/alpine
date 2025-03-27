@@ -56,7 +56,7 @@ import {
     internalDangerouslyGetSpaceChannelSearchAffinityEntities,
     internalDangerouslyGetSpaceTaskCollectionSearchAffinityEntities,
     internalGetSearchAffinityEntities,
-    internalGetSearchFavoriteAffinityEntities,
+    internalGetSearchFavoriteEntities,
 } from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
@@ -103,7 +103,7 @@ import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {
     SearchAffinityEntityResult,
-    SearchFavoriteAffinityEntityResult,
+    SearchFavoriteEntityResult,
 } from "~/shared/search/search_affinity_entity_result.js";
 import {
     SearchAffinityEntityId,
@@ -1712,7 +1712,7 @@ export async function searchByAffinity(
     spaceId: SpaceId,
 ): Promise<{
     hasMoreFavoriteResults: boolean;
-    favoriteResults: Array<SearchFavoriteAffinityEntityResult>;
+    favoriteResults: Array<SearchFavoriteEntityResult>;
     results: Array<SearchAffinityEntityResult>;
 }> {
     await authorizeSpaceAccess(context, spaceId);
@@ -1726,7 +1726,7 @@ export async function searchByAffinity(
 
     const [entities, favoriteEntities] = await runAllPromises([
         internalGetSearchAffinityEntities(context, {spaceId, limit}),
-        internalGetSearchFavoriteAffinityEntities(context, {
+        internalGetSearchFavoriteEntities(context, {
             spaceId,
             // Get double the number of favorites we need in case some aren't visible due
             // to not being accessible anymore (e.g. they were deleted or their access
@@ -1772,7 +1772,7 @@ export async function searchByAffinity(
     let hasMoreFavoriteResults = favoriteEntities.length > favoritesLimit * 2;
     const favoriteResultById = new Map<
         SearchAffinityEntityId,
-        Replace<SearchFavoriteAffinityEntityResult, {score: number}>
+        Replace<SearchFavoriteEntityResult, {score: number}>
     >();
     const results: Array<SearchAffinityEntityResult> = [];
 
@@ -1799,7 +1799,7 @@ export async function searchByAffinity(
                 }
             }
         } else {
-            let result: SearchFavoriteAffinityEntityResult;
+            let result: SearchFavoriteEntityResult;
             if (favoriteEntity.entityId === "TaskPersonal") {
                 result = {
                     id: favoriteEntity.entityId,
@@ -2173,13 +2173,13 @@ export async function searchTaskCollectionsByAffinity(
  * Get all of the session actor's favorite search entities ordered by
  * `OrderKey`.
  */
-export async function getAllSearchFavoriteAffinityEntities(
+export async function getAllSearchFavoriteEntities(
     context: SearchSessionActionContext,
     spaceId: SpaceId,
-): Promise<ReadonlyArray<SearchFavoriteAffinityEntityResult>> {
+): Promise<ReadonlyArray<SearchFavoriteEntityResult>> {
     await authorizeSpaceAccess(context, spaceId);
 
-    const favoriteEntities = await internalGetSearchFavoriteAffinityEntities(context, {
+    const favoriteEntities = await internalGetSearchFavoriteEntities(context, {
         spaceId,
         limit: "All",
     });
@@ -2195,7 +2195,7 @@ export async function getAllSearchFavoriteAffinityEntities(
         entityIds,
     });
 
-    const results: Array<SearchFavoriteAffinityEntityResult> = [];
+    const results: Array<SearchFavoriteEntityResult> = [];
 
     let entitiesTitleAndMediaIndex = 0;
     for (const favoriteEntity of favoriteEntities) {

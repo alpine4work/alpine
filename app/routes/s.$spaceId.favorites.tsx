@@ -3,19 +3,19 @@ import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {SearchFavoritesView} from "~/client/search/search_favorites_view.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {getAllSearchFavoriteAffinityEntities} from "~/server/search/data/index/search_entity_index.js";
+import {getAllSearchFavoriteEntities} from "~/server/search/data/index/search_entity_index.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {SearchFavoriteAffinityEntityResultSchema} from "~/shared/search/search_affinity_entity_result.js";
+import {SearchFavoriteEntityResultSchema} from "~/shared/search/search_affinity_entity_result.js";
 
 const LoaderSchema = Schema.object({
-    results: Schema.array(SearchFavoriteAffinityEntityResultSchema),
+    results: Schema.array(SearchFavoriteEntityResultSchema),
 });
 
 export async function loader({context, params}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? "");
 
-    const results = await getAllSearchFavoriteAffinityEntities(
+    const results = await getAllSearchFavoriteEntities(
         (await context.actor.authenticate()).actor.authorizeSession(),
         spaceId,
     );

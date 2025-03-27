@@ -18,7 +18,7 @@ import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js"
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {useSearchFavoriteAffinityEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {useSearchFavoriteEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {chatViewTopBarWithInboxBannerAdjustmentY} from "~/client/styles/chat_shared_styles.js";
 import {
@@ -92,7 +92,7 @@ function ChatViewTopBar({
             ? [currentAccount]
             : chat.accounts.filter(account => account.id !== currentAccount?.id);
 
-    const favoriteMenuAction = useSearchFavoriteAffinityEntityMenuAction(
+    const favoriteMenuAction = useSearchFavoriteEntityMenuAction(
         currentAccount && chat.accounts.length === 2
             ? `Account:${chat.accounts.filter(account => account.id !== currentAccount.id)[0]!.id}`
             : `Chat:${chat.id}`,

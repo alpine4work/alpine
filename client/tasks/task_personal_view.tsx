@@ -28,7 +28,7 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {useSearchFavoriteAffinityEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {useSearchFavoriteEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {
     grey5SemiTransparentColorVar,
@@ -476,10 +476,7 @@ export function TaskPersonalView({
      *                               Navigation Bar                               *
     \* ========================================================================== */
 
-    const favoriteMenuAction = useSearchFavoriteAffinityEntityMenuAction(
-        "TaskPersonal",
-        initialIsFavorite,
-    );
+    const favoriteMenuAction = useSearchFavoriteEntityMenuAction("TaskPersonal", initialIsFavorite);
 
     const navigationBarMenuActions = useMemo(
         (): ReadonlyArray<MenuAction> => [

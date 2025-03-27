@@ -13,9 +13,7 @@ export type SearchAffinityEntityResult = SchemaType<typeof SearchAffinityEntityR
     readonly explanation?: never;
 };
 
-export type SearchFavoriteAffinityEntityResult = SchemaType<
-    typeof SearchFavoriteAffinityEntityResultSchema
-> & {
+export type SearchFavoriteEntityResult = SchemaType<typeof SearchFavoriteEntityResultSchema> & {
     // So you can access these properties on `SearchEntityResult | SearchEntityAffinityResult`.
     readonly bodyTextSnippet?: never;
     readonly explanation?: never;
@@ -34,11 +32,11 @@ export const SearchAffinityEntityResultSchema = SearchAffinityEntityResultBaseSc
     }),
 );
 
-export const SearchFavoriteAffinityEntityResultSchema = SearchAffinityEntityResultBaseSchema.merge(
+export const SearchFavoriteEntityResultSchema = SearchAffinityEntityResultBaseSchema.merge(
     Schema.object({
         favoriteOrderKey: OrderKeySchema,
     }),
 );
 
-// Favorite results are assignable to generic affinity results.
-assertAssignableTypes<SearchFavoriteAffinityEntityResult, SearchAffinityEntityResult>();
+// Favorite results are assignable to affinity results.
+assertAssignableTypes<SearchFavoriteEntityResult, SearchAffinityEntityResult>();

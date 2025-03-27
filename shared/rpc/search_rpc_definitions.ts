@@ -7,7 +7,7 @@ import {Schema} from "~/shared/schema/schema.js";
 import {SearchAffinityEntityInteractionSchema} from "~/shared/search/search_affinity_entity_interaction.js";
 import {
     SearchAffinityEntityResultSchema,
-    SearchFavoriteAffinityEntityResultSchema,
+    SearchFavoriteEntityResultSchema,
 } from "~/shared/search/search_affinity_entity_result.js";
 import {SearchAffinityEntityIdSchema} from "~/shared/search/search_entity_id.js";
 import {SearchEntityResultSchema} from "~/shared/search/search_entity_result.js";
@@ -51,7 +51,7 @@ export const searchByAffinity = defineRpc({
     },
     output: {
         hasMoreFavoriteResults: Schema.boolean,
-        favoriteResults: Schema.array(SearchFavoriteAffinityEntityResultSchema),
+        favoriteResults: Schema.array(SearchFavoriteEntityResultSchema),
         results: Schema.array(SearchAffinityEntityResultSchema),
     },
 });
@@ -117,8 +117,8 @@ export const searchTaskCollectionsByAffinity = defineRpc({
     },
 });
 
-export const favoriteSearchAffinityEntity = defineRpc({
-    name: "favoriteSearchAffinityEntity",
+export const favoriteSearchEntity = defineRpc({
+    name: "favoriteSearchEntity",
     input: {
         spaceId: Schema.id<SpaceId>(),
         entityId: SearchAffinityEntityIdSchema,
@@ -126,8 +126,8 @@ export const favoriteSearchAffinityEntity = defineRpc({
     output: {},
 });
 
-export const unfavoriteSearchAffinityEntity = defineRpc({
-    name: "unfavoriteSearchAffinityEntity",
+export const unfavoriteSearchEntity = defineRpc({
+    name: "unfavoriteSearchEntity",
     input: {
         spaceId: Schema.id<SpaceId>(),
         entityId: SearchAffinityEntityIdSchema,
@@ -135,8 +135,8 @@ export const unfavoriteSearchAffinityEntity = defineRpc({
     output: {},
 });
 
-export const moveSearchFavoriteAffinityEntity = defineRpc({
-    name: "moveSearchFavoriteAffinityEntity",
+export const moveSearchFavoriteEntity = defineRpc({
+    name: "moveSearchFavoriteEntity",
     input: {
         spaceId: Schema.id<SpaceId>(),
         entityId: SearchAffinityEntityIdSchema,

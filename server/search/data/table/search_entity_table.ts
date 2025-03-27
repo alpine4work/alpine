@@ -285,11 +285,11 @@ const SpaceTaskCollectionSearchAffinityEntitiesIndex = SearchEntityTable.addExpe
     },
 });
 
-const AccountSearchFavoriteAffinityEntitiesIndex = SearchEntityTable.addIndex({
+const AccountSearchFavoriteEntitiesIndex = SearchEntityTable.addIndex({
     // NOTE(calebmer, 2025-03-26): Would love to rename this index
-    // `AccountSearchFavoriteAffinityEntities` instead of
-    // `AccountSearchAffinityFavorites` but can't rename since data is already
-    // stored in the database with this sort range type.
+    // `AccountSearchFavoriteEntities` instead of `AccountSearchAffinityFavorites`
+    // but can't rename since data is already stored in the database with this sort
+    // range type.
     name: "AccountSearchAffinityFavorites",
     itemTypes: [{partitionType: "Account", sortRangeType: "SearchEntityAffinity"}],
     partitionKeyAttributes: {
@@ -1489,7 +1489,7 @@ export async function getPossiblyStaleTaskCollectionSearchAffinityEntityIds(
  * the entity is already in the session actor's favorites list then we won't
  * move the entity.
  */
-export async function favoriteSearchAffinityEntity(
+export async function favoriteSearchEntity(
     context: ServerSessionActionContext,
     {spaceId, entityId}: {spaceId: SpaceId; entityId: SearchAffinityEntityId},
 ): Promise<{orderKey: OrderKey}> {
@@ -1499,7 +1499,7 @@ export async function favoriteSearchAffinityEntity(
     await authorizeSpaceAccess(context, spaceId);
 
     const lastFavorites = await arrayFromAsyncIterable(
-        AccountSearchFavoriteAffinityEntitiesIndex.query(context, {
+        AccountSearchFavoriteEntitiesIndex.query(context, {
             partitionKey: {
                 spaceId,
                 accountId: context.actor.getAccountId(),
@@ -1513,8 +1513,7 @@ export async function favoriteSearchAffinityEntity(
         lastFavorites.length > 0
             ? generateOrderKeyBetween(
                   // We should have filtered items out of
-                  // `AccountSearchFavoriteAffinityEntitiesIndex` that have a null
-                  // `favoriteOrderKey`.
+                  // `AccountSearchFavoriteEntitiesIndex` that have a null `favoriteOrderKey`.
                   assertExists(lastFavorites[lastFavorites.length - 1]!.favoriteOrderKey),
                   null,
               )
@@ -1564,7 +1563,7 @@ export async function favoriteSearchAffinityEntity(
 /**
  * Remove a search entity from the account's favorites list.
  */
-export async function unfavoriteSearchAffinityEntity(
+export async function unfavoriteSearchEntity(
     context: ServerSessionActionContext,
     {spaceId, entityId}: {spaceId: SpaceId; entityId: SearchAffinityEntityId},
 ) {
@@ -1600,7 +1599,7 @@ export async function unfavoriteSearchAffinityEntity(
  * Move the already favorited search entity to a new `OrderKey`. If the entity
  * is not favorited then this does nothing.
  */
-export async function moveSearchFavoriteAffinityEntity(
+export async function moveSearchFavoriteEntity(
     context: ServerSessionActionContext,
     {
         spaceId,
@@ -1643,7 +1642,7 @@ export async function moveSearchFavoriteAffinityEntity(
 /**
  * Is the provided `entityId` one of the session actor's favorites?
  */
-export async function isSearchFavoriteAffinityEntity(
+export async function isSearchFavoriteEntity(
     context: ServerSessionActionContext,
     {spaceId, entityId}: {spaceId: SpaceId; entityId: SearchAffinityEntityId},
 ): Promise<boolean> {
@@ -1674,14 +1673,14 @@ export async function isSearchFavoriteAffinityEntity(
  * of something you used to have access to) it isn't the most convenient
  * function so we label it "internal" but not "dangerous".
  */
-export async function internalGetSearchFavoriteAffinityEntities(
+export async function internalGetSearchFavoriteEntities(
     context: ServerSessionActionContext,
     {spaceId, limit}: {spaceId: SpaceId; limit: number | "All"},
 ): Promise<Array<{entityId: SearchAffinityEntityId; orderKey: OrderKey}>> {
     await authorizeSpaceAccess(context, spaceId);
 
     return arrayFromAsyncIterable(
-        AccountSearchFavoriteAffinityEntitiesIndex.query(context, {
+        AccountSearchFavoriteEntitiesIndex.query(context, {
             partitionKey: {
                 spaceId,
                 accountId: context.actor.getAccountId(),

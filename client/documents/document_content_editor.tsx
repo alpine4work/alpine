@@ -89,7 +89,7 @@ import {
     useSpacingScale,
 } from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
-import {useSearchFavoriteAffinityEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {useSearchFavoriteEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {documentContentEditorSidebarWidth} from "~/client/styles/document_shared_styles.js";
 import {
@@ -1516,7 +1516,7 @@ export function DocumentContentEditor({
         [accessLevel],
     );
 
-    const favoriteMenuAction = useSearchFavoriteAffinityEntityMenuAction(
+    const favoriteMenuAction = useSearchFavoriteEntityMenuAction(
         `Document:${documentId}`,
         initialIsFavorite,
     );

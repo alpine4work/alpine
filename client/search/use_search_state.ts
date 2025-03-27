@@ -23,7 +23,7 @@ import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 import {
     SearchAffinityEntityResult,
-    SearchFavoriteAffinityEntityResult,
+    SearchFavoriteEntityResult,
 } from "~/shared/search/search_affinity_entity_result.js";
 import {SearchEntityId, SearchStaticEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
@@ -546,7 +546,7 @@ type ExecuteSearchByAffinityOutput =
           readonly isPending: boolean;
           readonly isError: false;
           readonly hasMoreFavoriteResults: boolean;
-          readonly favoriteResults: ReadonlyArray<SearchFavoriteAffinityEntityResult>;
+          readonly favoriteResults: ReadonlyArray<SearchFavoriteEntityResult>;
           readonly results: ReadonlyArray<SearchAffinityEntityResult>;
       };
 

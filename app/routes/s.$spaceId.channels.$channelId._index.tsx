@@ -32,7 +32,7 @@ import {
 } from "~/server/forum/data/forum_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {isSearchFavoriteAffinityEntity} from "~/server/search/data/table/search_entity_table.js";
+import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_table.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
@@ -174,7 +174,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
             beforeCursor: null,
         }),
         context.actor.type === "Session"
-            ? isSearchFavoriteAffinityEntity(context.actor.authorizeSession(), {
+            ? isSearchFavoriteEntity(context.actor.authorizeSession(), {
                   spaceId,
                   entityId: `Channel:${channelId}`,
               })

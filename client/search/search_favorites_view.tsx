@@ -33,7 +33,7 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {searchAffinityEntityFavoriteIconColor} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {searchFavoriteEntityIconColor} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {getSearchEntityPath} from "~/client/search/internal/get_search_entity_path.js";
 import {SearchAffinityEntityView} from "~/client/search/search_affinity_entity_view.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
@@ -61,18 +61,18 @@ import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
 import {
-    moveSearchFavoriteAffinityEntity,
-    unfavoriteSearchAffinityEntity,
+    moveSearchFavoriteEntity,
+    unfavoriteSearchEntity,
 } from "~/shared/rpc/search_rpc_definitions.js";
-import {SearchFavoriteAffinityEntityResult} from "~/shared/search/search_affinity_entity_result.js";
+import {SearchFavoriteEntityResult} from "~/shared/search/search_affinity_entity_result.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
-const searchShortcutFavoriteAffinityEntityMaxCount = 5;
+const searchShortcutFavoriteEntityMaxCount = 5;
 
-const searchFavoriteAffinityEntitiesTitleStarIconSize = "5";
-const searchFavoriteAffinityEntitiesTitleStarMarginX = `${
+const searchFavoriteEntitiesTitleStarIconSize = "5";
+const searchFavoriteEntitiesTitleStarMarginX = `${
     (parseRemLength(searchEntityViewMediaSize) -
-        parseRemLength(searchFavoriteAffinityEntitiesTitleStarIconSize)) /
+        parseRemLength(searchFavoriteEntitiesTitleStarIconSize)) /
     2
 }rem`;
 
@@ -84,7 +84,7 @@ const screenPaddingXWithoutSearchEntityViewPaddingX = mapObjectValues(
 export function SearchFavoritesView({
     initialResults,
 }: {
-    initialResults: ReadonlyArray<SearchFavoriteAffinityEntityResult>;
+    initialResults: ReadonlyArray<SearchFavoriteEntityResult>;
 }) {
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
@@ -152,12 +152,12 @@ export function SearchFavoritesView({
                 // then this will need to update too.
                 <Box display="flex" alignItems="center" gap={searchEntityViewTitleTypeDisplayGap}>
                     <Star
-                        size={spacing[searchFavoriteAffinityEntitiesTitleStarIconSize]}
+                        size={spacing[searchFavoriteEntitiesTitleStarIconSize]}
                         weight="fill"
-                        className={sprinkles({fill: searchAffinityEntityFavoriteIconColor})}
+                        className={sprinkles({fill: searchFavoriteEntityIconColor})}
                         style={{
-                            marginLeft: searchFavoriteAffinityEntitiesTitleStarMarginX,
-                            marginRight: searchFavoriteAffinityEntitiesTitleStarMarginX,
+                            marginLeft: searchFavoriteEntitiesTitleStarMarginX,
+                            marginRight: searchFavoriteEntitiesTitleStarMarginX,
                         }}
                     />
                     <Box>Favorites</Box>
@@ -218,7 +218,7 @@ export function SearchFavoritesView({
                             newBeforeResult?.favoriteOrderKey ?? null,
                         );
 
-                        const movePromise = moveSearchFavoriteAffinityEntity(context, {
+                        const movePromise = moveSearchFavoriteEntity(context, {
                             spaceId: space.id,
                             entityId: active.id as SearchAffinityEntityId,
                             orderKey: newFavoriteOrderKey,
@@ -268,11 +268,11 @@ function SearchFavoritesViewInner({
     updateResults,
     foldDividerIndex,
 }: {
-    results: ReadonlyArray<SearchFavoriteAffinityEntityResult>;
+    results: ReadonlyArray<SearchFavoriteEntityResult>;
     updateResults: (
         update: (
-            value: ReadonlyArray<SearchFavoriteAffinityEntityResult>,
-        ) => ReadonlyArray<SearchFavoriteAffinityEntityResult>,
+            value: ReadonlyArray<SearchFavoriteEntityResult>,
+        ) => ReadonlyArray<SearchFavoriteEntityResult>,
     ) => void;
     foldDividerIndex: number;
 }) {
@@ -310,7 +310,7 @@ function SearchFavoritesViewInner({
                         return rectSortingStrategy({
                             ...options,
                             overIndex: Math.min(
-                                searchShortcutFavoriteAffinityEntityMaxCount,
+                                searchShortcutFavoriteEntityMaxCount,
                                 options.overIndex,
                             ),
                         });
@@ -345,7 +345,7 @@ function SearchFavoritesViewDragPortals({
     results,
 }: {
     randomSeed: string;
-    results: ReadonlyArray<SearchFavoriteAffinityEntityResult>;
+    results: ReadonlyArray<SearchFavoriteEntityResult>;
 }) {
     const {active, activatorEvent} = useDndContext();
 
@@ -401,7 +401,7 @@ function SearchFavoritesViewItem({
     isDragOverlay = false,
 }: {
     randomSeed: string;
-    result: SearchFavoriteAffinityEntityResult;
+    result: SearchFavoriteEntityResult;
     onResultRemove: () => void;
     isDragOverlay?: boolean;
 }) {
@@ -468,7 +468,7 @@ function SearchFavoritesViewItem({
     };
 
     const handleRemovePress = useEvent(async () => {
-        await unfavoriteSearchAffinityEntity(context, {
+        await unfavoriteSearchEntity(context, {
             spaceId: space.id,
             entityId: result.id,
         });

@@ -18,7 +18,7 @@ import {
 } from "~/server/documents/data/documents_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {isSearchFavoriteAffinityEntity} from "~/server/search/data/table/search_entity_table.js";
+import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_table.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {
     DocumentCommentModel,
@@ -63,7 +63,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
               })
             : null,
         context.actor.type === "Session"
-            ? isSearchFavoriteAffinityEntity(context.actor.authorizeSession(), {
+            ? isSearchFavoriteEntity(context.actor.authorizeSession(), {
                   spaceId,
                   entityId: `Document:${documentId}`,
               })

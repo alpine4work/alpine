@@ -8,10 +8,10 @@ import {
     searchTaskCollectionsByAffinity,
 } from "~/server/search/data/index/search_entity_index.js";
 import {
-    favoriteSearchAffinityEntity,
+    favoriteSearchEntity,
     markSearchAffinityEntityInteraction,
-    moveSearchFavoriteAffinityEntity,
-    unfavoriteSearchAffinityEntity,
+    moveSearchFavoriteEntity,
+    unfavoriteSearchEntity,
 } from "~/server/search/data/table/search_entity_table.js";
 import * as definitions from "~/shared/rpc/search_rpc_definitions.js";
 
@@ -72,26 +72,26 @@ export default implementRpcs(definitions, {
         },
     },
 
-    favoriteSearchAffinityEntity: {
+    favoriteSearchEntity: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            await favoriteSearchAffinityEntity(context.actor.authorizeSession(), input);
+            await favoriteSearchEntity(context.actor.authorizeSession(), input);
             return {};
         },
     },
 
-    unfavoriteSearchAffinityEntity: {
+    unfavoriteSearchEntity: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            await unfavoriteSearchAffinityEntity(context.actor.authorizeSession(), input);
+            await unfavoriteSearchEntity(context.actor.authorizeSession(), input);
             return {};
         },
     },
 
-    moveSearchFavoriteAffinityEntity: {
+    moveSearchFavoriteEntity: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            await moveSearchFavoriteAffinityEntity(context.actor.authorizeSession(), input);
+            await moveSearchFavoriteEntity(context.actor.authorizeSession(), input);
             return {};
         },
     },

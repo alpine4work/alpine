@@ -23,7 +23,7 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {useSearchFavoriteAffinityEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {useSearchFavoriteEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     channelViewAsidePostFileCount,
@@ -190,7 +190,7 @@ export function ChannelView({
     if (editNameAndDescriptionMobileModalState && platform !== "mobile")
         setEditNameAndDescriptionMobileModalState(null);
 
-    const favoriteMenuAction = useSearchFavoriteAffinityEntityMenuAction(
+    const favoriteMenuAction = useSearchFavoriteEntityMenuAction(
         `Channel:${channelId}`,
         initialIsFavorite,
     );

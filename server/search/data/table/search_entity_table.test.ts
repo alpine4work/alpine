@@ -4,7 +4,7 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {
     addSearchAffinityEntityActiveTaskAssigneePoints,
     assignSearchAffinityEntityDerivedAttributes,
-    favoriteSearchAffinityEntity,
+    favoriteSearchEntity,
     getCurrentSearchAffinityEntityPoints,
     getPossiblyStaleAccountSearchAffinityEntityIds,
     getSearchAffinitiesEarlyReturnTestCounter,
@@ -12,15 +12,15 @@ import {
     getSearchAffinityEntityPointsBucket,
     getSearchEntityTableForTest,
     internalGetSearchAffinityEntities,
-    internalGetSearchFavoriteAffinityEntities,
-    isSearchFavoriteAffinityEntity,
+    internalGetSearchFavoriteEntities,
+    isSearchFavoriteEntity,
     markSearchAffinityCreateDocumentInteraction,
     markSearchAffinityEntityInteraction,
     thirtyDaysDurationMs,
-    moveSearchFavoriteAffinityEntity,
+    moveSearchFavoriteEntity,
     removeSearchAffinityEntityActiveTaskAssigneePoints,
     searchAffinityEntityQueryPageLimit,
-    unfavoriteSearchAffinityEntity,
+    unfavoriteSearchEntity,
 } from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
@@ -1422,7 +1422,7 @@ test("can favorite and unfavorite search entities", async () => {
     const [session1, session2] = await space.createSessions(2);
 
     expect(
-        await internalGetSearchFavoriteAffinityEntities(session2.action(), {
+        await internalGetSearchFavoriteEntities(session2.action(), {
             spaceId: space.id,
             limit: 100,
         }),
@@ -1436,7 +1436,7 @@ test("can favorite and unfavorite search entities", async () => {
     await document3.access.grantDefault(session1);
 
     expect(
-        await internalGetSearchFavoriteAffinityEntities(session2.action(), {
+        await internalGetSearchFavoriteEntities(session2.action(), {
             spaceId: space.id,
             limit: 100,
         }),
@@ -1446,7 +1446,7 @@ test("can favorite and unfavorite search entities", async () => {
         await runAllPromises(
             [session1, session2].flatMap(session =>
                 [document1, document2, document3].flatMap(document =>
-                    isSearchFavoriteAffinityEntity(session.action(), {
+                    isSearchFavoriteEntity(session.action(), {
                         spaceId: space.id,
                         entityId: `Document:${document.id}`,
                     }),
@@ -1455,13 +1455,13 @@ test("can favorite and unfavorite search entities", async () => {
         ),
     ).toEqual([false, false, false, false, false, false]);
 
-    await unfavoriteSearchAffinityEntity(session2.action(), {
+    await unfavoriteSearchEntity(session2.action(), {
         spaceId: space.id,
         entityId: `Document:${document3.id}`,
     });
 
     expect(
-        await internalGetSearchFavoriteAffinityEntities(session2.action(), {
+        await internalGetSearchFavoriteEntities(session2.action(), {
             spaceId: space.id,
             limit: 100,
         }),
@@ -1471,7 +1471,7 @@ test("can favorite and unfavorite search entities", async () => {
         await runAllPromises(
             [session1, session2].flatMap(session =>
                 [document1, document2, document3].flatMap(document =>
-                    isSearchFavoriteAffinityEntity(session.action(), {
+                    isSearchFavoriteEntity(session.action(), {
                         spaceId: space.id,
                         entityId: `Document:${document.id}`,
                     }),
@@ -1480,13 +1480,13 @@ test("can favorite and unfavorite search entities", async () => {
         ),
     ).toEqual([false, false, false, false, false, false]);
 
-    await favoriteSearchAffinityEntity(session2.action(), {
+    await favoriteSearchEntity(session2.action(), {
         spaceId: space.id,
         entityId: `Document:${document3.id}`,
     });
 
     expect(
-        await internalGetSearchFavoriteAffinityEntities(session2.action(), {
+        await internalGetSearchFavoriteEntities(session2.action(), {
             spaceId: space.id,
             limit: 100,
         }),
@@ -1501,7 +1501,7 @@ test("can favorite and unfavorite search entities", async () => {
         await runAllPromises(
             [session1, session2].flatMap(session =>
                 [document1, document2, document3].flatMap(document =>
-                    isSearchFavoriteAffinityEntity(session.action(), {
+                    isSearchFavoriteEntity(session.action(), {
                         spaceId: space.id,
                         entityId: `Document:${document.id}`,
                     }),
@@ -1510,13 +1510,13 @@ test("can favorite and unfavorite search entities", async () => {
         ),
     ).toEqual([false, false, false, false, false, true]);
 
-    await favoriteSearchAffinityEntity(session2.action(), {
+    await favoriteSearchEntity(session2.action(), {
         spaceId: space.id,
         entityId: `Document:${document1.id}`,
     });
 
     expect(
-        await internalGetSearchFavoriteAffinityEntities(session2.action(), {
+        await internalGetSearchFavoriteEntities(session2.action(), {
             spaceId: space.id,
             limit: 100,
         }),
@@ -1535,7 +1535,7 @@ test("can favorite and unfavorite search entities", async () => {
         await runAllPromises(
             [session1, session2].flatMap(session =>
                 [document1, document2, document3].flatMap(document =>
-                    isSearchFavoriteAffinityEntity(session.action(), {
+                    isSearchFavoriteEntity(session.action(), {
                         spaceId: space.id,
                         entityId: `Document:${document.id}`,
                     }),
@@ -1544,13 +1544,13 @@ test("can favorite and unfavorite search entities", async () => {
         ),
     ).toEqual([false, false, false, true, false, true]);
 
-    await favoriteSearchAffinityEntity(session2.action(), {
+    await favoriteSearchEntity(session2.action(), {
         spaceId: space.id,
         entityId: `Document:${document2.id}`,
     });
 
     expect(
-        await internalGetSearchFavoriteAffinityEntities(session2.action(), {
+        await internalGetSearchFavoriteEntities(session2.action(), {
             spaceId: space.id,
             limit: 100,
         }),
@@ -1573,7 +1573,7 @@ test("can favorite and unfavorite search entities", async () => {
         await runAllPromises(
             [session1, session2].flatMap(session =>
                 [document1, document2, document3].flatMap(document =>
-                    isSearchFavoriteAffinityEntity(session.action(), {
+                    isSearchFavoriteEntity(session.action(), {
                         spaceId: space.id,
                         entityId: `Document:${document.id}`,
                     }),
@@ -1582,13 +1582,13 @@ test("can favorite and unfavorite search entities", async () => {
         ),
     ).toEqual([false, false, false, true, true, true]);
 
-    await favoriteSearchAffinityEntity(session2.action(), {
+    await favoriteSearchEntity(session2.action(), {
         spaceId: space.id,
         entityId: `Document:${document1.id}`,
     });
 
     expect(
-        await internalGetSearchFavoriteAffinityEntities(session2.action(), {
+        await internalGetSearchFavoriteEntities(session2.action(), {
             spaceId: space.id,
             limit: 100,
         }),
@@ -1611,7 +1611,7 @@ test("can favorite and unfavorite search entities", async () => {
         await runAllPromises(
             [session1, session2].flatMap(session =>
                 [document1, document2, document3].flatMap(document =>
-                    isSearchFavoriteAffinityEntity(session.action(), {
+                    isSearchFavoriteEntity(session.action(), {
                         spaceId: space.id,
                         entityId: `Document:${document.id}`,
                     }),
@@ -1620,14 +1620,14 @@ test("can favorite and unfavorite search entities", async () => {
         ),
     ).toEqual([false, false, false, true, true, true]);
 
-    await moveSearchFavoriteAffinityEntity(session2.action(), {
+    await moveSearchFavoriteEntity(session2.action(), {
         spaceId: space.id,
         entityId: `Document:${document2.id}`,
         orderKey: assertOrderKey("a0V"),
     });
 
     expect(
-        await internalGetSearchFavoriteAffinityEntities(session2.action(), {
+        await internalGetSearchFavoriteEntities(session2.action(), {
             spaceId: space.id,
             limit: 100,
         }),
@@ -1650,7 +1650,7 @@ test("can favorite and unfavorite search entities", async () => {
         await runAllPromises(
             [session1, session2].flatMap(session =>
                 [document1, document2, document3].flatMap(document =>
-                    isSearchFavoriteAffinityEntity(session.action(), {
+                    isSearchFavoriteEntity(session.action(), {
                         spaceId: space.id,
                         entityId: `Document:${document.id}`,
                     }),
@@ -1659,13 +1659,13 @@ test("can favorite and unfavorite search entities", async () => {
         ),
     ).toEqual([false, false, false, true, true, true]);
 
-    await unfavoriteSearchAffinityEntity(session2.action(), {
+    await unfavoriteSearchEntity(session2.action(), {
         spaceId: space.id,
         entityId: `Document:${document3.id}`,
     });
 
     expect(
-        await internalGetSearchFavoriteAffinityEntities(session2.action(), {
+        await internalGetSearchFavoriteEntities(session2.action(), {
             spaceId: space.id,
             limit: 100,
         }),
@@ -1684,7 +1684,7 @@ test("can favorite and unfavorite search entities", async () => {
         await runAllPromises(
             [session1, session2].flatMap(session =>
                 [document1, document2, document3].flatMap(document =>
-                    isSearchFavoriteAffinityEntity(session.action(), {
+                    isSearchFavoriteEntity(session.action(), {
                         spaceId: space.id,
                         entityId: `Document:${document.id}`,
                     }),
@@ -1693,13 +1693,13 @@ test("can favorite and unfavorite search entities", async () => {
         ),
     ).toEqual([false, false, false, true, true, false]);
 
-    await favoriteSearchAffinityEntity(session2.action(), {
+    await favoriteSearchEntity(session2.action(), {
         spaceId: space.id,
         entityId: `Document:${document1.id}`,
     });
 
     expect(
-        await internalGetSearchFavoriteAffinityEntities(session2.action(), {
+        await internalGetSearchFavoriteEntities(session2.action(), {
             spaceId: space.id,
             limit: 100,
         }),
@@ -1718,7 +1718,7 @@ test("can favorite and unfavorite search entities", async () => {
         await runAllPromises(
             [session1, session2].flatMap(session =>
                 [document1, document2, document3].flatMap(document =>
-                    isSearchFavoriteAffinityEntity(session.action(), {
+                    isSearchFavoriteEntity(session.action(), {
                         spaceId: space.id,
                         entityId: `Document:${document.id}`,
                     }),
@@ -1727,13 +1727,13 @@ test("can favorite and unfavorite search entities", async () => {
         ),
     ).toEqual([false, false, false, true, true, false]);
 
-    await unfavoriteSearchAffinityEntity(session2.action(), {
+    await unfavoriteSearchEntity(session2.action(), {
         spaceId: space.id,
         entityId: `Document:${document1.id}`,
     });
 
     expect(
-        await internalGetSearchFavoriteAffinityEntities(session2.action(), {
+        await internalGetSearchFavoriteEntities(session2.action(), {
             spaceId: space.id,
             limit: 100,
         }),
@@ -1748,7 +1748,7 @@ test("can favorite and unfavorite search entities", async () => {
         await runAllPromises(
             [session1, session2].flatMap(session =>
                 [document1, document2, document3].flatMap(document =>
-                    isSearchFavoriteAffinityEntity(session.action(), {
+                    isSearchFavoriteEntity(session.action(), {
                         spaceId: space.id,
                         entityId: `Document:${document.id}`,
                     }),
@@ -1757,13 +1757,13 @@ test("can favorite and unfavorite search entities", async () => {
         ),
     ).toEqual([false, false, false, false, true, false]);
 
-    await unfavoriteSearchAffinityEntity(session2.action(), {
+    await unfavoriteSearchEntity(session2.action(), {
         spaceId: space.id,
         entityId: `Document:${document1.id}`,
     });
 
     expect(
-        await internalGetSearchFavoriteAffinityEntities(session2.action(), {
+        await internalGetSearchFavoriteEntities(session2.action(), {
             spaceId: space.id,
             limit: 100,
         }),
@@ -1778,7 +1778,7 @@ test("can favorite and unfavorite search entities", async () => {
         await runAllPromises(
             [session1, session2].flatMap(session =>
                 [document1, document2, document3].flatMap(document =>
-                    isSearchFavoriteAffinityEntity(session.action(), {
+                    isSearchFavoriteEntity(session.action(), {
                         spaceId: space.id,
                         entityId: `Document:${document.id}`,
                     }),
@@ -1787,13 +1787,13 @@ test("can favorite and unfavorite search entities", async () => {
         ),
     ).toEqual([false, false, false, false, true, false]);
 
-    await favoriteSearchAffinityEntity(session2.action(), {
+    await favoriteSearchEntity(session2.action(), {
         spaceId: space.id,
         entityId: `Document:${document1.id}`,
     });
 
     expect(
-        await internalGetSearchFavoriteAffinityEntities(session2.action(), {
+        await internalGetSearchFavoriteEntities(session2.action(), {
             spaceId: space.id,
             limit: 100,
         }),
@@ -1812,7 +1812,7 @@ test("can favorite and unfavorite search entities", async () => {
         await runAllPromises(
             [session1, session2].flatMap(session =>
                 [document1, document2, document3].flatMap(document =>
-                    isSearchFavoriteAffinityEntity(session.action(), {
+                    isSearchFavoriteEntity(session.action(), {
                         spaceId: space.id,
                         entityId: `Document:${document.id}`,
                     }),
@@ -1821,14 +1821,14 @@ test("can favorite and unfavorite search entities", async () => {
         ),
     ).toEqual([false, false, false, true, true, false]);
 
-    await moveSearchFavoriteAffinityEntity(session2.action(), {
+    await moveSearchFavoriteEntity(session2.action(), {
         spaceId: space.id,
         entityId: `Document:${document3.id}`,
         orderKey: assertOrderKey("a4"),
     });
 
     expect(
-        await internalGetSearchFavoriteAffinityEntities(session2.action(), {
+        await internalGetSearchFavoriteEntities(session2.action(), {
             spaceId: space.id,
             limit: 100,
         }),
@@ -1847,7 +1847,7 @@ test("can favorite and unfavorite search entities", async () => {
         await runAllPromises(
             [session1, session2].flatMap(session =>
                 [document1, document2, document3].flatMap(document =>
-                    isSearchFavoriteAffinityEntity(session.action(), {
+                    isSearchFavoriteEntity(session.action(), {
                         spaceId: space.id,
                         entityId: `Document:${document.id}`,
                     }),
@@ -1944,7 +1944,7 @@ test("will show top three favorites at the start of affinity list when querying 
     ]);
 
     expect(
-        await internalGetSearchFavoriteAffinityEntities(session2.action(), {
+        await internalGetSearchFavoriteEntities(session2.action(), {
             spaceId: space.id,
             limit: 100,
         }),
@@ -1990,7 +1990,7 @@ test("will show top three favorites at the start of affinity list when querying 
         session6.account.id,
     ]);
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Account:${session6.account.id}`,
     });
@@ -2005,7 +2005,7 @@ test("will show top three favorites at the start of affinity list when querying 
         session5.account.id,
     ]);
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Account:${session5.account.id}`,
     });
@@ -2020,7 +2020,7 @@ test("will show top three favorites at the start of affinity list when querying 
         session4.account.id,
     ]);
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Account:${session4.account.id}`,
     });
@@ -2035,7 +2035,7 @@ test("will show top three favorites at the start of affinity list when querying 
         session3.account.id,
     ]);
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Account:${session3.account.id}`,
     });
@@ -2050,13 +2050,13 @@ test("will show top three favorites at the start of affinity list when querying 
         session3.account.id,
     ]);
 
-    await favoriteSearchAffinityEntity(session1.action(), {
+    await favoriteSearchEntity(session1.action(), {
         spaceId: space.id,
         entityId: `Account:${session2.account.id}`,
     });
 
     expect(
-        await internalGetSearchFavoriteAffinityEntities(session1.action(), {
+        await internalGetSearchFavoriteEntities(session1.action(), {
             spaceId: space.id,
             limit: 100,
         }),
