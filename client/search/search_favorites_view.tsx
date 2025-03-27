@@ -8,10 +8,15 @@ import {
     useSensor,
     useSensors,
 } from "@dnd-kit/core";
-import {SortableContext, useSortable} from "@dnd-kit/sortable";
+import {
+    SortableContext,
+    SortingStrategy,
+    rectSortingStrategy,
+    useSortable,
+} from "@dnd-kit/sortable";
 import {setInteractionModality} from "@react-aria/interactions";
-import {Link as LinkIcon, Star} from "phosphor-react";
-import {KeyboardEvent, useMemo, useState} from "react";
+import {ArrowUp, Link as LinkIcon, Star} from "phosphor-react";
+import {Fragment, KeyboardEvent, useCallback, useMemo, useState} from "react";
 import {mergeProps} from "react-aria";
 import {createPortal} from "react-dom";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -40,7 +45,7 @@ import {
     searchEntityViewMediaSize,
     searchEntityViewTitleTypeDisplayGap,
 } from "~/client/styles/search_shared_styles.js";
-import {sprinkles} from "~/client/styles/styles.js";
+import {grey5SemiTransparentColorVar, sprinkles} from "~/client/styles/styles.js";
 import {
     parseRemLength,
     screenPaddingX,
@@ -62,6 +67,8 @@ import {
 import {SearchFavoriteAffinityEntityResult} from "~/shared/search/search_affinity_entity_result.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
+const searchShortcutFavoriteAffinityEntityMaxCount = 5;
+
 const searchFavoriteAffinityEntitiesTitleStarIconSize = "5";
 const searchFavoriteAffinityEntitiesTitleStarMarginX = `${
     (parseRemLength(searchEntityViewMediaSize) -
@@ -74,12 +81,11 @@ const screenPaddingXWithoutSearchEntityViewPaddingX = mapObjectValues(
     screenPaddingX => subtractRemLengths(screenPaddingX, searchEntityViewDefaultPaddingX),
 );
 
-export function SearchFavoriteAffinityEntitiesView({
+export function SearchFavoritesView({
     initialResults,
 }: {
     initialResults: ReadonlyArray<SearchFavoriteAffinityEntityResult>;
 }) {
-    const initialAppRenderId = useInitialAppRenderId();
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
     const context = useAppContext();
@@ -88,8 +94,6 @@ export function SearchFavoriteAffinityEntitiesView({
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
 
     const maxWidth = routeLayout !== "narrow" ? peekNarrowLayoutWidth : undefined;
-
-    const [randomSeed] = useState(() => initialAppRenderId ?? generateId());
 
     const [results, updateResults, updateResultsOptimistically] =
         useStateWithOptimisticUpdates(initialResults);
@@ -138,6 +142,8 @@ export function SearchFavoriteAffinityEntitiesView({
 
     const sensors = useSensors(pointerSensor, keyboardSensor);
 
+    const foldDividerIndex = Math.min(2, results.length - 1);
+
     return (
         <SpaceRouteScrollView
             title={
@@ -163,6 +169,8 @@ export function SearchFavoriteAffinityEntitiesView({
             desktopMaxWidth={maxWidth}
         >
             <Box
+                position="relative"
+                zIndex="0"
                 width="full"
                 maxWidth={maxWidth}
                 marginX="center"
@@ -185,7 +193,10 @@ export function SearchFavoriteAffinityEntitiesView({
                         if (!over || active.id === over.id) return;
 
                         const activeIndex = results.findIndex(result => result.id === active.id);
-                        const overIndex = results.findIndex(result => result.id === over.id);
+                        const overIndex =
+                            over.id === "FoldDivider"
+                                ? foldDividerIndex
+                                : results.findIndex(result => result.id === over.id);
                         assert(activeIndex >= 0);
                         assert(overIndex >= 0);
 
@@ -241,31 +252,95 @@ export function SearchFavoriteAffinityEntitiesView({
                         });
                     }}
                 >
-                    <SortableContext items={results}>
-                        <SearchFavoriteAffinityEntitiesViewDragPortals
-                            randomSeed={randomSeed}
-                            results={results}
-                        />
-                        {results.map(result => (
-                            <SearchFavoriteAffinityEntitiesViewItem
-                                key={result.id}
-                                randomSeed={randomSeed}
-                                result={result}
-                                onResultRemove={() => {
-                                    updateResults(results =>
-                                        results.filter(otherResult => otherResult.id !== result.id),
-                                    );
-                                }}
-                            />
-                        ))}
-                    </SortableContext>
+                    <SearchFavoritesViewInner
+                        foldDividerIndex={foldDividerIndex}
+                        results={results}
+                        updateResults={updateResults}
+                    />
                 </DndContext>
             </Box>
         </SpaceRouteScrollView>
     );
 }
 
-function SearchFavoriteAffinityEntitiesViewDragPortals({
+function SearchFavoritesViewInner({
+    results,
+    updateResults,
+    foldDividerIndex,
+}: {
+    results: ReadonlyArray<SearchFavoriteAffinityEntityResult>;
+    updateResults: (
+        update: (
+            value: ReadonlyArray<SearchFavoriteAffinityEntityResult>,
+        ) => ReadonlyArray<SearchFavoriteAffinityEntityResult>,
+    ) => void;
+    foldDividerIndex: number;
+}) {
+    const initialAppRenderId = useInitialAppRenderId();
+    const dndContext = useDndContext();
+
+    const [randomSeed] = useState(() => initialAppRenderId ?? generateId());
+
+    const sortableIds = useMemo(() => {
+        const sortableIds: Array<string> = [];
+
+        for (let index = 0; index < results.length; index++) {
+            const result = results[index]!;
+            sortableIds.push(result.id);
+
+            // Only allow sorting `FoldDivider` if we're actively dragging `FoldDivider`.
+            // Otherwise it should stay in the same position while other items move
+            // around it.
+            if (dndContext.active?.id === "FoldDivider" && index === foldDividerIndex)
+                sortableIds.push("FoldDivider");
+        }
+
+        return sortableIds;
+    }, [dndContext.active?.id, foldDividerIndex, results]);
+
+    return (
+        <SortableContext
+            items={sortableIds}
+            strategy={useCallback(
+                (options: Parameters<SortingStrategy>[0]) => {
+                    const activeId = sortableIds[options.activeIndex];
+
+                    // Don't allow `FoldDivider` to be dragged below more than the max entity count.
+                    if (activeId === "FoldDivider") {
+                        return rectSortingStrategy({
+                            ...options,
+                            overIndex: Math.min(
+                                searchShortcutFavoriteAffinityEntityMaxCount,
+                                options.overIndex,
+                            ),
+                        });
+                    }
+
+                    return rectSortingStrategy(options);
+                },
+                [sortableIds],
+            )}
+        >
+            <SearchFavoritesViewDragPortals randomSeed={randomSeed} results={results} />
+            {results.map((result, index) => (
+                <Fragment key={result.id}>
+                    <SearchFavoritesViewItem
+                        randomSeed={randomSeed}
+                        result={result}
+                        onResultRemove={() => {
+                            updateResults(results =>
+                                results.filter(otherResult => otherResult.id !== result.id),
+                            );
+                        }}
+                    />
+                    {index === foldDividerIndex && <SearchFavoritesViewFoldDivider />}
+                </Fragment>
+            ))}
+        </SortableContext>
+    );
+}
+
+function SearchFavoritesViewDragPortals({
     randomSeed,
     results,
 }: {
@@ -278,7 +353,10 @@ function SearchFavoriteAffinityEntitiesViewDragPortals({
         active && (activatorEvent instanceof PointerEvent || activatorEvent instanceof MouseEvent);
 
     const activeResult = useMemo(
-        () => (active ? assertExists(results.find(result => result.id === active.id)) : null),
+        () =>
+            active && active.id !== "FoldDivider"
+                ? assertExists(results.find(result => result.id === active.id))
+                : null,
         [active, results],
     );
 
@@ -292,7 +370,7 @@ function SearchFavoriteAffinityEntitiesViewDragPortals({
             {activeResult &&
                 createPortal(
                     <DragOverlay zIndex={70}>
-                        <SearchFavoriteAffinityEntitiesViewItem
+                        <SearchFavoritesViewItem
                             randomSeed={randomSeed}
                             result={activeResult}
                             onResultRemove={noop}
@@ -301,11 +379,22 @@ function SearchFavoriteAffinityEntitiesViewDragPortals({
                     </DragOverlay>,
                     document.body,
                 )}
+            {active?.id === "FoldDivider" &&
+                createPortal(
+                    <DragOverlay
+                        zIndex={70}
+                        // Only let fold divider move on the Y axis. Not on the X axis.
+                        modifiers={[({transform}) => ({...transform, x: 0})]}
+                    >
+                        <SearchFavoritesViewFoldDivider isDragOverlay={true} />
+                    </DragOverlay>,
+                    document.body,
+                )}
         </>
     );
 }
 
-function SearchFavoriteAffinityEntitiesViewItem({
+function SearchFavoritesViewItem({
     randomSeed,
     result,
     onResultRemove,
@@ -498,5 +587,91 @@ function SearchFavoriteAffinityEntitiesViewItem({
                 </Box>
             </FocusRing>
         </ContextMenuActions>
+    );
+}
+
+function SearchFavoritesViewFoldDivider({isDragOverlay}: {isDragOverlay?: boolean}) {
+    const routeLayout = useRouteLayout();
+    const dndContext = useDndContext();
+
+    const {
+        attributes: sortableAttributes,
+        listeners: sortableListeners,
+        setNodeRef: setSortableNodeRef,
+        transform: sortableTransform,
+        transition: sortableTransition,
+        isDragging,
+    } = useSortable({
+        id: "FoldDivider",
+        disabled: {
+            draggable: isDragOverlay,
+            // Only allow sorting `FoldDivider` if we're actively dragging `FoldDivider`.
+            // Otherwise it should stay in the same position while other items move
+            // around it.
+            droppable: dndContext.active?.id !== "FoldDivider",
+        },
+    });
+
+    // We intentionally aren't animating the fold divider's position. The fold
+    // divider stays at the same index even when items around it are moving.
+    //
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    sortableTransform;
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    sortableTransition;
+
+    const [isPointerDown, setIsPointerDown] = useState(false);
+
+    if (isDragging || isDragOverlay) {
+        if (isPointerDown) setIsPointerDown(false);
+    }
+
+    return (
+        <Box
+            ref={setSortableNodeRef}
+            paddingY="1"
+            paddingX={routeLayout !== "narrow" ? searchEntityViewDefaultPaddingX : screenPaddingX}
+        >
+            <FocusRing isDisabled={isDragging || isDragOverlay} offset="0.5" insetY="4">
+                <Box
+                    {...mergeProps(sortableAttributes, sortableListeners, {
+                        onPointerDown: () => {
+                            if (isDragging || isDragOverlay) return;
+                            setIsPointerDown(true);
+                        },
+                        onPointerUp: () => setIsPointerDown(false),
+                        onPointerOut: () => setIsPointerDown(false),
+                        onPointerCancel: () => setIsPointerDown(false),
+                    })}
+                    cursor={isPointerDown ? "grabbing" : "grab"}
+                    paddingY="4"
+                    opacity={isDragging ? "0" : undefined}
+                >
+                    <Box
+                        position="relative"
+                        zIndex="10"
+                        width="full"
+                        height="border"
+                        style={{
+                            // Using a semi-transparent color so it looks better when dragging.
+                            backgroundColor: grey5SemiTransparentColorVar,
+                        }}
+                    >
+                        <Box
+                            position="absolute"
+                            right="0"
+                            top="-4"
+                            fontSize="25"
+                            display="flex"
+                            alignItems="center"
+                            gap="0.5"
+                            color="grey-40"
+                        >
+                            Shortcuts <ArrowUp size={spacing["3"]} />
+                        </Box>
+                    </Box>
+                </Box>
+            </FocusRing>
+        </Box>
     );
 }
