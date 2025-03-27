@@ -224,19 +224,21 @@ export function SearchFavoriteAffinityEntitiesView({
 
                         // 3. Optimistically update our `results` state. Will revert the update if the
                         //    promise rejects.
-                        updateResultsOptimistically(movePromise, results =>
-                            results
-                                .map(result => {
-                                    if (result.id !== active.id) return result;
-                                    return {...result, orderKey: newFavoriteOrderKey};
+                        updateResultsOptimistically(movePromise, oldResults => {
+                            const newResults = oldResults
+                                .map(oldResult => {
+                                    if (oldResult.id !== active.id) return oldResult;
+                                    return {...oldResult, favoriteOrderKey: newFavoriteOrderKey};
                                 })
                                 .sort((result1, result2) =>
                                     defaultCompareStrings(
                                         result1.favoriteOrderKey,
                                         result2.favoriteOrderKey,
                                     ),
-                                ),
-                        );
+                                );
+
+                            return newResults;
+                        });
                     }}
                 >
                     <SortableContext items={results}>
