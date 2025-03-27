@@ -643,6 +643,9 @@ export function getFilePreviewSize(file: FileModelData | null): {width: number; 
  * - Should maintain the aspect ratio of the underlying file when possible
  * - Should optimize for table cell space utilization
  */
+// NOCOMMIT(rohit): This is a temporary function to layout a file in a table cell.
+// We need to revisit the table cell layout logic to ensure that the file is
+// laid out correctly in the table cell.
 export function computeContentFileRowTableLayout(
     file: FileModelData | null,
     {
