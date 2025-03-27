@@ -1240,7 +1240,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 draggingFileRef,
             }),
             table: createContentEditorTableNodeView(),
-            fileTable: createContentEditorFileTableNodeViewConstructor({
+            fileRowTable: createContentEditorFileTableNodeViewConstructor({
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                 getLayoutScreenWidth: getFileLayoutScreenWidth,
                 subscribeToReferencesUpdate: listener => {
@@ -1705,7 +1705,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             } else if (
                 schema.nodes.file &&
                 schema.nodes.fileRow &&
-                schema.nodes.fileTable &&
+                schema.nodes.fileRowTable &&
                 slice.size === 0 &&
                 dataTransfer?.items &&
                 // If `transformPastedDOM` already parsed some files from HTML then ignore any
@@ -2086,7 +2086,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                         node =>
                             node.type.name === "fileRow" ||
                             node.type.name === "file" ||
-                            node.type.name === "fileTable",
+                            node.type.name === "fileRowTable",
                     ))
                     ? fileDragState.getDropTarget()
                     : null;
@@ -2140,7 +2140,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                         node.type.name === "file"
                                             ? schema.node(
                                                   isInContentTable(view.state)
-                                                      ? "fileTable"
+                                                      ? "fileRowTable"
                                                       : "fileRow",
                                                   {},
                                                   [node],
@@ -2212,13 +2212,13 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     );
                                 }
 
-                                // If we are draging a fileTable node from the table and dropping
-                                // it outside of the table then we need to convert the fileTable
-                                // into a fileRow, otherwise we will end up with a fileTable node
+                                // If we are draging a fileRowTable node from the table and dropping
+                                // it outside of the table then we need to convert the fileRowTable
+                                // into a fileRow, otherwise we will end up with a fileRowTable node
                                 // inside a `content_document`.
                                 if (
                                     slice.content.content.length === 1 &&
-                                    slice.content.content[0]!.type.name === "fileTable"
+                                    slice.content.content[0]!.type.name === "fileRowTable"
                                 ) {
                                     slice = new Slice(
                                         Fragment.from(
@@ -2331,13 +2331,13 @@ function ContentEditor<Content extends ContentWithReferences>(
                             case "InsertFileIntoTableCell": {
                                 assert(slice.size > 0);
 
-                                const isSourceFileTable =
+                                const isSourceFileRowTable =
                                     slice.content.content.length === 1 &&
-                                    slice.content.content[0]!.type.name === "fileTable";
+                                    slice.content.content[0]!.type.name === "fileRowTable";
 
-                                let fileTableNode: Slice | null = slice;
+                                let fileRowTableNode: Slice | null = slice;
 
-                                if (!isSourceFileTable) {
+                                if (!isSourceFileRowTable) {
                                     const fileNodes: Array<Node> = [];
                                     for (const sourceNode of slice.content.content) {
                                         if (sourceNode.type.name === "fileRow") {
@@ -2356,24 +2356,24 @@ function ContentEditor<Content extends ContentWithReferences>(
                                             fileNodes.push(sourceNode);
                                         }
                                     }
-                                    fileTableNode = new Slice(
+                                    fileRowTableNode = new Slice(
                                         Fragment.from(
                                             fileNodes.map(fileNode =>
-                                                schema.node("fileTable", {}, [fileNode]),
+                                                schema.node("fileRowTable", {}, [fileNode]),
                                             ),
                                         ),
                                         0,
                                         0,
                                     );
                                 }
-                                assert(fileTableNode);
+                                assert(fileRowTableNode);
 
                                 // Same logic as `InsertFileRow` statement
                                 if (
                                     $pos.nodeAfter?.type.name === "paragraph" &&
                                     $pos.nodeAfter.content.size === 0
                                 ) {
-                                    transaction.replaceRange(pos, pos + 2, fileTableNode);
+                                    transaction.replaceRange(pos, pos + 2, fileRowTableNode);
                                     transaction
                                         .setSelection(
                                             new NodeSelection(transaction.doc.resolve(pos + 1)),
@@ -2384,7 +2384,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     $pos.nodeBefore?.type.name === "paragraph" &&
                                     $pos.nodeBefore.content.size === 0
                                 ) {
-                                    transaction.replaceRange(pos - 2, pos, fileTableNode);
+                                    transaction.replaceRange(pos - 2, pos, fileRowTableNode);
                                     transaction
                                         .setSelection(
                                             new NodeSelection(transaction.doc.resolve(pos - 1)),
@@ -2392,7 +2392,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                         .scrollIntoView();
                                 } else {
                                     // No empty paragraphs adjacent
-                                    transaction.insert(pos, fileTableNode.content);
+                                    transaction.insert(pos, fileRowTableNode.content);
                                     transaction
                                         .setSelection(
                                             new NodeSelection(transaction.doc.resolve(pos + 1)),
@@ -2420,7 +2420,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     // Although a user can select multiple nodes including multiple files and then they can
                     // drag the whole slice and drop in the `content_table`
                     // To ensure that we still are able to convert the fileRow/ fileFloat nodes into
-                    // fileTable nodes we transform the slice here.
+                    // fileRowTable nodes we transform the slice here.
                     slice = transformPastedForContentTable(schema, slice, selection)[0];
 
                     // Implement the same logic as ProseMirror's `drop` function:
@@ -2535,7 +2535,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 Fragment.from(
                     fileIdsByRow.map(fileIds =>
                         schema.node(
-                            isInTable ? "fileTable" : "fileRow",
+                            isInTable ? "fileRowTable" : "fileRow",
                             {},
                             fileIds.map(fileId => schema.node("file", {fileId})),
                         ),
@@ -4936,8 +4936,8 @@ function transformPastedForContentTable(
                     }
                 }
                 fileNodes.forEach(fileNode => {
-                    const fileTableNode = schema.node("fileTable", {}, [fileNode]);
-                    primaryContent.push(fileTableNode);
+                    const fileRowTableNode = schema.node("fileRowTable", {}, [fileNode]);
+                    primaryContent.push(fileRowTableNode);
                 });
                 break;
             }

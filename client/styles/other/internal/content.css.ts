@@ -47,7 +47,7 @@ import {
     fileFloatClassName,
     fileFloatLeftClassName,
     fileFloatRightClassName,
-    fileRowBaseClassName,
+    fileRowLikeClassName,
     headingLevel1ClassName,
     headingLevel2ClassName,
     headingLevel3ClassName,
@@ -927,7 +927,7 @@ const fileRowGapWidth = spacing[fileRowGapWidthSpacing];
 export const fileRowGapWidthRem = parseRemLength(fileRowGapWidth);
 export const fileTablePaddingRem = 0.5;
 
-globalStyle(fileRowBaseClassName, {
+globalStyle(fileRowLikeClassName, {
     ...blockStyles,
     position: "relative",
     marginTop: standaloneBlockMargin,
@@ -940,11 +940,11 @@ globalStyle(fileRowBaseClassName, {
     userSelect: "none",
 });
 
-globalStyle(`${fileRowBaseClassName}:has(+ ${fileRowBaseClassName})`, {
+globalStyle(`${fileRowLikeClassName}:has(+ ${fileRowLikeClassName})`, {
     marginBottom: fileRowGapWidth,
 });
 
-globalStyle(`${fileRowBaseClassName} + ${fileRowBaseClassName}`, {
+globalStyle(`${fileRowLikeClassName} + ${fileRowLikeClassName}`, {
     marginTop: fileRowGapWidth,
 });
 
@@ -1531,7 +1531,7 @@ globalStyle(`${darkColorSchemeSelector} ${commentClassName} ${commentClassName}`
     backgroundColor: nestedCommentBackgroundColors.dark.default,
 });
 
-globalStyle(`:is(${fileRowBaseClassName}, ${fileFloatClassName}) ${commentClassName}`, {
+globalStyle(`:is(${fileRowLikeClassName}, ${fileFloatClassName}) ${commentClassName}`, {
     position: "relative",
     display: "grid",
     backgroundColor: "transparent",
@@ -1539,7 +1539,7 @@ globalStyle(`:is(${fileRowBaseClassName}, ${fileFloatClassName}) ${commentClassN
     paddingBottom: 0,
 });
 
-globalStyle(`:is(${fileRowBaseClassName}, ${fileFloatClassName}) ${commentClassName}::after`, {
+globalStyle(`:is(${fileRowLikeClassName}, ${fileFloatClassName}) ${commentClassName}::after`, {
     content: '""',
     position: "absolute",
     backgroundColor: "transparent",
@@ -1549,12 +1549,12 @@ globalStyle(`:is(${fileRowBaseClassName}, ${fileFloatClassName}) ${commentClassN
     borderRadius: 8,
 });
 
-globalStyle(`:is(${fileRowBaseClassName}, ${fileFloatClassName}) > ${commentClassName}::after`, {
+globalStyle(`:is(${fileRowLikeClassName}, ${fileFloatClassName}) > ${commentClassName}::after`, {
     backgroundColor: commentBackgroundColors.light.default,
 });
 
 globalStyle(
-    `${darkColorSchemeSelector} :is(${fileRowBaseClassName}, ${fileFloatClassName}) > ${commentClassName}::after`,
+    `${darkColorSchemeSelector} :is(${fileRowLikeClassName}, ${fileFloatClassName}) > ${commentClassName}::after`,
     {
         backgroundColor: commentBackgroundColors.dark.default,
     },
@@ -1727,11 +1727,11 @@ ${darkColorSchemeSelector} #$containerId .${commentClassName}[data-comment="$com
 ${darkColorSchemeSelector} #$containerId .${commentClassName} .${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
     nestedCommentBackgroundColors.dark.active
 }}
-#$containerId :is(.${fileRowBaseClassName}, .${fileFloatClassName}) .${commentClassName}[data-comment="$commentThreadId"] {background-color: transparent}
-#$containerId :is(.${fileRowBaseClassName}, .${fileFloatClassName}) .${commentClassName}[data-comment="$commentThreadId"]::after {background-color: ${
+#$containerId :is(.${fileRowLikeClassName}, .${fileFloatClassName}) .${commentClassName}[data-comment="$commentThreadId"] {background-color: transparent}
+#$containerId :is(.${fileRowLikeClassName}, .${fileFloatClassName}) .${commentClassName}[data-comment="$commentThreadId"]::after {background-color: ${
     commentBackgroundColors.light.active
 }}
-#$containerId :is(.${fileRowBaseClassName}, .${fileFloatClassName}) > .${commentClassName}:not([data-comment="$commentThreadId"]):has(.${commentClassName}[data-comment="$commentThreadId"])::after {background-color: transparent}
+#$containerId :is(.${fileRowLikeClassName}, .${fileFloatClassName}) > .${commentClassName}:not([data-comment="$commentThreadId"]):has(.${commentClassName}[data-comment="$commentThreadId"])::after {background-color: transparent}
 ${getObjectKeysWithKeyofType(colorByHighlightColor)
     .map(
         highlightColor => `\

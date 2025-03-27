@@ -33,7 +33,7 @@ export const contentNodeTypeNames = {
     table: true,
     tableRow: true,
     tableCell: true,
-    fileTable: true,
+    fileRowTable: true,
 };
 
 /**

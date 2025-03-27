@@ -447,7 +447,7 @@ const lineBreakCountByNodeType: {
     // not cause a line break.
     tableCell: 0,
     // A file table is treated as a block element, so it causes a line break.
-    fileTable: 1,
+    fileRowTable: 1,
 };
 
 /**
@@ -505,5 +505,5 @@ const dontCutLeadingChildrenByNodeType: {
     tableCell: false,
     // It's okay to cut the leading children of a file table because the file table's
     // structure is defined by its rows, not its position in the document.
-    fileTable: true,
+    fileRowTable: true,
 };

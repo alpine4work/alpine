@@ -6,7 +6,7 @@ import {
     fileFloatClassName,
     fileFloatLeftClassName,
     fileFloatRightClassName,
-    fileRowBaseClassName,
+    fileRowLikeClassName,
     headingLevel1ClassName,
     headingLevel2ClassName,
     headingLevel3ClassName,
@@ -114,7 +114,7 @@ export const createContentFileProsemirrorNodeSpecs = ({fileMarks}: {fileMarks?: 
          * information on how we layout a file row.
          */
         fileRow: {
-            group: "block",
+            group: "block fileRowLike",
             content: "file{1,3}",
             defining: true,
             isolating: true,
@@ -126,7 +126,8 @@ export const createContentFileProsemirrorNodeSpecs = ({fileMarks}: {fileMarks?: 
             // in documents). Comments should never appear on `fileRow`. Only on `file`. We
             // validate this is the case in `get_collaboratively_update_content_result.ts`.
             marks: fileMarks,
-            toDOM: () => ["div", {class: fileRowBaseClassName}, 0],
+            // same class `fileRowLikeClassName` being used for fileRow and fileRowTable
+            toDOM: () => ["div", {class: fileRowLikeClassName}, 0],
             // A `<div>` or `<p>` with a direct child that has a `data-cy-tmp-file`
             // attribute is parsed as a `fileRow`.
             //
@@ -280,27 +281,34 @@ export const createContentFileFloatProsemirrorNodeSpecs = ({
         },
     });
 
-export const createContentFileTableProsemirrorNodeSpecs = ({fileMarks}: {fileMarks?: string} = {}) =>
+export const createContentFileRowTableProsemirrorNodeSpecs = ({
+    fileMarks,
+}: {fileMarks?: string} = {}) =>
     createProsemirrorNodesSpec({
-        fileTable: {
-            group: "tableBlock",
-            content: "file",
+        fileRowTable: {
+            group: "tableBlock fileRowLike",
+            // must have exactly one `file` node as child
+            content: "file{1,1}",
             defining: true,
             isolating: true,
             // Don't allow selecting with a `NodeSelection`. The default is `true` but
             // there's only a small number of nodes (e.g. `divider`) we actually want to
             // let be selectable.
             selectable: false,
-            // Allow any marks available on `file` nodes on `fileTable`s (e.g. comment marks
-            // in documents). Comments should never appear on `fileTable`. Only on `file`. We
+            // Allow any marks available on `file` nodes on `fileRowTable`s (e.g. comment marks
+            // in documents). Comments should never appear on `fileRowTable`. Only on `file`. We
             // validate this is the case in `get_collaboratively_update_content_result.ts`.
             marks: fileMarks,
             attrs: {},
-            // same classes being used for fileRow and fileTable
-            toDOM: () => ["div", {class: fileRowBaseClassName}, 0],
+            // same classes being used for fileRow and fileRowTable
+            toDOM: () => ["div", {class: fileRowLikeClassName}, 0],
             parseDOM: [
                 {
                     tag: "div[style*=file-table]",
+                    // When given, restricts this rule to only match when the current context—the
+                    // parent nodes into which the content is being parsed—matches this expression.
+                    // `table//` means this node is inside `table` node at any depth.
+                    context: "table//",
                     priority: paragraphParseRulePriority + 100,
                     getAttrs: node => {
                         if (!(node instanceof HTMLElement)) return false;
@@ -311,7 +319,7 @@ export const createContentFileTableProsemirrorNodeSpecs = ({fileMarks}: {fileMar
                                 childNode.tagName === "DIV" &&
                                 childNode.hasAttribute("data-cy-tmp-file")
                             ) {
-                                return {direction: node.style.float};
+                                return {};
                             }
                         }
 

@@ -235,7 +235,7 @@ export function buildContentEditorKeymapPlugin(
             if (state.selection.node.type.name !== "file") return false;
             if (
                 state.selection.$anchor.parent.type.name !== "fileRow" &&
-                state.selection.$anchor.parent.type.name !== "fileTable"
+                state.selection.$anchor.parent.type.name !== "fileRowTable"
             )
                 return false;
 
@@ -1370,7 +1370,10 @@ export function buildContentEditorKeymapPlugin(
                 const parentNode = $from.node($from.depth - 1);
                 const currentNode = $from.node();
 
-                if (selection instanceof NodeSelection && currentNode.type.name === "fileTable") {
+                if (
+                    selection instanceof NodeSelection &&
+                    currentNode.type.name === "fileRowTable"
+                ) {
                     const paragraphNode = schema.nodes.paragraph;
                     if (!paragraphNode) {
                         return false;
@@ -1466,7 +1469,10 @@ export function buildContentEditorKeymapPlugin(
                 const parentNode = $from.node($from.depth - 1);
                 const currentNode = $from.node();
 
-                if (selection instanceof NodeSelection && currentNode.type.name === "fileTable") {
+                if (
+                    selection instanceof NodeSelection &&
+                    currentNode.type.name === "fileRowTable"
+                ) {
                     const paragraphNode = schema.nodes.paragraph;
                     if (!paragraphNode) {
                         return false;
@@ -1717,7 +1723,7 @@ export function buildContentEditorKeymapPlugin(
 
         assert(
             state.selection.$anchor.parent.type.name === "fileRow" ||
-                state.selection.$anchor.parent.type.name === "fileTable",
+                state.selection.$anchor.parent.type.name === "fileRowTable",
         );
 
         let $last = state.doc.resolve(state.selection.$anchor.end() - 1);
@@ -2164,7 +2170,7 @@ export function buildContentEditorKeymapPlugin(
                     state.selection instanceof NodeSelection &&
                     state.selection.node.type.name === "file" &&
                     (state.selection.$anchor.parent.type.name === "fileRow" ||
-                        state.selection.$anchor.parent.type.name === "fileTable")
+                        state.selection.$anchor.parent.type.name === "fileRowTable")
                 ) {
                     const insertPosition = state.selection.$anchor.after();
 

@@ -2831,13 +2831,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                 },
                                                                                                                                 "referenceId": "e50e7279"
                                                                                                                             },
-                                                                                                                            "fileTable": {
+                                                                                                                            "fileRowTable": {
                                                                                                                                 "type": "Object",
                                                                                                                                 "propertySchemaByKey": {
                                                                                                                                     "type": {
                                                                                                                                         "valueSchema": {
                                                                                                                                             "type": "Value",
-                                                                                                                                            "value": "fileTable"
+                                                                                                                                            "value": "fileRowTable"
                                                                                                                                         },
                                                                                                                                         "optional": false
                                                                                                                                     },
@@ -2856,7 +2856,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                         "optional": true
                                                                                                                                     }
                                                                                                                                 },
-                                                                                                                                "referenceId": "565497ea"
+                                                                                                                                "referenceId": "61387232"
                                                                                                                             },
                                                                                                                             "checkListItem": {
                                                                                                                                 "type": "Object",
@@ -2997,9 +2997,9 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                     "type": "Reference",
                                                                                                     "reuseReferenceId": "e50e7279"
                                                                                                 },
-                                                                                                "fileTable": {
+                                                                                                "fileRowTable": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "565497ea"
+                                                                                                    "reuseReferenceId": "61387232"
                                                                                                 },
                                                                                                 "checkListItem": {
                                                                                                     "type": "Reference",
@@ -3919,13 +3919,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                             }
                                                                                         }
                                                                                     },
-                                                                                    "fileTable": {
+                                                                                    "fileRowTable": {
                                                                                         "type": "Object",
                                                                                         "propertySchemaByKey": {
                                                                                             "type": {
                                                                                                 "valueSchema": {
                                                                                                     "type": "Value",
-                                                                                                    "value": "fileTable"
+                                                                                                    "value": "fileRowTable"
                                                                                                 },
                                                                                                 "optional": false
                                                                                             },

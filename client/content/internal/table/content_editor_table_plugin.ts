@@ -1182,7 +1182,7 @@ function handleDraggingCellSelectionMouseDown(view: EditorView, startEvent: Mous
         return false;
     }
 
-    // NOTE: To prevent default mouse down behavior of table which dragging files(fileTable)
+    // NOTE: To prevent default mouse down behavior of table which dragging files(fileRowTable)
     // we use this check.
     if ((startEvent.target as HTMLElement).closest(`.${fileClassName}`)) {
         return false;

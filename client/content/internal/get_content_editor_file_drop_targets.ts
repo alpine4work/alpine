@@ -73,7 +73,7 @@ export function getContentEditorFileDropTargets(
 
     const {doc} = view.state;
     const {schema} = doc.type;
-    if (!schema.nodes.fileRow || !schema.nodes.fileTable) {
+    if (!schema.nodes.fileRow || !schema.nodes.fileRowTable) {
         return dropTargets;
     }
 
