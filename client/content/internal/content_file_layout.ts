@@ -3,7 +3,7 @@ import {
     ContentFileLayout,
     computeContentFileFloatLayout,
     computeContentFileRowLayout,
-    computeContentFileTableLayout,
+    computeContentFileRowTableLayout,
 } from "~/client/content/internal/content_file_layout_computations.js";
 import {createCachedFunction} from "~/client/content/internal/helpers/create_cached_function.js";
 import {Platform} from "~/shared/design/core/platform.js";
@@ -46,10 +46,10 @@ const actuallyLayoutContentFileParent = createCachedFunction(
                 ];
             }
             case "fileRowTable": {
-                // NOTE(rohit): In the `insertFiles` in `content_editor.tsx` we already
-                // insured that the selection is a table cell selection so we don't need
-                // to check for that here. But for the sake of clarity we'll assert that
-                // the fileRowTable node contains exactly one file node.
+                // NOTE(rohit): In `content_schema_extra.tsx` where `fileRowTable` node
+                // is defined, we already made sure that  `content: "file{1,1}"` .
+                // But for the sake of clarity we'll assert that the fileRowTable node
+                // contains exactly one file node.
                 assert(node.content.childCount === 1, "fileRowTable must contain exactly one file");
                 const fileNode = node.content.firstChild!;
                 assert(fileNode.type.name === "file", "fileRowTable child must be a file node");
@@ -58,7 +58,8 @@ const actuallyLayoutContentFileParent = createCachedFunction(
                 const file = fileId ? getFile(fileId) : null;
 
                 return [
-                    computeContentFileTableLayout(file, {
+                    computeContentFileRowTableLayout(file, {
+                        screenWidth,
                         platform,
                         spacingScale,
                         withoutBlockMaxWidth,
