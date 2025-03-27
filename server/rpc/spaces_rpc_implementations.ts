@@ -1,7 +1,7 @@
 import {createAlphaSpaceAsAdmin} from "~/server/forum/data/forum_table.js";
 import {getOurAccountInboxes} from "~/server/notifications/data/notifications_table.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
-import {getPossiblyStaleAccountSearchAffinityIds} from "~/server/search/data/table/search_entity_table.js";
+import {getPossiblyStaleAccountSearchAffinityEntityIds} from "~/server/search/data/table/search_entity_table.js";
 import {
     dangerouslyAddSpaceAccountAsAdmin,
     expensivelyGetAllSpaceAccounts,
@@ -22,7 +22,7 @@ export default implementRpcs(definitions, {
                 expensivelyGetAllSpaceAccounts(context, input.spaceId),
 
                 // We return all accounts sorted in affinity order.
-                getPossiblyStaleAccountSearchAffinityIds(
+                getPossiblyStaleAccountSearchAffinityEntityIds(
                     context.actor.authorizeSession(),
                     input.spaceId,
                 ),

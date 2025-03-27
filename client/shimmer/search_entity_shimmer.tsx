@@ -2,10 +2,10 @@ import {Box} from "~/client/design/box.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {
-    minSearchResultViewHeightPx,
-    searchResultViewMediaSize,
-    searchResultViewPaddingY,
-    searchResultViewTitleFontSize,
+    searchEntityViewMediaSize,
+    searchEntityViewMinHeightPx,
+    searchEntityViewPaddingY,
+    searchEntityViewTitleFontSize,
 } from "~/client/styles/search_shared_styles.js";
 import {
     Sprinkles,
@@ -15,7 +15,7 @@ import {
 } from "~/client/styles/styles.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
 
-export function SearchResultShimmer({
+export function SearchEntityShimmer({
     marginX = "1",
     paddingX = "2.5",
     titleWidth,
@@ -30,13 +30,13 @@ export function SearchResultShimmer({
         <Box paddingX={marginX}>
             <Box paddingX={paddingX}>
                 <Box
-                    paddingY={searchResultViewPaddingY}
-                    style={{minHeight: minSearchResultViewHeightPx[spacingScale]}}
+                    paddingY={searchEntityViewPaddingY}
+                    style={{minHeight: searchEntityViewMinHeightPx[spacingScale]}}
                 >
                     <Box display="flex" alignItems="center" gap="1.5">
                         <Box
-                            width={searchResultViewMediaSize}
-                            height={searchResultViewMediaSize}
+                            width={searchEntityViewMediaSize}
+                            height={searchEntityViewMediaSize}
                             display="flex"
                             justifyContent="center"
                             alignItems="center"
@@ -51,7 +51,7 @@ export function SearchResultShimmer({
                         </Box>
                         <TextShimmer
                             fontSize={{
-                                fontSize: fontSizes[searchResultViewTitleFontSize].fontSize,
+                                fontSize: fontSizes[searchEntityViewTitleFontSize].fontSize,
                                 lineHeight: `${contentStyles.paragraphLineHeightPx[spacingScale]}px`,
                             }}
                             width={titleWidth}

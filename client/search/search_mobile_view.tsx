@@ -10,17 +10,17 @@ import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
-import {SearchResultView} from "~/client/search/search_result_view.js";
+import {getSearchEntityPath} from "~/client/search/internal/get_search_entity_path.js";
+import {SearchEntityView} from "~/client/search/search_entity_view.js";
 import {useSearchState} from "~/client/search/use_search_state.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    minSearchMobileInputHeight,
-    minSearchResultViewHeightPx,
+    searchEntityViewMinHeightPx,
     searchMobileInputBorderRadius,
     searchMobileInputFontSize,
     searchMobileInputMarginBottom,
     searchMobileInputMarginTop,
+    searchMobileInputMinHeight,
     searchMobileInputPaddingX,
     searchMobileInputPaddingY,
 } from "~/client/styles/search_shared_styles.js";
@@ -40,7 +40,7 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
-import {SearchResult} from "~/shared/search/search_result.js";
+import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
 
 export function SearchMobileView({
     initialAffinitySearch,
@@ -83,7 +83,7 @@ export function SearchMobileView({
                     minHeight: addRemLengths(
                         navigationBarHeight,
                         searchMobileInputMarginTop,
-                        minSearchMobileInputHeight,
+                        searchMobileInputMinHeight,
                         searchMobileInputMarginBottom,
                     ),
                     node: (
@@ -197,7 +197,7 @@ export function SearchMobileView({
 
             return {
                 key: `Loaded:${result.id}`,
-                minHeight: minSearchResultViewHeightPx[spacingScale],
+                minHeight: searchEntityViewMinHeightPx[spacingScale],
                 node: (
                     <Box width="full" maxWidth={maxWidth} marginX="center">
                         <SearchMobileViewResult
@@ -234,7 +234,7 @@ export function SearchMobileView({
             scrollbarInsetTop={scrollbarInsetTop}
             extraChildren={navigationBar}
             itemCount={1 + results.length}
-            bufferedItemHeight={minSearchResultViewHeightPx[spacingScale]}
+            bufferedItemHeight={searchEntityViewMinHeightPx[spacingScale]}
             renderItem={renderItem}
             extraChildrenOutsideContentElement={({contentHeight}) => (
                 // Our items all have a bottom border. This is good when there's less content
@@ -282,7 +282,7 @@ function SearchMobileViewResult({
     spaceId: SpaceId;
     searchKey: string;
     searchTime: Date;
-    result: SearchResult;
+    result: SearchEntityResult;
     isFirstItem: boolean;
     isLastItem: boolean;
 }) {
@@ -291,9 +291,9 @@ function SearchMobileViewResult({
     const {isPressed, pressProps} = usePress({
         onPress: () => {
             navigate(
-                getSearchResultDestinationPath({
+                getSearchEntityPath({
                     spaceId: spaceId,
-                    resultId: result.id,
+                    entityId: result.id,
                     randomSeed: searchKey,
                     currentTime: searchTime,
                     routeLayout: "narrow",
@@ -304,7 +304,7 @@ function SearchMobileViewResult({
 
     return (
         <Box {...pressProps}>
-            <SearchResultView
+            <SearchEntityView
                 paddingX={screenPaddingX}
                 marginX="0"
                 isPressed={isPressed}

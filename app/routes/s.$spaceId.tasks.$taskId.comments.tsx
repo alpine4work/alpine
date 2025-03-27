@@ -11,7 +11,7 @@ import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitleSeparator} from "~/client/remix/use_update_meta_title.js";
-import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {TaskCommentsView} from "~/client/tasks/task_comments_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
@@ -137,7 +137,7 @@ export default function TaskCommentsRoute() {
         });
     }, [spaceId, taskId, navigate, searchParams, commentIndex, routeLayout]);
 
-    useSearchAffinityViewInteraction(`Task:${taskId}`);
+    useSearchAffinityViewEntityInteraction(`Task:${taskId}`);
 
     const {isConnected, procedures, subscribeToEvents} = useWebSocket(
         "TaskNotesCollaborationService",

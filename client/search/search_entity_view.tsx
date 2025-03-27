@@ -7,19 +7,19 @@ import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {getSearchResultTypeDisplay} from "~/client/search/internal/search_result_type_display.js";
+import {getSearchEntityTypeDisplay} from "~/client/search/internal/search_entity_type_display.js";
 import {
-    SearchResultViewTitle,
-    SearchResultViewTitlePrefix,
-} from "~/client/search/internal/search_result_view_title.js";
+    SearchEntityViewTitle,
+    SearchEntityViewTitlePrefix,
+} from "~/client/search/internal/search_entity_view_title.js";
 import {
-    minSearchResultViewBodyTextSnippetHeight,
-    minSearchResultViewHeightPx,
-    searchResultViewBodyTextSnippetFontSize,
-    searchResultViewDefaultMarginX,
-    searchResultViewDefaultPaddingX,
-    searchResultViewPaddingY,
-    searchResultViewTitleMarginBottom,
+    searchEntityViewBodyTextSnippetFontSize,
+    searchEntityViewBodyTextSnippetMinHeight,
+    searchEntityViewDefaultMarginX,
+    searchEntityViewDefaultPaddingX,
+    searchEntityViewMinHeightPx,
+    searchEntityViewPaddingY,
+    searchEntityViewTitleMarginBottom,
 } from "~/client/styles/search_shared_styles.js";
 import {
     Sprinkles,
@@ -33,11 +33,12 @@ import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spaci
 import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
-import {SearchResult} from "~/shared/search/search_result.js";
+import {SearchAffinityEntityResult} from "~/shared/search/search_affinity_entity_result.js";
+import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
 
-export const searchResultSideBarWidth = "96";
+export const searchEntitySideBarWidth = "96";
 
-export function SearchResultView({
+export function SearchEntityView({
     result,
     isSelected = false,
     isPressed = false,
@@ -45,10 +46,10 @@ export function SearchResultView({
     withMarginBottom = false,
     onPressStart,
     onDoubleClick,
-    marginX = searchResultViewDefaultMarginX,
-    paddingX = searchResultViewDefaultPaddingX,
+    marginX = searchEntityViewDefaultMarginX,
+    paddingX = searchEntityViewDefaultPaddingX,
 }: {
-    result: SearchResult;
+    result: SearchEntityResult | SearchAffinityEntityResult;
     isSelected?: boolean;
     isPressed?: boolean;
     withMarginTop?: boolean;
@@ -60,31 +61,31 @@ export function SearchResultView({
 }) {
     const spacingScale = useSpacingScale();
 
-    const typeDisplay = useMemo(() => getSearchResultTypeDisplay(result.id), [result.id]);
+    const typeDisplay = useMemo(() => getSearchEntityTypeDisplay(result.id), [result.id]);
 
     return (
         <Box
             paddingX={marginX}
             style={{
                 // Tiny detail: The search modal's input renders its border on top of the first
-                // search result view. So for it to look like the first search result has the
+                // search entity view. So for it to look like the first search entity has the
                 // same Y margin as it does X margin we need to add an extra pixel of margin.
                 paddingTop: withMarginTop ? convertRemLengthToPx("1", spacingScale) + 1 : undefined,
                 paddingBottom: withMarginBottom ? spacing["1"] : undefined,
-                minHeight: minSearchResultViewHeightPx[spacingScale],
+                minHeight: searchEntityViewMinHeightPx[spacingScale],
             }}
             onPointerDown={event => {
                 // Presses in a modal outside our element tree shouldn't select the search
-                // result. This happens when clicking to close an overlay opened by
-                // `<SearchResultViewExplainDebugWidget>`.
+                // entity. This happens when clicking to close an overlay opened by
+                // `<SearchEntityViewExplainDebugWidget>`.
                 if (event.target instanceof Element && event.currentTarget.contains(event.target)) {
                     onPressStart?.();
                 }
             }}
             onDoubleClick={event => {
                 // Presses in a modal outside our element tree shouldn't select the search
-                // result. This happens when clicking to close an overlay opened by
-                // `<SearchResultViewExplainDebugWidget>`.
+                // entity. This happens when clicking to close an overlay opened by
+                // `<SearchEntityViewExplainDebugWidget>`.
                 if (event.target instanceof Element && event.currentTarget.contains(event.target)) {
                     onDoubleClick?.();
                 }
@@ -119,27 +120,27 @@ export function SearchResultView({
                 )}
                 <Box
                     position="relative"
-                    paddingY={searchResultViewPaddingY}
+                    paddingY={searchEntityViewPaddingY}
                     style={{
-                        minHeight: minSearchResultViewHeightPx[spacingScale],
+                        minHeight: searchEntityViewMinHeightPx[spacingScale],
                     }}
                 >
                     {result.title !== null && (
                         <>
-                            <SearchResultViewTitle
+                            <SearchEntityViewTitle
                                 typeDisplay={typeDisplay}
                                 title={result.title}
                                 media={result.media}
                             />
-                            {result.bodyTextSnippet.length > 0 && (
-                                <Spacer space={searchResultViewTitleMarginBottom} />
+                            {result.bodyTextSnippet && result.bodyTextSnippet.length > 0 && (
+                                <Spacer space={searchEntityViewTitleMarginBottom} />
                             )}
                         </>
                     )}
                     <Box
                         overflow="hidden"
                         color="grey-60"
-                        fontSize={searchResultViewBodyTextSnippetFontSize}
+                        fontSize={searchEntityViewBodyTextSnippetFontSize}
                         className={
                             result.title === null
                                 ? searchStyles.bodyTextSnippetWithoutTitleClassName
@@ -159,12 +160,12 @@ export function SearchResultView({
                             fontFeatureSettings: '"calt" on',
                             minHeight:
                                 result.title === null
-                                    ? minSearchResultViewBodyTextSnippetHeight
+                                    ? searchEntityViewBodyTextSnippetMinHeight
                                     : undefined,
                         }}
                     >
                         {result.title === null && (
-                            <SearchResultViewTitlePrefix
+                            <SearchEntityViewTitlePrefix
                                 typeDisplay={typeDisplay}
                                 media={result.media}
                             />
@@ -178,7 +179,7 @@ export function SearchResultView({
                                 {": "}
                             </>
                         ) : null}
-                        {result.bodyTextSnippet.map(({isHighlighted, text}, index) => {
+                        {result.bodyTextSnippet?.map(({isHighlighted, text}, index) => {
                             if (!isHighlighted) {
                                 return (
                                     <Fragment key={index}>
@@ -202,21 +203,21 @@ export function SearchResultView({
                     </Box>
                 </Box>
                 {result.explanation && (
-                    <SearchResultViewExplainDebugWidget explanation={result.explanation} />
+                    <SearchEntityViewExplainDebugWidget explanation={result.explanation} />
                 )}
             </Box>
         </Box>
     );
 }
 
-function SearchResultViewExplainDebugWidget({
+function SearchEntityViewExplainDebugWidget({
     explanation,
 }: {
     explanation: OpensearchSearchHitExplanation;
 }) {
-    // When we add to a search result score using factors other than OpenSearch
+    // When we add to a search entity score using factors other than OpenSearch
     // BM25 we include an emoji to communicate this is a "smart" score addition. We
-    // use a sparkle for semantic search and a heart for search results the user
+    // use a sparkle for semantic search and a heart for search entities the user
     // has an affinity for. To make it easier to spot scores affected by AI magic
     // (semantic search or affinity search) we want to put the same emoji in the
     // explain button.
@@ -262,7 +263,7 @@ function SearchResultViewExplainDebugWidget({
                     overflow="auto"
                     userSelect="text"
                 >
-                    <SearchResultViewExplainDebugWidgetOverlay explanation={explanation} />
+                    <SearchEntityViewExplainDebugWidgetOverlay explanation={explanation} />
                 </Box>
             }
         >
@@ -294,7 +295,7 @@ function SearchResultViewExplainDebugWidget({
     );
 }
 
-function SearchResultViewExplainDebugWidgetOverlay({
+function SearchEntityViewExplainDebugWidgetOverlay({
     explanation,
 }: {
     explanation: OpensearchSearchHitExplanation;

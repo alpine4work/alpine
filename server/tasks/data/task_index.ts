@@ -23,9 +23,9 @@ import {
 } from "~/server/opensearch/opensearch_index_type.js";
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
 import {
-    addSearchAffinityActiveTaskAssigneePoints,
-    markSearchAffinityInteractionForAccount,
-    removeSearchAffinityActiveTaskAssigneePoints,
+    addSearchAffinityEntityActiveTaskAssigneePoints,
+    markSearchAffinityEntityInteractionForAccount,
+    removeSearchAffinityEntityActiveTaskAssigneePoints,
 } from "~/server/search/data/table/search_entity_table.js";
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
@@ -851,17 +851,20 @@ class TaskActionTransactionIndexState {
                             if (assigneeId) {
                                 if (oldIsActiveForAffinity && !newIsActiveForAffinity) {
                                     afterWriteCallbacks.push(() =>
-                                        removeSearchAffinityActiveTaskAssigneePoints(context, {
-                                            spaceId,
-                                            assigneeId,
-                                            taskId: newTask.id,
-                                        }),
+                                        removeSearchAffinityEntityActiveTaskAssigneePoints(
+                                            context,
+                                            {
+                                                spaceId,
+                                                assigneeId,
+                                                taskId: newTask.id,
+                                            },
+                                        ),
                                     );
                                 }
 
                                 if (!oldIsActiveForAffinity && newIsActiveForAffinity) {
                                     afterWriteCallbacks.push(() =>
-                                        addSearchAffinityActiveTaskAssigneePoints(context, {
+                                        addSearchAffinityEntityActiveTaskAssigneePoints(context, {
                                             spaceId,
                                             assigneeId,
                                             taskId: newTask.id,
@@ -875,7 +878,7 @@ class TaskActionTransactionIndexState {
 
                             if (oldAssigneeId && oldIsActiveForAffinity) {
                                 afterWriteCallbacks.push(() =>
-                                    removeSearchAffinityActiveTaskAssigneePoints(context, {
+                                    removeSearchAffinityEntityActiveTaskAssigneePoints(context, {
                                         spaceId,
                                         assigneeId: oldAssigneeId,
                                         taskId: newTask.id,
@@ -885,7 +888,7 @@ class TaskActionTransactionIndexState {
 
                             if (newAssigneeId && newIsActiveForAffinity) {
                                 afterWriteCallbacks.push(() =>
-                                    addSearchAffinityActiveTaskAssigneePoints(context, {
+                                    addSearchAffinityEntityActiveTaskAssigneePoints(context, {
                                         spaceId,
                                         assigneeId: newAssigneeId,
                                         taskId: newTask.id,
@@ -911,10 +914,10 @@ class TaskActionTransactionIndexState {
                         ] of newTask.collections.raw.collections.entries()) {
                             if (!oldTask?.collections.raw.collections.has(collectionId)) {
                                 afterWriteCallbacks.push(() =>
-                                    markSearchAffinityInteractionForAccount(context, {
+                                    markSearchAffinityEntityInteractionForAccount(context, {
                                         spaceId,
                                         accountId: actorId,
-                                        affinityId: `TaskCollection:${collectionId}`,
+                                        entityId: `TaskCollection:${collectionId}`,
                                         interaction: {type: "LowIntentUpdate"},
                                     }),
                                 );
@@ -1005,10 +1008,10 @@ class TaskActionTransactionIndexState {
                     // affinity updates when reindexing OpenSearch from scratch.
                     if (actorId !== null && !oldCollection) {
                         afterWriteCallbacks.push(() =>
-                            markSearchAffinityInteractionForAccount(context, {
+                            markSearchAffinityEntityInteractionForAccount(context, {
                                 spaceId,
                                 accountId: actorId,
-                                affinityId: `TaskCollection:${newCollection.id}`,
+                                entityId: `TaskCollection:${newCollection.id}`,
                                 interaction: {type: "HighIntentUpdate"},
                             }),
                         );

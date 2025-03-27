@@ -40,8 +40,8 @@ import {createMessagePayloadModel} from "~/server/messaging/helpers/create_messa
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {
-    markSearchAffinityCreateDocumentInteraction,
-    markSearchAffinityInteraction,
+    markSearchAffinityCreateDocumentEntityInteraction,
+    markSearchAffinityEntityInteraction,
 } from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
@@ -887,7 +887,7 @@ export async function createDocument(
         // Special interaction that adds a bunch more points then normal interactions.
         // So newly created documents are always easily accessible in the search
         // affinity list.
-        markSearchAffinityCreateDocumentInteraction(context, {
+        markSearchAffinityCreateDocumentEntityInteraction(context, {
             spaceId,
             documentId: id,
         }),
@@ -4626,9 +4626,9 @@ export async function createDocumentComment(
         });
 
         context.process.waitUntil(
-            markSearchAffinityInteraction(context, {
+            markSearchAffinityEntityInteraction(context, {
                 spaceId,
-                affinityId: `Document:${documentId}`,
+                entityId: `Document:${documentId}`,
                 interaction: {type: "MediumIntentUpdate"},
             }),
         );
@@ -4642,9 +4642,9 @@ export async function createDocumentComment(
         for (const mentionedAccountId of mentionedAccountIds) {
             context.process.waitUntil(async () => {
                 if (await isAccountMemberOfSpace(context, spaceId, mentionedAccountId)) {
-                    await markSearchAffinityInteraction(context, {
+                    await markSearchAffinityEntityInteraction(context, {
                         spaceId,
-                        affinityId: `Account:${mentionedAccountId as AccountId}`,
+                        entityId: `Account:${mentionedAccountId as AccountId}`,
                         interaction: {type: "HighIntentUpdate"},
                     });
                 }

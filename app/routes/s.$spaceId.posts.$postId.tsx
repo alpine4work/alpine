@@ -6,7 +6,7 @@ import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_me
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
-import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {getPostAndInitialComments} from "~/server/forum/data/forum_table.js";
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
@@ -118,7 +118,7 @@ export default function PostRoute() {
     // fairly short lived (a couple days). However, we give channels affinity
     // points so you could quickly jump to a channel if you're looking for a
     // certain post inside the channel.
-    useSearchAffinityViewInteraction(`Channel:${post.model.channel.id}`);
+    useSearchAffinityViewEntityInteraction(`Channel:${post.model.channel.id}`);
 
     const node = (
         <PostView

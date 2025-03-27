@@ -28,17 +28,17 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {searchAffinityFavoriteIconColor} from "~/client/search/core/use_search_affinity_favorite_menu_action.js";
-import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
-import {SearchAffinityView} from "~/client/search/search_affinity_view.js";
+import {searchAffinityEntityFavoriteIconColor} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {getSearchEntityPath} from "~/client/search/internal/get_search_entity_path.js";
+import {SearchAffinityEntityView} from "~/client/search/search_affinity_entity_view.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {SpaceRouteScrollView} from "~/client/spaces/layout/space_route_scroll_view.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
-    searchResultViewDefaultPaddingX,
-    searchResultViewMediaSize,
-    searchResultViewTitleTypeDisplayGap,
+    searchEntityViewDefaultPaddingX,
+    searchEntityViewMediaSize,
+    searchEntityViewTitleTypeDisplayGap,
 } from "~/client/styles/search_shared_styles.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {
@@ -52,37 +52,32 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
-import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
+import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
 import {
-    moveSearchAffinityFavorite,
-    unfavoriteSearchAffinity,
+    moveSearchFavoriteAffinityEntity,
+    unfavoriteSearchAffinityEntity,
 } from "~/shared/rpc/search_rpc_definitions.js";
-import {SearchAffinityId} from "~/shared/search/search_affinity_id.js";
-import {SearchResultMedia} from "~/shared/search/search_result.js";
+import {SearchFavoriteAffinityEntityResult} from "~/shared/search/search_affinity_entity_result.js";
+import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
-const searchAffinityFavoritesTitleStarIconSize = "5";
-const searchAffinityFavoritesTitleStarMarginX = `${
-    (parseRemLength(searchResultViewMediaSize) -
-        parseRemLength(searchAffinityFavoritesTitleStarIconSize)) /
+const searchFavoriteAffinityEntitiesTitleStarIconSize = "5";
+const searchFavoriteAffinityEntitiesTitleStarMarginX = `${
+    (parseRemLength(searchEntityViewMediaSize) -
+        parseRemLength(searchFavoriteAffinityEntitiesTitleStarIconSize)) /
     2
 }rem`;
 
-const screenPaddingXWithoutSearchResultViewPaddingX = mapObjectValues(
+const screenPaddingXWithoutSearchEntityViewPaddingX = mapObjectValues(
     screenPaddingX,
-    screenPaddingX => subtractRemLengths(screenPaddingX, searchResultViewDefaultPaddingX),
+    screenPaddingX => subtractRemLengths(screenPaddingX, searchEntityViewDefaultPaddingX),
 );
 
-export function SearchAffinityFavoritesView({
+export function SearchFavoriteAffinityEntitiesView({
     initialResults,
 }: {
-    initialResults: ReadonlyArray<{
-        id: SearchAffinityId;
-        title: string | null;
-        media: SearchResultMedia | null;
-        orderKey: OrderKey;
-    }>;
+    initialResults: ReadonlyArray<SearchFavoriteAffinityEntityResult>;
 }) {
     const initialAppRenderId = useInitialAppRenderId();
     const platform = usePlatform();
@@ -147,16 +142,16 @@ export function SearchAffinityFavoritesView({
         <SpaceRouteScrollView
             title={
                 // The spacing here is carefully constructed to align with
-                // `<SearchResultViewTitle>` on desktop. If `<SearchResultViewTitle>` updates
+                // `<SearchEntityViewTitle>` on desktop. If `<SearchEntityViewTitle>` updates
                 // then this will need to update too.
-                <Box display="flex" alignItems="center" gap={searchResultViewTitleTypeDisplayGap}>
+                <Box display="flex" alignItems="center" gap={searchEntityViewTitleTypeDisplayGap}>
                     <Star
-                        size={spacing[searchAffinityFavoritesTitleStarIconSize]}
+                        size={spacing[searchFavoriteAffinityEntitiesTitleStarIconSize]}
                         weight="fill"
-                        className={sprinkles({fill: searchAffinityFavoriteIconColor})}
+                        className={sprinkles({fill: searchAffinityEntityFavoriteIconColor})}
                         style={{
-                            marginLeft: searchAffinityFavoritesTitleStarMarginX,
-                            marginRight: searchAffinityFavoritesTitleStarMarginX,
+                            marginLeft: searchFavoriteAffinityEntitiesTitleStarMarginX,
+                            marginRight: searchFavoriteAffinityEntitiesTitleStarMarginX,
                         }}
                     />
                     <Box>Favorites</Box>
@@ -174,11 +169,11 @@ export function SearchAffinityFavoritesView({
                 style={{
                     paddingLeft:
                         routeLayout !== "narrow"
-                            ? screenPaddingXWithoutSearchResultViewPaddingX[platform]
+                            ? screenPaddingXWithoutSearchEntityViewPaddingX[platform]
                             : undefined,
                     paddingRight:
                         routeLayout !== "narrow"
-                            ? screenPaddingXWithoutSearchResultViewPaddingX[platform]
+                            ? screenPaddingXWithoutSearchEntityViewPaddingX[platform]
                             : undefined,
                 }}
             >
@@ -207,15 +202,15 @@ export function SearchAffinityFavoritesView({
                                 ? assertExists(results[overIndex - 1])
                                 : null;
 
-                        const newOrderKey = generateOrderKeyBetween(
-                            newAfterResult?.orderKey ?? null,
-                            newBeforeResult?.orderKey ?? null,
+                        const newFavoriteOrderKey = generateOrderKeyBetween(
+                            newAfterResult?.favoriteOrderKey ?? null,
+                            newBeforeResult?.favoriteOrderKey ?? null,
                         );
 
-                        const movePromise = moveSearchAffinityFavorite(context, {
+                        const movePromise = moveSearchFavoriteAffinityEntity(context, {
                             spaceId: space.id,
-                            affinityId: active.id as SearchAffinityId,
-                            orderKey: newOrderKey,
+                            entityId: active.id as SearchAffinityEntityId,
+                            orderKey: newFavoriteOrderKey,
                         });
 
                         // 1. Show an error if the update fails.
@@ -233,21 +228,24 @@ export function SearchAffinityFavoritesView({
                             results
                                 .map(result => {
                                     if (result.id !== active.id) return result;
-                                    return {...result, orderKey: newOrderKey};
+                                    return {...result, orderKey: newFavoriteOrderKey};
                                 })
                                 .sort((result1, result2) =>
-                                    defaultCompareStrings(result1.orderKey, result2.orderKey),
+                                    defaultCompareStrings(
+                                        result1.favoriteOrderKey,
+                                        result2.favoriteOrderKey,
+                                    ),
                                 ),
                         );
                     }}
                 >
                     <SortableContext items={results}>
-                        <SearchAffinityFavoritesViewDragPortals
+                        <SearchFavoriteAffinityEntitiesViewDragPortals
                             randomSeed={randomSeed}
                             results={results}
                         />
                         {results.map(result => (
-                            <SearchAffinityFavoritesViewItem
+                            <SearchFavoriteAffinityEntitiesViewItem
                                 key={result.id}
                                 randomSeed={randomSeed}
                                 result={result}
@@ -265,17 +263,12 @@ export function SearchAffinityFavoritesView({
     );
 }
 
-function SearchAffinityFavoritesViewDragPortals({
+function SearchFavoriteAffinityEntitiesViewDragPortals({
     randomSeed,
     results,
 }: {
     randomSeed: string;
-    results: ReadonlyArray<{
-        id: SearchAffinityId;
-        title: string | null;
-        media: SearchResultMedia | null;
-        orderKey: OrderKey;
-    }>;
+    results: ReadonlyArray<SearchFavoriteAffinityEntityResult>;
 }) {
     const {active, activatorEvent} = useDndContext();
 
@@ -297,7 +290,7 @@ function SearchAffinityFavoritesViewDragPortals({
             {activeResult &&
                 createPortal(
                     <DragOverlay zIndex={70}>
-                        <SearchAffinityFavoritesViewItem
+                        <SearchFavoriteAffinityEntitiesViewItem
                             randomSeed={randomSeed}
                             result={activeResult}
                             onResultRemove={noop}
@@ -310,19 +303,14 @@ function SearchAffinityFavoritesViewDragPortals({
     );
 }
 
-function SearchAffinityFavoritesViewItem({
+function SearchFavoriteAffinityEntitiesViewItem({
     randomSeed,
     result,
     onResultRemove,
     isDragOverlay = false,
 }: {
     randomSeed: string;
-    result: {
-        id: SearchAffinityId;
-        title: string | null;
-        media: SearchResultMedia | null;
-        orderKey: OrderKey;
-    };
+    result: SearchFavoriteAffinityEntityResult;
     onResultRemove: () => void;
     isDragOverlay?: boolean;
 }) {
@@ -333,11 +321,11 @@ function SearchAffinityFavoritesViewItem({
     const currentTime = useCurrentTimeRoundedToHour();
     const activeContextMenuActions = useContextMenuActions();
 
-    const destinationPath = useMemo(
+    const path = useMemo(
         () =>
-            getSearchResultDestinationPath({
+            getSearchEntityPath({
                 spaceId: space.id,
-                resultId: result.id,
+                entityId: result.id,
                 randomSeed,
                 currentTime,
                 routeLayout,
@@ -377,7 +365,7 @@ function SearchAffinityFavoritesViewItem({
             setIsPending(true);
 
             try {
-                await navigate(destinationPath, {
+                await navigate(path, {
                     // If we're on desktop then don't open in a peek. Instead navigate the
                     // full page.
                     stopPropagation: true,
@@ -389,9 +377,9 @@ function SearchAffinityFavoritesViewItem({
     };
 
     const handleRemovePress = useEvent(async () => {
-        await unfavoriteSearchAffinity(context, {
+        await unfavoriteSearchAffinityEntity(context, {
             spaceId: space.id,
-            affinityId: result.id,
+            entityId: result.id,
         });
 
         onResultRemove();
@@ -407,7 +395,7 @@ function SearchAffinityFavoritesViewItem({
                     iconPlacement: "end",
                     pressErrorTitle: "Couldn’t copy link",
                     onPress: async () => {
-                        const url = new URL(destinationPath, window.location.href);
+                        const url = new URL(path, window.location.href);
                         await writeTextToClipboard(url.toString());
                     },
                 },
@@ -420,7 +408,7 @@ function SearchAffinityFavoritesViewItem({
                 },
             ],
         ],
-        [destinationPath, handleRemovePress, result.id],
+        [path, handleRemovePress, result.id],
     );
 
     const hasActiveContextMenu = useMemo(
@@ -488,7 +476,7 @@ function SearchAffinityFavoritesViewItem({
                     }
                     boxShadow={isDragOverlay ? "elevation-30" : undefined}
                     paddingX={
-                        routeLayout !== "narrow" ? searchResultViewDefaultPaddingX : screenPaddingX
+                        routeLayout !== "narrow" ? searchEntityViewDefaultPaddingX : screenPaddingX
                     }
                     borderRadius={routeLayout !== "narrow" ? "1.5" : undefined}
                     opacity={isDragging ? "0" : undefined}
@@ -499,10 +487,8 @@ function SearchAffinityFavoritesViewItem({
                         transition: sortableTransition,
                     }}
                 >
-                    <SearchAffinityView
-                        id={result.id}
-                        title={result.title}
-                        media={result.media}
+                    <SearchAffinityEntityView
+                        result={result}
                         // Clamp to only one line so each favorite has the same height which
                         // `@dnd-kit/sortable` appears to need.
                         lineClamp={1}

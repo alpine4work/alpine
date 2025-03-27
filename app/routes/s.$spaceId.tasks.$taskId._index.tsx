@@ -32,7 +32,7 @@ import {TaskDetailAndCommentsView} from "~/client/tasks/task_detail_and_comments
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {isSearchAffinityFavorite} from "~/server/search/data/table/search_entity_table.js";
+import {isSearchFavoriteAffinityEntity} from "~/server/search/data/table/search_entity_table.js";
 import {authorizeSpaceAccessIfPossible, getAccount} from "~/server/spaces/spaces_table.js";
 import {
     getTaskNotesContentAndOptionalInitialComments,
@@ -221,9 +221,9 @@ export async function loader({params, context: unauthenticatedContext, request}:
               })
             : null,
         context.actor.type === "Session"
-            ? isSearchAffinityFavorite(context.actor.authorizeSession(), {
+            ? isSearchFavoriteAffinityEntity(context.actor.authorizeSession(), {
                   spaceId,
-                  affinityId: `Task:${taskId}`,
+                  entityId: `Task:${taskId}`,
               })
             : false,
 

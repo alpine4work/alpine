@@ -20,7 +20,7 @@ import {NavigationBarContent} from "~/client/navigation/navigation_bar_content.j
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
-import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles, grey5SemiTransparentColorVar} from "~/client/styles/styles.js";
 import {selectChatForAccounts} from "~/server/chat/data/chat_table.js";
@@ -161,7 +161,7 @@ export default function NewChatRoute() {
     //
     // By accruing points to the account we allow chat conversations to affect
     // account selector type-ahead affinity rankings.
-    useSearchAffinityViewInteraction(
+    useSearchAffinityViewEntityInteraction(
         loaderData.selectedChat
             ? currentAccount && loaderData.selectedChat.chat.accounts.length === 2
                 ? `Account:${

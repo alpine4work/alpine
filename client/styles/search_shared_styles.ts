@@ -19,52 +19,52 @@ export const searchMobileInputMarginTop = "1";
 
 export const searchMobileInputMarginBottom = "3";
 
-export const minSearchMobileInputHeight = addRemLengths(
+export const searchMobileInputMinHeight = addRemLengths(
     searchMobileInputPaddingY,
     fontSizes[searchMobileInputFontSize].lineHeight,
     searchMobileInputPaddingY,
 );
 
-export const searchMobileInputBorderRadius = `${parseRemLength(minSearchMobileInputHeight) / 2}rem`;
+export const searchMobileInputBorderRadius = `${parseRemLength(searchMobileInputMinHeight) / 2}rem`;
 
 /**
  * Minimum height of the body text snippet in a search result. We show at least
  * two lines when there's no title and zero lines when there is a title.
  *
- * The minimum height of our `<SearchResultView>` determines the size of our
+ * The minimum height of our `<SearchEntityView>` determines the size of our
  * search request. More items in our search request means higher search
  * latency. At least 2 lines means we need to load less data to fill the
  * virtualization window.
  */
-export const minSearchResultViewBodyTextSnippetLineCount = 1;
+export const searchEntityViewBodyTextSnippetMinLineCount = 1;
 
-export const searchResultViewPaddingY = "2";
-export const searchResultViewBodyTextSnippetFontSize = "75";
-export const searchResultViewTitleFontSize = "100";
-export const searchResultViewTitleMarginBottom = "0.5";
-export const searchResultViewMediaSize = "4";
-export const searchResultViewDefaultMarginX = "1";
-export const searchResultViewDefaultPaddingX = "2.5";
+export const searchEntityViewPaddingY = "2";
+export const searchEntityViewBodyTextSnippetFontSize = "75";
+export const searchEntityViewTitleFontSize = "100";
+export const searchEntityViewTitleMarginBottom = "0.5";
+export const searchEntityViewMediaSize = "4";
+export const searchEntityViewDefaultMarginX = "1";
+export const searchEntityViewDefaultPaddingX = "2.5";
 
-export const minSearchResultViewBodyTextSnippetHeight: RemLength = `${
-    parseRemLength(fontSizes[searchResultViewBodyTextSnippetFontSize].lineHeight) *
-    minSearchResultViewBodyTextSnippetLineCount
+export const searchEntityViewBodyTextSnippetMinHeight: RemLength = `${
+    parseRemLength(fontSizes[searchEntityViewBodyTextSnippetFontSize].lineHeight) *
+    searchEntityViewBodyTextSnippetMinLineCount
 }rem`;
 
-export const minSearchResultViewHeightWithoutPaddingYPx = createObjectFromKeys(
+export const searchEntityViewMinHeightWithoutPaddingYPx = createObjectFromKeys(
     allSpacingScales,
     spacingScale =>
         Math.min(
             contentStyles.paragraphLineHeightPx[spacingScale],
-            convertRemLengthToPx(minSearchResultViewBodyTextSnippetHeight, spacingScale),
+            convertRemLengthToPx(searchEntityViewBodyTextSnippetMinHeight, spacingScale),
         ),
 );
 
-export const minSearchResultViewHeightPx = createObjectFromKeys(
+export const searchEntityViewMinHeightPx = createObjectFromKeys(
     allSpacingScales,
     spacingScale =>
-        minSearchResultViewHeightWithoutPaddingYPx[spacingScale] +
-        convertRemLengthToPx(searchResultViewPaddingY, spacingScale) * 2,
+        searchEntityViewMinHeightWithoutPaddingYPx[spacingScale] +
+        convertRemLengthToPx(searchEntityViewPaddingY, spacingScale) * 2,
 );
 
-export const searchResultViewTitleTypeDisplayGap = "1.5";
+export const searchEntityViewTitleTypeDisplayGap = "1.5";

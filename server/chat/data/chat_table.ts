@@ -22,7 +22,7 @@ import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_sess
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
-import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
     getAccount,
@@ -56,7 +56,7 @@ import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_ch
 import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {MessagePayload, MessagePayloadSchema} from "~/shared/messaging/message_model.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {SearchAffinityInteraction} from "~/shared/search/search_affinity_interaction.js";
+import {SearchAffinityEntityInteraction} from "~/shared/search/search_affinity_entity_interaction.js";
 
 const ChatTable = DynamoTableSchema.new({
     name: "Chat",
@@ -925,13 +925,13 @@ export function sendChatMessage(
         context.process.waitUntil(async () => {
             // Small messages are considered low intent updates. This defends against
             // spamming where a user is sending small one word messages to make a point.
-            const interaction: SearchAffinityInteraction =
+            const interaction: SearchAffinityEntityInteraction =
                 content.nodeSize < 50 ? {type: "LowIntentUpdate"} : {type: "MediumIntentUpdate"};
 
             if (chatAccountItem.chatAccountCount !== 2) {
-                await markSearchAffinityInteraction(context, {
+                await markSearchAffinityEntityInteraction(context, {
                     spaceId: chatItem.spaceId,
-                    affinityId: `Chat:${chatItem.chatId}`,
+                    entityId: `Chat:${chatItem.chatId}`,
                     interaction,
                 });
             } else {
@@ -963,9 +963,9 @@ export function sendChatMessage(
                     chatAccountId => chatAccountId !== context.actor.getAccountId(),
                 );
 
-                await markSearchAffinityInteraction(context, {
+                await markSearchAffinityEntityInteraction(context, {
                     spaceId: chatItem.spaceId,
-                    affinityId: `Account:${assertExists(otherChatAccountIds[0])}`,
+                    entityId: `Account:${assertExists(otherChatAccountIds[0])}`,
                     interaction,
                 });
             }
@@ -980,9 +980,9 @@ export function sendChatMessage(
         for (const mentionedAccountId of mentionedAccountIds) {
             context.process.waitUntil(async () => {
                 if (await isAccountMemberOfSpace(context, chatItem.spaceId, mentionedAccountId)) {
-                    await markSearchAffinityInteraction(context, {
+                    await markSearchAffinityEntityInteraction(context, {
                         spaceId: chatItem.spaceId,
-                        affinityId: `Account:${mentionedAccountId as AccountId}`,
+                        entityId: `Account:${mentionedAccountId as AccountId}`,
                         interaction: {type: "HighIntentUpdate"},
                     });
                 }

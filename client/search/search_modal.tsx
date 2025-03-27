@@ -40,18 +40,18 @@ import {
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
+import {getSearchEntityPath} from "~/client/search/internal/get_search_entity_path.js";
 import {SearchInstructionalPlaceholder} from "~/client/search/internal/search_instructional_placeholder.js";
-import {SearchResultView, searchResultSideBarWidth} from "~/client/search/search_result_view.js";
-import {useSearchState} from "~/client/search/use_search_state.js";
-import {SearchResultShimmer} from "~/client/shimmer/search_result_shimmer.js";
+import {SearchEntityView, searchEntitySideBarWidth} from "~/client/search/search_entity_view.js";
+import {SearchStateExecutionOutput, useSearchState} from "~/client/search/use_search_state.js";
+import {SearchEntityShimmer} from "~/client/shimmer/search_entity_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
-    minSearchResultViewHeightPx,
-    searchResultViewDefaultMarginX,
-    searchResultViewDefaultPaddingX,
-    searchResultViewPaddingY,
+    searchEntityViewDefaultMarginX,
+    searchEntityViewDefaultPaddingX,
+    searchEntityViewMinHeightPx,
+    searchEntityViewPaddingY,
 } from "~/client/styles/search_shared_styles.js";
 import {
     contentStyles,
@@ -71,10 +71,9 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
-import {markSearchAffinityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
-import {isSearchAffinityId} from "~/shared/search/search_affinity_id.js";
+import {markSearchAffinityEntityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
+import {SearchEntityId, isSearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchOptions} from "~/shared/search/search_options.js";
-import {SearchResult, SearchResultId} from "~/shared/search/search_result.js";
 
 const searchModalInputHeight = "16";
 const searchModalPeekContentMaxHeight = "160";
@@ -120,7 +119,7 @@ export function SearchModal({
     });
 
     const {selectedPeek, activePeek, switchPeek, holdPeekTransition} = usePeekSwitcherState<{
-        resultId: SearchResultId;
+        entityId: SearchEntityId;
     }>({
         // Reset our peek state if the search response changes.
         //
@@ -143,12 +142,12 @@ export function SearchModal({
     // self reinforcing system. The more a user selects an entity, the higher the
     // entity will appear in the user's next search.
     const markResultSelectAffinityInteraction = useCallback(
-        (resultId: SearchResultId) => {
-            if (!isSearchAffinityId(resultId)) return;
+        (entityId: SearchEntityId) => {
+            if (!isSearchAffinityEntityId(entityId)) return;
 
-            markSearchAffinityInteraction(context, {
+            markSearchAffinityEntityInteraction(context, {
                 spaceId: space.id,
-                affinityId: resultId,
+                entityId,
                 interaction: {type: "HighIntentUpdate"},
             }).catch(error => {
                 // Silently fail. This doesn't affect anything the user sees so we don't need
@@ -165,7 +164,7 @@ export function SearchModal({
     return (
         <Modal
             aria-label="Search"
-            maxWidth={addRemLengths(searchResultSideBarWidth, peekNarrowLayoutWidth)}
+            maxWidth={addRemLengths(searchEntitySideBarWidth, peekNarrowLayoutWidth)}
             height="full"
             maxHeight={searchModalMaxHeight}
             borderRadius="2.5"
@@ -238,21 +237,25 @@ export function SearchModal({
                             // Data hasn't loaded yet, we can't select anything.
                             if (!output.results) break;
 
-                            let result: SearchResult | undefined;
+                            let result: {readonly id: SearchEntityId} | undefined;
 
                             if (!selectedPeek) {
-                                if (output.favorites && output.favorites.results.length > 0) {
-                                    result = output.favorites.results[0]!;
+                                if (
+                                    output.type === "EmptyQuery" &&
+                                    output.favoriteResults &&
+                                    output.favoriteResults.length > 0
+                                ) {
+                                    result = output.favoriteResults[0]!;
                                 } else if (output.results.length > 0) {
                                     result = output.results[0]!;
                                 }
                             } else if (event.key === "ArrowUp") {
                                 let found = false;
 
-                                if (output.favorites) {
-                                    for (let i = 0; i < output.favorites.results.length; i++) {
-                                        const nextResult = output.favorites.results[i]!;
-                                        if (nextResult.id === selectedPeek.extra.resultId) {
+                                if (output.type === "EmptyQuery" && output.favoriteResults) {
+                                    for (let i = 0; i < output.favoriteResults.length; i++) {
+                                        const nextResult = output.favoriteResults[i]!;
+                                        if (nextResult.id === selectedPeek.extra.entityId) {
                                             found = true;
                                             break;
                                         }
@@ -263,7 +266,7 @@ export function SearchModal({
                                 if (!found) {
                                     for (let i = 0; i < output.results.length; i++) {
                                         const nextResult = output.results[i]!;
-                                        if (nextResult.id === selectedPeek.extra.resultId) {
+                                        if (nextResult.id === selectedPeek.extra.entityId) {
                                             found = true;
                                             break;
                                         }
@@ -279,17 +282,21 @@ export function SearchModal({
 
                                 for (let i = output.results.length - 1; i >= 0; i--) {
                                     const previousResult = output.results[i]!;
-                                    if (previousResult.id === selectedPeek.extra.resultId) {
+                                    if (previousResult.id === selectedPeek.extra.entityId) {
                                         found = true;
                                         break;
                                     }
                                     result = previousResult;
                                 }
 
-                                if (!found && output.favorites) {
-                                    for (let i = output.favorites.results.length - 1; i >= 0; i--) {
-                                        const previousResult = output.favorites.results[i]!;
-                                        if (previousResult.id === selectedPeek.extra.resultId) {
+                                if (
+                                    !found &&
+                                    output.type === "EmptyQuery" &&
+                                    output.favoriteResults
+                                ) {
+                                    for (let i = output.favoriteResults.length - 1; i >= 0; i--) {
+                                        const previousResult = output.favoriteResults[i]!;
+                                        if (previousResult.id === selectedPeek.extra.entityId) {
                                             found = true;
                                             break;
                                         }
@@ -306,9 +313,9 @@ export function SearchModal({
                             // items so looping would be disorienting.
                             if (!result) break;
 
-                            const destinationPath = getSearchResultDestinationPath({
+                            const path = getSearchEntityPath({
                                 spaceId: space.id,
-                                resultId: result.id,
+                                entityId: result.id,
                                 randomSeed: output.key,
                                 currentTime: output.queryTime,
                                 routeLayout: "narrow",
@@ -316,8 +323,8 @@ export function SearchModal({
 
                             // NOCOMMIT: We're not scrolling anymore? When did that break?
                             void switchPeek({
-                                spacePath: destinationPath,
-                                extra: {resultId: result.id},
+                                spacePath: path,
+                                extra: {entityId: result.id},
                             });
                             break;
                         }
@@ -361,13 +368,13 @@ export function SearchModal({
                             if (event.shiftKey) {
                                 void pushPeekStack(spacePath).finally(() => {
                                     markResultSelectAffinityInteraction(
-                                        selectedPeek.extra.resultId,
+                                        selectedPeek.extra.entityId,
                                     );
                                 });
                             } else {
                                 navigate(spacePath).finally(() => {
                                     markResultSelectAffinityInteraction(
-                                        selectedPeek.extra.resultId,
+                                        selectedPeek.extra.entityId,
                                     );
                                 });
                             }
@@ -424,18 +431,18 @@ export function SearchModal({
                                                 width="full"
                                                 style={{height: `calc(${spacing["1"]} + 1px)`}}
                                             />
-                                            <SearchResultShimmer titleWidth="64" />
-                                            <SearchResultShimmer titleWidth="32" />
-                                            <SearchResultShimmer titleWidth="48" />
-                                            <SearchResultShimmer titleWidth="96" />
-                                            <SearchResultShimmer titleWidth="64" />
-                                            <SearchResultShimmer titleWidth="48" />
-                                            <SearchResultShimmer titleWidth="96" />
+                                            <SearchEntityShimmer titleWidth="64" />
+                                            <SearchEntityShimmer titleWidth="32" />
+                                            <SearchEntityShimmer titleWidth="48" />
+                                            <SearchEntityShimmer titleWidth="96" />
+                                            <SearchEntityShimmer titleWidth="64" />
+                                            <SearchEntityShimmer titleWidth="48" />
+                                            <SearchEntityShimmer titleWidth="96" />
                                         </Box>
                                     ) : output.results.length === 0 ? (
                                         <Box
                                             color="grey-50"
-                                            padding={searchResultViewPaddingY}
+                                            padding={searchEntityViewPaddingY}
                                             style={contentStyles.paragraphFontSize}
                                         >
                                             {queryText.trim().length === 0 ? (
@@ -460,10 +467,7 @@ export function SearchModal({
                                         </Box>
                                     ) : (
                                         <SearchModalResultList
-                                            searchKey={output.key}
-                                            searchTime={output.queryTime}
-                                            favorites={output.favorites}
-                                            results={output.results}
+                                            output={output}
                                             selectedPeek={selectedPeek}
                                             switchPeek={switchPeek}
                                             holdPeekTransition={holdPeekTransition}
@@ -631,33 +635,24 @@ const SearchModalInput = forwardRef(function SearchModalInput(
 });
 
 function SearchModalResultList({
-    searchKey,
-    searchTime,
-    favorites,
-    results,
+    output,
     selectedPeek,
     switchPeek,
     holdPeekTransition,
     markResultSelectAffinityInteraction,
 }: {
-    searchKey: string;
-    searchTime: Date;
-    favorites: {
-        hasMoreResults: boolean;
-        results: ReadonlyArray<SearchResult>;
-    } | null;
-    results: ReadonlyArray<SearchResult>;
-    selectedPeek: PeekSwitcherStatePeekBase<{resultId: SearchResultId}> | null;
+    output: SearchStateExecutionOutput & {readonly results: object};
+    selectedPeek: PeekSwitcherStatePeekBase<{entityId: SearchEntityId}> | null;
     switchPeek: Memo<
         (
             peekData: {
                 spacePath: string;
-                extra: {resultId: SearchResultId};
+                extra: {entityId: SearchEntityId};
             } | null,
         ) => Promise<void>
     >;
     holdPeekTransition: Memo<(promise: Promise<void>) => void>;
-    markResultSelectAffinityInteraction: (resultId: SearchResultId) => void;
+    markResultSelectAffinityInteraction: (entityId: SearchEntityId) => void;
 }) {
     const spacingScale = useSpacingScale();
     const navigate = useNavigate();
@@ -665,27 +660,27 @@ function SearchModalResultList({
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    const lastSelectedResultIdRef = useRef(selectedPeek?.extra.resultId);
+    const lastSelectedResultIdRef = useRef(selectedPeek?.extra.entityId);
     useLayoutEffectWithoutServerSideWarning(() => {
         const view = assertExists(viewRef.current);
 
-        if (lastSelectedResultIdRef.current === selectedPeek?.extra.resultId) return;
-        lastSelectedResultIdRef.current = selectedPeek?.extra.resultId;
+        if (lastSelectedResultIdRef.current === selectedPeek?.extra.entityId) return;
+        lastSelectedResultIdRef.current = selectedPeek?.extra.entityId;
 
         // When a new result is selected, make sure it is visible in our scroll window. Scroll to
         // it if it is not visible.
-        if (selectedPeek?.extra.resultId) {
-            view.scrollToKeyIfExists(`Loaded:${selectedPeek.extra.resultId}`, {withAnchor: true});
+        if (selectedPeek?.extra.entityId) {
+            view.scrollToKeyIfExists(`Loaded:${selectedPeek.extra.entityId}`, {withAnchor: true});
         }
-    }, [selectedPeek?.extra.resultId]);
+    }, [selectedPeek?.extra.entityId]);
 
-    const handleDoubleClick = useEvent((result: SearchResult) => {
-        if (result.id !== selectedPeek?.extra.resultId) {
-            const destinationPath = getSearchResultDestinationPath({
+    const handleDoubleClick = useEvent((result: {readonly id: SearchEntityId}) => {
+        if (result.id !== selectedPeek?.extra.entityId) {
+            const path = getSearchEntityPath({
                 spaceId: space.id,
-                resultId: result.id,
-                randomSeed: searchKey,
-                currentTime: searchTime,
+                entityId: result.id,
+                randomSeed: output.key,
+                currentTime: output.queryTime,
                 routeLayout: "wide",
             });
 
@@ -694,7 +689,7 @@ function SearchModalResultList({
             // waiting on a navigation. That'll look janky since the search modal will
             // flash the new content right before the full page navigation.
             holdPeekTransition(
-                navigate(destinationPath).then(() => {
+                navigate(path).then(() => {
                     markResultSelectAffinityInteraction(result.id);
                 }),
             );
@@ -716,10 +711,10 @@ function SearchModalResultList({
         }
     });
 
-    const hasFavorites = !!favorites;
+    const hasFavorites = output.type === "EmptyQuery";
     // NOCOMMIT: Use this
-    const hasMoreFavoriteResults = favorites?.hasMoreResults ?? false;
-    const favoriteResults = favorites?.results ?? emptyArray;
+    const hasMoreFavoriteResults = hasFavorites && output.hasMoreFavoriteResults;
+    const favoriteResults = hasFavorites ? output.favoriteResults : emptyArray;
 
     const renderItem = useCallback(
         (index: number): VirtualizedScrollViewItem => {
@@ -731,24 +726,24 @@ function SearchModalResultList({
                     return {
                         key: "FavoritesHeader",
                         minHeight: addRemLengths(
-                            searchResultViewDefaultMarginX,
-                            searchResultViewDefaultPaddingX,
+                            searchEntityViewDefaultMarginX,
+                            searchEntityViewDefaultPaddingX,
                             fontSizes[fontSize].lineHeight,
                             paddingBottom,
                         ),
                         node: (
                             <Box
-                                paddingX={searchResultViewDefaultMarginX}
+                                paddingX={searchEntityViewDefaultMarginX}
                                 paddingBottom={paddingBottom}
                                 style={{
                                     paddingTop: addRemLengths(
-                                        searchResultViewDefaultMarginX,
-                                        searchResultViewDefaultPaddingX,
+                                        searchEntityViewDefaultMarginX,
+                                        searchEntityViewDefaultPaddingX,
                                     ),
                                 }}
                             >
                                 <Box
-                                    paddingX={searchResultViewDefaultPaddingX}
+                                    paddingX={searchEntityViewDefaultPaddingX}
                                     color="grey-50"
                                     fontSize={fontSize}
                                 >
@@ -766,28 +761,28 @@ function SearchModalResultList({
 
                     return {
                         key: result.id,
-                        minHeight: minSearchResultViewHeightPx[spacingScale],
+                        minHeight: searchEntityViewMinHeightPx[spacingScale],
                         node: (
-                            <SearchResultView
+                            <SearchEntityView
                                 result={result}
-                                isSelected={result.id === selectedPeek?.extra.resultId}
+                                isSelected={result.id === selectedPeek?.extra.entityId}
                                 // We use `onPressStart` to select so the selected style is applied immediately.
                                 // We use the selected style to indicate interaction to the user instead of an
                                 // `isPressed` style. The benefit of using selection is the previous item loses
                                 // its style.
                                 onPressStart={() => {
-                                    if (result.id !== selectedPeek?.extra.resultId) {
-                                        const destinationPath = getSearchResultDestinationPath({
+                                    if (result.id !== selectedPeek?.extra.entityId) {
+                                        const path = getSearchEntityPath({
                                             spaceId: space.id,
-                                            resultId: result.id,
-                                            randomSeed: searchKey,
-                                            currentTime: searchTime,
+                                            entityId: result.id,
+                                            randomSeed: output.key,
+                                            currentTime: output.queryTime,
                                             routeLayout: "narrow",
                                         });
 
                                         void switchPeek({
-                                            spacePath: destinationPath,
-                                            extra: {resultId: result.id},
+                                            spacePath: path,
+                                            extra: {entityId: result.id},
                                         });
                                     }
                                 }}
@@ -813,14 +808,14 @@ function SearchModalResultList({
                         ),
                         node: (
                             <Box
-                                paddingX={searchResultViewDefaultMarginX}
+                                paddingX={searchEntityViewDefaultMarginX}
                                 paddingTop={paddingTop}
                                 paddingBottom={paddingBottom}
                             >
                                 <Box
                                     color="grey-50"
                                     fontSize={fontSize}
-                                    paddingX={searchResultViewDefaultPaddingX}
+                                    paddingX={searchEntityViewDefaultPaddingX}
                                 >
                                     Suggested
                                 </Box>
@@ -832,18 +827,18 @@ function SearchModalResultList({
                 index -= 1;
             }
 
-            const result = results[index]!;
+            const result = output.results[index]!;
 
             const isFirstItem = !hasFavorites && index === 0;
-            const isLastItem = index === results.length - 1;
+            const isLastItem = index === output.results.length - 1;
 
             return {
                 key: result.id,
-                minHeight: minSearchResultViewHeightPx[spacingScale],
+                minHeight: searchEntityViewMinHeightPx[spacingScale],
                 node: (
-                    <SearchResultView
+                    <SearchEntityView
                         result={result}
-                        isSelected={result.id === selectedPeek?.extra.resultId}
+                        isSelected={result.id === selectedPeek?.extra.entityId}
                         withMarginTop={isFirstItem}
                         withMarginBottom={isLastItem}
                         // We use `onPressStart` to select so the selected style is applied immediately.
@@ -851,18 +846,18 @@ function SearchModalResultList({
                         // `isPressed` style. The benefit of using selection is the previous item loses
                         // its style.
                         onPressStart={() => {
-                            if (result.id !== selectedPeek?.extra.resultId) {
-                                const destinationPath = getSearchResultDestinationPath({
+                            if (result.id !== selectedPeek?.extra.entityId) {
+                                const path = getSearchEntityPath({
                                     spaceId: space.id,
-                                    resultId: result.id,
-                                    randomSeed: searchKey,
-                                    currentTime: searchTime,
+                                    entityId: result.id,
+                                    randomSeed: output.key,
+                                    currentTime: output.queryTime,
                                     routeLayout: "narrow",
                                 });
 
                                 void switchPeek({
-                                    spacePath: destinationPath,
-                                    extra: {resultId: result.id},
+                                    spacePath: path,
+                                    extra: {entityId: result.id},
                                 });
                             }
                         }}
@@ -875,10 +870,10 @@ function SearchModalResultList({
             favoriteResults,
             handleDoubleClick,
             hasFavorites,
-            results,
-            searchKey,
-            searchTime,
-            selectedPeek?.extra.resultId,
+            output.key,
+            output.queryTime,
+            output.results,
+            selectedPeek?.extra.entityId,
             space.id,
             spacingScale,
             switchPeek,
@@ -888,8 +883,10 @@ function SearchModalResultList({
     return (
         <VirtualizedScrollView
             ref={viewRef}
-            itemCount={(hasFavorites ? 2 : 0) + results.length}
-            bufferedItemHeight={minSearchResultViewHeightPx[spacingScale]}
+            itemCount={
+                (hasFavorites ? 2 + output.favoriteResults.length : 0) + output.results.length
+            }
+            bufferedItemHeight={searchEntityViewMinHeightPx[spacingScale]}
             renderItem={renderItem}
             extraChildrenOutsideContentElement={({contentHeight}) => (
                 // Our items all have a bottom border. This is good when there's less content
@@ -933,18 +930,18 @@ function SearchModalPeekContent({
     switchPeek,
     markResultSelectAffinityInteraction,
 }: {
-    peek: PeekSwitcherStatePeek<{resultId: SearchResultId}>;
+    peek: PeekSwitcherStatePeek<{entityId: SearchEntityId}>;
     onClose: () => void;
     pushPeekStack: (to: To, options?: {focus?: boolean}) => Promise<void>;
     switchPeek: Memo<
         (
             peekData: {
                 spacePath: string;
-                extra: {resultId: SearchResultId};
+                extra: {entityId: SearchEntityId};
             } | null,
         ) => Promise<void>
     >;
-    markResultSelectAffinityInteraction: (resultId: SearchResultId) => void;
+    markResultSelectAffinityInteraction: (entityId: SearchEntityId) => void;
 }) {
     if (!peek.routerResult.ok) throw peek.routerResult.error;
     const router = peek.routerResult.value;
@@ -1068,10 +1065,10 @@ function SearchModalPeekContent({
                                 );
                             } else if (event.shiftKey) {
                                 await pushPeekStack(spacePath).finally(onClose);
-                                markResultSelectAffinityInteraction(peek.extra.resultId);
+                                markResultSelectAffinityInteraction(peek.extra.entityId);
                             } else {
                                 await navigate(spacePath);
-                                markResultSelectAffinityInteraction(peek.extra.resultId);
+                                markResultSelectAffinityInteraction(peek.extra.entityId);
                             }
                         }}
                     >
@@ -1097,7 +1094,7 @@ function SearchModalPeekContent({
                 //
                 // This also means the "last opened" time we show for affinitive search entities
                 // won't change.
-                withoutSearchAffinityViewInteraction={true}
+                withoutSearchAffinityViewEntityInteraction={true}
                 router={router}
                 onGoBackOverflow={onClose}
             />

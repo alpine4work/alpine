@@ -3,23 +3,24 @@ import {AppContext} from "~/client/context/app_context.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {markSearchAffinityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
+import {markSearchAffinityEntityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {SearchAffinityId} from "~/shared/search/search_affinity_id.js";
+import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
 const SessionStorageSchema = Schema.object({
     lastUpdateTime: Schema.float.nullable().default(null),
 });
 
-const sessionStorageBySearchAffinityId = new Map<
-    SearchAffinityId,
+const sessionStorageBySearchAffinityEntityId = new Map<
+    SearchAffinityEntityId,
     SchemaType<typeof SessionStorageSchema>
 >();
 
-let scheduledPersistSessionStorageSearchAffinityIds: Set<SearchAffinityId> | null = null;
+let scheduledPersistSessionStorageSearchAffinityEntityIds: Set<SearchAffinityEntityId> | null =
+    null;
 
 /**
- * Send `markSearchAffinityInteraction()` with a `LowIntentUpdate`
+ * Send `markSearchAffinityEntityInteraction()` with a `LowIntentUpdate`
  * interaction once every 24 seconds. The idea is a single update gives you a
  * low intent update interaction but continuous updating over the course of two
  * minutes gives you the equivalent of a medium intent update interaction (five
@@ -28,10 +29,10 @@ let scheduledPersistSessionStorageSearchAffinityIds: Set<SearchAffinityId> | nul
  * Our convention is to call this hook from a route file in `app/routes` to
  * make it easier to manage/audit how this hook gets used.
  */
-export function markSearchAffinityLowIntentUpdateInteraction(
+export function markSearchAffinityLowIntentUpdateEntityInteraction(
     context: AppContext,
     spaceId: SpaceId,
-    affinityId: SearchAffinityId,
+    entityId: SearchAffinityEntityId,
     {
         isVeryLow = false,
     }: {
@@ -44,13 +45,13 @@ export function markSearchAffinityLowIntentUpdateInteraction(
     const currentTime = Date.now();
 
     const {lastUpdateTime} = getOrSetDefaultMapValue(
-        sessionStorageBySearchAffinityId,
-        affinityId,
+        sessionStorageBySearchAffinityEntityId,
+        entityId,
         () =>
             SessionStorageSchema.deserialize(
                 JSON.parse(
                     sessionStorage.getItem(
-                        `cyberworlds/searchAffinityLowIntentUpdateInteraction/${affinityId}`,
+                        `cyberworlds/searchAffinityLowIntentUpdateEntityInteraction/${entityId}`,
                     ) ?? "{}",
                 ),
             ),
@@ -61,21 +62,21 @@ export function markSearchAffinityLowIntentUpdateInteraction(
     if (lastUpdateTime === null || updateThrottleDuration < currentTime - lastUpdateTime) {
         // If this errs it will show up in our telemetry but we don't care about
         // it here.
-        void markSearchAffinityInteraction(context, {
+        void markSearchAffinityEntityInteraction(context, {
             spaceId,
-            affinityId,
+            entityId,
             interaction: {type: isVeryLow ? "VeryLowIntentUpdate" : "LowIntentUpdate"},
         });
 
-        sessionStorageBySearchAffinityId.set(affinityId, {lastUpdateTime: currentTime});
+        sessionStorageBySearchAffinityEntityId.set(entityId, {lastUpdateTime: currentTime});
         schedulePersistSessionStorageEntityIdsIfNeeded();
-        scheduledPersistSessionStorageSearchAffinityIds!.add(affinityId);
+        scheduledPersistSessionStorageSearchAffinityEntityIds!.add(entityId);
     }
 }
 
 function schedulePersistSessionStorageEntityIdsIfNeeded() {
-    if (scheduledPersistSessionStorageSearchAffinityIds !== null) return;
-    scheduledPersistSessionStorageSearchAffinityIds = new Set();
+    if (scheduledPersistSessionStorageSearchAffinityEntityIds !== null) return;
+    scheduledPersistSessionStorageSearchAffinityEntityIds = new Set();
 
     // Schedule the `sessionStorage.setItem()` call at idle priority when the main
     // thread has a moment. While `sessionStorage.getItem()` and
@@ -87,17 +88,18 @@ function schedulePersistSessionStorageEntityIdsIfNeeded() {
     // the React scheduler since the React scheduler knows about all our other
     // ongoing work.
     unstable_scheduleCallback(unstable_IdlePriority, () => {
-        assert(scheduledPersistSessionStorageSearchAffinityIds !== null);
+        assert(scheduledPersistSessionStorageSearchAffinityEntityIds !== null);
 
-        const persistEntityIds = scheduledPersistSessionStorageSearchAffinityIds;
-        scheduledPersistSessionStorageSearchAffinityIds = null;
+        const persistEntityIds = scheduledPersistSessionStorageSearchAffinityEntityIds;
+        scheduledPersistSessionStorageSearchAffinityEntityIds = null;
 
         for (const persistEntityId of persistEntityIds) {
-            const persistSessionStorage = sessionStorageBySearchAffinityId.get(persistEntityId);
+            const persistSessionStorage =
+                sessionStorageBySearchAffinityEntityId.get(persistEntityId);
             if (!persistSessionStorage) continue;
 
             sessionStorage.setItem(
-                `cyberworlds/searchAffinityLowIntentUpdateInteraction/${persistEntityId}`,
+                `cyberworlds/searchAffinityLowIntentUpdateEntityInteraction/${persistEntityId}`,
                 JSON.stringify(SessionStorageSchema.serialize(persistSessionStorage)),
             );
         }

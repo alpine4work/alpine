@@ -35,7 +35,7 @@ import {createMessagePayloadModel} from "~/server/messaging/helpers/create_messa
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
-import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
     getAccount,
@@ -4656,9 +4656,9 @@ export async function createTaskComment(
         });
 
         context.process.waitUntil(
-            markSearchAffinityInteraction(context, {
+            markSearchAffinityEntityInteraction(context, {
                 spaceId: spaceId,
-                affinityId: `Task:${taskId}`,
+                entityId: `Task:${taskId}`,
                 interaction:
                     content.nodeSize < 50
                         ? {type: "LowIntentUpdate"}
@@ -4669,9 +4669,9 @@ export async function createTaskComment(
         for (const mentionedAccountId of mentionedAccountIds) {
             context.process.waitUntil(async () => {
                 if (await isAccountMemberOfSpace(context, spaceId, mentionedAccountId)) {
-                    await markSearchAffinityInteraction(context, {
+                    await markSearchAffinityEntityInteraction(context, {
                         spaceId: spaceId,
-                        affinityId: `Account:${mentionedAccountId as AccountId}`,
+                        entityId: `Account:${mentionedAccountId as AccountId}`,
                         interaction: {type: "HighIntentUpdate"},
                     });
                 }

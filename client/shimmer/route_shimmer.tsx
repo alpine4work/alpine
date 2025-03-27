@@ -22,7 +22,7 @@ import {
 import {InboxEntryShimmer} from "~/client/shimmer/inbox_entry_shimmer.js";
 import {MessageShimmer} from "~/client/shimmer/message_shimmer.js";
 import {PostShimmer, PostShimmerHeader} from "~/client/shimmer/post_shimmer.js";
-import {SearchResultShimmer} from "~/client/shimmer/search_result_shimmer.js";
+import {SearchEntityShimmer} from "~/client/shimmer/search_entity_shimmer.js";
 import {TaskRowShimmer} from "~/client/shimmer/task_row_shimmer.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {useCoordinatedShimmerAnimations} from "~/client/shimmer/use_coordinated_shimmer_animations.js";
@@ -70,7 +70,7 @@ import {
     messageViewTimestampDividerMarginY,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
-    minSearchMobileInputHeight,
+    searchMobileInputMinHeight,
     searchMobileInputBorderRadius,
     searchMobileInputMarginBottom,
     searchMobileInputMarginTop,
@@ -1400,20 +1400,20 @@ function SearchRouteShimmer() {
                 <Box
                     border="grey-10"
                     style={{
-                        height: minSearchMobileInputHeight,
+                        height: searchMobileInputMinHeight,
                         borderRadius: searchMobileInputBorderRadius,
                     }}
                 />
                 <Box height={searchMobileInputMarginBottom} />
                 <Box height="1" />
             </Box>
-            <SearchResultShimmer paddingX={screenPaddingX} marginX="0" titleWidth="64" />
-            <SearchResultShimmer paddingX={screenPaddingX} marginX="0" titleWidth="32" />
-            <SearchResultShimmer paddingX={screenPaddingX} marginX="0" titleWidth="48" />
-            <SearchResultShimmer paddingX={screenPaddingX} marginX="0" titleWidth="96" />
-            <SearchResultShimmer paddingX={screenPaddingX} marginX="0" titleWidth="64" />
-            <SearchResultShimmer paddingX={screenPaddingX} marginX="0" titleWidth="48" />
-            <SearchResultShimmer paddingX={screenPaddingX} marginX="0" titleWidth="96" />
+            <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="64" />
+            <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="32" />
+            <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="48" />
+            <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="96" />
+            <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="64" />
+            <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="48" />
+            <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="96" />
         </Box>
     );
 }

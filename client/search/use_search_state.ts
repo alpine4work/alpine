@@ -7,7 +7,6 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {
     ExecuteSearchOutput,
-    emptyExecuteSearchOutput,
     executeSearch,
     pendingExecuteSearchOutput,
 } from "~/client/search/internal/execute_search.js";
@@ -22,9 +21,14 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {addSumOperandToOpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
-import {SearchCommandId, searchCommandIndex} from "~/shared/search/search_commands.js";
+import {
+    SearchAffinityEntityResult,
+    SearchFavoriteAffinityEntityResult,
+} from "~/shared/search/search_affinity_entity_result.js";
+import {SearchEntityId, SearchStaticEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
-import {SearchResult, SearchResultId} from "~/shared/search/search_result.js";
+import {searchStaticEntityIndex} from "~/shared/search/search_static_entity.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
@@ -257,7 +261,7 @@ export function useSearchState({
     );
 
     const affinityResultById = useMemo(() => {
-        const affinityResultById = new Map<SearchResultId, SearchResult>();
+        const affinityResultById = new Map<SearchEntityId, SearchAffinityEntityResult>();
 
         for (const result of affinitySearch.output?.favoriteResults ?? []) {
             affinityResultById.set(result.id, result);
@@ -330,32 +334,37 @@ export function useSearchState({
         ) {
             if (!affinitySearch.output) {
                 return {
+                    type: "EmptyQuery",
                     key: "searchByAffinity",
-                    queryText: queryOutput.queryText,
+                    queryText: "",
                     queryTime: queryOutput.queryTime,
                     isPending: true,
                     isError: false,
-                    favorites: null,
+                    hasMoreFavoriteResults: false,
+                    favoriteResults: null,
                     results: null,
                 };
             } else {
                 return {
+                    type: "EmptyQuery",
                     key: "searchByAffinity",
-                    queryText: queryOutput.queryText,
+                    queryText: "",
                     queryTime: queryOutput.queryTime,
                     isPending:
                         affinitySearch.isLoading ||
                         affinitySearch.isValidating ||
                         queryOutput.isPending,
                     isError: false,
-                    favorites: {
-                        hasMoreResults: affinitySearch.output.hasMoreFavoriteResults,
-                        results: affinitySearch.output.favoriteResults,
-                    },
+                    hasMoreFavoriteResults: affinitySearch.output.hasMoreFavoriteResults,
+                    favoriteResults: affinitySearch.output.favoriteResults,
                     results: affinitySearch.output.results,
                 };
             }
-        } else if (queryOutput.results && affinityResultById.size > 0) {
+        } else if (
+            queryOutput.type === "Query" &&
+            queryOutput.results &&
+            affinityResultById.size > 0
+        ) {
             const interpolation = options.affinityToKeywordScoreInterpolation;
 
             const slope =
@@ -365,15 +374,15 @@ export function useSearchState({
             const intercept =
                 interpolation.point2.keywordScore - slope * interpolation.point2.affinityScore;
 
-            let newResults: Array<SearchResult> | null = null;
+            let newResults: Array<SearchEntityResult> | null = null;
 
             // Search for commands matching the query text and add them to the beginning of
             // our results list if so.
-            const commandIds = new Set<SearchCommandId>();
-            const commandMatches = searchCommandIndex.get().search(queryOutput.queryText);
-            for (const match of commandMatches) {
-                if (commandIds.has(match.item.commandId)) continue;
-                commandIds.add(match.item.commandId);
+            const staticEntityIds = new Set<SearchStaticEntityId>();
+            const staticEntityMatches = searchStaticEntityIndex.get().search(queryOutput.queryText);
+            for (const match of staticEntityMatches) {
+                if (staticEntityIds.has(match.item.entityId)) continue;
+                staticEntityIds.add(match.item.entityId);
 
                 newResults ??= [];
 
@@ -383,9 +392,9 @@ export function useSearchState({
                 // "Create task".
                 if (match.score! < 0.2) {
                     newResults.push({
-                        id: match.item.commandId,
+                        id: match.item.entityId,
                         score: Infinity,
-                        title: match.item.command.title,
+                        title: match.item.entity.title,
                         bodyTextSnippet: [],
                         media: null,
                     });
@@ -517,15 +526,43 @@ type SearchStateExecution = Store<SearchStateExecutionOutput> & {
     ): void;
 };
 
-type SearchStateExecutionOutput = ExecuteSearchOutput & {
-    readonly key: string;
-    readonly queryText: string;
-    readonly queryTime: Date;
-    readonly favorites: {
-        readonly hasMoreResults: boolean;
-        readonly results: ReadonlyArray<SearchResult>;
-    } | null;
-};
+type ExecuteSearchByAffinityOutput =
+    | {
+          readonly isPending: true;
+          readonly isError: false;
+          readonly hasMoreFavoriteResults: false;
+          readonly favoriteResults: null;
+          readonly results: null;
+      }
+    | {
+          readonly isPending: boolean;
+          readonly isError: true;
+          readonly error: unknown;
+          readonly hasMoreFavoriteResults: false;
+          readonly favoriteResults: null;
+          readonly results: null;
+      }
+    | {
+          readonly isPending: boolean;
+          readonly isError: false;
+          readonly hasMoreFavoriteResults: boolean;
+          readonly favoriteResults: ReadonlyArray<SearchFavoriteAffinityEntityResult>;
+          readonly results: ReadonlyArray<SearchAffinityEntityResult>;
+      };
+
+export type SearchStateExecutionOutput =
+    | (ExecuteSearchByAffinityOutput & {
+          readonly type: "EmptyQuery";
+          readonly key: string;
+          readonly queryText: "";
+          readonly queryTime: Date;
+      })
+    | (ExecuteSearchOutput & {
+          readonly type: "Query";
+          readonly key: string;
+          readonly queryText: string;
+          readonly queryTime: Date;
+      });
 
 function createSearchStateExecution({
     queryText,
@@ -540,12 +577,16 @@ function createSearchStateExecution({
     // we'll get an empty result.
     if (queryText.length === 0) {
         return Object.assign(
-            new ConstStore({
-                ...emptyExecuteSearchOutput,
+            new ConstStore<SearchStateExecutionOutput>({
+                type: "EmptyQuery",
                 key,
-                queryText,
+                queryText: "",
                 queryTime,
-                favorites: null,
+                isPending: true,
+                isError: false,
+                hasMoreFavoriteResults: false,
+                favoriteResults: null,
+                results: null,
             }),
             {
                 queryText,
@@ -623,13 +664,15 @@ function createSearchStateExecution({
     };
 
     return Object.assign(
-        store.flat().map(result => ({
-            ...result,
-            key,
-            queryText,
-            queryTime,
-            favorites: null,
-        })),
+        store.flat().map(
+            (result): SearchStateExecutionOutput => ({
+                ...result,
+                type: "Query",
+                key,
+                queryText,
+                queryTime,
+            }),
+        ),
         {
             queryText,
             queryTime,

@@ -8,10 +8,10 @@ import {
     searchTaskCollectionsByAffinity,
 } from "~/server/search/data/index/search_entity_index.js";
 import {
-    favoriteSearchAffinity,
-    markSearchAffinityInteraction,
-    moveSearchAffinityFavorite,
-    unfavoriteSearchAffinity,
+    favoriteSearchAffinityEntity,
+    markSearchAffinityEntityInteraction,
+    moveSearchFavoriteAffinityEntity,
+    unfavoriteSearchAffinityEntity,
 } from "~/server/search/data/table/search_entity_table.js";
 import * as definitions from "~/shared/rpc/search_rpc_definitions.js";
 
@@ -37,10 +37,10 @@ export default implementRpcs(definitions, {
         },
     },
 
-    markSearchAffinityInteraction: {
+    markSearchAffinityEntityInteraction: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            await markSearchAffinityInteraction(context.actor.authorizeSession(), input);
+            await markSearchAffinityEntityInteraction(context.actor.authorizeSession(), input);
             return {};
         },
     },
@@ -72,26 +72,26 @@ export default implementRpcs(definitions, {
         },
     },
 
-    favoriteSearchAffinity: {
+    favoriteSearchAffinityEntity: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            await favoriteSearchAffinity(context.actor.authorizeSession(), input);
+            await favoriteSearchAffinityEntity(context.actor.authorizeSession(), input);
             return {};
         },
     },
 
-    unfavoriteSearchAffinity: {
+    unfavoriteSearchAffinityEntity: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            await unfavoriteSearchAffinity(context.actor.authorizeSession(), input);
+            await unfavoriteSearchAffinityEntity(context.actor.authorizeSession(), input);
             return {};
         },
     },
 
-    moveSearchAffinityFavorite: {
+    moveSearchFavoriteAffinityEntity: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            await moveSearchAffinityFavorite(context.actor.authorizeSession(), input);
+            await moveSearchFavoriteAffinityEntity(context.actor.authorizeSession(), input);
             return {};
         },
     },

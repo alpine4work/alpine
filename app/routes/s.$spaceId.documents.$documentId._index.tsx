@@ -9,8 +9,8 @@ import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_me
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
-import {markSearchAffinityLowIntentUpdateInteraction} from "~/client/search/mark_search_affinity_low_intent_update_interaction.js";
-import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
+import {markSearchAffinityLowIntentUpdateEntityInteraction} from "~/client/search/mark_search_affinity_low_intent_update_entity_interaction.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     getDocumentCommentThreadAndInitialComments,
@@ -18,7 +18,7 @@ import {
 } from "~/server/documents/data/documents_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {isSearchAffinityFavorite} from "~/server/search/data/table/search_entity_table.js";
+import {isSearchFavoriteAffinityEntity} from "~/server/search/data/table/search_entity_table.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {
     DocumentCommentModel,
@@ -63,9 +63,9 @@ export async function loader({params, context: unauthenticatedContext, request}:
               })
             : null,
         context.actor.type === "Session"
-            ? isSearchAffinityFavorite(context.actor.authorizeSession(), {
+            ? isSearchFavoriteAffinityEntity(context.actor.authorizeSession(), {
                   spaceId,
-                  affinityId: `Document:${documentId}`,
+                  entityId: `Document:${documentId}`,
               })
             : false,
     ]);
@@ -187,7 +187,7 @@ export default function DocumentRoute() {
     }, [isCreating, searchParams, setSearchParams]);
 
     // Don't update affinity score while creating.
-    useSearchAffinityViewInteraction(!isCreating ? `Document:${documentId}` : null);
+    useSearchAffinityViewEntityInteraction(!isCreating ? `Document:${documentId}` : null);
 
     return (
         <DocumentContentEditor
@@ -207,7 +207,7 @@ export default function DocumentRoute() {
                 // Don't update affinity score while creating.
                 if (isCreating) return;
 
-                markSearchAffinityLowIntentUpdateInteraction(
+                markSearchAffinityLowIntentUpdateEntityInteraction(
                     context,
                     space.id,
                     `Document:${documentId}`,

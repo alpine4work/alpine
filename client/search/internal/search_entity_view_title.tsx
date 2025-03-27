@@ -5,28 +5,28 @@ import {Box} from "~/client/design/box.js";
 import {TaskDisplayStatusCircle} from "~/client/design/task_display_status_circle.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {SearchResultTypeDisplay} from "~/client/search/internal/search_result_type_display.js";
+import {SearchEntityTypeDisplay} from "~/client/search/internal/search_entity_type_display.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
 import {
-    searchResultViewMediaSize,
-    searchResultViewTitleFontSize,
-    searchResultViewTitleTypeDisplayGap,
+    searchEntityViewMediaSize,
+    searchEntityViewTitleFontSize,
+    searchEntityViewTitleTypeDisplayGap,
 } from "~/client/styles/search_shared_styles.js";
 import {contentStyles, searchStyles} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {SearchResultMedia} from "~/shared/search/search_result.js";
+import {SearchEntityMediaModel} from "~/shared/search/search_entity_result.js";
 
-export function SearchResultViewTitle({
+export function SearchEntityViewTitle({
     typeDisplay,
     title,
     media,
     lineClamp = 2,
 }: {
-    typeDisplay: SearchResultTypeDisplay;
+    typeDisplay: SearchEntityTypeDisplay;
     title: string | null;
-    media: SearchResultMedia | null;
+    media: SearchEntityMediaModel | null;
     lineClamp?: number;
 }) {
     const spacingScale = useSpacingScale();
@@ -34,7 +34,7 @@ export function SearchResultViewTitle({
     return (
         <Box
             overflow="hidden"
-            fontSize={searchResultViewTitleFontSize}
+            fontSize={searchEntityViewTitleFontSize}
             style={{
                 minHeight: contentStyles.paragraphLineHeightPx[spacingScale],
                 lineHeight: `${contentStyles.paragraphLineHeightPx[spacingScale]}px`,
@@ -51,18 +51,18 @@ export function SearchResultViewTitle({
                 fontFeatureSettings: '"calt" on',
             }}
         >
-            <SearchResultViewTitlePrefix typeDisplay={typeDisplay} media={media} />
+            <SearchEntityViewTitlePrefix typeDisplay={typeDisplay} media={media} />
             {title !== null ? renderTextWithEmojiFontFamily(title) : null}
         </Box>
     );
 }
 
-export function SearchResultViewTitlePrefix({
+export function SearchEntityViewTitlePrefix({
     typeDisplay,
     media,
 }: {
-    typeDisplay: SearchResultTypeDisplay;
-    media: SearchResultMedia | null;
+    typeDisplay: SearchEntityTypeDisplay;
+    media: SearchEntityMediaModel | null;
 }) {
     const spacingScale = useSpacingScale();
 
@@ -73,7 +73,7 @@ export function SearchResultViewTitlePrefix({
                 display="inline-flex"
                 justifyContent="center"
                 alignItems="center"
-                marginRight={searchResultViewTitleTypeDisplayGap}
+                marginRight={searchEntityViewTitleTypeDisplayGap}
                 style={{
                     height: contentStyles.paragraphLineHeightPx[spacingScale],
                     verticalAlign: "top",
@@ -90,18 +90,18 @@ export function SearchResultViewTitlePrefix({
                 <IconContext.Provider
                     value={{
                         color: searchStyles.brandIconColor,
-                        size: spacing[searchResultViewMediaSize],
+                        size: spacing[searchEntityViewMediaSize],
                     }}
                 >
                     {typeDisplay.icon}
                 </IconContext.Provider>
             </Box>
-            {media && <SearchResultMediaView media={media} />}
+            {media && <SearchEntityViewMedia media={media} />}
         </>
     );
 }
 
-function SearchResultMediaView({media}: {media: SearchResultMedia}) {
+function SearchEntityViewMedia({media}: {media: SearchEntityMediaModel}) {
     const spacingScale = useSpacingScale();
 
     switch (media.type) {
@@ -183,7 +183,7 @@ function SearchResultMediaView({media}: {media: SearchResultMedia}) {
                 >
                     <TaskDisplayStatusCircle
                         displayStatus={media.displayStatus}
-                        size={searchResultViewMediaSize}
+                        size={searchEntityViewMediaSize}
                     />
                 </Box>
             );

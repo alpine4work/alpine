@@ -25,7 +25,7 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {useSearchAffinityFavoriteMenuAction} from "~/client/search/core/use_search_affinity_favorite_menu_action.js";
+import {useSearchFavoriteAffinityEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
 import {tasksStyles} from "~/client/styles/styles.js";
@@ -319,7 +319,7 @@ export function TaskCollectionView({
         await writeTextToClipboard(url.toString());
     }, [collectionId, filters, sorts, space.id]);
 
-    const favoriteMenuAction = useSearchAffinityFavoriteMenuAction(
+    const favoriteMenuAction = useSearchFavoriteAffinityEntityMenuAction(
         `TaskCollection:${collectionId}`,
         initialIsFavorite,
     );

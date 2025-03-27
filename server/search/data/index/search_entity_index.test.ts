@@ -26,9 +26,9 @@ import {
     searchBySemantics,
 } from "~/server/search/data/index/search_entity_index.js";
 import {
-    favoriteSearchAffinity,
-    markSearchAffinityInteraction,
-    unfavoriteSearchAffinity,
+    favoriteSearchAffinityEntity,
+    markSearchAffinityEntityInteraction,
+    unfavoriteSearchAffinityEntity,
 } from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
@@ -2546,15 +2546,15 @@ test("search by affinity can include my tasks", async () => {
     const document2 = await TestDocument.create(session2, {title: "Test Document 2"});
     await document2.access.grantDefault(session2);
 
-    await markSearchAffinityInteraction(session1.action(), {
+    await markSearchAffinityEntityInteraction(session1.action(), {
         spaceId: space.id,
-        affinityId: "TaskPersonal",
+        entityId: "TaskPersonal",
         interaction: {type: "HighIntentUpdate"},
     });
 
-    await markSearchAffinityInteraction(session1.action(), {
+    await markSearchAffinityEntityInteraction(session1.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document2.id}`,
+        entityId: `Document:${document2.id}`,
         interaction: {type: "View"},
     });
 
@@ -2602,21 +2602,21 @@ test("search by affinity can include the task personal view in favorites", async
     const document2 = await TestDocument.create(session2, {title: "Test Document 2"});
     await document2.access.grantDefault(session2);
 
-    await markSearchAffinityInteraction(session1.action(), {
+    await markSearchAffinityEntityInteraction(session1.action(), {
         spaceId: space.id,
-        affinityId: "TaskPersonal",
+        entityId: "TaskPersonal",
         interaction: {type: "HighIntentUpdate"},
     });
 
-    await markSearchAffinityInteraction(session1.action(), {
+    await markSearchAffinityEntityInteraction(session1.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document2.id}`,
+        entityId: `Document:${document2.id}`,
         interaction: {type: "View"},
     });
 
-    await favoriteSearchAffinity(session1.action(), {
+    await favoriteSearchAffinityEntity(session1.action(), {
         spaceId: space.id,
-        affinityId: "TaskPersonal",
+        entityId: "TaskPersonal",
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -2664,15 +2664,15 @@ test("search by affinity can include the task personal view in favorites even if
     const document2 = await TestDocument.create(session2, {title: "Test Document 2"});
     await document2.access.grantDefault(session2);
 
-    await markSearchAffinityInteraction(session1.action(), {
+    await markSearchAffinityEntityInteraction(session1.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document2.id}`,
+        entityId: `Document:${document2.id}`,
         interaction: {type: "View"},
     });
 
-    await favoriteSearchAffinity(session1.action(), {
+    await favoriteSearchAffinityEntity(session1.action(), {
         spaceId: space.id,
-        affinityId: "TaskPersonal",
+        entityId: "TaskPersonal",
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -2744,15 +2744,15 @@ test("search by affinity will also return up to five favorites", async () => {
     const document14 = await TestDocument.create(session2, {title: "Test Document 14"});
     await document14.access.grantDefault(session2);
 
-    await markSearchAffinityInteraction(session1.action(), {
+    await markSearchAffinityEntityInteraction(session1.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document2.id}`,
+        entityId: `Document:${document2.id}`,
         interaction: {type: "View"},
     });
 
-    await markSearchAffinityInteraction(session1.action(), {
+    await markSearchAffinityEntityInteraction(session1.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document4.id}`,
+        entityId: `Document:${document4.id}`,
         interaction: {type: "HighIntentUpdate"},
     });
 
@@ -2791,9 +2791,9 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await favoriteSearchAffinity(session1.action(), {
+    await favoriteSearchAffinityEntity(session1.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document3.id}`,
+        entityId: `Document:${document3.id}`,
     });
 
     expect(
@@ -2837,9 +2837,9 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await favoriteSearchAffinity(session1.action(), {
+    await favoriteSearchAffinityEntity(session1.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document4.id}`,
+        entityId: `Document:${document4.id}`,
     });
 
     expect(
@@ -2883,173 +2883,9 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await favoriteSearchAffinity(session1.action(), {
+    await favoriteSearchAffinityEntity(session1.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document5.id}`,
-    });
-
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
-        hasMoreFavoriteResults: false,
-        favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
-                score: 0,
-                title: "Test Document 3",
-                bodyTextSnippet: [],
-                media: null,
-            },
-            {
-                id: `Document:${document4.id}`,
-                score: expect.closeTo(3, 0),
-                title: "Test Document 4",
-                bodyTextSnippet: [],
-                media: null,
-            },
-            {
-                id: `Document:${document5.id}`,
-                score: 0,
-                title: "Test Document 5",
-                bodyTextSnippet: [],
-                media: null,
-            },
-        ],
-        results: [
-            {
-                id: `Document:${document1.id}`,
-                score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                bodyTextSnippet: [],
-                media: null,
-            },
-            {
-                id: `Document:${document2.id}`,
-                score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                bodyTextSnippet: [],
-                media: null,
-            },
-        ],
-    });
-
-    await unfavoriteSearchAffinity(session1.action(), {
-        spaceId: space.id,
-        affinityId: `Document:${document4.id}`,
-    });
-
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
-        hasMoreFavoriteResults: false,
-        favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
-                score: 0,
-                title: "Test Document 3",
-                bodyTextSnippet: [],
-                media: null,
-            },
-            {
-                id: `Document:${document5.id}`,
-                score: 0,
-                title: "Test Document 5",
-                bodyTextSnippet: [],
-                media: null,
-            },
-        ],
-        results: [
-            {
-                id: `Document:${document1.id}`,
-                score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                bodyTextSnippet: [],
-                media: null,
-            },
-            {
-                id: `Document:${document4.id}`,
-                score: expect.closeTo(3, 0),
-                title: "Test Document 4",
-                bodyTextSnippet: [],
-                media: null,
-            },
-            {
-                id: `Document:${document2.id}`,
-                score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                bodyTextSnippet: [],
-                media: null,
-            },
-        ],
-    });
-
-    await favoriteSearchAffinity(session1.action(), {
-        spaceId: space.id,
-        affinityId: `Document:${document4.id}`,
-    });
-
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
-        hasMoreFavoriteResults: false,
-        favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
-                score: 0,
-                title: "Test Document 3",
-                bodyTextSnippet: [],
-                media: null,
-            },
-            {
-                id: `Document:${document5.id}`,
-                score: 0,
-                title: "Test Document 5",
-                bodyTextSnippet: [],
-                media: null,
-            },
-            {
-                id: `Document:${document4.id}`,
-                score: expect.closeTo(3, 0),
-                title: "Test Document 4",
-                bodyTextSnippet: [],
-                media: null,
-            },
-        ],
-        results: [
-            {
-                id: `Document:${document1.id}`,
-                score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                bodyTextSnippet: [],
-                media: null,
-            },
-            {
-                id: `Document:${document2.id}`,
-                score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                bodyTextSnippet: [],
-                media: null,
-            },
-        ],
-    });
-
-    await unfavoriteSearchAffinity(session1.action(), {
-        spaceId: space.id,
-        affinityId: `Document:${document5.id}`,
-    });
-
-    await favoriteSearchAffinity(session1.action(), {
-        spaceId: space.id,
-        affinityId: `Document:${document5.id}`,
+        entityId: `Document:${document5.id}`,
     });
 
     expect(
@@ -3100,9 +2936,173 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await favoriteSearchAffinity(session1.action(), {
+    await unfavoriteSearchAffinityEntity(session1.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document6.id}`,
+        entityId: `Document:${document4.id}`,
+    });
+
+    expect(
+        await searchByAffinity(session1.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual({
+        hasMoreFavoriteResults: false,
+        favoriteResults: [
+            {
+                id: `Document:${document3.id}`,
+                score: 0,
+                title: "Test Document 3",
+                bodyTextSnippet: [],
+                media: null,
+            },
+            {
+                id: `Document:${document5.id}`,
+                score: 0,
+                title: "Test Document 5",
+                bodyTextSnippet: [],
+                media: null,
+            },
+        ],
+        results: [
+            {
+                id: `Document:${document1.id}`,
+                score: expect.closeTo(60, -1),
+                title: "Test Document 1",
+                bodyTextSnippet: [],
+                media: null,
+            },
+            {
+                id: `Document:${document4.id}`,
+                score: expect.closeTo(3, 0),
+                title: "Test Document 4",
+                bodyTextSnippet: [],
+                media: null,
+            },
+            {
+                id: `Document:${document2.id}`,
+                score: expect.closeTo(1, 0),
+                title: "Test Document 2",
+                bodyTextSnippet: [],
+                media: null,
+            },
+        ],
+    });
+
+    await favoriteSearchAffinityEntity(session1.action(), {
+        spaceId: space.id,
+        entityId: `Document:${document4.id}`,
+    });
+
+    expect(
+        await searchByAffinity(session1.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual({
+        hasMoreFavoriteResults: false,
+        favoriteResults: [
+            {
+                id: `Document:${document3.id}`,
+                score: 0,
+                title: "Test Document 3",
+                bodyTextSnippet: [],
+                media: null,
+            },
+            {
+                id: `Document:${document5.id}`,
+                score: 0,
+                title: "Test Document 5",
+                bodyTextSnippet: [],
+                media: null,
+            },
+            {
+                id: `Document:${document4.id}`,
+                score: expect.closeTo(3, 0),
+                title: "Test Document 4",
+                bodyTextSnippet: [],
+                media: null,
+            },
+        ],
+        results: [
+            {
+                id: `Document:${document1.id}`,
+                score: expect.closeTo(60, -1),
+                title: "Test Document 1",
+                bodyTextSnippet: [],
+                media: null,
+            },
+            {
+                id: `Document:${document2.id}`,
+                score: expect.closeTo(1, 0),
+                title: "Test Document 2",
+                bodyTextSnippet: [],
+                media: null,
+            },
+        ],
+    });
+
+    await unfavoriteSearchAffinityEntity(session1.action(), {
+        spaceId: space.id,
+        entityId: `Document:${document5.id}`,
+    });
+
+    await favoriteSearchAffinityEntity(session1.action(), {
+        spaceId: space.id,
+        entityId: `Document:${document5.id}`,
+    });
+
+    expect(
+        await searchByAffinity(session1.action(), {
+            spaceId: space.id,
+            limit: 100,
+        }),
+    ).toEqual({
+        hasMoreFavoriteResults: false,
+        favoriteResults: [
+            {
+                id: `Document:${document3.id}`,
+                score: 0,
+                title: "Test Document 3",
+                bodyTextSnippet: [],
+                media: null,
+            },
+            {
+                id: `Document:${document4.id}`,
+                score: expect.closeTo(3, 0),
+                title: "Test Document 4",
+                bodyTextSnippet: [],
+                media: null,
+            },
+            {
+                id: `Document:${document5.id}`,
+                score: 0,
+                title: "Test Document 5",
+                bodyTextSnippet: [],
+                media: null,
+            },
+        ],
+        results: [
+            {
+                id: `Document:${document1.id}`,
+                score: expect.closeTo(60, -1),
+                title: "Test Document 1",
+                bodyTextSnippet: [],
+                media: null,
+            },
+            {
+                id: `Document:${document2.id}`,
+                score: expect.closeTo(1, 0),
+                title: "Test Document 2",
+                bodyTextSnippet: [],
+                media: null,
+            },
+        ],
+    });
+
+    await favoriteSearchAffinityEntity(session1.action(), {
+        spaceId: space.id,
+        entityId: `Document:${document6.id}`,
     });
 
     expect(
@@ -3160,9 +3160,9 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await favoriteSearchAffinity(session1.action(), {
+    await favoriteSearchAffinityEntity(session1.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document7.id}`,
+        entityId: `Document:${document7.id}`,
     });
 
     expect(
@@ -3227,9 +3227,9 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await favoriteSearchAffinity(session1.action(), {
+    await favoriteSearchAffinityEntity(session1.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document8.id}`,
+        entityId: `Document:${document8.id}`,
     });
 
     expect(
@@ -3294,9 +3294,9 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await favoriteSearchAffinity(session1.action(), {
+    await favoriteSearchAffinityEntity(session1.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document9.id}`,
+        entityId: `Document:${document9.id}`,
     });
 
     expect(
@@ -3700,29 +3700,29 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 
-    await favoriteSearchAffinity(session1.action(), {
+    await favoriteSearchAffinityEntity(session1.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document10.id}`,
+        entityId: `Document:${document10.id}`,
     });
 
-    await favoriteSearchAffinity(session1.action(), {
+    await favoriteSearchAffinityEntity(session1.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document11.id}`,
+        entityId: `Document:${document11.id}`,
     });
 
-    await favoriteSearchAffinity(session1.action(), {
+    await favoriteSearchAffinityEntity(session1.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document12.id}`,
+        entityId: `Document:${document12.id}`,
     });
 
-    await favoriteSearchAffinity(session1.action(), {
+    await favoriteSearchAffinityEntity(session1.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document13.id}`,
+        entityId: `Document:${document13.id}`,
     });
 
-    await favoriteSearchAffinity(session1.action(), {
+    await favoriteSearchAffinityEntity(session1.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document14.id}`,
+        entityId: `Document:${document14.id}`,
     });
 
     expect(

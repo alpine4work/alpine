@@ -10,19 +10,22 @@ import {TaskCollectionBrandIcon} from "~/client/icons/brand/task_collection_bran
 import {TaskCommentBrandIcon} from "~/client/icons/brand/task_comment_brand_icon.js";
 import {TaskQueryBrandIcon} from "~/client/icons/brand/task_query_brand_icon.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
-import {SearchResultId} from "~/shared/search/search_result.js";
+import {
+    SearchDynamicEntityIdObject,
+    SearchEntityId,
+    parseSearchDynamicEntityId,
+} from "~/shared/search/search_entity_id.js";
 
 /**
- * Configures how we display results of various types in `<SearchResultView>`.
+ * Configures how we display results of various types in `<SearchEntityView>`.
  *
  * - `name`: The name we present this search entity with.
- * - `isAccountMediaAuthor`: If the `SearchResult` object has a `media` object
- *   with type `Account` then consider this account as the author of the search
- *   entity. Visually we end up putting the author name next to the search
- *   result body snippet to communicate authorship.
+ * - `isAccountMediaAuthor`: If the `SearchEntityModel` object has a `media`
+ *   object with type `Account` then consider this account as the author of the
+ *   search entity. Visually we end up putting the author name next to the
+ *   search result body snippet to communicate authorship.
  */
-export type SearchResultTypeDisplay = {
+export type SearchEntityTypeDisplay = {
     icon: ReactNode;
     isAccountMediaAuthor?: boolean;
 };
@@ -30,8 +33,8 @@ export type SearchResultTypeDisplay = {
 // NOTE(calebmer): The icons used here for create actions are the same icons
 // used in `<SpaceLayoutSideBarCreateButton/>`. If you change an icon here you
 // should also change it there.
-export function getSearchResultTypeDisplay(resultId: SearchResultId): SearchResultTypeDisplay {
-    switch (resultId) {
+export function getSearchEntityTypeDisplay(entityId: SearchEntityId): SearchEntityTypeDisplay {
+    switch (entityId) {
         case "CreateChatMessage": {
             return {icon: <ChatBrandIcon />};
         }
@@ -56,7 +59,7 @@ export function getSearchResultTypeDisplay(resultId: SearchResultId): SearchResu
         case "TaskPersonal": {
             // We label the "My tasks" view as a task "collection" since it is a collection
             // of tasks.
-            return getSearchResultTypeDisplayForEntity("TaskCollection");
+            return getSearchDynamicEntityTypeDisplay("TaskCollection");
         }
         case "TaskQueryFilteredToCreatorIsCurrentAccount":
         case "TaskQueryFilteredToAssigneeIsCurrentAccount":
@@ -65,15 +68,15 @@ export function getSearchResultTypeDisplay(resultId: SearchResultId): SearchResu
             return {icon: <TaskQueryBrandIcon />};
         }
         default: {
-            const entityIdObject = parseSearchEntityId(resultId);
-            return getSearchResultTypeDisplayForEntity(entityIdObject.type);
+            const entityIdObject = parseSearchDynamicEntityId(entityId);
+            return getSearchDynamicEntityTypeDisplay(entityIdObject.type);
         }
     }
 }
 
-export function getSearchResultTypeDisplayForEntity(
-    type: SearchEntityIdObject["type"],
-): SearchResultTypeDisplay {
+export function getSearchDynamicEntityTypeDisplay(
+    type: SearchDynamicEntityIdObject["type"],
+): SearchEntityTypeDisplay {
     switch (type) {
         case "Account": {
             return {icon: <ChatBrandIcon />};

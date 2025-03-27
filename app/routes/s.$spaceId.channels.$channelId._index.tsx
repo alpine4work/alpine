@@ -13,7 +13,7 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     channelViewAsidePostFileCount,
@@ -32,7 +32,7 @@ import {
 } from "~/server/forum/data/forum_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {isSearchAffinityFavorite} from "~/server/search/data/table/search_entity_table.js";
+import {isSearchFavoriteAffinityEntity} from "~/server/search/data/table/search_entity_table.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
@@ -174,9 +174,9 @@ export async function loader({request, params, context: unauthenticatedContext}:
             beforeCursor: null,
         }),
         context.actor.type === "Session"
-            ? isSearchAffinityFavorite(context.actor.authorizeSession(), {
+            ? isSearchFavoriteAffinityEntity(context.actor.authorizeSession(), {
                   spaceId,
-                  affinityId: `Channel:${channelId}`,
+                  entityId: `Channel:${channelId}`,
               })
             : false,
     ]);
@@ -263,7 +263,7 @@ export default function ChannelRoute() {
         }
     }, [channelState.type, searchParams, setSearchParams]);
 
-    useSearchAffinityViewInteraction(
+    useSearchAffinityViewEntityInteraction(
         channelState.type === "Exists" &&
             channelState.channelResult.items[0]?.model instanceof ChannelModel
             ? `Channel:${channelState.channelResult.items[0].model.id}`

@@ -9,7 +9,7 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-import {SearchEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
  * Reference to a search entity or some subset of attributes on a search
@@ -31,8 +31,15 @@ import {SearchEntityId} from "~/shared/search/search_entity_id.js";
  * chat message changes it has no dependents so we can skip querying for
  * dependents.
  *
- * In theory every `SearchEntityId` could be a `SearchEntityDependencyId`. We
- * statically limit `SearchEntityDependencyId` as an optimization.
+ * `SearchStaticEntityId`s can't have dependencies. The information for a
+ * `SearchStaticEntityId` should always be known without looking at the
+ * database. Likewise, there will never be a dependency on a
+ * `SearchStaticEntityId`. Dependencies are only relevant for
+ * `SearchDynamicEntity`s.
+ *
+ * In theory every `SearchDynamicEntityId` could be a
+ * `SearchEntityDependencyId`. We statically limit `SearchEntityDependencyId`
+ * as an optimization.
  */
 export type SearchEntityDependencyId =
     | `Account:${AccountId | ContentMentionAccountId}`
@@ -49,7 +56,7 @@ type RemoveSearchEntityDependencyIdAttribute<Id> =
 // The prefix of `SearchEntityDependencyId` should be a `SearchEntityId`.
 assertAssignableTypes<
     RemoveSearchEntityDependencyIdAttribute<SearchEntityDependencyId>,
-    SearchEntityId
+    SearchDynamicEntityId
 >();
 
 type ExtractSearchEntityDependencyIdType<Id> = Id extends `${infer IdType}:${string}`
@@ -66,7 +73,8 @@ const searchEntityIdTypesThatAreAlsoEntityDependencyIds: {
 };
 
 /**
- * Is the provided `SearchEntityDependencyId` also a valid `SearchEntityId`?
+ * Is the provided `SearchEntityDependencyId` also a valid
+ * `SearchDynamicEntityId`?
  *
  * For example, `Chat:${ChatId}` is both a `SearchEntityDependencyId` and
  * `SearchEntityId`. We'd return true for `Chat:${ChatId}`. However
@@ -74,13 +82,14 @@ const searchEntityIdTypesThatAreAlsoEntityDependencyIds: {
  * `SearchEntityId` so we'd return false.
  */
 export function isSearchEntityDependencyIdAlsoEntityId(
-    entityId: SearchEntityId | SearchEntityDependencyId,
-): entityId is SearchEntityId {
+    entityId: SearchDynamicEntityId | SearchEntityDependencyId,
+): entityId is SearchDynamicEntityId {
     return entityId.indexOf(":") === entityId.lastIndexOf(":");
 }
 
 /**
- * Is the provided `SearchEntityId` also a valid `SearchEntityDependencyId`?
+ * Is the provided `SearchDynamicEntityId` also a valid
+ * `SearchEntityDependencyId`?
  *
  * For example, `Chat:${ChatId}` is both a `SearchEntityDependencyId` and
  * `SearchEntityId`. We'd return true for `Chat:${ChatId}`. However
@@ -88,7 +97,7 @@ export function isSearchEntityDependencyIdAlsoEntityId(
  * `SearchEntityDependencyId` so we'd return false.
  */
 export function isSearchEntityIdAlsoEntityDependencyId(
-    entityId: SearchEntityId,
+    entityId: SearchDynamicEntityId,
 ): entityId is Exclude<SearchEntityDependencyId, `${string}:${string}:${string}`> {
     const entityType = entityId.slice(0, entityId.indexOf(":"));
 

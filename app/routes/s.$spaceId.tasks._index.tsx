@@ -9,7 +9,7 @@ import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.
 import {TaskPersonalView} from "~/client/tasks/task_personal_view.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {isSearchAffinityFavorite} from "~/server/search/data/table/search_entity_table.js";
+import {isSearchFavoriteAffinityEntity} from "~/server/search/data/table/search_entity_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -236,7 +236,7 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
             taskIds: [],
             collectionIds: [],
         }),
-        isSearchAffinityFavorite(context, {spaceId, affinityId: "TaskPersonal"}),
+        isSearchFavoriteAffinityEntity(context, {spaceId, entityId: "TaskPersonal"}),
     ]);
 
     const activeQueryOutput = assertExists(queries[0]);

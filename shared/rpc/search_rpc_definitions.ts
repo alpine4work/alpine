@@ -4,10 +4,14 @@ import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {SearchAffinityIdSchema} from "~/shared/search/search_affinity_id.js";
-import {SearchAffinityInteractionSchema} from "~/shared/search/search_affinity_interaction.js";
+import {SearchAffinityEntityInteractionSchema} from "~/shared/search/search_affinity_entity_interaction.js";
+import {
+    SearchAffinityEntityResultSchema,
+    SearchFavoriteAffinityEntityResultSchema,
+} from "~/shared/search/search_affinity_entity_result.js";
+import {SearchAffinityEntityIdSchema} from "~/shared/search/search_entity_id.js";
+import {SearchEntityResultSchema} from "~/shared/search/search_entity_result.js";
 import {SearchOptionsSchema} from "~/shared/search/search_options.js";
-import {SearchResultSchema} from "~/shared/search/search_result.js";
 import {TaskCollectionModelSearchResultSchema} from "~/shared/tasks/model/task_collection_model_search_result.js";
 
 export const searchByKeywords = defineRpc({
@@ -21,7 +25,7 @@ export const searchByKeywords = defineRpc({
         debugOptions: SearchOptionsSchema.optional(),
     },
     output: {
-        results: Schema.array(SearchResultSchema),
+        results: Schema.array(SearchEntityResultSchema),
     },
 });
 
@@ -36,7 +40,7 @@ export const searchBySemantics = defineRpc({
         debugOptions: SearchOptionsSchema.optional(),
     },
     output: {
-        results: Schema.array(SearchResultSchema),
+        results: Schema.array(SearchEntityResultSchema),
     },
 });
 
@@ -47,17 +51,17 @@ export const searchByAffinity = defineRpc({
     },
     output: {
         hasMoreFavoriteResults: Schema.boolean,
-        favoriteResults: Schema.array(SearchResultSchema),
-        results: Schema.array(SearchResultSchema),
+        favoriteResults: Schema.array(SearchFavoriteAffinityEntityResultSchema),
+        results: Schema.array(SearchAffinityEntityResultSchema),
     },
 });
 
-export const markSearchAffinityInteraction = defineRpc({
-    name: "markSearchAffinityInteraction",
+export const markSearchAffinityEntityInteraction = defineRpc({
+    name: "markSearchAffinityEntityInteraction",
     input: {
         spaceId: Schema.id<SpaceId>(),
-        affinityId: SearchAffinityIdSchema,
-        interaction: SearchAffinityInteractionSchema,
+        entityId: SearchAffinityEntityIdSchema,
+        interaction: SearchAffinityEntityInteractionSchema,
     },
     output: {},
 });
@@ -113,29 +117,29 @@ export const searchTaskCollectionsByAffinity = defineRpc({
     },
 });
 
-export const favoriteSearchAffinity = defineRpc({
-    name: "favoriteSearchAffinity",
+export const favoriteSearchAffinityEntity = defineRpc({
+    name: "favoriteSearchAffinityEntity",
     input: {
         spaceId: Schema.id<SpaceId>(),
-        affinityId: SearchAffinityIdSchema,
+        entityId: SearchAffinityEntityIdSchema,
     },
     output: {},
 });
 
-export const unfavoriteSearchAffinity = defineRpc({
-    name: "unfavoriteSearchAffinity",
+export const unfavoriteSearchAffinityEntity = defineRpc({
+    name: "unfavoriteSearchAffinityEntity",
     input: {
         spaceId: Schema.id<SpaceId>(),
-        affinityId: SearchAffinityIdSchema,
+        entityId: SearchAffinityEntityIdSchema,
     },
     output: {},
 });
 
-export const moveSearchAffinityFavorite = defineRpc({
-    name: "moveSearchAffinityFavorite",
+export const moveSearchFavoriteAffinityEntity = defineRpc({
+    name: "moveSearchFavoriteAffinityEntity",
     input: {
         spaceId: Schema.id<SpaceId>(),
-        affinityId: SearchAffinityIdSchema,
+        entityId: SearchAffinityEntityIdSchema,
         orderKey: OrderKeySchema,
     },
     output: {},

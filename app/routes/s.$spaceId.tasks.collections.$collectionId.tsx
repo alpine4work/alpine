@@ -20,7 +20,7 @@ import {TaskCollectionView} from "~/client/tasks/task_collection_view.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {isSearchAffinityFavorite} from "~/server/search/data/table/search_entity_table.js";
+import {isSearchFavoriteAffinityEntity} from "~/server/search/data/table/search_entity_table.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/spaces_table.js";
 import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
 import {
@@ -262,9 +262,9 @@ export async function loader({request, params, context: unauthenticatedContext}:
             return Object.assign(result, {input: {query}});
         })(),
         context.actor.type === "Session"
-            ? isSearchAffinityFavorite(context.actor.authorizeSession(), {
+            ? isSearchFavoriteAffinityEntity(context.actor.authorizeSession(), {
                   spaceId,
-                  affinityId: `TaskCollection:${collectionId}`,
+                  entityId: `TaskCollection:${collectionId}`,
               })
             : false,
     ]);

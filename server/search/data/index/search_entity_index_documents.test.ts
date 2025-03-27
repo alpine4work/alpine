@@ -14,7 +14,7 @@ import {
     searchByAffinity,
     searchByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
-import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -984,9 +984,9 @@ test("newly created documents will be visible in search even before indexing", a
     });
     await document.access.grantDefault(session1);
 
-    await markSearchAffinityInteraction(session2.action(), {
+    await markSearchAffinityEntityInteraction(session2.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document.id}`,
+        entityId: `Document:${document.id}`,
         interaction: {type: "MediumIntentUpdate"},
     });
 

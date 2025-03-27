@@ -10,7 +10,7 @@ import {DateString} from "~/shared/helpers/date/date_string.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {SearchEntityIdObject} from "~/shared/search/search_entity_id.js";
+import {SearchDynamicEntityIdObject} from "~/shared/search/search_entity_id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 nlp.plugin(nlpDatePlugin);
@@ -203,7 +203,7 @@ class SearchNaturalLanguageParserResult {
  * `OR`d together.
  */
 export type SearchNaturalLanguageFilter = {
-    readonly entityTypes: ReadonlyArray<SearchEntityIdObject["type"]>;
+    readonly entityTypes: ReadonlyArray<SearchDynamicEntityIdObject["type"]>;
     readonly account: {
         readonly field: "Creator" | "MajorContributor" | "AnyContributor";
         readonly ids: ReadonlyArray<AccountId>;
@@ -639,7 +639,7 @@ function parseSearchNaturalLanguageFilters(
  */
 function parseSearchEntityTypesIfPossible(
     state: SearchNaturalLanguageParserState,
-): Array<SearchEntityIdObject["type"]> | null {
+): Array<SearchDynamicEntityIdObject["type"]> | null {
     if (!state.term) return null;
 
     if (matchTerms.documents.isFuzzyMatch(state.term) || matchTerms.docs.isFuzzyMatch(state.term)) {

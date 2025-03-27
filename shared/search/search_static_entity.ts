@@ -1,45 +1,17 @@
 import _Fuse from "fuse.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {SearchEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchStaticEntityId} from "~/shared/search/search_entity_id.js";
 
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
-/**
- * Search commands are consistent across all Alpine spaces. They're used for
- * quick navigation to some action or page.
- *
- * Some search commands accumulate affinity points. For example, `TaskPersonal`
- * exists both in `SearchCommandId` and `SearchAffinityId` because the task
- * personal view accumulates affinity points when you view it or add tasks
- * to it.
- */
-export type SearchCommandId =
-    | "CreateChatMessage"
-    | "CreatePost"
-    | "CreateChannel"
-    | "CreateDocument"
-    | "CreateTask"
-    | "CreateTaskCollection"
-    | "CreateTaskView"
-    | "TaskPersonal"
-    | "TaskQueryFilteredToCreatorIsCurrentAccount"
-    | "TaskQueryFilteredToAssigneeIsCurrentAccount"
-    | "TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive"
-    | "TaskQueryFilteredToAssignerIsCurrentAccount";
-
-// Make sure there's no overlap between `SearchEntityId`s and
-// `SearchCommandId`s.
-assertEqualTypes<SearchEntityId & SearchCommandId, never>();
-
-type SearchCommand = {
+export type SearchStaticEntity = {
     readonly title: string;
     readonly otherHitTexts?: ReadonlyArray<string>;
 };
 
-const searchCommandById: {
-    [Key in SearchCommandId]: SearchCommand;
+export const searchStaticEntityById: {
+    [Key in SearchStaticEntityId]: SearchStaticEntity;
 } = {
     CreateChatMessage: {
         title: "Send chat message",
@@ -122,29 +94,33 @@ const searchCommandById: {
 };
 
 /**
- * A lazy Fuse.js index for search commands. Used by our search implementation
+ * A lazy Fuse.js index for static entities. Used by our search implementation
  * to allow the user to take actions from the search modal.
  */
-export const searchCommandIndex = new Lazy(() => {
-    const commands: Array<{text: string; commandId: SearchCommandId; command: SearchCommand}> = [];
+export const searchStaticEntityIndex = new Lazy(() => {
+    const entities: Array<{
+        text: string;
+        entityId: SearchStaticEntityId;
+        entity: SearchStaticEntity;
+    }> = [];
 
-    for (const [commandId, command] of Object.entries(searchCommandById)) {
-        commands.push({
-            text: command.title,
-            commandId: commandId as SearchCommandId,
-            command,
+    for (const [entityId, entity] of Object.entries(searchStaticEntityById)) {
+        entities.push({
+            text: entity.title,
+            entityId: entityId as SearchStaticEntityId,
+            entity,
         });
 
-        for (const otherHitText of command.otherHitTexts ?? []) {
-            commands.push({
+        for (const otherHitText of entity.otherHitTexts ?? []) {
+            entities.push({
                 text: otherHitText,
-                commandId: commandId as SearchCommandId,
-                command,
+                entityId: entityId as SearchStaticEntityId,
+                entity,
             });
         }
     }
 
-    return new Fuse(commands, {
+    return new Fuse(entities, {
         includeScore: true,
         // Must match more characters than "Create". Otherwise the user would see all
         // the create commands when typing "Create" all at once.

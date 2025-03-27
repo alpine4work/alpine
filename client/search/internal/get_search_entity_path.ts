@@ -4,27 +4,30 @@ import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {unsafelyGenerateStableChronologicalId} from "~/shared/id/chronological_id.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
-import {SearchResultId} from "~/shared/search/search_result.js";
+import {
+    SearchDynamicEntityIdObject,
+    SearchEntityId,
+    parseSearchDynamicEntityId,
+} from "~/shared/search/search_entity_id.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 
-export function getSearchResultDestinationPath({
+export function getSearchEntityPath({
     spaceId,
-    resultId,
+    entityId,
     randomSeed,
     currentTime,
     routeLayout,
 }: {
     spaceId: SpaceId;
-    resultId: SearchResultId;
+    entityId: SearchEntityId;
     randomSeed: string;
     currentTime: Date;
     routeLayout: RouteLayout;
 }): string {
-    const getStableRandom = () => new StableRandom(`getSearchResultDestinationPath:${randomSeed}`);
+    const getStableRandom = () => new StableRandom(`getSearchEntityPath:${randomSeed}`);
 
-    switch (resultId) {
+    switch (entityId) {
         case "CreateChatMessage": {
             return `/s/${spaceId}/chat/new`;
         }
@@ -33,7 +36,7 @@ export function getSearchResultDestinationPath({
             // result list.
             const draftId = unsafelyGenerateStableChronologicalId(
                 getStableRandom(),
-                resultId,
+                entityId,
                 currentTime.getTime(),
             );
 
@@ -42,14 +45,14 @@ export function getSearchResultDestinationPath({
         case "CreateChannel": {
             // Make sure we use the same `channelId` consistently for the current search
             // result list.
-            const channelId = unsafelyGenerateStableId(getStableRandom(), resultId);
+            const channelId = unsafelyGenerateStableId(getStableRandom(), entityId);
 
             return `/s/${spaceId}/channels/${channelId}?create&focus=none`;
         }
         case "CreateDocument": {
             // Make sure we use the same `documentId` consistently for the current search
             // result list.
-            const documentId = unsafelyGenerateStableId(getStableRandom(), resultId);
+            const documentId = unsafelyGenerateStableId(getStableRandom(), entityId);
 
             // Documents are only created once the user starts typing in them. The user
             // doesn't create a document every time they navigate to this search route.
@@ -58,7 +61,7 @@ export function getSearchResultDestinationPath({
         case "CreateTaskCollection": {
             // Make sure we use the same `collectionId` consistently for the current search
             // result list.
-            const collectionId = unsafelyGenerateStableId(getStableRandom(), resultId);
+            const collectionId = unsafelyGenerateStableId(getStableRandom(), entityId);
 
             return `/s/${spaceId}/tasks/collections/${collectionId}?create&focus=none`;
         }
@@ -68,7 +71,7 @@ export function getSearchResultDestinationPath({
         case "CreateTask": {
             // Make sure we use the same `taskId` consistently for the current search
             // result list.
-            const taskId = unsafelyGenerateStableId(getStableRandom(), resultId);
+            const taskId = unsafelyGenerateStableId(getStableRandom(), entityId);
 
             return `/s/${spaceId}/tasks/${taskId}?create`;
         }
@@ -185,15 +188,15 @@ export function getSearchResultDestinationPath({
             return `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
         }
         default: {
-            const entityIdObject = parseSearchEntityId(resultId);
-            return getSearchEntityPath(spaceId, entityIdObject, routeLayout);
+            const entityIdObject = parseSearchDynamicEntityId(entityId);
+            return getSearchDynamicEntityPath(spaceId, entityIdObject, routeLayout);
         }
     }
 }
 
-function getSearchEntityPath(
+function getSearchDynamicEntityPath(
     spaceId: SpaceId,
-    entityId: SearchEntityIdObject,
+    entityId: SearchDynamicEntityIdObject,
     routeLayout: RouteLayout,
 ): string {
     switch (entityId.type) {

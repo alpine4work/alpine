@@ -6,14 +6,14 @@ import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_out
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {getChatAndInitialMessages} from "~/server/chat/data/chat_table.js";
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {isSearchAffinityFavorite} from "~/server/search/data/table/search_entity_table.js";
+import {isSearchFavoriteAffinityEntity} from "~/server/search/data/table/search_entity_table.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
@@ -68,9 +68,9 @@ export async function loader({context: unauthenticatedContext, request, params}:
                   })
                 : null,
             chatPromiseResolver.promise.then(chat =>
-                isSearchAffinityFavorite(context, {
+                isSearchFavoriteAffinityEntity(context, {
                     spaceId,
-                    affinityId:
+                    entityId:
                         chat.accounts.length === 2
                             ? `Account:${
                                   chat.accounts.filter(
@@ -137,7 +137,7 @@ export default function ChatRoute() {
     //
     // By accruing points to the account we allow chat conversations to affect
     // account selector type-ahead affinity rankings.
-    useSearchAffinityViewInteraction(
+    useSearchAffinityViewEntityInteraction(
         currentAccount && chat.accounts.length === 2
             ? `Account:${chat.accounts.filter(account => account.id !== currentAccount.id)[0]!.id}`
             : `Chat:${chat.id}`,

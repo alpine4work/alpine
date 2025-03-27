@@ -5,8 +5,8 @@ import {pendingPromiseState} from "~/shared/helpers/async/promise_state.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {searchByKeywords, searchBySemantics} from "~/shared/rpc/search_rpc_definitions.js";
+import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
-import {SearchResult} from "~/shared/search/search_result.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {createPromiseStore} from "~/shared/store/promise_store.js";
 import {Store} from "~/shared/store/store.js";
@@ -22,7 +22,7 @@ import {ValueStore} from "~/shared/store/value_store.js";
  */
 // TODO(calebmer): Should consider implementing keyword search result infinite
 // loading someday. Not implementing now since I ran out of time in the cycle.
-const keywordSearchResultLimit = 30;
+const searchByKeywordLimit = 30;
 
 /**
  * The maximum number of semantic search results we look for. These search
@@ -35,7 +35,7 @@ const keywordSearchResultLimit = 30;
  * When paginating, we only load more keyword search results. Not new semantic
  * search results.
  */
-const semanticSearchResultLimit = 14;
+const searchBySemanticsLimit = 14;
 
 export type ExecuteSearchOutput =
     | {
@@ -52,7 +52,7 @@ export type ExecuteSearchOutput =
     | {
           readonly isPending: boolean;
           readonly isError: false;
-          readonly results: ReadonlyArray<SearchResult>;
+          readonly results: ReadonlyArray<SearchEntityResult>;
       };
 
 /**
@@ -126,7 +126,7 @@ export function executeSearch(
     const keywordSearchPromise = searchByKeywords(context, {
         spaceId,
         queryText,
-        limit: keywordSearchResultLimit,
+        limit: searchByKeywordLimit,
         timeZone,
         currentTime,
         debugOptions: debugOptions ?? undefined,
@@ -143,7 +143,7 @@ export function executeSearch(
             searchBySemantics(context, {
                 spaceId,
                 queryText,
-                limit: semanticSearchResultLimit,
+                limit: searchBySemanticsLimit,
                 timeZone,
                 currentTime,
                 debugOptions: debugOptions ?? undefined,
@@ -206,7 +206,7 @@ export function executeSearch(
                 semanticSearchState.value.results.map(result => [result.id, result]),
             );
 
-            const newResults: Array<SearchResult> = [];
+            const newResults: Array<SearchEntityResult> = [];
 
             let maxKeywordScore = -Infinity;
             let minKeywordScore = Infinity;

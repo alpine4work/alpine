@@ -11,7 +11,7 @@ import {
     searchByKeywords,
     searchTaskCollectionsByAffinity,
 } from "~/server/search/data/index/search_entity_index.js";
-import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
@@ -1799,49 +1799,49 @@ test("can get affinitive collections for an account", async () => {
     ]);
 
     for (let i = 0; i < 1; i++) {
-        await markSearchAffinityInteraction(session1.action(), {
+        await markSearchAffinityEntityInteraction(session1.action(), {
             spaceId: space.id,
-            affinityId: `TaskCollection:${collection1.id}`,
+            entityId: `TaskCollection:${collection1.id}`,
             interaction: {type: "MediumIntentUpdate"},
         });
     }
 
     for (let i = 0; i < 3; i++) {
-        await markSearchAffinityInteraction(session1.action(), {
+        await markSearchAffinityEntityInteraction(session1.action(), {
             spaceId: space.id,
-            affinityId: `TaskCollection:${collection2.id}`,
+            entityId: `TaskCollection:${collection2.id}`,
             interaction: {type: "MediumIntentUpdate"},
         });
     }
 
     for (let i = 0; i < 2; i++) {
-        await markSearchAffinityInteraction(session1.action(), {
+        await markSearchAffinityEntityInteraction(session1.action(), {
             spaceId: space.id,
-            affinityId: `TaskCollection:${collection3.id}`,
+            entityId: `TaskCollection:${collection3.id}`,
             interaction: {type: "MediumIntentUpdate"},
         });
     }
 
     for (let i = 0; i < 7; i++) {
-        await markSearchAffinityInteraction(session1.action(), {
+        await markSearchAffinityEntityInteraction(session1.action(), {
             spaceId: space.id,
-            affinityId: `TaskCollection:${collection4.id}`,
+            entityId: `TaskCollection:${collection4.id}`,
             interaction: {type: "MediumIntentUpdate"},
         });
     }
 
     for (let i = 0; i < 8; i++) {
-        await markSearchAffinityInteraction(session1.action(), {
+        await markSearchAffinityEntityInteraction(session1.action(), {
             spaceId: space.id,
-            affinityId: `TaskCollection:${collection5.id}`,
+            entityId: `TaskCollection:${collection5.id}`,
             interaction: {type: "MediumIntentUpdate"},
         });
     }
 
     for (let i = 0; i < 9; i++) {
-        await markSearchAffinityInteraction(session1.action(), {
+        await markSearchAffinityEntityInteraction(session1.action(), {
             spaceId: space.id,
-            affinityId: `TaskCollection:${collection6.id}`,
+            entityId: `TaskCollection:${collection6.id}`,
             interaction: {type: "MediumIntentUpdate"},
         });
     }
