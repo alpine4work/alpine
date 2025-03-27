@@ -1187,6 +1187,7 @@ function handleDraggingCellSelectionMouseDown(view: EditorView, startEvent: Mous
     if ((startEvent.target as HTMLElement).closest(`.${fileClassName}`)) {
         return false;
     }
+
     // Create and dispatch a cell selection between the given anchor and
     // the position under the mouse.
     function setCellSelection($anchor: ResolvedPos, event: MouseEvent): void {
