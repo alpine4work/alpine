@@ -1,61 +1,8 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 475bbd8642fc713f7bf3a9e20899f4e1cf923bfa..cc719f97064a05862ffcf77f207a945dff4ff99a 100644
+index 475bbd8642fc713f7bf3a9e20899f4e1cf923bfa..33c76906d70c99d16216884149c7ae702351d873 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
-@@ -36,7 +36,7 @@ var prosemirrorTransform = require('prosemirror-transform');
- 
- var classesById = Object.create(null);
- 
--var Selection = function () {
-+var Selection = (function () {
-   function Selection($anchor, $head, ranges) {
-     _classCallCheck(this, Selection);
- 
-@@ -191,7 +191,7 @@ var Selection = function () {
-   }]);
- 
-   return Selection;
--}();
-+})();
- 
- Selection.prototype.visible = true;
- 
-@@ -211,7 +211,7 @@ function checkTextSelection($pos) {
-   }
- }
- 
--var TextSelection = function (_Selection) {
-+var TextSelection = (function (_Selection) {
-   _inherits(TextSelection, _Selection);
- 
-   var _super = _createSuper(TextSelection);
-@@ -308,11 +308,11 @@ var TextSelection = function (_Selection) {
-   }]);
- 
-   return TextSelection;
--}(Selection);
-+})(Selection);
- 
- Selection.jsonID("text", TextSelection);
- 
--var TextBookmark = function () {
-+var TextBookmark = (function () {
-   function TextBookmark(anchor, head) {
-     _classCallCheck(this, TextBookmark);
- 
-@@ -333,9 +333,9 @@ var TextBookmark = function () {
-   }]);
- 
-   return TextBookmark;
--}();
-+})();
- 
--var NodeSelection = function (_Selection2) {
-+var NodeSelection = (function (_Selection2) {
-   _inherits(NodeSelection, _Selection2);
- 
-   var _super2 = _createSuper(NodeSelection);
-@@ -386,6 +386,33 @@ var NodeSelection = function (_Selection2) {
+@@ -386,6 +386,39 @@ var NodeSelection = function (_Selection2) {
      value: function getBookmark() {
        return new NodeBookmark(this.anchor);
      }
@@ -72,16 +19,22 @@ index 475bbd8642fc713f7bf3a9e20899f4e1cf923bfa..cc719f97064a05862ffcf77f207a945d
 +      // `tr.deleteSelection()` is called at a framework level in `prosemirror-view`.
 +      // Not just in keymap backspace/delete handlers.
 +      if (
-+        !content.size &&
-+        this.node.type.name === "file" &&
-+        (this.$anchor.parent.type.name === "fileRow" || this.$anchor.parent.type.name === "fileFloat" || this.$anchor.parent.type.name === "fileRowTable") &&
-+        this.$anchor.parent.childCount === 1
++          !content.size &&
++          this.node.type.name === "file" &&
++          (this.$anchor.parent.type.name === "fileRow" ||
++              this.$anchor.parent.type.name === "fileFloat" ||
++              this.$anchor.parent.type.name === "fileRowTable") &&
++          this.$anchor.parent.childCount === 1
 +      ) {
-+        const mapFrom = tr.steps.length;
-+        const mapping = tr.mapping.slice(mapFrom);
-+        tr.replaceRange(mapping.map(this.$anchor.before()), mapping.map(this.$anchor.after()), content);
-+        selectionToInsertionEnd(tr, mapFrom, 1);
-+        return;
++          let mapFrom = tr.steps.length;
++          let mapping = tr.mapping.slice(mapFrom);
++          tr.replaceRange(
++              mapping.map(this.$anchor.before()),
++              mapping.map(this.$anchor.after()),
++              content,
++          );
++          selectionToInsertionEnd(tr, mapFrom, 1);
++          return;
 +      }
 +
 +      _get(_getPrototypeOf(NodeSelection.prototype), "replace", this).call(this, tr, content);
@@ -89,119 +42,11 @@ index 475bbd8642fc713f7bf3a9e20899f4e1cf923bfa..cc719f97064a05862ffcf77f207a945d
    }], [{
      key: "fromJSON",
      value: function fromJSON(doc, json) {
-@@ -405,12 +432,12 @@ var NodeSelection = function (_Selection2) {
-   }]);
- 
-   return NodeSelection;
--}(Selection);
-+})(Selection);
- 
- NodeSelection.prototype.visible = false;
- Selection.jsonID("node", NodeSelection);
- 
--var NodeBookmark = function () {
-+var NodeBookmark = (function () {
-   function NodeBookmark(anchor) {
-     _classCallCheck(this, NodeBookmark);
- 
-@@ -437,9 +464,9 @@ var NodeBookmark = function () {
-   }]);
- 
-   return NodeBookmark;
--}();
-+})();
- 
--var AllSelection = function (_Selection3) {
-+var AllSelection = (function (_Selection3) {
-   _inherits(AllSelection, _Selection3);
- 
-   var _super3 = _createSuper(AllSelection);
-@@ -493,7 +520,7 @@ var AllSelection = function (_Selection3) {
-   }]);
- 
-   return AllSelection;
--}(Selection);
-+})(Selection);
- 
- Selection.jsonID("all", AllSelection);
- var AllBookmark = {
-@@ -542,7 +569,7 @@ var UPDATED_SEL = 1,
-     UPDATED_MARKS = 2,
-     UPDATED_SCROLL = 4;
- 
--var Transaction = function (_prosemirrorTransform) {
-+var Transaction = (function (_prosemirrorTransform) {
-   _inherits(Transaction, _prosemirrorTransform);
- 
-   var _super4 = _createSuper(Transaction);
-@@ -708,7 +735,7 @@ var Transaction = function (_prosemirrorTransform) {
-   }]);
- 
-   return Transaction;
--}(prosemirrorTransform.Transform);
-+})(prosemirrorTransform.Transform);
- 
- function bind(f, self) {
-   return !self || !f ? f : f.bind(self);
-@@ -771,7 +798,7 @@ var Configuration = _createClass(function Configuration(schema, plugins) {
-   });
- });
- 
--var EditorState = function () {
-+var EditorState = (function () {
-   function EditorState(config) {
-     _classCallCheck(this, EditorState);
- 
-@@ -959,7 +986,7 @@ var EditorState = function () {
-   }]);
- 
-   return EditorState;
--}();
-+})();
- 
- function bindProps(obj, self, target) {
-   for (var prop in obj) {
-@@ -971,7 +998,7 @@ function bindProps(obj, self, target) {
-   return target;
- }
- 
--var Plugin = function () {
-+var Plugin = (function () {
-   function Plugin(spec) {
-     _classCallCheck(this, Plugin);
- 
-@@ -989,7 +1016,7 @@ var Plugin = function () {
-   }]);
- 
-   return Plugin;
--}();
-+})();
- 
- var keys = Object.create(null);
- 
-@@ -999,7 +1026,7 @@ function createKey(name) {
-   return name + "$";
- }
- 
--var PluginKey = function () {
-+var PluginKey = (function () {
-   function PluginKey() {
-     var name = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : "key";
- 
-@@ -1021,7 +1048,7 @@ var PluginKey = function () {
-   }]);
- 
-   return PluginKey;
--}();
-+})();
- 
- exports.AllSelection = AllSelection;
- exports.EditorState = EditorState;
 diff --git a/dist/index.js b/dist/index.js
-index 4e31ea63142d7cd3fe570b499c8cb160023531af..c386c72b92fc455f28be22223c54e1f6c0820823 100644
+index 4e31ea63142d7cd3fe570b499c8cb160023531af..f39be9c8bf817bd44048e3e4a8a46ed7e26927f2 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -381,6 +381,29 @@ class NodeSelection extends Selection {
+@@ -381,6 +381,35 @@ class NodeSelection extends Selection {
      static isSelectable(node) {
          return !node.isText && node.type.spec.selectable !== false;
      }
@@ -216,12 +61,18 @@ index 4e31ea63142d7cd3fe570b499c8cb160023531af..c386c72b92fc455f28be22223c54e1f6
 +        if (
 +            !content.size &&
 +            this.node.type.name === "file" &&
-+            (this.$anchor.parent.type.name === "fileRow" || this.$anchor.parent.type.name === "fileFloat" || this.$anchor.parent.type.name === "fileRowTable") &&
++            (this.$anchor.parent.type.name === "fileRow" ||
++                this.$anchor.parent.type.name === "fileFloat" ||
++                this.$anchor.parent.type.name === "fileRowTable") &&
 +            this.$anchor.parent.childCount === 1
 +        ) {
 +            let mapFrom = tr.steps.length;
 +            let mapping = tr.mapping.slice(mapFrom);
-+            tr.replaceRange(mapping.map(this.$anchor.before()), mapping.map(this.$anchor.after()), content);
++            tr.replaceRange(
++                mapping.map(this.$anchor.before()),
++                mapping.map(this.$anchor.after()),
++                content,
++            );
 +            selectionToInsertionEnd(tr, mapFrom, 1);
 +            return;
 +        }
@@ -232,10 +83,10 @@ index 4e31ea63142d7cd3fe570b499c8cb160023531af..c386c72b92fc455f28be22223c54e1f6
  NodeSelection.prototype.visible = false;
  Selection.jsonID("node", NodeSelection);
 diff --git a/src/selection.ts b/src/selection.ts
-index c0ff60847f94c5ac8f6cb654780cf9e81bf372d8..08419e01f09b2635ed3f2c7ede845a478fedad05 100644
+index c0ff60847f94c5ac8f6cb654780cf9e81bf372d8..d434a6635c63855e9c13c0eecf649874f389cce5 100644
 --- a/src/selection.ts
 +++ b/src/selection.ts
-@@ -373,6 +373,30 @@ export class NodeSelection extends Selection {
+@@ -373,6 +373,36 @@ export class NodeSelection extends Selection {
    static isSelectable(node: Node) {
      return !node.isText && node.type.spec.selectable !== false
    }
@@ -249,16 +100,22 @@ index c0ff60847f94c5ac8f6cb654780cf9e81bf372d8..08419e01f09b2635ed3f2c7ede845a47
 +    // `tr.deleteSelection()` is called at a framework level in `prosemirror-view`.
 +    // Not just in keymap backspace/delete handlers.
 +    if (
-+      !content.size &&
-+      this.node.type.name === "file" &&
-+      (this.$anchor.parent.type.name === "fileRow" || this.$anchor.parent.type.name === "fileFloat" || this.$anchor.parent.type.name === "fileRowTable") &&
-+      this.$anchor.parent.childCount === 1
++        !content.size &&
++        this.node.type.name === "file" &&
++        (this.$anchor.parent.type.name === "fileRow" ||
++            this.$anchor.parent.type.name === "fileFloat" ||
++            this.$anchor.parent.type.name === "fileRowTable") &&
++        this.$anchor.parent.childCount === 1
 +    ) {
-+      let mapFrom = tr.steps.length
-+      let mapping = tr.mapping.slice(mapFrom)
-+      tr.replaceRange(mapping.map(this.$anchor.before()), mapping.map(this.$anchor.after()), content)
-+      selectionToInsertionEnd(tr, mapFrom, 1)
-+      return
++        let mapFrom = tr.steps.length;
++        let mapping = tr.mapping.slice(mapFrom);
++        tr.replaceRange(
++            mapping.map(this.$anchor.before()),
++            mapping.map(this.$anchor.after()),
++            content,
++        );
++        selectionToInsertionEnd(tr, mapFrom, 1);
++        return;
 +    }
 +
 +    super.replace(tr, content)
