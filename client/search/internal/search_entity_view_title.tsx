@@ -16,7 +16,7 @@ import {contentStyles, searchStyles} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {SearchEntityMediaModel} from "~/shared/search/search_entity_result.js";
+import {SearchEntityMediaModel} from "~/shared/search/search_entity_media_model.js";
 
 export function SearchEntityViewTitle({
     typeDisplay,

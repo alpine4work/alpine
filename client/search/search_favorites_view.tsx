@@ -31,6 +31,7 @@ import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_opt
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {searchFavoriteEntityIconColor} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
@@ -41,6 +42,7 @@ import {SpaceRouteScrollView} from "~/client/spaces/layout/space_route_scroll_vi
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
+    searchAffinityEntityViewMinHeightPx,
     searchEntityViewDefaultPaddingX,
     searchEntityViewMediaSize,
     searchEntityViewTitleTypeDisplayGap,
@@ -64,10 +66,10 @@ import {
     moveSearchFavoriteEntity,
     unfavoriteSearchEntity,
 } from "~/shared/rpc/search_rpc_definitions.js";
+import {updateSpaceAccountSettings} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {SearchFavoriteEntityResult} from "~/shared/search/search_affinity_entity_result.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
-
-const searchShortcutFavoriteEntityMaxCount = 5;
+import {searchShortcutFavoriteEntityMaxCount} from "~/shared/spaces/space_account_settings.js";
 
 const searchFavoriteEntitiesTitleStarIconSize = "5";
 const searchFavoriteEntitiesTitleStarMarginX = `${
@@ -82,8 +84,10 @@ const screenPaddingXWithoutSearchEntityViewPaddingX = mapObjectValues(
 );
 
 export function SearchFavoritesView({
+    initialShortcutFavoriteEntityCount,
     initialResults,
 }: {
+    initialShortcutFavoriteEntityCount: number;
     initialResults: ReadonlyArray<SearchFavoriteEntityResult>;
 }) {
     const platform = usePlatform();
@@ -94,6 +98,9 @@ export function SearchFavoritesView({
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
 
     const maxWidth = routeLayout !== "narrow" ? peekNarrowLayoutWidth : undefined;
+
+    const [shortcutFavoriteEntityCount, , updateShortcutFavoriteEntityCountOptimistically] =
+        useStateWithOptimisticUpdates(initialShortcutFavoriteEntityCount);
 
     const [results, updateResults, updateResultsOptimistically] =
         useStateWithOptimisticUpdates(initialResults);
@@ -142,7 +149,7 @@ export function SearchFavoritesView({
 
     const sensors = useSensors(pointerSensor, keyboardSensor);
 
-    const foldDividerIndex = Math.min(2, results.length - 1);
+    const foldDividerIndex = Math.min(shortcutFavoriteEntityCount - 1, results.length - 1);
 
     return (
         <SpaceRouteScrollView
@@ -192,11 +199,36 @@ export function SearchFavoritesView({
                         const {active, over} = event;
                         if (!over || active.id === over.id) return;
 
+                        if (active.id === "FoldDivider") {
+                            let overIndex = results.findIndex(result => result.id === over.id);
+                            if (overIndex > foldDividerIndex) overIndex++;
+                            overIndex = Math.min(overIndex, searchShortcutFavoriteEntityMaxCount);
+
+                            const movePromise = updateSpaceAccountSettings(context, {
+                                spaceId: space.id,
+                                update: {searchShortcutFavoriteEntityCount: overIndex},
+                            });
+
+                            // 1. Show an error if the update fails.
+                            movePromise.catch(error => {
+                                reporter.displayError("Couldn’t move shortcut divider", error);
+                            });
+
+                            // 2. Show a loading indicator if the update takes a while (this will also stop
+                            //    the user from closing the browser).
+                            addGlobalLoadingIndicator(movePromise, {type: "Saving"});
+
+                            // 3. Optimistically update our `results` state. Will revert the update if the
+                            //    promise rejects.
+                            updateShortcutFavoriteEntityCountOptimistically(
+                                movePromise,
+                                () => overIndex,
+                            );
+                            return;
+                        }
+
                         const activeIndex = results.findIndex(result => result.id === active.id);
-                        const overIndex =
-                            over.id === "FoldDivider"
-                                ? foldDividerIndex
-                                : results.findIndex(result => result.id === over.id);
+                        const overIndex = results.findIndex(result => result.id === over.id);
                         assert(activeIndex >= 0);
                         assert(overIndex >= 0);
 
@@ -284,6 +316,9 @@ function SearchFavoritesViewInner({
     const sortableIds = useMemo(() => {
         const sortableIds: Array<string> = [];
 
+        if (dndContext.active?.id === "FoldDivider" && foldDividerIndex === -1)
+            sortableIds.push("FoldDivider");
+
         for (let index = 0; index < results.length; index++) {
             const result = results[index]!;
             sortableIds.push(result.id);
@@ -322,6 +357,7 @@ function SearchFavoritesViewInner({
             )}
         >
             <SearchFavoritesViewDragPortals randomSeed={randomSeed} results={results} />
+            {foldDividerIndex === -1 && <SearchFavoritesViewFoldDivider />}
             {results.map((result, index) => (
                 <Fragment key={result.id}>
                     <SearchFavoritesViewItem
@@ -431,6 +467,7 @@ function SearchFavoritesViewItem({
         transform: sortableTransform,
         transition: sortableTransition,
         isDragging,
+        active: dndContextActive,
     } = useSortable({
         id: result.id,
         disabled: isDragOverlay,
@@ -572,10 +609,11 @@ function SearchFavoritesViewItem({
                     borderRadius={routeLayout !== "narrow" ? "1.5" : undefined}
                     opacity={isDragging ? "0" : undefined}
                     style={{
-                        transform: sortableTransform
-                            ? `translate(${sortableTransform.x}px, ${sortableTransform.y}px)`
-                            : undefined,
-                        transition: sortableTransition,
+                        transform:
+                            dndContextActive && sortableTransform
+                                ? `translate(${sortableTransform.x}px, ${sortableTransform.y}px)`
+                                : undefined,
+                        transition: dndContextActive ? sortableTransition : undefined,
                     }}
                 >
                     <SearchAffinityEntityView
@@ -591,6 +629,7 @@ function SearchFavoritesViewItem({
 }
 
 function SearchFavoritesViewFoldDivider({isDragOverlay}: {isDragOverlay?: boolean}) {
+    const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const dndContext = useDndContext();
 
@@ -629,10 +668,12 @@ function SearchFavoritesViewFoldDivider({isDragOverlay}: {isDragOverlay?: boolea
     return (
         <Box
             ref={setSortableNodeRef}
-            paddingY="1"
+            display="flex"
+            alignItems="center"
             paddingX={routeLayout !== "narrow" ? searchEntityViewDefaultPaddingX : screenPaddingX}
+            style={{height: searchAffinityEntityViewMinHeightPx[spacingScale]}}
         >
-            <FocusRing isDisabled={isDragging || isDragOverlay} offset="0.5" insetY="4">
+            <FocusRing isDisabled={isDragging || isDragOverlay} offset="0.5" insetY="3">
                 <Box
                     {...mergeProps(sortableAttributes, sortableListeners, {
                         onPointerDown: () => {
@@ -643,13 +684,14 @@ function SearchFavoritesViewFoldDivider({isDragOverlay}: {isDragOverlay?: boolea
                         onPointerOut: () => setIsPointerDown(false),
                         onPointerCancel: () => setIsPointerDown(false),
                     })}
+                    width="full"
+                    paddingY="3"
                     cursor={isPointerDown ? "grabbing" : "grab"}
-                    paddingY="4"
                     opacity={isDragging ? "0" : undefined}
                 >
                     <Box
                         position="relative"
-                        zIndex="10"
+                        zIndex="-10"
                         width="full"
                         height="border"
                         style={{

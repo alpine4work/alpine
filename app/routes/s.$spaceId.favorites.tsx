@@ -4,23 +4,30 @@ import {SearchFavoritesView} from "~/client/search/search_favorites_view.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAllSearchFavoriteEntities} from "~/server/search/data/index/search_entity_index.js";
+import {getSpaceAccountSettings} from "~/server/spaces/spaces_table.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchFavoriteEntityResultSchema} from "~/shared/search/search_affinity_entity_result.js";
 
 const LoaderSchema = Schema.object({
+    shortcutFavoriteEntityCount: Schema.integer,
     results: Schema.array(SearchFavoriteEntityResultSchema),
 });
 
-export async function loader({context, params}: LoaderArgs) {
+export async function loader({context: unauthenticatedContext, params}: LoaderArgs) {
+    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? "");
 
-    const results = await getAllSearchFavoriteEntities(
-        (await context.actor.authenticate()).actor.authorizeSession(),
-        spaceId,
-    );
+    const [settings, results] = await runAllPromises([
+        getSpaceAccountSettings(context, spaceId),
+        getAllSearchFavoriteEntities(context, spaceId),
+    ]);
 
-    return jsonWithSchema(LoaderSchema, {results});
+    return jsonWithSchema(LoaderSchema, {
+        shortcutFavoriteEntityCount: settings.searchShortcutFavoriteEntityCount,
+        results,
+    });
 }
 
 export function meta() {
@@ -28,7 +35,15 @@ export function meta() {
 }
 
 export default function FavoritesRoute() {
-    const {results: initialResults} = useLoaderDataWithSchema(LoaderSchema);
+    const {
+        shortcutFavoriteEntityCount: initialShortcutFavoriteEntityCount,
+        results: initialResults,
+    } = useLoaderDataWithSchema(LoaderSchema);
 
-    return <SearchFavoritesView initialResults={initialResults} />;
+    return (
+        <SearchFavoritesView
+            initialShortcutFavoriteEntityCount={initialShortcutFavoriteEntityCount}
+            initialResults={initialResults}
+        />
+    );
 }

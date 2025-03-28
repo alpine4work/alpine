@@ -8,6 +8,7 @@ import {
     getOurAccountSpaceIds,
     getSpaceIfPossible,
     removeSpaceAccountAsAdmin,
+    updateSpaceAccountSettings,
 } from "~/server/spaces/spaces_table.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -106,6 +107,18 @@ export default implementRpcs(definitions, {
                     return {space, inbox};
                 }),
             };
+        },
+    },
+
+    updateSpaceAccountSettings: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await updateSpaceAccountSettings(
+                context.actor.authorizeSession(),
+                input.spaceId,
+                input.update,
+            );
+            return {};
         },
     },
 });

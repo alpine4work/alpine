@@ -67,4 +67,11 @@ export const searchEntityViewMinHeightPx = createObjectFromKeys(
         convertRemLengthToPx(searchEntityViewPaddingY, spacingScale) * 2,
 );
 
+export const searchAffinityEntityViewMinHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        contentStyles.paragraphLineHeightPx[spacingScale] +
+        convertRemLengthToPx(searchEntityViewPaddingY, spacingScale) * 2,
+);
+
 export const searchEntityViewTitleTypeDisplayGap = "1.5";

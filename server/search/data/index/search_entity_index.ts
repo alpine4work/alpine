@@ -62,6 +62,7 @@ import {
     authorizeSpaceAccess,
     getAccount,
     getSpaceAccountNameSearchIndex,
+    getSpaceAccountSettings,
 } from "~/server/spaces/spaces_table.js";
 import {
     getTaskCollectionSearchResultBodyTextSnippetIfPossible,
@@ -115,6 +116,7 @@ import {SearchEntityMediaModel} from "~/shared/search/search_entity_media_model.
 import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
 import {searchStaticEntityById} from "~/shared/search/search_static_entity.js";
+import {searchShortcutFavoriteEntityMaxCount} from "~/shared/spaces/space_account_settings.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
@@ -1722,25 +1724,25 @@ export async function searchByAffinity(
     // the entire input to the RPC.
     const limit = 30;
 
-    const favoritesLimit = 5;
+    // Get double the max number of favorites we need in case some aren't visible
+    // due to not being accessible anymore (e.g. they were deleted or their access
+    // policy changed).
+    const favoritesLimit = searchShortcutFavoriteEntityMaxCount * 2;
 
-    const [entities, favoriteEntities] = await runAllPromises([
+    const [entities, favoriteEntities, settings] = await runAllPromises([
         internalGetSearchAffinityEntities(context, {spaceId, limit}),
         internalGetSearchFavoriteEntities(context, {
             spaceId,
-            // Get double the number of favorites we need in case some aren't visible due
-            // to not being accessible anymore (e.g. they were deleted or their access
-            // policy changed).
-            limit: favoritesLimit * 2 + 1,
+            // Get one more than `favoritesLimit` for determining if
+            // `hasMoreFavoriteResults` should be true.
+            limit: favoritesLimit + 1,
         }),
+        getSpaceAccountSettings(context, spaceId),
     ]);
 
     const dynamicEntityIds = new Set<SearchDynamicEntityId>();
 
-    // Only iterate to `favoritesLimit * 2` instead of `favoritesLimit * 2 + 1`
-    // because the extra 1 favorite is for telling if there are more favorites
-    // (see `hasMoreFavoriteResults`).
-    for (let i = 0; i < Math.min(favoriteEntities.length, favoritesLimit * 2); i++) {
+    for (let i = 0; i < Math.min(favoriteEntities.length, favoritesLimit); i++) {
         const favoriteEntity = favoriteEntities[i]!;
         if (favoriteEntity.entityId !== "TaskPersonal") {
             dynamicEntityIds.add(favoriteEntity.entityId);
@@ -1769,22 +1771,17 @@ export async function searchByAffinity(
         }
     }
 
-    let hasMoreFavoriteResults = favoriteEntities.length > favoritesLimit * 2;
+    let hasMoreFavoriteResults = favoriteEntities.length > favoritesLimit;
     const favoriteResultById = new Map<
         SearchAffinityEntityId,
         Replace<SearchFavoriteEntityResult, {score: number}>
     >();
     const results: Array<SearchAffinityEntityResult> = [];
 
-    // Only iterate to `favoritesLimit * 2` instead of `favoritesLimit * 2 + 1`
-    // because the extra 1 favorite is for telling if there are more favorites
-    // (see `hasMoreFavoriteEntities`).
-    for (let i = 0; i < Math.min(favoriteEntities.length, favoritesLimit * 2); i++) {
+    for (let i = 0; i < Math.min(favoriteEntities.length, favoritesLimit); i++) {
         const favoriteEntity = favoriteEntities[i]!;
 
-        // Only add favorites up to `favoritesLimit`. We fetch more favorites than
-        // `favoritesLimit` in case some favorites are no longer accessible.
-        if (favoriteResultById.size >= favoritesLimit) {
+        if (favoriteResultById.size >= settings.searchShortcutFavoriteEntityCount) {
             if (favoriteEntity.entityId === "TaskPersonal") {
                 hasMoreFavoriteResults = true;
                 break;

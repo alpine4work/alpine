@@ -12,6 +12,7 @@ import {
 } from "~/client/search/internal/execute_search.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {InternalError} from "~/shared/error/error.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -582,11 +583,11 @@ function createSearchStateExecution({
                 key,
                 queryText: "",
                 queryTime,
-                isPending: true,
+                isPending: false,
                 isError: false,
                 hasMoreFavoriteResults: false,
-                favoriteResults: null,
-                results: null,
+                favoriteResults: emptyArray,
+                results: emptyArray,
             }),
             {
                 queryText,

@@ -62,6 +62,10 @@ import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {
+    SpaceAccountSettings,
+    SpaceAccountSettingsSchema,
+} from "~/shared/spaces/space_account_settings.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 // Node.js ESM interop (#node-esm-migration)
@@ -153,6 +157,39 @@ const SpacesTable = DynamoTableSchema.new({
                             .nullable()
                             .default(null),
                     }),
+                },
+
+                /**
+                 * Represents secondary information for an account that's a member of this
+                 * space.
+                 *
+                 * The `Account` item is the primary, canonical, item which we use for
+                 * determining whether an account is a member of the space (critical for
+                 * authorization!). Information in the primary `Account` item goes into
+                 * `AccountModel` which is shared to the client whenever an `AccountId` is
+                 * referenced. It's important for performance that the primary `Account` item
+                 * stays small and only contains critical data.
+                 *
+                 * This item contains secondary information associated with the space account
+                 * we don't need to load in hot code paths (thus reducing the number of RCUs we
+                 * spend loading the space account list). As a rule of thumb, put information
+                 * in the primary `Account` item if it's needed for:
+                 *
+                 * - Authorization
+                 * - `AccountModel`, which is used for:
+                 *     - Rendering account mentions
+                 *     - Rendering `<AccountAvatar>`
+                 *     - Rendering an account tooltip preview
+                 *
+                 * Anything else goes into this secondary item. A secondary item may not exist
+                 * when a primary item exists. We only create this secondary item if needed.
+                 */
+                {
+                    name: "AccountSettings",
+                    sortKeyAttributes: {
+                        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+                    },
+                    attributes: SpaceAccountSettingsSchema,
                 },
             ],
         },
@@ -1509,6 +1546,57 @@ export async function getAccount(
     const account = await getAccountIfExists(context, spaceId, accountId, options);
     if (!account) throw new NotFoundError("Can't find account in space");
     return account;
+}
+
+/**
+ * Get the space account settings for the actor in the provided space.
+ */
+export async function getSpaceAccountSettings(
+    context: ServerSessionActionContext,
+    spaceId: SpaceId,
+): Promise<SpaceAccountSettings> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    const item = await SpacesTable.getItemIfExists(context, {
+        partitionType: "Space",
+        sortRangeType: "AccountSettings",
+        spaceId,
+        accountId: context.actor.getAccountId(),
+    });
+
+    return item ?? SpaceAccountSettingsSchema.deserialize({});
+}
+
+/**
+ * Update some space account settings for the actor in the provided space.
+ */
+export async function updateSpaceAccountSettings(
+    context: ServerSessionActionContext,
+    spaceId: SpaceId,
+    update: Partial<SpaceAccountSettings>,
+) {
+    await authorizeSpaceAccess(context, spaceId);
+
+    await SpacesTable.updateItem(
+        context,
+        {
+            partitionType: "Space",
+            sortRangeType: "AccountSettings",
+            spaceId,
+            accountId: context.actor.getAccountId(),
+        },
+        item => {
+            item ??= {
+                partitionType: "Space",
+                sortRangeType: "AccountSettings",
+                spaceId,
+                accountId: context.actor.getAccountId(),
+                ...SpaceAccountSettingsSchema.deserialize({}),
+            };
+
+            return {...item, ...update};
+        },
+    );
 }
 
 /**
