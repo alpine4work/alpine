@@ -149,7 +149,7 @@ export function SearchFavoritesView({
 
     const sensors = useSensors(pointerSensor, keyboardSensor);
 
-    const foldDividerIndex = Math.min(shortcutFavoriteEntityCount - 1, results.length - 1);
+    const shortcutDividerIndex = Math.min(shortcutFavoriteEntityCount - 1, results.length - 1);
 
     return (
         <SpaceRouteScrollView
@@ -199,9 +199,9 @@ export function SearchFavoritesView({
                         const {active, over} = event;
                         if (!over || active.id === over.id) return;
 
-                        if (active.id === "FoldDivider") {
+                        if (active.id === "ShortcutDivider") {
                             let overIndex = results.findIndex(result => result.id === over.id);
-                            if (overIndex > foldDividerIndex) overIndex++;
+                            if (overIndex > shortcutDividerIndex) overIndex++;
                             overIndex = Math.min(overIndex, searchShortcutFavoriteEntityMaxCount);
 
                             const movePromise = updateSpaceAccountSettings(context, {
@@ -285,7 +285,7 @@ export function SearchFavoritesView({
                     }}
                 >
                     <SearchFavoritesViewInner
-                        foldDividerIndex={foldDividerIndex}
+                        shortcutDividerIndex={shortcutDividerIndex}
                         results={results}
                         updateResults={updateResults}
                     />
@@ -298,7 +298,7 @@ export function SearchFavoritesView({
 function SearchFavoritesViewInner({
     results,
     updateResults,
-    foldDividerIndex,
+    shortcutDividerIndex,
 }: {
     results: ReadonlyArray<SearchFavoriteEntityResult>;
     updateResults: (
@@ -306,7 +306,7 @@ function SearchFavoritesViewInner({
             value: ReadonlyArray<SearchFavoriteEntityResult>,
         ) => ReadonlyArray<SearchFavoriteEntityResult>,
     ) => void;
-    foldDividerIndex: number;
+    shortcutDividerIndex: number;
 }) {
     const initialAppRenderId = useInitialAppRenderId();
     const dndContext = useDndContext();
@@ -316,22 +316,22 @@ function SearchFavoritesViewInner({
     const sortableIds = useMemo(() => {
         const sortableIds: Array<string> = [];
 
-        if (dndContext.active?.id === "FoldDivider" && foldDividerIndex === -1)
-            sortableIds.push("FoldDivider");
+        if (dndContext.active?.id === "ShortcutDivider" && shortcutDividerIndex === -1)
+            sortableIds.push("ShortcutDivider");
 
         for (let index = 0; index < results.length; index++) {
             const result = results[index]!;
             sortableIds.push(result.id);
 
-            // Only allow sorting `FoldDivider` if we're actively dragging `FoldDivider`.
+            // Only allow sorting `ShortcutDivider` if we're actively dragging `ShortcutDivider`.
             // Otherwise it should stay in the same position while other items move
             // around it.
-            if (dndContext.active?.id === "FoldDivider" && index === foldDividerIndex)
-                sortableIds.push("FoldDivider");
+            if (dndContext.active?.id === "ShortcutDivider" && index === shortcutDividerIndex)
+                sortableIds.push("ShortcutDivider");
         }
 
         return sortableIds;
-    }, [dndContext.active?.id, foldDividerIndex, results]);
+    }, [dndContext.active?.id, shortcutDividerIndex, results]);
 
     return (
         <SortableContext
@@ -340,8 +340,8 @@ function SearchFavoritesViewInner({
                 (options: Parameters<SortingStrategy>[0]) => {
                     const activeId = sortableIds[options.activeIndex];
 
-                    // Don't allow `FoldDivider` to be dragged below more than the max entity count.
-                    if (activeId === "FoldDivider") {
+                    // Don't allow `ShortcutDivider` to be dragged below more than the max entity count.
+                    if (activeId === "ShortcutDivider") {
                         return rectSortingStrategy({
                             ...options,
                             overIndex: Math.min(
@@ -357,7 +357,7 @@ function SearchFavoritesViewInner({
             )}
         >
             <SearchFavoritesViewDragPortals randomSeed={randomSeed} results={results} />
-            {foldDividerIndex === -1 && <SearchFavoritesViewFoldDivider />}
+            {shortcutDividerIndex === -1 && <SearchFavoritesViewShortcutDivider />}
             {results.map((result, index) => (
                 <Fragment key={result.id}>
                     <SearchFavoritesViewItem
@@ -369,7 +369,7 @@ function SearchFavoritesViewInner({
                             );
                         }}
                     />
-                    {index === foldDividerIndex && <SearchFavoritesViewFoldDivider />}
+                    {index === shortcutDividerIndex && <SearchFavoritesViewShortcutDivider />}
                 </Fragment>
             ))}
         </SortableContext>
@@ -390,7 +390,7 @@ function SearchFavoritesViewDragPortals({
 
     const activeResult = useMemo(
         () =>
-            active && active.id !== "FoldDivider"
+            active && active.id !== "ShortcutDivider"
                 ? assertExists(results.find(result => result.id === active.id))
                 : null,
         [active, results],
@@ -415,14 +415,14 @@ function SearchFavoritesViewDragPortals({
                     </DragOverlay>,
                     document.body,
                 )}
-            {active?.id === "FoldDivider" &&
+            {active?.id === "ShortcutDivider" &&
                 createPortal(
                     <DragOverlay
                         zIndex={70}
-                        // Only let fold divider move on the Y axis. Not on the X axis.
+                        // Only let shortcut divider move on the Y axis. Not on the X axis.
                         modifiers={[({transform}) => ({...transform, x: 0})]}
                     >
-                        <SearchFavoritesViewFoldDivider isDragOverlay={true} />
+                        <SearchFavoritesViewShortcutDivider isDragOverlay={true} />
                     </DragOverlay>,
                     document.body,
                 )}
@@ -628,7 +628,7 @@ function SearchFavoritesViewItem({
     );
 }
 
-function SearchFavoritesViewFoldDivider({isDragOverlay}: {isDragOverlay?: boolean}) {
+function SearchFavoritesViewShortcutDivider({isDragOverlay}: {isDragOverlay?: boolean}) {
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const dndContext = useDndContext();
@@ -641,18 +641,19 @@ function SearchFavoritesViewFoldDivider({isDragOverlay}: {isDragOverlay?: boolea
         transition: sortableTransition,
         isDragging,
     } = useSortable({
-        id: "FoldDivider",
+        id: "ShortcutDivider",
         disabled: {
             draggable: isDragOverlay,
-            // Only allow sorting `FoldDivider` if we're actively dragging `FoldDivider`.
+            // Only allow sorting `ShortcutDivider` if we're actively dragging `ShortcutDivider`.
             // Otherwise it should stay in the same position while other items move
             // around it.
-            droppable: dndContext.active?.id !== "FoldDivider",
+            droppable: dndContext.active?.id !== "ShortcutDivider",
         },
     });
 
-    // We intentionally aren't animating the fold divider's position. The fold
-    // divider stays at the same index even when items around it are moving.
+    // We intentionally aren't animating the shortcut divider's position. The
+    // shortcut divider stays at the same index even when items around it are
+    // moving.
     //
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     sortableTransform;
