@@ -58,7 +58,8 @@ type SearchEntityIdAxes = {
             | "TaskQueryFilteredToCreatorIsCurrentAccount"
             | "TaskQueryFilteredToAssigneeIsCurrentAccount"
             | "TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive"
-            | "TaskQueryFilteredToAssignerIsCurrentAccount";
+            | "TaskQueryFilteredToAssignerIsCurrentAccount"
+            | "SearchFavorites";
     };
 };
 

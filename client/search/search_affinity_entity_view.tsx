@@ -31,7 +31,7 @@ export function SearchAffinityEntityView({
             }}
         >
             <SearchEntityViewTitle
-                typeDisplay={typeDisplay}
+                icon={typeDisplay.icon}
                 title={result.title}
                 media={result.media}
                 lineClamp={lineClamp}

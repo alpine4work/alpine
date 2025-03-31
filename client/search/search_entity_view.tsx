@@ -128,7 +128,7 @@ export function SearchEntityView({
                     {result.title !== null && (
                         <>
                             <SearchEntityViewTitle
-                                typeDisplay={typeDisplay}
+                                icon={typeDisplay.icon}
                                 title={result.title}
                                 media={result.media}
                             />
@@ -166,7 +166,7 @@ export function SearchEntityView({
                     >
                         {result.title === null && (
                             <SearchEntityViewTitlePrefix
-                                typeDisplay={typeDisplay}
+                                icon={typeDisplay.icon}
                                 media={result.media}
                             />
                         )}

@@ -397,7 +397,7 @@ export function useSearchState({
                         score: Infinity,
                         title: match.item.entity.title,
                         bodyTextSnippet: [],
-                        media: null,
+                        media: match.item.entity.media ?? null,
                     });
                 }
             }

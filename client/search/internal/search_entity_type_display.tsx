@@ -5,6 +5,7 @@ import {DocumentBrandIcon} from "~/client/icons/brand/document_brand_icon.js";
 import {DocumentCommentBrandIcon} from "~/client/icons/brand/document_comment_brand_icon.js";
 import {PostBrandIcon} from "~/client/icons/brand/post_brand_icon.js";
 import {PostCommentBrandIcon} from "~/client/icons/brand/post_comment_brand_icon.js";
+import {SearchFavoritesBrandIcon} from "~/client/icons/brand/search_favorites_brand_icon.js";
 import {TaskBrandIcon} from "~/client/icons/brand/task_brand_icon.js";
 import {TaskCollectionBrandIcon} from "~/client/icons/brand/task_collection_brand_icon.js";
 import {TaskCommentBrandIcon} from "~/client/icons/brand/task_comment_brand_icon.js";
@@ -66,6 +67,9 @@ export function getSearchEntityTypeDisplay(entityId: SearchEntityId): SearchEnti
         case "TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive":
         case "TaskQueryFilteredToAssignerIsCurrentAccount": {
             return {icon: <TaskQueryBrandIcon />};
+        }
+        case "SearchFavorites": {
+            return {icon: <SearchFavoritesBrandIcon />};
         }
         default: {
             const entityIdObject = parseSearchDynamicEntityId(entityId);

@@ -187,6 +187,9 @@ export function getSearchEntityPath({
 
             return `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
         }
+        case "SearchFavorites": {
+            return `/s/${spaceId}/favorites`;
+        }
         default: {
             const entityIdObject = parseSearchDynamicEntityId(entityId);
             return getSearchDynamicEntityPath(spaceId, entityIdObject, routeLayout);

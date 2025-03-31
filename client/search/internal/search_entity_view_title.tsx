@@ -1,4 +1,5 @@
-import {IconContext} from "phosphor-react";
+import {IconContext, Plus} from "phosphor-react";
+import {ReactNode} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {Box} from "~/client/design/box.js";
@@ -19,12 +20,12 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SearchEntityMediaModel} from "~/shared/search/search_entity_media_model.js";
 
 export function SearchEntityViewTitle({
-    typeDisplay,
+    icon,
     title,
     media,
     lineClamp = 2,
 }: {
-    typeDisplay: SearchEntityTypeDisplay;
+    icon: ReactNode;
     title: string | null;
     media: SearchEntityMediaModel | null;
     lineClamp?: number;
@@ -51,17 +52,17 @@ export function SearchEntityViewTitle({
                 fontFeatureSettings: '"calt" on',
             }}
         >
-            <SearchEntityViewTitlePrefix typeDisplay={typeDisplay} media={media} />
+            <SearchEntityViewTitlePrefix icon={icon} media={media} />
             {title !== null ? renderTextWithEmojiFontFamily(title) : null}
         </Box>
     );
 }
 
 export function SearchEntityViewTitlePrefix({
-    typeDisplay,
+    icon,
     media,
 }: {
-    typeDisplay: SearchEntityTypeDisplay;
+    icon: ReactNode;
     media: SearchEntityMediaModel | null;
 }) {
     const spacingScale = useSpacingScale();
@@ -93,7 +94,7 @@ export function SearchEntityViewTitlePrefix({
                         size: spacing[searchEntityViewMediaSize],
                     }}
                 >
-                    {typeDisplay.icon}
+                    {icon}
                 </IconContext.Provider>
             </Box>
             {media && <SearchEntityViewMedia media={media} />}
