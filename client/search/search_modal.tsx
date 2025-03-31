@@ -671,7 +671,7 @@ function SearchModalResultList({
         // When a new result is selected, make sure it is visible in our scroll window. Scroll to
         // it if it is not visible.
         if (selectedPeek?.extra.entityId) {
-            view.scrollToKeyIfExists(`Loaded:${selectedPeek.extra.entityId}`, {withAnchor: true});
+            view.scrollToKeyIfExists(selectedPeek.extra.entityId, {withAnchor: true});
         }
     }, [selectedPeek?.extra.entityId]);
 
