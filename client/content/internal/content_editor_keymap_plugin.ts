@@ -237,7 +237,9 @@ export function buildContentEditorKeymapPlugin(
                 state.selection.$anchor.parent.type.name !== "fileRow" &&
                 state.selection.$anchor.parent.type.name !== "fileRowTable"
             )
-                return false;
+                {
+                    return false;
+                }
 
             if (dispatch) {
                 const transaction = state.tr.insert(
