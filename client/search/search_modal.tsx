@@ -142,23 +142,32 @@ export function SearchModal({
         const previousOutput = previousOutputRef.current;
         previousOutputRef.current = output;
 
-        if (selectedPeek && !hasSearchEntityId(output, selectedPeek.extra.entityId)) {
-            const nextEntityId = getNextSearchEntityId(previousOutput, selectedPeek.extra.entityId);
-            if (!nextEntityId || !hasSearchEntityId(output, nextEntityId)) {
-                void switchPeek(null);
-            } else {
-                const path = getSearchEntityPath({
-                    spaceId: space.id,
-                    entityId: nextEntityId,
-                    randomSeed: output.key,
-                    currentTime: output.queryTime,
-                    routeLayout: "narrow",
-                });
+        if (selectedPeek) {
+            if (output.type === "EmptyQuery" && selectedPeek.extra.entityId === "SearchFavorites") {
+                // Don't navigate away from favorites when we're viewing the affinity query.
+                // That way if an update to favorites causes the "see all" button to disappear
+                // we won't abruptly navigate the user away.
+            } else if (!hasSearchEntityId(output, selectedPeek.extra.entityId)) {
+                const nextEntityId = getNextSearchEntityId(
+                    previousOutput,
+                    selectedPeek.extra.entityId,
+                );
+                if (!nextEntityId || !hasSearchEntityId(output, nextEntityId)) {
+                    void switchPeek(null);
+                } else {
+                    const path = getSearchEntityPath({
+                        spaceId: space.id,
+                        entityId: nextEntityId,
+                        randomSeed: output.key,
+                        currentTime: output.queryTime,
+                        routeLayout: "narrow",
+                    });
 
-                void switchPeek({
-                    spacePath: path,
-                    extra: {entityId: nextEntityId},
-                });
+                    void switchPeek({
+                        spacePath: path,
+                        extra: {entityId: nextEntityId},
+                    });
+                }
             }
         }
     }, [output, selectedPeek, space.id, switchPeek]);
