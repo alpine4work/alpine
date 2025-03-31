@@ -50,6 +50,7 @@ export const searchByAffinity = defineRpc({
         spaceId: Schema.id<SpaceId>(),
     },
     output: {
+        hasMoreFavoriteResults: Schema.boolean,
         favoriteResults: Schema.array(SearchFavoriteEntityResultSchema),
         results: Schema.array(SearchAffinityEntityResultSchema),
     },
