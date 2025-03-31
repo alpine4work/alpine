@@ -21,7 +21,6 @@ const actuallyLayoutContentFileParent = createCachedFunction(
         platform: Platform,
         spacingScale: SpacingScale,
         withoutBlockMaxWidth: boolean,
-        getFile: (fileId: FileId) => FileModelData | null,
         ...files: Array<FileModelData | null>
     ) => {
         switch (node.type.name) {
@@ -54,8 +53,8 @@ const actuallyLayoutContentFileParent = createCachedFunction(
                 const fileNode = node.content.firstChild!;
                 assert(fileNode.type.name === "file", "fileRowTable child must be a file node");
 
-                const fileId: FileId | null = fileNode.attrs.fileId;
-                const file = fileId ? getFile(fileId) : null;
+                const file = files[0];
+                assert(file !== undefined);
 
                 return [
                     computeContentFileRowTableLayout(file, {
@@ -116,7 +115,6 @@ export function layoutContentFileParent(
         platform,
         spacingScale,
         withoutBlockMaxWidth,
-        getFile,
         ...files,
     );
 }
