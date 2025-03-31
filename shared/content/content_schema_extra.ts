@@ -302,30 +302,16 @@ export const createContentFileRowTableProsemirrorNodeSpecs = ({
             attrs: {},
             // same classes being used for fileRow and fileRowTable
             toDOM: () => ["div", {class: fileRowLikeClassName}, 0],
-            parseDOM: [
-                {
-                    tag: "div[style*=file-table]",
-                    // When given, restricts this rule to only match when the current context—the
-                    // parent nodes into which the content is being parsed—matches this expression.
-                    // `table//` means this node is inside `table` node at any depth.
-                    context: "table//",
-                    priority: paragraphParseRulePriority + 100,
-                    getAttrs: node => {
-                        if (!(node instanceof HTMLElement)) return false;
-
-                        for (const childNode of node.childNodes) {
-                            if (
-                                childNode instanceof HTMLElement &&
-                                childNode.tagName === "DIV" &&
-                                childNode.hasAttribute("data-cy-tmp-file")
-                            ) {
-                                return {};
-                            }
-                        }
-
-                        return false;
-                    },
+            parseDOM: paragraphParseRules.map(paragraphParseRule => ({
+                ...paragraphParseRule,
+                // Make sure this is higher priority than our paragraph `div` parse rule.
+                priority: paragraphParseRule.priority + 50,
+                context: "table//",
+                getAttrs: node => {
+                    if (!(node instanceof HTMLElement)) return false;
+                    if (!node.querySelector(":scope > [data-cy-tmp-file]")) return false;
+                    return {};
                 },
-            ],
+            })),
         },
     });
