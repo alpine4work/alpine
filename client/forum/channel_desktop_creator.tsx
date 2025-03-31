@@ -65,28 +65,26 @@ export function ChannelDesktopCreator({
                     icon: <LinkIcon />,
                     iconPlacement: "end",
                     isDisabled: true,
-                    onPress: () => {},
+                    onPress: noop,
                 },
                 {
                     label: "Favorite",
                     icon: <Star />,
                     iconPlacement: "end",
                     isDisabled: true,
-                    onPress: () => {
-                        // NOCOMMIT: Implement!
-                    },
+                    onPress: noop,
                 },
             ],
             [
                 {
                     label: "Edit name",
                     isDisabled: true,
-                    onPress: () => {},
+                    onPress: noop,
                 },
                 {
                     label: "Edit description",
                     isDisabled: true,
-                    onPress: () => {},
+                    onPress: noop,
                 },
             ],
         ],
