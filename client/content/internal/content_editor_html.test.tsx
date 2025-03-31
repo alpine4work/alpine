@@ -126,6 +126,57 @@ const blockTestCases: Array<{
         build: content =>
             schema.node("checkListItem", {checked: true}, schema.node("paragraph", {}, content)),
     },
+    {
+        name: "table (2x2)",
+        build: content =>
+            schema.node("table", {columnWidths: [], tableWidth: 1}, [
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
+                ]),
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
+                ]),
+            ]),
+    },
+    {
+        name: "table (3x3 with custom widths)",
+        build: content =>
+            schema.node("table", {columnWidths: [], tableWidth: 1}, [
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
+                ]),
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
+                ]),
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
+                ]),
+            ]),
+    },
+    {
+        name: "table with multiple blocks in cells",
+        build: content =>
+            schema.node("table", {columnWidths: [], tableWidth: 1}, [
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, content),
+                        schema.node("paragraph", {}, content),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, content),
+                        schema.node("paragraph", {}, content),
+                    ]),
+                ]),
+            ]),
+    },
 ];
 
 const inlineTestCases: Array<{

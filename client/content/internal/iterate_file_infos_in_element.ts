@@ -21,6 +21,19 @@ export type FileInfo =
           readonly target: FileAttachmentTarget | "Uploader";
       };
 
+/**
+ * Iterates through all media elements in the given element and yields an object
+ * containing:
+ * - The element itself
+ * - File information that indicates whether the file should be:
+ *   - Uploaded as a new file (type: "UploadFile")
+ *   - Attached from an existing file (type: "AttachFile")
+ *   - Or null if no valid source is found
+ *
+ * @param element The element to iterate through
+ * @param getSpaceId A function that returns the current space ID
+ * @returns An iterable iterator of objects containing fileInfo
+ */
 export function* iterateFileInfosInElement(
     element: Element,
     getSpaceId: () => SpaceId,
