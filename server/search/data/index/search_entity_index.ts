@@ -1713,7 +1713,6 @@ export async function searchByAffinity(
     context: SearchSessionActionContext,
     spaceId: SpaceId,
 ): Promise<{
-    hasMoreFavoriteResults: boolean;
     favoriteResults: Array<SearchFavoriteEntityResult>;
     results: Array<SearchAffinityEntityResult>;
 }> {
@@ -1731,18 +1730,13 @@ export async function searchByAffinity(
 
     const [entities, favoriteEntities, settings] = await runAllPromises([
         internalGetSearchAffinityEntities(context, {spaceId, limit}),
-        internalGetSearchFavoriteEntities(context, {
-            spaceId,
-            // Get one more than `favoritesLimit` for determining if
-            // `hasMoreFavoriteResults` should be true.
-            limit: favoritesLimit + 1,
-        }),
+        internalGetSearchFavoriteEntities(context, {spaceId, limit: favoritesLimit}),
         getSpaceAccountSettings(context, spaceId),
     ]);
 
     const dynamicEntityIds = new Set<SearchDynamicEntityId>();
 
-    for (let i = 0; i < Math.min(favoriteEntities.length, favoritesLimit); i++) {
+    for (let i = 0; i < favoriteEntities.length; i++) {
         const favoriteEntity = favoriteEntities[i]!;
         if (favoriteEntity.entityId !== "TaskPersonal") {
             dynamicEntityIds.add(favoriteEntity.entityId);
@@ -1771,19 +1765,17 @@ export async function searchByAffinity(
         }
     }
 
-    let hasMoreFavoriteResults = favoriteEntities.length > favoritesLimit;
     const favoriteResultById = new Map<
         SearchAffinityEntityId,
         Replace<SearchFavoriteEntityResult, {score: number}>
     >();
     const results: Array<SearchAffinityEntityResult> = [];
 
-    for (let i = 0; i < Math.min(favoriteEntities.length, favoritesLimit); i++) {
+    for (let i = 0; i < favoriteEntities.length; i++) {
         const favoriteEntity = favoriteEntities[i]!;
 
         if (favoriteResultById.size >= settings.searchShortcutFavoriteEntityCount) {
             if (favoriteEntity.entityId === "TaskPersonal") {
-                hasMoreFavoriteResults = true;
                 break;
             } else {
                 const entityTitleAndMedia = dynamicEntityTitleAndMediaById.get(
@@ -1791,7 +1783,6 @@ export async function searchByAffinity(
                 );
 
                 if (entityTitleAndMedia) {
-                    hasMoreFavoriteResults = true;
                     break;
                 }
             }
@@ -1870,7 +1861,6 @@ export async function searchByAffinity(
     }
 
     return {
-        hasMoreFavoriteResults,
         favoriteResults: Array.from(favoriteResultById.values()),
         results,
     };

@@ -202,12 +202,12 @@ export function SearchModal({
         let entityId: SearchEntityId | null = null;
 
         if (!selectedPeek) {
-            // NOTE(calebmer): Notably, pressing down when `output.hasMoreFavoriteResults`
-            // is true and there's no selected result does not select the "see all" button.
-            // But pressing down will select the first favorite item then pressing up will
-            // select the "see all" button. This is because we believe keyboard navigation
-            // to the "see all" button is significantly less likely then navigating to the
-            // first favorite item.
+            // NOTE(calebmer): Notably, pressing down when there are favorites and there's
+            // no selected result does not select the "see all" button. But pressing down
+            // will select the first favorite item then pressing up will select the "see
+            // all" button. This is because we believe keyboard navigation to the "see all"
+            // button is significantly less likely then navigating to the first favorite
+            // item.
             if (
                 output.type === "EmptyQuery" &&
                 output.favoriteResults &&
@@ -704,7 +704,6 @@ function SearchModalResultList({
     });
 
     const hasFavorites = output.type === "EmptyQuery";
-    const hasMoreFavoriteResults = hasFavorites && output.hasMoreFavoriteResults;
     const favoriteResults = hasFavorites ? output.favoriteResults : emptyArray;
 
     const renderItem = useCallback(
@@ -727,7 +726,7 @@ function SearchModalResultList({
                                     style={{lineHeight: spacing[lineHeight]}}
                                 >
                                     Favorites
-                                    {hasMoreFavoriteResults && (
+                                    {
                                         // Intentionally using [U+2219 (bullet operator)][1] instead of
                                         // [U+2022 (bullet)][2] since the former is thinner.
                                         //
@@ -736,37 +735,33 @@ function SearchModalResultList({
                                         //
                                         // [1]: https://graphemica.com/%E2%88%99
                                         // [2]: https://graphemica.com/%E2%80%A2
-                                        <>
-                                            {"\u2009\u2219\u2009"}
-                                            <SearchModalFavoritesHeaderSeeMoreButton
-                                                isSelected={
-                                                    selectedPeek?.extra.entityId ===
-                                                    "SearchFavorites"
-                                                }
-                                                onPressStart={() => {
-                                                    if (
-                                                        selectedPeek?.extra.entityId ===
-                                                        "SearchFavorites"
-                                                    ) {
-                                                        return;
-                                                    }
+                                        "\u2009\u2219\u2009"
+                                    }
+                                    <SearchModalFavoritesHeaderSeeMoreButton
+                                        isSelected={
+                                            selectedPeek?.extra.entityId === "SearchFavorites"
+                                        }
+                                        onPressStart={() => {
+                                            if (
+                                                selectedPeek?.extra.entityId === "SearchFavorites"
+                                            ) {
+                                                return;
+                                            }
 
-                                                    const path = getSearchEntityPath({
-                                                        spaceId: space.id,
-                                                        entityId: "SearchFavorites",
-                                                        randomSeed: output.key,
-                                                        currentTime: output.queryTime,
-                                                        routeLayout: "narrow",
-                                                    });
+                                            const path = getSearchEntityPath({
+                                                spaceId: space.id,
+                                                entityId: "SearchFavorites",
+                                                randomSeed: output.key,
+                                                currentTime: output.queryTime,
+                                                routeLayout: "narrow",
+                                            });
 
-                                                    void switchPeek({
-                                                        spacePath: path,
-                                                        extra: {entityId: "SearchFavorites"},
-                                                    });
-                                                }}
-                                            />
-                                        </>
-                                    )}
+                                            void switchPeek({
+                                                spacePath: path,
+                                                extra: {entityId: "SearchFavorites"},
+                                            });
+                                        }}
+                                    />
                                 </Box>
                             </Box>
                         ),
@@ -951,7 +946,6 @@ function SearchModalResultList({
             favoriteResults,
             handleDoubleClick,
             hasFavorites,
-            hasMoreFavoriteResults,
             output.key,
             output.queryTime,
             output.results,
@@ -1223,7 +1217,7 @@ function hasSearchEntityId(
 
     // Handle the case when you've selected "See all" in the favorites header then
     // hit `ArrowUp`.
-    if (output.type === "EmptyQuery" && output.hasMoreFavoriteResults) {
+    if (output.type === "EmptyQuery") {
         if (selectedEntityId === "SearchFavorites") {
             return true;
         }
@@ -1259,7 +1253,7 @@ function getPreviousSearchEntityId(
 
     // Handle the case when you've selected "See all" in the favorites header then
     // hit `ArrowUp`.
-    if (output.type === "EmptyQuery" && output.hasMoreFavoriteResults) {
+    if (output.type === "EmptyQuery") {
         if (selectedEntityId === "SearchFavorites") {
             return previousEntityId;
         } else {
@@ -1317,7 +1311,7 @@ function getNextSearchEntityId(
 
     // Handle the case when you've selected "See all" in the favorites header then
     // hit `ArrowDown`.
-    if (output.type === "EmptyQuery" && output.hasMoreFavoriteResults) {
+    if (output.type === "EmptyQuery") {
         if (selectedEntityId === "SearchFavorites") {
             return nextEntityId;
         } else {

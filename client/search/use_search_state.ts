@@ -341,7 +341,6 @@ export function useSearchState({
                     queryTime: queryOutput.queryTime,
                     isPending: true,
                     isError: false,
-                    hasMoreFavoriteResults: false,
                     favoriteResults: null,
                     results: null,
                 };
@@ -356,7 +355,6 @@ export function useSearchState({
                         affinitySearch.isValidating ||
                         queryOutput.isPending,
                     isError: false,
-                    hasMoreFavoriteResults: affinitySearch.output.hasMoreFavoriteResults,
                     favoriteResults: affinitySearch.output.favoriteResults,
                     results: affinitySearch.output.results,
                 };
@@ -531,7 +529,6 @@ type ExecuteSearchByAffinityOutput =
     | {
           readonly isPending: true;
           readonly isError: false;
-          readonly hasMoreFavoriteResults: false;
           readonly favoriteResults: null;
           readonly results: null;
       }
@@ -539,14 +536,12 @@ type ExecuteSearchByAffinityOutput =
           readonly isPending: boolean;
           readonly isError: true;
           readonly error: unknown;
-          readonly hasMoreFavoriteResults: false;
           readonly favoriteResults: null;
           readonly results: null;
       }
     | {
           readonly isPending: boolean;
           readonly isError: false;
-          readonly hasMoreFavoriteResults: boolean;
           readonly favoriteResults: ReadonlyArray<SearchFavoriteEntityResult>;
           readonly results: ReadonlyArray<SearchAffinityEntityResult>;
       };
@@ -585,7 +580,6 @@ function createSearchStateExecution({
                 queryTime,
                 isPending: false,
                 isError: false,
-                hasMoreFavoriteResults: false,
                 favoriteResults: emptyArray,
                 results: emptyArray,
             }),
