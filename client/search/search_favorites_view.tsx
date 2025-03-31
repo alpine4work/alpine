@@ -1,5 +1,6 @@
 import {
     DndContext,
+    DragEndEvent,
     DragOverlay,
     KeyboardSensor,
     PointerSensor,
@@ -19,12 +20,13 @@ import {ArrowUp, Link as LinkIcon, Star} from "phosphor-react";
 import {Fragment, KeyboardEvent, useCallback, useMemo, useState} from "react";
 import {mergeProps} from "react-aria";
 import {createPortal} from "react-dom";
-import {useAppContext} from "~/client/context/app_context.js";
+import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions, useContextMenuActions} from "~/client/design/context_menu.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {useReporter} from "~/client/design/reporter.js";
+import {useGlobalContext} from "~/client/helpers/global_context.js";
 import {useInitialAppRenderId} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
@@ -34,6 +36,7 @@ import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {RpcCache, RpcCacheContext} from "~/client/rpc/rpc_cache.js";
 import {searchFavoriteEntityIconColor} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {getSearchEntityPath} from "~/client/search/internal/get_search_entity_path.js";
 import {SearchAffinityEntityView} from "~/client/search/search_affinity_entity_view.js";
@@ -57,14 +60,17 @@ import {
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {noop} from "~/shared/helpers/control/noop.js";
+import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {
     moveSearchFavoriteEntity,
+    searchByAffinity,
     unfavoriteSearchEntity,
 } from "~/shared/rpc/search_rpc_definitions.js";
 import {updateSpaceAccountSettings} from "~/shared/rpc/spaces_rpc_definitions.js";
@@ -101,6 +107,7 @@ export function SearchFavoritesView({
     const {space} = useSpaceContext();
     const reporter = useReporter();
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
+    const rpcCache = useGlobalContext(RpcCacheContext);
 
     const maxWidth = routeLayout !== "narrow" ? peekNarrowLayoutWidth : undefined;
 
@@ -156,6 +163,192 @@ export function SearchFavoritesView({
 
     const shortcutDividerIndex = Math.min(shortcutFavoriteEntityCount - 1, results.length - 1);
 
+    const handleDragEnd = (event: DragEndEvent) => {
+        const {active, over} = event;
+        if (!over || active.id === over.id) return;
+
+        if (active.id === "ShortcutDivider") {
+            const oldShortcutFavoriteEntityCount = shortcutFavoriteEntityCount;
+
+            let newShortcutFavoriteEntityCount = results.findIndex(result => result.id === over.id);
+            if (newShortcutFavoriteEntityCount > shortcutDividerIndex)
+                newShortcutFavoriteEntityCount++;
+            newShortcutFavoriteEntityCount = clamp(
+                searchShortcutFavoriteEntityMinCount,
+                newShortcutFavoriteEntityCount,
+                searchShortcutFavoriteEntityMaxCount,
+            );
+
+            if (oldShortcutFavoriteEntityCount === newShortcutFavoriteEntityCount) {
+                return;
+            }
+
+            const movePromise = updateSpaceAccountSettings(context, {
+                spaceId: space.id,
+                update: {
+                    searchShortcutFavoriteEntityCount: newShortcutFavoriteEntityCount,
+                },
+            });
+
+            // 1. Show an error if the update fails. Refetch search affinity list if the
+            //    update succeeds.
+            movePromise.then(
+                () => {
+                    forceRevalidateSearchByAffinity(
+                        context,
+                        rpcCache,
+                        space.id,
+                        "moving shortcut divider",
+                        output => {
+                            // Test if the shortcut count grew or shrunk in the expected direction.
+                            return (
+                                Math.sign(
+                                    oldShortcutFavoriteEntityCount - newShortcutFavoriteEntityCount,
+                                ) ===
+                                Math.sign(
+                                    oldShortcutFavoriteEntityCount - output.favoriteResults.length,
+                                )
+                            );
+                        },
+                    );
+                },
+                error => {
+                    reporter.displayError("Couldn’t move shortcut divider", error);
+                },
+            );
+
+            // 2. Show a loading indicator if the update takes a while (this will also stop
+            //    the user from closing the browser).
+            addGlobalLoadingIndicator(movePromise, {type: "Saving"});
+
+            // 3. Optimistically update our `results` state. Will revert the update if the
+            //    promise rejects.
+            updateShortcutFavoriteEntityCountOptimistically(
+                movePromise,
+                () => newShortcutFavoriteEntityCount,
+            );
+            return;
+        }
+
+        const activeIndex = results.findIndex(result => result.id === active.id);
+        const overIndex = results.findIndex(result => result.id === over.id);
+        assert(activeIndex >= 0);
+        assert(overIndex >= 0);
+
+        const newBeforeResult =
+            activeIndex >= overIndex
+                ? assertExists(results[overIndex])
+                : overIndex < results.length - 1
+                ? assertExists(results[overIndex + 1])
+                : null;
+        const newAfterResult =
+            activeIndex < overIndex
+                ? assertExists(results[overIndex])
+                : overIndex > 0
+                ? assertExists(results[overIndex - 1])
+                : null;
+
+        const newFavoriteOrderKey = generateOrderKeyBetween(
+            newAfterResult?.favoriteOrderKey ?? null,
+            newBeforeResult?.favoriteOrderKey ?? null,
+        );
+
+        const movePromise = moveSearchFavoriteEntity(context, {
+            spaceId: space.id,
+            entityId: active.id as SearchAffinityEntityId,
+            orderKey: newFavoriteOrderKey,
+        });
+
+        // 1. Show an error if the update fails. Refetch search affinity list if the
+        //    update succeeds.
+        movePromise.then(
+            () => {
+                // We're moving an item below the shortcut divider to a position also below the
+                // shortcut divider. The search affinity list doesn't need to update.
+                if (
+                    activeIndex >= shortcutFavoriteEntityCount &&
+                    overIndex >= shortcutFavoriteEntityCount
+                ) {
+                    return;
+                }
+
+                forceRevalidateSearchByAffinity(
+                    context,
+                    rpcCache,
+                    space.id,
+                    "moving favorite",
+                    output => {
+                        if (
+                            activeIndex >= shortcutFavoriteEntityCount &&
+                            overIndex < shortcutFavoriteEntityCount
+                        ) {
+                            // Test that the item was added to `favoriteResults`.
+                            if (output.favoriteResults.some(result => result.id === active.id)) {
+                                return true;
+                            }
+                        } else if (
+                            activeIndex < shortcutFavoriteEntityCount &&
+                            overIndex >= shortcutFavoriteEntityCount
+                        ) {
+                            // Test that the item was removed from `favoriteResults`.
+                            if (!output.favoriteResults.some(result => result.id === active.id)) {
+                                return true;
+                            }
+                        } else {
+                            // This assert should be safe since we return above if
+                            // `activeIndex >= shortcutFavoriteEntityCount && overIndex >= shortcutFavoriteEntityCount`.
+                            // So this is the last possible combination to test for.
+                            assert(
+                                activeIndex < shortcutFavoriteEntityCount &&
+                                    overIndex < shortcutFavoriteEntityCount,
+                            );
+
+                            const newActiveIndex = output.favoriteResults.findIndex(
+                                result => result.id === active.id,
+                            );
+
+                            // Test that the item moved in the right direction within `favoriteResults`.
+                            if (
+                                newActiveIndex !== -1 &&
+                                Math.sign(activeIndex - overIndex) ===
+                                    Math.sign(activeIndex - newActiveIndex)
+                            ) {
+                                return true;
+                            }
+                        }
+
+                        return false;
+                    },
+                );
+            },
+            error => {
+                reporter.displayError("Couldn’t move favorite", error);
+            },
+        );
+
+        // 2. Show a loading indicator if the update takes a while (this will also stop
+        //    the user from closing the browser).
+        addGlobalLoadingIndicator(movePromise, {type: "Saving"});
+
+        // 3. Optimistically update our `results` state. Will revert the update if the
+        //    promise rejects.
+        updateResultsOptimistically(movePromise, oldResults => {
+            const newResults = oldResults
+                .map(oldResult => {
+                    if (oldResult.id !== active.id) return oldResult;
+                    return {
+                        ...oldResult,
+                        favoriteOrderKey: newFavoriteOrderKey,
+                    };
+                })
+                .sort((result1, result2) =>
+                    defaultCompareStrings(result1.favoriteOrderKey, result2.favoriteOrderKey),
+                );
+
+            return newResults;
+        });
+    };
+
     return (
         <SpaceRouteScrollView
             title={
@@ -205,103 +398,7 @@ export function SearchFavoritesView({
                     <DndContext
                         sensors={sensors}
                         collisionDetection={closestCenter}
-                        onDragEnd={event => {
-                            const {active, over} = event;
-                            if (!over || active.id === over.id) return;
-
-                            if (active.id === "ShortcutDivider") {
-                                let overIndex = results.findIndex(result => result.id === over.id);
-                                if (overIndex > shortcutDividerIndex) overIndex++;
-                                overIndex = clamp(
-                                    searchShortcutFavoriteEntityMinCount,
-                                    overIndex,
-                                    searchShortcutFavoriteEntityMaxCount,
-                                );
-
-                                const movePromise = updateSpaceAccountSettings(context, {
-                                    spaceId: space.id,
-                                    update: {searchShortcutFavoriteEntityCount: overIndex},
-                                });
-
-                                // 1. Show an error if the update fails.
-                                movePromise.catch(error => {
-                                    reporter.displayError("Couldn’t move shortcut divider", error);
-                                });
-
-                                // 2. Show a loading indicator if the update takes a while (this will also stop
-                                //    the user from closing the browser).
-                                addGlobalLoadingIndicator(movePromise, {type: "Saving"});
-
-                                // 3. Optimistically update our `results` state. Will revert the update if the
-                                //    promise rejects.
-                                updateShortcutFavoriteEntityCountOptimistically(
-                                    movePromise,
-                                    () => overIndex,
-                                );
-                                return;
-                            }
-
-                            const activeIndex = results.findIndex(
-                                result => result.id === active.id,
-                            );
-                            const overIndex = results.findIndex(result => result.id === over.id);
-                            assert(activeIndex >= 0);
-                            assert(overIndex >= 0);
-
-                            const newBeforeResult =
-                                activeIndex >= overIndex
-                                    ? assertExists(results[overIndex])
-                                    : overIndex < results.length - 1
-                                    ? assertExists(results[overIndex + 1])
-                                    : null;
-                            const newAfterResult =
-                                activeIndex < overIndex
-                                    ? assertExists(results[overIndex])
-                                    : overIndex > 0
-                                    ? assertExists(results[overIndex - 1])
-                                    : null;
-
-                            const newFavoriteOrderKey = generateOrderKeyBetween(
-                                newAfterResult?.favoriteOrderKey ?? null,
-                                newBeforeResult?.favoriteOrderKey ?? null,
-                            );
-
-                            const movePromise = moveSearchFavoriteEntity(context, {
-                                spaceId: space.id,
-                                entityId: active.id as SearchAffinityEntityId,
-                                orderKey: newFavoriteOrderKey,
-                            });
-
-                            // 1. Show an error if the update fails.
-                            movePromise.catch(error => {
-                                reporter.displayError("Couldn’t move favorite", error);
-                            });
-
-                            // 2. Show a loading indicator if the update takes a while (this will also stop
-                            //    the user from closing the browser).
-                            addGlobalLoadingIndicator(movePromise, {type: "Saving"});
-
-                            // 3. Optimistically update our `results` state. Will revert the update if the
-                            //    promise rejects.
-                            updateResultsOptimistically(movePromise, oldResults => {
-                                const newResults = oldResults
-                                    .map(oldResult => {
-                                        if (oldResult.id !== active.id) return oldResult;
-                                        return {
-                                            ...oldResult,
-                                            favoriteOrderKey: newFavoriteOrderKey,
-                                        };
-                                    })
-                                    .sort((result1, result2) =>
-                                        defaultCompareStrings(
-                                            result1.favoriteOrderKey,
-                                            result2.favoriteOrderKey,
-                                        ),
-                                    );
-
-                                return newResults;
-                            });
-                        }}
+                        onDragEnd={handleDragEnd}
                     >
                         <SearchFavoritesViewInner
                             shortcutDividerIndex={shortcutDividerIndex}
@@ -310,15 +407,17 @@ export function SearchFavoritesView({
                         />
                     </DndContext>
                 </Box>
-                <Box
-                    display="flex"
-                    flexDirection="column"
-                    justifyContent="flex-end"
-                    paddingX={screenPaddingX}
-                    style={{height: searchAffinityEntityViewMinHeightPx[spacingScale] / 2}}
-                >
-                    <Box width="full" height="border" backgroundColor="grey-5" />
-                </Box>
+                {shortcutFavoriteEntityCount < results.length && (
+                    <Box
+                        display="flex"
+                        flexDirection="column"
+                        justifyContent="flex-end"
+                        paddingX={screenPaddingX}
+                        style={{height: searchAffinityEntityViewMinHeightPx[spacingScale] / 2}}
+                    >
+                        <Box width="full" height="border" backgroundColor="grey-5" />
+                    </Box>
+                )}
             </Box>
         </SpaceRouteScrollView>
     );
@@ -338,6 +437,9 @@ function SearchFavoritesViewInner({
     shortcutDividerIndex: number;
 }) {
     const initialAppRenderId = useInitialAppRenderId();
+    const context = useAppContext();
+    const {space} = useSpaceContext();
+    const rpcCache = useGlobalContext(RpcCacheContext);
     const dndContext = useDndContext();
 
     const [randomSeed] = useState(() => initialAppRenderId ?? generateId());
@@ -393,10 +495,31 @@ function SearchFavoritesViewInner({
                     <SearchFavoritesViewItem
                         randomSeed={randomSeed}
                         result={result}
-                        onResultRemove={() => {
+                        removeResult={async () => {
+                            await unfavoriteSearchEntity(context, {
+                                spaceId: space.id,
+                                entityId: result.id,
+                            });
+
                             updateResults(results =>
                                 results.filter(otherResult => otherResult.id !== result.id),
                             );
+
+                            // Don't refetch `searchByAffinity()` if we're removing a non-shortcut.
+                            if (index <= shortcutDividerIndex) {
+                                forceRevalidateSearchByAffinity(
+                                    context,
+                                    rpcCache,
+                                    space.id,
+                                    "removing favorite",
+                                    output => {
+                                        // Test that the item was removed from `favoriteResults`.
+                                        return !output.favoriteResults.some(
+                                            otherResult => otherResult.id === result.id,
+                                        );
+                                    },
+                                );
+                            }
                         }}
                     />
                     {index === shortcutDividerIndex && <SearchFavoritesViewShortcutDivider />}
@@ -439,7 +562,7 @@ function SearchFavoritesViewDragPortals({
                         <SearchFavoritesViewItem
                             randomSeed={randomSeed}
                             result={activeResult}
-                            onResultRemove={noop}
+                            removeResult={asyncNoop}
                             isDragOverlay={true}
                         />
                     </DragOverlay>,
@@ -463,17 +586,16 @@ function SearchFavoritesViewDragPortals({
 function SearchFavoritesViewItem({
     randomSeed,
     result,
-    onResultRemove,
+    removeResult,
     isDragOverlay = false,
 }: {
     randomSeed: string;
     result: SearchFavoriteEntityResult;
-    onResultRemove: () => void;
+    removeResult: () => Promise<void>;
     isDragOverlay?: boolean;
 }) {
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
-    const context = useAppContext();
     const navigate = useNavigate();
     const {space} = useSpaceContext();
     const currentTime = useCurrentTimeRoundedToHour();
@@ -535,14 +657,7 @@ function SearchFavoritesViewItem({
         });
     };
 
-    const handleRemovePress = useEvent(async () => {
-        await unfavoriteSearchEntity(context, {
-            spaceId: space.id,
-            entityId: result.id,
-        });
-
-        onResultRemove();
-    });
+    const handleRemovePress = useEvent(removeResult);
 
     const contextMenuActions = useMemo(
         (): ReadonlyArray<ReadonlyArray<MenuAction>> => [
@@ -747,5 +862,49 @@ function SearchFavoritesViewShortcutDivider({isDragOverlay}: {isDragOverlay?: bo
                 </Box>
             </FocusRing>
         </Box>
+    );
+}
+
+function forceRevalidateSearchByAffinity(
+    context: AppContext,
+    rpcCache: RpcCache,
+    spaceId: SpaceId,
+    afterName: string,
+    condition: (output: RpcDefinitionOutputType<typeof searchByAffinity>) => boolean,
+) {
+    runPromiseWithoutAwaiting(
+        context.tracer.withSpan(
+            `Refetch search affinity list after ${afterName}`,
+            async (context, span) => {
+                let attemptCount = 0;
+
+                try {
+                    // Refetch search affinity list up to 5 times until we see the expected
+                    // update. We refetch up to 5 times since `searchByAffinity()` uses eventual
+                    // consistency (and we can't easily give it a strong consistency mode). So if
+                    // we detect eventually consistent data, we retry!
+                    //
+                    // This is important when in `<SearchModal>` and "see all" is selected. We
+                    // want to see our update to the favorite shortcut count reflected in the
+                    // search list in realtime.
+                    while (attemptCount < 5) {
+                        attemptCount++;
+
+                        const output = await rpcCache.forceRevalidateEntry(
+                            context,
+                            searchByAffinity,
+                            {spaceId},
+                        );
+
+                        // Stop trying to refetch once our condition is met.
+                        if (condition(output)) {
+                            break;
+                        }
+                    }
+                } finally {
+                    span.addData({common: {count: attemptCount}});
+                }
+            },
+        ),
     );
 }

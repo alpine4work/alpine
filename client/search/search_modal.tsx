@@ -75,6 +75,8 @@ import {markSearchAffinityEntityInteraction} from "~/shared/rpc/search_rpc_defin
 import {SearchEntityId, isSearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchOptions} from "~/shared/search/search_options.js";
 
+// NOCOMMIT: Context menu actions
+
 const searchModalInputHeight = "16";
 const searchModalPeekContentMaxHeight = "160";
 

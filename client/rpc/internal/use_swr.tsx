@@ -9,13 +9,12 @@ import {
     createSwrCacheEntryHistoryStack,
     disabledSwrCacheEntryResult,
     pendingSwrCacheEntryResult,
+    swrDefaultDedupingIntervalMs,
 } from "~/client/rpc/internal/swr_cache.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {undefinedStore} from "~/shared/store/const_store.js";
-
-export const swrDefaultDedupingIntervalMs = 2 * 1000;
 
 /**
  * A complete re-implementation of the [SWR library][1]. The SWR library has a
