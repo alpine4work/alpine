@@ -3100,6 +3100,8 @@ test("can't add comment mark to `fileRowTable` node in a document", async () => 
     });
 
     const commentThreadId = generateId<DocumentCommentThreadId>();
+
+    // pos 3 for table
     await expect(
         updateDocumentContent(session.action(), {
             id: document.id,
@@ -3116,7 +3118,49 @@ test("can't add comment mark to `fileRowTable` node in a document", async () => 
         }),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            "Couldn't apply step to content: Invalid content for node table: <comment(tableRow(tableCell(fileRowTable(file)), tabl",
+            "Couldn't apply step to content: Invalid content for node table: <comment(tableRow(tableCell(fileRowTable(file)), t",
+        ),
+    );
+
+    // pos 4 for tableRow
+    await expect(
+        updateDocumentContent(session.action(), {
+            id: document.id,
+            version: 1,
+            steps: [new AddNodeMarkStep(4, schema.marks.comment.create({commentThreadId}))],
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test comment"),
+                    initialCommentFileIds: [],
+                },
+            ],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            "Couldn't apply step to content: Invalid content for node tableRow: <comment(tableCell(fileRowTable(file))), tableCell",
+        ),
+    );
+
+    // pos 5 for tableCell
+    await expect(
+        updateDocumentContent(session.action(), {
+            id: document.id,
+            version: 1,
+            steps: [new AddNodeMarkStep(5, schema.marks.comment.create({commentThreadId}))],
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test comment"),
+                    initialCommentFileIds: [],
+                },
+            ],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            "Couldn't apply step to content: Invalid content for node tableCell: <comment(fileRowTable(file))>",
         ),
     );
 
@@ -3128,7 +3172,9 @@ test("can't add comment mark to `fileRowTable` node in a document", async () => 
                 schema.node("table", {}, [
                     schema.node("tableRow", {}, [
                         schema.node("tableCell", {}, [
-                            schema.node("fileRowTable", {}, [schema.node("file", {fileId: file.id})]),
+                            schema.node("fileRowTable", {}, [
+                                schema.node("file", {fileId: file.id}),
+                            ]),
                         ]),
                         schema.node("tableCell", {}, [schema.node("paragraph", {})]),
                     ]),
