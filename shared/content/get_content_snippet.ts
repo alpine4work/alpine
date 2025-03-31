@@ -430,6 +430,7 @@ const lineBreakCountByNodeType: {
     heading: 1,
     divider: 1,
     fileRow: 8,
+    fileRowTable: 1,
     // `display: inline`
     mention: 0,
     // Horizontal layout in a `display: flex` or `display: grid` element
@@ -446,8 +447,6 @@ const lineBreakCountByNodeType: {
     // A table cell and header are treated as inline elements, so they do
     // not cause a line break.
     tableCell: 0,
-    // A file table is treated as a block element, so it causes a line break.
-    fileRowTable: 1,
 };
 
 /**
@@ -481,6 +480,7 @@ const dontCutLeadingChildrenByNodeType: {
     // remaining files in the row.
     fileRow: true,
     fileFloat: true,
+    fileRowTable: true,
     file: true,
     // The answer for nodes without children doesn't really matter since we won't
     // cut within them anyways.
@@ -505,5 +505,4 @@ const dontCutLeadingChildrenByNodeType: {
     tableCell: false,
     // It's okay to cut the leading children of a file table because the file table's
     // structure is defined by its rows, not its position in the document.
-    fileRowTable: true,
 };

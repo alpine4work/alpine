@@ -3,14 +3,17 @@ import {Command, NodeSelection, Selection, TextSelection} from "prosemirror-stat
 import {EditorView} from "prosemirror-view";
 import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/create_toggle_block_type_command.js";
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
-import {isSelectionInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
+import {
+    isInContentTable,
+    isSelectionInContentTable,
+} from "~/client/content/internal/table/content_table_client_util.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**
  * Check if a node is a tableBlock node.
  * In [content table schema](https://github.com/cyberworlds/cyberworlds/blob/591dcf3bf996c8d7db3aac351cc9041115a42857/shared/content/table/content_table_schema.ts#L111-L114)
- * we define the tableCell content schema where we only allow tableBlock nodes.
+ * we define the tableCell content schema where we only allow `tableBlock` nodes.
  */
 export function isContentTableBlockNode(node: Node | NodeType): boolean {
     if (node instanceof Node) {
@@ -18,23 +21,13 @@ export function isContentTableBlockNode(node: Node | NodeType): boolean {
     }
     return node.groups.includes("tableBlock");
 }
-function isFileNode(node: Node | NodeType): boolean {
-    if (node instanceof Node) {
-        return node.type.name === "file";
-    }
-    return node.name === "file";
-}
 
 function getInsertPosOrSelection(selection: Selection, node: Node | NodeType): number | Selection {
     const doc = selection.$anchor.doc;
 
     // if the selection is in a table and the node is not a table block, we want to insert
     // at the next node after the table.
-    if (
-        isSelectionInContentTable(selection) &&
-        !isContentTableBlockNode(node) &&
-        !isFileNode(node)
-    ) {
+    if (isSelectionInContentTable(selection) && !isContentTableBlockNode(node)) {
         // selection.$anchor.after(1) is the position after the last table cell in the table.
         // `1` is the depth of the table.
         // depth of table related nodes is 4.
@@ -232,7 +225,9 @@ export function insertContentFiles(
             ? view.state.selection.anchor + 1
             : getInsertPosOrSelection(
                   view.state.selection,
-                  assertExists(view.state.schema.nodes.file),
+                  isInContentTable(view.state)
+                      ? assertExists(view.state.schema.nodes.fileRowTable)
+                      : assertExists(view.state.schema.nodes.fileRow),
               );
 
     view.insertFiles(insertPosOrSelection, files);
