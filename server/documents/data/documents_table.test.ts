@@ -3056,7 +3056,7 @@ test("can add comment mark to `file` node in a document with `fileRow` as a pare
     });
 });
 
-test("can't add comment mark to `fileTable` node in a document", async () => {
+test("can't add comment mark to `fileRowTable` node in a document", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const document = await TestDocument.create(session);
@@ -3082,7 +3082,7 @@ test("can't add comment mark to `fileTable` node in a document", async () => {
                         schema.node("table", {}, [
                             schema.node("tableRow", {}, [
                                 schema.node("tableCell", {}, [
-                                    schema.node("fileTable", {}, [
+                                    schema.node("fileRowTable", {}, [
                                         schema.node("file", {fileId: file.id}),
                                     ]),
                                 ]),
@@ -3116,7 +3116,7 @@ test("can't add comment mark to `fileTable` node in a document", async () => {
         }),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            "Couldn't apply step to content: Invalid content for node table: <comment(tableRow(tableCell(fileTable(file)), tabl",
+            "Couldn't apply step to content: Invalid content for node table: <comment(tableRow(tableCell(fileRowTable(file)), tabl",
         ),
     );
 
@@ -3128,7 +3128,7 @@ test("can't add comment mark to `fileTable` node in a document", async () => {
                 schema.node("table", {}, [
                     schema.node("tableRow", {}, [
                         schema.node("tableCell", {}, [
-                            schema.node("fileTable", {}, [schema.node("file", {fileId: file.id})]),
+                            schema.node("fileRowTable", {}, [schema.node("file", {fileId: file.id})]),
                         ]),
                         schema.node("tableCell", {}, [schema.node("paragraph", {})]),
                     ]),
@@ -3138,7 +3138,7 @@ test("can't add comment mark to `fileTable` node in a document", async () => {
     });
 });
 
-test("can add comment mark to `file` node in a document with `fileTable` as a parent node", async () => {
+test("can add comment mark to `file` node in a document with `fileRowTable` as a parent node", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const document = await TestDocument.create(session);
@@ -3151,7 +3151,7 @@ test("can add comment mark to `file` node in a document with `fileTable` as a pa
         FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
     );
 
-    // First update: Create table structure with fileTable
+    // First update: Create table structure with fileRowTable
     await updateDocumentContent(session.action(), {
         id: document.id,
         version: 0,
@@ -3164,7 +3164,7 @@ test("can add comment mark to `file` node in a document with `fileTable` as a pa
                         schema.node("table", {}, [
                             schema.node("tableRow", {}, [
                                 schema.node("tableCell", {}, [
-                                    schema.node("fileTable", {}, [
+                                    schema.node("fileRowTable", {}, [
                                         schema.node("file", {fileId: file.id}),
                                     ]),
                                 ]),
@@ -3207,7 +3207,7 @@ test("can add comment mark to `file` node in a document with `fileTable` as a pa
                 schema.node("table", {}, [
                     schema.node("tableRow", {}, [
                         schema.node("tableCell", {}, [
-                            schema.node("fileTable", {}, [
+                            schema.node("fileRowTable", {}, [
                                 schema.node(
                                     "file",
                                     {fileId: file.id},
