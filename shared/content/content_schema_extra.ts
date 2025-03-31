@@ -141,7 +141,17 @@ export const createContentFileProsemirrorNodeSpecs = ({fileMarks}: {fileMarks?: 
                 priority: paragraphParseRule.priority + 50,
                 getAttrs: node => {
                     if (!(node instanceof HTMLElement)) return false;
-                    if (!node.querySelector(":scope > [data-cy-tmp-file]")) return false;
+                    let hasDirectFileChildNode = false;
+                    for (const childNode of node.childNodes) {
+                        if (
+                            childNode instanceof HTMLElement &&
+                            childNode.hasAttribute("data-cy-tmp-file")
+                        ) {
+                            hasDirectFileChildNode = true;
+                            break;
+                        }
+                    }
+                    if (!hasDirectFileChildNode) return false;
                     return {};
                 },
             })),
@@ -304,12 +314,23 @@ export const createContentFileRowTableProsemirrorNodeSpecs = ({
             toDOM: () => ["div", {class: fileRowLikeClassName}, 0],
             parseDOM: paragraphParseRules.map(paragraphParseRule => ({
                 ...paragraphParseRule,
-                // Make sure this is higher priority than our paragraph `div` parse rule.
-                priority: paragraphParseRule.priority + 50,
+                // Make sure this is higher priority than our paragraph `div` parse rule
+                // and our `tableRow` parse rule.
+                priority: paragraphParseRule.priority + 100,
                 context: "table//",
                 getAttrs: node => {
                     if (!(node instanceof HTMLElement)) return false;
-                    if (!node.querySelector(":scope > [data-cy-tmp-file]")) return false;
+                    let hasDirectFileChildNode = false;
+                    for (const childNode of node.childNodes) {
+                        if (
+                            childNode instanceof HTMLElement &&
+                            childNode.hasAttribute("data-cy-tmp-file")
+                        ) {
+                            hasDirectFileChildNode = true;
+                            break;
+                        }
+                    }
+                    if (!hasDirectFileChildNode) return false;
                     return {};
                 },
             })),
