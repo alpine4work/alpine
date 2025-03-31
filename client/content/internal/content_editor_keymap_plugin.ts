@@ -30,6 +30,7 @@ import {
     indentListItemCommand,
 } from "~/client/content/internal/helpers/indent_and_dedent_list_item_commands.js";
 import {splitBlockWithCodeBlockLineLeadingIndentation} from "~/client/content/internal/helpers/split_block_with_code_block_line_leading_indentation.js";
+import {isSelectionInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
 import {addSharedContentEditorKeymapCommands} from "~/client/content/shared/add_shared_content_editor_keymap_commands.js";
 import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
@@ -42,6 +43,7 @@ import {
 } from "~/shared/content/content_schema.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 type Command = (
     state: EditorState,
@@ -233,13 +235,9 @@ export function buildContentEditorKeymapPlugin(
             // 1. If we've selected a file.
             if (!(state.selection instanceof NodeSelection)) return false;
             if (state.selection.node.type.name !== "file") return false;
-            if (
-                state.selection.$anchor.parent.type.name !== "fileRow" &&
-                state.selection.$anchor.parent.type.name !== "fileRowTable"
-            )
-                {
-                    return false;
-                }
+            if (!state.selection.$anchor.parent.type.groups.includes("fileRowLike")) {
+                return false;
+            }
 
             if (dispatch) {
                 const transaction = state.tr.insert(
@@ -311,7 +309,9 @@ export function buildContentEditorKeymapPlugin(
             // 1. If we've selected a file.
             if (!(state.selection instanceof NodeSelection)) return false;
             if (state.selection.node.type.name !== "file") return false;
-            if (state.selection.$anchor.parent.type.name !== "fileRow") return false;
+            if (!state.selection.$anchor.parent.type.groups.includes("fileRowLike")) {
+                return false;
+            }
 
             if (dispatch) {
                 const transaction = state.tr.insert(
@@ -364,7 +364,7 @@ export function buildContentEditorKeymapPlugin(
             if (!(index - 1 >= 0)) continue;
 
             const siblingNode = node.child(index - 1);
-            if (siblingNode.type.name !== "fileRow") continue;
+            if (!siblingNode.type.groups.includes("fileRowLike")) continue;
 
             transaction.setSelection(
                 new NodeSelection(
@@ -384,7 +384,7 @@ export function buildContentEditorKeymapPlugin(
             if (!(index + 1 < node.childCount)) continue;
 
             const siblingNode = node.child(index + 1);
-            if (siblingNode.type.name !== "fileRow") continue;
+            if (!siblingNode.type.groups.includes("fileRowLike")) continue;
 
             transaction.setSelection(
                 new NodeSelection(
@@ -416,12 +416,12 @@ export function buildContentEditorKeymapPlugin(
                     if (
                         state.selection instanceof NodeSelection &&
                         state.selection.node.type.name === "file" &&
-                        state.selection.$anchor.parent.type.name === "fileRow"
+                        state.selection.$anchor.parent.type.groups.includes("fileRowLike")
                     ) {
                         if (
                             transaction.selection instanceof NodeSelection &&
                             transaction.selection.node.type.name === "file" &&
-                            transaction.selection.$anchor.parent.type.name === "fileRow"
+                            transaction.selection.$anchor.parent.type.groups.includes("fileRowLike")
                         ) {
                             // Our new selection is already a file selection. Don't do anything else.
                         } else {
@@ -673,7 +673,7 @@ export function buildContentEditorKeymapPlugin(
                 if (!(index - 1 >= 0)) continue;
 
                 const siblingNode = node.child(index - 1);
-                if (siblingNode.type.name !== "fileRow") continue;
+                if (!siblingNode.type.groups.includes("fileRowLike")) continue;
 
                 $previousFile = state.doc.resolve(state.selection.$from.before(depth + 1) - 2);
                 break;
@@ -682,7 +682,7 @@ export function buildContentEditorKeymapPlugin(
             // 2. If there's a file before our selection in the textblock.
             if (!$previousFile) return false;
 
-            assert($previousFile.parent.type.name === "fileRow");
+            assert($previousFile.parent.type.groups.includes("fileRowLike"));
             assert($previousFile.nodeAfter?.type.name === "file");
 
             // If the textblock is empty then hitting backspace should delete the
@@ -1064,7 +1064,7 @@ export function buildContentEditorKeymapPlugin(
                 if (!(index + 1 < node.childCount)) continue;
 
                 const siblingNode = node.child(index + 1);
-                if (siblingNode.type.name !== "fileRow") continue;
+                if (!siblingNode.type.groups.includes("fileRowLike")) continue;
 
                 $nextFile = state.doc.resolve(state.selection.$from.after(depth + 1) + 1);
                 break;
@@ -1073,7 +1073,7 @@ export function buildContentEditorKeymapPlugin(
             // 2. If there's a file after our selection in the textblock.
             if (!$nextFile) return false;
 
-            assert($nextFile.parent.type.name === "fileRow");
+            assert($nextFile.parent.type.groups.includes("fileRowLike"));
             assert($nextFile.nodeAfter?.type.name === "file");
 
             // If the textblock is empty then hitting backspace should delete the
@@ -1372,47 +1372,6 @@ export function buildContentEditorKeymapPlugin(
                 const parentNode = $from.node($from.depth - 1);
                 const currentNode = $from.node();
 
-                if (
-                    selection instanceof NodeSelection &&
-                    currentNode.type.name === "fileRowTable"
-                ) {
-                    const paragraphNode = schema.nodes.paragraph;
-                    if (!paragraphNode) {
-                        return false;
-                    }
-
-                    if (dispatch) {
-                        // NOTE(rohit): instead of after() i was using
-                        // `$from.pos + currentNode.nodeSize`
-                        // but this was causing an issue where the cursor was being inserted at
-                        // the wrong node.
-                        // I needed more reliable position to insert in the same depth.
-                        //
-                        // The after() method returns the position right after the node at the
-                        // *current depth*, which is more reliable for inserting content after a
-                        // complex node like a table.
-                        const insertPosition = $from.after();
-                        const transaction = state.tr;
-
-                        const nodeAfter = state.doc.resolve(insertPosition).nodeAfter;
-                        if (nodeAfter && nodeAfter.type === paragraphNode) {
-                            // Paragraph already exists, just move cursor to it
-                            transaction.setSelection(
-                                TextSelection.create(transaction.doc, insertPosition + 1),
-                            );
-                        } else {
-                            transaction.insert(insertPosition, paragraphNode.create());
-                            transaction.setSelection(
-                                TextSelection.create(transaction.doc, insertPosition + 1),
-                            );
-                        }
-
-                        dispatch(transaction);
-                    }
-
-                    return true;
-                }
-
                 // 1. Check if the selection is the last object in the entire doc
                 if (!isSelectionAtEndOfDoc) {
                     return false;
@@ -1426,7 +1385,7 @@ export function buildContentEditorKeymapPlugin(
                     (selection instanceof NodeSelection &&
                         (selection.node.type.name === "divider" ||
                             selection.node.type.name === "file")) ||
-                    (currentNode.type.name === "paragraph" && parentNode.type.name === "tableCell")
+                    isSelectionInContentTable(selection)
                 ) {
                     const paragraphNode = schema.nodes.paragraph;
                     if (!paragraphNode) {
@@ -1470,43 +1429,6 @@ export function buildContentEditorKeymapPlugin(
                 const isSelectionAtStartOfDoc = selection.eq(Selection.atStart(state.doc));
                 const parentNode = $from.node($from.depth - 1);
                 const currentNode = $from.node();
-
-                if (
-                    selection instanceof NodeSelection &&
-                    currentNode.type.name === "fileRowTable"
-                ) {
-                    const paragraphNode = schema.nodes.paragraph;
-                    if (!paragraphNode) {
-                        return false;
-                    }
-
-                    if (dispatch) {
-                        const insertPosition = $from.before();
-                        // check if insertPosition has a paragraph node both empty or filled,
-                        // if any paragraph node is present then move the cursor to that position
-                        // otherwise insert a new empty paragraph node
-                        const transaction = state.tr;
-
-                        // Check if there's already a paragraph node before the current position
-                        const nodeBefore = state.doc.resolve(insertPosition).nodeBefore;
-                        if (nodeBefore && nodeBefore.type === paragraphNode) {
-                            // Paragraph already exists, just move cursor to it
-                            transaction.setSelection(
-                                TextSelection.create(transaction.doc, insertPosition - 1),
-                            );
-                        } else {
-                            // No paragraph exists, insert a new one
-                            transaction.insert(insertPosition, paragraphNode.create());
-                            transaction.setSelection(
-                                TextSelection.create(transaction.doc, insertPosition - 1),
-                            );
-                        }
-
-                        dispatch(transaction);
-                    }
-
-                    return true;
-                }
 
                 // 1. Check if the selection is the last object in the entire doc
                 if (!isSelectionAtStartOfDoc) {
@@ -1694,14 +1616,14 @@ export function buildContentEditorKeymapPlugin(
         if (!(state.selection instanceof NodeSelection)) return false;
         if (state.selection.node.type.name !== "file") return false;
 
-        assert(state.selection.$anchor.parent.type.name === "fileRow");
+        assert(state.selection.$anchor.parent.type.groups.includes("fileRowLike"));
 
         let $first = state.doc.resolve(state.selection.$anchor.start());
         assert($first.nodeAfter?.type.name === "file");
 
         while (true) {
             const $next = state.doc.resolve($first.pos - 1);
-            if ($next.nodeBefore?.type.name !== "fileRow") break;
+            if (!$next.nodeBefore?.type.groups.includes("fileRowLike")) break;
 
             $first = state.doc.resolve(state.doc.resolve($first.pos - 2).start());
             assert($first.nodeAfter?.type.name === "file");
@@ -1723,17 +1645,14 @@ export function buildContentEditorKeymapPlugin(
         if (!(state.selection instanceof NodeSelection)) return false;
         if (state.selection.node.type.name !== "file") return false;
 
-        assert(
-            state.selection.$anchor.parent.type.name === "fileRow" ||
-                state.selection.$anchor.parent.type.name === "fileRowTable",
-        );
+        assert(state.selection.$anchor.parent.type.groups.includes("fileRowLike"));
 
         let $last = state.doc.resolve(state.selection.$anchor.end() - 1);
         assert($last.nodeAfter?.type.name === "file");
 
         while (true) {
             const $next = state.doc.resolve($last.pos + 2);
-            if ($next.nodeAfter?.type.name !== "fileRow") break;
+            if (!$next.nodeAfter?.type.groups.includes("fileRowLike")) break;
 
             $last = state.doc.resolve(state.doc.resolve($last.pos + 3).end() - 1);
             assert($last.nodeAfter?.type.name === "file");
@@ -1816,7 +1735,7 @@ export function buildContentEditorKeymapPlugin(
             if (
                 selection instanceof NodeSelection &&
                 selection.node.type.name === "file" &&
-                selection.$anchor.parent.type.name === "fileRow"
+                selection.$anchor.parent.type.groups.includes("fileRowLike")
             ) {
                 const fileElement = view.nodeDOM(selection.$anchor.pos);
 
@@ -1934,7 +1853,7 @@ export function buildContentEditorKeymapPlugin(
                 // the next selection is a file but the current selection is not.
                 if (
                     nextSelection.node.type.name === "file" &&
-                    nextSelection.$anchor.parent.type.name === "fileRow"
+                    nextSelection.$anchor.parent.type.groups.includes("fileRowLike")
                 ) {
                     const coords = view.coordsAtPos($side.pos);
 
@@ -2171,8 +2090,7 @@ export function buildContentEditorKeymapPlugin(
                 if (
                     state.selection instanceof NodeSelection &&
                     state.selection.node.type.name === "file" &&
-                    (state.selection.$anchor.parent.type.name === "fileRow" ||
-                        state.selection.$anchor.parent.type.name === "fileRowTable")
+                    state.selection.$anchor.parent.type.groups.includes("fileRowLike")
                 ) {
                     const insertPosition = state.selection.$anchor.after();
 
