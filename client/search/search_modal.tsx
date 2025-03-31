@@ -55,7 +55,6 @@ import {
 } from "~/client/styles/search_shared_styles.js";
 import {
     contentStyles,
-    fontSizes,
     grey5SemiTransparentColorVar,
     spinAnimationClassName,
     sprinkles,
@@ -73,6 +72,7 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
 import {markSearchAffinityEntityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
 import {SearchEntityId, isSearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
 import {SearchOptions} from "~/shared/search/search_options.js";
 
 const searchModalInputHeight = "16";
@@ -246,6 +246,13 @@ export function SearchModal({
                                     output.favoriteResults.length > 0
                                 ) {
                                     result = output.favoriteResults[0]!;
+                                } else if (
+                                    output.type === "EmptyQuery" &&
+                                    output.favoriteResults &&
+                                    output.favoriteResults.length === 0 &&
+                                    output.hasMoreFavoriteResults
+                                ) {
+                                    result = seeAllFavoritesSearchEntityResult;
                                 } else if (output.results.length > 0) {
                                     result = output.results[0]!;
                                 }
@@ -260,6 +267,21 @@ export function SearchModal({
                                             break;
                                         }
                                         result = nextResult;
+                                    }
+                                }
+
+                                if (
+                                    !found &&
+                                    output.type === "EmptyQuery" &&
+                                    output.hasMoreFavoriteResults
+                                ) {
+                                    if (
+                                        seeAllFavoritesSearchEntityResult.id ===
+                                        selectedPeek.extra.entityId
+                                    ) {
+                                        found = true;
+                                    } else {
+                                        result = seeAllFavoritesSearchEntityResult;
                                     }
                                 }
 
@@ -287,6 +309,21 @@ export function SearchModal({
                                         break;
                                     }
                                     result = previousResult;
+                                }
+
+                                if (
+                                    !found &&
+                                    output.type === "EmptyQuery" &&
+                                    output.hasMoreFavoriteResults
+                                ) {
+                                    if (
+                                        seeAllFavoritesSearchEntityResult.id ===
+                                        selectedPeek.extra.entityId
+                                    ) {
+                                        found = true;
+                                    } else {
+                                        result = seeAllFavoritesSearchEntityResult;
+                                    }
                                 }
 
                                 if (
@@ -634,6 +671,14 @@ const SearchModalInput = forwardRef(function SearchModalInput(
     );
 });
 
+const seeAllFavoritesSearchEntityResult: SearchEntityResult = {
+    id: "SearchFavorites",
+    score: 0,
+    title: "See all…",
+    bodyTextSnippet: emptyArray,
+    media: null,
+};
+
 function SearchModalResultList({
     output,
     selectedPeek,
@@ -720,32 +765,20 @@ function SearchModalResultList({
         (index: number): VirtualizedScrollViewItem => {
             if (hasFavorites) {
                 if (index === 0) {
-                    const fontSize = "75";
-                    const paddingBottom = "1";
+                    const fontSize = "50";
+                    const lineHeight = "4";
+                    const paddingTop = "3";
 
                     return {
                         key: "FavoritesHeader",
-                        minHeight: addRemLengths(
-                            searchEntityViewDefaultMarginX,
-                            searchEntityViewDefaultPaddingX,
-                            fontSizes[fontSize].lineHeight,
-                            paddingBottom,
-                        ),
+                        minHeight: addRemLengths(paddingTop, lineHeight),
                         node: (
-                            <Box
-                                paddingX={searchEntityViewDefaultMarginX}
-                                paddingBottom={paddingBottom}
-                                style={{
-                                    paddingTop: addRemLengths(
-                                        searchEntityViewDefaultMarginX,
-                                        searchEntityViewDefaultPaddingX,
-                                    ),
-                                }}
-                            >
+                            <Box paddingTop={paddingTop} paddingX={searchEntityViewDefaultMarginX}>
                                 <Box
                                     paddingX={searchEntityViewDefaultPaddingX}
                                     color="grey-50"
                                     fontSize={fontSize}
+                                    style={{lineHeight: spacing[lineHeight]}}
                                 >
                                     Favorites
                                 </Box>
@@ -794,28 +827,63 @@ function SearchModalResultList({
 
                 index -= favoriteResults.length;
 
+                if (hasMoreFavoriteResults) {
+                    if (index === 0) {
+                        const result = seeAllFavoritesSearchEntityResult;
+
+                        return {
+                            key: "SeeAllFavorites",
+                            minHeight: searchEntityViewMinHeightPx[spacingScale],
+                            node: (
+                                <SearchEntityView
+                                    result={result}
+                                    isSelected={result.id === selectedPeek?.extra.entityId}
+                                    withMarginTop={false}
+                                    withMarginBottom={false}
+                                    // We use `onPressStart` to select so the selected style is applied immediately.
+                                    // We use the selected style to indicate interaction to the user instead of an
+                                    // `isPressed` style. The benefit of using selection is the previous item loses
+                                    // its style.
+                                    onPressStart={() => {
+                                        if (result.id !== selectedPeek?.extra.entityId) {
+                                            const path = getSearchEntityPath({
+                                                spaceId: space.id,
+                                                entityId: result.id,
+                                                randomSeed: output.key,
+                                                currentTime: output.queryTime,
+                                                routeLayout: "narrow",
+                                            });
+
+                                            void switchPeek({
+                                                spacePath: path,
+                                                extra: {entityId: result.id},
+                                            });
+                                        }
+                                    }}
+                                    onDoubleClick={() => handleDoubleClick(result)}
+                                />
+                            ),
+                        };
+                    }
+
+                    index -= 1;
+                }
+
                 if (index === 0) {
-                    const fontSize = "75";
-                    const paddingBottom = "1";
-                    const paddingTop = "4";
+                    const fontSize = "50";
+                    const lineHeight = "4";
+                    const paddingTop = "3";
 
                     return {
                         key: "SuggestedHeader",
-                        minHeight: addRemLengths(
-                            paddingTop,
-                            fontSizes[fontSize].lineHeight,
-                            paddingBottom,
-                        ),
+                        minHeight: addRemLengths(paddingTop, lineHeight),
                         node: (
-                            <Box
-                                paddingX={searchEntityViewDefaultMarginX}
-                                paddingTop={paddingTop}
-                                paddingBottom={paddingBottom}
-                            >
+                            <Box paddingX={searchEntityViewDefaultMarginX} paddingTop={paddingTop}>
                                 <Box
+                                    paddingX={searchEntityViewDefaultPaddingX}
                                     color="grey-50"
                                     fontSize={fontSize}
-                                    paddingX={searchEntityViewDefaultPaddingX}
+                                    style={{lineHeight: spacing[lineHeight]}}
                                 >
                                     Suggested
                                 </Box>
@@ -870,6 +938,7 @@ function SearchModalResultList({
             favoriteResults,
             handleDoubleClick,
             hasFavorites,
+            hasMoreFavoriteResults,
             output.key,
             output.queryTime,
             output.results,
@@ -884,7 +953,9 @@ function SearchModalResultList({
         <VirtualizedScrollView
             ref={viewRef}
             itemCount={
-                (hasFavorites ? 2 + output.favoriteResults.length : 0) + output.results.length
+                (hasFavorites
+                    ? 2 + output.favoriteResults.length + (hasMoreFavoriteResults ? 1 : 0)
+                    : 0) + output.results.length
             }
             bufferedItemHeight={searchEntityViewMinHeightPx[spacingScale]}
             renderItem={renderItem}
