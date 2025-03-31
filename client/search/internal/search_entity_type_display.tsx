@@ -58,9 +58,10 @@ export function getSearchEntityTypeDisplay(entityId: SearchEntityId): SearchEnti
             return {icon: <TaskQueryBrandIcon />};
         }
         case "TaskPersonal": {
-            // We label the "My tasks" view as a task "collection" since it is a collection
-            // of tasks.
-            return getSearchDynamicEntityTypeDisplay("TaskCollection");
+            // Using the simpler single task icon for the personal task view instead of the
+            // more advanced task collection icon or task view icon (which are technically
+            // closer).
+            return {icon: <TaskBrandIcon />};
         }
         case "TaskQueryFilteredToCreatorIsCurrentAccount":
         case "TaskQueryFilteredToAssigneeIsCurrentAccount":
