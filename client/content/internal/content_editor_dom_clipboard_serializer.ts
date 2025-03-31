@@ -159,7 +159,11 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
         // the same way they might look in a document. That way compatible applications
         // can parse the clipboard properly. Also, we use these lightweight styles
         // within Alpine ourselves to parse content back from generated HTML.
-        if (node.type.name === "fileRow" || node.type.name === "fileFloat") {
+        if (
+            node.type.name === "fileRow" ||
+            node.type.name === "fileFloat" ||
+            node.type.name === "fileRowTable"
+        ) {
             const fileRowDom = document.createElement("div");
 
             const fileStore = getFileClientStore(this._getSpaceId());
@@ -179,7 +183,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
 
             const gap = contentStyles.fileRowGapWidthRem * remPxBySpacingScale.small;
 
-            if (node.type.name === "fileRow") {
+            if (node.type.name === "fileRow" || node.type.name === "fileRowTable") {
                 fileRowDom.style.display = "flex";
                 fileRowDom.style.gap = `${gap}px`;
                 fileRowDom.style.marginTop = `${gap}px`;
