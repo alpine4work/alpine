@@ -8,6 +8,7 @@ import {
     searchTaskCollectionsByAffinity,
 } from "~/server/search/data/index/search_entity_index.js";
 import {
+    clearSearchEntityAffinity,
     favoriteSearchEntity,
     markSearchAffinityEntityInteraction,
     moveSearchFavoriteEntity,
@@ -41,6 +42,14 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         execute: async (context, input) => {
             await markSearchAffinityEntityInteraction(context.actor.authorizeSession(), input);
+            return {};
+        },
+    },
+
+    clearSearchEntityAffinity: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await clearSearchEntityAffinity(context.actor.authorizeSession(), input);
             return {};
         },
     },

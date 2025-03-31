@@ -27,7 +27,7 @@ import {
 } from "react";
 import {mergeProps} from "react-aria";
 import {createPortal} from "react-dom";
-import {AppContext, useAppContext} from "~/client/context/app_context.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions, useContextMenuActions} from "~/client/design/context_menu.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -43,8 +43,9 @@ import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
-import {RpcCache, RpcCacheContext} from "~/client/rpc/rpc_cache.js";
+import {RpcCacheContext} from "~/client/rpc/rpc_cache.js";
 import {searchFavoriteEntityIconColor} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {forceRevalidateSearchByAffinity} from "~/client/search/internal/force_revalidate_search_by_affinity.js";
 import {getSearchEntityPath} from "~/client/search/internal/get_search_entity_path.js";
 import {SearchAffinityEntityView} from "~/client/search/search_affinity_entity_view.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
@@ -73,11 +74,8 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
-import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {
     moveSearchFavoriteEntity,
-    searchByAffinity,
     unfavoriteSearchEntity,
 } from "~/shared/rpc/search_rpc_definitions.js";
 import {updateSpaceAccountSettings} from "~/shared/rpc/spaces_rpc_definitions.js";
@@ -205,7 +203,7 @@ export function SearchFavoritesView({
                         context,
                         rpcCache,
                         space.id,
-                        "moving shortcut divider",
+                        "moving shortcut divider in favorites view",
                         output => {
                             // Test if the shortcut count grew or shrunk in the expected direction.
                             return (
@@ -283,7 +281,7 @@ export function SearchFavoritesView({
                     context,
                     rpcCache,
                     space.id,
-                    "moving favorite",
+                    "moving favorite in favorites view",
                     output => {
                         if (
                             activeIndex >= shortcutFavoriteEntityCount &&
@@ -518,7 +516,7 @@ function SearchFavoritesViewInner({
                                     context,
                                     rpcCache,
                                     space.id,
-                                    "removing favorite",
+                                    "removing favorite in favorites view",
                                     output => {
                                         // Test that the item was removed from `favoriteResults`.
                                         return !output.favoriteResults.some(
@@ -876,49 +874,5 @@ function SearchFavoritesViewShortcutDivider({isDragOverlay}: {isDragOverlay?: bo
                 </Box>
             </FocusRing>
         </Box>
-    );
-}
-
-function forceRevalidateSearchByAffinity(
-    context: AppContext,
-    rpcCache: RpcCache,
-    spaceId: SpaceId,
-    afterName: string,
-    condition: (output: RpcDefinitionOutputType<typeof searchByAffinity>) => boolean,
-) {
-    runPromiseWithoutAwaiting(
-        context.tracer.withSpan(
-            `Refetch search affinity list after ${afterName}`,
-            async (context, span) => {
-                let attemptCount = 0;
-
-                try {
-                    // Refetch search affinity list up to 5 times until we see the expected
-                    // update. We refetch up to 5 times since `searchByAffinity()` uses eventual
-                    // consistency (and we can't easily give it a strong consistency mode). So if
-                    // we detect eventually consistent data, we retry!
-                    //
-                    // This is important when in `<SearchModal>` and "see all" is selected. We
-                    // want to see our update to the favorite shortcut count reflected in the
-                    // search list in realtime.
-                    while (attemptCount < 5) {
-                        attemptCount++;
-
-                        const output = await rpcCache.forceRevalidateEntry(
-                            context,
-                            searchByAffinity,
-                            {spaceId},
-                        );
-
-                        // Stop trying to refetch once our condition is met.
-                        if (condition(output)) {
-                            break;
-                        }
-                    }
-                } finally {
-                    span.addData({common: {count: attemptCount}});
-                }
-            },
-        ),
     );
 }

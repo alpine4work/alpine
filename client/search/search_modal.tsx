@@ -29,6 +29,7 @@ import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indica
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
+import {useGlobalContext} from "~/client/helpers/global_context.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -41,6 +42,8 @@ import {
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {RpcCacheContext} from "~/client/rpc/rpc_cache.js";
+import {forceRevalidateSearchByAffinity} from "~/client/search/internal/force_revalidate_search_by_affinity.js";
 import {getSearchEntityPath} from "~/client/search/internal/get_search_entity_path.js";
 import {SearchInstructionalPlaceholder} from "~/client/search/internal/search_instructional_placeholder.js";
 import {SearchEntityView, searchEntitySideBarWidth} from "~/client/search/search_entity_view.js";
@@ -71,11 +74,13 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
-import {markSearchAffinityEntityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
+import {
+    clearSearchEntityAffinity,
+    markSearchAffinityEntityInteraction,
+    unfavoriteSearchEntity,
+} from "~/shared/rpc/search_rpc_definitions.js";
 import {SearchEntityId, isSearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchOptions} from "~/shared/search/search_options.js";
-
-// NOCOMMIT: Context menu actions
 
 const searchModalInputHeight = "16";
 const searchModalPeekContentMaxHeight = "160";
@@ -123,13 +128,40 @@ export function SearchModal({
     const {selectedPeek, activePeek, switchPeek, holdPeekTransition} = usePeekSwitcherState<{
         entityId: SearchEntityId;
     }>({
-        // Reset our peek state if the search response changes.
-        //
-        // NOCOMMIT: Consider removing this? Or only clear if the new result isn't in
-        // the search list. Maybe also avoid remounting?
-        key: output.key,
         initialPeekData: null,
     });
+
+    // If the `output` changes such that our selected peek is no longer in the
+    // output then:
+    //
+    // - If the item after the selected peek in the previous output exists move our
+    //   selection to that item (e.g. when removing a suggested item)
+    // - Otherwise clear the selected peek.
+    const previousOutputRef = useRef(output);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const previousOutput = previousOutputRef.current;
+        previousOutputRef.current = output;
+
+        if (selectedPeek && !hasSearchEntityId(output, selectedPeek.extra.entityId)) {
+            const nextEntityId = getNextSearchEntityId(previousOutput, selectedPeek.extra.entityId);
+            if (!nextEntityId || !hasSearchEntityId(output, nextEntityId)) {
+                void switchPeek(null);
+            } else {
+                const path = getSearchEntityPath({
+                    spaceId: space.id,
+                    entityId: nextEntityId,
+                    randomSeed: output.key,
+                    currentTime: output.queryTime,
+                    routeLayout: "narrow",
+                });
+
+                void switchPeek({
+                    spacePath: path,
+                    extra: {entityId: nextEntityId},
+                });
+            }
+        }
+    }, [output, selectedPeek, space.id, switchPeek]);
 
     const shouldShowInputLoadingIndicator =
         useDelayLoadingIndicator(output.isPending) &&
@@ -162,6 +194,53 @@ export function SearchModal({
         },
         [context, reporter, space.id],
     );
+
+    const handleArrowKeyDownNavigation = (key: "ArrowUp" | "ArrowDown") => {
+        // Data hasn't loaded yet, we can't select anything.
+        if (!output.results) return;
+
+        let entityId: SearchEntityId | null = null;
+
+        if (!selectedPeek) {
+            // NOTE(calebmer): Notably, pressing down when `output.hasMoreFavoriteResults`
+            // is true and there's no selected result does not select the "see all" button.
+            // But pressing down will select the first favorite item then pressing up will
+            // select the "see all" button. This is because we believe keyboard navigation
+            // to the "see all" button is significantly less likely then navigating to the
+            // first favorite item.
+            if (
+                output.type === "EmptyQuery" &&
+                output.favoriteResults &&
+                output.favoriteResults.length > 0
+            ) {
+                entityId = output.favoriteResults[0]!.id;
+            } else if (output.results.length > 0) {
+                entityId = output.results[0]!.id;
+            }
+        } else if (key === "ArrowUp") {
+            entityId = getPreviousSearchEntityId(output, selectedPeek.extra.entityId);
+        } else {
+            entityId = getNextSearchEntityId(output, selectedPeek.extra.entityId);
+        }
+
+        // There is no next item. Do nothing. Don't loop around since we may have many
+        // items so looping would be disorienting.
+        if (entityId === null) return;
+
+        const path = getSearchEntityPath({
+            spaceId: space.id,
+            entityId,
+            randomSeed: output.key,
+            currentTime: output.queryTime,
+            routeLayout: "narrow",
+        });
+
+        // NOCOMMIT: We're not scrolling anymore? When did that break?
+        void switchPeek({
+            spacePath: path,
+            extra: {entityId},
+        });
+    };
 
     return (
         <Modal
@@ -236,136 +315,7 @@ export function SearchModal({
                             event.stopPropagation();
                             event.preventDefault();
 
-                            // Data hasn't loaded yet, we can't select anything.
-                            if (!output.results) break;
-
-                            let entityId: SearchEntityId | undefined;
-
-                            if (!selectedPeek) {
-                                // NOTE(calebmer): Notably, pressing down when `output.hasMoreFavoriteResults`
-                                // is true and there's no selected result does not select the "see all" button.
-                                // But pressing down will select the first favorite item then pressing up will
-                                // select the "see all" button. This is because we believe keyboard navigation
-                                // to the "see all" button is significantly less likely then navigating to the
-                                // first favorite item.
-                                if (
-                                    output.type === "EmptyQuery" &&
-                                    output.favoriteResults &&
-                                    output.favoriteResults.length > 0
-                                ) {
-                                    entityId = output.favoriteResults[0]!.id;
-                                } else if (output.results.length > 0) {
-                                    entityId = output.results[0]!.id;
-                                }
-                            } else if (event.key === "ArrowUp") {
-                                let found = false;
-
-                                // Handle the case when you've selected "See all" in the favorites header then
-                                // hit `ArrowUp`.
-                                if (
-                                    !found &&
-                                    output.type === "EmptyQuery" &&
-                                    output.hasMoreFavoriteResults
-                                ) {
-                                    if (selectedPeek.extra.entityId === "SearchFavorites") {
-                                        found = true;
-                                    } else {
-                                        entityId = "SearchFavorites";
-                                    }
-                                }
-
-                                if (
-                                    !found &&
-                                    output.type === "EmptyQuery" &&
-                                    output.favoriteResults
-                                ) {
-                                    for (let i = 0; i < output.favoriteResults.length; i++) {
-                                        const nextResult = output.favoriteResults[i]!;
-                                        if (nextResult.id === selectedPeek.extra.entityId) {
-                                            found = true;
-                                            break;
-                                        }
-                                        entityId = nextResult.id;
-                                    }
-                                }
-
-                                if (!found) {
-                                    for (let i = 0; i < output.results.length; i++) {
-                                        const nextResult = output.results[i]!;
-                                        if (nextResult.id === selectedPeek.extra.entityId) {
-                                            found = true;
-                                            break;
-                                        }
-                                        entityId = nextResult.id;
-                                    }
-                                }
-
-                                if (!found) {
-                                    entityId = undefined;
-                                }
-                            } else {
-                                let found = false;
-
-                                for (let i = output.results.length - 1; i >= 0; i--) {
-                                    const previousResult = output.results[i]!;
-                                    if (previousResult.id === selectedPeek.extra.entityId) {
-                                        found = true;
-                                        break;
-                                    }
-                                    entityId = previousResult.id;
-                                }
-
-                                if (
-                                    !found &&
-                                    output.type === "EmptyQuery" &&
-                                    output.favoriteResults
-                                ) {
-                                    for (let i = output.favoriteResults.length - 1; i >= 0; i--) {
-                                        const previousResult = output.favoriteResults[i]!;
-                                        if (previousResult.id === selectedPeek.extra.entityId) {
-                                            found = true;
-                                            break;
-                                        }
-                                        entityId = previousResult.id;
-                                    }
-                                }
-
-                                // Handle the case when you've selected "See all" in the favorites header then
-                                // hit `ArrowDown`.
-                                if (
-                                    !found &&
-                                    output.type === "EmptyQuery" &&
-                                    output.hasMoreFavoriteResults
-                                ) {
-                                    if (selectedPeek.extra.entityId === "SearchFavorites") {
-                                        found = true;
-                                    } else {
-                                        entityId = "SearchFavorites";
-                                    }
-                                }
-
-                                if (!found) {
-                                    entityId = undefined;
-                                }
-                            }
-
-                            // There is no next item. Do nothing. Don't loop around since we may have many
-                            // items so looping would be disorienting.
-                            if (entityId === undefined) break;
-
-                            const path = getSearchEntityPath({
-                                spaceId: space.id,
-                                entityId,
-                                randomSeed: output.key,
-                                currentTime: output.queryTime,
-                                routeLayout: "narrow",
-                            });
-
-                            // NOCOMMIT: We're not scrolling anymore? When did that break?
-                            void switchPeek({
-                                spacePath: path,
-                                extra: {entityId},
-                            });
+                            handleArrowKeyDownNavigation(event.key);
                             break;
                         }
 
@@ -696,7 +646,9 @@ function SearchModalResultList({
 }) {
     const spacingScale = useSpacingScale();
     const navigate = useNavigate();
+    const context = useAppContext();
     const {space} = useSpaceContext();
+    const rpcCache = useGlobalContext(RpcCacheContext);
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
@@ -853,7 +805,37 @@ function SearchModalResultList({
                                         });
                                     }
                                 }}
-                                onDoubleClick={() => handleDoubleClick(result)}
+                                onDoubleClick={() => {
+                                    handleDoubleClick(result);
+                                }}
+                                getCopyPath={() => {
+                                    return getSearchEntityPath({
+                                        spaceId: space.id,
+                                        entityId: result.id,
+                                        randomSeed: output.key,
+                                        currentTime: output.queryTime,
+                                        routeLayout: "wide",
+                                    });
+                                }}
+                                onRemoveFromFavorites={async () => {
+                                    await unfavoriteSearchEntity(context, {
+                                        spaceId: space.id,
+                                        entityId: result.id,
+                                    });
+
+                                    forceRevalidateSearchByAffinity(
+                                        context,
+                                        rpcCache,
+                                        space.id,
+                                        "removing favorite in search modal",
+                                        output => {
+                                            // Test that the item was removed from `favoriteResults`.
+                                            return !output.favoriteResults.some(
+                                                otherResult => otherResult.id === result.id,
+                                            );
+                                        },
+                                    );
+                                }}
                             />
                         ),
                     };
@@ -921,12 +903,51 @@ function SearchModalResultList({
                                 });
                             }
                         }}
-                        onDoubleClick={() => handleDoubleClick(result)}
+                        onDoubleClick={() => {
+                            handleDoubleClick(result);
+                        }}
+                        getCopyPath={() => {
+                            return getSearchEntityPath({
+                                spaceId: space.id,
+                                entityId: result.id,
+                                randomSeed: output.key,
+                                currentTime: output.queryTime,
+                                routeLayout: "wide",
+                            });
+                        }}
+                        onRemoveFromSuggested={
+                            output.type === "EmptyQuery"
+                                ? async () => {
+                                      // Since `output.type === "EmptyQuery"` here, `output` will return
+                                      // search affinity entities.
+                                      const result = output.results[index]!;
+
+                                      await clearSearchEntityAffinity(context, {
+                                          spaceId: space.id,
+                                          entityId: result.id,
+                                      });
+
+                                      forceRevalidateSearchByAffinity(
+                                          context,
+                                          rpcCache,
+                                          space.id,
+                                          "removing suggestion in search modal",
+                                          output => {
+                                              // Test that the item was removed from `results`.
+                                              return !output.results.some(
+                                                  otherResult => otherResult.id === result.id,
+                                              );
+                                          },
+                                      );
+                                  }
+                                : undefined
+                        }
                     />
                 ),
             };
         },
         [
+            context,
             favoriteResults,
             handleDoubleClick,
             hasFavorites,
@@ -934,6 +955,8 @@ function SearchModalResultList({
             output.key,
             output.queryTime,
             output.results,
+            output.type,
+            rpcCache,
             selectedPeek?.extra.entityId,
             space.id,
             spacingScale,
@@ -1190,4 +1213,117 @@ function SearchModalFavoritesHeaderSeeMoreButton({
             see all
         </Box>
     );
+}
+
+function hasSearchEntityId(
+    output: SearchStateExecutionOutput,
+    selectedEntityId: SearchEntityId,
+): boolean {
+    if (!output.results) return false;
+
+    // Handle the case when you've selected "See all" in the favorites header then
+    // hit `ArrowUp`.
+    if (output.type === "EmptyQuery" && output.hasMoreFavoriteResults) {
+        if (selectedEntityId === "SearchFavorites") {
+            return true;
+        }
+    }
+
+    if (output.type === "EmptyQuery" && output.favoriteResults) {
+        for (let i = 0; i < output.favoriteResults.length; i++) {
+            const result = output.favoriteResults[i]!;
+            if (result.id === selectedEntityId) {
+                return true;
+            }
+        }
+    }
+
+    for (let i = 0; i < output.results.length; i++) {
+        const result = output.results[i]!;
+        if (result.id === selectedEntityId) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function getPreviousSearchEntityId(
+    output: SearchStateExecutionOutput,
+    selectedEntityId: SearchEntityId,
+): SearchEntityId | null {
+    // Data hasn't loaded yet, we can't select anything.
+    if (!output.results) return null;
+
+    let previousEntityId: SearchEntityId | null = null;
+
+    // Handle the case when you've selected "See all" in the favorites header then
+    // hit `ArrowUp`.
+    if (output.type === "EmptyQuery" && output.hasMoreFavoriteResults) {
+        if (selectedEntityId === "SearchFavorites") {
+            return previousEntityId;
+        } else {
+            previousEntityId = "SearchFavorites";
+        }
+    }
+
+    if (output.type === "EmptyQuery" && output.favoriteResults) {
+        for (let i = 0; i < output.favoriteResults.length; i++) {
+            const result = output.favoriteResults[i]!;
+            if (result.id === selectedEntityId) {
+                return previousEntityId;
+            }
+            previousEntityId = result.id;
+        }
+    }
+
+    for (let i = 0; i < output.results.length; i++) {
+        const result = output.results[i]!;
+        if (result.id === selectedEntityId) {
+            return previousEntityId;
+        }
+        previousEntityId = result.id;
+    }
+
+    return null;
+}
+
+function getNextSearchEntityId(
+    output: SearchStateExecutionOutput,
+    selectedEntityId: SearchEntityId,
+): SearchEntityId | null {
+    // Data hasn't loaded yet, we can't select anything.
+    if (!output.results) return null;
+
+    let nextEntityId: SearchEntityId | null = null;
+
+    for (let i = output.results.length - 1; i >= 0; i--) {
+        const previousResult = output.results[i]!;
+        if (previousResult.id === selectedEntityId) {
+            return nextEntityId;
+        }
+        nextEntityId = previousResult.id;
+    }
+
+    if (output.type === "EmptyQuery" && output.favoriteResults) {
+        for (let i = output.favoriteResults.length - 1; i >= 0; i--) {
+            const previousResult = output.favoriteResults[i]!;
+            if (previousResult.id === selectedEntityId) {
+                return nextEntityId;
+            }
+            nextEntityId = previousResult.id;
+        }
+    }
+
+    // Handle the case when you've selected "See all" in the favorites header then
+    // hit `ArrowDown`.
+    if (output.type === "EmptyQuery" && output.hasMoreFavoriteResults) {
+        if (selectedEntityId === "SearchFavorites") {
+            return nextEntityId;
+        } else {
+            nextEntityId = "SearchFavorites";
+        }
+    }
+
+    return null;
 }

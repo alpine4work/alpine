@@ -1,11 +1,15 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import escapeHtml from "escape-html";
+import {Link as LinkIcon} from "phosphor-react";
 import {Fragment, useMemo} from "react";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
+import {ContextMenuActions} from "~/client/design/context_menu.js";
+import {MenuAction} from "~/client/design/menu.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
+import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {getSearchEntityTypeDisplay} from "~/client/search/internal/search_entity_type_display.js";
 import {
@@ -32,6 +36,7 @@ import {
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {SearchAffinityEntityResult} from "~/shared/search/search_affinity_entity_result.js";
 import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
@@ -46,6 +51,9 @@ export function SearchEntityView({
     withMarginBottom = false,
     onPressStart,
     onDoubleClick,
+    getCopyPath,
+    onRemoveFromFavorites,
+    onRemoveFromSuggested,
     marginX = searchEntityViewDefaultMarginX,
     paddingX = searchEntityViewDefaultPaddingX,
 }: {
@@ -56,6 +64,9 @@ export function SearchEntityView({
     withMarginBottom?: boolean;
     onPressStart?: () => void;
     onDoubleClick?: () => void;
+    getCopyPath?: () => string;
+    onRemoveFromFavorites?: () => MaybePromise<void>;
+    onRemoveFromSuggested?: () => MaybePromise<void>;
     marginX?: Spacing;
     paddingX?: Sprinkles["paddingX"];
 }) {
@@ -63,150 +74,199 @@ export function SearchEntityView({
 
     const typeDisplay = useMemo(() => getSearchEntityTypeDisplay(result.id), [result.id]);
 
+    const contextMenuActions: Array<Array<MenuAction>> = [];
+
+    if (getCopyPath) {
+        contextMenuActions.push([
+            {
+                label: "Copy link",
+                icon: <LinkIcon />,
+                iconPlacement: "end",
+                pressErrorTitle: "Couldn’t copy link",
+                onPress: async () => {
+                    const path = getCopyPath();
+                    const url = new URL(path, window.location.href);
+                    await writeTextToClipboard(url.toString());
+                },
+            },
+        ]);
+    }
+
+    if (onRemoveFromFavorites) {
+        contextMenuActions.push([
+            {
+                label: "Remove from favorites",
+                pressErrorTitle: "Couldn’t remove from favorites",
+                onPress: onRemoveFromFavorites,
+            },
+        ]);
+    }
+
+    if (onRemoveFromSuggested) {
+        contextMenuActions.push([
+            {
+                label: "Remove from suggested",
+                pressErrorTitle: "Couldn’t remove from suggested",
+                onPress: onRemoveFromSuggested,
+            },
+        ]);
+    }
+
     return (
-        <Box
-            paddingX={marginX}
-            style={{
-                // Tiny detail: The search modal's input renders its border on top of the first
-                // search entity view. So for it to look like the first search entity has the
-                // same Y margin as it does X margin we need to add an extra pixel of margin.
-                paddingTop: withMarginTop ? convertRemLengthToPx("1", spacingScale) + 1 : undefined,
-                paddingBottom: withMarginBottom ? spacing["1"] : undefined,
-                minHeight: searchEntityViewMinHeightPx[spacingScale],
-            }}
-            onPointerDown={event => {
-                // Presses in a modal outside our element tree shouldn't select the search
-                // entity. This happens when clicking to close an overlay opened by
-                // `<SearchEntityViewExplainDebugWidget>`.
-                if (event.target instanceof Element && event.currentTarget.contains(event.target)) {
-                    onPressStart?.();
-                }
-            }}
-            onDoubleClick={event => {
-                // Presses in a modal outside our element tree shouldn't select the search
-                // entity. This happens when clicking to close an overlay opened by
-                // `<SearchEntityViewExplainDebugWidget>`.
-                if (event.target instanceof Element && event.currentTarget.contains(event.target)) {
-                    onDoubleClick?.();
-                }
-            }}
-        >
+        <ContextMenuActions actions={contextMenuActions}>
             <Box
-                paddingX={paddingX}
-                position="relative"
-                zIndex="0"
-                style={
-                    isSelected || isPressed
-                        ? assignInlineVars({
-                              [backgroundColorVar]: isPressed
-                                  ? colorSchemeVars["grey-10"]
-                                  : colorSchemeVars["grey-5"],
-                          })
-                        : undefined
-                }
+                paddingX={marginX}
+                style={{
+                    // Tiny detail: The search modal's input renders its border on top of the first
+                    // search entity view. So for it to look like the first search entity has the
+                    // same Y margin as it does X margin we need to add an extra pixel of margin.
+                    paddingTop: withMarginTop
+                        ? convertRemLengthToPx("1", spacingScale) + 1
+                        : undefined,
+                    paddingBottom: withMarginBottom ? spacing["1"] : undefined,
+                    minHeight: searchEntityViewMinHeightPx[spacingScale],
+                }}
+                onPointerDown={event => {
+                    // Presses in a modal outside our element tree shouldn't select the search
+                    // entity. This happens when clicking to close an overlay opened by
+                    // `<SearchEntityViewExplainDebugWidget>`.
+                    if (
+                        event.target instanceof Element &&
+                        event.currentTarget.contains(event.target)
+                    ) {
+                        onPressStart?.();
+                    }
+                }}
+                onDoubleClick={event => {
+                    // Presses in a modal outside our element tree shouldn't select the search
+                    // entity. This happens when clicking to close an overlay opened by
+                    // `<SearchEntityViewExplainDebugWidget>`.
+                    if (
+                        event.target instanceof Element &&
+                        event.currentTarget.contains(event.target)
+                    ) {
+                        onDoubleClick?.();
+                    }
+                }}
             >
-                {(isSelected || isPressed) && (
-                    <Box
-                        position="absolute"
-                        inset="0"
-                        zIndex="-10"
-                        borderRadius={marginX !== "0" ? "1.5" : undefined}
-                        backgroundColor={isPressed ? "grey-10" : "grey-5"}
-                        style={{
-                            // Make sure background covers border of the entry below.
-                            bottom: -1,
-                        }}
-                    />
-                )}
                 <Box
+                    paddingX={paddingX}
                     position="relative"
-                    paddingY={searchEntityViewPaddingY}
-                    style={{
-                        minHeight: searchEntityViewMinHeightPx[spacingScale],
-                    }}
+                    zIndex="0"
+                    style={
+                        isSelected || isPressed
+                            ? assignInlineVars({
+                                  [backgroundColorVar]: isPressed
+                                      ? colorSchemeVars["grey-10"]
+                                      : colorSchemeVars["grey-5"],
+                              })
+                            : undefined
+                    }
                 >
-                    {result.title !== null && (
-                        <>
-                            <SearchEntityViewTitle
-                                icon={typeDisplay.icon}
-                                title={result.title}
-                                media={result.media}
-                            />
-                            {result.bodyTextSnippet && result.bodyTextSnippet.length > 0 && (
-                                <Spacer space={searchEntityViewTitleMarginBottom} />
-                            )}
-                        </>
+                    {(isSelected || isPressed) && (
+                        <Box
+                            position="absolute"
+                            inset="0"
+                            zIndex="-10"
+                            borderRadius={marginX !== "0" ? "1.5" : undefined}
+                            backgroundColor={isPressed ? "grey-10" : "grey-5"}
+                            style={{
+                                // Make sure background covers border of the entry below.
+                                bottom: -1,
+                            }}
+                        />
                     )}
                     <Box
-                        overflow="hidden"
-                        color="grey-60"
-                        fontSize={searchEntityViewBodyTextSnippetFontSize}
-                        className={
-                            result.title === null
-                                ? searchStyles.bodyTextSnippetWithoutTitleClassName
-                                : undefined
-                        }
+                        position="relative"
+                        paddingY={searchEntityViewPaddingY}
                         style={{
-                            // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
-                            // except IE.
-                            // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
-                            display: "-webkit-box",
-                            WebkitLineClamp: result.title !== null ? 3 : 4,
-                            lineClamp: result.title !== null ? 3 : 4,
-                            WebkitBoxOrient: "vertical",
-                            textOverflow: "ellipsis",
-                            // Render contextual alternate glyphs. Particularly important that we render
-                            // the right "@" for mentions.
-                            fontFeatureSettings: '"calt" on',
-                            minHeight:
-                                result.title === null
-                                    ? searchEntityViewBodyTextSnippetMinHeight
-                                    : undefined,
+                            minHeight: searchEntityViewMinHeightPx[spacingScale],
                         }}
                     >
-                        {result.title === null && (
-                            <SearchEntityViewTitlePrefix
-                                icon={typeDisplay.icon}
-                                media={result.media}
-                            />
-                        )}
-                        {typeDisplay.isAccountMediaAuthor && result.media?.type === "Account" ? (
+                        {result.title !== null && (
                             <>
-                                <AccountShortName
-                                    account={result.media.account}
-                                    isTooltipDisabled={true}
+                                <SearchEntityViewTitle
+                                    icon={typeDisplay.icon}
+                                    title={result.title}
+                                    media={result.media}
                                 />
-                                {": "}
+                                {result.bodyTextSnippet && result.bodyTextSnippet.length > 0 && (
+                                    <Spacer space={searchEntityViewTitleMarginBottom} />
+                                )}
                             </>
-                        ) : null}
-                        {result.bodyTextSnippet?.map(({isHighlighted, text}, index) => {
-                            if (!isHighlighted) {
-                                return (
-                                    <Fragment key={index}>
-                                        {renderTextWithEmojiFontFamily(text)}
-                                    </Fragment>
-                                );
-                            } else {
-                                return (
-                                    <span
-                                        key={index}
-                                        className={sprinkles({
-                                            color: "grey-90",
-                                            fontStyle: "semi-bold",
-                                        })}
-                                    >
-                                        {renderTextWithEmojiFontFamily(text)}
-                                    </span>
-                                );
+                        )}
+                        <Box
+                            overflow="hidden"
+                            color="grey-60"
+                            fontSize={searchEntityViewBodyTextSnippetFontSize}
+                            className={
+                                result.title === null
+                                    ? searchStyles.bodyTextSnippetWithoutTitleClassName
+                                    : undefined
                             }
-                        })}
+                            style={{
+                                // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
+                                // except IE.
+                                // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
+                                display: "-webkit-box",
+                                WebkitLineClamp: result.title !== null ? 3 : 4,
+                                lineClamp: result.title !== null ? 3 : 4,
+                                WebkitBoxOrient: "vertical",
+                                textOverflow: "ellipsis",
+                                // Render contextual alternate glyphs. Particularly important that we render
+                                // the right "@" for mentions.
+                                fontFeatureSettings: '"calt" on',
+                                minHeight:
+                                    result.title === null
+                                        ? searchEntityViewBodyTextSnippetMinHeight
+                                        : undefined,
+                            }}
+                        >
+                            {result.title === null && (
+                                <SearchEntityViewTitlePrefix
+                                    icon={typeDisplay.icon}
+                                    media={result.media}
+                                />
+                            )}
+                            {typeDisplay.isAccountMediaAuthor &&
+                            result.media?.type === "Account" ? (
+                                <>
+                                    <AccountShortName
+                                        account={result.media.account}
+                                        isTooltipDisabled={true}
+                                    />
+                                    {": "}
+                                </>
+                            ) : null}
+                            {result.bodyTextSnippet?.map(({isHighlighted, text}, index) => {
+                                if (!isHighlighted) {
+                                    return (
+                                        <Fragment key={index}>
+                                            {renderTextWithEmojiFontFamily(text)}
+                                        </Fragment>
+                                    );
+                                } else {
+                                    return (
+                                        <span
+                                            key={index}
+                                            className={sprinkles({
+                                                color: "grey-90",
+                                                fontStyle: "semi-bold",
+                                            })}
+                                        >
+                                            {renderTextWithEmojiFontFamily(text)}
+                                        </span>
+                                    );
+                                }
+                            })}
+                        </Box>
                     </Box>
+                    {result.explanation && (
+                        <SearchEntityViewExplainDebugWidget explanation={result.explanation} />
+                    )}
                 </Box>
-                {result.explanation && (
-                    <SearchEntityViewExplainDebugWidget explanation={result.explanation} />
-                )}
             </Box>
-        </Box>
+        </ContextMenuActions>
     );
 }
 

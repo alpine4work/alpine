@@ -4,7 +4,7 @@ import {
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {authorizeOwnAccountAccess, authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
@@ -238,6 +238,12 @@ const SearchEntityTable = DynamoTableSchema.new({
         },
     ],
 });
+
+type SearchAffinityEntityItem = DynamoTableItemType<
+    typeof SearchEntityTable,
+    "Account",
+    "SearchEntityAffinity"
+>;
 
 const AccountSearchAffinityEntitiesIndex = SearchEntityTable.addExpensiveFullIndex({
     // NOTE(calebmer, 2024-03-19): Would love to rename this index
@@ -649,6 +655,7 @@ async function addSearchAffinityEntityPoints(
     // Since this is a personal score it doesn't really matter if the user gives
     // themselves affinity points to an entity they don't have access to.
 
+    await authorizeSpaceAccess(context, spaceId);
     await authorizeOwnAccountAccess(context, accountId);
 
     // Make sure increments are positive and finite.
@@ -1011,6 +1018,55 @@ export async function removeSearchAffinityEntityActiveTaskAssigneePoints(
             }
         }
     });
+}
+
+/**
+ * Clear all affinity points related with the entity.
+ */
+export async function clearSearchEntityAffinity(
+    context: ServerSessionActionContext,
+    {spaceId, entityId}: {spaceId: SpaceId; entityId: SearchAffinityEntityId},
+) {
+    await authorizeSpaceAccess(context, spaceId);
+
+    await SearchEntityTable.updateItem(
+        context,
+        {
+            partitionType: "Account",
+            sortRangeType: "SearchEntityAffinity",
+            spaceId,
+            accountId: context.actor.getAccountId(),
+            entityId,
+        },
+        item => {
+            const currentTime = Date.now();
+
+            const newItem: SearchAffinityEntityItem = assignSearchAffinityEntityDerivedAttributes({
+                partitionType: "Account",
+                sortRangeType: "SearchEntityAffinity",
+                spaceId,
+                accountId: context.actor.getAccountId(),
+                entityId,
+                lastViewedTime: null,
+                favoriteOrderKey: null,
+                ...item,
+                points: 0,
+                erosion: 0,
+                lastUpdatedTime: currentTime,
+            });
+
+            // Delete the item from the database if setting `points` to 0 expires the item.
+            // Which it will unless `favoriteOrderKey` is set.
+            if (
+                newItem.expirationTime !== null &&
+                newItem.expirationTime.getTime() <= currentTime
+            ) {
+                return null;
+            }
+
+            return newItem;
+        },
+    );
 }
 
 /**

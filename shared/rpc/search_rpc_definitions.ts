@@ -66,6 +66,15 @@ export const markSearchAffinityEntityInteraction = defineRpc({
     output: {},
 });
 
+export const clearSearchEntityAffinity = defineRpc({
+    name: "clearSearchEntityAffinity",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        entityId: SearchAffinityEntityIdSchema,
+    },
+    output: {},
+});
+
 export const searchChannelsByKeywords = defineRpc({
     name: "searchChannelsByKeywords",
     input: {
