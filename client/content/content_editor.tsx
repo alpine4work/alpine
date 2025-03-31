@@ -90,7 +90,7 @@ import {createContentEditorOrderedListItemNodeView} from "~/client/content/inter
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {handleCopyContentFile} from "~/client/content/internal/content_file_preview.js";
-import {createContentEditorFileTableNodeViewConstructor} from "~/client/content/internal/file/content_editor_file_table_node_view.js";
+import {createContentEditorFileRowTableNodeViewConstructor} from "~/client/content/internal/files/content_editor_file_row_table_node_view.js";
 import {
     ContentEditorFileDropTarget,
     getContentEditorFileDropTargets,
@@ -1240,7 +1240,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 draggingFileRef,
             }),
             table: createContentEditorTableNodeView(),
-            fileRowTable: createContentEditorFileTableNodeViewConstructor({
+            fileRowTable: createContentEditorFileRowTableNodeViewConstructor({
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                 getLayoutScreenWidth: getFileLayoutScreenWidth,
                 subscribeToReferencesUpdate: listener => {
