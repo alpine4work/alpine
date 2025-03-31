@@ -448,7 +448,12 @@ export function getContentEditorFileDropTargets(
         if (node.type.name === "table" && i === aroundIndex) {
             // Recusrively traverse the table cells and generate all drop targets
             // doing this in a function
-            addContentEditorTableFileDropTargets(node, element, dropTargets, pos);
+            addContentEditorTableFileDropTargets({
+                tableNode: node,
+                tableElement: element,
+                dropTargets,
+                tablePos: pos,
+            });
         }
     }
 
@@ -486,12 +491,17 @@ export function getContentEditorFileDropTargets(
     return dropTargets;
 }
 
-function addContentEditorTableFileDropTargets(
-    tableNode: Node,
-    tableElement: HTMLElement,
-    dropTargets: Array<ContentEditorFileDropTarget>,
-    tablePos: number,
-): void {
+function addContentEditorTableFileDropTargets({
+    tableNode,
+    tableElement,
+    dropTargets,
+    tablePos,
+}: {
+    tableNode: Node;
+    tableElement: HTMLElement;
+    dropTargets: Array<ContentEditorFileDropTarget>;
+    tablePos: number;
+}): void {
     assert(tableElement);
 
     const tableRect = tableElement.getBoundingClientRect();
