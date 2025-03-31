@@ -44,8 +44,11 @@ import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {RpcCacheContext} from "~/client/rpc/rpc_cache.js";
-import {searchFavoriteEntityIconColor} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
-import {forceRevalidateSearchByAffinity} from "~/client/search/internal/force_revalidate_search_by_affinity.js";
+import {forceRevalidateSearchByAffinity} from "~/client/search/core/force_revalidate_search_by_affinity.js";
+import {
+    searchFavoriteEntityIconColor,
+    updateSearchFavoriteEntityMenuAction,
+} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {getSearchEntityPath} from "~/client/search/internal/get_search_entity_path.js";
 import {SearchAffinityEntityView} from "~/client/search/search_affinity_entity_view.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
@@ -506,6 +509,10 @@ function SearchFavoritesViewInner({
                                 entityId: result.id,
                             });
 
+                            // This is very race condition prone. But it's good enough for this
+                            // non-collaborative use case. *Shrug*
+                            updateSearchFavoriteEntityMenuAction(space.id, result.id, false);
+
                             updateResults(results =>
                                 results.filter(otherResult => otherResult.id !== result.id),
                             );
@@ -519,8 +526,8 @@ function SearchFavoritesViewInner({
                                     "removing favorite in favorites view",
                                     output => {
                                         // Test that the item was removed from `favoriteResults`.
-                                        return !output.favoriteResults.some(
-                                            otherResult => otherResult.id === result.id,
+                                        return output.favoriteResults.every(
+                                            otherResult => otherResult.id !== result.id,
                                         );
                                     },
                                 );

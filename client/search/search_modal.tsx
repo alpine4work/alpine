@@ -43,7 +43,8 @@ import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {RpcCacheContext} from "~/client/rpc/rpc_cache.js";
-import {forceRevalidateSearchByAffinity} from "~/client/search/internal/force_revalidate_search_by_affinity.js";
+import {forceRevalidateSearchByAffinity} from "~/client/search/core/force_revalidate_search_by_affinity.js";
+import {updateSearchFavoriteEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {getSearchEntityPath} from "~/client/search/internal/get_search_entity_path.js";
 import {SearchInstructionalPlaceholder} from "~/client/search/internal/search_instructional_placeholder.js";
 import {SearchEntityView, searchEntitySideBarWidth} from "~/client/search/search_entity_view.js";
@@ -831,6 +832,14 @@ function SearchModalResultList({
                                         spaceId: space.id,
                                         entityId: result.id,
                                     });
+
+                                    // This is very race condition prone. But it's good enough for this
+                                    // non-collaborative use case. *Shrug*
+                                    updateSearchFavoriteEntityMenuAction(
+                                        space.id,
+                                        result.id,
+                                        false,
+                                    );
 
                                     forceRevalidateSearchByAffinity(
                                         context,

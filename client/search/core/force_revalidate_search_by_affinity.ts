@@ -5,6 +5,17 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 
+/**
+ * Force our `searchByAffinity()` RPC result to revalidate.
+ *
+ * Generally called after some mutation. Since `searchByAffinity()` uses
+ * eventual consistency we retry a couple times until `condition` returns
+ * true. `condition` should return true once update we made is reflected in
+ * the `searchByAffinity()` output.
+ *
+ * Most of the time (especially in development) we should only need to call
+ * `searchByAffinity()` once.
+ */
 export function forceRevalidateSearchByAffinity(
     context: AppContext,
     rpcCache: RpcCache,
@@ -16,6 +27,7 @@ export function forceRevalidateSearchByAffinity(
         `Refetch search affinity list after ${afterName}`,
         async (context, span) => {
             let attemptCount = 0;
+            let hasConditionPassed = false;
 
             try {
                 // Refetch search affinity list up to 5 times until we see the expected
@@ -35,8 +47,20 @@ export function forceRevalidateSearchByAffinity(
 
                     // Stop trying to refetch once our condition is met.
                     if (condition(output)) {
+                        hasConditionPassed = true;
                         break;
                     }
+                }
+
+                // Log a warning to the console in development if `condition` doesn't return
+                // true. This should get a developer's attention so they can fix their
+                // condition. `condition` should return true basically 100% of the time in
+                // development since there's no eventual consistency lag in development.
+                if (process.env.NODE_ENV !== "production" && !hasConditionPassed) {
+                    // eslint-disable-next-line no-console
+                    console.warn(
+                        "`forceRevalidateSearchByAffinity()`'s condition should eventually return true to avoid calling `searchByAffinity()` multiple times unnecessarily.",
+                    );
                 }
             } finally {
                 span.addData({common: {count: attemptCount}});

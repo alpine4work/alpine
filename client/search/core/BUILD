@@ -11,6 +11,7 @@ ts_project(
         "//:node_modules/phosphor-react",
         "//:node_modules/react",
         "//client/design",
+        "//client/rpc",
         "//shared/accounts",
         "//shared/error",
         "//shared/helpers",

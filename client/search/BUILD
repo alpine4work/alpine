@@ -20,6 +20,7 @@ ts_project(
         "//client/navigation",
         "//client/peek",
         "//client/rpc",
+        "//client/search/core",
         "//client/shimmer",
         "//client/spaces",
         "//client/virtualized",
