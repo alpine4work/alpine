@@ -17,7 +17,14 @@ import {
 } from "@dnd-kit/sortable";
 import {setInteractionModality} from "@react-aria/interactions";
 import {ArrowUp, Link as LinkIcon, Star} from "phosphor-react";
-import {Fragment, KeyboardEvent, useCallback, useMemo, useState} from "react";
+import {
+    Fragment,
+    KeyboardEvent as SyntheticKeyboardEvent,
+    PointerEvent as SyntheticPointerEvent,
+    useCallback,
+    useMemo,
+    useState,
+} from "react";
 import {mergeProps} from "react-aria";
 import {createPortal} from "react-dom";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
@@ -35,7 +42,7 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {RpcCache, RpcCacheContext} from "~/client/rpc/rpc_cache.js";
 import {searchFavoriteEntityIconColor} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {getSearchEntityPath} from "~/client/search/internal/get_search_entity_path.js";
@@ -597,6 +604,7 @@ function SearchFavoritesViewItem({
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
     const navigate = useNavigate();
+    const rootNavigate = useRootNavigate();
     const {space} = useSpaceContext();
     const currentTime = useCurrentTimeRoundedToHour();
     const activeContextMenuActions = useContextMenuActions();
@@ -639,18 +647,24 @@ function SearchFavoritesViewItem({
 
     const [isPending, setIsPending] = useState(false);
 
-    const handlePress = () => {
+    const handlePress = (event: SyntheticPointerEvent | SyntheticKeyboardEvent) => {
         if (isPending) return;
 
         runPromiseWithoutAwaiting(async () => {
             setIsPending(true);
 
             try {
-                await navigate(path, {
-                    // If we're on desktop then don't open in a peek. Instead navigate the
-                    // full page.
-                    stopPropagation: true,
-                });
+                // When you select a favorite, don't navigate the peek we're in and don't open
+                // a peek if we're fullscreen. Always perform a fullscreen navigation. This
+                // way we consider opening search, pressing "see all", then pressing a
+                // favorite closes `<SearchModal>`. A fast, successful, navigation session.
+                //
+                // Holding shift performs a normal navigation.
+                if (!event.shiftKey) {
+                    await rootNavigate(path);
+                } else {
+                    await navigate(path);
+                }
             } finally {
                 setIsPending(false);
             }
@@ -702,14 +716,14 @@ function SearchFavoritesViewItem({
                             if (isDragging || isDragOverlay) return;
                             setIsPointerDown(true);
                         },
-                        onPointerUp: () => {
+                        onPointerUp: (event: SyntheticPointerEvent) => {
                             const wasPressed = isPressed;
                             setIsPointerDown(false);
-                            if (wasPressed) handlePress();
+                            if (wasPressed) handlePress(event);
                         },
                         onPointerOut: () => setIsPointerDown(false),
                         onPointerCancel: () => setIsPointerDown(false),
-                        onKeyDown: (event: KeyboardEvent) => {
+                        onKeyDown: (event: SyntheticKeyboardEvent) => {
                             if (isDragging || isDragOverlay) return;
 
                             switch (event.key) {
@@ -723,18 +737,18 @@ function SearchFavoritesViewItem({
                                 }
                             }
                         },
-                        onKeyUp: (event: KeyboardEvent) => {
+                        onKeyUp: (event: SyntheticKeyboardEvent) => {
                             switch (event.key) {
                                 case "Enter": {
                                     const wasEnterKeyDown = isEnterKeyDown;
                                     setIsEnterKeyDown(false);
-                                    if (wasEnterKeyDown) handlePress();
+                                    if (wasEnterKeyDown) handlePress(event);
                                     break;
                                 }
                                 case " ": {
                                     const wasSpaceKeyDown = isSpaceKeyDown;
                                     setIsSpaceKeyDown(false);
-                                    if (wasSpaceKeyDown) handlePress();
+                                    if (wasSpaceKeyDown) handlePress(event);
                                     break;
                                 }
                             }
