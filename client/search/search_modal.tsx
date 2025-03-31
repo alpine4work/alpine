@@ -17,6 +17,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {usePress} from "react-aria";
 import {To, createPath} from "react-router";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -72,7 +73,6 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
 import {markSearchAffinityEntityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
 import {SearchEntityId, isSearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
-import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
 import {SearchOptions} from "~/shared/search/search_options.js";
 
 const searchModalInputHeight = "16";
@@ -237,29 +237,53 @@ export function SearchModal({
                             // Data hasn't loaded yet, we can't select anything.
                             if (!output.results) break;
 
-                            let result: {readonly id: SearchEntityId} | undefined;
+                            let entityId: SearchEntityId | undefined;
 
                             if (!selectedPeek) {
+                                // NOTE(calebmer): Notably, pressing down when `output.hasMoreFavoriteResults`
+                                // is true and there's no selected result does not select the "see all" button.
+                                // But pressing down will select the first favorite item then pressing up will
+                                // select the "see all" button. This is because we believe keyboard navigation
+                                // to the "see all" button is significantly less likely then navigating to the
+                                // first favorite item.
                                 if (
                                     output.type === "EmptyQuery" &&
                                     output.favoriteResults &&
                                     output.favoriteResults.length > 0
                                 ) {
-                                    result = output.favoriteResults[0]!;
+                                    entityId = output.favoriteResults[0]!.id;
                                 } else if (output.results.length > 0) {
-                                    result = output.results[0]!;
+                                    entityId = output.results[0]!.id;
                                 }
                             } else if (event.key === "ArrowUp") {
                                 let found = false;
 
-                                if (output.type === "EmptyQuery" && output.favoriteResults) {
+                                // Handle the case when you've selected "See all" in the favorites header then
+                                // hit `ArrowUp`.
+                                if (
+                                    !found &&
+                                    output.type === "EmptyQuery" &&
+                                    output.hasMoreFavoriteResults
+                                ) {
+                                    if (selectedPeek.extra.entityId === "SearchFavorites") {
+                                        found = true;
+                                    } else {
+                                        entityId = "SearchFavorites";
+                                    }
+                                }
+
+                                if (
+                                    !found &&
+                                    output.type === "EmptyQuery" &&
+                                    output.favoriteResults
+                                ) {
                                     for (let i = 0; i < output.favoriteResults.length; i++) {
                                         const nextResult = output.favoriteResults[i]!;
                                         if (nextResult.id === selectedPeek.extra.entityId) {
                                             found = true;
                                             break;
                                         }
-                                        result = nextResult;
+                                        entityId = nextResult.id;
                                     }
                                 }
 
@@ -270,12 +294,12 @@ export function SearchModal({
                                             found = true;
                                             break;
                                         }
-                                        result = nextResult;
+                                        entityId = nextResult.id;
                                     }
                                 }
 
                                 if (!found) {
-                                    result = undefined;
+                                    entityId = undefined;
                                 }
                             } else {
                                 let found = false;
@@ -286,7 +310,7 @@ export function SearchModal({
                                         found = true;
                                         break;
                                     }
-                                    result = previousResult;
+                                    entityId = previousResult.id;
                                 }
 
                                 if (
@@ -300,22 +324,36 @@ export function SearchModal({
                                             found = true;
                                             break;
                                         }
-                                        result = previousResult;
+                                        entityId = previousResult.id;
+                                    }
+                                }
+
+                                // Handle the case when you've selected "See all" in the favorites header then
+                                // hit `ArrowDown`.
+                                if (
+                                    !found &&
+                                    output.type === "EmptyQuery" &&
+                                    output.hasMoreFavoriteResults
+                                ) {
+                                    if (selectedPeek.extra.entityId === "SearchFavorites") {
+                                        found = true;
+                                    } else {
+                                        entityId = "SearchFavorites";
                                     }
                                 }
 
                                 if (!found) {
-                                    result = undefined;
+                                    entityId = undefined;
                                 }
                             }
 
                             // There is no next item. Do nothing. Don't loop around since we may have many
                             // items so looping would be disorienting.
-                            if (!result) break;
+                            if (entityId === undefined) break;
 
                             const path = getSearchEntityPath({
                                 spaceId: space.id,
-                                entityId: result.id,
+                                entityId,
                                 randomSeed: output.key,
                                 currentTime: output.queryTime,
                                 routeLayout: "narrow",
@@ -324,7 +362,7 @@ export function SearchModal({
                             // NOCOMMIT: We're not scrolling anymore? When did that break?
                             void switchPeek({
                                 spacePath: path,
-                                extra: {entityId: result.id},
+                                extra: {entityId},
                             });
                             break;
                         }
@@ -712,7 +750,6 @@ function SearchModalResultList({
     });
 
     const hasFavorites = output.type === "EmptyQuery";
-    // NOCOMMIT: Use this
     const hasMoreFavoriteResults = hasFavorites && output.hasMoreFavoriteResults;
     const favoriteResults = hasFavorites ? output.favoriteResults : emptyArray;
 
@@ -736,6 +773,46 @@ function SearchModalResultList({
                                     style={{lineHeight: spacing[lineHeight]}}
                                 >
                                     Favorites
+                                    {hasMoreFavoriteResults && (
+                                        // Intentionally using [U+2219 (bullet operator)][1] instead of
+                                        // [U+2022 (bullet)][2] since the former is thinner.
+                                        //
+                                        // A bullet separator here is nicer than parentheses like "(see all)"
+                                        // since the parentheses draw a lot of attention.
+                                        //
+                                        // [1]: https://graphemica.com/%E2%88%99
+                                        // [2]: https://graphemica.com/%E2%80%A2
+                                        <>
+                                            {"\u2009\u2219\u2009"}
+                                            <SearchModalFavoritesHeaderSeeMoreButton
+                                                isSelected={
+                                                    selectedPeek?.extra.entityId ===
+                                                    "SearchFavorites"
+                                                }
+                                                onPressStart={() => {
+                                                    if (
+                                                        selectedPeek?.extra.entityId ===
+                                                        "SearchFavorites"
+                                                    ) {
+                                                        return;
+                                                    }
+
+                                                    const path = getSearchEntityPath({
+                                                        spaceId: space.id,
+                                                        entityId: "SearchFavorites",
+                                                        randomSeed: output.key,
+                                                        currentTime: output.queryTime,
+                                                        routeLayout: "narrow",
+                                                    });
+
+                                                    void switchPeek({
+                                                        spacePath: path,
+                                                        extra: {entityId: "SearchFavorites"},
+                                                    });
+                                                }}
+                                            />
+                                        </>
+                                    )}
                                 </Box>
                             </Box>
                         ),
@@ -851,6 +928,7 @@ function SearchModalResultList({
             favoriteResults,
             handleDoubleClick,
             hasFavorites,
+            hasMoreFavoriteResults,
             output.key,
             output.queryTime,
             output.results,
@@ -1079,6 +1157,35 @@ function SearchModalPeekContent({
                 router={router}
                 onGoBackOverflow={onClose}
             />
+        </Box>
+    );
+}
+
+function SearchModalFavoritesHeaderSeeMoreButton({
+    isSelected,
+    onPressStart,
+}: {
+    isSelected: boolean;
+    onPressStart: () => void;
+}) {
+    const {pressProps} = usePress({onPressStart});
+
+    return (
+        <Box
+            {...pressProps}
+            display="inline"
+            // We don't usually use a pointer cursor for pressable things but in this case
+            // it's not obvious this text is interactive without it.
+            cursor="pointer"
+            color={isSelected ? "grey-100" : undefined}
+            backgroundColor={isSelected ? "grey-5" : undefined}
+            paddingX="1"
+            paddingY="1"
+            borderRadius="1"
+            position="relative"
+            left="-1"
+        >
+            see all
         </Box>
     );
 }
