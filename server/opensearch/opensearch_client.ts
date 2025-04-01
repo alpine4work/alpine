@@ -31,6 +31,7 @@ import {
     UnimplementedError,
     UnknownError,
 } from "~/shared/error/error.js";
+import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {partitionArray} from "~/shared/helpers/array/partition_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -1334,7 +1335,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         tracer: TracerBase,
         commands: ReadonlyArray<OpensearchMultiGetDocCommandBase<Index, Output>>,
     ): Promise<Map<Index, Map<OpensearchIndexDocIdType<Index>, Output>>> {
-        if (commands.length === 0) return [] as any;
+        if (commands.length === 0) return emptyMap as any;
 
         const indexByName = new Map<string, OpensearchIndex<any, any, any, any, any>>();
         const commandByIdByIndex = new Map<

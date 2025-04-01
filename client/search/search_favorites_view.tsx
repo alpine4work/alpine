@@ -63,7 +63,12 @@ import {
     searchEntityViewMediaSize,
     searchEntityViewTitleTypeDisplayGap,
 } from "~/client/styles/search_shared_styles.js";
-import {colorSchemeVars, grey5SemiTransparentColorVar, sprinkles} from "~/client/styles/styles.js";
+import {
+    colorSchemeVars,
+    contentStyles,
+    grey5SemiTransparentColorVar,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {
     parseRemLength,
     screenPaddingX,
@@ -126,8 +131,6 @@ export function SearchFavoritesView({
 
     const [results, updateResults, updateResultsOptimistically] =
         useStateWithOptimisticUpdates(initialResults);
-
-    // NOCOMMIT: Zero favorites
 
     const pointerSensor = useSensor(
         PointerSensor,
@@ -473,6 +476,7 @@ function SearchFavoritesViewInner({
     shortcutDividerIndex: number;
 }) {
     const initialAppRenderId = useInitialAppRenderId();
+    const platform = usePlatform();
     const context = useAppContext();
     const {space} = useSpaceContext();
     const rpcCache = useGlobalContext(RpcCacheContext);
@@ -525,7 +529,20 @@ function SearchFavoritesViewInner({
             )}
         >
             <SearchFavoritesViewDragPortals randomSeed={randomSeed} results={results} />
-            {shortcutDividerIndex === -1 && <SearchFavoritesViewShortcutDivider />}
+            {results.length === 0 && (
+                <Box
+                    paddingX={
+                        platform !== "mobile" ? searchEntityViewDefaultPaddingX : screenPaddingX
+                    }
+                    color="grey-50"
+                    style={contentStyles.paragraphFontSize}
+                >
+                    No favorites. When you favorite something it will show up here.
+                </Box>
+            )}
+            {results.length > 0 && shortcutDividerIndex === -1 && (
+                <SearchFavoritesViewShortcutDivider />
+            )}
             {results.map((result, index) => (
                 <Fragment key={result.id}>
                     <SearchFavoritesViewItem
