@@ -6,6 +6,7 @@ import {
 } from "~/server/migration/migrations/index_every_search_entity_migration.js";
 import {runMoveInboxAttributesItemMigration} from "~/server/notifications/data/notifications_table.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
+import {runFavoriteTaskPersonalSearchEntityMigration} from "~/server/search/data/table/search_entity_table.js";
 import {runIndexTaskInitialAssigneePositionMigration} from "~/server/tasks/data/task_table.js";
 import {Context} from "~/shared/context/context.js";
 
@@ -20,4 +21,5 @@ export const allMigrations: {
     MoveForumChannelsAndPostsMigration: runMoveForumChannelsAndPostsMigration,
     MoveInboxAttributesItem: runMoveInboxAttributesItemMigration,
     IndexTaskInitialAssigneePosition: runIndexTaskInitialAssigneePositionMigration,
+    FavoriteTaskPersonalSearchEntity: runFavoriteTaskPersonalSearchEntityMigration,
 };

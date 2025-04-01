@@ -3,19 +3,20 @@ import {
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
-import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
-import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     authorizeOwnAccountAccess,
     authorizeSpaceAccess,
+    expensiveScanEverySpaceAccountForMigration,
     isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
-import {Context} from "~/shared/context/context.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -323,6 +324,35 @@ const AccountSearchFavoriteEntitiesIndex = SearchEntityTable.addIndex({
 export function getSearchEntityTableForTest() {
     assert(import.meta.jest);
     return SearchEntityTable;
+}
+
+/**
+ * Add the "My tasks" view to the favorites of every space account. This was
+ * run on 2025-04-01 right after making it so that we always add "My tasks" to
+ * the favorites list of new accounts. The migration backfills the "My tasks"
+ * favorite to all existing space accounts.
+ */
+export async function runFavoriteTaskPersonalSearchEntityMigration(
+    context: DynamoContext,
+    {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
+) {
+    let i = 0;
+    const mutexes = createArrayWithLength(10, () => new Mutex());
+
+    for await (const {spaceId, accountId} of expensiveScanEverySpaceAccountForMigration(context, {
+        segmentIndex,
+        totalSegmentCount,
+    })) {
+        void mutexes[i++ % mutexes.length]!.withLock(() =>
+            dangerouslyFavoriteSearchEntityWithoutAuthorization(context, {
+                spaceId,
+                accountId,
+                entityId: "TaskPersonal",
+            }),
+        );
+    }
+
+    await runAllPromises(mutexes.map(mutex => mutex.waitForUnlock()));
 }
 
 /**
@@ -1585,7 +1615,7 @@ export async function favoriteSearchEntity(
  * added.
  */
 export async function dangerouslyFavoriteSearchEntityWithoutAuthorization(
-    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+    context: DynamoContext,
     {
         spaceId,
         accountId,
