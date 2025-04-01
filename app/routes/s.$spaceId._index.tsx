@@ -1,4 +1,7 @@
-import {LoaderSchema as SpaceRouteLoaderSchema} from "~/app/routes/s.$spaceId.js";
+import {
+    HomeRouteLoaderSchema as LoaderSchema,
+    LoaderSchema as SpaceRouteLoaderSchema,
+} from "~/app/routes/s.$spaceId.js";
 import {Box} from "~/client/design/box.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
@@ -13,23 +16,16 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {searchByAffinity} from "~/server/search/data/index/search_entity_index.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {SearchAffinityEntityResultSchema} from "~/shared/search/search_affinity_entity_result.js";
-
-const LoaderSchema = Schema.object({
-    results: Schema.array(SearchAffinityEntityResultSchema),
-});
 
 export async function loader({context, params}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? "");
 
-    const {results} = await searchByAffinity(
+    const affinitySearch = await searchByAffinity(
         (await context.actor.authenticate()).actor.authorizeSession(),
         spaceId,
     );
 
-    return jsonWithSchema(LoaderSchema, {
-        results,
-    });
+    return jsonWithSchema(LoaderSchema, {affinitySearch});
 }
 
 export const meta = createMetaFunction(LoaderSchema, ({getParentData}) => {
@@ -39,7 +35,7 @@ export const meta = createMetaFunction(LoaderSchema, ({getParentData}) => {
 });
 
 export default function HomeRoute() {
-    const loaderData = useLoaderDataWithSchema(LoaderSchema);
+    const {affinitySearch} = useLoaderDataWithSchema(LoaderSchema);
 
     return (
         <Box>
@@ -53,7 +49,7 @@ export default function HomeRoute() {
                         Suggested
                     </Box>
                 </Box>
-                {loaderData.results.map(result => (
+                {affinitySearch.results.map(result => (
                     <SearchAffinityEntityView key={result.id} result={result} />
                 ))}
             </Box>

@@ -13,6 +13,8 @@ import {useIsFullWidthRoute} from "~/client/spaces/route_metadata.js";
 import {spaceLayoutStyles} from "~/client/styles/styles.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
+import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
+import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
@@ -20,11 +22,13 @@ export function SpaceLayoutSideBar({
     space,
     currentAccount,
     initialInbox,
+    initialAffinitySearch,
     onSearchPress,
 }: {
     space: SpaceModel;
     currentAccount: AccountModel;
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
+    initialAffinitySearch: RpcDefinitionOutputType<typeof searchByAffinity> | null;
     onSearchPress: () => void;
 }) {
     const rootNavigate = useRootNavigate();
@@ -33,10 +37,7 @@ export function SpaceLayoutSideBar({
     // Preload affinitive search entities so they're ready when the search modal
     // opens. We expect search to be the primary way users navigate around the
     // product so the search modal should open immediately.
-    //
-    // NOCOMMIT: Make sure if we open the home page that satisfies this preload and
-    // we don't make another request.
-    usePreloadSearchByAffinity();
+    usePreloadSearchByAffinity({initialOutput: initialAffinitySearch});
 
     return (
         <Box
