@@ -2049,7 +2049,7 @@ exports[`file row (one file) 1`] = `
   translate="no"
 >
   <div
-    class="content_fileBase"
+    class="content_fileRowLike"
     style="height: 512px; grid-template-columns: 0.853333fr;"
   >
     <div
@@ -2099,7 +2099,7 @@ exports[`file row (one file, audio type) 1`] = `
   translate="no"
 >
   <div
-    class="content_fileBase"
+    class="content_fileRowLike"
     style="height: 188.679px; grid-template-columns: 1fr;"
   >
     <div
@@ -2219,7 +2219,7 @@ exports[`file row (one file, image type) 1`] = `
   translate="no"
 >
   <div
-    class="content_fileBase"
+    class="content_fileRowLike"
     style="height: 512px; grid-template-columns: 0.853333fr;"
   >
     <div
@@ -2269,7 +2269,7 @@ exports[`file row (one file, null reference) 1`] = `
   translate="no"
 >
   <div
-    class="content_fileBase"
+    class="content_fileRowLike"
     style="height: 133.333px; grid-template-columns: 0.333333fr;"
   >
     <div
@@ -2317,7 +2317,7 @@ exports[`file row (one file, video type) 1`] = `
   translate="no"
 >
   <div
-    class="content_fileBase"
+    class="content_fileRowLike"
     style="height: 512px; grid-template-columns: 0.853333fr;"
   >
     <div
@@ -2452,7 +2452,7 @@ exports[`file row (three files) 1`] = `
   translate="no"
 >
   <div
-    class="content_fileBase"
+    class="content_fileRowLike"
     style="height: 194.667px; grid-template-columns: 0.333333fr 0.333333fr 0.333333fr;"
   >
     <div
@@ -2547,7 +2547,7 @@ exports[`file row (two files) 1`] = `
   translate="no"
 >
   <div
-    class="content_fileBase"
+    class="content_fileRowLike"
     style="height: 296px; grid-template-columns: 0.5fr 0.5fr;"
   >
     <div
@@ -5640,6 +5640,439 @@ Hello world!
 Hello world!
 
 Hello world!"
+`;
+
+exports[`table with fileRowTable (mixed content) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_tableWrapper"
+  >
+    <div
+      class="content_tableWrapper2"
+      data-scrollbar="false"
+    >
+      <div
+        class="content_tableWrapper3"
+        style="min-width: 240px; max-width: 640px;"
+      >
+        <table
+          style="grid-template-columns: minmax(100px, 300fr) minmax(100px, 300fr);"
+        >
+          <tbody>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Before
+                </p>
+                <div
+                  class="content_fileRowLike"
+                  style="height: 512px; grid-template-columns: 0.853333fr;"
+                >
+                  <div
+                    class="content_file"
+                    data-testid="ContentFilePreview:image/jpeg"
+                  >
+                    <span
+                      style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+                    >
+                       
+                    </span>
+                    <img
+                      aria-hidden="true"
+                      src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+                      style="max-width: 600px; max-height: 600px"
+                    />
+                  </div>
+                </div>
+                <p
+                  class="content_paragraph"
+                >
+                  After
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Test
+                </p>
+                <div
+                  class="content_fileRowLike"
+                  style="height: 512px; grid-template-columns: 0.853333fr;"
+                >
+                  <div
+                    class="content_file"
+                    data-testid="ContentFilePreview:image/jpeg"
+                  >
+                    <span
+                      style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+                    >
+                       
+                    </span>
+                    <img
+                      aria-hidden="true"
+                      src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+                      style="max-width: 600px; max-height: 600px"
+                    />
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <div
+                  class="content_fileRowLike"
+                  style="height: 512px; grid-template-columns: 0.853333fr;"
+                >
+                  <div
+                    class="content_file"
+                    data-testid="ContentFilePreview:image/heif"
+                  >
+                    <span
+                      style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+                    >
+                       
+                    </span>
+                    <img
+                      aria-hidden="true"
+                      src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+                      style="max-width: 600px; max-height: 600px"
+                    />
+                  </div>
+                </div>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  End
+                </p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`table with fileRowTable (mixed content): clipboard 1`] = `
+<div>
+  <div>
+    <div
+      class="content_tableWrapper2"
+    >
+      <div
+        class="content_tableWrapper3"
+      >
+        <table>
+          <tbody>
+            <tr>
+              <td>
+                <p>
+                  Before
+                </p>
+                <div
+                  style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
+                >
+                  <img
+                    data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+                    height="512"
+                    src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4cbx7m1126vx03wpkpg8g?exp=1727963596&sig=test-image"
+                    style="display: block;"
+                    width="512"
+                  />
+                </div>
+                <p>
+                  After
+                </p>
+              </td>
+              <td>
+                <p>
+                  Test
+                </p>
+                <div
+                  style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
+                >
+                  <img
+                    data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+                    height="512"
+                    src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4mxds3kj518c0dygx272c?exp=1727963615&sig=test-image"
+                    style="display: block;"
+                    width="512"
+                  />
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <div
+                  style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
+                >
+                  <object
+                    data="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4phegz57116pce7eg5j30?exp=1727963711&sig=test-image"
+                    data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+                    height="512"
+                    style="display: block;"
+                    type="image/heif"
+                    width="512"
+                  />
+                </div>
+              </td>
+              <td>
+                <p>
+                  End
+                </p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`table with fileRowTable (mixed content): clipboard text 1`] = `
+"Before
+
+After
+
+Test
+
+End"
+`;
+
+exports[`table with fileRowTable (null reference) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_tableWrapper"
+  >
+    <div
+      class="content_tableWrapper2"
+      data-scrollbar="false"
+    >
+      <div
+        class="content_tableWrapper3"
+        style="min-width: 240px; max-width: 640px;"
+      >
+        <table
+          style="grid-template-columns: minmax(100px, 300fr) minmax(100px, 300fr);"
+        >
+          <tbody>
+            <tr>
+              <td>
+                <div
+                  class="content_fileRowLike"
+                  style="height: 133.333px; grid-template-columns: 0.333333fr;"
+                >
+                  <div
+                    class="content_file"
+                  >
+                    <span
+                      style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+                    >
+                       
+                    </span>
+                    <div>
+                      <img
+                        aria-hidden="true"
+                        src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+                      />
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Test
+                </p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`table with fileRowTable (null reference): clipboard 1`] = `
+<div>
+  <div>
+    <div
+      class="content_tableWrapper2"
+    >
+      <div
+        class="content_tableWrapper3"
+      >
+        <table>
+          <tbody>
+            <tr>
+              <td>
+                <div
+                  style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
+                >
+                  <object
+                    height="133"
+                    style="display: block;"
+                    width="200"
+                  />
+                </div>
+              </td>
+              <td>
+                <p>
+                  Test
+                </p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`table with fileRowTable (null reference): clipboard text 1`] = `"Test"`;
+
+exports[`table with fileRowTable (one file) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_tableWrapper"
+  >
+    <div
+      class="content_tableWrapper2"
+      data-scrollbar="false"
+    >
+      <div
+        class="content_tableWrapper3"
+        style="min-width: 340px; max-width: 640px;"
+      >
+        <table
+          style="grid-template-columns: minmax(100px, 200fr) minmax(100px, 200fr) minmax(100px, 200fr);"
+        >
+          <tbody>
+            <tr>
+              <td>
+                <div
+                  class="content_fileRowLike"
+                  style="height: 512px; grid-template-columns: 0.853333fr;"
+                >
+                  <div
+                    class="content_file"
+                    data-testid="ContentFilePreview:image/jpeg"
+                  >
+                    <span
+                      style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+                    >
+                       
+                    </span>
+                    <img
+                      aria-hidden="true"
+                      src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+                      style="max-width: 600px; max-height: 600px"
+                    />
+                  </div>
+                </div>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  col2-test
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  col3-test
+                </p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`table with fileRowTable (one file): clipboard 1`] = `
+<div>
+  <div>
+    <div
+      class="content_tableWrapper2"
+    >
+      <div
+        class="content_tableWrapper3"
+      >
+        <table>
+          <tbody>
+            <tr>
+              <td>
+                <div
+                  style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
+                >
+                  <img
+                    data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+                    height="512"
+                    src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4cbx7m1126vx03wpkpg8g?exp=1727963596&sig=test-image"
+                    style="display: block;"
+                    width="512"
+                  />
+                </div>
+              </td>
+              <td>
+                <p>
+                  col2-test
+                </p>
+              </td>
+              <td>
+                <p>
+                  col3-test
+                </p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`table with fileRowTable (one file): clipboard text 1`] = `
+"col2-test
+
+col3-test"
 `;
 
 exports[`table with multiple blocks in cells bold: clipboard 1`] = `

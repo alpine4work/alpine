@@ -1863,3 +1863,219 @@ test("file float (right direction)", async () => {
 
     await expectClipboardRoundtripToWork();
 });
+
+
+test("table with fileRowTable (one file)", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node("table", {columnWidths: [], tableWidth: 1}, [
+            schema.node("tableRow", {}, [
+                schema.node("tableCell", {}, [
+                    schema.node("fileRowTable", {}, [
+                        schema.node("file", {fileId: "0694v4cbx7m1126vx03wpkpg8g"}),
+                    ]),
+                ]),
+                schema.node("tableCell", {}, [
+                    schema.node("paragraph", {}, [schema.text("col2-test")]),
+                ]),
+                schema.node("tableCell", {}, [
+                    schema.node("paragraph", {}, [schema.text("col3-test")]),
+                ]),
+            ]),
+        ]),
+    ]);
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+        fileById: new Map([
+            [
+                assertId("0694v4cbx7m1126vx03wpkpg8g"),
+                {
+                    signedUrlSearch: "?exp=1727963596&sig=test-image",
+                    file: new FileModel({
+                        id: assertId("0694v4cbx7m1126vx03wpkpg8g"),
+                        contentType: "image/jpeg",
+                        contentLength: 1200 ** 2,
+                        isUploading: false,
+                        alternative: null,
+                        preview: {
+                            type: "Image",
+                            isProcessing: false,
+                            ok: true,
+                            size: {width: 1200, height: 1200, scale: 1, hasAlpha: false},
+                            placeholder: fileImagePreviewPlaceholder,
+                        },
+                    }),
+                },
+            ],
+        ]),
+    };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+    await expectClipboardRoundtripToWork();
+});
+
+test("table with fileRowTable (mixed content)", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node("table", {columnWidths: [], tableWidth: 1}, [
+            schema.node("tableRow", {}, [
+                schema.node("tableCell", {}, [
+                    schema.node("paragraph", {}, [schema.text("Before")]),
+                    schema.node("fileRowTable", {}, [
+                        schema.node("file", {fileId: "0694v4cbx7m1126vx03wpkpg8g"}),
+                    ]),
+                    schema.node("paragraph", {}, [schema.text("After")]),
+                ]),
+                schema.node("tableCell", {}, [
+                    schema.node("paragraph", {}, [schema.text("Test")]),
+                    schema.node("fileRowTable", {}, [
+                        schema.node("file", {fileId: "0694v4mxds3kj518c0dygx272c"}),
+                    ]),
+                ]),
+            ]),
+            schema.node("tableRow", {}, [
+                schema.node("tableCell", {}, [
+                    schema.node("fileRowTable", {}, [
+                        schema.node("file", {fileId: "0694v4phegz57116pce7eg5j30"}),
+                    ]),
+                ]),
+                schema.node("tableCell", {}, [schema.node("paragraph", {}, [schema.text("End")])]),
+            ]),
+        ]),
+    ]);
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+        fileById: new Map([
+            [
+                assertId("0694v4cbx7m1126vx03wpkpg8g"),
+                {
+                    signedUrlSearch: "?exp=1727963596&sig=test-image",
+                    file: new FileModel({
+                        id: assertId("0694v4cbx7m1126vx03wpkpg8g"),
+                        contentType: "image/jpeg",
+                        contentLength: 1200 ** 2,
+                        isUploading: false,
+                        alternative: null,
+                        preview: {
+                            type: "Image",
+                            isProcessing: false,
+                            ok: true,
+                            size: {width: 1200, height: 1200, scale: 1, hasAlpha: false},
+                            placeholder: fileImagePreviewPlaceholder,
+                        },
+                    }),
+                },
+            ],
+            [
+                assertId("0694v4mxds3kj518c0dygx272c"),
+                {
+                    signedUrlSearch: "?exp=1727963615&sig=test-image",
+                    file: new FileModel({
+                        id: assertId("0694v4mxds3kj518c0dygx272c"),
+                        contentType: "image/jpeg",
+                        contentLength: 1200 ** 2,
+                        isUploading: false,
+                        alternative: null,
+                        preview: {
+                            type: "Image",
+                            isProcessing: false,
+                            ok: true,
+                            size: {width: 1200, height: 1200, scale: 1, hasAlpha: false},
+                            placeholder: fileImagePreviewPlaceholder,
+                        },
+                    }),
+                },
+            ],
+            [
+                assertId("0694v4phegz57116pce7eg5j30"),
+                {
+                    signedUrlSearch: "?exp=1727963711&sig=test-image",
+                    file: new FileModel({
+                        id: assertId("0694v4phegz57116pce7eg5j30"),
+                        contentType: "image/heif",
+                        contentLength: 1200 ** 2,
+                        isUploading: false,
+                        alternative: {
+                            isProcessing: false,
+                            ok: true,
+                            contentType: "image/avif",
+                            contentLength: 1200 ** 2,
+                            isImagePreviewContent: true,
+                        },
+                        preview: {
+                            type: "Image",
+                            isProcessing: false,
+                            ok: true,
+                            size: {width: 1200, height: 1200, scale: 1, hasAlpha: false},
+                            placeholder: fileImagePreviewPlaceholder,
+                            content: {
+                                contentType: "image/avif",
+                                contentLength: 1200 ** 2,
+                            },
+                        },
+                    }),
+                },
+            ],
+        ]),
+    };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+test("table with fileRowTable (null reference)", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node("table", {columnWidths: [], tableWidth: 1}, [
+            schema.node("tableRow", {}, [
+                schema.node("tableCell", {}, [
+                    schema.node("fileRowTable", {}, [schema.node("file", {fileId: null})]),
+                ]),
+                schema.node("tableCell", {}, [schema.node("paragraph", {}, [schema.text("Test")])]),
+            ]),
+        ]),
+    ]);
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                state={ContentEditorState.create({
+                    doc: content,
+                    references: emptyContentReferences,
+                })}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
