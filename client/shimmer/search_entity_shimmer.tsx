@@ -2,6 +2,8 @@ import {Box} from "~/client/design/box.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {
+    searchEntityViewDefaultMarginX,
+    searchEntityViewDefaultPaddingX,
     searchEntityViewMediaSize,
     searchEntityViewMinHeightPx,
     searchEntityViewPaddingY,
@@ -16,8 +18,8 @@ import {
 import {Spacing} from "~/shared/design/core/spacing.js";
 
 export function SearchEntityShimmer({
-    marginX = "1",
-    paddingX = "2.5",
+    marginX = searchEntityViewDefaultMarginX,
+    paddingX = searchEntityViewDefaultPaddingX,
     titleWidth,
 }: {
     marginX?: Spacing;

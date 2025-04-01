@@ -1957,26 +1957,31 @@ test("will show top three favorites at the start of affinity list when querying 
             entityId: `Account:${session2.account.id}`,
             points: expect.closeTo(600),
             lastViewedTime: null,
+            favoriteOrderKey: null,
         },
         {
             entityId: `Account:${session3.account.id}`,
             points: expect.closeTo(500),
             lastViewedTime: null,
+            favoriteOrderKey: null,
         },
         {
             entityId: `Account:${session4.account.id}`,
             points: expect.closeTo(400),
             lastViewedTime: null,
+            favoriteOrderKey: null,
         },
         {
             entityId: `Account:${session5.account.id}`,
             points: expect.closeTo(300),
             lastViewedTime: null,
+            favoriteOrderKey: null,
         },
         {
             entityId: `Account:${session6.account.id}`,
             points: expect.closeTo(200),
             lastViewedTime: null,
+            favoriteOrderKey: null,
         },
     ]);
 
@@ -2090,26 +2095,31 @@ test("will show top three favorites at the start of affinity list when querying 
             entityId: `Account:${session2.account.id}`,
             points: expect.closeTo(600),
             lastViewedTime: null,
+            favoriteOrderKey: "a4",
         },
         {
             entityId: `Account:${session3.account.id}`,
             points: expect.closeTo(500),
             lastViewedTime: null,
+            favoriteOrderKey: "a3",
         },
         {
             entityId: `Account:${session4.account.id}`,
             points: expect.closeTo(400),
             lastViewedTime: null,
+            favoriteOrderKey: "a2",
         },
         {
             entityId: `Account:${session5.account.id}`,
             points: expect.closeTo(300),
             lastViewedTime: null,
+            favoriteOrderKey: "a1",
         },
         {
             entityId: `Account:${session6.account.id}`,
             points: expect.closeTo(200),
             lastViewedTime: null,
+            favoriteOrderKey: "a0",
         },
     ]);
 

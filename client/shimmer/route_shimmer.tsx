@@ -69,7 +69,10 @@ import {
     messageViewTimestampDividerHeight,
     messageViewTimestampDividerMarginY,
 } from "~/client/styles/messaging_shared_styles.js";
+import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
+    searchAffinityEntityViewMinHeightPx,
+    searchEntityViewDefaultPaddingX,
     searchMobileInputBorderRadius,
     searchMobileInputMarginBottom,
     searchMobileInputMarginTop,
@@ -121,10 +124,12 @@ import {
     screenPaddingX,
     screenPaddingXRem,
     spacing,
+    subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 /**
  * Shimmer component for each space route. The test
@@ -163,6 +168,7 @@ const shimmerOptionsByRouteId: {
         inboxBannerMaxWidth: documentCommentThreadListViewMaxWidth,
         component: DocumentCommentThreadRouteShimmer,
     },
+    "routes/s.$spaceId.favorites": {component: SearchFavoritesRouteShimmer},
     "routes/s.$spaceId.inbox": {component: InboxRouteShimmer},
     "routes/s.$spaceId.more._index": {component: MoreRouteShimmer},
     "routes/s.$spaceId.more.switch-space": {component: MoreSwitchSpaceRouteShimmer},
@@ -1018,6 +1024,70 @@ function DocumentCommentThreadRouteShimmer() {
             </Box>
             <MessageInputShimmer />
             <Box flexShrink="0" height="safe-area-inset-bottom" />
+        </Box>
+    );
+}
+
+function SearchFavoritesRouteShimmer() {
+    const spacingScale = useSpacingScale();
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
+
+    const maxWidth = routeLayout !== "narrow" ? peekNarrowLayoutWidth : undefined;
+
+    const screenPaddingXWithoutSearchEntityViewPaddingX = mapObjectValues(
+        screenPaddingX,
+        screenPaddingX => subtractRemLengths(screenPaddingX, searchEntityViewDefaultPaddingX),
+    );
+
+    return (
+        <Box width="full" height="full">
+            <Box width="full" maxWidth={maxWidth} paddingTop="safe-area-inset" marginX="center">
+                <Box
+                    width="full"
+                    height={navigationBarHeight}
+                    paddingX={platform === "mobile" ? navigationBarMobileGap : screenPaddingX}
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems="center"
+                >
+                    {platform === "mobile" && <MobileBackButton />}
+                    <TextShimmer
+                        fontSize={platform === "mobile" ? "100" : "400"}
+                        width={platform === "mobile" ? "16" : "24"}
+                    />
+                    {platform === "mobile" && <MobileBackButtonSpacer />}
+                </Box>
+                <Box
+                    display="flex"
+                    flexDirection="column"
+                    justifyContent="flex-start"
+                    paddingX={screenPaddingX}
+                    style={{height: searchAffinityEntityViewMinHeightPx[spacingScale] / 2}}
+                >
+                    <Box width="full" height="border" backgroundColor="grey-5" />
+                </Box>
+                <Box
+                    style={{
+                        paddingLeft: screenPaddingXWithoutSearchEntityViewPaddingX[platform],
+                        paddingRight: screenPaddingXWithoutSearchEntityViewPaddingX[platform],
+                    }}
+                >
+                    <SearchEntityShimmer titleWidth="20" marginX="0" />
+                    <SearchEntityShimmer titleWidth="48" marginX="0" />
+                    <SearchEntityShimmer titleWidth="32" marginX="0" />
+                    <SearchEntityShimmer titleWidth="48" marginX="0" />
+                </Box>
+                <Box
+                    display="flex"
+                    flexDirection="column"
+                    justifyContent="flex-end"
+                    paddingX={screenPaddingX}
+                    style={{height: searchAffinityEntityViewMinHeightPx[spacingScale] / 2}}
+                >
+                    <Box width="full" height="border" backgroundColor="grey-5" />
+                </Box>
+            </Box>
         </Box>
     );
 }
