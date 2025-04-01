@@ -22,6 +22,7 @@ import {
     KeyboardEvent as SyntheticKeyboardEvent,
     PointerEvent as SyntheticPointerEvent,
     useCallback,
+    useEffect,
     useMemo,
     useRef,
     useState,
@@ -49,6 +50,7 @@ import {RpcCacheContext} from "~/client/rpc/rpc_cache.js";
 import {forceRevalidateSearchByAffinity} from "~/client/search/core/force_revalidate_search_by_affinity.js";
 import {
     searchFavoriteEntityIconColor,
+    subscribeToUpdateSearchFavoriteEntityMenuAction,
     updateSearchFavoriteEntityMenuAction,
 } from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {getSearchEntityPath} from "~/client/search/internal/get_search_entity_path.js";
@@ -131,6 +133,26 @@ export function SearchFavoritesView({
 
     const [results, updateResults, updateResultsOptimistically] =
         useStateWithOptimisticUpdates(initialResults);
+
+    // If some other code unfavorites an entity while `<SearchFavoritesView>` is
+    // mounted then remove it from our state. This mainly exists to support the
+    // mobile workflow of:
+    //
+    // 1. Navigate to favorites view
+    // 2. Navigating to an entity within the favorites view
+    // 3. Unfavoriting that entity
+    // 4. Pop navigation back to favorites view
+    useEffect(() => {
+        return subscribeToUpdateSearchFavoriteEntityMenuAction((spaceId, entityId, isFavorite) => {
+            // Ignore favorite actions since we don't have the full entity data. Only
+            // subscribe to unfavorite actions.
+            if (isFavorite) return;
+
+            if (spaceId !== space.id) return;
+
+            updateResults(results => results.filter(result => result.id !== entityId));
+        });
+    }, [space.id, updateResults]);
 
     const pointerSensor = useSensor(
         PointerSensor,

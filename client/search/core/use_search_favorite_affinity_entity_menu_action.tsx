@@ -38,6 +38,18 @@ export function updateSearchFavoriteEntityMenuAction(
     updateSearchFavoriteEntityMenuActionEventEmitter?.emit([spaceId, entityId, isFavorite]);
 }
 
+/**
+ * Listen to any `updateSearchFavoriteEntityMenuAction()` calls. This is very
+ * race condition prone but it's good enough for this non-collaborative use
+ * case. *Shrug*
+ */
+export function subscribeToUpdateSearchFavoriteEntityMenuAction(
+    listener: (spaceId: SpaceId, entityId: SearchAffinityEntityId, isFavorite: boolean) => void,
+) {
+    updateSearchFavoriteEntityMenuActionEventEmitter ??= new EventEmitter();
+    return updateSearchFavoriteEntityMenuActionEventEmitter.subscribe(args => listener(...args));
+}
+
 export function useSearchFavoriteEntityMenuAction(
     entityId: SearchAffinityEntityId,
     initialIsFavorite: boolean,
@@ -97,7 +109,7 @@ export function useSearchFavoriteEntityMenuAction(
                         // Optimistically update our `isFavorite` state so the UI changes at the same
                         // time as `isPressed` becomes false. If the RPC fails then we revert the
                         // change.
-                        setIsFavorite(false);
+                        updateSearchFavoriteEntityMenuAction(space.id, entityId, false);
 
                         try {
                             await unfavoriteSearchEntity(context, {
@@ -105,7 +117,7 @@ export function useSearchFavoriteEntityMenuAction(
                                 entityId,
                             });
                         } catch (error) {
-                            setIsFavorite(isFavorite);
+                            updateSearchFavoriteEntityMenuAction(space.id, entityId, isFavorite);
                             throw error;
                         }
 
@@ -127,7 +139,7 @@ export function useSearchFavoriteEntityMenuAction(
                         // Optimistically update our `isFavorite` state so the UI changes at the same
                         // time as `isPressed` becomes false. If the RPC fails then we revert the
                         // change.
-                        setIsFavorite(true);
+                        updateSearchFavoriteEntityMenuAction(space.id, entityId, true);
 
                         try {
                             await favoriteSearchEntity(context, {
@@ -135,7 +147,7 @@ export function useSearchFavoriteEntityMenuAction(
                                 entityId,
                             });
                         } catch (error) {
-                            setIsFavorite(isFavorite);
+                            updateSearchFavoriteEntityMenuAction(space.id, entityId, isFavorite);
                             throw error;
                         }
 
