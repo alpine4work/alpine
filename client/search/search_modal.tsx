@@ -245,7 +245,6 @@ export function SearchModal({
             routeLayout: "narrow",
         });
 
-        // NOCOMMIT: We're not scrolling anymore? When did that break?
         void switchPeek({
             spacePath: path,
             extra: {entityId},
