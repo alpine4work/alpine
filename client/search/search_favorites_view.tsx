@@ -23,6 +23,7 @@ import {
     PointerEvent as SyntheticPointerEvent,
     useCallback,
     useMemo,
+    useRef,
     useState,
 } from "react";
 import {mergeProps} from "react-aria";
@@ -38,6 +39,7 @@ import {useInitialAppRenderId} from "~/client/helpers/lifecycle/initial_app_rend
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
@@ -61,7 +63,7 @@ import {
     searchEntityViewMediaSize,
     searchEntityViewTitleTypeDisplayGap,
 } from "~/client/styles/search_shared_styles.js";
-import {grey5SemiTransparentColorVar, sprinkles} from "~/client/styles/styles.js";
+import {colorSchemeVars, grey5SemiTransparentColorVar, sprinkles} from "~/client/styles/styles.js";
 import {
     parseRemLength,
     screenPaddingX,
@@ -357,24 +359,34 @@ export function SearchFavoritesView({
         });
     };
 
+    const lastDragOverIdRef = useRef<string | number | null>(null);
+
     return (
         <SpaceRouteScrollView
             title={
-                // The spacing here is carefully constructed to align with
-                // `<SearchEntityViewTitle>` on desktop. If `<SearchEntityViewTitle>` updates
-                // then this will need to update too.
-                <Box display="flex" alignItems="center" gap={searchEntityViewTitleTypeDisplayGap}>
-                    <Star
-                        size={spacing[searchFavoriteEntitiesTitleStarIconSize]}
-                        weight="fill"
-                        className={sprinkles({fill: searchFavoriteEntityIconColor})}
-                        style={{
-                            marginLeft: searchFavoriteEntitiesTitleStarMarginX,
-                            marginRight: searchFavoriteEntitiesTitleStarMarginX,
-                        }}
-                    />
-                    <Box>Favorites</Box>
-                </Box>
+                platform === "mobile" ? (
+                    "Favorites"
+                ) : (
+                    // The spacing here is carefully constructed to align with
+                    // `<SearchEntityViewTitle>` on desktop. If `<SearchEntityViewTitle>` updates
+                    // then this will need to update too.
+                    <Box
+                        display="flex"
+                        alignItems="center"
+                        gap={searchEntityViewTitleTypeDisplayGap}
+                    >
+                        <Star
+                            size={spacing[searchFavoriteEntitiesTitleStarIconSize]}
+                            weight="fill"
+                            className={sprinkles({fill: searchFavoriteEntityIconColor})}
+                            style={{
+                                marginLeft: searchFavoriteEntitiesTitleStarMarginX,
+                                marginRight: searchFavoriteEntitiesTitleStarMarginX,
+                            }}
+                        />
+                        <Box>Favorites</Box>
+                    </Box>
+                )
             }
             desktopTitleFontSize="400"
             desktopTitleFontWeight="bold"
@@ -407,6 +419,22 @@ export function SearchFavoritesView({
                         sensors={sensors}
                         collisionDetection={closestCenter}
                         onDragEnd={handleDragEnd}
+                        onDragStart={() => {
+                            lastDragOverIdRef.current = null;
+                        }}
+                        onDragMove={({over}: DragEndEvent) => {
+                            if (over !== null) {
+                                if (lastDragOverIdRef.current === null) {
+                                    lastDragOverIdRef.current = over.id;
+                                } else if (lastDragOverIdRef.current !== over.id) {
+                                    lastDragOverIdRef.current = over.id;
+
+                                    // Whenever we're dragging over something new, play the selection changed
+                                    // haptic feedback.
+                                    NativeMobileBridge?.haptic.playSelectionChanged();
+                                }
+                            }
+                        }}
                     >
                         <SearchFavoritesViewInner
                             shortcutDividerIndex={shortcutDividerIndex}
@@ -548,6 +576,7 @@ function SearchFavoritesViewDragPortals({
     randomSeed: string;
     results: ReadonlyArray<SearchFavoriteEntityResult>;
 }) {
+    const platform = usePlatform();
     const {active, activatorEvent} = useDndContext();
 
     const isPointerDragging =
@@ -570,7 +599,15 @@ function SearchFavoritesViewDragPortals({
                 )}
             {activeResult &&
                 createPortal(
-                    <DragOverlay zIndex={70}>
+                    <DragOverlay
+                        zIndex={70}
+                        // Only let shortcut divider move on the Y axis on mobile. Not on the X axis.
+                        modifiers={
+                            platform === "mobile"
+                                ? [({transform}) => ({...transform, x: 0})]
+                                : undefined
+                        }
+                    >
                         <SearchFavoritesViewItem
                             randomSeed={randomSeed}
                             result={activeResult}
@@ -834,6 +871,7 @@ function SearchFavoritesViewShortcutDivider({isDragOverlay}: {isDragOverlay?: bo
     return (
         <Box
             ref={setSortableNodeRef}
+            position="relative"
             display="flex"
             alignItems="center"
             paddingX={platform !== "mobile" ? searchEntityViewDefaultPaddingX : screenPaddingX}
@@ -861,8 +899,11 @@ function SearchFavoritesViewShortcutDivider({isDragOverlay}: {isDragOverlay?: bo
                         width="full"
                         height="border"
                         style={{
-                            // Using a semi-transparent color so it looks better when dragging.
-                            backgroundColor: grey5SemiTransparentColorVar,
+                            backgroundColor:
+                                platform === "mobile" && (isPointerDown || isDragOverlay)
+                                    ? colorSchemeVars["grey-10"]
+                                    : // Using a semi-transparent color so it looks better when dragging.
+                                      grey5SemiTransparentColorVar,
                         }}
                     >
                         <Box
@@ -873,11 +914,23 @@ function SearchFavoritesViewShortcutDivider({isDragOverlay}: {isDragOverlay?: bo
                             display="flex"
                             alignItems="center"
                             gap="0.5"
-                            color="grey-40"
+                            color={
+                                platform === "mobile" && (isPointerDown || isDragOverlay)
+                                    ? "grey-50"
+                                    : "grey-40"
+                            }
                         >
                             Shortcuts <ArrowUp size={spacing["3"]} />
                         </Box>
                     </Box>
+                    {platform === "mobile" && (isPointerDown || isDragOverlay) && (
+                        <Box
+                            position="absolute"
+                            zIndex="-20"
+                            inset="0"
+                            style={{backgroundColor: grey5SemiTransparentColorVar}}
+                        />
+                    )}
                 </Box>
             </FocusRing>
         </Box>

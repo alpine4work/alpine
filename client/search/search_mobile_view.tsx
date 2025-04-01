@@ -40,6 +40,7 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
+import {SearchAffinityEntityResult} from "~/shared/search/search_affinity_entity_result.js";
 import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
 
 export function SearchMobileView({
@@ -50,12 +51,12 @@ export function SearchMobileView({
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const {space} = useSpaceContext();
+    const navigate = useNavigate();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
     const maxWidth = platform !== "mobile" ? "96" : undefined;
 
-    // NOCOMMIT: Show favorites
     const {output, queryText, onQueryTextChange} = useSearchState({
         isSearchParamControlled: false,
         debugOptions: null,
@@ -63,6 +64,14 @@ export function SearchMobileView({
     });
 
     const results = output.results ?? emptyArray;
+
+    const hasFavorites =
+        output.type === "EmptyQuery" &&
+        output.favoriteResults !== null &&
+        (output.hasMoreFavoriteResults || output.favoriteResults.length > 0);
+    const hasMoreFavoriteResults = hasFavorites && output.hasMoreFavoriteResults;
+    const favoriteResults = hasFavorites ? output.favoriteResults : emptyArray;
+
     const shouldShowLoadingIndicator = useDelayLoadingIndicator(output.isPending);
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
@@ -155,7 +164,7 @@ export function SearchMobileView({
                                 </Box>
                             </Box>
                             <Box height={searchMobileInputMarginBottom} />
-                            {results.length === 0 && (
+                            {!hasFavorites && results.length === 0 && (
                                 <Box
                                     color="grey-50"
                                     paddingX={screenPaddingX}
@@ -190,13 +199,110 @@ export function SearchMobileView({
 
             index -= 1;
 
+            if (hasFavorites) {
+                if (index === 0) {
+                    const fontSize = "50";
+                    const lineHeight = "4";
+                    const paddingTop = "3";
+
+                    return {
+                        key: "FavoritesHeader",
+                        minHeight: addRemLengths(paddingTop, lineHeight),
+                        node: (
+                            <Box
+                                width="full"
+                                maxWidth={maxWidth}
+                                marginX="center"
+                                paddingTop={paddingTop}
+                                paddingX={screenPaddingX}
+                                color="grey-50"
+                                fontSize={fontSize}
+                                style={{lineHeight: spacing[lineHeight]}}
+                            >
+                                Favorites
+                                {hasMoreFavoriteResults && (
+                                    // Intentionally using [U+2219 (bullet operator)][1] instead of
+                                    // [U+2022 (bullet)][2] since the former is thinner.
+                                    //
+                                    // A bullet separator here is nicer than parentheses like "(see all)"
+                                    // since the parentheses draw a lot of attention.
+                                    //
+                                    // [1]: https://graphemica.com/%E2%88%99
+                                    // [2]: https://graphemica.com/%E2%80%A2
+                                    <>
+                                        {"\u2009\u2219\u2009"}
+                                        <SearchMobileViewFavoritesHeaderSeeMoreButton
+                                            onPress={() => {
+                                                navigate(`/s/${space.id}/favorites`);
+                                            }}
+                                        />
+                                    </>
+                                )}
+                            </Box>
+                        ),
+                    };
+                }
+
+                index -= 1;
+
+                if (index < favoriteResults.length) {
+                    const result = favoriteResults[index]!;
+
+                    return {
+                        key: result.id,
+                        minHeight: searchEntityViewMinHeightPx[spacingScale],
+                        node: (
+                            <Box width="full" maxWidth={maxWidth} marginX="center">
+                                <SearchMobileViewResult
+                                    spaceId={space.id}
+                                    searchKey={output.key}
+                                    searchTime={output.queryTime}
+                                    result={result}
+                                    isFirstItem={false}
+                                    isLastItem={false}
+                                />
+                            </Box>
+                        ),
+                    };
+                }
+
+                index -= favoriteResults.length;
+
+                if (index === 0) {
+                    const fontSize = "50";
+                    const lineHeight = "4";
+                    const paddingTop = "3";
+
+                    return {
+                        key: "SuggestedHeader",
+                        minHeight: addRemLengths(paddingTop, lineHeight),
+                        node: (
+                            <Box
+                                width="full"
+                                maxWidth={maxWidth}
+                                marginX="center"
+                                paddingX={screenPaddingX}
+                                paddingTop={paddingTop}
+                                color="grey-50"
+                                fontSize={fontSize}
+                                style={{lineHeight: spacing[lineHeight]}}
+                            >
+                                Suggested
+                            </Box>
+                        ),
+                    };
+                }
+
+                index -= 1;
+            }
+
             const result = results[index]!;
 
-            const isFirstItem = index === 0;
+            const isFirstItem = !hasFavorites && index === 0;
             const isLastItem = index === results.length - 1;
 
             return {
-                key: `Loaded:${result.id}`,
+                key: result.id,
                 minHeight: searchEntityViewMinHeightPx[spacingScale],
                 node: (
                     <Box width="full" maxWidth={maxWidth} marginX="center">
@@ -214,7 +320,11 @@ export function SearchMobileView({
             };
         },
         [
+            favoriteResults,
+            hasFavorites,
+            hasMoreFavoriteResults,
             maxWidth,
+            navigate,
             onQueryTextChange,
             output.key,
             output.queryTime,
@@ -233,7 +343,7 @@ export function SearchMobileView({
             elementRef={scrollViewRef}
             scrollbarInsetTop={scrollbarInsetTop}
             extraChildren={navigationBar}
-            itemCount={1 + results.length}
+            itemCount={1 + (hasFavorites ? 2 + favoriteResults.length : 0) + results.length}
             bufferedItemHeight={searchEntityViewMinHeightPx[spacingScale]}
             renderItem={renderItem}
             extraChildrenOutsideContentElement={({contentHeight}) => (
@@ -282,7 +392,7 @@ function SearchMobileViewResult({
     spaceId: SpaceId;
     searchKey: string;
     searchTime: Date;
-    result: SearchEntityResult;
+    result: SearchEntityResult | SearchAffinityEntityResult;
     isFirstItem: boolean;
     isLastItem: boolean;
 }) {
@@ -312,6 +422,35 @@ function SearchMobileViewResult({
                 withMarginTop={isFirstItem}
                 withMarginBottom={isLastItem}
             />
+        </Box>
+    );
+}
+
+function SearchMobileViewFavoritesHeaderSeeMoreButton({onPress}: {onPress: () => void}) {
+    const {isPressed, pressProps} = usePress({onPress});
+
+    return (
+        <Box
+            {...pressProps}
+            display="inline"
+            // We don't usually use a pointer cursor for pressable things but in this case
+            // it's not obvious this text is interactive without it.
+            cursor="pointer"
+            // Additional padding Y to get to 44px in height of touch slop.
+            paddingY="3"
+            position="relative"
+            left="-1"
+        >
+            <Box
+                display="inline"
+                color={isPressed ? "grey-100" : undefined}
+                backgroundColor={isPressed ? "grey-10" : undefined}
+                paddingX="1"
+                paddingY="1"
+                borderRadius="1"
+            >
+                see all
+            </Box>
         </Box>
     );
 }

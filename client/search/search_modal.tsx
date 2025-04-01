@@ -712,7 +712,9 @@ function SearchModalResultList({
         }
     });
 
-    const hasFavorites = output.type === "EmptyQuery";
+    const hasFavorites =
+        output.type === "EmptyQuery" &&
+        (output.hasMoreFavoriteResults || output.favoriteResults.length > 0);
     const hasMoreFavoriteResults = hasFavorites && output.hasMoreFavoriteResults;
     const favoriteResults = hasFavorites ? output.favoriteResults : emptyArray;
 
