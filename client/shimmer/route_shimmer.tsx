@@ -70,10 +70,10 @@ import {
     messageViewTimestampDividerMarginY,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
-    searchMobileInputMinHeight,
     searchMobileInputBorderRadius,
     searchMobileInputMarginBottom,
     searchMobileInputMarginTop,
+    searchMobileInputMinHeight,
 } from "~/client/styles/search_shared_styles.js";
 import {
     Sprinkles,

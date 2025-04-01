@@ -1,4 +1,4 @@
-import {Link as LinkIcon, Star} from "phosphor-react";
+import {Link as LinkIcon} from "phosphor-react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";

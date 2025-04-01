@@ -40,6 +40,7 @@ import {useInitialAppRenderId} from "~/client/helpers/lifecycle/initial_app_rend
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {SpaceRouteScrollView} from "~/client/navigation/space_route_scroll_view.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
@@ -56,7 +57,6 @@ import {
 import {getSearchEntityPath} from "~/client/search/internal/get_search_entity_path.js";
 import {SearchAffinityEntityView} from "~/client/search/search_affinity_entity_view.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
-import {SpaceRouteScrollView} from "~/client/spaces/layout/space_route_scroll_view.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {

@@ -1,4 +1,4 @@
-import {IconContext, Plus} from "phosphor-react";
+import {IconContext} from "phosphor-react";
 import {ReactNode} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
@@ -6,7 +6,6 @@ import {Box} from "~/client/design/box.js";
 import {TaskDisplayStatusCircle} from "~/client/design/task_display_status_circle.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {SearchEntityTypeDisplay} from "~/client/search/internal/search_entity_type_display.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
 import {
     searchEntityViewMediaSize,

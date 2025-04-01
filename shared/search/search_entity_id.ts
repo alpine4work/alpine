@@ -32,7 +32,7 @@ export const SearchEntityIdSchema = Schema.string as Schema<SearchEntityId>;
 type SearchEntityIdAxes = {
     Dynamic: {
         Affinity:
-            | `Account:${AccountId | ContentMentionAccountId}`
+            | `Account:${ContentMentionAccountId}`
             | `Document:${DocumentId}`
             | `Channel:${ChannelId}`
             | `Chat:${ChatId}`

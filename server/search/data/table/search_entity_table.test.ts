@@ -14,12 +14,12 @@ import {
     internalGetSearchAffinityEntities,
     internalGetSearchFavoriteEntities,
     isSearchFavoriteEntity,
-    markSearchAffinityCreateDocumentInteraction,
+    markSearchAffinityCreateDocumentEntityInteraction,
     markSearchAffinityEntityInteraction,
-    thirtyDaysDurationMs,
     moveSearchFavoriteEntity,
     removeSearchAffinityEntityActiveTaskAssigneePoints,
     searchAffinityEntityQueryPageLimit,
+    thirtyDaysDurationMs,
     unfavoriteSearchEntity,
 } from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -1388,7 +1388,7 @@ test("marking create document interaction adds erosion to affinity item", async 
 
     const documentId = generateId<DocumentId>();
 
-    await markSearchAffinityCreateDocumentInteraction(session.action(), {
+    await markSearchAffinityCreateDocumentEntityInteraction(session.action(), {
         spaceId: space.id,
         documentId,
     });

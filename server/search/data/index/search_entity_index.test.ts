@@ -2560,12 +2560,7 @@ test("search by affinity can include my tasks", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
@@ -2621,12 +2616,7 @@ test("search by affinity can include the task personal view in favorites", async
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             {
@@ -2677,12 +2667,7 @@ test("search by affinity can include the task personal view in favorites even if
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             {
@@ -2758,12 +2743,7 @@ test("search by affinity will also return up to five favorites", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
@@ -2796,12 +2776,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document3.id}`,
     });
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             {
@@ -2842,12 +2817,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document4.id}`,
     });
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             {
@@ -2888,12 +2858,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document5.id}`,
     });
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             {
@@ -2941,12 +2906,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document4.id}`,
     });
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             {
@@ -2994,12 +2954,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document4.id}`,
     });
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             {
@@ -3052,12 +3007,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document5.id}`,
     });
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             {
@@ -3105,12 +3055,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document6.id}`,
     });
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             {
@@ -3165,12 +3110,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document7.id}`,
     });
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             {
@@ -3232,12 +3172,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document8.id}`,
     });
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
             {
@@ -3299,12 +3234,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document9.id}`,
     });
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
             {
@@ -3368,12 +3298,7 @@ test("search by affinity will also return up to five favorites", async () => {
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
             {
@@ -3437,12 +3362,7 @@ test("search by affinity will also return up to five favorites", async () => {
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             {
@@ -3506,12 +3426,7 @@ test("search by affinity will also return up to five favorites", async () => {
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             {
@@ -3568,12 +3483,7 @@ test("search by affinity will also return up to five favorites", async () => {
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             {
@@ -3638,12 +3548,7 @@ test("search by affinity will also return up to five favorites", async () => {
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
             {
@@ -3725,12 +3630,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document14.id}`,
     });
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
             {
@@ -3805,12 +3705,7 @@ test("search by affinity will also return up to five favorites", async () => {
     // `false` because there are truly only 4 favorites the user has access to. But
     // because there are >11 favorited entities and we don't check whether the user
     // has access to all of them we can't be certain there aren't more favorites.
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
             {
@@ -3872,12 +3767,7 @@ test("search by affinity will also return up to five favorites", async () => {
     // `false` because there are truly only 2 favorites the user has access to. But
     // because there are >11 favorited entities and we don't check whether the user
     // has access to all of them we can't be certain there aren't more favorites.
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
             {

@@ -24,7 +24,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
-import {SearchEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchDynamicEntityId, SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 
 beforeEach(() => {
@@ -77,7 +77,7 @@ function getIndexedSearchEntity(entity: TestTask) {
 async function actuallyGetIndexedSearchEntity(
     context: TestContext,
     spaceId: SpaceId,
-    entityId: SearchEntityId,
+    entityId: SearchDynamicEntityId,
 ): Promise<{
     title: string | null;
     body: string | null;
