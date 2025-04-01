@@ -20608,7 +20608,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskCollectionAccess(otherSpace.systemAction(), publicCollection.id, "Comment"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
 
     await expect(
         authorizeTaskCollectionAccess(session1.action(), publicCollection.id, "Edit"),
@@ -20630,7 +20630,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskCollectionAccess(otherSpace.systemAction(), publicCollection.id, "Edit"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
 
     await expect(
         authorizeTaskCollectionAccess(session1.action(), publicDeletedCollection.id, "View"),
@@ -20660,7 +20660,7 @@ test("can authorize task collections in various states as various actors", async
             publicDeletedCollection.id,
             "View",
         ),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
 
     await expect(
         authorizeTaskCollectionAccess(session1.action(), publicDeletedCollection.id, "Comment"),
@@ -20698,7 +20698,7 @@ test("can authorize task collections in various states as various actors", async
             publicDeletedCollection.id,
             "Comment",
         ),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
 
     await expect(
         authorizeTaskCollectionAccess(session1.action(), publicDeletedCollection.id, "Edit"),
@@ -20728,7 +20728,7 @@ test("can authorize task collections in various states as various actors", async
             publicDeletedCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
 
     await expect(
         authorizeTaskCollectionAccess(session1.action(), privateCollection.id, "View"),
@@ -20750,7 +20750,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskCollectionAccess(otherSpace.systemAction(), privateCollection.id, "View"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
 
     await expect(
         authorizeTaskCollectionAccess(session1.action(), privateCollection.id, "Comment"),
@@ -20772,7 +20772,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskCollectionAccess(otherSpace.systemAction(), privateCollection.id, "Comment"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
 
     await expect(
         authorizeTaskCollectionAccess(session1.action(), privateCollection.id, "Edit"),
@@ -20794,7 +20794,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskCollectionAccess(otherSpace.systemAction(), privateCollection.id, "Edit"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
 
     await expect(
         authorizeTaskCollectionAccess(session1.action(), privateDeletedCollection.id, "View"),
@@ -20824,7 +20824,7 @@ test("can authorize task collections in various states as various actors", async
             privateDeletedCollection.id,
             "View",
         ),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
 
     await expect(
         authorizeTaskCollectionAccess(session1.action(), privateDeletedCollection.id, "Comment"),
@@ -20864,7 +20864,7 @@ test("can authorize task collections in various states as various actors", async
             privateDeletedCollection.id,
             "Comment",
         ),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
 
     await expect(
         authorizeTaskCollectionAccess(session1.action(), privateDeletedCollection.id, "Edit"),
@@ -20894,7 +20894,7 @@ test("can authorize task collections in various states as various actors", async
             privateDeletedCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
 
     await expect(
         authorizeTaskCollectionAccess(session1.action(), urlPublicCollection.id, "View"),
@@ -20916,7 +20916,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskCollectionAccess(otherSpace.systemAction(), urlPublicCollection.id, "View"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
 
     await expect(
         authorizeTaskCollectionAccess(session1.action(), urlPublicCollection.id, "Comment"),
@@ -20938,7 +20938,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskCollectionAccess(otherSpace.systemAction(), urlPublicCollection.id, "Comment"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
 
     await expect(
         authorizeTaskCollectionAccess(session1.action(), urlPublicCollection.id, "Edit"),
@@ -20960,7 +20960,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskCollectionAccess(otherSpace.systemAction(), urlPublicCollection.id, "Edit"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
 
     await expect(
         authorizeTaskCollectionAccess(session1.action(), urlPublicDeletedCollection.id, "View"),
@@ -20990,7 +20990,7 @@ test("can authorize task collections in various states as various actors", async
             urlPublicDeletedCollection.id,
             "View",
         ),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
 
     await expect(
         authorizeTaskCollectionAccess(session1.action(), urlPublicDeletedCollection.id, "Comment"),
@@ -21032,7 +21032,7 @@ test("can authorize task collections in various states as various actors", async
             urlPublicDeletedCollection.id,
             "Comment",
         ),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
 
     await expect(
         authorizeTaskCollectionAccess(session1.action(), urlPublicDeletedCollection.id, "Edit"),
@@ -21062,7 +21062,7 @@ test("can authorize task collections in various states as various actors", async
             urlPublicDeletedCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
 });
 
 test("can authorize tasks in various states as various actors", async () => {
