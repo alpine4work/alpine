@@ -13708,7 +13708,7 @@ test("will lose access to subscribed task upon reauthorization if account remove
         {
             type: "TaskSubscriptionError",
             id: taskSubscriptionId,
-            error: new PermissionDeniedError("Actor doesn't have access to task's space"),
+            error: new PermissionDeniedError("Account doesn't have access to space"),
         },
     ]);
 

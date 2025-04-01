@@ -220,5 +220,4 @@ testMessagingImplementation<TaskId>(processContext, {
             messageChangesResult: commentChangesResult,
         };
     },
-    spacePermissionDeniedErrorMessage: "Actor doesn't have access to task's space",
 });
