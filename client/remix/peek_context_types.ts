@@ -5,5 +5,5 @@ export type PeekContext = {
     readonly id: PeekId;
     readonly layout: RouteLayout;
     readonly withinStack: boolean;
-    readonly withoutSearchAffinityViewInteraction: boolean;
+    readonly withoutSearchAffinityViewEntityInteraction: boolean;
 };

@@ -7,6 +7,8 @@ ts_project(
         "//client/spaces/layout:__pkg__",
     ],
     deps = [
+        "//:node_modules/@dnd-kit/core",
+        "//:node_modules/@dnd-kit/sortable",
         "//:node_modules/@types/react",
         "//:node_modules/@types/scheduler",
         "//:node_modules/react",
@@ -18,6 +20,7 @@ ts_project(
         "//client/navigation",
         "//client/peek",
         "//client/rpc",
+        "//client/search/core",
         "//client/shimmer",
         "//client/spaces",
         "//client/virtualized",

@@ -1,0 +1,25 @@
+diff --git a/dist/components/SortableContext.d.ts b/dist/components/SortableContext.d.ts
+index aa0521ee9c9aa5d2ca027375c6bd86ad8e504bef..5ae1fd579319da3c9be56e66008f80258b228d2f 100644
+--- a/dist/components/SortableContext.d.ts
++++ b/dist/components/SortableContext.d.ts
+@@ -3,7 +3,8 @@ import { ClientRect, UniqueIdentifier } from '@dnd-kit/core';
+ import type { Disabled, SortingStrategy } from '../types';
+ export interface Props {
+     children: React.ReactNode;
+-    items: (UniqueIdentifier | {
++    // NOTE(calebmer): Allow `ReadonlyArray<T>` to match `items`.
++    items: readonly (UniqueIdentifier | {
+         id: UniqueIdentifier;
+     })[];
+     strategy?: SortingStrategy;
+diff --git a/dist/utilities/arrayMove.d.ts b/dist/utilities/arrayMove.d.ts
+index 8f58929189578c8c98b601047539cb8f29ddaa5b..8f7be5920f8f497ab026b244cb9b3130df7267a3 100644
+--- a/dist/utilities/arrayMove.d.ts
++++ b/dist/utilities/arrayMove.d.ts
+@@ -1,4 +1,5 @@
+ /**
+  * Move an array item to a different position. Returns a new array with the item moved to the new position.
+  */
+-export declare function arrayMove<T>(array: T[], from: number, to: number): T[];
++// NOTE(calebmer): Allow `ReadonlyArray<T>` to match `items`.
++export declare function arrayMove<T>(array: readonly T[], from: number, to: number): T[];

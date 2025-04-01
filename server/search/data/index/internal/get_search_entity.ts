@@ -67,9 +67,9 @@ import {
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessagePayload} from "~/shared/messaging/message_model.js";
 import {
-    SearchEntityId,
-    SearchEntityIdObject,
-    printSearchEntityId,
+    SearchDynamicEntityId,
+    SearchDynamicEntityIdObject,
+    printSearchDynamicEntityId,
 } from "~/shared/search/search_entity_id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
@@ -80,7 +80,7 @@ import {addFallbackToTaskTitle} from "~/shared/tasks/task_title.js";
 const searchEntityMajorContributorCutOff = 0.2;
 
 export type SearchEntity = {
-    readonly id: SearchEntityId;
+    readonly id: SearchDynamicEntityId;
     readonly accessPolicy: SearchEntityIndexAccessPolicy;
     readonly createdTime: Date;
     readonly title: string | null;
@@ -163,7 +163,7 @@ interface TaskCollectionModelForAuthorization {
 class SearchEntityReadState {
     private readonly _context: SearchSystemActionContext;
     public readonly tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
-    private readonly _targetId: SearchEntityId;
+    private readonly _targetId: SearchDynamicEntityId;
 
     private readonly _dependencyIds = new Set<SearchEntityDependencyId>();
 
@@ -182,7 +182,7 @@ class SearchEntityReadState {
     constructor(
         context: SearchSystemActionContext,
         tokenizer: CohereEmbedEnglishV3LanguageTokenizer,
-        targetId: SearchEntityId,
+        targetId: SearchDynamicEntityId,
     ) {
         // Makes sure all reads use strong consistency. We need strong consistency so
         // that we don't miss recent updates when indexing. Throws an error (in
@@ -203,7 +203,7 @@ class SearchEntityReadState {
      *
      * For example, no entity depends on `ChatMessage`.
      */
-    private _recordDependencyId(id: SearchEntityId | SearchEntityDependencyId) {
+    private _recordDependencyId(id: SearchDynamicEntityId | SearchEntityDependencyId) {
         if (isSearchEntityDependencyIdAlsoEntityId(id)) {
             // We implicitly depend on the target.
             if (id === this._targetId) return;
@@ -542,13 +542,13 @@ function getSearchEntityIndexAccessPolicy(
  */
 export async function getSearchEntity(
     context: SearchSystemActionContext,
-    idObject: SearchEntityIdObject,
+    idObject: SearchDynamicEntityIdObject,
     tokenizer: CohereEmbedEnglishV3LanguageTokenizer,
 ): Promise<{
     dependencyIds: Iterable<SearchEntityDependencyId>;
     entity: SearchEntity;
 }> {
-    const id = printSearchEntityId(idObject);
+    const id = printSearchDynamicEntityId(idObject);
 
     const state = new SearchEntityReadState(context, tokenizer, id);
 
@@ -562,7 +562,7 @@ export async function getSearchEntity(
 
 async function actuallyGetSearchEntity(
     state: SearchEntityReadState,
-    idObject: SearchEntityIdObject,
+    idObject: SearchDynamicEntityIdObject,
 ): Promise<SearchEntity> {
     switch (idObject.type) {
         case "Account":

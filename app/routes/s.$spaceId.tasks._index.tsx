@@ -9,6 +9,8 @@ import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.
 import {TaskPersonalView} from "~/client/tasks/task_personal_view.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_table.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -29,6 +31,7 @@ const LoaderSchema = Schema.object({
         TaskGridViewExpansionStateSchema,
         TaskGridViewExpansionStateSchema,
     ]),
+    isFavorite: Schema.boolean,
 });
 
 export const meta = createMetaFunction(LoaderSchema, () => [{title: "My tasks"}]);
@@ -227,11 +230,14 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
         shouldLoadGridViewExpandedChildTasksForBrowserId: context.loader.getBrowserId(),
     };
 
-    const {queries, extraQueries, updateEvent} = await context.tasks.loadQueries(spaceId, {
-        queries: [activeQuery, overdueQuery, dueTodayQuery, dueSoonQuery, remainingQuery],
-        taskIds: [],
-        collectionIds: [],
-    });
+    const [{queries, extraQueries, updateEvent}, isFavorite] = await runAllPromises([
+        context.tasks.loadQueries(spaceId, {
+            queries: [activeQuery, overdueQuery, dueTodayQuery, dueSoonQuery, remainingQuery],
+            taskIds: [],
+            collectionIds: [],
+        }),
+        isSearchFavoriteEntity(context, {spaceId, entityId: "TaskPersonal"}),
+    ]);
 
     const activeQueryOutput = assertExists(queries[0]);
     const overdueQueryOutput = assertExists(queries[1]);
@@ -249,6 +255,7 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
                 dueSoonQueryOutput.gridViewExpansionState,
                 remainingQueryOutput.gridViewExpansionState,
             ],
+            isFavorite,
         },
         {
             taskStoreLoaderData: {
@@ -306,7 +313,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 };
 
 export default function TasksRoute() {
-    const {initialGridViewExpansionStates} = useLoaderDataWithSchema(LoaderSchema);
+    const {initialGridViewExpansionStates, isFavorite} = useLoaderDataWithSchema(LoaderSchema);
 
     // We don't retain here since the components that consume our queries are
     // expected to retain them.
@@ -351,6 +358,7 @@ export default function TasksRoute() {
                     initialGridViewExpansionState: initialRemainingGridViewExpansionState,
                 }}
                 affinityManager={affinityManager}
+                initialIsFavorite={isFavorite}
             />
         </TaskGridViewDndContext>
     );

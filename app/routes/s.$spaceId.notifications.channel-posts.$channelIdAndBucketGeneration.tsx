@@ -11,7 +11,7 @@ import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {postContentViewMinHeightPx} from "~/client/styles/forum_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
@@ -139,7 +139,7 @@ export default function ChannelPostsRouteWrapper() {
     // While you're viewing new posts in a channel, this accrues affinity points to
     // the channel. Since you're taking time to pay attention to what's new in a
     // channel.
-    useSearchAffinityViewInteraction(`Channel:${channel.model.id}`);
+    useSearchAffinityViewEntityInteraction(`Channel:${channel.model.id}`);
 
     let node: ReactElement;
 

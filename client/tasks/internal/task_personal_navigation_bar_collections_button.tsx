@@ -31,7 +31,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
-import {markSearchAffinityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
+import {markSearchAffinityEntityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
 
 export function TaskPersonalNavigationBarCollectionsButton({store}: {store: TaskClientStore}) {
     // Preload task collections the account has an affinity for in case they open
@@ -142,9 +142,9 @@ function TaskPersonalNavigationBarCollectionsComboBoxOverlay({
                 // Navigating to a collection from this list is a strong positive signal that
                 // this is an entity the user cares about. Apply the same point increase as
                 // when the user navigates to an entity from search.
-                markSearchAffinityInteraction(context, {
+                markSearchAffinityEntityInteraction(context, {
                     spaceId: space.id,
-                    affinityId: `TaskCollection:${collectionId}`,
+                    entityId: `TaskCollection:${collectionId}`,
                     interaction: {type: "HighIntentUpdate"},
                 }).catch(error => {
                     // Silently fail. This doesn't affect anything the user sees so we don't need

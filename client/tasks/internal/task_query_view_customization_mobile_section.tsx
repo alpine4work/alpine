@@ -299,12 +299,12 @@ function TaskQueryViewCustomizationMobileSectionSorts({
     onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
     defaultOrderSentence: string;
 }) {
-    const [sortsWithId, _setSortsWithId] = useState<Array<{id: number; sort: TaskQuerySort}>>(() =>
-        sorts.map(sort => ({id: nextSortId++, sort})),
-    );
+    const [sortsWithId, actuallySetSortsWithId] = useState<
+        ReadonlyArray<{id: number; sort: TaskQuerySort}>
+    >(() => sorts.map(sort => ({id: nextSortId++, sort})));
 
-    const setSortsWithId = (sortsWithId: Array<{id: number; sort: TaskQuerySort}>) => {
-        _setSortsWithId(sortsWithId);
+    const setSortsWithId = (sortsWithId: ReadonlyArray<{id: number; sort: TaskQuerySort}>) => {
+        actuallySetSortsWithId(sortsWithId);
         onSortsChange(sortsWithId.map(({sort}) => sort));
     };
 

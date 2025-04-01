@@ -1646,19 +1646,25 @@ test("will be prevented from lowering your own permission level if you're the la
         .click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t remove everyone who can change permissions"}),
+        page.getByRole("alertdialog", {
+            name: "Can’t remove everyone who can change permissions",
+        }),
     ).toBeHidden();
 
     await page.getByRole("menuitem", {name: "remove access"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t remove everyone who can change permissions"}),
+        page.getByRole("alertdialog", {
+            name: "Can’t remove everyone who can change permissions",
+        }),
     ).toBeVisible();
 
     await page.getByRole("button", {name: "Ok"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t remove everyone who can change permissions"}),
+        page.getByRole("alertdialog", {
+            name: "Can’t remove everyone who can change permissions",
+        }),
     ).toBeHidden();
 
     await expect(
@@ -1673,19 +1679,25 @@ test("will be prevented from lowering your own permission level if you're the la
         .click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t remove everyone who can change permissions"}),
+        page.getByRole("alertdialog", {
+            name: "Can’t remove everyone who can change permissions",
+        }),
     ).toBeHidden();
 
     await page.getByRole("menuitem", {name: "can comment"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t remove everyone who can change permissions"}),
+        page.getByRole("alertdialog", {
+            name: "Can’t remove everyone who can change permissions",
+        }),
     ).toBeVisible();
 
     await page.getByRole("button", {name: "Ok"}).click();
 
     await expect(
-        page.getByRole("alertdialog", {name: "Can’t remove everyone who can change permissions"}),
+        page.getByRole("alertdialog", {
+            name: "Can’t remove everyone who can change permissions",
+        }),
     ).toBeHidden();
 
     await expect(

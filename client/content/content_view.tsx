@@ -41,7 +41,7 @@ import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
-import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
+import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {contentStyles, contentViewStyles, sprinkles} from "~/client/styles/styles.js";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
@@ -435,7 +435,7 @@ export function ContentView<Content extends ContentWithReferences>({
             // If this is a mobile layout on desktop then we'll use the max width of a peek
             // as our screen width for computing layouts.
             (routeLayout === "narrow" && platform !== "mobile"
-                ? convertRemLengthToPx(peekMobileLayoutWidth, spacingScale)
+                ? convertRemLengthToPx(peekNarrowLayoutWidth, spacingScale)
                 : clientInfo.screenWidth);
 
         // If we have some initial code block decorations from server-side rendering

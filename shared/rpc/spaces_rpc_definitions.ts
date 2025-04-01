@@ -4,6 +4,7 @@ import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {SpaceAccountSettingsSchema} from "~/shared/spaces/space_account_settings.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 export const expensivelyGetAllSpaceAccounts = defineRpc({
@@ -58,4 +59,13 @@ export const getOurAccountSpaces = defineRpc({
             }),
         ),
     },
+});
+
+export const updateSpaceAccountSettings = defineRpc({
+    name: "updateSpaceAccountSettings",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        update: SpaceAccountSettingsSchema.partial(),
+    },
+    output: {},
 });

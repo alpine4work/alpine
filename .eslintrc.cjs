@@ -83,7 +83,7 @@ const typeCheckingConfigOverride = {
             {
                 // We define a promise type that doesn't have to be awaited since in some cases
                 // that's ok.
-                allowForKnownSafePromises: ["SafeFloatingPromise"],
+                allowForKnownSafePromises: ["SafeFloatingPromise", "SafeFloatingPromiseLike"],
             },
         ],
 

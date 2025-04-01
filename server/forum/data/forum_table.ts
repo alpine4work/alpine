@@ -44,7 +44,7 @@ import {
     getNotificationMessageContentSnippet,
     getNotificationPostContentSnippet,
 } from "~/server/notifications/core/get_notification_content_snippet.js";
-import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
     getAccount,
@@ -1160,9 +1160,9 @@ export async function createChannel(
     });
 
     context.process.waitUntil(
-        markSearchAffinityInteraction(context, {
+        markSearchAffinityEntityInteraction(context, {
             spaceId,
-            affinityId: `Channel:${channelItem.channelId}`,
+            entityId: `Channel:${channelItem.channelId}`,
             interaction: {type: "HighIntentUpdate"},
         }),
     );
@@ -2157,9 +2157,9 @@ export async function createPost(
     // points so you could quickly jump to a channel if you're looking for a
     // certain post inside the channel.
     context.process.waitUntil(
-        markSearchAffinityInteraction(context, {
+        markSearchAffinityEntityInteraction(context, {
             spaceId: channel.spaceId,
-            affinityId: `Channel:${channel.id}`,
+            entityId: `Channel:${channel.id}`,
             interaction: {type: "MediumIntentUpdate"},
         }),
     );
@@ -2173,9 +2173,9 @@ export async function createPost(
     for (const mentionedAccountId of mentionedAccountIds) {
         context.process.waitUntil(async () => {
             if (await isAccountMemberOfSpace(context, channel.spaceId, mentionedAccountId)) {
-                await markSearchAffinityInteraction(context, {
+                await markSearchAffinityEntityInteraction(context, {
                     spaceId: channel.spaceId,
-                    affinityId: `Account:${mentionedAccountId as AccountId}`,
+                    entityId: `Account:${mentionedAccountId as AccountId}`,
                     interaction: {type: "HighIntentUpdate"},
                 });
             }
@@ -2887,9 +2887,9 @@ export async function createPostComment(
         // points so you could quickly jump to a channel if you're looking for a
         // certain post inside the channel.
         context.process.waitUntil(
-            markSearchAffinityInteraction(context, {
+            markSearchAffinityEntityInteraction(context, {
                 spaceId: postItem.spaceId,
-                affinityId: `Channel:${postItem.channelId}`,
+                entityId: `Channel:${postItem.channelId}`,
                 interaction:
                     content.nodeSize < 50
                         ? {type: "LowIntentUpdate"}
@@ -2906,9 +2906,9 @@ export async function createPostComment(
         for (const mentionedAccountId of mentionedAccountIds) {
             context.process.waitUntil(async () => {
                 if (await isAccountMemberOfSpace(context, postItem.spaceId, mentionedAccountId)) {
-                    await markSearchAffinityInteraction(context, {
+                    await markSearchAffinityEntityInteraction(context, {
                         spaceId: postItem.spaceId,
-                        affinityId: `Account:${mentionedAccountId as AccountId}`,
+                        entityId: `Account:${mentionedAccountId as AccountId}`,
                         interaction: {type: "HighIntentUpdate"},
                     });
                 }

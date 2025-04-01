@@ -148,7 +148,7 @@ import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
-import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
+import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {colorSchemeVars, contentEditorStyles, contentStyles} from "~/client/styles/styles.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
@@ -1161,7 +1161,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             // If this is a mobile layout on desktop then we'll use the max width of a peek
             // as our screen width for computing layouts.
             routeLayoutRef.current === "narrow" && getPlatformWithoutListening() !== "mobile"
-                ? convertRemLengthToPx(peekMobileLayoutWidth, getSpacingScaleWithoutListening())
+                ? convertRemLengthToPx(peekNarrowLayoutWidth, getSpacingScaleWithoutListening())
                 : getClientInfo().screenWidth;
 
         // IMPORTANT: If you have a custom view in `nodeViews` here you should also

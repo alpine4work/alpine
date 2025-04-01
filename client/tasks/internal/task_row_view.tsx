@@ -1,7 +1,7 @@
 import {useDraggable} from "@dnd-kit/core";
 import {setInteractionModality} from "@react-aria/interactions";
 import classNames from "classnames";
-import {ArrowsOutSimple, DotsSixVertical} from "phosphor-react";
+import {ArrowsOutSimple, DotsSixVertical, Link as LinkIcon} from "phosphor-react";
 import {Selection} from "prosemirror-state";
 import {
     FocusEvent,
@@ -1275,6 +1275,8 @@ function TaskRowView(
             contextMenuActions.push([
                 {
                     label: "Copy link",
+                    icon: <LinkIcon />,
+                    iconPlacement: "end",
                     pressErrorTitle: "Couldn’t copy task link",
                     onPress: async () => {
                         const url = new URL(

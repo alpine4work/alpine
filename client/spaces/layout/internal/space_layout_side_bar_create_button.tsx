@@ -23,7 +23,7 @@ import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 
 // NOTE(calebmer): The icons used here for create actions are the same icons
-// used in `<SearchResultView/>`'s `getSearchResultTypeDisplay()`. If you
+// used in `<SearchEntityView/>`'s `getSearchEntityTypeDisplay()`. If you
 // change an icon here you should also change it there.
 export function SpaceLayoutSideBarCreateButton() {
     const clientInfo = useClientInfo();

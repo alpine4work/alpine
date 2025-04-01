@@ -13,7 +13,7 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     channelViewAsidePostFileCount,
@@ -32,6 +32,7 @@ import {
 } from "~/server/forum/data/forum_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_table.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
@@ -65,6 +66,7 @@ const LoaderSchema = Schema.object({
             type: Schema.value("Exists"),
             channelResult: createDynamoGeneralRealtimeQuerySchema(ChannelOrMetadataModelSchema),
             postsResult: createDynamoGeneralRealtimeIndexQuerySchema(PostModel.schema()),
+            isFavorite: Schema.boolean,
         }),
     }),
 });
@@ -128,7 +130,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
 
     const clientInfo = context.loader.getClientInfo();
 
-    const [channelResult, postsResult] = await runAllPromises([
+    const [channelResult, postsResult, isFavorite] = await runAllPromises([
         getDynamoGeneralRealtimeItem
             ? runAllPromises([
                   getDynamoGeneralRealtimeItem(context),
@@ -171,6 +173,10 @@ export async function loader({request, params, context: unauthenticatedContext}:
             ),
             beforeCursor: null,
         }),
+        isSearchFavoriteEntity(context, {
+            spaceId,
+            entityId: `Channel:${channelId}`,
+        }),
     ]);
 
     const propagateEventData: TracerEventData = {
@@ -184,6 +190,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 type: "Exists",
                 channelResult,
                 postsResult,
+                isFavorite,
             },
         },
         {propagateEventData},
@@ -254,7 +261,7 @@ export default function ChannelRoute() {
         }
     }, [channelState.type, searchParams, setSearchParams]);
 
-    useSearchAffinityViewInteraction(
+    useSearchAffinityViewEntityInteraction(
         channelState.type === "Exists" &&
             channelState.channelResult.items[0]?.model instanceof ChannelModel
             ? `Channel:${channelState.channelResult.items[0].model.id}`
@@ -269,6 +276,7 @@ export default function ChannelRoute() {
                     key={channelId}
                     initialChannelResult={channelState.channelResult}
                     initialPostsResult={channelState.postsResult}
+                    initialIsFavorite={channelState.isFavorite}
                 />
             ) : platform === "mobile" ? (
                 <ChannelMobileEditor

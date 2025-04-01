@@ -476,6 +476,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 {
                     key: id,
                     label: "Copy link",
+                    icon: <LinkIcon />,
+                    iconPlacement: "end",
                     isDisabled: message.isOptimistic,
                     pressErrorTitle: `Couldn’t copy ${messageNoun} link`,
                     onPress: async () => {

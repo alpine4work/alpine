@@ -60,7 +60,7 @@ import {
  * This is enough to give the user some choice while they scroll while not
  * using too many resources.
  */
-const channelSelectorSearchResultLimit = 20;
+const channelSelectorSearchEntityLimit = 20;
 
 type PostCreatorChannelSelectorInputState =
     | {
@@ -144,12 +144,12 @@ function PostCreatorChannelSelectorInput(
 
     useIdlyPreloadRpc(searchChannelsByAffinity, {
         spaceId: space.id,
-        limit: channelSelectorSearchResultLimit,
+        limit: channelSelectorSearchEntityLimit,
     });
 
     const {output: searchByAffinityOutput} = useLazyLoadRpc(
         searchChannelsByAffinity,
-        shouldLoadItems ? {spaceId: space.id, limit: channelSelectorSearchResultLimit} : null,
+        shouldLoadItems ? {spaceId: space.id, limit: channelSelectorSearchEntityLimit} : null,
     );
 
     const [currentlyLoadingInputValue, setCurrentlyLoadingInputValue] =
@@ -163,7 +163,7 @@ function PostCreatorChannelSelectorInput(
             currentlyLoadingInputValue.length > 0
             ? {
                   spaceId: space.id,
-                  limit: channelSelectorSearchResultLimit,
+                  limit: channelSelectorSearchEntityLimit,
                   queryText: currentlyLoadingInputValue,
               }
             : null,

@@ -31,6 +31,9 @@ patchedDependencies:
   '@dnd-kit/core@6.0.8':
     hash: 7phbxv4pzfr6sphz6gpqy6mxeu
     path: admin/patches/@dnd-kit__core@6.0.8.patch
+  '@dnd-kit/sortable@7.0.2':
+    hash: znduzy7ef6opogvptybjmvgiz4
+    path: admin/patches/@dnd-kit__sortable@7.0.2.patch
   '@dnd-kit/utilities@3.2.1':
     hash: di55vvis5paiupfudkzzxlvcfm
     path: admin/patches/@dnd-kit__utilities@3.2.1.patch
@@ -227,7 +230,7 @@ importers:
         version: 6.0.1(@dnd-kit/core@6.0.8(patch_hash=7phbxv4pzfr6sphz6gpqy6mxeu)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0))(react@18.2.0)
       '@dnd-kit/sortable':
         specifier: ^7.0.2
-        version: 7.0.2(@dnd-kit/core@6.0.8(patch_hash=7phbxv4pzfr6sphz6gpqy6mxeu)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0))(react@18.2.0)
+        version: 7.0.2(patch_hash=znduzy7ef6opogvptybjmvgiz4)(@dnd-kit/core@6.0.8(patch_hash=7phbxv4pzfr6sphz6gpqy6mxeu)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0))(react@18.2.0)
       '@dnd-kit/utilities':
         specifier: 3.2.1
         version: 3.2.1(patch_hash=di55vvis5paiupfudkzzxlvcfm)(react@18.2.0)
@@ -10054,7 +10057,7 @@ snapshots:
       react: 18.2.0
       tslib: 2.6.3
 
-  '@dnd-kit/sortable@7.0.2(@dnd-kit/core@6.0.8(patch_hash=7phbxv4pzfr6sphz6gpqy6mxeu)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0))(react@18.2.0)':
+  '@dnd-kit/sortable@7.0.2(patch_hash=znduzy7ef6opogvptybjmvgiz4)(@dnd-kit/core@6.0.8(patch_hash=7phbxv4pzfr6sphz6gpqy6mxeu)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0))(react@18.2.0)':
     dependencies:
       '@dnd-kit/core': 6.0.8(patch_hash=7phbxv4pzfr6sphz6gpqy6mxeu)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)
       '@dnd-kit/utilities': 3.2.1(patch_hash=di55vvis5paiupfudkzzxlvcfm)(react@18.2.0)

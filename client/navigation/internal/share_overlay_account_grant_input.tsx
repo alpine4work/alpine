@@ -51,7 +51,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {markSearchAffinityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
+import {markSearchAffinityEntityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -692,9 +692,9 @@ export function ShareOverlayAccountGrantInput({
                                         // a high intent update since the user clearly wants to show something to the
                                         // granted accounts.
                                         for (const accountId of newAccountGrantById.keys()) {
-                                            void markSearchAffinityInteraction(context, {
+                                            void markSearchAffinityEntityInteraction(context, {
                                                 spaceId: space.id,
-                                                affinityId: `Account:${accountId}`,
+                                                entityId: `Account:${accountId}`,
                                                 interaction: {type: "HighIntentUpdate"},
                                             });
                                         }

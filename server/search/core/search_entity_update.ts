@@ -19,12 +19,15 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {SearchEntityIdObject, printSearchEntityId} from "~/shared/search/search_entity_id.js";
+import {
+    SearchDynamicEntityIdObject,
+    printSearchDynamicEntityId,
+} from "~/shared/search/search_entity_id.js";
 
 /**
  * Describes an update to a search entity. This type is the same as
- * `SearchEntityIdObject` (to identify the entity being updated) but with an
- * `updatedTraits` property (to identify the attributes on the entity
+ * `SearchDynamicEntityIdObject` (to identify the entity being updated) but
+ * with an `updatedTraits` property (to identify the attributes on the entity
  * that were updated).
  *
  * `updatedTraits` is an array of the traits that were affected by this update.
@@ -60,8 +63,11 @@ export type SearchEntityUpdate = {
 }[keyof typeof searchEntityUpdateSchemaDescription];
 
 // `SearchEntityUpdate` should be the same as
-// `SearchEntityIdObject` but with an `updatedTraits` property.
-assertEqualTypes<SearchEntityIdObject, DistributiveOmit<SearchEntityUpdate, "updatedTraits">>();
+// `SearchDynamicEntityIdObject` but with an `updatedTraits` property.
+assertEqualTypes<
+    SearchDynamicEntityIdObject,
+    DistributiveOmit<SearchEntityUpdate, "updatedTraits">
+>();
 
 // `SearchEntityUpdate`'s `updatedTraits` should be the same as the traits in
 // `SearchEntityDependencyId`. This makes sure
@@ -196,7 +202,7 @@ export function getSearchEntityDependencyIdsAffectedByUpdate(
             break;
         }
         case "Any": {
-            const primaryId = printSearchEntityId(update);
+            const primaryId = printSearchDynamicEntityId(update);
 
             if (isSearchEntityIdAlsoEntityDependencyId(primaryId)) {
                 ids.push(primaryId);
@@ -208,7 +214,7 @@ export function getSearchEntityDependencyIdsAffectedByUpdate(
             break;
         }
         case "Some": {
-            const primaryId = printSearchEntityId(update);
+            const primaryId = printSearchDynamicEntityId(update);
 
             if (isSearchEntityIdAlsoEntityDependencyId(primaryId)) {
                 ids.push(primaryId);

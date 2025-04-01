@@ -1,3 +1,4 @@
+import {Link as LinkIcon} from "phosphor-react";
 import {
     Memo,
     RefObject,
@@ -24,6 +25,7 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSearchFavoriteEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
 import {tasksStyles} from "~/client/styles/styles.js";
@@ -109,6 +111,7 @@ export function TaskCollectionView({
     onFiltersChange,
     initialSorts,
     onSortsChange,
+    initialIsFavorite,
     createCollection,
 }: {
     store: TaskClientStore;
@@ -127,6 +130,7 @@ export function TaskCollectionView({
     onFiltersChange: (filters: ReadonlyArray<TaskQueryFilter>) => void;
     initialSorts: ReadonlyArray<TaskQuerySort>;
     onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
+    initialIsFavorite: boolean;
     createCollection: Memo<(name: string) => Promise<void>>;
 }) {
     const context = useAppContext();
@@ -315,15 +319,23 @@ export function TaskCollectionView({
         await writeTextToClipboard(url.toString());
     }, [collectionId, filters, sorts, space.id]);
 
+    const favoriteMenuAction = useSearchFavoriteEntityMenuAction(
+        `TaskCollection:${collectionId}`,
+        initialIsFavorite,
+    );
+
     const menuActions = useMemo(() => {
         const menuActions: Array<ReadonlyArray<MenuAction>> = [];
 
         menuActions.push([
             {
                 label: "Copy link",
+                icon: <LinkIcon />,
+                iconPlacement: "end",
                 pressErrorTitle: "Couldn’t copy collection link",
                 onPress: copyLink,
             },
+            ...(favoriteMenuAction ? [favoriteMenuAction] : []),
         ]);
 
         if (collectionSubscription) {
@@ -464,6 +476,7 @@ export function TaskCollectionView({
         context,
         copyLink,
         customizationState,
+        favoriteMenuAction,
         hasEditAccessLevel,
         isAppleDevice,
         navigate,

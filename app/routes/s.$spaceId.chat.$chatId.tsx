@@ -6,18 +6,19 @@ import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_out
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
-import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {getChatAndInitialMessages} from "~/server/chat/data/chat_table.js";
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_table.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -30,6 +31,7 @@ const LoaderSchema = Schema.object({
     initialMessages: Schema.array(ChatMessageModel.schema()),
     initialOtherReferencedMessages: Schema.array(ChatMessageModel.schema()),
     inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
+    isFavorite: Schema.boolean,
 });
 
 export async function loader({context: unauthenticatedContext, request, params}: LoaderArgs) {
@@ -39,18 +41,45 @@ export async function loader({context: unauthenticatedContext, request, params}:
 
     const url = new URL(request.url);
 
-    const [{chat, initialMessages, initialOtherReferencedMessages}, inboxEntry] =
+    const chatPromiseResolver = createPromiseResolver<ChatModel>();
+
+    const [{chat, initialMessages, initialOtherReferencedMessages}, inboxEntry, isFavorite] =
         await runAllPromises([
             getChatAndInitialMessages(context.actor.authorizeSession(), {
                 chatId,
                 messagesLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
-            }),
+                // Immediately resolve `chatPromiseResolver` once the chat is loaded. This
+                // function may take longer to return as it loads messages from the chat.
+                onChat: chatPromiseResolver.resolve,
+            }).then(
+                result => {
+                    chatPromiseResolver.resolve(result.chat);
+                    return result;
+                },
+                error => {
+                    chatPromiseResolver.reject(error);
+                    throw error;
+                },
+            ),
             url.searchParams.get("inbox") === "show"
                 ? getInboxEntry(context, {
                       spaceId,
                       key: {type: "Chat", chatId},
                   })
                 : null,
+            chatPromiseResolver.promise.then(chat =>
+                isSearchFavoriteEntity(context, {
+                    spaceId,
+                    entityId:
+                        chat.accounts.length === 2
+                            ? `Account:${
+                                  chat.accounts.filter(
+                                      account => account.id !== context.actor.getAccountId(),
+                                  )[0]!.id
+                              }`
+                            : `Chat:${chat.id}`,
+                }),
+            ),
         ]);
 
     const propagateEventData: TracerEventData = {
@@ -61,7 +90,7 @@ export async function loader({context: unauthenticatedContext, request, params}:
 
     return jsonWithSchema(
         LoaderSchema,
-        {chat, initialMessages, initialOtherReferencedMessages, inboxEntry},
+        {chat, initialMessages, initialOtherReferencedMessages, inboxEntry, isFavorite},
         {propagateEventData},
     );
 }
@@ -80,21 +109,21 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentDa
         {
             title:
                 otherChatAccounts.length === 0
-                    ? `Chat with yourself${metaTitlePostfix}`
+                    ? "Chat with yourself"
                     : `Chat with ${joinPrettyConjunctionList(
                           otherChatAccounts.map(account =>
                               // Account name in title won't update when account changes without reload
                               // because we're using `initialData`.
                               getAccountShortNameWithoutFullNameTooltip(account.initialData),
                           ),
-                      )}${metaTitlePostfix}`,
+                      )}`,
         },
     ];
 });
 
 export default function ChatRoute() {
     const [searchParams] = useSearchParams();
-    const {chat, initialMessages, initialOtherReferencedMessages, inboxEntry} =
+    const {chat, initialMessages, initialOtherReferencedMessages, inboxEntry, isFavorite} =
         useLoaderDataWithSchema(LoaderSchema);
 
     const {currentAccount} = useSpaceContext();
@@ -108,7 +137,7 @@ export default function ChatRoute() {
     //
     // By accruing points to the account we allow chat conversations to affect
     // account selector type-ahead affinity rankings.
-    useSearchAffinityViewInteraction(
+    useSearchAffinityViewEntityInteraction(
         currentAccount && chat.accounts.length === 2
             ? `Account:${chat.accounts.filter(account => account.id !== currentAccount.id)[0]!.id}`
             : `Chat:${chat.id}`,
@@ -124,6 +153,7 @@ export default function ChatRoute() {
                 initialMessages={initialMessages}
                 initialOtherReferencedMessages={initialOtherReferencedMessages}
                 initialScrollToMessageIndex={messageIndex}
+                initialIsFavorite={isFavorite}
             />
         </Box>
     );

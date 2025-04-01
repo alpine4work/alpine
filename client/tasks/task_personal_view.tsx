@@ -1,4 +1,5 @@
 import {useDndContext} from "@dnd-kit/core";
+import {DotsThreeVertical, Link as LinkIcon} from "phosphor-react";
 import {
     Memo,
     Ref,
@@ -13,16 +14,21 @@ import {
     useState,
 } from "react";
 import {Box} from "~/client/design/box.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {MenuAction} from "~/client/design/menu.js";
+import {MenuButton} from "~/client/design/menu_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {useSearchFavoriteEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {
     grey5SemiTransparentColorVar,
@@ -108,6 +114,7 @@ export function TaskPersonalView({
     dueSoonQuery,
     remainingQuery,
     affinityManager,
+    initialIsFavorite,
 }: {
     store: TaskClientStore;
     activeQuery: {
@@ -131,12 +138,13 @@ export function TaskPersonalView({
         initialGridViewExpansionState: TaskGridViewExpansionState;
     };
     affinityManager: TaskClientStoreSearchAffinityManager;
+    initialIsFavorite: boolean;
 }) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const {isAppleDevice, timeZone} = useClientInfo();
-    const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
+    const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
 
     // Retain our queries.
     useEffect(() => {
@@ -468,6 +476,25 @@ export function TaskPersonalView({
      *                               Navigation Bar                               *
     \* ========================================================================== */
 
+    const favoriteMenuAction = useSearchFavoriteEntityMenuAction("TaskPersonal", initialIsFavorite);
+
+    const navigationBarMenuActions = useMemo(
+        (): ReadonlyArray<MenuAction> => [
+            {
+                label: "Copy link",
+                icon: <LinkIcon />,
+                iconPlacement: "end",
+                pressErrorTitle: "Couldn’t copy link",
+                onPress: async () => {
+                    const url = new URL(`/s/${space.id}/tasks`, window.location.href);
+                    await writeTextToClipboard(url.toString());
+                },
+            },
+            ...(favoriteMenuAction ? [favoriteMenuAction] : []),
+        ],
+        [favoriteMenuAction, space.id],
+    );
+
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         isDisabled: routeLayout !== "narrow",
         withoutDisappearingTitle: true,
@@ -480,6 +507,7 @@ export function TaskPersonalView({
                     visibleSectionState={visibleSectionState}
                 />
             ),
+        menuActions: navigationBarMenuActions,
     });
 
     /* ========================================================================== *\
@@ -1434,6 +1462,7 @@ export function TaskPersonalView({
                                 }
                                 withoutRemainingGridViewHeader={!isRemainingGridViewHeaderVisible}
                                 visibleSectionState={visibleSectionState}
+                                menuActions={navigationBarMenuActions}
                             />
                         ),
                     };
@@ -1625,6 +1654,7 @@ export function TaskPersonalView({
             routeLayout,
             store,
             visibleSectionState,
+            navigationBarMenuActions,
             activeGridViewResult.itemCount,
             renderActiveGridViewItem,
             overdueGridViewResult.itemCount,
@@ -1997,6 +2027,7 @@ const TaskPersonalNavigationBar = memo(function TaskPersonalNavigationBar({
     shouldRenderWithRelativePositioning,
     withoutRemainingGridViewHeader,
     visibleSectionState,
+    menuActions,
 }: {
     itemRef: Ref<HTMLDivElement>;
     store: TaskClientStore;
@@ -2007,6 +2038,7 @@ const TaskPersonalNavigationBar = memo(function TaskPersonalNavigationBar({
         section: TaskPersonalViewVisibleSection | null;
         previousSections: ReadonlySet<TaskPersonalViewVisibleSection>;
     };
+    menuActions: ReadonlyArray<MenuAction>;
 }) {
     return (
         <div
@@ -2031,17 +2063,20 @@ const TaskPersonalNavigationBar = memo(function TaskPersonalNavigationBar({
                 paddingTop="safe-area-inset"
                 backgroundColor="grey-0"
             >
-                <Box
-                    display="flex"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    paddingRight={screenPaddingX.desktop}
-                >
+                <Box display="flex" alignItems="center" paddingRight={screenPaddingX.desktop}>
                     <TaskPersonalNavigationBarTitleDesktop
                         paddingLeft="10"
                         visibleSectionState={visibleSectionState}
                     />
+                    <Box flexGrow="1" />
                     <TaskPersonalNavigationBarCollectionsButton store={store} />
+                    <Box paddingLeft="4" flexShrink="0">
+                        <MenuButton placement="bottom-end" actions={menuActions}>
+                            <IconButton size="md" description="More" withoutTooltip={true}>
+                                <DotsThreeVertical />
+                            </IconButton>
+                        </MenuButton>
+                    </Box>
                 </Box>
                 {withoutRemainingGridViewHeader && (
                     <>
@@ -2086,6 +2121,7 @@ const TaskPersonalNavigationBarTitleDesktop = memo(function TaskPersonalNavigati
 
     return (
         <Box
+            flexShrink="0"
             display="flex"
             alignItems="center"
             height={navigationBarHeight}

@@ -20,6 +20,7 @@ import {TaskCollectionView} from "~/client/tasks/task_collection_view.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_table.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/spaces_table.js";
 import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
 import {
@@ -69,6 +70,7 @@ const LoaderSchema = Schema.object({
             type: Schema.value("Exists"),
             initialMetaTitleText: Schema.string,
             initialGridViewExpansionState: TaskGridViewExpansionStateSchema,
+            initialIsFavorite: Schema.boolean,
         }),
     }),
     filterReferences: TaskQueryFilterReferencesSchema,
@@ -217,7 +219,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
               ]
             : normalizeTaskQuerySorts(sorts);
 
-    const [filterReferences, loadQueryResult] = await runAllPromises([
+    const [filterReferences, loadQueryResult, isFavorite] = await runAllPromises([
         getTaskQueryFilterReferences(context, spaceId, filters),
         (async () => {
             if (normalizedFiltersResult.type !== "Possible") {
@@ -259,6 +261,10 @@ export async function loader({request, params, context: unauthenticatedContext}:
 
             return Object.assign(result, {input: {query}});
         })(),
+        isSearchFavoriteEntity(context, {
+            spaceId,
+            entityId: `TaskCollection:${collectionId}`,
+        }),
     ]);
 
     const backfillCollection = loadQueryResult?.updateEvent.backfillCollections.find(
@@ -280,6 +286,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 type: "Exists",
                 initialMetaTitleText: backfillCollection?.collection.getName() ?? "",
                 initialGridViewExpansionState: queryOutput?.gridViewExpansionState ?? null,
+                initialIsFavorite: isFavorite,
             },
             filterReferences,
         },
@@ -547,6 +554,9 @@ function TaskCollectionRouteInner() {
                         unstable_shouldRevalidate: false,
                     });
                 }}
+                initialIsFavorite={
+                    collectionState.type === "Exists" ? collectionState.initialIsFavorite : false
+                }
                 createCollection={createCollection}
             />
         </TaskGridViewDndContext>

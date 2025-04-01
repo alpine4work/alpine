@@ -22,6 +22,7 @@ ts_project(
         "//:node_modules/pretty-ms",
         "//:node_modules/sharp",
         "//admin/helpers",
+        "//client/icons",
         "//client/rpc",
         "//server/apns",
         "//server/rpc",

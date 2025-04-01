@@ -12,8 +12,7 @@ import {getInitialAppRenderPlatform, usePlatform} from "~/client/remix/platform_
 import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
-import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
 import {
     documentCommentThreadCountAgainstLimit,
     documentCommentThreadListViewMaxWidth,
@@ -93,7 +92,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {commentThread}}) => {
     if (!commentThread.firstCommentAuthor) {
-        return [{title: `Document comment thread${metaTitlePostfix}`}];
+        return [{title: "Document comment thread"}];
     }
 
     return [
@@ -102,7 +101,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {commentThread}}) =
             // because we're using `initialData`.
             title: `Document comment thread by ${getAccountShortNameWithoutFullNameTooltip(
                 commentThread.firstCommentAuthor.initialData,
-            )}${metaTitlePostfix}`,
+            )}`,
         },
     ];
 });
@@ -130,7 +129,7 @@ export default function DocumentCommentThreadRoute() {
     // Spending time with a document comment thread contributes affinity points
     // back to the document. Since the comment thread is discussing the document,
     // the document is likely an artifact you care about.
-    useSearchAffinityViewInteraction(`Document:${initialDocument.id}`);
+    useSearchAffinityViewEntityInteraction(`Document:${initialDocument.id}`);
 
     const navigationBar = useNavigationBar({
         isDisabled: platform !== "mobile",

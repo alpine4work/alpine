@@ -8,7 +8,7 @@
 export function mapObjectValues<Value, NewKeyValue>(
     value: Value,
     map: (keyValue: Value[keyof Value], key: keyof Value & string) => NewKeyValue,
-): {[Key in keyof Value]: NewKeyValue} {
+): {[Key in keyof Value]: Value[Key] extends never ? never : NewKeyValue} {
     return Object.fromEntries(
         Object.entries(value as any).map(([key, keyValue]) => {
             const newKeyValue = map(keyValue as any, key as any);

@@ -6,14 +6,14 @@ import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/co
 import {getSearchEntity} from "~/server/search/data/index/internal/get_search_entity.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {SearchEntityIdObject} from "~/shared/search/search_entity_id.js";
+import {SearchDynamicEntityIdObject} from "~/shared/search/search_entity_id.js";
 
 const context = createTestContext();
 
 // We should have at least one `getSearchEntity()` test for every search entity
 // type. This object will have a TypeScript error whenever a new search entity
 // is added reminding developers to add a new test for the search entity.
-const testCasesBySearchEntityType: {[Key in SearchEntityIdObject["type"]]: () => void} = {
+const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]: () => void} = {
     Account: () => {
         test("can get account search entity", async () => {
             const space = await TestSpace.create(context);

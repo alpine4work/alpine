@@ -3,7 +3,6 @@ import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {useReporter} from "~/client/design/reporter.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {usePreloadSearchByAffinity} from "~/client/search/use_search_state.js";
@@ -13,9 +12,9 @@ import {SpaceLayoutSideBarSpaceButton} from "~/client/spaces/layout/internal/spa
 import {useIsFullWidthRoute} from "~/client/spaces/route_metadata.js";
 import {spaceLayoutStyles} from "~/client/styles/styles.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {UnimplementedError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
+import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
+import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
@@ -23,21 +22,22 @@ export function SpaceLayoutSideBar({
     space,
     currentAccount,
     initialInbox,
+    initialAffinitySearch,
     onSearchPress,
 }: {
     space: SpaceModel;
     currentAccount: AccountModel;
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
+    initialAffinitySearch: RpcDefinitionOutputType<typeof searchByAffinity> | null;
     onSearchPress: () => void;
 }) {
     const rootNavigate = useRootNavigate();
-    const reporter = useReporter();
     const {isAppleDevice} = useClientInfo();
 
     // Preload affinitive search entities so they're ready when the search modal
     // opens. We expect search to be the primary way users navigate around the
-    // product.
-    usePreloadSearchByAffinity();
+    // product so the search modal should open immediately.
+    usePreloadSearchByAffinity({initialOutput: initialAffinitySearch});
 
     return (
         <Box
@@ -79,21 +79,7 @@ export function SpaceLayoutSideBar({
                             tooltipPlacement="right"
                             pressErrorTitle="Couldn’t open home page"
                             onPress={async () => {
-                                if (space.alphaAccessDefaultChannelId) {
-                                    await rootNavigate(
-                                        `/s/${space.id}/channels/${space.alphaAccessDefaultChannelId}`,
-                                    );
-                                } else {
-                                    reporter.displayError(
-                                        "Can’t open the home page",
-                                        new UnimplementedError(
-                                            "The home page hasn't been implemented yet",
-                                            {
-                                                displayMessage: errorDisplayMessage`The home page hasn’t been implemented yet.`,
-                                            },
-                                        ),
-                                    );
-                                }
+                                await rootNavigate(`/s/${space.id}`);
                             }}
                         >
                             <House />

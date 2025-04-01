@@ -1,6 +1,6 @@
 import {updateOurAccountName} from "~/server/accounts/update_name/update_our_account_name.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {internalGetSearchAffinities} from "~/server/search/data/table/search_entity_table.js";
+import {internalGetSearchAffinityEntities} from "~/server/search/data/table/search_entity_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -1804,14 +1804,12 @@ test("updates search affinity points for task when it's marked as active", async
     const task = await TestTask.create(session1);
 
     const getTaskSearchAffinityPoints = async (session: TestSpaceSession) => {
-        const affinities = await internalGetSearchAffinities(session.action(), {
+        const affinities = await internalGetSearchAffinityEntities(session.action(), {
             spaceId: space.id,
             limit: 10,
         });
 
-        return (
-            affinities.find(affinity => affinity.affinityId === `Task:${task.id}`)?.points ?? null
-        );
+        return affinities.find(affinity => affinity.entityId === `Task:${task.id}`)?.points ?? null;
     };
 
     expect(await getTaskSearchAffinityPoints(session1)).toEqual(null);
@@ -1907,13 +1905,13 @@ test("adds search affinity points for task collection when it's added to a task"
     await ProcessContextModule.waitForTestTasks();
 
     const getTaskCollectionSearchAffinityPoints = async (session: TestSpaceSession) => {
-        const affinities = await internalGetSearchAffinities(session.action(), {
+        const affinities = await internalGetSearchAffinityEntities(session.action(), {
             spaceId: space.id,
             limit: 10,
         });
 
         return (
-            affinities.find(affinity => affinity.affinityId === `TaskCollection:${collection.id}`)
+            affinities.find(affinity => affinity.entityId === `TaskCollection:${collection.id}`)
                 ?.points ?? null
         );
     };

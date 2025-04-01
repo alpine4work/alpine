@@ -64,4 +64,5 @@ export type PostDraftId = NominalChronologicalIdType<"PostDraft">;
  * `ContentMentionAccountId` an error but allow the type with
  * `getAccountIfExists()`.
  */
-export type ContentMentionAccountId = NominalRandomIdType<"ContentMentionAccount"> | AccountId;
+export type ContentMentionAccountId = ContentMentionAccountIdAlternative | AccountId;
+export type ContentMentionAccountIdAlternative = NominalRandomIdType<"ContentMentionAccount">;

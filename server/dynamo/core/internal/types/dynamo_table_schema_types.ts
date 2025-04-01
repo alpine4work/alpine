@@ -132,12 +132,15 @@ export namespace DynamoTableSchemaTypes {
             ItemSharedAttributes
     >;
 
-    type ExpirationTimeType<Config extends "Optional" | "Required" | undefined> =
-        Config extends "Optional"
-            ? {readonly expirationTime?: Date}
-            : Config extends "Required"
-            ? {readonly expirationTime: Date}
-            : {};
+    type ExpirationTimeType<
+        Config extends "Optional" | "Required" | "RequiredNullable" | undefined,
+    > = Config extends "Optional"
+        ? {readonly expirationTime?: Date}
+        : Config extends "Required"
+        ? {readonly expirationTime: Date}
+        : Config extends "RequiredNullable"
+        ? {readonly expirationTime: Date | null}
+        : {};
 
     /**
      * Types shared by both `partitionKeyAttributes` and `sortKeyAttributes`.
@@ -415,7 +418,7 @@ export namespace DynamoTableSchemaTypes {
              *
              * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/time-to-live-ttl-how-to.html
              */
-            readonly withExpirationTime?: "Optional" | "Required";
+            readonly withExpirationTime?: "Optional" | "Required" | "RequiredNullable";
         };
 
         export type Description = {

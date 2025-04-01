@@ -13,3 +13,11 @@
  * [1]: https://typescript-eslint.io/rules/no-floating-promises/
  */
 export type SafeFloatingPromise<T> = Promise<T> & {readonly _SafeFloatingPromise: never};
+
+/**
+ * Same as `SafeFloatingPromise<T>` but with a `PromiseLike<T>` instead of a
+ * `Promise<T>`. See the documentation on `SafeFloatingPromise<T>`.
+ */
+export type SafeFloatingPromiseLike<T> = PromiseLike<T> & {
+    readonly _SafeFloatingPromiseLike: never;
+};
