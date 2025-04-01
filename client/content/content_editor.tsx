@@ -1399,8 +1399,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         viewProps.transformCopied = slice => {
             const isCellSelection = view.state.selection instanceof ContentTableCellSelection;
 
-            // NOTE(rohit): Apply this custom copy logic for slices which have only single cell
-            // content from the table. for other cases, we use ProseMirror's default copy behavior.
             const isExclusivelyTableSingleCellContent =
                 slice.content.childCount === 1 &&
                 slice.content.firstChild &&
@@ -1420,15 +1418,24 @@ function ContentEditor<Content extends ContentWithReferences>(
             // Solution: If table nodes appear in the slice without an explicit
             // CellSelection, extract just the cell's content and remove the table
             // structure.
+            //
+            // Apply this custom copy logic only for slices which have single cell
+            // content from the table. For other cases, we use ProseMirror's default copy behavior.
+            //
+            // `extractedDepth` is used to adjust the `openStart` and `openEnd` of the slice
+            // to account for the depth of the table nodes in the slice.
             if (isExclusivelyTableSingleCellContent && !isCellSelection) {
+                let extractedDepth = 0;
                 // recursive function to get the content from `tableCell` node
                 const extractCellContent = (node: Node): Fragment | null => {
                     if (node.type.name === "table" || node.type.name === "tableRow") {
+                        extractedDepth++;
                         return node.content.firstChild
                             ? extractCellContent(node.content.firstChild)
                             : null;
                     } else if (node.type.name === "tableCell") {
-                        return node.content.childCount > 0 ? node.content : null;
+                        extractedDepth++;
+                        return node.content;
                     }
                     return node.content;
                 };
@@ -1436,12 +1443,17 @@ function ContentEditor<Content extends ContentWithReferences>(
                 const cellContent = extractCellContent(slice.content.firstChild);
 
                 if (cellContent) {
-                    return new Slice(cellContent, slice.openStart, slice.openEnd);
+                    return new Slice(
+                        cellContent,
+                        Math.max(0, slice.openStart - extractedDepth),
+                        Math.max(0, slice.openEnd - extractedDepth),
+                    );
                 }
             }
 
             return slice;
         };
+
         viewProps.transformPasted = slice => {
             // When pasting a slice that starts with a heading and has some other nodes,
             // make sure we always use an `openStart` of 0 so the heading doesn't merge
