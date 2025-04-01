@@ -4657,7 +4657,7 @@ test("getting document with comments requires comment access level", async () =>
                 commentLimit: 100,
                 commentThreadCountAgainstLimit: 0,
             }),
-        ).rejects.toThrow("Account doesn't have access to space (and 1 other error)");
+        ).rejects.toThrow("Account doesn't have access to space");
     }
 
     // Check that even when `commentThreadIds` is empty we still throw if the actor
