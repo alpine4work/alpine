@@ -1987,6 +1987,8 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     // Make sure placeholder is rendered underneath cursor.
     zIndex: -10,
 });
+export const tableCellPaddingY = spacing["3"];
+export const tableCellPaddingX = spacing["4"];
 
 const tableOverflowGradientWidthSpacing = "5";
 export {tableOverflowGradientWidthSpacing as tableOverflowGradientWidth};

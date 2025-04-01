@@ -162,6 +162,7 @@ import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {commentClassName, fileClassName, linkClassName} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
+import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
@@ -1396,25 +1397,30 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         // This function is called when the user copies content from the editor.
         viewProps.transformCopied = slice => {
-            const isCellSelection =
-                view.state.selection.constructor.name === "ContentTableCellSelection";
+            const isCellSelection = view.state.selection instanceof ContentTableCellSelection;
 
-            const isTableContent =
+            // NOTE(rohit): Apply this custom copy logic for slices which have only single cell
+            // content from the table. for other cases, we use ProseMirror's default copy behavior.
+            const isExclusivelyTableSingleCellContent =
+                slice.content.childCount === 1 &&
                 slice.content.firstChild &&
-                (slice.content.firstChild.type.name === "table" ||
-                    slice.content.firstChild.type.name === "tableRow" ||
+                ((slice.content.firstChild.type.name === "table" &&
+                    slice.content.firstChild.content.childCount === 1 &&
+                    slice.content.firstChild.content.firstChild!.content.childCount === 1) ||
+                    (slice.content.firstChild.type.name === "tableRow" &&
+                        slice.content.firstChild.content.childCount === 1) ||
                     slice.content.firstChild.type.name === "tableCell");
 
             // NOTE(rohit): Override ProseMirror's default copy behavior for table content.
             //
-            // Problem: When copying from a table cell, ProseMirror includes the entire
-            // table structure in the slice, even when the user only selected content
+            // Problem: When copying some content from a table cell, ProseMirror includes the
+            // entire table structure in the slice, even when the user only selected content
             // within a cell (not using CellSelection).
             //
             // Solution: If table nodes appear in the slice without an explicit
             // CellSelection, extract just the cell's content and remove the table
             // structure.
-            if (isTableContent && !isCellSelection) {
+            if (isExclusivelyTableSingleCellContent && !isCellSelection) {
                 // recursive function to get the content from `tableCell` node
                 const extractCellContent = (node: Node): Fragment | null => {
                     if (node.type.name === "table" || node.type.name === "tableRow") {
