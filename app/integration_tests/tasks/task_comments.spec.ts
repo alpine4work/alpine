@@ -40,7 +40,7 @@ test("can navigate to task comments and add comment from peek", async ({
 
     await expect(page.getByTestId("PeekStackOverlay").getByLabel("New comment")).toBeHidden();
 
-    await page.getByLabel("More").click();
+    await page.getByTestId("PeekStack").getByLabel("More").click();
     await page.getByRole("menuitem", {name: "Comments"}).click();
 
     await expect(page.getByTestId("PeekStackOverlay").getByLabel("New comment")).toBeVisible();
