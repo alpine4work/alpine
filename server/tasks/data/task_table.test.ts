@@ -20586,7 +20586,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskCollectionAccess(otherSpace.systemAction(), publicCollection.id, "View"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn't have access to task collection's space");
 
     await expect(
         authorizeTaskCollectionAccess(session1.action(), publicCollection.id, "Comment"),
