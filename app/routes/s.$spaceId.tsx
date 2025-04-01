@@ -131,13 +131,6 @@ export const LoaderSchema = Schema.union({
 // NOTE(calebmer): This needs to be in `s.$spaceId.tsx` since when we're on
 // this route we need to parse the route's loader data to preload the affinity
 // search into our RPC cache.
-export const HomeRouteLoaderSchema = Schema.object({
-    affinitySearch: searchByAffinity.outputSchema,
-});
-
-// NOTE(calebmer): This needs to be in `s.$spaceId.tsx` since when we're on
-// this route we need to parse the route's loader data to preload the affinity
-// search into our RPC cache.
 export const SearchRouteLoaderSchema = Schema.object({
     affinitySearch: searchByAffinity.outputSchema,
 });
@@ -792,12 +785,7 @@ function SpaceLayoutRouteOutlet({
     // we'll put that in the RPC cache.
     const initialAffinitySearch =
         loaderData.type === "WithAccess" && platform !== "mobile"
-            ? dataRouterStateContext.loaderData["routes/s.$spaceId._index"] !== undefined
-                ? getLoaderDataWithSchema(
-                      HomeRouteLoaderSchema,
-                      dataRouterStateContext.loaderData["routes/s.$spaceId._index"],
-                  ).affinitySearch
-                : dataRouterStateContext.loaderData["routes/s.$spaceId.search"] !== undefined
+            ? dataRouterStateContext.loaderData["routes/s.$spaceId.search"] !== undefined
                 ? getLoaderDataWithSchema(
                       SearchRouteLoaderSchema,
                       dataRouterStateContext.loaderData["routes/s.$spaceId.search"],
