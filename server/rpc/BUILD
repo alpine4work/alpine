@@ -37,6 +37,7 @@ ts_project(
         "//server/search/data/index",
         "//server/search/data/table",
         "//server/spaces",
+        "//server/spaces/add_account",
         "//server/tasks/data",
         "//shared/error",
         "//shared/helpers",

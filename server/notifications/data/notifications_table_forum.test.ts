@@ -22,8 +22,8 @@ import {
     createNotificationsScenario,
     massageInboxEntriesQuery,
 } from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
+import {dangerouslyAddSpaceAccountAsAdmin} from "~/server/spaces/add_account/dangerously_add_space_account_as_admin.js";
 import {
-    dangerouslyAddSpaceAccountAsAdmin,
     getSpaceAccountsCacheForTest,
     removeSpaceAccountAsAdmin,
 } from "~/server/spaces/spaces_table.js";

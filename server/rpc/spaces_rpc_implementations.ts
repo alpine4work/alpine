@@ -1,9 +1,9 @@
-import {createAlphaSpaceAsAdmin} from "~/server/forum/data/forum_table.js";
+import {createAlphaSpaceAsAdmin} from "~/server/alpha/alpha_access_table.js";
 import {getOurAccountInboxes} from "~/server/notifications/data/notifications_table.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getPossiblyStaleAccountSearchAffinityEntityIds} from "~/server/search/data/table/search_entity_table.js";
+import {dangerouslyAddSpaceAccountAsAdmin} from "~/server/spaces/add_account/dangerously_add_space_account_as_admin.js";
 import {
-    dangerouslyAddSpaceAccountAsAdmin,
     expensivelyGetAllSpaceAccounts,
     getOurAccountSpaceIds,
     getSpaceIfPossible,

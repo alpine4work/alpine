@@ -1,4 +1,3 @@
-import {authorizeInternalAccess} from "~/server/accounts/accounts_table.js";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {
     getContentReferencesForNode,
@@ -48,7 +47,6 @@ import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/se
 import {
     authorizeSpaceAccess,
     getAccount,
-    internalCreateAlphaSpaceAsAdmin,
     isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_table.js";
 import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
@@ -1015,68 +1013,56 @@ export async function seedTestChannels(
 }
 
 /**
- * Create an alpha space owned by the provided `ownerAccountId`. Only
- * administrators may call this function. We don't yet have self-serve space
- * creation.
+ * Should only be called in `createAlphaSpaceAsAdmin()`. Dangerous since we
+ * create a channel item for `welcomeChannelId` without checking whether a
+ * channel with that `ChannelId` already exists! `createAlphaSpaceAsAdmin()`
+ * handles this but otherwise you need to be careful.
  */
-export async function createAlphaSpaceAsAdmin(
+export function internalDangerouslyCreateAlphaSpaceWelcomeChannelTransactionEntries(
     context: ServerActionContext,
-    {name, ownerAccountId}: {name: string; ownerAccountId: AccountId},
-): Promise<{
-    spaceId: SpaceId;
-    welcomeChannelId: ChannelId;
-    createdTime: Date;
-}> {
-    await authorizeInternalAccess(context);
-
-    const spaceId = generateId<SpaceId>();
-    const welcomeChannelId = generateId<ChannelId>();
-    const createdTime = new Date();
-
-    await internalCreateAlphaSpaceAsAdmin(context, {
-        name,
-        spaceId,
-        createdTime,
+    {
         ownerAccountId,
-        welcomeChannelId,
-        createWelcomeChannelTransactionEntries: [
-            // We use this when creating an alpha space. So it's ok that we don't send a
-            // realtime event since there'll be no one around to subscribe to the event.
-            ForumRealtimeTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheckAndWithoutEvent(
-                {
-                    partitionType: "Channel",
-                    sortRangeType: "Attributes",
-                    channelId: welcomeChannelId,
-                    spaceId,
-                    createdTime,
-                    creatorId: ownerAccountId,
-                    name: "Welcome",
-                    description: emptyMessageContent,
-                },
-                {
-                    onAfterTransactionExecutedSuccessfully: () => {
-                        context.jobs.send({
-                            type: "IndexSearchEntity",
-                            spaceId,
-                            update: {
-                                type: "Channel",
-                                channelId: welcomeChannelId,
-                                // Nothing depends on this entity when it's created. Don't bother trying to
-                                // reindex dependencies.
-                                updatedTraits: {type: "None"},
-                            },
-                        });
-                    },
-                },
-            ),
-        ],
-    });
-
-    return {
         spaceId,
         welcomeChannelId,
         createdTime,
-    };
+    }: {
+        ownerAccountId: AccountId;
+        spaceId: SpaceId;
+        welcomeChannelId: ChannelId;
+        createdTime: Date;
+    },
+) {
+    return [
+        // We use this when creating an alpha space. So it's ok that we don't send a
+        // realtime event since there'll be no one around to subscribe to the event.
+        ForumRealtimeTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheckAndWithoutEvent(
+            {
+                partitionType: "Channel",
+                sortRangeType: "Attributes",
+                channelId: welcomeChannelId,
+                spaceId,
+                createdTime,
+                creatorId: ownerAccountId,
+                name: "Welcome",
+                description: emptyMessageContent,
+            },
+            {
+                onAfterTransactionExecutedSuccessfully: () => {
+                    context.jobs.send({
+                        type: "IndexSearchEntity",
+                        spaceId,
+                        update: {
+                            type: "Channel",
+                            channelId: welcomeChannelId,
+                            // Nothing depends on this entity when it's created. Don't bother trying to
+                            // reindex dependencies.
+                            updatedTraits: {type: "None"},
+                        },
+                    });
+                },
+            },
+        ),
+    ];
 }
 
 /**

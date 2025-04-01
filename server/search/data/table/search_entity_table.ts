@@ -3,15 +3,18 @@ import {
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
+import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
+import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     authorizeOwnAccountAccess,
     authorizeSpaceAccess,
     isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
+import {Context} from "~/shared/context/context.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -1558,11 +1561,46 @@ export async function favoriteSearchEntity(
     // favorites an entity they don't have access to.
     await authorizeSpaceAccess(context, spaceId);
 
+    return dangerouslyFavoriteSearchEntityWithoutAuthorization(context, {
+        spaceId,
+        accountId: context.actor.getAccountId(),
+        entityId,
+    });
+}
+
+/**
+ * Adds a search entity to the end of the session actor's favorites list. If
+ * the entity is already in the session actor's favorites list then we won't
+ * move the entity.
+ *
+ * Does not check:
+ *
+ * 1. That the actor is allowed to change favorites for the provided
+ *    `AccountId`
+ * 2. That the actor has access to the provided `SpaceId`
+ *
+ * The vast majority of the time you should be calling `favoriteSearchEntity()`
+ * which performs authorization. We use this function after adding an account
+ * to a space since the actor is never the same account as the account being
+ * added.
+ */
+export async function dangerouslyFavoriteSearchEntityWithoutAuthorization(
+    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+    {
+        spaceId,
+        accountId,
+        entityId,
+    }: {
+        spaceId: SpaceId;
+        accountId: AccountId;
+        entityId: SearchAffinityEntityId;
+    },
+): Promise<{orderKey: OrderKey}> {
     const lastFavorites = await arrayFromAsyncIterable(
         AccountSearchFavoriteEntitiesIndex.query(context, {
             partitionKey: {
                 spaceId,
-                accountId: context.actor.getAccountId(),
+                accountId,
             },
             descending: true,
             limit: 1,
@@ -1585,7 +1623,7 @@ export async function favoriteSearchEntity(
             partitionType: "Account",
             sortRangeType: "SearchEntityAffinity",
             spaceId,
-            accountId: context.actor.getAccountId(),
+            accountId,
             entityId,
         },
         item => {
@@ -1606,7 +1644,7 @@ export async function favoriteSearchEntity(
                 partitionType: "Account",
                 sortRangeType: "SearchEntityAffinity",
                 spaceId,
-                accountId: context.actor.getAccountId(),
+                accountId,
                 entityId,
                 points: 0,
                 erosion: 0,

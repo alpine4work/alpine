@@ -2,7 +2,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "alpha",
-    test_deps = ["//server/dynamo/test_helpers"],
+    test_deps = [
+        "//server/dynamo/test_helpers",
+        "//server/spaces/test_helpers",
+    ],
     visibility = [
         "//admin/dynamo:__pkg__",
         "//app:__pkg__",
@@ -14,7 +17,10 @@ ts_project(
         "//server/context",
         "//server/dynamo/core",
         "//server/emails",
+        "//server/forum/data",
+        "//server/search/data/table",
         "//server/spaces",
+        "//server/spaces/add_account",
         "//shared/alpha",
         "//shared/context",
         "//shared/error",
