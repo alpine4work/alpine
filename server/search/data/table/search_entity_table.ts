@@ -7,7 +7,11 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
-import {authorizeOwnAccountAccess, authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {
+    authorizeOwnAccountAccess,
+    authorizeSpaceAccess,
+    isAccountMemberOfSpaceWithoutAuthorization,
+} from "~/server/spaces/spaces_table.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -1696,26 +1700,46 @@ export async function moveSearchFavoriteEntity(
 }
 
 /**
- * Is the provided `entityId` one of the session actor's favorites?
+ * Is the provided `entityId` one of the session actor's favorites? If we don't
+ * have a session actor or the session actor is not a member of the provided
+ * `SpaceId` then this always returns false.
  */
 export async function isSearchFavoriteEntity(
-    context: ServerSessionActionContext,
+    context: ServerActionContext,
     {spaceId, entityId}: {spaceId: SpaceId; entityId: SearchAffinityEntityId},
 ): Promise<boolean> {
-    // Optimization: We don't authorize whether the actor has access to the entity.
-    // Since this is a personal favorite list it doesn't really matter if the user
-    // favorites an entity they don't have access to.
-    await authorizeSpaceAccess(context, spaceId);
+    switch (context.actor.type) {
+        case "System":
+        case "Anonymous":
+            return false;
+        case "Session": {
+            if (
+                !(await isAccountMemberOfSpaceWithoutAuthorization(
+                    context,
+                    spaceId,
+                    context.actor.getAccountId(),
+                ))
+            ) {
+                return false;
+            }
 
-    const item = await SearchEntityTable.getItemIfExists(context, {
-        partitionType: "Account",
-        sortRangeType: "SearchEntityAffinity",
-        spaceId,
-        accountId: context.actor.getAccountId(),
-        entityId,
-    });
+            // Optimization: We don't authorize whether the actor has access to the entity.
+            // Since this is a personal favorite list it doesn't really matter if the user
+            // favorites an entity they don't have access to.
 
-    return !!item?.favoriteOrderKey;
+            const item = await SearchEntityTable.getItemIfExists(context, {
+                partitionType: "Account",
+                sortRangeType: "SearchEntityAffinity",
+                spaceId,
+                accountId: context.actor.getAccountId(),
+                entityId,
+            });
+
+            return !!item?.favoriteOrderKey;
+        }
+        default:
+            throw exhaustive(context.actor);
+    }
 }
 
 /**

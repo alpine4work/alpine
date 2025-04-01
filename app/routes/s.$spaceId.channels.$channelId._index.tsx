@@ -173,12 +173,10 @@ export async function loader({request, params, context: unauthenticatedContext}:
             ),
             beforeCursor: null,
         }),
-        context.actor.type === "Session"
-            ? isSearchFavoriteEntity(context.actor.authorizeSession(), {
-                  spaceId,
-                  entityId: `Channel:${channelId}`,
-              })
-            : false,
+        isSearchFavoriteEntity(context, {
+            spaceId,
+            entityId: `Channel:${channelId}`,
+        }),
     ]);
 
     const propagateEventData: TracerEventData = {

@@ -1121,10 +1121,10 @@ export async function authorizeSpaceAccess(
                     context.actor.getAccountId(),
                 ))
             ) {
-                throw new PermissionDeniedError("Account doesn't have access to space", {
-                    aggregateDedupeKey: `${spaceId}:${context.actor.getAccountId()}`,
-                    displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
-                });
+                throw createAuthorizeSpaceAccessPermissionDeniedError(
+                    spaceId,
+                    context.actor.getAccountId(),
+                );
             }
             break;
         }
@@ -1142,6 +1142,16 @@ export async function authorizeSpaceAccess(
         default:
             throw exhaustive(context.actor);
     }
+}
+
+export function createAuthorizeSpaceAccessPermissionDeniedError(
+    spaceId: SpaceId,
+    accountId: AccountId,
+) {
+    return new PermissionDeniedError("Account doesn't have access to space", {
+        aggregateDedupeKey: `${spaceId}:${accountId}`,
+        displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
+    });
 }
 
 /**
@@ -1174,12 +1184,9 @@ export async function authorizeSpaceAccessIfPossible(
                     get error() {
                         // When this function is called, frequently we only check `ok`. So lazily
                         // create an error only when needed.
-                        error ??= new PermissionDeniedError(
-                            "Account doesn't have access to space",
-                            {
-                                aggregateDedupeKey: `${spaceId}:${accountId}`,
-                                displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
-                            },
+                        error ??= createAuthorizeSpaceAccessPermissionDeniedError(
+                            spaceId,
+                            accountId,
                         );
                         return error;
                     },

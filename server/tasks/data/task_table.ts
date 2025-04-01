@@ -38,6 +38,7 @@ import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_mo
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
+    createAuthorizeSpaceAccessPermissionDeniedError,
     getAccount,
     getAccountIfExists,
     isAccountMemberOfSpace,
@@ -67,7 +68,6 @@ import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
-import {spaceAccessPermissionDeniedErrorDisplayMessage} from "~/shared/error/common_error_display_messages.js";
 import {
     ErrorBase,
     FailedPreconditionError,
@@ -3653,12 +3653,9 @@ async function authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossibleFo
             ) {
                 return {
                     ok: false,
-                    error: new PermissionDeniedError(
-                        "Actor doesn't have access to task collection's space",
-                        {
-                            aggregateDedupeKey: collectionItem.collectionId,
-                            displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
-                        },
+                    error: createAuthorizeSpaceAccessPermissionDeniedError(
+                        collectionItem.spaceId,
+                        actor.getAccountId(),
                     ),
                 };
             } else {
@@ -4030,10 +4027,10 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
             ) {
                 return {
                     ok: false,
-                    error: new PermissionDeniedError("Actor doesn't have access to task's space", {
-                        aggregateDedupeKey: taskItem.taskId,
-                        displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
-                    }),
+                    error: createAuthorizeSpaceAccessPermissionDeniedError(
+                        taskItem.spaceId,
+                        actor.getAccountId(),
+                    ),
                 };
             } else {
                 return {

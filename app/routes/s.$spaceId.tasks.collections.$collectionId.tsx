@@ -261,12 +261,10 @@ export async function loader({request, params, context: unauthenticatedContext}:
 
             return Object.assign(result, {input: {query}});
         })(),
-        context.actor.type === "Session"
-            ? isSearchFavoriteEntity(context.actor.authorizeSession(), {
-                  spaceId,
-                  entityId: `TaskCollection:${collectionId}`,
-              })
-            : false,
+        isSearchFavoriteEntity(context, {
+            spaceId,
+            entityId: `TaskCollection:${collectionId}`,
+        }),
     ]);
 
     const backfillCollection = loadQueryResult?.updateEvent.backfillCollections.find(

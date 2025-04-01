@@ -45,6 +45,7 @@ import {
 } from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
+    createAuthorizeSpaceAccessPermissionDeniedError,
     getAccount,
     isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
@@ -81,7 +82,6 @@ import {
     getDocumentContentTitleWithoutFallback,
 } from "~/shared/documents/document_model.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
-import {spaceAccessPermissionDeniedErrorDisplayMessage} from "~/shared/error/common_error_display_messages.js";
 import {
     DataLossError,
     ErrorBase,
@@ -1056,11 +1056,9 @@ async function authorizeDocumentItemAccessIfPossible(
             ) {
                 return {
                     ok: false,
-                    error: new PermissionDeniedError(
-                        "Actor doesn't have access to document's space",
-                        {
-                            displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
-                        },
+                    error: createAuthorizeSpaceAccessPermissionDeniedError(
+                        documentItem.spaceId,
+                        context.actor.getAccountId(),
                     ),
                 };
             } else {

@@ -220,12 +220,10 @@ export async function loader({params, context: unauthenticatedContext, request}:
                   key: {type: "Task", taskId},
               })
             : null,
-        context.actor.type === "Session"
-            ? isSearchFavoriteEntity(context.actor.authorizeSession(), {
-                  spaceId,
-                  entityId: `Task:${taskId}`,
-              })
-            : false,
+        isSearchFavoriteEntity(context, {
+            spaceId,
+            entityId: `Task:${taskId}`,
+        }),
 
         // Load data needed for initial fields.
         initialFields?.assigneeId ? getAccount(context, spaceId, initialFields.assigneeId) : null,

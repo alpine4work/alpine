@@ -62,12 +62,10 @@ export async function loader({params, context: unauthenticatedContext, request}:
                   limit: getInitialLoadMessageCount(context.loader.getClientInfo()),
               })
             : null,
-        context.actor.type === "Session"
-            ? isSearchFavoriteEntity(context.actor.authorizeSession(), {
-                  spaceId,
-                  entityId: `Document:${documentId}`,
-              })
-            : false,
+        isSearchFavoriteEntity(context, {
+            spaceId,
+            entityId: `Document:${documentId}`,
+        }),
     ]);
 
     // Must have the `create` search param to load a document that doesn't exist.
