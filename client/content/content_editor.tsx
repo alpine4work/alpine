@@ -1723,7 +1723,6 @@ function ContentEditor<Content extends ContentWithReferences>(
             } else if (
                 schema.nodes.file &&
                 schema.nodes.fileRow &&
-                schema.nodes.fileRowTable &&
                 slice.size === 0 &&
                 dataTransfer?.items &&
                 // If `transformPastedDOM` already parsed some files from HTML then ignore any
@@ -1834,7 +1833,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             promise.catch(error => {
                 reporter.displayError(
-                    hasUploadFileError ? "Couldn't upload file" : "Couldn't paste",
+                    hasUploadFileError ? "Couldn’t upload file" : "Couldn’t paste",
                     error,
                 );
             });
@@ -2353,17 +2352,14 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     slice.content.content.length === 1 &&
                                     slice.content.content[0]!.type.name === "fileRowTable";
 
-                                let fileRowTableNode: Slice | null = slice;
-
                                 if (!isSourceFileRowTable) {
                                     const fileNodes: Array<Node> = [];
+
                                     for (const sourceNode of slice.content.content) {
-                                        if (sourceNode.type.name === "fileRow") {
-                                            for (const fileNode of sourceNode.content.content) {
-                                                assert(fileNode.type.name === "file");
-                                                fileNodes.push(fileNode);
-                                            }
-                                        } else if (sourceNode.type.name === "fileFloat") {
+                                        if (
+                                            sourceNode.type.name === "fileRow" ||
+                                            sourceNode.type.name === "fileFloat"
+                                        ) {
                                             for (const fileNode of sourceNode.content.content) {
                                                 assert(fileNode.type.name === "file");
                                                 fileNodes.push(fileNode);
@@ -2374,7 +2370,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                                             fileNodes.push(sourceNode);
                                         }
                                     }
-                                    fileRowTableNode = new Slice(
+
+                                    slice = new Slice(
                                         Fragment.from(
                                             fileNodes.map(fileNode =>
                                                 schema.node("fileRowTable", {}, [fileNode]),
@@ -2384,14 +2381,13 @@ function ContentEditor<Content extends ContentWithReferences>(
                                         0,
                                     );
                                 }
-                                assert(fileRowTableNode);
 
                                 // Same logic as `InsertFileRow` statement
                                 if (
                                     $pos.nodeAfter?.type.name === "paragraph" &&
                                     $pos.nodeAfter.content.size === 0
                                 ) {
-                                    transaction.replaceRange(pos, pos + 2, fileRowTableNode);
+                                    transaction.replaceRange(pos, pos + 2, slice);
                                     transaction
                                         .setSelection(
                                             new NodeSelection(transaction.doc.resolve(pos + 1)),
@@ -2402,7 +2398,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     $pos.nodeBefore?.type.name === "paragraph" &&
                                     $pos.nodeBefore.content.size === 0
                                 ) {
-                                    transaction.replaceRange(pos - 2, pos, fileRowTableNode);
+                                    transaction.replaceRange(pos - 2, pos, slice);
                                     transaction
                                         .setSelection(
                                             new NodeSelection(transaction.doc.resolve(pos - 1)),
@@ -2410,7 +2406,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                         .scrollIntoView();
                                 } else {
                                     // No empty paragraphs adjacent
-                                    transaction.insert(pos, fileRowTableNode.content);
+                                    transaction.insert(pos, slice.content);
                                     transaction
                                         .setSelection(
                                             new NodeSelection(transaction.doc.resolve(pos + 1)),
@@ -2439,7 +2435,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                     // drag the whole slice and drop in the `content_table`
                     // To ensure that we still are able to convert the fileRow/ fileFloat nodes into
                     // fileRowTable nodes we transform the slice here.
-                    slice = transformPastedForContentTable(schema, slice, selection)[0];
+                    if (isSelectionInContentTable(selection)) {
+                        slice = transformPastedForContentTable(schema, slice)[0];
+                    }
 
                     // Implement the same logic as ProseMirror's `drop` function:
                     // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L674-L707
@@ -4545,8 +4543,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 />
             )}
             {fileDropTarget?.action &&
-                (fileDropTarget.action.indicator === "Top" ||
-                fileDropTarget.action.indicator === "Bottom" ? (
+                (fileDropTarget.action.indicator === "Top" ? (
                     <Box
                         data-testid={
                             process.env.NODE_ENV !== "production"
@@ -4712,11 +4709,7 @@ function handlePasteAfterResolvingReferences(
                 }
             });
             if (hasNonTableContent) {
-                [slice, remainingSlice] = transformPastedForContentTable(
-                    doc.type.schema,
-                    slice,
-                    selection,
-                );
+                [slice, remainingSlice] = transformPastedForContentTable(doc.type.schema, slice);
 
                 // Validate remainingSlice exists and has content before proceeding
                 if (remainingSlice && remainingSlice.content && remainingSlice.content.size > 0) {
@@ -4829,14 +4822,10 @@ function handlePasteAfterResolvingReferences(
 function transformPastedForContentTable(
     schema: ProsemirrorSchema,
     slice: Slice,
-    selection: Selection,
 ): [slice: Slice, remainingSlice: Slice] {
     const remainingContent: Array<Node> = []; // paste outside of table in next position
     const primaryContent: Array<Node> = []; // paste inside of table / table cell with modifications
 
-    if (!isSelectionInContentTable(selection)) {
-        return [slice, Slice.empty];
-    }
     slice.content.content.forEach(node => {
         // NOTE(rohit): It is recommended that once we add one node to remainingContent, all
         // future nodes in the slice should be remainingContent. The reason being if you paste
@@ -4937,12 +4926,10 @@ function transformPastedForContentTable(
             case "fileFloat": {
                 const fileNodes: Array<Node> = [];
                 for (const sourceNode of slice.content.content) {
-                    if (sourceNode.type.name === "fileRow") {
-                        for (const fileNode of sourceNode.content.content) {
-                            assert(fileNode.type.name === "file");
-                            fileNodes.push(fileNode);
-                        }
-                    } else if (sourceNode.type.name === "fileFloat") {
+                    if (
+                        sourceNode.type.name === "fileRow" ||
+                        sourceNode.type.name === "fileFloat"
+                    ) {
                         for (const fileNode of sourceNode.content.content) {
                             assert(fileNode.type.name === "file");
                             fileNodes.push(fileNode);
