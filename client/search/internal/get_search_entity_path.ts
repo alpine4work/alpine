@@ -239,9 +239,8 @@ function getSearchDynamicEntityPath(
             return `/s/${spaceId}/tasks/collections/${entityId.collectionId}`;
         }
         case "TaskComment": {
-            // NOCOMMIT: Shouldn't we set `comments=show` and `comment=commentIndex` here?
             if (routeLayout !== "narrow") {
-                return `/s/${spaceId}/tasks/${entityId.taskId}`;
+                return `/s/${spaceId}/tasks/${entityId.taskId}?comments=show&comment=${entityId.commentIndex}`;
             } else {
                 return `/s/${spaceId}/tasks/${entityId.taskId}/comments?comment=${entityId.commentIndex}`;
             }
