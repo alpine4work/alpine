@@ -1864,7 +1864,6 @@ test("file float (right direction)", async () => {
     await expectClipboardRoundtripToWork();
 });
 
-
 test("table with fileRowTable (one file)", async () => {
     const content = schema.node("doc", {}, [
         schema.node("table", {columnWidths: [], tableWidth: 1}, [
