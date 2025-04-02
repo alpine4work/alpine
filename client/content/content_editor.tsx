@@ -3420,8 +3420,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         let isPointerDownFromSelectableElementAndMoved = false;
 
         const handlePointerDown = (event: PointerEvent) => {
-            console.log("handlePointerDown");
-
             const wasPointerDownFromSelectableElementAndMoved =
                 isPointerDownFromSelectableElementAndMoved;
 
