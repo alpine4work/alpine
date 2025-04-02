@@ -1929,6 +1929,23 @@ function ContentEditor<Content extends ContentWithReferences>(
         viewProps.handlePaste = (view, event, slice) => {
             let selection = view.state.selection;
 
+            // If the slice is empty, check if there's `text/uri-list` and parse that. On
+            // mobile Safari if you open the share menu then click "Copy" the clipboard
+            // content will only contain the URL in `text/uri-list`. So we must support
+            // this content type to support pasting links from Safari's share menu.
+            if (slice.size === 0 && event.clipboardData?.types.includes("text/uri-list")) {
+                const uriListString = event.clipboardData.getData("text/uri-list");
+
+                const uriListNodes = uriListString
+                    .trim()
+                    .split(/[\r\n]+/)
+                    .map(uri =>
+                        view.state.schema.text(uri, [view.state.schema.mark("link", {url: uri})]),
+                    );
+
+                slice = new Slice(Fragment.from(uriListNodes), 0, 0);
+            }
+
             // If the selection starts in our title, then shift the selection out of the
             // title. That way if we paste a paragraph in the title the paragraph doesn't
             // become the title. Making a 50 word paragraph the title just feels broken.
