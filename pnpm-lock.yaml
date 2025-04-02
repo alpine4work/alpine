@@ -131,7 +131,7 @@ patchedDependencies:
     hash: 7bacgscipg36gd66id6h76g654
     path: admin/patches/playwright@1.46.0.patch
   prosemirror-state@1.4.2:
-    hash: gbcsriuefth5zgkkmzyvvdiut4
+    hash: vcewnz4w4bovozn75oiwegvhsm
     path: admin/patches/prosemirror-state@1.4.2.patch
   prosemirror-view@1.27.2:
     hash: an3uq634suzgrlihzupenngzgq
@@ -857,7 +857,7 @@ importers:
         version: 1.2.0
       prosemirror-state:
         specifier: 1.4.2
-        version: 1.4.2(patch_hash=gbcsriuefth5zgkkmzyvvdiut4)
+        version: 1.4.2(patch_hash=vcewnz4w4bovozn75oiwegvhsm)
       prosemirror-transform:
         specifier: ^1.10.2
         version: 1.10.2
@@ -947,7 +947,7 @@ importers:
         version: 8.18.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
       y-prosemirror:
         specifier: 1.2.1
-        version: 1.2.1(patch_hash=m44xtuvbxft24o4hxumuafmflm)(prosemirror-model@1.23.0)(prosemirror-state@1.4.2(patch_hash=gbcsriuefth5zgkkmzyvvdiut4))(prosemirror-view@1.27.2(patch_hash=an3uq634suzgrlihzupenngzgq))(y-protocols@1.0.6(yjs@13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy)))(yjs@13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy))
+        version: 1.2.1(patch_hash=m44xtuvbxft24o4hxumuafmflm)(prosemirror-model@1.23.0)(prosemirror-state@1.4.2(patch_hash=vcewnz4w4bovozn75oiwegvhsm))(prosemirror-view@1.27.2(patch_hash=an3uq634suzgrlihzupenngzgq))(y-protocols@1.0.6(yjs@13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy)))(yjs@13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy))
       yaml:
         specifier: ^2.5.0
         version: 2.5.0
@@ -17688,28 +17688,28 @@ snapshots:
 
   prosemirror-collab@1.3.0:
     dependencies:
-      prosemirror-state: 1.4.2(patch_hash=gbcsriuefth5zgkkmzyvvdiut4)
+      prosemirror-state: 1.4.2(patch_hash=vcewnz4w4bovozn75oiwegvhsm)
 
   prosemirror-commands@1.6.1:
     dependencies:
       prosemirror-model: 1.23.0
-      prosemirror-state: 1.4.2(patch_hash=gbcsriuefth5zgkkmzyvvdiut4)
+      prosemirror-state: 1.4.2(patch_hash=vcewnz4w4bovozn75oiwegvhsm)
       prosemirror-transform: 1.10.2
 
   prosemirror-history@1.3.0:
     dependencies:
-      prosemirror-state: 1.4.2(patch_hash=gbcsriuefth5zgkkmzyvvdiut4)
+      prosemirror-state: 1.4.2(patch_hash=vcewnz4w4bovozn75oiwegvhsm)
       prosemirror-transform: 1.10.2
       rope-sequence: 1.3.3
 
   prosemirror-inputrules@1.2.0:
     dependencies:
-      prosemirror-state: 1.4.2(patch_hash=gbcsriuefth5zgkkmzyvvdiut4)
+      prosemirror-state: 1.4.2(patch_hash=vcewnz4w4bovozn75oiwegvhsm)
       prosemirror-transform: 1.10.2
 
   prosemirror-keymap@1.2.0:
     dependencies:
-      prosemirror-state: 1.4.2(patch_hash=gbcsriuefth5zgkkmzyvvdiut4)
+      prosemirror-state: 1.4.2(patch_hash=vcewnz4w4bovozn75oiwegvhsm)
       w3c-keyname: 2.2.8
 
   prosemirror-model@1.23.0:
@@ -17720,7 +17720,7 @@ snapshots:
     dependencies:
       prosemirror-model: 1.23.0
 
-  prosemirror-state@1.4.2(patch_hash=gbcsriuefth5zgkkmzyvvdiut4):
+  prosemirror-state@1.4.2(patch_hash=vcewnz4w4bovozn75oiwegvhsm):
     dependencies:
       prosemirror-model: 1.23.0
       prosemirror-transform: 1.10.2
@@ -17733,7 +17733,7 @@ snapshots:
   prosemirror-view@1.27.2(patch_hash=an3uq634suzgrlihzupenngzgq):
     dependencies:
       prosemirror-model: 1.23.0
-      prosemirror-state: 1.4.2(patch_hash=gbcsriuefth5zgkkmzyvvdiut4)
+      prosemirror-state: 1.4.2(patch_hash=vcewnz4w4bovozn75oiwegvhsm)
       prosemirror-transform: 1.10.2
 
   proto-list@1.2.4: {}
@@ -19130,11 +19130,11 @@ snapshots:
 
   xxhash-wasm@1.0.2: {}
 
-  y-prosemirror@1.2.1(patch_hash=m44xtuvbxft24o4hxumuafmflm)(prosemirror-model@1.23.0)(prosemirror-state@1.4.2(patch_hash=gbcsriuefth5zgkkmzyvvdiut4))(prosemirror-view@1.27.2(patch_hash=an3uq634suzgrlihzupenngzgq))(y-protocols@1.0.6(yjs@13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy)))(yjs@13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy)):
+  y-prosemirror@1.2.1(patch_hash=m44xtuvbxft24o4hxumuafmflm)(prosemirror-model@1.23.0)(prosemirror-state@1.4.2(patch_hash=vcewnz4w4bovozn75oiwegvhsm))(prosemirror-view@1.27.2(patch_hash=an3uq634suzgrlihzupenngzgq))(y-protocols@1.0.6(yjs@13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy)))(yjs@13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy)):
     dependencies:
       lib0: 0.2.96
       prosemirror-model: 1.23.0
-      prosemirror-state: 1.4.2(patch_hash=gbcsriuefth5zgkkmzyvvdiut4)
+      prosemirror-state: 1.4.2(patch_hash=vcewnz4w4bovozn75oiwegvhsm)
       prosemirror-view: 1.27.2(patch_hash=an3uq634suzgrlihzupenngzgq)
       y-protocols: 1.0.6(yjs@13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy))
       yjs: 13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy)

@@ -1,9 +1,11 @@
 import {Node} from "prosemirror-model";
 import {EditorView} from "prosemirror-view";
+import {hasStandaloneMarginByContentBlockNodeTypeName} from "~/client/content/has_standalone_margin_by_content_block_node_type_name.js";
+import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-import {convertRemLengthToPx, parseRemLength} from "~/shared/design/core/spacing.js";
+import {parseRemLength, screenPaddingXRem} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -80,8 +82,15 @@ export function getContentEditorFileDropTargets(
 
     const $draggingFilePos = draggingFilePos !== null ? doc.resolve(draggingFilePos) : null;
 
+    const platform = getPlatformWithoutListening();
     const spacingScale = getSpacingScaleWithoutListening();
     const remPx = remPxBySpacingScale[spacingScale];
+
+    const blockWidth = Math.min(
+        contentStyles.blockMaxWidthRem[platform] * remPx,
+        view.dom.clientWidth - screenPaddingXRem[platform] * remPx * 2,
+    );
+
     const blockNodeCount = doc.content.content.length;
     let seekBackwardsCount = 1;
     let seekForwardsCount = 2;
@@ -104,11 +113,8 @@ export function getContentEditorFileDropTargets(
         }
     }
 
-    const defaultDropTargetOffsetY =
-        convertRemLengthToPx(contentStyles.paragraphMargin, spacingScale) / 2;
-    let previousDropTargetOffsetY = defaultDropTargetOffsetY;
-
     let nextPos = 0;
+    let node: Node | null = null;
     let element: HTMLElement | null = null;
     const previousFileFloats: Array<{node: Node; pos: number}> = [];
 
@@ -138,25 +144,27 @@ export function getContentEditorFileDropTargets(
 
         const currentElement = view.nodeDOM(pos);
         if (!(currentElement instanceof HTMLElement)) continue;
-        const previousBlockElement = element;
+        const previousNode = node;
+        const previousElement = element;
+        node = currentNode;
         element = currentElement;
         if (blockNodeIndex < startIndex) continue;
 
         // Horizontal Drop Target Creation
         if (doc.canReplaceWith(blockNodeIndex, blockNodeIndex, schema.nodes.fileRow)) {
-            const {dropTargetY, previousBlockSpacing: newPreviousDropTargetOffsetY} = getOffsetY({
-                previousBlockSpacing: previousDropTargetOffsetY,
-                previousBlockElement: previousBlockElement,
-                currentBlockElement: element,
-                defaultBlockSpacing: defaultDropTargetOffsetY,
-                prosemirrorDoc: doc,
-                blockNodeIndex,
+            const dropTargetY = getContentEditorFileDropTargetY({
+                previous:
+                    previousNode !== null && previousElement !== null
+                        ? {node: previousNode, element: previousElement}
+                        : null,
+                next: {
+                    node: currentNode,
+                    element: currentElement,
+                },
             });
 
-            previousDropTargetOffsetY = newPreviousDropTargetOffsetY;
-
-            let dropTargetLeft = element.offsetLeft;
-            let dropTargetRight = element.offsetLeft + element.offsetWidth;
+            let dropTargetLeft = (view.dom.clientWidth - blockWidth) / 2;
+            let dropTargetRight = dropTargetLeft + blockWidth;
 
             // Scan through the `fileFloat`s above us. Check to see our drop target
             // overlaps with any of them. If there is an overlap then update our drop
@@ -169,8 +177,12 @@ export function getContentEditorFileDropTargets(
             //
             // - You can't have two `fileFloat`s at the same X position because all
             //   `fileFloat`s have the CSS `clear: both`.
-            for (let j = previousFileFloats.length - 1; j >= 0; j--) {
-                const previousFileFloat = previousFileFloats[j]!;
+            for (
+                let previousFileFloatIndex = previousFileFloats.length - 1;
+                previousFileFloatIndex >= 0;
+                previousFileFloatIndex--
+            ) {
+                const previousFileFloat = previousFileFloats[previousFileFloatIndex]!;
                 const fileFloatElement = view.nodeDOM(previousFileFloat.pos);
 
                 if (fileFloatElement instanceof HTMLElement) {
@@ -438,19 +450,19 @@ export function getContentEditorFileDropTargets(
 
     if (
         seekForwardsCount > 0 &&
-        element &&
+        node !== null &&
+        element !== null &&
         doc.canReplaceWith(blockNodeCount, blockNodeCount, schema.nodes.fileRow)
     ) {
         seekForwardsCount--;
 
-        const dropTargetY =
-            element.offsetTop +
-            element.offsetHeight +
-            // Reuse the offset between the last two blocks we've seen for the last drop
-            // target. e.g. If the last block was a paragraph then we may be using the
-            // paragraph's margins. Otherwise the rect (and so droppable indicator) touch
-            // the end of the last block which looks weird.
-            previousDropTargetOffsetY;
+        const dropTargetY = getContentEditorFileDropTargetY({
+            previous: {
+                node,
+                element,
+            },
+            next: null,
+        });
 
         dropTargets.push({
             offsetParent: element.offsetParent,
@@ -467,6 +479,7 @@ export function getContentEditorFileDropTargets(
             },
         });
     }
+
     return dropTargets;
 }
 
@@ -475,74 +488,79 @@ export function getContentEditorFileDropTargets(
  * This function handles special cases for different block types (fileRow, heading, etc.)
  * to ensure optimal visual placement of drop targets.
  */
-function getOffsetY({
-    previousBlockSpacing,
-    previousBlockElement,
-    currentBlockElement,
-    defaultBlockSpacing,
-    prosemirrorDoc,
-    blockNodeIndex,
+function getContentEditorFileDropTargetY({
+    previous,
+    next,
 }: {
-    previousBlockSpacing: number;
-    previousBlockElement: HTMLElement | null;
-    currentBlockElement: HTMLElement;
-    defaultBlockSpacing: number;
-    prosemirrorDoc: Node;
-    blockNodeIndex: number;
-}): {dropTargetY: number; previousBlockSpacing: number} {
+    previous: {
+        node: Node;
+        element: HTMLElement;
+    } | null;
+    next: {
+        node: Node;
+        element: HTMLElement;
+    } | null;
+}): number {
     const spacingScale = getSpacingScaleWithoutListening();
     const remPx = remPxBySpacingScale[spacingScale];
-    const currentNode = prosemirrorDoc.content.content[blockNodeIndex]!;
 
-    previousBlockSpacing = previousBlockElement
-        ? (currentBlockElement.offsetTop -
-              (previousBlockElement.offsetTop + previousBlockElement.offsetHeight)) /
-          2
-        : defaultBlockSpacing;
+    if (previous === null) {
+        if (next === null) {
+            return 0;
+        } else {
+            const hasStandaloneMargin =
+                hasStandaloneMarginByContentBlockNodeTypeName[next.node.type.name] ?? false;
 
-    // If heading is at the end of the document and a file is dragged below it,
-    // let's use paragraph margin for the drop target offset instead of the
-    // heading's margin from above.
-    if (currentNode.type.name === "heading") {
-        previousBlockSpacing = Math.min(previousBlockSpacing, defaultBlockSpacing);
-    }
-
-    let dropTargetY: number;
-
-    // If we are dropping above a `fileRow` then always use the file row gap to
-    // offset our drop target rect. Don't save this in `lastDropTargetOffsetY`
-    // since this adjustment may not make sense for the last block in our doc.
-    if (currentNode.type.name === "fileRow") {
-        dropTargetY =
-            currentBlockElement.offsetTop - (contentStyles.fileRowGapWidthRem * remPx) / 2;
-    }
-
-    // // If we are dropping below a `fileRow` then always use the file row gap to
-    // // offset our drop target rect. Don't save this in `lastDropTargetOffsetY`
-    // // since this adjustment may not make sense for the last block in our doc.
-    else if (
-        previousBlockElement &&
-        prosemirrorDoc.content.content[blockNodeIndex - 1]!.type.name === "fileRow"
-    ) {
-        dropTargetY =
-            previousBlockElement.offsetTop +
-            previousBlockElement.offsetHeight +
-            (contentStyles.fileRowGapWidthRem * remPx) / 2;
-    }
-
-    // If we are dropping above a `heading` then add `lastDropTargetOffsetY` to the
-    // last top block element's bottom instead of subtracting it from this top block
-    // element's top. Since the heading creates a new section the dropped file
-    // should appear to logically be a part of the previous section.
-    else if (previousBlockElement && currentNode.type.name === "heading") {
-        dropTargetY =
-            previousBlockElement.offsetTop +
-            previousBlockElement.offsetHeight +
-            previousBlockSpacing;
+            return (
+                next.element.offsetTop -
+                ((hasStandaloneMargin
+                    ? contentStyles.standaloneBlockMarginRem
+                    : contentStyles.paragraphMarginRem) *
+                    remPx) /
+                    2
+            );
+        }
     } else {
-        dropTargetY = currentBlockElement.offsetTop - previousBlockSpacing;
+        if (
+            next === null ||
+            // If the next node is a heading then use the same behavior as if the node is
+            // at the end of a document. So we don't render the drop target in the middle
+            // of the heading's margin.
+            next.node.type.name === "heading"
+        ) {
+            const hasStandaloneMargin =
+                hasStandaloneMarginByContentBlockNodeTypeName[previous.node.type.name] ?? false;
+
+            return (
+                previous.element.offsetTop +
+                previous.element.offsetHeight +
+                ((hasStandaloneMargin
+                    ? contentStyles.standaloneBlockMarginRem
+                    : contentStyles.paragraphMarginRem) *
+                    remPx) /
+                    2
+            );
+        } else {
+            // Fallthrough. So the most complicated branch isn't indented.
+        }
     }
-    return {dropTargetY, previousBlockSpacing};
+
+    // If we are dropping adjacent to a `fileRow` then always use the file row gap
+    // to offset our drop target rect.
+    if (previous.node.type.groups.includes("fileRowLike")) {
+        return (
+            previous.element.offsetTop +
+            previous.element.offsetHeight +
+            (contentStyles.fileRowGapWidthRem * remPx) / 2
+        );
+    } else if (next.node.type.groups.includes("fileRowLike")) {
+        return next.element.offsetTop - (contentStyles.fileRowGapWidthRem * remPx) / 2;
+    }
+
+    const previousBottom = previous.element.offsetTop + previous.element.offsetHeight;
+    const nextTop = next.element.offsetTop;
+
+    return previousBottom + (nextTop - previousBottom) / 2;
 }
 
 function addContentEditorTableFileDropTargets({

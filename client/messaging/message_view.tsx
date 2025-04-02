@@ -22,6 +22,7 @@ import {
 } from "~/client/accounts/account_client_store_context.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentView} from "~/client/content/content_view.js";
+import {hasStandaloneMarginByContentBlockNodeTypeName} from "~/client/content/has_standalone_margin_by_content_block_node_type_name.js";
 import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
 import {MessageViewFiles} from "~/client/content/messaging/message_view_files.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
@@ -82,7 +83,6 @@ import {
     wiggleAnimation,
     wiggleAnimationDuration,
 } from "~/client/styles/styles.js";
-import {ContentBlockNodeTypeName} from "~/shared/content/content_node_type_name.js";
 import {linkClassName} from "~/shared/content/content_styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
@@ -99,7 +99,6 @@ import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
@@ -1692,21 +1691,3 @@ function MessageViewTouchMenu<RoomKey extends string, Message extends MessageMod
         </OverlayAnimated>
     );
 }
-
-// True for all the block nodes that get standalone block margin in
-// `content.css.ts` vs paragraph margin.
-const hasStandaloneMarginByContentBlockNodeTypeName: {[key: string]: boolean} = cast<{
-    [Key in ContentBlockNodeTypeName]: boolean;
-}>({
-    paragraph: false,
-    unorderedListItem: true,
-    orderedListItem: true,
-    checkListItem: true,
-    heading: false,
-    divider: false,
-    fileFloat: false,
-    quoteBlock: true,
-    codeBlock: true,
-    fileRow: true,
-    table: true,
-});

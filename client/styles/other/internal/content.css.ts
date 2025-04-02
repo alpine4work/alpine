@@ -137,6 +137,7 @@ export const paragraphMarginRem = parseRemLength(paragraphMargin);
 const standaloneBlockMarginSpacing = "4";
 const standaloneBlockMargin = spacing[standaloneBlockMarginSpacing];
 export {standaloneBlockMarginSpacing as standaloneBlockMargin};
+export const standaloneBlockMarginRem = parseRemLength(standaloneBlockMargin);
 
 const blockMaxWidthVar = createVar("block-max-width");
 
