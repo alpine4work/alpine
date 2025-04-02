@@ -21,7 +21,7 @@ export type ContentEditorFileDropTarget = {
     readonly action:
         | {
               readonly type: "InsertFileRow";
-              readonly indicator: "Top" | "Left" | "Right";
+              readonly indicator: "Top";
               readonly pos: number;
           }
         | {
@@ -30,8 +30,8 @@ export type ContentEditorFileDropTarget = {
               readonly pos: number;
           }
         | {
-              readonly type: "InsertFileIntoTableCell";
-              readonly indicator: "Top" | "Bottom";
+              readonly type: "InsertFileRowTable";
+              readonly indicator: "Top";
               readonly pos: number;
           }
         | null;
@@ -114,20 +114,19 @@ export function getContentEditorFileDropTargets(
     }
 
     let nextPos = 0;
-    let node: Node | null = null;
-    let element: HTMLElement | null = null;
+    let actualPrevious: {node: Node; element: HTMLElement} | null = null;
     const previousFileFloats: Array<{node: Node; pos: number}> = [];
 
     for (let blockNodeIndex = 0; blockNodeIndex < blockNodeCount; blockNodeIndex++) {
-        const currentNode = doc.content.content[blockNodeIndex]!;
+        const node = doc.content.content[blockNodeIndex]!;
 
         const pos = nextPos;
-        nextPos += currentNode.nodeSize;
+        nextPos += node.nodeSize;
 
         // Ignore floating files. They're not positioned normally in the document so
         // cause drop targets to be rendered in weird positions.
-        if (currentNode.type.name === "fileFloat") {
-            previousFileFloats.push({node: currentNode, pos});
+        if (node.type.name === "fileFloat") {
+            previousFileFloats.push({node: node, pos});
             continue;
         }
 
@@ -142,25 +141,17 @@ export function getContentEditorFileDropTargets(
             seekForwardsCount--;
         }
 
-        const currentElement = view.nodeDOM(pos);
-        if (!(currentElement instanceof HTMLElement)) continue;
-        const previousNode = node;
-        const previousElement = element;
-        node = currentNode;
-        element = currentElement;
+        const element = view.nodeDOM(pos);
+        if (!(element instanceof HTMLElement)) continue;
+        const previous = actualPrevious;
+        actualPrevious = {node, element};
         if (blockNodeIndex < startIndex) continue;
 
         // Horizontal Drop Target Creation
         if (doc.canReplaceWith(blockNodeIndex, blockNodeIndex, schema.nodes.fileRow)) {
             const dropTargetY = getContentEditorFileDropTargetY({
-                previous:
-                    previousNode !== null && previousElement !== null
-                        ? {node: previousNode, element: previousElement}
-                        : null,
-                next: {
-                    node: currentNode,
-                    element: currentElement,
-                },
+                previous,
+                next: {node, element},
             });
 
             let dropTargetLeft = (view.dom.clientWidth - blockWidth) / 2;
@@ -229,7 +220,7 @@ export function getContentEditorFileDropTargets(
             });
         }
 
-        const isDraggingFileInParent = $draggingFilePos?.parent === currentNode;
+        const isDraggingFileInParent = $draggingFilePos?.parent === node;
 
         // Create some dead space with `action: null` if we're dragging the file in
         // this node. The dead space means if the user starts dragging a file, doesn't
@@ -280,8 +271,8 @@ export function getContentEditorFileDropTargets(
         // which'll allow you to create a gallery when dropping a file to the left or
         // right.
         if (
-            currentNode.type.name === "fileRow" &&
-            (currentNode.childCount < 3 || (isDraggingFileInParent && currentNode.childCount < 4))
+            node.type.name === "fileRow" &&
+            (node.childCount < 3 || (isDraggingFileInParent && node.childCount < 4))
         ) {
             const elementRect = element.getBoundingClientRect();
 
@@ -320,7 +311,7 @@ export function getContentEditorFileDropTargets(
                 });
             }
 
-            if (currentNode.type.name === "fileRow" && currentNode.childCount >= 2) {
+            if (node.type.name === "fileRow" && node.childCount >= 2) {
                 const fileRowLeftElement = element.firstElementChild;
 
                 if (fileRowLeftElement instanceof HTMLElement) {
@@ -355,11 +346,7 @@ export function getContentEditorFileDropTargets(
                 }
             }
 
-            if (
-                currentNode.type.name === "fileRow" &&
-                isDraggingFileInParent &&
-                currentNode.childCount >= 3
-            ) {
+            if (node.type.name === "fileRow" && isDraggingFileInParent && node.childCount >= 3) {
                 const fileRowLeftElement = element.firstElementChild?.nextElementSibling;
 
                 if (fileRowLeftElement instanceof HTMLElement) {
@@ -425,7 +412,7 @@ export function getContentEditorFileDropTargets(
                     action: {
                         type: "InsertFileIntoRow",
                         indicator: "Left",
-                        pos: pos + currentNode.nodeSize - 1,
+                        pos: pos + node.nodeSize - 1,
                     },
                 });
             }
@@ -433,13 +420,13 @@ export function getContentEditorFileDropTargets(
 
         if (
             schema.nodes.fileRowTable &&
-            currentNode.type.name === "table" &&
+            node.type.name === "table" &&
             blockNodeIndex === aroundIndex
         ) {
             // Recusrively traverse the table cells and generate all drop targets
             // doing this in a function
             addContentEditorTableFileDropTargets({
-                tableNode: currentNode,
+                tableNode: node,
                 tableElement: element,
                 dropTargets,
                 tablePos: pos,
@@ -450,25 +437,24 @@ export function getContentEditorFileDropTargets(
 
     if (
         seekForwardsCount > 0 &&
-        node !== null &&
-        element !== null &&
+        actualPrevious !== null &&
         doc.canReplaceWith(blockNodeCount, blockNodeCount, schema.nodes.fileRow)
     ) {
         seekForwardsCount--;
 
         const dropTargetY = getContentEditorFileDropTargetY({
-            previous: {
-                node,
-                element,
-            },
+            previous: actualPrevious,
             next: null,
         });
 
+        const dropTargetLeft = (view.dom.clientWidth - blockWidth) / 2;
+        const dropTargetRight = dropTargetLeft + blockWidth;
+
         dropTargets.push({
-            offsetParent: element.offsetParent,
+            offsetParent: actualPrevious.element.offsetParent,
             rect: {
-                left: element.offsetLeft,
-                right: element.offsetLeft + element.offsetWidth,
+                left: dropTargetLeft,
+                right: dropTargetRight,
                 top: dropTargetY,
                 bottom: dropTargetY,
             },
@@ -592,16 +578,13 @@ function addContentEditorTableFileDropTargets({
     // Rather than throwing assertions when we encounter these invalid states, which would
     // crash the app, we simply don't generate any drop targets. This allows us to use a
     // direct coding style with assertions below while gracefully handling corrupted tables.
-    //
     if (tableMap.problems && tableMap.problems.length > 0) return;
 
-    // Define a gap size for spacing between node drop targets
-    const cellPaddingY = parseRemLength(contentStyles.tableCellPaddingY) * remPx;
     const cellPaddingX = parseRemLength(contentStyles.tableCellPaddingX) * remPx;
 
     for (let rowIndex = 0; rowIndex < tableMap.height; rowIndex++) {
-        for (let colIndex = 0; colIndex < tableMap.width; colIndex++) {
-            const relativeCellPos = tableMap.positionAt(rowIndex, colIndex, tableNode);
+        for (let columnIndex = 0; columnIndex < tableMap.width; columnIndex++) {
+            const relativeCellPos = tableMap.positionAt(rowIndex, columnIndex, tableNode);
             if (relativeCellPos === null || relativeCellPos === undefined) continue;
 
             // relativeCellPos is the position of the cell in the table node.
@@ -611,10 +594,10 @@ function addContentEditorTableFileDropTargets({
             const absoluteCellPos = relativeCellPos + tablePos + 2;
 
             // Calculate the index in the DOM elements array
-            const cellIndex = rowIndex * tableMap.width + colIndex;
+            const cellIndex = rowIndex * tableMap.width + columnIndex;
 
-            const tableCellElement = assertExists(tableCellElements[cellIndex]);
-            const cellRect = tableCellElement.getBoundingClientRect();
+            const cellElement = assertExists(tableCellElements[cellIndex]);
+            const cellRect = cellElement.getBoundingClientRect();
 
             // NOTE: using direct coding style to assert that the row and cell nodes are valid
             // instead of continuing here.
@@ -622,103 +605,95 @@ function addContentEditorTableFileDropTargets({
             // above. But if it does, it's better to fail fast.
             const rowNode = tableNode.content.content[rowIndex];
             assert(rowNode?.type.name === "tableRow");
-            const cellNode = rowNode.content.content[colIndex];
+            const cellNode = rowNode.content.content[columnIndex];
             assert(cellNode?.type.name === "tableCell");
 
             const cellFragment = cellNode.content;
-            let cellContentOffset = absoluteCellPos;
+            let dropTargetPos = absoluteCellPos;
 
-            {
-                // Create drop targets at the top of each node rather than between nodes
-                for (let i = 0; i < cellFragment.content.length; i++) {
-                    const currentNode = cellFragment.content[i]!;
+            let actualPrevious: {node: Node; element: HTMLElement} | null = null;
 
-                    // Position is at the start of the current node
-                    const dropTargetPos = cellContentOffset;
+            // Modified: Create drop targets at the top of each node rather than between nodes
+            for (let i = 0; i < cellFragment.content.length; i++) {
+                const node = cellFragment.content[i]!;
 
-                    // Get the DOM node using ProseMirror's nodeDOM instead of direct DOM indexing
-                    const currentDOMNode = view.nodeDOM(dropTargetPos);
-                    if (!(currentDOMNode instanceof HTMLElement)) continue;
+                // Get the DOM node using ProseMirror's nodeDOM instead of direct DOM indexing
+                const element = view.nodeDOM(dropTargetPos);
+                if (!(element instanceof HTMLElement)) continue;
 
-                    const currentRect = currentDOMNode.getBoundingClientRect();
+                const previous = actualPrevious;
+                actualPrevious = {node, element};
 
-                    // Calculate position at the top of the current node
-                    const dropTargetY =
-                        tableElement.offsetTop +
-                        (currentRect.top - tableRect.top) -
-                        cellPaddingY / 2;
-
-                    dropTargets.push({
-                        offsetParent: tableElement.offsetParent,
-                        rect: {
-                            left:
-                                tableElement.offsetLeft +
-                                (cellRect.left - tableRect.left) +
-                                cellPaddingX,
-                            right:
-                                tableElement.offsetLeft +
-                                (cellRect.right - tableRect.left) -
-                                cellPaddingX,
-                            top: dropTargetY,
-                            bottom: dropTargetY,
-                        },
-                        action: {
-                            type: "InsertFileIntoTableCell",
-                            indicator: "Top",
-                            pos: dropTargetPos,
-                        },
+                const dropTargetY =
+                    tableElement.offsetTop +
+                    (cellRect.top - tableRect.top) +
+                    getContentEditorFileDropTargetY({
+                        previous,
+                        next: {node, element},
                     });
+                const dropTargetLeft =
+                    tableElement.offsetLeft + (cellRect.left - tableRect.left) + cellPaddingX;
 
-                    // add the size of the current node to the cell content offset
-                    cellContentOffset += currentNode.nodeSize;
-                }
+                const dropTargetRight =
+                    tableElement.offsetLeft + (cellRect.right - tableRect.left) - cellPaddingX;
+
+                dropTargets.push({
+                    offsetParent: tableElement.offsetParent,
+                    rect: {
+                        left: dropTargetLeft,
+                        right: dropTargetRight,
+                        top: dropTargetY,
+                        bottom: dropTargetY,
+                    },
+                    action: {
+                        type: "InsertFileRowTable",
+                        indicator: "Top",
+                        pos: dropTargetPos,
+                    },
+                });
+
+                // add the size of the current node to the cell content offset
+                dropTargetPos += node.nodeSize;
             }
 
             // In order to add a bottom drop target we need to make sure:
             // - the cell is not empty
             // - the cell is not just an empty paragraph
             // - the cell has content
-            //
             if (
-                cellFragment.content.length > 0 &&
-                !(
-                    cellFragment.content.length === 1 &&
-                    cellFragment.content[0]?.type.name === "paragraph" &&
-                    cellFragment.content[0]?.content.size === 0
-                )
+                actualPrevious !== null &&
+                (cellFragment.content.length !== 1 ||
+                    cellFragment.content[0]?.type.name !== "paragraph" ||
+                    cellFragment.content[0]?.content.size !== 0)
             ) {
-                const lastDOMNode = tableCellElement.lastChild;
-
-                if (lastDOMNode instanceof HTMLElement) {
-                    const lastRect = lastDOMNode.getBoundingClientRect();
-
-                    // Calculate position at the bottom of the last node
-                    const dropTargetY =
-                        tableElement.offsetTop +
-                        (lastRect.bottom - tableRect.top) +
-                        cellPaddingY / 2;
-
-                    dropTargets.push({
-                        offsetParent: tableElement.offsetParent,
-                        rect: {
-                            left:
-                                tableElement.offsetLeft +
-                                (cellRect.left - tableRect.left) +
-                                cellPaddingX,
-                            right:
-                                tableElement.offsetLeft +
-                                (cellRect.right - tableRect.left) -
-                                cellPaddingX,
-                            top: dropTargetY,
-                            bottom: dropTargetY,
-                        },
-                        action: {
-                            type: "InsertFileIntoTableCell",
-                            indicator: "Top",
-                            pos: cellContentOffset, // Position at the end of all cell content
-                        },
+                const dropTargetY =
+                    tableElement.offsetTop +
+                    (cellRect.top - tableRect.top) +
+                    getContentEditorFileDropTargetY({
+                        previous: actualPrevious,
+                        next: null,
                     });
-                }
+
+                const dropTargetLeft =
+                    tableElement.offsetLeft + (cellRect.left - tableRect.left) + cellPaddingX;
+
+                const dropTargetRight =
+                    tableElement.offsetLeft + (cellRect.right - tableRect.left) - cellPaddingX;
+
+                dropTargets.push({
+                    offsetParent: tableElement.offsetParent,
+                    rect: {
+                        left: dropTargetLeft,
+                        right: dropTargetRight,
+                        top: dropTargetY,
+                        bottom: dropTargetY,
+                    },
+                    action: {
+                        type: "InsertFileRowTable",
+                        indicator: "Top",
+                        pos: dropTargetPos,
+                    },
+                });
             }
         }
     }

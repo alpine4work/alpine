@@ -2362,7 +2362,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 }
                                 break;
                             }
-                            case "InsertFileIntoTableCell": {
+                            case "InsertFileRowTable": {
                                 assert(slice.size > 0);
 
                                 const isSourceFileRowTable =
@@ -5518,6 +5518,8 @@ class ContentEditorFileDragState {
                     this._getDraggingPos(),
                 ),
             };
+
+            console.log(this._lastDropTargets.dropTargets);
         }
 
         // User experience win: Wait 100ms to update the drop target we display. That

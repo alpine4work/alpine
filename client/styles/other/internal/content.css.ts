@@ -1986,8 +1986,14 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     // Make sure placeholder is rendered underneath cursor.
     zIndex: -10,
 });
-export const tableCellPaddingY = spacing["3"];
-export const tableCellPaddingX = spacing["4"];
+
+const tableCellPaddingYSpacing = "3";
+const tableCellPaddingY = spacing[tableCellPaddingYSpacing];
+export {tableCellPaddingYSpacing as tableCellPaddingY};
+
+const tableCellPaddingXSpacing = "4";
+const tableCellPaddingX = spacing[tableCellPaddingXSpacing];
+export {tableCellPaddingXSpacing as tableCellPaddingX};
 
 const tableOverflowGradientWidthSpacing = "5";
 export {tableOverflowGradientWidthSpacing as tableOverflowGradientWidth};
@@ -2150,7 +2156,7 @@ globalStyle(`${tableWrapperClassName} td`, {
     position: "relative",
     minWidth: `${tableColumnMinWidthRem}rem`,
     maxWidth: `${tableColumnMaxWidthRem}rem`,
-    padding: `${spacing["3"]} ${spacing["4"]}`,
+    padding: `${tableCellPaddingY} ${tableCellPaddingX}`,
     boxShadow: `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, 1px 0 0 0 ${colorSchemeVars["grey-10"]}`,
 });
 
