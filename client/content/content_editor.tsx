@@ -1,3 +1,5 @@
+import "~/client/helpers/events/register_selection_event_debugger.js";
+
 import classNames from "classnames";
 import {
     File,
@@ -3418,6 +3420,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         let isPointerDownFromSelectableElementAndMoved = false;
 
         const handlePointerDown = (event: PointerEvent) => {
+            console.log("handlePointerDown");
+
             const wasPointerDownFromSelectableElementAndMoved =
                 isPointerDownFromSelectableElementAndMoved;
 
