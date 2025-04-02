@@ -95,6 +95,11 @@ export function isSelectionInContentTable(selection: Selection): boolean {
     return false;
 }
 
+export function isPosInContentTable($pos: ResolvedPos): boolean {
+    for (let d = $pos.depth; d > 0; d--) if ($pos.node(d).type.name === "tableRow") return true;
+    return false;
+}
+
 /**
  * Retrieves the resolved position of the currently selected table cell in the
  * editor state.

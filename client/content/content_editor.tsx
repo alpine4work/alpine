@@ -106,6 +106,7 @@ import {
 import {createContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {
     isInContentTable,
+    isPosInContentTable,
     isSelectionInContentTable,
 } from "~/client/content/internal/table/content_table_client_util.js";
 import {handleContentTablePaste} from "~/client/content/internal/table/content_table_input.js";
@@ -2145,7 +2146,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 dataTransfer: event.dataTransfer,
                 action: ([selection, mouse, draggingFilePos], slice, createTransaction) => {
                     const $mouse = view.state.doc.resolve(assertExists(mouse));
-
                     const fileDropTarget = initialFileDropTarget
                         ? {
                               ...initialFileDropTarget,
@@ -2452,8 +2452,25 @@ function ContentEditor<Content extends ContentWithReferences>(
                     // drag the whole slice and drop in the `content_table`
                     // To ensure that we still are able to convert the fileRow/ fileFloat nodes into
                     // fileRowTable nodes we transform the slice here.
-                    if (isSelectionInContentTable(selection)) {
+                    if (isPosInContentTable($mouse)) {
                         slice = transformPastedForContentTable(schema, slice)[0];
+                        const remainingSlice = transformPastedForContentTable(schema, slice)[1];
+
+                        // Validate remainingSlice exists and has content before proceeding
+                        if (
+                            remainingSlice &&
+                            remainingSlice.content &&
+                            remainingSlice.content.size > 0
+                        ) {
+                            const originalCreateTransaction = createTransaction;
+                            createTransaction = () => {
+                                const transaction = originalCreateTransaction();
+                                // Insert remainingSlice after the table
+                                const insertPos = selection.$anchor.after(1);
+                                transaction.insert(insertPos, remainingSlice.content);
+                                return transaction;
+                            };
+                        }
                     }
 
                     // Implement the same logic as ProseMirror's `drop` function:
@@ -2530,9 +2547,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         const insertFiles = (posOrSelection: number | Selection, files: ReadonlyArray<File>) => {
             if (files.length === 0) return;
 
-            const state = view.state;
-            const isInTable = isInContentTable(state);
-
             const fileIds: Array<FileId> = [];
 
             for (const file of files) {
@@ -2568,7 +2582,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 Fragment.from(
                     fileIdsByRow.map(fileIds =>
                         schema.node(
-                            isInTable ? "fileRowTable" : "fileRow",
+                            isPosInContentTable(view.state.selection.$head)
+                                ? "fileRowTable"
+                                : "fileRow",
                             {},
                             fileIds.map(fileId => schema.node("file", {fileId})),
                         ),
@@ -4721,7 +4737,7 @@ function handlePasteAfterResolvingReferences(
 
         if (isSelectionInContentTable(selection)) {
             slice.content.forEach(node => {
-                if (!isContentTableBlockNode(node)) {
+                if (!isContentTableBlockNode(node) && node.type.name !== "tableRow") {
                     hasNonTableContent = true;
                 }
             });
@@ -4842,7 +4858,6 @@ function transformPastedForContentTable(
 ): [slice: Slice, remainingSlice: Slice] {
     const remainingContent: Array<Node> = []; // paste outside of table in next position
     const primaryContent: Array<Node> = []; // paste inside of table / table cell with modifications
-
     slice.content.content.forEach(node => {
         // NOTE(rohit): It is recommended that once we add one node to remainingContent, all
         // future nodes in the slice should be remainingContent. The reason being if you paste
@@ -4877,49 +4892,8 @@ function transformPastedForContentTable(
         }
 
         switch (node.type.name) {
-            case "tableRow": {
-                // Validate and fix table rows with insufficient cells
-                //
-                // Schema constraint: tableRow requires at least 2 cells
-                // (content: "tableCell{2,}")
-                //
-                // If a pasted tableRow contains only 1 cell:
-                // 1. Create an empty tableCell with a paragraph
-                // 2. Append it to the row's content
-                // 3. Reconstruct the node with updated content
-                //
-                // This ensures all table rows meet our schema requirements
-                // before inserting them into the document.
-                if (node.content.content.length === 1) {
-                    const tableCell = schema.node("tableCell", {}, [schema.node("paragraph")]);
-                    const newContent = [...node.content.content, tableCell];
-
-                    node = node.type.create(node.attrs, Fragment.from(newContent));
-                }
-                primaryContent.push(node);
-
-                break;
-            }
             case "table": {
-                // Same logic as applied for tableRow switch case.
-                if (
-                    node.content.content.length === 1 &&
-                    node.content.content[0]!.type.name === "tableRow" &&
-                    node.content.content[0]!.content.content.length === 1
-                ) {
-                    const tableRow = node.content.content[0]!;
-                    const tableCell = schema.node("tableCell", {}, [schema.node("paragraph")]);
-
-                    const newTableRowContent = [...tableRow.content.content, tableCell];
-                    const newTableRow = tableRow.type.create(
-                        tableRow.attrs,
-                        Fragment.from(newTableRowContent),
-                    );
-
-                    node = node.type.create(node.attrs, Fragment.from([newTableRow]));
-                }
-
-                primaryContent.push(node);
+                remainingContent.push(node);
                 break;
             }
 
