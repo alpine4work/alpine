@@ -72,7 +72,7 @@ export function ShareButton({
             >
                 <Button
                     height="6"
-                    paddingX="2"
+                    paddingX="1.5"
                     // Don't focus the button on press since pressing will open the overlay and
                     // should focus the overlay.
                     //
