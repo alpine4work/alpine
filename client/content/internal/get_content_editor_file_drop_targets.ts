@@ -518,7 +518,13 @@ function addContentEditorTableFileDropTargets({
 
     // NOTE(rohit): If the table has problems then we don't want to add any drop targets
     // because the table will be normalized soon.
-    // NOCOMMIT: add the note which is derived from the PR review and implies why we are adding this check
+    //
+    // Tables can temporarily be in an invalid state (e.g. missing cells in a row) before
+    // being normalized.
+    // Rather than throwing assertions when we encounter these invalid states, which would
+    // crash the app, we simply don't generate any drop targets. This allows us to use a
+    // direct coding style with assertions below while gracefully handling corrupted tables.
+    //
     if (tableMap.problems && tableMap.problems.length > 0) return;
 
     // Define a gap size for spacing between node drop targets
@@ -542,8 +548,10 @@ function addContentEditorTableFileDropTargets({
             const tableCellElement = assertExists(tableCellElements[cellIndex]);
             const cellRect = tableCellElement.getBoundingClientRect();
 
-            // NOCOMMIT: add a note on why we are asserting and not continuing here
-            // get it derived from the PR review
+            // NOTE: using direct coding style to assert that the row and cell nodes are valid
+            // instead of continuing here.
+            // We don't expect these assertions to throw because we check for table problems
+            // above. But if it does, it's better to fail fast.
             const rowNode = tableNode.content.content[rowIndex];
             assert(rowNode?.type.name === "tableRow");
             const cellNode = rowNode.content.content[colIndex];
