@@ -9,6 +9,7 @@ import {parseRemLength, screenPaddingXRem} from "~/shared/design/core/spacing.js
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 
 export type ContentEditorFileDropTarget = {
     readonly offsetParent: Element | null;
@@ -581,6 +582,7 @@ function addContentEditorTableFileDropTargets({
     if (tableMap.problems && tableMap.problems.length > 0) return;
 
     const cellPaddingX = parseRemLength(contentStyles.tableCellPaddingX) * remPx;
+    const cellPaddingY = parseRemLength(contentStyles.tableCellPaddingY) * remPx;
 
     for (let rowIndex = 0; rowIndex < tableMap.height; rowIndex++) {
         for (let columnIndex = 0; columnIndex < tableMap.width; columnIndex++) {
@@ -598,6 +600,14 @@ function addContentEditorTableFileDropTargets({
 
             const cellElement = assertExists(tableCellElements[cellIndex]);
             const cellRect = cellElement.getBoundingClientRect();
+
+            const cellTop = tableElement.offsetTop + (cellRect.top - tableRect.top);
+            const cellBottom = tableElement.offsetTop + (cellRect.bottom - tableRect.top);
+            const cellLeft = tableElement.offsetLeft + (cellRect.left - tableRect.left);
+            const cellRight = tableElement.offsetLeft + (cellRect.right - tableRect.left);
+
+            const minDropTargetY = cellTop + cellPaddingY;
+            const maxDropTargetY = cellBottom - cellPaddingY;
 
             // NOTE: using direct coding style to assert that the row and cell nodes are valid
             // instead of continuing here.
@@ -629,37 +639,27 @@ function addContentEditorTableFileDropTargets({
                 const previous = actualPrevious;
                 actualPrevious = {node, element};
 
-                const dropTargetY =
-                    tableElement.offsetTop +
-                    (cellRect.top - tableRect.top) +
-                    getContentEditorFileDropTargetY({
-                        previous,
-                        next: {node, element},
-                    });
-
-                const dropTargetLeft =
-                    tableElement.offsetLeft + (cellRect.left - tableRect.left) + cellPaddingX;
-
-                const dropTargetRight =
-                    tableElement.offsetLeft + (cellRect.right - tableRect.left) - cellPaddingX;
+                const dropTargetY = clamp(
+                    minDropTargetY,
+                    cellTop +
+                        getContentEditorFileDropTargetY({
+                            previous,
+                            next: {node, element},
+                        }),
+                    maxDropTargetY,
+                );
 
                 dropTargets.push({
                     offsetParent: tableElement.offsetParent,
                     rect: {
-                        left: dropTargetLeft,
-                        right: dropTargetRight,
+                        left: cellLeft + cellPaddingX,
+                        right: cellRight - cellPaddingX,
                         top: dropTargetY,
                         bottom: !isCellEmpty
                             ? dropTargetY
-                            : // If the cell is empty, the only drop target within the cell should cover the
-                              // entire cell. That way if you have a really tall, empty, cell then dragging a
-                              // file anywhere in that empty cell will drop the file in that cell. Instead of
-                              // detecting the closest drop target as the one in the cell below (when you're
-                              // pointer is 75% down the cell).
-                              tableElement.offsetTop +
-                              (cellRect.bottom - tableRect.top) -
-                              (dropTargetY -
-                                  (tableElement.offsetTop + (cellRect.top - tableRect.top))),
+                            : // Extend the last drop target to the bottom of the cell so if the cell is tall
+                              // dragging a file anywhere in the cell will drop into the cell.
+                              cellBottom - cellPaddingY,
                     },
                     action: {
                         type: "InsertFileRowTable",
@@ -677,27 +677,25 @@ function addContentEditorTableFileDropTargets({
             // - the cell is not just an empty paragraph
             // - the cell has content
             if (actualPrevious !== null && !isCellEmpty) {
-                const dropTargetY =
-                    tableElement.offsetTop +
-                    (cellRect.top - tableRect.top) +
-                    getContentEditorFileDropTargetY({
-                        previous: actualPrevious,
-                        next: null,
-                    });
-
-                const dropTargetLeft =
-                    tableElement.offsetLeft + (cellRect.left - tableRect.left) + cellPaddingX;
-
-                const dropTargetRight =
-                    tableElement.offsetLeft + (cellRect.right - tableRect.left) - cellPaddingX;
+                const dropTargetY = clamp(
+                    minDropTargetY,
+                    cellTop +
+                        getContentEditorFileDropTargetY({
+                            previous: actualPrevious,
+                            next: null,
+                        }),
+                    maxDropTargetY,
+                );
 
                 dropTargets.push({
                     offsetParent: tableElement.offsetParent,
                     rect: {
-                        left: dropTargetLeft,
-                        right: dropTargetRight,
+                        left: cellLeft + cellPaddingX,
+                        right: cellRight - cellPaddingX,
                         top: dropTargetY,
-                        bottom: dropTargetY,
+                        // Extend the last drop target to the bottom of the cell so if the cell is tall
+                        // dragging a file anywhere in the cell will drop into the cell.
+                        bottom: cellBottom - cellPaddingY,
                     },
                     action: {
                         type: "InsertFileRowTable",

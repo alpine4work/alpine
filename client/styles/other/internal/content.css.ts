@@ -388,7 +388,8 @@ globalStyle(`${headingLevel2ClassName} + ${headingLevel3ClassName}`, {
     marginTop: headingMarginVars.heading4TopMargin,
 });
 
-const quoteBlockIndentation = "0.825rem";
+const quoteBlockIndentationSpacing = "3";
+const quoteBlockIndentation = spacing[quoteBlockIndentationSpacing];
 const quoteBlockBorderWidth = "0.1875rem";
 
 globalStyle(quoteBlockClassName, {
@@ -1987,11 +1988,12 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     zIndex: -10,
 });
 
-const tableCellPaddingYSpacing = "3";
+const tableCellPaddingYSpacing = "2";
 const tableCellPaddingY = spacing[tableCellPaddingYSpacing];
 export {tableCellPaddingYSpacing as tableCellPaddingY};
 
-const tableCellPaddingXSpacing = "4";
+// Align table cell content with quote block content.
+const tableCellPaddingXSpacing = quoteBlockIndentationSpacing;
 const tableCellPaddingX = spacing[tableCellPaddingXSpacing];
 export {tableCellPaddingXSpacing as tableCellPaddingX};
 
@@ -2412,3 +2414,13 @@ createChildSelectors("first").forEach(selector => globalStyle(selector, {marginT
 
 // Make sure the last child in our document never has bottom margin.
 createChildSelectors("last").forEach(selector => globalStyle(selector, {marginBottom: 0}));
+
+// Make sure we have even margins around files in a table cell.
+globalStyle(`${docClassName} > ${tableWrapperClassName} td > ${fileRowLikeClassName}:first-child`, {
+    marginTop: subtractRemLengths(tableCellPaddingX, tableCellPaddingY),
+});
+
+// Make sure we have even margins around files in a table cell.
+globalStyle(`${docClassName} > ${tableWrapperClassName} td > ${fileRowLikeClassName}:last-child`, {
+    marginBottom: subtractRemLengths(tableCellPaddingX, tableCellPaddingY),
+});
