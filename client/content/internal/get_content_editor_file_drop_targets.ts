@@ -609,8 +609,13 @@ function addContentEditorTableFileDropTargets({
             assert(cellNode?.type.name === "tableCell");
 
             const cellFragment = cellNode.content;
-            let dropTargetPos = absoluteCellPos;
 
+            const isCellEmpty =
+                cellFragment.content.length === 1 &&
+                cellFragment.content[0]?.type.name === "paragraph" &&
+                cellFragment.content[0]?.content.size === 0;
+
+            let dropTargetPos = absoluteCellPos;
             let actualPrevious: {node: Node; element: HTMLElement} | null = null;
 
             // Modified: Create drop targets at the top of each node rather than between nodes
@@ -631,6 +636,7 @@ function addContentEditorTableFileDropTargets({
                         previous,
                         next: {node, element},
                     });
+
                 const dropTargetLeft =
                     tableElement.offsetLeft + (cellRect.left - tableRect.left) + cellPaddingX;
 
@@ -643,7 +649,17 @@ function addContentEditorTableFileDropTargets({
                         left: dropTargetLeft,
                         right: dropTargetRight,
                         top: dropTargetY,
-                        bottom: dropTargetY,
+                        bottom: !isCellEmpty
+                            ? dropTargetY
+                            : // If the cell is empty, the only drop target within the cell should cover the
+                              // entire cell. That way if you have a really tall, empty, cell then dragging a
+                              // file anywhere in that empty cell will drop the file in that cell. Instead of
+                              // detecting the closest drop target as the one in the cell below (when you're
+                              // pointer is 75% down the cell).
+                              tableElement.offsetTop +
+                              (cellRect.bottom - tableRect.top) -
+                              (dropTargetY -
+                                  (tableElement.offsetTop + (cellRect.top - tableRect.top))),
                     },
                     action: {
                         type: "InsertFileRowTable",
@@ -660,12 +676,7 @@ function addContentEditorTableFileDropTargets({
             // - the cell is not empty
             // - the cell is not just an empty paragraph
             // - the cell has content
-            if (
-                actualPrevious !== null &&
-                (cellFragment.content.length !== 1 ||
-                    cellFragment.content[0]?.type.name !== "paragraph" ||
-                    cellFragment.content[0]?.content.size !== 0)
-            ) {
+            if (actualPrevious !== null && !isCellEmpty) {
                 const dropTargetY =
                     tableElement.offsetTop +
                     (cellRect.top - tableRect.top) +
