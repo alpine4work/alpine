@@ -1,5 +1,3 @@
-import "~/client/helpers/events/register_selection_event_debugger.js";
-
 import classNames from "classnames";
 import {
     File,
