@@ -5495,8 +5495,9 @@ class ContentEditorFileDragState {
         const topBlockIndex = $pos.index(0);
         const spacingScale = getSpacingScaleWithoutListening();
 
-        // Recompute drop targets if the mouse moved over a new top block
-        // or a new table cell content block
+        // Recompute drop targets if the mouse moved over a new top block or anything
+        // changed that may have updated the layout of our content (e.g. `viewWidth`
+        // resizing changes how text flows).
         if (
             viewWidth !== this._lastDropTargets?.viewWidth ||
             viewHeight !== this._lastDropTargets.viewHeight ||

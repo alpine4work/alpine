@@ -82,7 +82,7 @@ export function getContentEditorFileDropTargets(
 
     const spacingScale = getSpacingScaleWithoutListening();
     const remPx = remPxBySpacingScale[spacingScale];
-    const nodeCount = doc.content.content.length;
+    const blockNodeCount = doc.content.content.length;
     let seekBackwardsCount = 1;
     let seekForwardsCount = 2;
 
@@ -112,81 +112,48 @@ export function getContentEditorFileDropTargets(
     let element: HTMLElement | null = null;
     const previousFileFloats: Array<{node: Node; pos: number}> = [];
 
-    for (let i = 0; i < nodeCount; i++) {
-        const node = doc.content.content[i]!;
+    for (let blockNodeIndex = 0; blockNodeIndex < blockNodeCount; blockNodeIndex++) {
+        const currentNode = doc.content.content[blockNodeIndex]!;
 
         const pos = nextPos;
-        nextPos += node.nodeSize;
+        nextPos += currentNode.nodeSize;
 
         // Ignore floating files. They're not positioned normally in the document so
         // cause drop targets to be rendered in weird positions.
-        if (node.type.name === "fileFloat") {
-            previousFileFloats.push({node, pos});
+        if (currentNode.type.name === "fileFloat") {
+            previousFileFloats.push({node: currentNode, pos});
             continue;
         }
 
         // We need the element before `startIndex` but let's not run `view.nodeDOM()`
         // for any other elements.
-        if (i < startIndex - 1) continue;
+        if (blockNodeIndex < startIndex - 1) continue;
 
         // If we're past `aroundIndex` then decrement `seekForwardsCount` until we
         // reach 0.
-        if (i > aroundIndex) {
+        if (blockNodeIndex > aroundIndex) {
             if (seekForwardsCount <= 0) break;
             seekForwardsCount--;
         }
 
         const currentElement = view.nodeDOM(pos);
         if (!(currentElement instanceof HTMLElement)) continue;
-        const lastElement = element;
+        const previousBlockElement = element;
         element = currentElement;
-        if (i < startIndex) continue;
+        if (blockNodeIndex < startIndex) continue;
 
         // Horizontal Drop Target Creation
-        if (doc.canReplaceWith(i, i, schema.nodes.fileRow)) {
-            // NOCOMMIT: make a reusable function to get the drop target offset for files. use the same in fileRowtable.
-            // so this will be fileRowLike
-            previousDropTargetOffsetY = lastElement
-                ? (element.offsetTop - (lastElement.offsetTop + lastElement.offsetHeight)) / 2
-                : defaultDropTargetOffsetY;
+        if (doc.canReplaceWith(blockNodeIndex, blockNodeIndex, schema.nodes.fileRow)) {
+            const {dropTargetY, previousBlockSpacing: newPreviousDropTargetOffsetY} = getOffsetY({
+                previousBlockSpacing: previousDropTargetOffsetY,
+                previousBlockElement: previousBlockElement,
+                currentBlockElement: element,
+                defaultBlockSpacing: defaultDropTargetOffsetY,
+                prosemirrorDoc: doc,
+                blockNodeIndex,
+            });
 
-            // If heading is at the end of the document and a file is dragged below it,
-            // let's use paragraph margin for the drop target offset instead of the
-            // heading's margin from above.
-            if (node.type.name === "heading") {
-                previousDropTargetOffsetY = Math.min(
-                    previousDropTargetOffsetY,
-                    defaultDropTargetOffsetY,
-                );
-            }
-
-            let dropTargetY: number;
-
-            // If we are dropping above a `fileRow` then always use the file row gap to
-            // offset our drop target rect. Don't save this in `lastDropTargetOffsetY`
-            // since this adjustment may not make sense for the last block in our doc.
-            if (node.type.name === "fileRow") {
-                dropTargetY = element.offsetTop - (contentStyles.fileRowGapWidthRem * remPx) / 2;
-            }
-            // If we are dropping below a `fileRow` then always use the file row gap to
-            // offset our drop target rect. Don't save this in `lastDropTargetOffsetY`
-            // since this adjustment may not make sense for the last block in our doc.
-            else if (lastElement && doc.content.content[i - 1]!.type.name === "fileRow") {
-                dropTargetY =
-                    lastElement.offsetTop +
-                    lastElement.offsetHeight +
-                    (contentStyles.fileRowGapWidthRem * remPx) / 2;
-            }
-            // If we are dropping above a `heading` then add `lastDropTargetOffsetY` to the
-            // last top block element's bottom instead of subtracting it from this top block
-            // element's top. Since the heading creates a new section the dropped file
-            // should appear to logically be a part of the previous section.
-            else if (lastElement && node.type.name === "heading") {
-                dropTargetY =
-                    lastElement.offsetTop + lastElement.offsetHeight + previousDropTargetOffsetY;
-            } else {
-                dropTargetY = element.offsetTop - previousDropTargetOffsetY;
-            }
+            previousDropTargetOffsetY = newPreviousDropTargetOffsetY;
 
             let dropTargetLeft = element.offsetLeft;
             let dropTargetRight = element.offsetLeft + element.offsetWidth;
@@ -250,7 +217,7 @@ export function getContentEditorFileDropTargets(
             });
         }
 
-        const isDraggingFileInParent = $draggingFilePos?.parent === node;
+        const isDraggingFileInParent = $draggingFilePos?.parent === currentNode;
 
         // Create some dead space with `action: null` if we're dragging the file in
         // this node. The dead space means if the user starts dragging a file, doesn't
@@ -301,8 +268,8 @@ export function getContentEditorFileDropTargets(
         // which'll allow you to create a gallery when dropping a file to the left or
         // right.
         if (
-            node.type.name === "fileRow" &&
-            (node.childCount < 3 || (isDraggingFileInParent && node.childCount < 4))
+            currentNode.type.name === "fileRow" &&
+            (currentNode.childCount < 3 || (isDraggingFileInParent && currentNode.childCount < 4))
         ) {
             const elementRect = element.getBoundingClientRect();
 
@@ -341,7 +308,7 @@ export function getContentEditorFileDropTargets(
                 });
             }
 
-            if (node.type.name === "fileRow" && node.childCount >= 2) {
+            if (currentNode.type.name === "fileRow" && currentNode.childCount >= 2) {
                 const fileRowLeftElement = element.firstElementChild;
 
                 if (fileRowLeftElement instanceof HTMLElement) {
@@ -376,7 +343,11 @@ export function getContentEditorFileDropTargets(
                 }
             }
 
-            if (node.type.name === "fileRow" && isDraggingFileInParent && node.childCount >= 3) {
+            if (
+                currentNode.type.name === "fileRow" &&
+                isDraggingFileInParent &&
+                currentNode.childCount >= 3
+            ) {
                 const fileRowLeftElement = element.firstElementChild?.nextElementSibling;
 
                 if (fileRowLeftElement instanceof HTMLElement) {
@@ -442,17 +413,21 @@ export function getContentEditorFileDropTargets(
                     action: {
                         type: "InsertFileIntoRow",
                         indicator: "Left",
-                        pos: pos + node.nodeSize - 1,
+                        pos: pos + currentNode.nodeSize - 1,
                     },
                 });
             }
         }
 
-        if (schema.nodes.fileRowTable && node.type.name === "table" && i === aroundIndex) {
+        if (
+            schema.nodes.fileRowTable &&
+            currentNode.type.name === "table" &&
+            blockNodeIndex === aroundIndex
+        ) {
             // Recusrively traverse the table cells and generate all drop targets
             // doing this in a function
             addContentEditorTableFileDropTargets({
-                tableNode: node,
+                tableNode: currentNode,
                 tableElement: element,
                 dropTargets,
                 tablePos: pos,
@@ -464,7 +439,7 @@ export function getContentEditorFileDropTargets(
     if (
         seekForwardsCount > 0 &&
         element &&
-        doc.canReplaceWith(nodeCount, nodeCount, schema.nodes.fileRow)
+        doc.canReplaceWith(blockNodeCount, blockNodeCount, schema.nodes.fileRow)
     ) {
         seekForwardsCount--;
 
@@ -493,6 +468,81 @@ export function getContentEditorFileDropTargets(
         });
     }
     return dropTargets;
+}
+
+/**
+ * Calculates the vertical offset and spacing for file drop targets between document blocks.
+ * This function handles special cases for different block types (fileRow, heading, etc.)
+ * to ensure optimal visual placement of drop targets.
+ */
+function getOffsetY({
+    previousBlockSpacing,
+    previousBlockElement,
+    currentBlockElement,
+    defaultBlockSpacing,
+    prosemirrorDoc,
+    blockNodeIndex,
+}: {
+    previousBlockSpacing: number;
+    previousBlockElement: HTMLElement | null;
+    currentBlockElement: HTMLElement;
+    defaultBlockSpacing: number;
+    prosemirrorDoc: Node;
+    blockNodeIndex: number;
+}): {dropTargetY: number; previousBlockSpacing: number} {
+    const spacingScale = getSpacingScaleWithoutListening();
+    const remPx = remPxBySpacingScale[spacingScale];
+    const currentNode = prosemirrorDoc.content.content[blockNodeIndex]!;
+
+    previousBlockSpacing = previousBlockElement
+        ? (currentBlockElement.offsetTop -
+              (previousBlockElement.offsetTop + previousBlockElement.offsetHeight)) /
+          2
+        : defaultBlockSpacing;
+
+    // If heading is at the end of the document and a file is dragged below it,
+    // let's use paragraph margin for the drop target offset instead of the
+    // heading's margin from above.
+    if (currentNode.type.name === "heading") {
+        previousBlockSpacing = Math.min(previousBlockSpacing, defaultBlockSpacing);
+    }
+
+    let dropTargetY: number;
+
+    // If we are dropping above a `fileRow` then always use the file row gap to
+    // offset our drop target rect. Don't save this in `lastDropTargetOffsetY`
+    // since this adjustment may not make sense for the last block in our doc.
+    if (currentNode.type.name === "fileRow") {
+        dropTargetY =
+            currentBlockElement.offsetTop - (contentStyles.fileRowGapWidthRem * remPx) / 2;
+    }
+
+    // // If we are dropping below a `fileRow` then always use the file row gap to
+    // // offset our drop target rect. Don't save this in `lastDropTargetOffsetY`
+    // // since this adjustment may not make sense for the last block in our doc.
+    else if (
+        previousBlockElement &&
+        prosemirrorDoc.content.content[blockNodeIndex - 1]!.type.name === "fileRow"
+    ) {
+        dropTargetY =
+            previousBlockElement.offsetTop +
+            previousBlockElement.offsetHeight +
+            (contentStyles.fileRowGapWidthRem * remPx) / 2;
+    }
+
+    // If we are dropping above a `heading` then add `lastDropTargetOffsetY` to the
+    // last top block element's bottom instead of subtracting it from this top block
+    // element's top. Since the heading creates a new section the dropped file
+    // should appear to logically be a part of the previous section.
+    else if (previousBlockElement && currentNode.type.name === "heading") {
+        dropTargetY =
+            previousBlockElement.offsetTop +
+            previousBlockElement.offsetHeight +
+            previousBlockSpacing;
+    } else {
+        dropTargetY = currentBlockElement.offsetTop - previousBlockSpacing;
+    }
+    return {dropTargetY, previousBlockSpacing};
 }
 
 function addContentEditorTableFileDropTargets({
