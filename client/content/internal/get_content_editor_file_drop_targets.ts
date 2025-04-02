@@ -663,7 +663,7 @@ function addContentEditorTableFileDropTargets({
                         },
                         action: {
                             type: "InsertFileIntoTableCell",
-                            indicator: "Bottom",
+                            indicator: "Top",
                             pos: cellContentOffset, // Position at the end of all cell content
                         },
                     });
